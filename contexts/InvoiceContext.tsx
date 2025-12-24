@@ -85,7 +85,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
 
         const newInvoice: Invoice = {
             id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            projectId: estimate.projectId,
+            projectId: estimate.projectId ?? '',
             estimateId: estimate.id,
             invoiceNumber: `INV-${Date.now()}`,
             title: estimate.title,
