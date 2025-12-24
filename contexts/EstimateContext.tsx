@@ -5,66 +5,120 @@ import { Estimate, EstimateInput } from '@/types/estimate';
 
 interface EstimateContextType {
     estimates: Estimate[];
-    addEstimate: (estimate: EstimateInput) => Estimate;
-    updateEstimate: (id: string, estimate: Partial<EstimateInput>) => void;
-    deleteEstimate: (id: string) => void;
+    isLoading: boolean;
+    addEstimate: (estimate: EstimateInput) => Promise<Estimate>;
+    updateEstimate: (id: string, estimate: Partial<EstimateInput>) => Promise<void>;
+    deleteEstimate: (id: string) => Promise<void>;
     getEstimate: (id: string) => Estimate | undefined;
     getEstimatesByProject: (projectId: string) => Estimate[];
+    refreshEstimates: () => Promise<void>;
 }
 
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'yusystem_estimates';
-
 export function EstimateProvider({ children }: { children: ReactNode }) {
     const [estimates, setEstimates] = useState<Estimate[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load from LocalStorage on mount
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                // Convert date strings back to Date objects
-                const estimatesWithDates = parsed.map((est: any) => ({
-                    ...est,
-                    validUntil: new Date(est.validUntil),
-                    createdAt: new Date(est.createdAt),
-                    updatedAt: new Date(est.updatedAt),
+    // Fetch estimates from API
+    const fetchEstimates = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch('/api/estimates');
+            if (response.ok) {
+                const data = await response.json();
+                // Convert date strings to Date objects
+                const parsedEstimates = data.map((estimate: any) => ({
+                    ...estimate,
+                    validUntil: new Date(estimate.validUntil),
+                    createdAt: new Date(estimate.createdAt),
+                    updatedAt: new Date(estimate.updatedAt),
                 }));
-                setEstimates(estimatesWithDates);
-            } catch (error) {
-                console.error('Failed to load estimates:', error);
+                setEstimates(parsedEstimates);
             }
+        } catch (error) {
+            console.error('Failed to fetch estimates:', error);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
-    // Save to LocalStorage whenever estimates change
+    // Load estimates on mount
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(estimates));
-    }, [estimates]);
+        fetchEstimates();
+    }, [fetchEstimates]);
 
-    const addEstimate = useCallback((input: EstimateInput): Estimate => {
-        const newEstimate: Estimate = {
-            ...input,
-            id: `est-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-        setEstimates(prev => [...prev, newEstimate]);
-        return newEstimate;
+    const addEstimate = useCallback(async (input: EstimateInput): Promise<Estimate> => {
+        try {
+            const response = await fetch('/api/estimates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+            });
+
+            if (response.ok) {
+                const newEstimate = await response.json();
+                const parsedEstimate = {
+                    ...newEstimate,
+                    validUntil: new Date(newEstimate.validUntil),
+                    createdAt: new Date(newEstimate.createdAt),
+                    updatedAt: new Date(newEstimate.updatedAt),
+                };
+                setEstimates(prev => [...prev, parsedEstimate]);
+                return parsedEstimate;
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '見積の追加に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to add estimate:', error);
+            throw error;
+        }
     }, []);
 
-    const updateEstimate = useCallback((id: string, input: Partial<EstimateInput>) => {
-        setEstimates(prev => prev.map(est =>
-            est.id === id
-                ? { ...est, ...input, updatedAt: new Date() }
-                : est
-        ));
+    const updateEstimate = useCallback(async (id: string, input: Partial<EstimateInput>) => {
+        try {
+            const response = await fetch(`/api/estimates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+            });
+
+            if (response.ok) {
+                const updatedEstimate = await response.json();
+                const parsedEstimate = {
+                    ...updatedEstimate,
+                    validUntil: new Date(updatedEstimate.validUntil),
+                    createdAt: new Date(updatedEstimate.createdAt),
+                    updatedAt: new Date(updatedEstimate.updatedAt),
+                };
+                setEstimates(prev => prev.map(est => est.id === id ? parsedEstimate : est));
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '見積の更新に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to update estimate:', error);
+            throw error;
+        }
     }, []);
 
-    const deleteEstimate = useCallback((id: string) => {
-        setEstimates(prev => prev.filter(est => est.id !== id));
+    const deleteEstimate = useCallback(async (id: string) => {
+        try {
+            const response = await fetch(`/api/estimates/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                setEstimates(prev => prev.filter(est => est.id !== id));
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '見積の削除に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to delete estimate:', error);
+            throw error;
+        }
     }, []);
 
     const getEstimate = useCallback((id: string) => {
@@ -79,11 +133,13 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
         <EstimateContext.Provider
             value={{
                 estimates,
+                isLoading,
                 addEstimate,
                 updateEstimate,
                 deleteEstimate,
                 getEstimate,
                 getEstimatesByProject,
+                refreshEstimates: fetchEstimates,
             }}
         >
             {children}

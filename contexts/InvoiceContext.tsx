@@ -6,68 +6,124 @@ import { Estimate } from '@/types/estimate';
 
 interface InvoiceContextType {
     invoices: Invoice[];
-    addInvoice: (invoice: InvoiceInput) => Invoice;
-    updateInvoice: (id: string, invoice: Partial<InvoiceInput>) => void;
-    deleteInvoice: (id: string) => void;
+    isLoading: boolean;
+    addInvoice: (invoice: InvoiceInput) => Promise<Invoice>;
+    updateInvoice: (id: string, invoice: Partial<InvoiceInput>) => Promise<void>;
+    deleteInvoice: (id: string) => Promise<void>;
     getInvoice: (id: string) => Invoice | undefined;
     getInvoicesByProject: (projectId: string) => Invoice[];
-    createInvoiceFromEstimate: (estimate: Estimate) => Invoice;
+    createInvoiceFromEstimate: (estimate: Estimate) => Promise<Invoice>;
+    refreshInvoices: () => Promise<void>;
 }
 
 const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'yusystem_invoices';
-
 export function InvoiceProvider({ children }: { children: ReactNode }) {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load from LocalStorage on mount
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                // Convert date strings back to Date objects
-                const invoicesWithDates = parsed.map((inv: any) => ({
-                    ...inv,
-                    dueDate: new Date(inv.dueDate),
-                    paidDate: inv.paidDate ? new Date(inv.paidDate) : undefined,
-                    createdAt: new Date(inv.createdAt),
-                    updatedAt: new Date(inv.updatedAt),
+    // Fetch invoices from API
+    const fetchInvoices = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch('/api/invoices');
+            if (response.ok) {
+                const data = await response.json();
+                // Convert date strings to Date objects
+                const parsedInvoices = data.map((invoice: any) => ({
+                    ...invoice,
+                    dueDate: new Date(invoice.dueDate),
+                    paidDate: invoice.paidDate ? new Date(invoice.paidDate) : undefined,
+                    createdAt: new Date(invoice.createdAt),
+                    updatedAt: new Date(invoice.updatedAt),
                 }));
-                setInvoices(invoicesWithDates);
-            } catch (error) {
-                console.error('Failed to load invoices:', error);
+                setInvoices(parsedInvoices);
             }
+        } catch (error) {
+            console.error('Failed to fetch invoices:', error);
+        } finally {
+            setIsLoading(false);
         }
     }, []);
 
-    // Save to LocalStorage whenever invoices change
+    // Load invoices on mount
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(invoices));
-    }, [invoices]);
+        fetchInvoices();
+    }, [fetchInvoices]);
 
-    const addInvoice = useCallback((input: InvoiceInput): Invoice => {
-        const newInvoice: Invoice = {
-            ...input,
-            id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
-        setInvoices(prev => [...prev, newInvoice]);
-        return newInvoice;
+    const addInvoice = useCallback(async (input: InvoiceInput): Promise<Invoice> => {
+        try {
+            const response = await fetch('/api/invoices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+            });
+
+            if (response.ok) {
+                const newInvoice = await response.json();
+                const parsedInvoice = {
+                    ...newInvoice,
+                    dueDate: new Date(newInvoice.dueDate),
+                    paidDate: newInvoice.paidDate ? new Date(newInvoice.paidDate) : undefined,
+                    createdAt: new Date(newInvoice.createdAt),
+                    updatedAt: new Date(newInvoice.updatedAt),
+                };
+                setInvoices(prev => [...prev, parsedInvoice]);
+                return parsedInvoice;
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '請求書の追加に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to add invoice:', error);
+            throw error;
+        }
     }, []);
 
-    const updateInvoice = useCallback((id: string, input: Partial<InvoiceInput>) => {
-        setInvoices(prev => prev.map(inv =>
-            inv.id === id
-                ? { ...inv, ...input, updatedAt: new Date() }
-                : inv
-        ));
+    const updateInvoice = useCallback(async (id: string, input: Partial<InvoiceInput>) => {
+        try {
+            const response = await fetch(`/api/invoices/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+            });
+
+            if (response.ok) {
+                const updatedInvoice = await response.json();
+                const parsedInvoice = {
+                    ...updatedInvoice,
+                    dueDate: new Date(updatedInvoice.dueDate),
+                    paidDate: updatedInvoice.paidDate ? new Date(updatedInvoice.paidDate) : undefined,
+                    createdAt: new Date(updatedInvoice.createdAt),
+                    updatedAt: new Date(updatedInvoice.updatedAt),
+                };
+                setInvoices(prev => prev.map(inv => inv.id === id ? parsedInvoice : inv));
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '請求書の更新に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to update invoice:', error);
+            throw error;
+        }
     }, []);
 
-    const deleteInvoice = useCallback((id: string) => {
-        setInvoices(prev => prev.filter(inv => inv.id !== id));
+    const deleteInvoice = useCallback(async (id: string) => {
+        try {
+            const response = await fetch(`/api/invoices/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                setInvoices(prev => prev.filter(inv => inv.id !== id));
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || '請求書の削除に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to delete invoice:', error);
+            throw error;
+        }
     }, []);
 
     const getInvoice = useCallback((id: string) => {
@@ -78,14 +134,9 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
         return invoices.filter(inv => inv.projectId === projectId);
     }, [invoices]);
 
-    const createInvoiceFromEstimate = useCallback((estimate: Estimate): Invoice => {
-        // 見積書から請求書を生成
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30); // 30日後を支払期限に
-
-        const newInvoice: Invoice = {
-            id: `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            projectId: estimate.projectId ?? '',
+    const createInvoiceFromEstimate = useCallback(async (estimate: Estimate): Promise<Invoice> => {
+        const invoiceInput: InvoiceInput = {
+            projectId: estimate.projectId || '',
             estimateId: estimate.id,
             invoiceNumber: `INV-${Date.now()}`,
             title: estimate.title,
@@ -93,27 +144,26 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
             subtotal: estimate.subtotal,
             tax: estimate.tax,
             total: estimate.total,
-            dueDate,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
             status: 'draft',
             notes: estimate.notes,
-            createdAt: new Date(),
-            updatedAt: new Date(),
         };
 
-        setInvoices(prev => [...prev, newInvoice]);
-        return newInvoice;
-    }, []);
+        return await addInvoice(invoiceInput);
+    }, [addInvoice]);
 
     return (
         <InvoiceContext.Provider
             value={{
                 invoices,
+                isLoading,
                 addInvoice,
                 updateInvoice,
                 deleteInvoice,
                 getInvoice,
                 getInvoicesByProject,
                 createInvoiceFromEstimate,
+                refreshInvoices: fetchInvoices,
             }}
         >
             {children}

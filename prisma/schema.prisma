@@ -51,3 +51,59 @@ model Project {
   @@index([assignedEmployeeId])
   @@index([startDate])
 }
+
+model Customer {
+  id              String   @id @default(uuid())
+  name            String
+  shortName       String?
+  contactPersons  String?  // JSON array of ContactPerson
+  email           String?
+  phone           String?
+  fax             String?
+  address         String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([name])
+}
+
+model Estimate {
+  id              String   @id @default(uuid())
+  projectId       String?
+  estimateNumber  String   @unique
+  title           String
+  items           String   // JSON array of EstimateItem
+  subtotal        Float
+  tax             Float
+  total           Float
+  validUntil      DateTime
+  status          String   @default("draft")
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([estimateNumber])
+  @@index([projectId])
+}
+
+model Invoice {
+  id             String    @id @default(uuid())
+  projectId      String
+  estimateId     String?
+  invoiceNumber  String    @unique
+  title          String
+  items          String    // JSON array of EstimateItem
+  subtotal       Float
+  tax            Float
+  total          Float
+  dueDate        DateTime
+  status         String    @default("draft")
+  paidDate       DateTime?
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([invoiceNumber])
+  @@index([projectId])
+}
