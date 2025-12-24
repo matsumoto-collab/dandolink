@@ -49,7 +49,10 @@ export async function POST(req: NextRequest) {
     } catch (error) {
         console.error('Database initialization error:', error);
         return NextResponse.json(
-            { error: 'データベースの初期化に失敗しました' },
+            {
+                error: 'データベースの初期化に失敗しました',
+                details: error instanceof Error ? error.message : String(error)
+            },
             { status: 500 }
         );
     }
