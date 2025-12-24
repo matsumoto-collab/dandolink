@@ -1,158 +1,189 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
 import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { v4 as uuidv4 } from 'uuid';
 
 interface ProjectContextType {
     projects: Project[];
-    addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
-    updateProject: (id: string, updates: Partial<Project>) => void;
-    updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => void;
-    deleteProject: (id: string) => void;
+    isLoading: boolean;
+    addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+    updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+    updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => Promise<void>;
+    deleteProject: (id: string) => Promise<void>;
     getProjectById: (id: string) => Project | undefined;
-    getCalendarEvents: () => CalendarEvent[]; // 案件をカレンダーイベントに展開
+    getCalendarEvents: () => CalendarEvent[];
+    refreshProjects: () => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-    const [projects, setProjects] = useLocalStorage<Project[]>('projects', []);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // 案件マスターを自動同期する関数
-    const syncToProjectMaster = useCallback((project: Project) => {
-        // LocalStorageから案件マスターを取得
-        const mastersJson = localStorage.getItem('yusystem_project_masters');
-        let masters = mastersJson ? JSON.parse(mastersJson) : [];
-
-        // 同じ現場名・元請会社の案件マスターを検索
-        const existingMaster = masters.find(
-            (m: any) => m.siteName === project.title && m.parentCompany === project.customer
-        );
-
-        if (existingMaster) {
-            // 既存の案件マスターを更新
-            const constructionTypes: Array<{ type: string; scheduledStartDate?: string }> = [];
-
-            if (project.assemblyStartDate) {
-                constructionTypes.push({
-                    type: 'assembly',
-                    scheduledStartDate: project.assemblyStartDate.toISOString().split('T')[0],
-                });
+    // Fetch projects from API
+    const fetchProjects = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const data = await response.json();
+                // Convert date strings to Date objects
+                const parsedProjects = data.map((project: any) => ({
+                    ...project,
+                    startDate: new Date(project.startDate),
+                    endDate: project.endDate ? new Date(project.endDate) : undefined,
+                    assemblyStartDate: project.assemblyStartDate ? new Date(project.assemblyStartDate) : undefined,
+                    demolitionStartDate: project.demolitionStartDate ? new Date(project.demolitionStartDate) : undefined,
+                    createdAt: new Date(project.createdAt),
+                    updatedAt: new Date(project.updatedAt),
+                }));
+                setProjects(parsedProjects);
             }
-
-            if (project.demolitionStartDate) {
-                constructionTypes.push({
-                    type: 'demolition',
-                    scheduledStartDate: project.demolitionStartDate.toISOString().split('T')[0],
-                });
-            }
-
-            // 既存の工事種別とマージ（重複を避ける）
-            existingMaster.constructionTypes = [
-                ...existingMaster.constructionTypes.filter(
-                    (ct: any) => !constructionTypes.some((newCt) => newCt.type === ct.type)
-                ),
-                ...constructionTypes,
-            ];
-            existingMaster.updatedAt = new Date().toISOString();
-        } else {
-            // 新しい案件マスターを作成
-            const constructionTypes: Array<{ type: string; scheduledStartDate?: string }> = [];
-
-            if (project.assemblyStartDate) {
-                constructionTypes.push({
-                    type: 'assembly',
-                    scheduledStartDate: project.assemblyStartDate.toISOString().split('T')[0],
-                });
-            }
-
-            if (project.demolitionStartDate) {
-                constructionTypes.push({
-                    type: 'demolition',
-                    scheduledStartDate: project.demolitionStartDate.toISOString().split('T')[0],
-                });
-            }
-
-            const newMaster = {
-                id: `master-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                siteName: project.title,
-                parentCompany: project.customer || '',
-                constructionTypes,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-            };
-
-            masters.push(newMaster);
+        } catch (error) {
+            console.error('Failed to fetch projects:', error);
+        } finally {
+            setIsLoading(false);
         }
-
-        // LocalStorageに保存
-        localStorage.setItem('yusystem_project_masters', JSON.stringify(masters));
     }, []);
 
-    // 案件を追加
-    const addProject = useCallback((projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-        const newProject: Project = {
-            ...projectData,
-            id: uuidv4(),
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        };
+    // Load projects on mount
+    useEffect(() => {
+        fetchProjects();
+    }, [fetchProjects]);
 
-        setProjects(prev => [...prev, newProject]);
+    // Add project
+    const addProject = useCallback(async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+        try {
+            const response = await fetch('/api/projects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(projectData),
+            });
 
-        // 案件マスターに自動同期
-        syncToProjectMaster(newProject);
-    }, [setProjects, syncToProjectMaster]);
+            if (response.ok) {
+                const newProject = await response.json();
+                // Convert date strings to Date objects
+                const parsedProject = {
+                    ...newProject,
+                    startDate: new Date(newProject.startDate),
+                    endDate: newProject.endDate ? new Date(newProject.endDate) : undefined,
+                    assemblyStartDate: newProject.assemblyStartDate ? new Date(newProject.assemblyStartDate) : undefined,
+                    demolitionStartDate: newProject.demolitionStartDate ? new Date(newProject.demolitionStartDate) : undefined,
+                    createdAt: new Date(newProject.createdAt),
+                    updatedAt: new Date(newProject.updatedAt),
+                };
+                setProjects(prev => [...prev, parsedProject]);
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'プロジェクトの追加に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to add project:', error);
+            throw error;
+        }
+    }, []);
 
-    // 案件を更新
-    const updateProject = useCallback((id: string, updates: Partial<Project>) => {
-        setProjects(prev =>
-            prev.map(project => {
-                if (project.id === id) {
-                    const updatedProject = { ...project, ...updates, updatedAt: new Date() };
-                    // 案件マスターに自動同期
-                    syncToProjectMaster(updatedProject);
-                    return updatedProject;
-                }
-                return project;
-            })
-        );
-    }, [setProjects, syncToProjectMaster]);
+    // Update project
+    const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+        try {
+            const response = await fetch(`/api/projects/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updates),
+            });
 
-    // 複数の案件を一括更新
-    const updateProjects = useCallback((updates: Array<{ id: string; data: Partial<Project> }>) => {
-        setProjects(prev =>
-            prev.map(project => {
-                const update = updates.find(u => u.id === project.id);
-                if (update) {
-                    const updatedProject = { ...project, ...update.data, updatedAt: new Date() };
-                    // 案件マスターに自動同期
-                    syncToProjectMaster(updatedProject);
-                    return updatedProject;
-                }
-                return project;
-            })
-        );
-    }, [setProjects, syncToProjectMaster]);
+            if (response.ok) {
+                const updatedProject = await response.json();
+                // Convert date strings to Date objects
+                const parsedProject = {
+                    ...updatedProject,
+                    startDate: new Date(updatedProject.startDate),
+                    endDate: updatedProject.endDate ? new Date(updatedProject.endDate) : undefined,
+                    assemblyStartDate: updatedProject.assemblyStartDate ? new Date(updatedProject.assemblyStartDate) : undefined,
+                    demolitionStartDate: updatedProject.demolitionStartDate ? new Date(updatedProject.demolitionStartDate) : undefined,
+                    createdAt: new Date(updatedProject.createdAt),
+                    updatedAt: new Date(updatedProject.updatedAt),
+                };
+                setProjects(prev => prev.map(p => p.id === id ? parsedProject : p));
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'プロジェクトの更新に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to update project:', error);
+            throw error;
+        }
+    }, []);
 
-    // 案件を削除
-    const deleteProject = useCallback((id: string) => {
-        setProjects(prev => prev.filter(project => project.id !== id));
-    }, [setProjects]);
+    // Batch update projects
+    const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
+        try {
+            // Optimistically update local state first for smooth UI
+            setProjects(prev => {
+                const updatedProjects = [...prev];
+                updates.forEach(update => {
+                    const index = updatedProjects.findIndex(p => p.id === update.id);
+                    if (index !== -1) {
+                        updatedProjects[index] = {
+                            ...updatedProjects[index],
+                            ...update.data,
+                            updatedAt: new Date(),
+                        };
+                    }
+                });
+                return updatedProjects;
+            });
 
-    // IDで案件を取得
+            // Send update to server
+            const response = await fetch('/api/projects/batch', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ updates }),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                // Revert on error
+                await fetchProjects();
+                throw new Error(error.error || 'プロジェクトの一括更新に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to batch update projects:', error);
+            throw error;
+        }
+    }, [fetchProjects]);
+
+    // Delete project
+    const deleteProject = useCallback(async (id: string) => {
+        try {
+            const response = await fetch(`/api/projects/${id}`, {
+                method: 'DELETE',
+            });
+
+            if (response.ok) {
+                setProjects(prev => prev.filter(p => p.id !== id));
+            } else {
+                const error = await response.json();
+                throw new Error(error.error || 'プロジェクトの削除に失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to delete project:', error);
+            throw error;
+        }
+    }, []);
+
+    // Get project by ID
     const getProjectById = useCallback((id: string) => {
         return projects.find(project => project.id === id);
     }, [projects]);
 
-    // 案件をカレンダーイベントに展開
+    // Convert projects to calendar events
     const getCalendarEvents = useCallback((): CalendarEvent[] => {
         const events: CalendarEvent[] = [];
 
         projects.forEach(project => {
-            // 新しい構造: workSchedules
+            // New structure: workSchedules
             if (project.workSchedules && project.workSchedules.length > 0) {
                 project.workSchedules.forEach(schedule => {
                     schedule.dailySchedules.forEach((daily, index) => {
@@ -173,8 +204,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     });
                 });
             } else {
-                // 後方互換性: 既存のassemblyStartDate/demolitionStartDate
-                // 組立イベント
+                // Backward compatibility: existing assemblyStartDate/demolitionStartDate
+                // Assembly event
                 if (project.assemblyStartDate) {
                     events.push({
                         ...project,
@@ -186,7 +217,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     });
                 }
 
-                // 解体イベント
+                // Demolition event
                 if (project.demolitionStartDate) {
                     events.push({
                         ...project,
@@ -198,7 +229,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     });
                 }
 
-                // 後方互換性: 組立・解体の日程がない場合はconstrucationTypeを使用
+                // Backward compatibility: use constructionType if no assembly/demolition dates
                 if (!project.assemblyStartDate && !project.demolitionStartDate && project.constructionType) {
                     events.push({
                         ...project,
@@ -215,12 +246,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         <ProjectContext.Provider
             value={{
                 projects,
+                isLoading,
                 addProject,
                 updateProject,
                 updateProjects,
                 deleteProject,
                 getProjectById,
                 getCalendarEvents,
+                refreshProjects: fetchProjects,
             }}
         >
             {children}

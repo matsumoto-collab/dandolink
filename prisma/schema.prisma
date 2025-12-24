@@ -25,3 +25,29 @@ model User {
   @@index([username])
   @@index([email])
 }
+
+model Project {
+  id                   String   @id @default(uuid())
+  title                String
+  constructionType     String
+  startDate            DateTime
+  endDate              DateTime?
+  assemblyStartDate    DateTime?
+  assemblyDuration     Int?
+  demolitionStartDate  DateTime?
+  demolitionDuration   Int?
+  assignedEmployeeId   String
+  customer             String?
+  description          String?
+  location             String?
+  category             String?
+  workers              String?  // JSON array
+  vehicles             String?  // JSON array
+  remarks              String?
+  sortOrder            Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([assignedEmployeeId])
+  @@index([startDate])
+}
