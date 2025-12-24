@@ -90,6 +90,7 @@ export interface WeekDay {
     isToday: boolean;
     isWeekend: boolean;
     isHoliday: boolean;
+    events: CalendarEvent[]; // その日のイベント配列
 }
 
 // 班長の行データ（1日に複数案件がある場合は複数行になる）
