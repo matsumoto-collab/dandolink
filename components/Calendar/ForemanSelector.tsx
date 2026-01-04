@@ -31,23 +31,26 @@ export default function ForemanSelector() {
         setIsDropdownOpen(false);
     };
 
-    if (availableForemen.length === 0) {
-        return null; // 追加できる職長がない場合は何も表示しない
-    }
+    const hasAvailableForemen = availableForemen.length > 0;
 
     return (
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center gap-2 px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors border border-blue-200 hover:border-blue-300"
+                className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors border ${hasAvailableForemen
+                        ? 'text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300'
+                        : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
+                    }`}
                 type="button"
+                disabled={!hasAvailableForemen}
+                title={hasAvailableForemen ? '職長を追加' : '全ての職長が表示されています'}
             >
                 <Plus className="w-4 h-4" />
                 職長を追加
             </button>
 
             {/* ドロップダウンメニュー */}
-            {isDropdownOpen && (
+            {isDropdownOpen && hasAvailableForemen && (
                 <div className="absolute left-0 bottom-full mb-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto min-w-[200px]">
                     {availableForemen.map(foreman => (
                         <button
