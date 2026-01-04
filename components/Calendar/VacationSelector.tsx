@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { mockEmployees } from '@/data/mockEmployees';
+import { useMasterDataContext } from '@/contexts/MasterDataContext';
 import { X, Plus } from 'lucide-react';
 
 interface VacationSelectorProps {
@@ -17,10 +17,11 @@ export default function VacationSelector({
 }: VacationSelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const { workers } = useMasterDataContext();
 
-    // 備考行(ID='1')と未割り当て(ID='unassigned')を除外
-    const availableEmployees = mockEmployees.filter(
-        emp => emp.id !== '1' && !selectedEmployeeIds.includes(emp.id)
+    // 選択されていない職人のみを表示
+    const availableWorkers = workers.filter(
+        worker => !selectedEmployeeIds.includes(worker.id)
     );
 
     // ドロップダウン外クリックで閉じる
@@ -50,19 +51,19 @@ export default function VacationSelector({
             {/* 選択された職人のバッジ表示 */}
             {selectedEmployeeIds.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                    {selectedEmployeeIds.map(empId => {
-                        const employee = mockEmployees.find(e => e.id === empId);
-                        if (!employee) return null;
+                    {selectedEmployeeIds.map(workerId => {
+                        const worker = workers.find(w => w.id === workerId);
+                        if (!worker) return null;
 
                         return (
                             <span
-                                key={empId}
+                                key={workerId}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-[10px] font-semibold"
                             >
                                 <span className="text-orange-600">🏖️</span>
-                                {employee.name}
+                                {worker.name}
                                 <button
-                                    onClick={() => onRemoveEmployee(empId)}
+                                    onClick={() => onRemoveEmployee(workerId)}
                                     className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
                                     title="削除"
                                 >
@@ -86,16 +87,16 @@ export default function VacationSelector({
                 </button>
 
                 {/* ドロップダウンメニュー */}
-                {isDropdownOpen && availableEmployees.length > 0 && (
+                {isDropdownOpen && availableWorkers.length > 0 && (
                     <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
-                        {availableEmployees.map(employee => (
+                        {availableWorkers.map(worker => (
                             <button
-                                key={employee.id}
-                                onClick={() => handleSelectEmployee(employee.id)}
+                                key={worker.id}
+                                onClick={() => handleSelectEmployee(worker.id)}
                                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors"
                                 type="button"
                             >
-                                {employee.name}
+                                {worker.name}
                             </button>
                         ))}
                     </div>
