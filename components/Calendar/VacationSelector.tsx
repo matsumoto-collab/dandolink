@@ -1,0 +1,106 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { mockEmployees } from '@/data/mockEmployees';
+import { X, Plus } from 'lucide-react';
+
+interface VacationSelectorProps {
+    dateKey: string;
+    selectedEmployeeIds: string[];
+    onAddEmployee: (employeeId: string) => void;
+    onRemoveEmployee: (employeeId: string) => void;
+}
+
+export default function VacationSelector({
+    dateKey,
+    selectedEmployeeIds,
+    onAddEmployee,
+    onRemoveEmployee,
+}: VacationSelectorProps) {
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // 備考行(ID='1')と未割り当て(ID='unassigned')を除外
+    const availableEmployees = mockEmployees.filter(
+        emp => emp.id !== '1' && !selectedEmployeeIds.includes(emp.id)
+    );
+
+    // ドロップダウン外クリックで閉じる
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+
+        if (isDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isDropdownOpen]);
+
+    const handleSelectEmployee = (employeeId: string) => {
+        onAddEmployee(employeeId);
+        setIsDropdownOpen(false);
+    };
+
+    return (
+        <div className="space-y-1">
+            {/* 選択された職人のバッジ表示 */}
+            {selectedEmployeeIds.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                    {selectedEmployeeIds.map(empId => {
+                        const employee = mockEmployees.find(e => e.id === empId);
+                        if (!employee) return null;
+
+                        return (
+                            <span
+                                key={empId}
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-[10px] font-semibold"
+                            >
+                                <span className="text-orange-600">🏖️</span>
+                                {employee.name}
+                                <button
+                                    onClick={() => onRemoveEmployee(empId)}
+                                    className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+                                    title="削除"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* 職人追加ボタン */}
+            <div className="relative" ref={dropdownRef}>
+                <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    type="button"
+                >
+                    <Plus className="w-3 h-3" />
+                    休暇を追加
+                </button>
+
+                {/* ドロップダウンメニュー */}
+                {isDropdownOpen && availableEmployees.length > 0 && (
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
+                        {availableEmployees.map(employee => (
+                            <button
+                                key={employee.id}
+                                onClick={() => handleSelectEmployee(employee.id)}
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors"
+                                type="button"
+                            >
+                                {employee.name}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

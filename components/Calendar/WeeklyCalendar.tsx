@@ -8,6 +8,7 @@ import { useProjects } from '@/contexts/ProjectContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjectMaster } from '@/contexts/ProjectMasterContext';
 import { useProjectAssignment } from '@/contexts/ProjectAssignmentContext';
+import { useVacation } from '@/contexts/VacationContext';
 import { mockEmployees, unassignedEmployee } from '@/data/mockEmployees';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import { convertToProject } from '@/utils/dataMigration';
@@ -28,6 +29,7 @@ export default function WeeklyCalendar() {
     const { totalMembers } = useMasterData();
     const { getProjectMasterById } = useProjectMaster();
     const { addProjectAssignment } = useProjectAssignment();
+    const { getVacationEmployees } = useVacation();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -336,8 +338,11 @@ export default function WeeklyCalendar() {
                                     )
                                     .reduce((sum, event) => sum + (event.workers?.length || 0), 0);
 
-                                // 残り人数 = 総メンバー数 - 割り当て済み人数
-                                const remainingCount = totalMembers - assignedCount;
+                                // 休暇取得者数を取得
+                                const vacationCount = getVacationEmployees(dateKey).length;
+
+                                // 残り人数 = 総メンバー数 - 割り当て済み人数 - 休暇取得者数
+                                const remainingCount = totalMembers - assignedCount - vacationCount;
 
                                 return (
                                     <div

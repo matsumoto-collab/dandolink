@@ -18,6 +18,7 @@ const STORAGE_KEY = 'yusystem_calendar_remarks';
 
 export function RemarksProvider({ children }: { children: ReactNode }) {
     const [remarks, setRemarks] = useState<RemarksData>({});
+    const [isLoaded, setIsLoaded] = useState(false);
 
     // Load from LocalStorage on mount
     useEffect(() => {
@@ -29,12 +30,15 @@ export function RemarksProvider({ children }: { children: ReactNode }) {
                 console.error('Failed to load remarks:', error);
             }
         }
+        setIsLoaded(true);
     }, []);
 
-    // Save to LocalStorage whenever remarks change
+    // Save to LocalStorage whenever remarks change (after initial load)
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(remarks));
-    }, [remarks]);
+        if (isLoaded) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(remarks));
+        }
+    }, [remarks, isLoaded]);
 
     const setRemark = (dateKey: string, text: string) => {
         setRemarks(prev => ({
