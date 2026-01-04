@@ -6,6 +6,7 @@ import { NavigationProvider } from "@/contexts/NavigationContext";
 import { MasterDataProvider } from "@/contexts/MasterDataContext";
 import { RemarksProvider } from "@/contexts/RemarksContext";
 import { VacationProvider } from "@/contexts/VacationContext";
+import { CalendarDisplayProvider } from "@/contexts/CalendarDisplayContext";
 import { EstimateProvider } from "@/contexts/EstimateContext";
 import { InvoiceProvider } from "@/contexts/InvoiceContext";
 import { CompanyProvider } from '@/contexts/CompanyContext';
@@ -38,17 +39,19 @@ export default function RootLayout({
                                     <ProjectProvider>
                                         <RemarksProvider>
                                             <VacationProvider>
-                                                <EstimateProvider>
-                                                    <InvoiceProvider>
-                                                        <CompanyProvider>
-                                                            <CustomerProvider>
-                                                                <UnitPriceMasterProvider>
-                                                                    {children}
-                                                                </UnitPriceMasterProvider>
-                                                            </CustomerProvider>
-                                                        </CompanyProvider>
-                                                    </InvoiceProvider>
-                                                </EstimateProvider>
+                                                <CalendarDisplayProvider>
+                                                    <EstimateProvider>
+                                                        <InvoiceProvider>
+                                                            <CompanyProvider>
+                                                                <CustomerProvider>
+                                                                    <UnitPriceMasterProvider>
+                                                                        {children}
+                                                                    </UnitPriceMasterProvider>
+                                                                </CustomerProvider>
+                                                            </CompanyProvider>
+                                                        </InvoiceProvider>
+                                                    </EstimateProvider>
+                                                </CalendarDisplayProvider>
                                             </VacationProvider>
                                         </RemarksProvider>
                                     </ProjectProvider>

@@ -9,6 +9,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useProjectMaster } from '@/contexts/ProjectMasterContext';
 import { useProjectAssignment } from '@/contexts/ProjectAssignmentContext';
 import { useVacation } from '@/contexts/VacationContext';
+import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { mockEmployees, unassignedEmployee } from '@/data/mockEmployees';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import { convertToProject } from '@/utils/dataMigration';
@@ -20,6 +21,7 @@ import ProjectModal from '../Projects/ProjectModal';
 import ProjectSearchModal from '../ProjectSearchModal';
 import ProjectAssignmentForm from '../ProjectAssignmentForm';
 import RemarksRow from './RemarksRow';
+import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project } from '@/types/calendar';
 import { ProjectMaster } from '@/types/projectMaster';
@@ -30,6 +32,7 @@ export default function WeeklyCalendar() {
     const { getProjectMasterById } = useProjectMaster();
     const { addProjectAssignment } = useProjectAssignment();
     const { getVacationEmployees } = useVacation();
+    const { displayedForemanIds, removeForeman } = useCalendarDisplay();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -108,11 +111,13 @@ export default function WeeklyCalendar() {
         });
     }, [projects, updateProject]));
 
-    // 職長別の行データを生成（各職長1行のみ、ID='1'の備考は除外）
+    // 職長別の行データを生成（表示設定された職長のみ）
     const employeeRows = useMemo(() => {
-        const filteredEmployees = mockEmployees.filter(emp => emp.id !== '1');
+        const filteredEmployees = mockEmployees.filter(emp =>
+            displayedForemanIds.includes(emp.id)
+        );
         return generateEmployeeRows(filteredEmployees, events, weekDays);
-    }, [events, weekDays]);
+    }, [events, weekDays, displayedForemanIds]);
 
     // ドラッグ中のイベントを取得
     const activeEvent = useMemo(() => {
@@ -385,8 +390,14 @@ export default function WeeklyCalendar() {
                                     onEventClick={handleEventClick}
                                     onCellClick={handleCellClick}
                                     onMoveEvent={handleMoveEvent}
+                                    onRemoveForeman={removeForeman}
                                 />
                             ))}
+                        </div>
+
+                        {/* 職長追加ボタン */}
+                        <div className="flex border-t-2 border-slate-300 bg-gradient-to-r from-slate-50 to-white p-4">
+                            <ForemanSelector />
                         </div>
                     </div>
                 </div>
