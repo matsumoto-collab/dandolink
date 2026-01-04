@@ -23,10 +23,10 @@ export default function EmployeeRowComponent({
     onMoveEvent,
 }: EmployeeRowComponentProps) {
     return (
-        <div className="flex border-b border-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200">
+        <div className="flex border-b border-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200 min-h-[120px]">
             {/* 班長セル（固定） */}
             <div className="sticky left-0 z-10 bg-white border-r-2 border-gray-200 shadow-sm">
-                <div className="w-32 h-full flex items-center justify-center py-2">
+                <div className="w-32 h-full flex items-center justify-center px-2">
                     {showEmployeeName && (
                         <span className="text-sm font-semibold text-gray-800 truncate">
                             {row.employeeName}

@@ -269,12 +269,12 @@ export default function WeeklyCalendar() {
 
                 {/* カレンダーグリッド */}
                 <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 via-white to-slate-50">
-                    <div className="inline-block min-w-full">
+                    <div className="flex flex-col min-w-full h-full">
                         {/* ヘッダー行: 日付と曜日 */}
                         <div className="flex border-b-2 border-slate-300 bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-20 shadow-md">
                             {/* 職長カラム（固定） */}
                             <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 shadow-md">
-                                <div className="w-32 h-16 flex items-center justify-center font-bold text-slate-700 text-sm tracking-wide">
+                                <div className="w-32 h-12 flex items-center justify-center font-bold text-slate-700 text-sm tracking-wide">
                                     職長
                                 </div>
                             </div>
@@ -294,12 +294,12 @@ export default function WeeklyCalendar() {
                       ${isSaturday ? 'bg-gradient-to-b from-blue-100 to-blue-50' : isSunday ? 'bg-gradient-to-b from-rose-100 to-rose-50' : 'bg-gradient-to-b from-slate-100 to-slate-50'}
                     `}
                                     >
-                                        <div className="h-8 flex items-center justify-center text-xs font-bold text-slate-700">
+                                        <div className="h-6 flex items-center justify-center text-xs font-bold text-slate-700">
                                             {dateString}
                                         </div>
                                         <div
                                             className={`
-                        h-8 flex items-center justify-center text-xs border-t border-slate-200
+                        h-6 flex items-center justify-center text-xs border-t border-slate-200
                         ${isSaturday ? 'text-blue-700 font-bold' : isSunday ? 'text-rose-700 font-bold' : 'text-slate-700 font-semibold'}
                         ${day.isToday ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white font-bold shadow-lg shadow-slate-900/30' : ''}
                       `}
@@ -312,10 +312,10 @@ export default function WeeklyCalendar() {
                         </div>
 
                         {/* ボディ行: 未割り当て行（残り人数）を一番上に配置 */}
-                        <div className="flex border-b-2 border-slate-400 bg-gradient-to-r from-slate-100 to-slate-50 sticky top-[65px] z-[25] shadow-sm">
+                        <div className="flex border-b-2 border-slate-400 bg-gradient-to-r from-slate-100 to-slate-50 sticky top-[49px] z-[25] shadow-sm h-10">
                             {/* 職長セル */}
                             <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-400 shadow-md">
-                                <div className="w-32 min-h-[40px] flex items-center justify-center">
+                                <div className="w-32 h-full flex items-center justify-center">
                                     <span className="text-sm font-bold text-slate-700 tracking-wide">
                                         {unassignedEmployee.name}
                                     </span>
@@ -343,7 +343,7 @@ export default function WeeklyCalendar() {
                                     <div
                                         key={index}
                                         className={`
-                                            flex-1 min-w-[140px] min-h-[40px] border-r border-gray-100 p-1
+                                            flex-1 min-w-[140px] h-full border-r border-gray-100 p-1
                                             flex items-center justify-center
                                             ${isSaturday ? 'bg-blue-50/30' : isSunday ? 'bg-red-50/30' : 'bg-white'}
                                         `}
@@ -370,17 +370,19 @@ export default function WeeklyCalendar() {
                         <RemarksRow weekDays={weekDays} />
 
                         {/* 各職長のイベント */}
-                        {employeeRows.map((row) => (
-                            <EmployeeRowComponent
-                                key={row.employeeId}
-                                row={row}
-                                weekDays={weekDays}
-                                showEmployeeName={true}
-                                onEventClick={handleEventClick}
-                                onCellClick={handleCellClick}
-                                onMoveEvent={handleMoveEvent}
-                            />
-                        ))}
+                        <div className="flex-1 flex flex-col">
+                            {employeeRows.map((row) => (
+                                <EmployeeRowComponent
+                                    key={row.employeeId}
+                                    row={row}
+                                    weekDays={weekDays}
+                                    showEmployeeName={true}
+                                    onEventClick={handleEventClick}
+                                    onCellClick={handleCellClick}
+                                    onMoveEvent={handleMoveEvent}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

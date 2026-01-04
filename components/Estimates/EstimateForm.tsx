@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from './UnitPriceMasterModal';
 import { UnitPriceMaster } from '@/types/unitPrice';
@@ -208,6 +208,22 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             }
             return item;
         }));
+    };
+
+    // 明細行を上に移動
+    const moveItemUp = (index: number) => {
+        if (index === 0) return; // 最初の行は上に移動できない
+        const newItems = [...items];
+        [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+        setItems(newItems);
+    };
+
+    // 明細行を下に移動
+    const moveItemDown = (index: number) => {
+        if (index === items.length - 1) return; // 最後の行は下に移動できない
+        const newItems = [...items];
+        [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+        setItems(newItems);
     };
 
     // 送信
@@ -430,7 +446,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">金額</th>
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-28">税区分</th>
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">備考</th>
-                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 w-12"></th>
+                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">操作</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -506,15 +522,35 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             placeholder="備考"
                                         />
                                     </td>
-                                    <td className="px-3 py-2 text-center">
-                                        <button
-                                            type="button"
-                                            onClick={() => removeItem(item.id)}
-                                            className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                            title="削除"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                    <td className="px-3 py-2">
+                                        <div className="flex items-center justify-center gap-1">
+                                            <button
+                                                type="button"
+                                                onClick={() => moveItemUp(index)}
+                                                disabled={index === 0}
+                                                className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                                title="上に移動"
+                                            >
+                                                <ChevronUp className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => moveItemDown(index)}
+                                                disabled={index === items.length - 1}
+                                                className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                                title="下に移動"
+                                            >
+                                                <ChevronDown className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeItem(item.id)}
+                                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                title="削除"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

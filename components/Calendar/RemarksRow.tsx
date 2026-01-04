@@ -40,10 +40,10 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
     };
 
     return (
-        <div className="flex border-b-2 border-slate-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm sticky top-[105px] z-20">
+        <div className="flex border-b-2 border-slate-300 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm sticky top-[59px] z-20 h-16">
             {/* 職長セル（固定） */}
             <div className="sticky left-0 z-30 bg-gradient-to-r from-blue-50 to-indigo-50 border-r-2 border-slate-300 shadow-md">
-                <div className="w-32 min-h-[80px] flex items-center justify-center">
+                <div className="w-32 h-full flex items-center justify-center">
                     <span className="text-sm font-bold text-indigo-900 tracking-wide">備考</span>
                 </div>
             </div>
@@ -60,7 +60,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                     <div
                         key={index}
                         className={`
-                            flex-1 min-w-[140px] min-h-[80px] border-r border-gray-200 p-1.5
+                            flex-1 min-w-[140px] h-full border-r border-gray-200 p-1.5
                             transition-all duration-200
                             ${isSaturday ? 'bg-blue-50/40' : isSunday ? 'bg-red-50/40' : 'bg-white'}
                             ${!isEditing ? 'cursor-text hover:bg-indigo-50/30 hover:shadow-sm' : ''}
