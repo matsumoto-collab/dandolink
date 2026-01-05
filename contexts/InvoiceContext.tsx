@@ -46,12 +46,8 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
                     updatedAt: new Date(invoice.updatedAt),
                 }));
 
-                // Only update state if data has changed
-                setInvoices(prev => {
-                    const hasChanged = JSON.stringify(prev.map((i: Invoice) => ({ ...i, dueDate: i.dueDate.toISOString(), paidDate: i.paidDate?.toISOString(), createdAt: i.createdAt.toISOString(), updatedAt: i.updatedAt.toISOString() })))
-                        !== JSON.stringify(parsedInvoices.map((i: Invoice) => ({ ...i, dueDate: i.dueDate.toISOString(), paidDate: i.paidDate?.toISOString(), createdAt: i.createdAt.toISOString(), updatedAt: i.updatedAt.toISOString() })));
-                    return hasChanged ? parsedInvoices : prev;
-                });
+                // Always update state with fresh data
+                setInvoices(parsedInvoices);
             }
         } catch (error) {
             console.error('Failed to fetch invoices:', error);

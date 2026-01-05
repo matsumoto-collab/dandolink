@@ -43,12 +43,8 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
                     updatedAt: new Date(estimate.updatedAt),
                 }));
 
-                // Only update state if data has changed
-                setEstimates(prev => {
-                    const hasChanged = JSON.stringify(prev.map((e: Estimate) => ({ ...e, createdAt: e.createdAt.toISOString(), updatedAt: e.updatedAt.toISOString(), validUntil: e.validUntil.toISOString() })))
-                        !== JSON.stringify(parsedEstimates.map((e: Estimate) => ({ ...e, createdAt: e.createdAt.toISOString(), updatedAt: e.updatedAt.toISOString(), validUntil: e.validUntil.toISOString() })));
-                    return hasChanged ? parsedEstimates : prev;
-                });
+                // Always update state with fresh data
+                setEstimates(parsedEstimates);
             }
         } catch (error) {
             console.error('Failed to fetch estimates:', error);

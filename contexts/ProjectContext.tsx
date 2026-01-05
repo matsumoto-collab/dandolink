@@ -47,27 +47,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     updatedAt: new Date(project.updatedAt),
                 }));
 
-                // Only update state if data has changed
-                setProjects(prev => {
-                    const hasChanged = JSON.stringify(prev.map((p: Project) => ({
-                        ...p,
-                        startDate: p.startDate.toISOString(),
-                        endDate: p.endDate?.toISOString(),
-                        assemblyStartDate: p.assemblyStartDate?.toISOString(),
-                        demolitionStartDate: p.demolitionStartDate?.toISOString(),
-                        createdAt: p.createdAt.toISOString(),
-                        updatedAt: p.updatedAt.toISOString()
-                    }))) !== JSON.stringify(parsedProjects.map((p: Project) => ({
-                        ...p,
-                        startDate: p.startDate.toISOString(),
-                        endDate: p.endDate?.toISOString(),
-                        assemblyStartDate: p.assemblyStartDate?.toISOString(),
-                        demolitionStartDate: p.demolitionStartDate?.toISOString(),
-                        createdAt: p.createdAt.toISOString(),
-                        updatedAt: p.updatedAt.toISOString()
-                    })));
-                    return hasChanged ? parsedProjects : prev;
-                });
+                // Always update state with fresh data
+                setProjects(parsedProjects);
             }
         } catch (error) {
             console.error('Failed to fetch projects:', error);

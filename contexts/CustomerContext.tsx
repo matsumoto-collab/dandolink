@@ -41,12 +41,8 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
                     updatedAt: new Date(customer.updatedAt),
                 }));
 
-                // Only update state if data has changed
-                setCustomers(prev => {
-                    const hasChanged = JSON.stringify(prev.map((c: Customer) => ({ ...c, createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString() })))
-                        !== JSON.stringify(parsedCustomers.map((c: Customer) => ({ ...c, createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString() })));
-                    return hasChanged ? parsedCustomers : prev;
-                });
+                // Always update state with fresh data
+                setCustomers(parsedCustomers);
             }
         } catch (error) {
             console.error('Failed to fetch customers:', error);
