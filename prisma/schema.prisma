@@ -50,6 +50,9 @@ model Project {
 
   @@index([assignedEmployeeId])
   @@index([startDate])
+  @@index([endDate])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Customer {
@@ -66,6 +69,8 @@ model Customer {
   updatedAt       DateTime @updatedAt
 
   @@index([name])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Estimate {
@@ -85,6 +90,9 @@ model Estimate {
 
   @@index([estimateNumber])
   @@index([projectId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([updatedAt])
 }
 
 model Invoice {
@@ -106,4 +114,8 @@ model Invoice {
 
   @@index([invoiceNumber])
   @@index([projectId])
+  @@index([status])
+  @@index([dueDate])
+  @@index([createdAt])
+  @@index([updatedAt])
 }

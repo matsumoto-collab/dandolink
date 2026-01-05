@@ -15,6 +15,43 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
+        // Get pagination parameters
+        const { searchParams } = new URL(req.url);
+        const page = searchParams.get('page');
+        const limit = searchParams.get('limit');
+
+        // If pagination params are provided, return paginated data
+        if (page && limit) {
+            const pageNum = parseInt(page);
+            const limitNum = parseInt(limit);
+            const skip = (pageNum - 1) * limitNum;
+
+            const [customers, total] = await Promise.all([
+                prisma.customer.findMany({
+                    skip,
+                    take: limitNum,
+                    orderBy: { name: 'asc' },
+                }),
+                prisma.customer.count(),
+            ]);
+
+            const parsedCustomers = customers.map((customer: any) => ({
+                ...customer,
+                contactPersons: customer.contactPersons ? JSON.parse(customer.contactPersons) : [],
+            }));
+
+            return NextResponse.json({
+                data: parsedCustomers,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    totalPages: Math.ceil(total / limitNum),
+                },
+            });
+        }
+
+        // Otherwise, return all data
         const customers = await prisma.customer.findMany({
             orderBy: {
                 name: 'asc',

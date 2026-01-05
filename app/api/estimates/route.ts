@@ -15,6 +15,44 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
+        // Get pagination parameters
+        const { searchParams } = new URL(req.url);
+        const page = searchParams.get('page');
+        const limit = searchParams.get('limit');
+
+        // If pagination params are provided, return paginated data
+        if (page && limit) {
+            const pageNum = parseInt(page);
+            const limitNum = parseInt(limit);
+            const skip = (pageNum - 1) * limitNum;
+
+            const [estimates, total] = await Promise.all([
+                prisma.estimate.findMany({
+                    skip,
+                    take: limitNum,
+                    orderBy: { createdAt: 'desc' },
+                }),
+                prisma.estimate.count(),
+            ]);
+
+            const parsedEstimates = estimates.map((estimate: any) => ({
+                ...estimate,
+                items: estimate.items ? JSON.parse(estimate.items) : [],
+                validUntil: new Date(estimate.validUntil),
+            }));
+
+            return NextResponse.json({
+                data: parsedEstimates,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    totalPages: Math.ceil(total / limitNum),
+                },
+            });
+        }
+
+        // Otherwise, return all data
         const estimates = await prisma.estimate.findMany({
             orderBy: {
                 createdAt: 'desc',

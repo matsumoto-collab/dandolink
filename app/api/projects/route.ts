@@ -15,6 +15,48 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
+        // Get pagination parameters
+        const { searchParams } = new URL(req.url);
+        const page = searchParams.get('page');
+        const limit = searchParams.get('limit');
+
+        // If pagination params are provided, return paginated data
+        if (page && limit) {
+            const pageNum = parseInt(page);
+            const limitNum = parseInt(limit);
+            const skip = (pageNum - 1) * limitNum;
+
+            const [projects, total] = await Promise.all([
+                prisma.project.findMany({
+                    skip,
+                    take: limitNum,
+                    orderBy: [
+                        { startDate: 'asc' },
+                        { sortOrder: 'asc' },
+                    ],
+                }),
+                prisma.project.count(),
+            ]);
+
+            // Parse JSON fields
+            const parsedProjects = projects.map((project: any) => ({
+                ...project,
+                workers: project.workers ? JSON.parse(project.workers) : [],
+                vehicles: project.vehicles ? JSON.parse(project.vehicles) : [],
+            }));
+
+            return NextResponse.json({
+                data: parsedProjects,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    totalPages: Math.ceil(total / limitNum),
+                },
+            });
+        }
+
+        // Otherwise, return all data (for calendar view)
         const projects = await prisma.project.findMany({
             orderBy: [
                 { startDate: 'asc' },
