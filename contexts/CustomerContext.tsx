@@ -31,7 +31,6 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
-            setIsLoading(true);
             const response = await fetch('/api/customers');
             if (response.ok) {
                 const data = await response.json();
@@ -41,7 +40,13 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
                     createdAt: new Date(customer.createdAt),
                     updatedAt: new Date(customer.updatedAt),
                 }));
-                setCustomers(parsedCustomers);
+
+                // Only update state if data has changed
+                setCustomers(prev => {
+                    const hasChanged = JSON.stringify(prev.map((c: Customer) => ({ ...c, createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString() })))
+                        !== JSON.stringify(parsedCustomers.map((c: Customer) => ({ ...c, createdAt: c.createdAt.toISOString(), updatedAt: c.updatedAt.toISOString() })));
+                    return hasChanged ? parsedCustomers : prev;
+                });
             }
         } catch (error) {
             console.error('Failed to fetch customers:', error);
