@@ -62,32 +62,33 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         fetchProjects();
     }, [fetchProjects, session?.user?.email]);
 
-    // Polling for real-time updates
+    // Supabase Realtime subscription for instant updates
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        const POLLING_INTERVAL = 5000; // 5 seconds
+        // Import supabase client dynamically to avoid SSR issues
+        import('@/lib/supabase').then(({ supabase }) => {
+            const channel = supabase
+                .channel('projects-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*', // Listen to INSERT, UPDATE, DELETE
+                        schema: 'public',
+                        table: 'Project',
+                    },
+                    (payload) => {
+                        console.log('Project changed:', payload);
+                        // Refresh data when changes occur
+                        fetchProjects();
+                    }
+                )
+                .subscribe();
 
-        // Handle page visibility change
-        const handleVisibilityChange = () => {
-            if (!document.hidden) {
-                fetchProjects(); // Refresh immediately when tab becomes active
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Start polling
-        const intervalId = setInterval(() => {
-            if (!document.hidden) {
-                fetchProjects();
-            }
-        }, POLLING_INTERVAL);
-
-        return () => {
-            clearInterval(intervalId);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        });
     }, [status, fetchProjects]);
 
     // Add project

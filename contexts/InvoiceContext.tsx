@@ -61,32 +61,31 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
         fetchInvoices();
     }, [fetchInvoices, session?.user?.email]);
 
-    // Polling for real-time updates
+    // Supabase Realtime subscription for instant updates
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        const POLLING_INTERVAL = 5000; // 5 seconds
+        import('@/lib/supabase').then(({ supabase }) => {
+            const channel = supabase
+                .channel('invoices-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'Invoice',
+                    },
+                    (payload) => {
+                        console.log('Invoice changed:', payload);
+                        fetchInvoices();
+                    }
+                )
+                .subscribe();
 
-        // Handle page visibility change
-        const handleVisibilityChange = () => {
-            if (!document.hidden) {
-                fetchInvoices(); // Refresh immediately when tab becomes active
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Start polling
-        const intervalId = setInterval(() => {
-            if (!document.hidden) {
-                fetchInvoices();
-            }
-        }, POLLING_INTERVAL);
-
-        return () => {
-            clearInterval(intervalId);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        });
     }, [status, fetchInvoices]);
 
     const addInvoice = useCallback(async (input: InvoiceInput): Promise<Invoice> => {

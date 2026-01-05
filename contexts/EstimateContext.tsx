@@ -58,32 +58,31 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
         fetchEstimates();
     }, [fetchEstimates, session?.user?.email]);
 
-    // Polling for real-time updates
+    // Supabase Realtime subscription for instant updates
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        const POLLING_INTERVAL = 5000; // 5 seconds
+        import('@/lib/supabase').then(({ supabase }) => {
+            const channel = supabase
+                .channel('estimates-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'Estimate',
+                    },
+                    (payload) => {
+                        console.log('Estimate changed:', payload);
+                        fetchEstimates();
+                    }
+                )
+                .subscribe();
 
-        // Handle page visibility change
-        const handleVisibilityChange = () => {
-            if (!document.hidden) {
-                fetchEstimates(); // Refresh immediately when tab becomes active
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Start polling
-        const intervalId = setInterval(() => {
-            if (!document.hidden) {
-                fetchEstimates();
-            }
-        }, POLLING_INTERVAL);
-
-        return () => {
-            clearInterval(intervalId);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        });
     }, [status, fetchEstimates]);
 
     const addEstimate = useCallback(async (input: EstimateInput): Promise<Estimate> => {

@@ -56,32 +56,31 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         fetchCustomers();
     }, [fetchCustomers, session?.user?.email]);
 
-    // Polling for real-time updates
+    // Supabase Realtime subscription for instant updates
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        const POLLING_INTERVAL = 5000; // 5 seconds
+        import('@/lib/supabase').then(({ supabase }) => {
+            const channel = supabase
+                .channel('customers-changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'Customer',
+                    },
+                    (payload) => {
+                        console.log('Customer changed:', payload);
+                        fetchCustomers();
+                    }
+                )
+                .subscribe();
 
-        // Handle page visibility change
-        const handleVisibilityChange = () => {
-            if (!document.hidden) {
-                fetchCustomers(); // Refresh immediately when tab becomes active
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Start polling
-        const intervalId = setInterval(() => {
-            if (!document.hidden) {
-                fetchCustomers();
-            }
-        }, POLLING_INTERVAL);
-
-        return () => {
-            clearInterval(intervalId);
-            document.removeEventListener('visibilitychange', handleVisibilityChange);
-        };
+            return () => {
+                supabase.removeChannel(channel);
+            };
+        });
     }, [status, fetchCustomers]);
 
     // Add customer
