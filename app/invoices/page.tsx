@@ -15,6 +15,7 @@ export default function InvoiceListPage() {
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // プロジェクト名を取得
     const getProjectName = (projectId: string) => {
@@ -47,9 +48,14 @@ export default function InvoiceListPage() {
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm('この請求書を削除してもよろしいですか?')) {
-            deleteInvoice(id);
+            try {
+                await deleteInvoice(id);
+            } catch (error) {
+                console.error('Failed to delete invoice:', error);
+                alert(error instanceof Error ? error.message : '請求書の削除に失敗しました');
+            }
         }
     };
 
@@ -63,11 +69,21 @@ export default function InvoiceListPage() {
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (data: InvoiceInput) => {
-        if (editingInvoice) {
-            updateInvoice(editingInvoice.id, data);
-        } else {
-            addInvoice(data);
+    const handleSubmit = async (data: InvoiceInput) => {
+        try {
+            setIsSubmitting(true);
+            if (editingInvoice) {
+                await updateInvoice(editingInvoice.id, data);
+            } else {
+                await addInvoice(data);
+            }
+            setIsModalOpen(false);
+            setEditingInvoice(null);
+        } catch (error) {
+            console.error('Failed to save invoice:', error);
+            alert(error instanceof Error ? error.message : '請求書の保存に失敗しました');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 

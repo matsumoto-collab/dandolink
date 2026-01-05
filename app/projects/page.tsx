@@ -14,6 +14,7 @@ export default function ProjectListPage() {
     const [editingProject, setEditingProject] = useState<Partial<Project> | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // 職長名を取得
     const getEmployeeName = (employeeId: string) => {
@@ -45,17 +46,32 @@ export default function ProjectListPage() {
         setIsModalOpen(true);
     };
 
-    const handleDelete = (projectId: string) => {
+    const handleDelete = async (projectId: string) => {
         if (confirm('この案件を削除してもよろしいですか?')) {
-            deleteProject(projectId);
+            try {
+                await deleteProject(projectId);
+            } catch (error) {
+                console.error('Failed to delete project:', error);
+                alert(error instanceof Error ? error.message : '案件の削除に失敗しました');
+            }
         }
     };
 
-    const handleSubmit = (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-        if (editingProject?.id) {
-            updateProject(editingProject.id, data);
-        } else {
-            addProject(data);
+    const handleSubmit = async (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+        try {
+            setIsSubmitting(true);
+            if (editingProject?.id) {
+                await updateProject(editingProject.id, data);
+            } else {
+                await addProject(data);
+            }
+            setIsModalOpen(false);
+            setEditingProject(null);
+        } catch (error) {
+            console.error('Failed to save project:', error);
+            alert(error instanceof Error ? error.message : '案件の保存に失敗しました');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 

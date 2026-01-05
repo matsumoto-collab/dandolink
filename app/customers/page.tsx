@@ -11,6 +11,7 @@ export default function CustomersPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // 検索フィルター
     const filteredCustomers = customers.filter(customer =>
@@ -20,26 +21,48 @@ export default function CustomersPage() {
     );
 
     // 新規顧客を追加
-    const handleAddCustomer = (data: any) => {
-        addCustomer(data);
-        setIsModalOpen(false);
+    const handleAddCustomer = async (data: any) => {
+        try {
+            setIsSubmitting(true);
+            await addCustomer(data);
+            setIsModalOpen(false);
+        } catch (error) {
+            console.error('Failed to add customer:', error);
+            alert(error instanceof Error ? error.message : '顧客の追加に失敗しました');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // 顧客を更新
-    const handleUpdateCustomer = (data: any) => {
+    const handleUpdateCustomer = async (data: any) => {
         if (editingCustomer) {
-            updateCustomer(editingCustomer.id, data);
-            setEditingCustomer(null);
-            setIsModalOpen(false);
+            try {
+                setIsSubmitting(true);
+                await updateCustomer(editingCustomer.id, data);
+                setEditingCustomer(null);
+                setIsModalOpen(false);
+            } catch (error) {
+                console.error('Failed to update customer:', error);
+                alert(error instanceof Error ? error.message : '顧客の更新に失敗しました');
+            } finally {
+                setIsSubmitting(false);
+            }
         }
     };
 
     // 顧客を削除
-    const handleDeleteCustomer = (id: string, name: string) => {
+    const handleDeleteCustomer = async (id: string, name: string) => {
         if (confirm(`「${name}」を削除してもよろしいですか？`)) {
-            deleteCustomer(id);
+            try {
+                await deleteCustomer(id);
+            } catch (error) {
+                console.error('Failed to delete customer:', error);
+                alert(error instanceof Error ? error.message : '顧客の削除に失敗しました');
+            }
         }
     };
+
 
     // 編集モーダルを開く
     const handleEditClick = (customer: Customer) => {

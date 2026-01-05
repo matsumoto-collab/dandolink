@@ -20,6 +20,7 @@ export default function EstimateListPage() {
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     // プロジェクト名を取得
     const getProjectName = (projectId: string) => {
@@ -52,9 +53,14 @@ export default function EstimateListPage() {
         })
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
-    const handleDelete = (id: string) => {
+    const handleDelete = async (id: string) => {
         if (confirm('この見積書を削除してもよろしいですか?')) {
-            deleteEstimate(id);
+            try {
+                await deleteEstimate(id);
+            } catch (error) {
+                console.error('Failed to delete estimate:', error);
+                alert(error instanceof Error ? error.message : '見積書の削除に失敗しました');
+            }
         }
     };
 
@@ -68,11 +74,21 @@ export default function EstimateListPage() {
         setIsModalOpen(true);
     };
 
-    const handleSubmit = (data: EstimateInput) => {
-        if (editingEstimate) {
-            updateEstimate(editingEstimate.id, data);
-        } else {
-            addEstimate(data);
+    const handleSubmit = async (data: EstimateInput) => {
+        try {
+            setIsSubmitting(true);
+            if (editingEstimate) {
+                await updateEstimate(editingEstimate.id, data);
+            } else {
+                await addEstimate(data);
+            }
+            setIsModalOpen(false);
+            setEditingEstimate(null);
+        } catch (error) {
+            console.error('Failed to save estimate:', error);
+            alert(error instanceof Error ? error.message : '見積書の保存に失敗しました');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
