@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { Estimate, EstimateInput } from '@/types/estimate';
 
 interface EstimateContextType {
@@ -17,11 +18,19 @@ interface EstimateContextType {
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
 
 export function EstimateProvider({ children }: { children: ReactNode }) {
+    const { data: session, status } = useSession();
     const [estimates, setEstimates] = useState<Estimate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch estimates from API
     const fetchEstimates = useCallback(async () => {
+        // Skip if not authenticated
+        if (status !== 'authenticated') {
+            setEstimates([]);
+            setIsLoading(false);
+            return;
+        }
+
         try {
             setIsLoading(true);
             const response = await fetch('/api/estimates');
@@ -41,12 +50,12 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [status]);
 
-    // Load estimates on mount
+    // Load estimates on mount and when session changes
     useEffect(() => {
         fetchEstimates();
-    }, [fetchEstimates]);
+    }, [fetchEstimates, session?.user?.email]);
 
     const addEstimate = useCallback(async (input: EstimateInput): Promise<Estimate> => {
         try {

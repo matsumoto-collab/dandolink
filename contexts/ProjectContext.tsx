@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useMemo, useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 
 interface ProjectContextType {
@@ -18,11 +19,19 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
+    const { data: session, status } = useSession();
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch projects from API
     const fetchProjects = useCallback(async () => {
+        // Skip if not authenticated
+        if (status !== 'authenticated') {
+            setProjects([]);
+            setIsLoading(false);
+            return;
+        }
+
         try {
             setIsLoading(true);
             const response = await fetch('/api/projects');
@@ -45,12 +54,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [status]);
 
-    // Load projects on mount
+    // Load projects on mount and when session changes
     useEffect(() => {
         fetchProjects();
-    }, [fetchProjects]);
+    }, [fetchProjects, session?.user?.email]);
 
     // Add project
     const addProject = useCallback(async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {

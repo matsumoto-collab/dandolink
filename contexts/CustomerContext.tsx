@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Customer, CustomerInput } from '@/types/customer';
 
 interface CustomerContextType {
@@ -16,11 +17,19 @@ interface CustomerContextType {
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: React.ReactNode }) {
+    const { data: session, status } = useSession();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch customers from API
     const fetchCustomers = useCallback(async () => {
+        // Skip if not authenticated
+        if (status !== 'authenticated') {
+            setCustomers([]);
+            setIsLoading(false);
+            return;
+        }
+
         try {
             setIsLoading(true);
             const response = await fetch('/api/customers');
@@ -39,12 +48,12 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [status]);
 
-    // Load customers on mount
+    // Load customers on mount and when session changes
     useEffect(() => {
         fetchCustomers();
-    }, [fetchCustomers]);
+    }, [fetchCustomers, session?.user?.email]);
 
     // Add customer
     const addCustomer = useCallback(async (customerData: CustomerInput) => {

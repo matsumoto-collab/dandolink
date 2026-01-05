@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { Estimate } from '@/types/estimate';
 
@@ -19,11 +20,19 @@ interface InvoiceContextType {
 const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
 
 export function InvoiceProvider({ children }: { children: ReactNode }) {
+    const { data: session, status } = useSession();
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch invoices from API
     const fetchInvoices = useCallback(async () => {
+        // Skip if not authenticated
+        if (status !== 'authenticated') {
+            setInvoices([]);
+            setIsLoading(false);
+            return;
+        }
+
         try {
             setIsLoading(true);
             const response = await fetch('/api/invoices');
@@ -44,12 +53,12 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [status]);
 
-    // Load invoices on mount
+    // Load invoices on mount and when session changes
     useEffect(() => {
         fetchInvoices();
-    }, [fetchInvoices]);
+    }, [fetchInvoices, session?.user?.email]);
 
     const addInvoice = useCallback(async (input: InvoiceInput): Promise<Invoice> => {
         try {
