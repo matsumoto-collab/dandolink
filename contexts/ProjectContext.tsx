@@ -141,6 +141,12 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     // Update a project
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+        // Optimistic update - immediately update local state
+        const previousProjects = projects;
+        setProjects(prev => prev.map(p =>
+            p.id === id ? { ...p, ...updates, updatedAt: new Date() } : p
+        ));
+
         try {
             const response = await fetch(`/api/projects/${id}`, {
                 method: 'PATCH',
@@ -159,16 +165,21 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     createdAt: new Date(updatedProject.createdAt),
                     updatedAt: new Date(updatedProject.updatedAt),
                 };
+                // Update with server response (authoritative)
                 setProjects(prev => prev.map(p => p.id === id ? parsedProject : p));
             } else {
+                // Rollback on error
+                setProjects(previousProjects);
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to update project');
             }
         } catch (error) {
+            // Rollback on error
+            setProjects(previousProjects);
             console.error('Failed to update project:', error);
             throw error;
         }
-    }, []);
+    }, [projects]);
 
     // Update multiple projects
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
