@@ -1,91 +1,147 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { VacationRecord } from '@/types/vacation';
 
 interface VacationContextType {
+    isLoading: boolean;
     getVacationEmployees: (dateKey: string) => string[];
-    setVacationEmployees: (dateKey: string, employeeIds: string[]) => void;
-    addVacationEmployee: (dateKey: string, employeeId: string) => void;
-    removeVacationEmployee: (dateKey: string, employeeId: string) => void;
+    setVacationEmployees: (dateKey: string, employeeIds: string[]) => Promise<void>;
+    addVacationEmployee: (dateKey: string, employeeId: string) => Promise<void>;
+    removeVacationEmployee: (dateKey: string, employeeId: string) => Promise<void>;
     getRemarks: (dateKey: string) => string;
-    setRemarks: (dateKey: string, remarks: string) => void;
+    setRemarks: (dateKey: string, remarks: string) => Promise<void>;
+    refreshVacations: () => Promise<void>;
 }
 
 const VacationContext = createContext<VacationContextType | undefined>(undefined);
 
 export function VacationProvider({ children }: { children: React.ReactNode }) {
+    const { status } = useSession();
     const [vacations, setVacations] = useState<VacationRecord>({});
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // LocalStorageから読み込み
-    useEffect(() => {
-        const stored = localStorage.getItem('calendar-vacations');
-        if (stored) {
-            try {
-                setVacations(JSON.parse(stored));
-            } catch (error) {
-                console.error('Failed to parse vacation data:', error);
+    // Fetch from API
+    const fetchVacations = useCallback(async () => {
+        if (status !== 'authenticated') {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/calendar/vacations');
+            if (response.ok) {
+                const data = await response.json();
+                setVacations(data);
             }
+        } catch (error) {
+            console.error('Failed to fetch vacations:', error);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoaded(true);
-    }, []);
+    }, [status]);
 
-    // LocalStorageに保存（初回読み込み後のみ）
     useEffect(() => {
-        if (isLoaded) {
-            localStorage.setItem('calendar-vacations', JSON.stringify(vacations));
+        fetchVacations();
+    }, [fetchVacations]);
+
+    // Realtime subscription
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+
+        let channel: any = null;
+        let isSubscribed = true;
+
+        const setupRealtimeSubscription = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                if (!isSubscribed) return;
+
+                channel = supabase
+                    .channel('vacations-realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'VacationRecord' }, () => {
+                        fetchVacations();
+                    })
+                    .subscribe();
+            } catch (error) {
+                console.error('[Realtime] Failed to setup vacations subscription:', error);
+            }
+        };
+
+        setupRealtimeSubscription();
+
+        return () => {
+            isSubscribed = false;
+            if (channel) {
+                import('@/lib/supabase').then(({ supabase }) => {
+                    supabase.removeChannel(channel);
+                });
+            }
+        };
+    }, [status, fetchVacations]);
+
+    const saveVacation = useCallback(async (dateKey: string, employeeIds: string[], remarks: string) => {
+        try {
+            await fetch('/api/calendar/vacations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dateKey, employeeIds, remarks }),
+            });
+        } catch (error) {
+            console.error('Failed to save vacation:', error);
+            fetchVacations();
         }
-    }, [vacations, isLoaded]);
+    }, [fetchVacations]);
 
-    const getVacationEmployees = (dateKey: string): string[] => {
+    const getVacationEmployees = useCallback((dateKey: string): string[] => {
         return vacations[dateKey]?.employeeIds || [];
-    };
+    }, [vacations]);
 
-    const setVacationEmployees = (dateKey: string, employeeIds: string[]) => {
+    const setVacationEmployees = useCallback(async (dateKey: string, employeeIds: string[]) => {
+        const currentRemarks = vacations[dateKey]?.remarks || '';
         setVacations(prev => ({
             ...prev,
-            [dateKey]: {
-                employeeIds,
-                remarks: prev[dateKey]?.remarks || '',
-            },
+            [dateKey]: { employeeIds, remarks: currentRemarks },
         }));
-    };
+        await saveVacation(dateKey, employeeIds, currentRemarks);
+    }, [vacations, saveVacation]);
 
-    const addVacationEmployee = (dateKey: string, employeeId: string) => {
+    const addVacationEmployee = useCallback(async (dateKey: string, employeeId: string) => {
         const current = getVacationEmployees(dateKey);
         if (!current.includes(employeeId)) {
-            setVacationEmployees(dateKey, [...current, employeeId]);
+            await setVacationEmployees(dateKey, [...current, employeeId]);
         }
-    };
+    }, [getVacationEmployees, setVacationEmployees]);
 
-    const removeVacationEmployee = (dateKey: string, employeeId: string) => {
+    const removeVacationEmployee = useCallback(async (dateKey: string, employeeId: string) => {
         const current = getVacationEmployees(dateKey);
-        setVacationEmployees(dateKey, current.filter(id => id !== employeeId));
-    };
+        await setVacationEmployees(dateKey, current.filter(id => id !== employeeId));
+    }, [getVacationEmployees, setVacationEmployees]);
 
-    const getRemarks = (dateKey: string): string => {
+    const getRemarks = useCallback((dateKey: string): string => {
         return vacations[dateKey]?.remarks || '';
-    };
+    }, [vacations]);
 
-    const setRemarks = (dateKey: string, remarks: string) => {
+    const setRemarksCallback = useCallback(async (dateKey: string, remarks: string) => {
+        const currentEmployees = vacations[dateKey]?.employeeIds || [];
         setVacations(prev => ({
             ...prev,
-            [dateKey]: {
-                employeeIds: prev[dateKey]?.employeeIds || [],
-                remarks,
-            },
+            [dateKey]: { employeeIds: currentEmployees, remarks },
         }));
-    };
+        await saveVacation(dateKey, currentEmployees, remarks);
+    }, [vacations, saveVacation]);
 
     return (
         <VacationContext.Provider value={{
+            isLoading,
             getVacationEmployees,
             setVacationEmployees,
             addVacationEmployee,
             removeVacationEmployee,
             getRemarks,
-            setRemarks,
+            setRemarks: setRemarksCallback,
+            refreshVacations: fetchVacations,
         }}>
             {children}
         </VacationContext.Provider>

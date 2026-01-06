@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 
 interface RemarksData {
     [dateKey: string]: string; // dateKey (YYYY-MM-DD) -> remark text
@@ -8,51 +9,104 @@ interface RemarksData {
 
 interface RemarksContextType {
     remarks: RemarksData;
-    setRemark: (dateKey: string, text: string) => void;
+    isLoading: boolean;
+    setRemark: (dateKey: string, text: string) => Promise<void>;
     getRemark: (dateKey: string) => string;
+    refreshRemarks: () => Promise<void>;
 }
 
 const RemarksContext = createContext<RemarksContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'yusystem_calendar_remarks';
-
 export function RemarksProvider({ children }: { children: ReactNode }) {
+    const { status } = useSession();
     const [remarks, setRemarks] = useState<RemarksData>({});
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load from LocalStorage on mount
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                setRemarks(JSON.parse(stored));
-            } catch (error) {
-                console.error('Failed to load remarks:', error);
+    // Fetch from API
+    const fetchRemarks = useCallback(async () => {
+        if (status !== 'authenticated') {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/calendar/remarks');
+            if (response.ok) {
+                const data = await response.json();
+                setRemarks(data);
             }
+        } catch (error) {
+            console.error('Failed to fetch remarks:', error);
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoaded(true);
-    }, []);
+    }, [status]);
 
-    // Save to LocalStorage whenever remarks change (after initial load)
     useEffect(() => {
-        if (isLoaded) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(remarks));
-        }
-    }, [remarks, isLoaded]);
+        fetchRemarks();
+    }, [fetchRemarks]);
 
-    const setRemark = (dateKey: string, text: string) => {
+    // Realtime subscription
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+
+        let channel: any = null;
+        let isSubscribed = true;
+
+        const setupRealtimeSubscription = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                if (!isSubscribed) return;
+
+                channel = supabase
+                    .channel('remarks-realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'CalendarRemark' }, () => {
+                        fetchRemarks();
+                    })
+                    .subscribe();
+            } catch (error) {
+                console.error('[Realtime] Failed to setup remarks subscription:', error);
+            }
+        };
+
+        setupRealtimeSubscription();
+
+        return () => {
+            isSubscribed = false;
+            if (channel) {
+                import('@/lib/supabase').then(({ supabase }) => {
+                    supabase.removeChannel(channel);
+                });
+            }
+        };
+    }, [status, fetchRemarks]);
+
+    const setRemark = useCallback(async (dateKey: string, text: string) => {
+        // Optimistic update
         setRemarks(prev => ({
             ...prev,
             [dateKey]: text,
         }));
-    };
 
-    const getRemark = (dateKey: string): string => {
+        try {
+            await fetch('/api/calendar/remarks', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ dateKey, text }),
+            });
+        } catch (error) {
+            console.error('Failed to set remark:', error);
+            // Revert on error
+            fetchRemarks();
+        }
+    }, [fetchRemarks]);
+
+    const getRemark = useCallback((dateKey: string): string => {
         return remarks[dateKey] || '';
-    };
+    }, [remarks]);
 
     return (
-        <RemarksContext.Provider value={{ remarks, setRemark, getRemark }}>
+        <RemarksContext.Provider value={{ remarks, isLoading, setRemark, getRemark, refreshRemarks: fetchRemarks }}>
             {children}
         </RemarksContext.Provider>
     );

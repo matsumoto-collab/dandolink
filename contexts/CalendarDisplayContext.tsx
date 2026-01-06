@@ -1,68 +1,101 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { mockEmployees } from '@/data/mockEmployees';
 
 interface CalendarDisplayContextType {
     displayedForemanIds: string[];
-    addForeman: (employeeId: string) => void;
-    removeForeman: (employeeId: string) => void;
+    isLoading: boolean;
+    addForeman: (employeeId: string) => Promise<void>;
+    removeForeman: (employeeId: string) => Promise<void>;
     getAvailableForemen: () => { id: string; name: string }[];
 }
 
 const CalendarDisplayContext = createContext<CalendarDisplayContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'calendar-displayed-foremen';
-
 export function CalendarDisplayProvider({ children }: { children: React.ReactNode }) {
+    const { status } = useSession();
     const [displayedForemanIds, setDisplayedForemanIds] = useState<string[]>([]);
-    const [isLoaded, setIsLoaded] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // LocalStorageから読み込み
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const ids = JSON.parse(stored);
-                setDisplayedForemanIds(ids);
-            } catch (error) {
-                console.error('Failed to parse displayed foremen:', error);
-                // デフォルト: 全職長を表示
-                setDisplayedForemanIds(mockEmployees.filter(e => e.id !== '1').map(e => e.id));
-            }
-        } else {
-            // 初回起動時: 全職長を表示（備考行を除く）
-            setDisplayedForemanIds(mockEmployees.filter(e => e.id !== '1').map(e => e.id));
-        }
-        setIsLoaded(true);
+    // Get default foreman IDs
+    const getDefaultForemanIds = useCallback(() => {
+        return mockEmployees.filter(e => e.id !== '1').map(e => e.id);
     }, []);
 
-    // LocalStorageに保存（初回読み込み後のみ）
+    // Fetch from API
+    const fetchSettings = useCallback(async () => {
+        if (status !== 'authenticated') {
+            // Use default if not authenticated
+            setDisplayedForemanIds(getDefaultForemanIds());
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/user-settings');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.displayedForemanIds && data.displayedForemanIds.length > 0) {
+                    setDisplayedForemanIds(data.displayedForemanIds);
+                } else {
+                    // Use default if no settings
+                    setDisplayedForemanIds(getDefaultForemanIds());
+                }
+            } else {
+                setDisplayedForemanIds(getDefaultForemanIds());
+            }
+        } catch (error) {
+            console.error('Failed to fetch user settings:', error);
+            setDisplayedForemanIds(getDefaultForemanIds());
+        } finally {
+            setIsLoading(false);
+        }
+    }, [status, getDefaultForemanIds]);
+
     useEffect(() => {
-        if (isLoaded) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(displayedForemanIds));
-        }
-    }, [displayedForemanIds, isLoaded]);
+        fetchSettings();
+    }, [fetchSettings]);
 
-    const addForeman = (employeeId: string) => {
+    const saveSettings = useCallback(async (newIds: string[]) => {
+        if (status !== 'authenticated') return;
+
+        try {
+            await fetch('/api/user-settings', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ displayedForemanIds: newIds }),
+            });
+        } catch (error) {
+            console.error('Failed to save user settings:', error);
+        }
+    }, [status]);
+
+    const addForeman = useCallback(async (employeeId: string) => {
         if (!displayedForemanIds.includes(employeeId)) {
-            setDisplayedForemanIds(prev => [...prev, employeeId]);
+            const newIds = [...displayedForemanIds, employeeId];
+            setDisplayedForemanIds(newIds);
+            await saveSettings(newIds);
         }
-    };
+    }, [displayedForemanIds, saveSettings]);
 
-    const removeForeman = (employeeId: string) => {
-        setDisplayedForemanIds(prev => prev.filter(id => id !== employeeId));
-    };
+    const removeForeman = useCallback(async (employeeId: string) => {
+        const newIds = displayedForemanIds.filter(id => id !== employeeId);
+        setDisplayedForemanIds(newIds);
+        await saveSettings(newIds);
+    }, [displayedForemanIds, saveSettings]);
 
-    const getAvailableForemen = () => {
+    const getAvailableForemen = useCallback(() => {
         return mockEmployees
             .filter(emp => emp.id !== '1' && !displayedForemanIds.includes(emp.id))
             .map(emp => ({ id: emp.id, name: emp.name }));
-    };
+    }, [displayedForemanIds]);
 
     return (
         <CalendarDisplayContext.Provider value={{
             displayedForemanIds,
+            isLoading,
             addForeman,
             removeForeman,
             getAvailableForemen,

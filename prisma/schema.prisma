@@ -192,3 +192,37 @@ model CompanyInfo {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 }
+
+// カレンダー備考（日付ごと）
+model CalendarRemark {
+  id        String   @id @default(uuid())
+  dateKey   String   @unique  // YYYY-MM-DD
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dateKey])
+}
+
+// 休暇データ（日付ごと）
+model VacationRecord {
+  id          String   @id @default(uuid())
+  dateKey     String   @unique  // YYYY-MM-DD
+  employeeIds String   // JSON array of employee IDs
+  remarks     String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([dateKey])
+}
+
+// ユーザー設定（表示設定など、ユーザーごと）
+model UserSettings {
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  displayedForemanIds String   // JSON array of foreman IDs
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([userId])
+}
