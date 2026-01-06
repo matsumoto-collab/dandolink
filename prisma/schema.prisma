@@ -119,3 +119,45 @@ model Invoice {
   @@index([createdAt])
   @@index([updatedAt])
 }
+
+// マスターデータ: 車両
+model Vehicle {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+// マスターデータ: 職人
+model Worker {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+// マスターデータ: 案件担当者
+model Manager {
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+}
+
+// システム設定
+model SystemSettings {
+  id           String   @id @default("default")
+  totalMembers Int      @default(20)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+

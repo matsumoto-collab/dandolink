@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { mockVehicles, mockWorkers, mockManagers, TOTAL_MEMBERS } from '@/data/mockResources';
+import { useSession } from 'next-auth/react';
 
 export interface Vehicle {
     id: string;
@@ -26,123 +26,218 @@ export interface MasterData {
 }
 
 interface MasterDataContextType extends MasterData {
-    addVehicle: (name: string) => void;
-    updateVehicle: (id: string, name: string) => void;
-    deleteVehicle: (id: string) => void;
-    addWorker: (name: string) => void;
-    updateWorker: (id: string, name: string) => void;
-    deleteWorker: (id: string) => void;
-    addManager: (name: string) => void;
-    updateManager: (id: string, name: string) => void;
-    deleteManager: (id: string) => void;
-    updateTotalMembers: (count: number) => void;
+    isLoading: boolean;
+    addVehicle: (name: string) => Promise<void>;
+    updateVehicle: (id: string, name: string) => Promise<void>;
+    deleteVehicle: (id: string) => Promise<void>;
+    addWorker: (name: string) => Promise<void>;
+    updateWorker: (id: string, name: string) => Promise<void>;
+    deleteWorker: (id: string) => Promise<void>;
+    addManager: (name: string) => Promise<void>;
+    updateManager: (id: string, name: string) => Promise<void>;
+    deleteManager: (id: string) => Promise<void>;
+    updateTotalMembers: (count: number) => Promise<void>;
+    refreshMasterData: () => Promise<void>;
 }
 
 const MasterDataContext = createContext<MasterDataContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'yusystem_master_data';
-
 export function MasterDataProvider({ children }: { children: ReactNode }) {
+    const { status } = useSession();
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [workers, setWorkers] = useState<Worker[]>([]);
     const [managers, setManagers] = useState<Manager[]>([]);
-    const [totalMembers, setTotalMembers] = useState<number>(TOTAL_MEMBERS);
-    const [isInitialized, setIsInitialized] = useState(false);
+    const [totalMembers, setTotalMembers] = useState<number>(20);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load data from LocalStorage on mount
-    useEffect(() => {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-            try {
-                const data: MasterData = JSON.parse(stored);
-                setVehicles(data.vehicles || mockVehicles);
-                setWorkers(data.workers || mockWorkers);
-                setManagers(data.managers || mockManagers);
-                setTotalMembers(data.totalMembers || TOTAL_MEMBERS);
-            } catch (error) {
-                console.error('Failed to load master data:', error);
-                loadDefaults();
-            }
-        } else {
-            loadDefaults();
+    // Fetch all master data from API
+    const fetchMasterData = useCallback(async () => {
+        if (status !== 'authenticated') {
+            setIsLoading(false);
+            return;
         }
-        setIsInitialized(true);
-    }, []);
 
-    const loadDefaults = () => {
-        setVehicles(mockVehicles);
-        setWorkers(mockWorkers);
-        setManagers(mockManagers);
-        setTotalMembers(TOTAL_MEMBERS);
-    };
+        try {
+            const response = await fetch('/api/master-data');
+            if (response.ok) {
+                const data = await response.json();
+                setVehicles(data.vehicles || []);
+                setWorkers(data.workers || []);
+                setManagers(data.managers || []);
+                setTotalMembers(data.totalMembers || 20);
+            }
+        } catch (error) {
+            console.error('Failed to fetch master data:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [status]);
 
-    // Save to LocalStorage whenever data changes (but only after initialization)
+    // Load data on mount
     useEffect(() => {
-        if (!isInitialized) return;
+        fetchMasterData();
+    }, [fetchMasterData]);
 
-        const data: MasterData = {
-            vehicles,
-            workers,
-            managers,
-            totalMembers,
+    // Supabase Realtime subscription for master data
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+
+        let channels: any[] = [];
+        let isSubscribed = true;
+
+        const setupRealtimeSubscription = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+
+                if (!isSubscribed) return;
+
+                const tables = ['Vehicle', 'Worker', 'Manager', 'SystemSettings'];
+
+                tables.forEach(table => {
+                    const channel = supabase
+                        .channel(`master-data-${table.toLowerCase()}`)
+                        .on(
+                            'postgres_changes',
+                            {
+                                event: '*',
+                                schema: 'public',
+                                table: table,
+                            },
+                            () => {
+                                console.log(`[Realtime] ${table} changed`);
+                                fetchMasterData();
+                            }
+                        )
+                        .subscribe();
+
+                    channels.push(channel);
+                });
+            } catch (error) {
+                console.error('[Realtime] Failed to setup master data subscription:', error);
+            }
         };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }, [vehicles, workers, managers, totalMembers, isInitialized]);
+
+        setupRealtimeSubscription();
+
+        return () => {
+            isSubscribed = false;
+            import('@/lib/supabase').then(({ supabase }) => {
+                channels.forEach(channel => {
+                    supabase.removeChannel(channel);
+                });
+            });
+        };
+    }, [status, fetchMasterData]);
 
     // Vehicle operations
-    const addVehicle = useCallback((name: string) => {
-        const newVehicle: Vehicle = {
-            id: `v${Date.now()}`,
-            name,
-        };
-        setVehicles(prev => [...prev, newVehicle]);
+    const addVehicle = useCallback(async (name: string) => {
+        const response = await fetch('/api/master-data/vehicles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (response.ok) {
+            const newVehicle = await response.json();
+            setVehicles(prev => [...prev, newVehicle]);
+        }
     }, []);
 
-    const updateVehicle = useCallback((id: string, name: string) => {
-        setVehicles(prev => prev.map(v => v.id === id ? { ...v, name } : v));
+    const updateVehicle = useCallback(async (id: string, name: string) => {
+        const response = await fetch(`/api/master-data/vehicles/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (response.ok) {
+            setVehicles(prev => prev.map(v => v.id === id ? { ...v, name } : v));
+        }
     }, []);
 
-    const deleteVehicle = useCallback((id: string) => {
-        setVehicles(prev => prev.filter(v => v.id !== id));
+    const deleteVehicle = useCallback(async (id: string) => {
+        const response = await fetch(`/api/master-data/vehicles/${id}`, {
+            method: 'DELETE',
+        });
+        if (response.ok) {
+            setVehicles(prev => prev.filter(v => v.id !== id));
+        }
     }, []);
 
     // Worker operations
-    const addWorker = useCallback((name: string) => {
-        const newWorker: Worker = {
-            id: `w${Date.now()}`,
-            name,
-        };
-        setWorkers(prev => [...prev, newWorker]);
+    const addWorker = useCallback(async (name: string) => {
+        const response = await fetch('/api/master-data/workers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (response.ok) {
+            const newWorker = await response.json();
+            setWorkers(prev => [...prev, newWorker]);
+        }
     }, []);
 
-    const updateWorker = useCallback((id: string, name: string) => {
-        setWorkers(prev => prev.map(w => w.id === id ? { ...w, name } : w));
+    const updateWorker = useCallback(async (id: string, name: string) => {
+        const response = await fetch(`/api/master-data/workers/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (response.ok) {
+            setWorkers(prev => prev.map(w => w.id === id ? { ...w, name } : w));
+        }
     }, []);
 
-    const deleteWorker = useCallback((id: string) => {
-        setWorkers(prev => prev.filter(w => w.id !== id));
+    const deleteWorker = useCallback(async (id: string) => {
+        const response = await fetch(`/api/master-data/workers/${id}`, {
+            method: 'DELETE',
+        });
+        if (response.ok) {
+            setWorkers(prev => prev.filter(w => w.id !== id));
+        }
     }, []);
 
     // Manager operations
-    const addManager = useCallback((name: string) => {
-        const newManager: Manager = {
-            id: `m${Date.now()}`,
-            name,
-        };
-        setManagers(prev => [...prev, newManager]);
+    const addManager = useCallback(async (name: string) => {
+        const response = await fetch('/api/master-data/managers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (response.ok) {
+            const newManager = await response.json();
+            setManagers(prev => [...prev, newManager]);
+        }
     }, []);
 
-    const updateManager = useCallback((id: string, name: string) => {
-        setManagers(prev => prev.map(m => m.id === id ? { ...m, name } : m));
+    const updateManager = useCallback(async (id: string, name: string) => {
+        const response = await fetch(`/api/master-data/managers/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (response.ok) {
+            setManagers(prev => prev.map(m => m.id === id ? { ...m, name } : m));
+        }
     }, []);
 
-    const deleteManager = useCallback((id: string) => {
-        setManagers(prev => prev.filter(m => m.id !== id));
+    const deleteManager = useCallback(async (id: string) => {
+        const response = await fetch(`/api/master-data/managers/${id}`, {
+            method: 'DELETE',
+        });
+        if (response.ok) {
+            setManagers(prev => prev.filter(m => m.id !== id));
+        }
     }, []);
 
     // Total members operations
-    const updateTotalMembersCallback = useCallback((count: number) => {
-        setTotalMembers(count);
+    const updateTotalMembersCallback = useCallback(async (count: number) => {
+        const response = await fetch('/api/master-data/settings', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ totalMembers: count }),
+        });
+        if (response.ok) {
+            setTotalMembers(count);
+        }
     }, []);
 
     const value: MasterDataContextType = {
@@ -150,6 +245,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
         workers,
         managers,
         totalMembers,
+        isLoading,
         addVehicle,
         updateVehicle,
         deleteVehicle,
@@ -160,6 +256,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
         updateManager,
         deleteManager,
         updateTotalMembers: updateTotalMembersCallback,
+        refreshMasterData: fetchMasterData,
     };
 
     return (
