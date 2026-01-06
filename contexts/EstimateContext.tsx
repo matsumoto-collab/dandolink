@@ -18,13 +18,18 @@ interface EstimateContextType {
 const EstimateContext = createContext<EstimateContextType | undefined>(undefined);
 
 export function EstimateProvider({ children }: { children: ReactNode }) {
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const [estimates, setEstimates] = useState<Estimate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch estimates from API
     const fetchEstimates = useCallback(async () => {
-        // Skip if not authenticated
+        // Wait for session to be determined
+        if (status === 'loading') {
+            return; // Don't set isLoading to false yet
+        }
+
+        // If not authenticated, clear estimates
         if (status !== 'authenticated') {
             setEstimates([]);
             setIsLoading(false);
@@ -55,8 +60,10 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
 
     // Load estimates on mount and when session changes
     useEffect(() => {
-        fetchEstimates();
-    }, [fetchEstimates, session?.user?.email]);
+        if (status !== 'loading') {
+            fetchEstimates();
+        }
+    }, [fetchEstimates, status]);
 
     // Supabase Realtime subscription for instant updates
     useEffect(() => {

@@ -19,13 +19,18 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
     // Fetch projects from API
     const fetchProjects = useCallback(async () => {
-        // Skip if not authenticated
+        // Wait for session to be determined
+        if (status === 'loading') {
+            return; // Don't set isLoading to false yet
+        }
+
+        // If not authenticated, clear projects
         if (status !== 'authenticated') {
             setProjects([]);
             setIsLoading(false);
@@ -59,8 +64,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     // Load projects on mount and when session changes
     useEffect(() => {
-        fetchProjects();
-    }, [fetchProjects, session?.user?.email]);
+        if (status !== 'loading') {
+            fetchProjects();
+        }
+    }, [fetchProjects, status]);
 
     // Supabase Realtime subscription for instant updates
     useEffect(() => {
