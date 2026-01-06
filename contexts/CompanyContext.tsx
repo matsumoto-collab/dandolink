@@ -1,60 +1,104 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 import { CompanyInfo, CompanyInfoInput } from '@/types/company';
 
 interface CompanyContextType {
     companyInfo: CompanyInfo | null;
-    updateCompanyInfo: (data: CompanyInfoInput) => void;
+    isLoading: boolean;
+    updateCompanyInfo: (data: CompanyInfoInput) => Promise<void>;
+    refreshCompanyInfo: () => Promise<void>;
 }
 
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
+    const { status } = useSession();
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // LocalStorageから読み込み
+    // Fetch from API
+    const fetchCompanyInfo = useCallback(async () => {
+        if (status !== 'authenticated') {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/master-data/company');
+            if (response.ok) {
+                const data = await response.json();
+                setCompanyInfo({
+                    ...data,
+                    createdAt: new Date(data.createdAt),
+                    updatedAt: new Date(data.updatedAt),
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch company info:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, [status]);
+
     useEffect(() => {
-        const stored = localStorage.getItem('companyInfo');
-        if (stored) {
-            const parsed = JSON.parse(stored);
+        fetchCompanyInfo();
+    }, [fetchCompanyInfo]);
+
+    // Realtime subscription
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+
+        let channel: any = null;
+        let isSubscribed = true;
+
+        const setupRealtimeSubscription = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                if (!isSubscribed) return;
+
+                channel = supabase
+                    .channel('company-info-realtime')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'CompanyInfo' }, () => {
+                        fetchCompanyInfo();
+                    })
+                    .subscribe();
+            } catch (error) {
+                console.error('[Realtime] Failed to setup company info subscription:', error);
+            }
+        };
+
+        setupRealtimeSubscription();
+
+        return () => {
+            isSubscribed = false;
+            if (channel) {
+                import('@/lib/supabase').then(({ supabase }) => {
+                    supabase.removeChannel(channel);
+                });
+            }
+        };
+    }, [status, fetchCompanyInfo]);
+
+    const updateCompanyInfo = useCallback(async (data: CompanyInfoInput) => {
+        const response = await fetch('/api/master-data/company', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (response.ok) {
+            const updated = await response.json();
             setCompanyInfo({
-                ...parsed,
-                createdAt: new Date(parsed.createdAt),
-                updatedAt: new Date(parsed.updatedAt),
+                ...updated,
+                createdAt: new Date(updated.createdAt),
+                updatedAt: new Date(updated.updatedAt),
             });
-        } else {
-            // デフォルト値
-            const defaultCompany: CompanyInfo = {
-                id: 'company-1',
-                name: '株式会社 焼伸 工業',
-                postalCode: '〒799-3104',
-                address: '伊予市上三谷甲3517番地',
-                tel: 'TEL:089-989-7350',
-                fax: 'FAX:089-989-7351',
-                representative: '今井 公',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-            setCompanyInfo(defaultCompany);
-            localStorage.setItem('companyInfo', JSON.stringify(defaultCompany));
         }
     }, []);
 
-    // 更新
-    const updateCompanyInfo = (data: CompanyInfoInput) => {
-        const updated: CompanyInfo = {
-            id: companyInfo?.id || 'company-1',
-            ...data,
-            createdAt: companyInfo?.createdAt || new Date(),
-            updatedAt: new Date(),
-        };
-        setCompanyInfo(updated);
-        localStorage.setItem('companyInfo', JSON.stringify(updated));
-    };
-
     return (
-        <CompanyContext.Provider value={{ companyInfo, updateCompanyInfo }}>
+        <CompanyContext.Provider value={{ companyInfo, isLoading, updateCompanyInfo, refreshCompanyInfo: fetchCompanyInfo }}>
             {children}
         </CompanyContext.Provider>
     );
