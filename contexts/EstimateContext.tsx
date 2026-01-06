@@ -21,21 +21,10 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
     const { status } = useSession();
     const [estimates, setEstimates] = useState<Estimate[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasFetched, setHasFetched] = useState(false);
 
     // Fetch estimates from API
     const fetchEstimates = useCallback(async () => {
-        // Wait for session to be determined
-        if (status === 'loading') {
-            return; // Don't set isLoading to false yet
-        }
-
-        // If not authenticated, clear estimates
-        if (status !== 'authenticated') {
-            setEstimates([]);
-            setIsLoading(false);
-            return;
-        }
-
         try {
             const response = await fetch('/api/estimates');
             if (response.ok) {
@@ -48,48 +37,68 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
                     updatedAt: new Date(estimate.updatedAt),
                 }));
 
-                // Always update state with fresh data
                 setEstimates(parsedEstimates);
             }
         } catch (error) {
             console.error('Failed to fetch estimates:', error);
         } finally {
             setIsLoading(false);
+            setHasFetched(true);
         }
-    }, [status]);
+    }, []);
 
-    // Load estimates on mount and when session changes
+    // Load estimates when authenticated
     useEffect(() => {
-        if (status !== 'loading') {
+        if (status === 'authenticated' && !hasFetched) {
             fetchEstimates();
+        } else if (status === 'unauthenticated') {
+            setEstimates([]);
+            setIsLoading(false);
         }
-    }, [fetchEstimates, status]);
+    }, [status, hasFetched, fetchEstimates]);
 
     // Supabase Realtime subscription for instant updates
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        import('@/lib/supabase').then(({ supabase }) => {
-            const channel = supabase
-                .channel('estimates-changes')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'Estimate',
-                    },
-                    (payload) => {
-                        console.log('Estimate changed:', payload);
-                        fetchEstimates();
-                    }
-                )
-                .subscribe();
+        let channel: any = null;
+        let isSubscribed = true;
 
-            return () => {
-                supabase.removeChannel(channel);
-            };
-        });
+        const setupRealtime = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                if (!isSubscribed) return;
+
+                channel = supabase
+                    .channel('estimates-changes')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: '*',
+                            schema: 'public',
+                            table: 'Estimate',
+                        },
+                        (payload) => {
+                            console.log('Estimate changed:', payload);
+                            fetchEstimates();
+                        }
+                    )
+                    .subscribe();
+            } catch (error) {
+                console.error('Failed to setup realtime:', error);
+            }
+        };
+
+        setupRealtime();
+
+        return () => {
+            isSubscribed = false;
+            if (channel) {
+                import('@/lib/supabase').then(({ supabase }) => {
+                    supabase.removeChannel(channel);
+                });
+            }
+        };
     }, [status, fetchEstimates]);
 
     const addEstimate = useCallback(async (input: EstimateInput): Promise<Estimate> => {

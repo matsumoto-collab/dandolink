@@ -65,6 +65,11 @@ export interface Project extends CalendarEvent {
     createdBy?: string | string[]; // 案件担当者（複数選択可能）
     sortOrder?: number; // セル内での表示順序
 
+    // 組立・解体の期間設定
+    assemblyDuration?: number;    // 組立日数
+    demolitionDuration?: number;  // 解体日数
+    vehicles?: string[];          // 車両（DBとの互換性）
+
     // 複数日作業スケジュール（新システム）
     workSchedules?: WorkSchedule[];
 
