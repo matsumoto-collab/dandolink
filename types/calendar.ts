@@ -104,16 +104,24 @@ export interface EmployeeRow {
 // カレンダービューの型
 export type ViewType = 'gantt' | 'calendar';
 
-// カラーパレット（段取太郎風）
+// カラーパレット（プレミアム・モダンデザイン）
 export const CALENDAR_COLORS = {
-    primary: '#abd1e8',
-    secondary: '#9edbd6',
-    success: '#a6e1b1',
-    warning: '#eadb80',
-    danger: '#e89e9f',
-    info: '#acc6e9',
-    light: '#cecece',
-    dark: '#8094b7',
+    // Deep Azure Blue - 高級感のあるディープブルー
+    primary: '#4f7cac',
+    // Sophisticated Teal - 洗練されたティール
+    secondary: '#5aa9a0',
+    // Premium Green - 落ち着いたグリーン
+    success: '#6b9e78',
+    // Warm Gold - 上品なゴールド
+    warning: '#d4a84b',
+    // Elegant Rose - エレガントなローズ
+    danger: '#c97878',
+    // Slate Blue - クールなスレートブルー
+    info: '#7089a8',
+    // Warm Gray - 温かみのあるグレー
+    light: '#a8a8a8',
+    // Deep Navy - ディープネイビー
+    dark: '#4a5568',
 } as const;
 
 // カテゴリー別のデフォルトカラー
@@ -126,11 +134,11 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
     other: CALENDAR_COLORS.light,
 };
 
-// 工事種別別のカラー
+// 工事種別別のカラー（プレミアム版）
 export const CONSTRUCTION_TYPE_COLORS: Record<ConstructionType, string> = {
-    assembly: '#3b82f6',    // 青 (blue-500)
-    demolition: '#ef4444',  // 赤 (red-500)
-    other: '#eab308',       // 黄色 (yellow-500)
+    assembly: '#4f7cac',    // Deep Azure Blue
+    demolition: '#c97878',  // Elegant Rose
+    other: '#d4a84b',       // Warm Gold
 };
 
 // 工事種別のラベル
