@@ -6,28 +6,23 @@ import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useProjectAssignment } from '@/contexts/ProjectAssignmentContext';
 import { useVacation } from '@/contexts/VacationContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { mockEmployees, unassignedEmployee } from '@/data/mockEmployees';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
-import { convertToProject } from '@/utils/dataMigration';
 import CalendarHeader from './CalendarHeader';
 import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import ProjectModal from '../Projects/ProjectModal';
 import ProjectSearchModal from '../ProjectSearchModal';
-import ProjectAssignmentForm from '../ProjectAssignmentForm';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project } from '@/types/calendar';
-import { ProjectMaster } from '@/types/projectMaster';
 
 export default function WeeklyCalendar() {
     const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents } = useProjects();
     const { totalMembers } = useMasterData();
-    const { addProjectAssignment } = useProjectAssignment();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman } = useCalendarDisplay();
 
@@ -37,8 +32,6 @@ export default function WeeklyCalendar() {
 
     // 新しいモーダルの状態
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-    const [isAssignmentFormOpen, setIsAssignmentFormOpen] = useState(false);
-    const [selectedMaster, setSelectedMaster] = useState<ProjectMaster | null>(null);
     const [cellContext, setCellContext] = useState<{ employeeId: string; date: Date } | null>(null);
 
     // クライアントサイドでのみレンダリング
@@ -141,26 +134,33 @@ export default function WeeklyCalendar() {
         }
     };
 
-    // 案件マスターを選択したら割り当てフォームを開く
-    const handleSelectMaster = (master: ProjectMaster) => {
-        setSelectedMaster(master);
-        setIsAssignmentFormOpen(true);
-    };
+    // 案件を選択したら複製して新規作成
+    const handleSelectProject = (project: Project) => {
+        if (!cellContext) return;
 
-    // 案件割り当てを保存
-    const handleSaveAssignment = (assignment: any) => {
-        // 案件割り当てを追加
-        const newAssignment = addProjectAssignment(assignment);
+        // 選択した案件を複製して新しい案件を作成
+        const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+            title: project.title,
+            customer: project.customer,
+            location: project.location,
+            startDate: cellContext.date,
+            endDate: cellContext.date,
+            assignedEmployeeId: cellContext.employeeId,
+            constructionType: project.constructionType || 'assembly',
+            status: 'pending',
+            remarks: project.remarks,
+            workers: project.workers || [],
+            vehicles: project.vehicles || [],
+            trucks: project.trucks || [],
+            meetingTime: project.meetingTime,
+            category: project.category,
+            color: project.color,
+        };
 
-        // カレンダー表示用にProject形式に変換
-        if (selectedMaster) {
-            const project = convertToProject(selectedMaster, newAssignment);
-            addProject(project);
-        }
+        addProject(newProject as Project);
 
         // モーダルを閉じる
-        setIsAssignmentFormOpen(false);
-        setSelectedMaster(null);
+        setIsSearchModalOpen(false);
         setCellContext(null);
     };
 
@@ -431,24 +431,8 @@ export default function WeeklyCalendar() {
                     setIsSearchModalOpen(false);
                     setCellContext(null);
                 }}
-                onSelect={handleSelectMaster}
+                onSelect={handleSelectProject}
             />
-
-            {/* 案件割り当てフォーム */}
-            {selectedMaster && cellContext && (
-                <ProjectAssignmentForm
-                    isOpen={isAssignmentFormOpen}
-                    onClose={() => {
-                        setIsAssignmentFormOpen(false);
-                        setSelectedMaster(null);
-                        setCellContext(null);
-                    }}
-                    onSave={handleSaveAssignment}
-                    projectMaster={selectedMaster}
-                    preselectedLeaderId={cellContext.employeeId}
-                    preselectedDate={cellContext.date.toISOString().split('T')[0]}
-                />
-            )}
         </DndContext>
     );
 }
