@@ -23,8 +23,23 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [projects, setProjects] = useState<Project[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Track if we're in the middle of a local update to skip realtime refresh
-    const isLocalUpdate = useRef(false);
+    // Track the last update timestamp to prevent realtime from overwriting recent changes
+    const lastLocalUpdateTime = useRef<number>(0);
+    // Track IDs being updated locally
+    const pendingUpdateIds = useRef<Set<string>>(new Set());
+    // Minimum time to wait before allowing realtime updates (5 seconds)
+    const REALTIME_BLOCK_DURATION = 5000;
+
+    // Parse project from API response
+    const parseProject = useCallback((project: any): Project => ({
+        ...project,
+        startDate: new Date(project.startDate),
+        endDate: project.endDate ? new Date(project.endDate) : undefined,
+        assemblyStartDate: project.assemblyStartDate ? new Date(project.assemblyStartDate) : undefined,
+        demolitionStartDate: project.demolitionStartDate ? new Date(project.demolitionStartDate) : undefined,
+        createdAt: new Date(project.createdAt),
+        updatedAt: new Date(project.updatedAt),
+    }), []);
 
     // Fetch projects from API
     const fetchProjects = useCallback(async () => {
@@ -32,35 +47,47 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             const response = await fetch('/api/projects');
             if (response.ok) {
                 const data = await response.json();
-                const parsedProjects = data.map((project: any) => ({
-                    ...project,
-                    startDate: new Date(project.startDate),
-                    endDate: project.endDate ? new Date(project.endDate) : undefined,
-                    assemblyStartDate: project.assemblyStartDate ? new Date(project.assemblyStartDate) : undefined,
-                    demolitionStartDate: project.demolitionStartDate ? new Date(project.demolitionStartDate) : undefined,
-                    createdAt: new Date(project.createdAt),
-                    updatedAt: new Date(project.updatedAt),
-                }));
-                setProjects(parsedProjects);
+                const parsedProjects = data.map(parseProject);
+
+                // Only update if not in the middle of local updates
+                const now = Date.now();
+                if (now - lastLocalUpdateTime.current > REALTIME_BLOCK_DURATION && pendingUpdateIds.current.size === 0) {
+                    setProjects(parsedProjects);
+                }
             }
         } catch (error) {
             console.error('Failed to fetch projects:', error);
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [parseProject]);
 
-    // Load projects when authenticated
+    // Initial load when authenticated
     useEffect(() => {
         if (status === 'authenticated') {
-            fetchProjects();
+            // Force initial load regardless of timing
+            const doInitialFetch = async () => {
+                try {
+                    const response = await fetch('/api/projects');
+                    if (response.ok) {
+                        const data = await response.json();
+                        const parsedProjects = data.map(parseProject);
+                        setProjects(parsedProjects);
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch projects:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            doInitialFetch();
         } else if (status === 'unauthenticated') {
             setProjects([]);
             setIsLoading(false);
         }
-    }, [status, fetchProjects]);
+    }, [status, parseProject]);
 
-    // Supabase Realtime subscription
+    // Supabase Realtime subscription - only for OTHER users' changes
     useEffect(() => {
         if (status !== 'authenticated') return;
 
@@ -71,16 +98,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             try {
                 const { supabase } = await import('@/lib/supabase');
                 channel = supabase
-                    .channel('projects-realtime')
+                    .channel('projects-realtime-v2')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'Project' }, () => {
-                        // Skip if we're in the middle of a local update
-                        if (isLocalUpdate.current) return;
+                        // Check if we should skip this update
+                        const now = Date.now();
+                        const timeSinceLastUpdate = now - lastLocalUpdateTime.current;
 
-                        // Debounce to avoid multiple rapid fetches
+                        // Skip if within protection period or having pending updates
+                        if (timeSinceLastUpdate < REALTIME_BLOCK_DURATION || pendingUpdateIds.current.size > 0) {
+                            return;
+                        }
+
+                        // Debounce fetches
                         if (debounceTimer) clearTimeout(debounceTimer);
                         debounceTimer = setTimeout(() => {
                             fetchProjects();
-                        }, 300);
+                        }, 500);
                     })
                     .subscribe();
             } catch (error) {
@@ -102,6 +135,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     // Add a new project
     const addProject = useCallback(async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+        lastLocalUpdateTime.current = Date.now();
+
         try {
             const response = await fetch('/api/projects', {
                 method: 'POST',
@@ -111,15 +146,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
             if (response.ok) {
                 const newProject = await response.json();
-                const parsedProject = {
-                    ...newProject,
-                    startDate: new Date(newProject.startDate),
-                    endDate: newProject.endDate ? new Date(newProject.endDate) : undefined,
-                    assemblyStartDate: newProject.assemblyStartDate ? new Date(newProject.assemblyStartDate) : undefined,
-                    demolitionStartDate: newProject.demolitionStartDate ? new Date(newProject.demolitionStartDate) : undefined,
-                    createdAt: new Date(newProject.createdAt),
-                    updatedAt: new Date(newProject.updatedAt),
-                };
+                const parsedProject = parseProject(newProject);
                 setProjects(prev => [...prev, parsedProject]);
             } else {
                 const error = await response.json();
@@ -129,15 +156,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             console.error('Failed to add project:', error);
             throw error;
         }
-    }, []);
+    }, [parseProject]);
 
     // Update a project with optimistic update
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
-        // Set flag to prevent realtime from overwriting
-        isLocalUpdate.current = true;
+        // Mark as pending and set timestamp
+        pendingUpdateIds.current.add(id);
+        lastLocalUpdateTime.current = Date.now();
+
+        // Store previous state for rollback
+        const previousProjects = projects;
 
         // Optimistic update
-        const previousProjects = [...projects];
         setProjects(prev => prev.map(p =>
             p.id === id ? { ...p, ...updates, updatedAt: new Date() } : p
         ));
@@ -151,35 +181,32 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
             if (response.ok) {
                 const updatedProject = await response.json();
-                const parsedProject = {
-                    ...updatedProject,
-                    startDate: new Date(updatedProject.startDate),
-                    endDate: updatedProject.endDate ? new Date(updatedProject.endDate) : undefined,
-                    assemblyStartDate: updatedProject.assemblyStartDate ? new Date(updatedProject.assemblyStartDate) : undefined,
-                    demolitionStartDate: updatedProject.demolitionStartDate ? new Date(updatedProject.demolitionStartDate) : undefined,
-                    createdAt: new Date(updatedProject.createdAt),
-                    updatedAt: new Date(updatedProject.updatedAt),
-                };
+                const parsedProject = parseProject(updatedProject);
                 setProjects(prev => prev.map(p => p.id === id ? parsedProject : p));
             } else {
-                // Rollback
+                // Rollback on error
                 setProjects(previousProjects);
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to update project');
             }
         } catch (error) {
+            // Rollback on error
             setProjects(previousProjects);
             console.error('Failed to update project:', error);
             throw error;
         } finally {
-            // Allow realtime again after a delay
-            setTimeout(() => { isLocalUpdate.current = false; }, 2000);
+            // Clear pending after a longer delay to ensure realtime events have passed
+            setTimeout(() => {
+                pendingUpdateIds.current.delete(id);
+            }, REALTIME_BLOCK_DURATION);
         }
-    }, [projects]);
+    }, [projects, parseProject]);
 
     // Update multiple projects
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
-        isLocalUpdate.current = true;
+        lastLocalUpdateTime.current = Date.now();
+        updates.forEach(u => pendingUpdateIds.current.add(u.id));
+
         try {
             await Promise.all(
                 updates.map(({ id, data }) =>
@@ -190,30 +217,48 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     })
                 )
             );
-            await fetchProjects();
+            // Fetch fresh data after batch update
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const data = await response.json();
+                setProjects(data.map(parseProject));
+            }
         } catch (error) {
             console.error('Failed to update projects:', error);
             throw error;
         } finally {
-            setTimeout(() => { isLocalUpdate.current = false; }, 2000);
+            setTimeout(() => {
+                updates.forEach(u => pendingUpdateIds.current.delete(u.id));
+            }, REALTIME_BLOCK_DURATION);
         }
-    }, [fetchProjects]);
+    }, [parseProject]);
 
     // Delete a project
     const deleteProject = useCallback(async (id: string) => {
+        lastLocalUpdateTime.current = Date.now();
+        pendingUpdateIds.current.add(id);
+
+        // Optimistic delete
+        const previousProjects = projects;
+        setProjects(prev => prev.filter(p => p.id !== id));
+
         try {
             const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-            if (response.ok) {
-                setProjects(prev => prev.filter(p => p.id !== id));
-            } else {
+            if (!response.ok) {
+                setProjects(previousProjects);
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to delete project');
             }
         } catch (error) {
+            setProjects(previousProjects);
             console.error('Failed to delete project:', error);
             throw error;
+        } finally {
+            setTimeout(() => {
+                pendingUpdateIds.current.delete(id);
+            }, REALTIME_BLOCK_DURATION);
         }
-    }, []);
+    }, [projects]);
 
     // Get project by ID
     const getProjectById = useCallback((id: string) => {
@@ -295,6 +340,19 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         return events;
     }, [projects]);
 
+    // Force refresh - bypasses protection
+    const forceRefreshProjects = useCallback(async () => {
+        try {
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+                const data = await response.json();
+                setProjects(data.map(parseProject));
+            }
+        } catch (error) {
+            console.error('Failed to refresh projects:', error);
+        }
+    }, [parseProject]);
+
     return (
         <ProjectContext.Provider
             value={{
@@ -306,7 +364,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 deleteProject,
                 getProjectById,
                 getCalendarEvents,
-                refreshProjects: fetchProjects,
+                refreshProjects: forceRefreshProjects,
             }}
         >
             {children}
