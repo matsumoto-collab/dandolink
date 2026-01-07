@@ -144,8 +144,8 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
 
 // 工事種別別のカラー（プレミアム版）
 export const CONSTRUCTION_TYPE_COLORS: Record<ConstructionType, string> = {
-    assembly: '#4f7cac',    // Deep Azure Blue
-    demolition: '#c97878',  // Elegant Rose
+    assembly: '#a8c8e8',    // 薄い青（Light Blue）
+    demolition: '#f0a8a8',  // 薄い赤（Light Red/Pink）
     other: '#d4a84b',       // Warm Gold
 };
 
