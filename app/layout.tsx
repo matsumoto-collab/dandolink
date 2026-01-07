@@ -10,8 +10,6 @@ import { CalendarDisplayProvider } from "@/contexts/CalendarDisplayContext";
 import { EstimateProvider } from "@/contexts/EstimateContext";
 import { InvoiceProvider } from "@/contexts/InvoiceContext";
 import { CompanyProvider } from '@/contexts/CompanyContext';
-import { ProjectMasterProvider } from '@/contexts/ProjectMasterContext';
-import { ProjectAssignmentProvider } from '@/contexts/ProjectAssignmentContext';
 import { CustomerProvider } from '@/contexts/CustomerContext';
 import { UnitPriceMasterProvider } from '@/contexts/UnitPriceMasterContext';
 import AuthProvider from '@/components/AuthProvider';
@@ -34,29 +32,25 @@ export default function RootLayout({
                 <AuthProvider>
                     <NavigationProvider>
                         <MasterDataProvider>
-                            <ProjectMasterProvider>
-                                <ProjectAssignmentProvider>
-                                    <ProjectProvider>
-                                        <RemarksProvider>
-                                            <VacationProvider>
-                                                <CalendarDisplayProvider>
-                                                    <EstimateProvider>
-                                                        <InvoiceProvider>
-                                                            <CompanyProvider>
-                                                                <CustomerProvider>
-                                                                    <UnitPriceMasterProvider>
-                                                                        {children}
-                                                                    </UnitPriceMasterProvider>
-                                                                </CustomerProvider>
-                                                            </CompanyProvider>
-                                                        </InvoiceProvider>
-                                                    </EstimateProvider>
-                                                </CalendarDisplayProvider>
-                                            </VacationProvider>
-                                        </RemarksProvider>
-                                    </ProjectProvider>
-                                </ProjectAssignmentProvider>
-                            </ProjectMasterProvider>
+                            <ProjectProvider>
+                                <RemarksProvider>
+                                    <VacationProvider>
+                                        <CalendarDisplayProvider>
+                                            <EstimateProvider>
+                                                <InvoiceProvider>
+                                                    <CompanyProvider>
+                                                        <CustomerProvider>
+                                                            <UnitPriceMasterProvider>
+                                                                {children}
+                                                            </UnitPriceMasterProvider>
+                                                        </CustomerProvider>
+                                                    </CompanyProvider>
+                                                </InvoiceProvider>
+                                            </EstimateProvider>
+                                        </CalendarDisplayProvider>
+                                    </VacationProvider>
+                                </RemarksProvider>
+                            </ProjectProvider>
                         </MasterDataProvider>
                     </NavigationProvider>
                 </AuthProvider>
