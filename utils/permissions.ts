@@ -1,4 +1,4 @@
-import { User, UserRole } from '@/types/user';
+import { User } from '@/types/user';
 
 // Role-based permissions configuration
 const ROLE_PERMISSIONS = {
@@ -9,6 +9,7 @@ const ROLE_PERMISSIONS = {
         customers: ['view', 'create', 'edit', 'delete'],
         settings: ['view', 'create', 'edit', 'delete'],
         users: ['view', 'create', 'edit', 'delete'],
+        assignments: ['view', 'edit'],
     },
     manager: {
         projects: ['view', 'create', 'edit', 'delete'],
@@ -17,22 +18,34 @@ const ROLE_PERMISSIONS = {
         customers: ['view', 'create', 'edit', 'delete'],
         settings: ['view'],
         users: [],
+        assignments: ['view', 'edit'],
     },
-    user: {
-        projects: ['view', 'edit'], // Only assigned projects
-        estimates: ['view', 'create', 'edit'],
-        invoices: ['view'],
-        customers: ['view'],
-        settings: [],
-        users: [],
-    },
-    viewer: {
-        projects: ['view'],
+    foreman1: {
+        projects: ['view', 'edit'],
         estimates: ['view'],
         invoices: ['view'],
         customers: ['view'],
         settings: [],
         users: [],
+        assignments: ['view', 'edit'], // 全班のメンバー・車両采配可能
+    },
+    foreman2: {
+        projects: ['view', 'edit'], // 自班のみ
+        estimates: ['view'],
+        invoices: ['view'],
+        customers: ['view'],
+        settings: [],
+        users: [],
+        assignments: ['view', 'edit'], // 自班のみ操作可能
+    },
+    worker: {
+        projects: ['view'], // 自班のみ
+        estimates: [],
+        invoices: [],
+        customers: [],
+        settings: [],
+        users: [],
+        assignments: ['view'], // 自班のみ表示
     },
 } as const;
 
@@ -67,14 +80,14 @@ export function canAccessProject(
     // Admin and Manager can access all projects
     if (user.role === 'admin' || user.role === 'manager') return true;
 
-    // Regular users can only access assigned projects
-    if (user.role === 'user') {
+    // Foreman1 can access all projects
+    if (user.role === 'foreman1') return true;
+
+    // Foreman2 and Worker need to check assigned projects
+    if (user.role === 'foreman2' || user.role === 'worker') {
         if (!user.assignedProjects) return false;
         return user.assignedProjects.includes(projectId);
     }
-
-    // Viewers can view all projects
-    if (user.role === 'viewer') return true;
 
     return false;
 }
@@ -90,12 +103,25 @@ export function isAdmin(user: User | null | undefined): boolean {
  * Check if a user can manage other users
  */
 export function canManageUsers(user: User | null | undefined): boolean {
-    return isAdmin(user);
+    return user?.role === 'admin' && user?.isActive === true;
 }
 
 /**
- * Get all permissions for a user's role
+ * Get role display name
  */
-export function getRolePermissions(role: UserRole) {
-    return ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS] || {};
+export function getRoleDisplayName(role: string): string {
+    switch (role) {
+        case 'admin':
+            return '管理者';
+        case 'manager':
+            return 'マネージャー';
+        case 'foreman1':
+            return '職長1';
+        case 'foreman2':
+            return '職長2';
+        case 'worker':
+            return '職方';
+        default:
+            return role;
+    }
 }

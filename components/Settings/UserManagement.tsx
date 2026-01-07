@@ -94,9 +94,11 @@ export default function UserManagement() {
                 return 'bg-purple-100 text-purple-800';
             case 'manager':
                 return 'bg-blue-100 text-blue-800';
-            case 'user':
+            case 'foreman1':
                 return 'bg-green-100 text-green-800';
-            case 'viewer':
+            case 'foreman2':
+                return 'bg-teal-100 text-teal-800';
+            case 'worker':
                 return 'bg-gray-100 text-gray-800';
             default:
                 return 'bg-gray-100 text-gray-800';
@@ -109,10 +111,12 @@ export default function UserManagement() {
                 return '管理者';
             case 'manager':
                 return 'マネージャー';
-            case 'user':
-                return '一般ユーザー';
-            case 'viewer':
-                return '閲覧者';
+            case 'foreman1':
+                return '職長1';
+            case 'foreman2':
+                return '職長2';
+            case 'worker':
+                return '職方';
             default:
                 return role;
         }
@@ -194,8 +198,8 @@ export default function UserManagement() {
                                     <td className="px-6 py-4">
                                         <span
                                             className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${user.isActive
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-red-100 text-red-800'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-red-100 text-red-800'
                                                 }`}
                                         >
                                             {user.isActive ? 'アクティブ' : '無効'}

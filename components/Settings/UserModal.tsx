@@ -18,7 +18,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
         email: '',
         displayName: '',
         password: '',
-        role: 'viewer' as UserRole,
+        role: 'worker' as UserRole,
         isActive: true,
         assignedProjects: [] as string[],
     });
@@ -42,7 +42,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                 email: '',
                 displayName: '',
                 password: '',
-                role: 'viewer',
+                role: 'worker',
                 isActive: true,
                 assignedProjects: [],
             });
@@ -182,8 +182,9 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                             >
                                 <option value="admin">管理者</option>
                                 <option value="manager">マネージャー</option>
-                                <option value="user">一般ユーザー</option>
-                                <option value="viewer">閲覧者</option>
+                                <option value="foreman1">職長1（全般操作可）</option>
+                                <option value="foreman2">職長2（自班のみ操作可）</option>
+                                <option value="worker">職方（自班のみ表示）</option>
                             </select>
                         </div>
 
