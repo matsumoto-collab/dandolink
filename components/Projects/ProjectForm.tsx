@@ -143,6 +143,9 @@ export default function ProjectForm({
             }
         }
 
+        // 工事種別の決定: 組立のみならassembly、解体のみならdemolition、両方ならassembly優先
+        const constructionType = formData.hasAssembly ? 'assembly' : 'demolition';
+
         const projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
             title: formData.title,
             customer: formData.customer || undefined,
@@ -151,6 +154,8 @@ export default function ProjectForm({
             assignedEmployeeId: initialData?.assignedEmployeeId || defaultEmployeeId || 'unassigned',
             workers: workers,
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
+            // 工事種別
+            constructionType: constructionType,
             // 複数日スケジュール
             workSchedules: workSchedules,
             // 組立・解体の日程（後方互換性のため、複数日スケジュールを使わない場合のみ）
