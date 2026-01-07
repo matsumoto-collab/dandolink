@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { mockEmployees } from '@/data/mockEmployees';
+import { formatDateKey } from '@/utils/employeeUtils';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck } from 'lucide-react';
 
 interface AssignmentTableProps {
@@ -31,7 +32,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     }, [displayedForemanIds]);
 
     // 日付をフォーマット
-    const formatDate = (date: Date) => {
+    const formatDisplayDate = (date: Date) => {
         const year = date.getFullYear();
         const month = date.getMonth() + 1;
         const day = date.getDate();
@@ -51,12 +52,11 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
 
     // 選択した日付の案件を職長ごとにグループ化
     const assignmentsByEmployee = useMemo(() => {
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        const dateStr = formatDateKey(selectedDate);
 
         // 該当日の案件をフィルタ
         const dayProjects = projects.filter(project => {
-            const projectDate = new Date(project.startDate);
-            const projectDateStr = projectDate.toISOString().split('T')[0];
+            const projectDateStr = formatDateKey(new Date(project.startDate));
             return projectDateStr === dateStr;
         });
 
@@ -102,7 +102,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 </button>
 
                 <h2 className="text-2xl font-bold text-slate-800 min-w-[200px] text-center">
-                    {formatDate(selectedDate)}
+                    {formatDisplayDate(selectedDate)}
                 </h2>
 
                 <button
