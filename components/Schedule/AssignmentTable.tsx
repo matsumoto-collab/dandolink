@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { useProjects } from '@/contexts/ProjectContext';
-import { useMasterData } from '@/hooks/useMasterData';
+import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
+import { mockEmployees } from '@/data/mockEmployees';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck } from 'lucide-react';
 
 interface AssignmentTableProps {
@@ -12,7 +13,7 @@ interface AssignmentTableProps {
 
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
     const { projects } = useProjects();
-    const { managers } = useMasterData();
+    const { displayedForemanIds } = useCalendarDisplay();
 
     // デフォルトは明日
     const [selectedDate, setSelectedDate] = useState(() => {
@@ -21,6 +22,13 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         tomorrow.setHours(0, 0, 0, 0);
         return tomorrow;
     });
+
+    // 表示する職長リスト（mockEmployeesからdisplayedForemanIdsでフィルタリング）
+    const foremen = useMemo(() => {
+        return mockEmployees
+            .filter(emp => displayedForemanIds.includes(emp.id) && emp.id !== '1') // '1'は備考なので除外
+            .map(emp => ({ id: emp.id, name: emp.name }));
+    }, [displayedForemanIds]);
 
     // 日付をフォーマット
     const formatDate = (date: Date) => {
@@ -55,8 +63,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         // 職長ごとにグループ化
         const grouped: Record<string, typeof dayProjects> = {};
 
-        managers.forEach(manager => {
-            grouped[manager.id] = dayProjects.filter(p => p.assignedEmployeeId === manager.id);
+        foremen.forEach(foreman => {
+            grouped[foreman.id] = dayProjects.filter(p => p.assignedEmployeeId === foreman.id);
         });
 
         // 職方の場合は自分の職長のみ表示
@@ -69,7 +77,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         }
 
         return grouped;
-    }, [projects, managers, selectedDate, userRole, userTeamId]);
+    }, [projects, foremen, selectedDate, userRole, userTeamId]);
 
     // 編集権限のチェック
     const canEdit = (employeeId: string) => {
@@ -120,19 +128,19 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             {/* 手配表本体 */}
             <div className="flex-1 overflow-auto">
                 <div className="grid gap-4">
-                    {managers.map(manager => {
-                        const assignments = assignmentsByEmployee[manager.id] || [];
+                    {foremen.map(foreman => {
+                        const assignments = assignmentsByEmployee[foreman.id] || [];
 
                         // 職方で自分の班でない場合はスキップ
-                        if (userRole === 'worker' && userTeamId && manager.id !== userTeamId) {
+                        if (userRole === 'worker' && userTeamId && foreman.id !== userTeamId) {
                             return null;
                         }
 
                         return (
-                            <div key={manager.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <div key={foreman.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
                                 {/* 職長ヘッダー */}
                                 <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-6 py-4">
-                                    <h3 className="text-lg font-bold">{manager.name} 班</h3>
+                                    <h3 className="text-lg font-bold">{foreman.name} 班</h3>
                                     <p className="text-sm text-slate-300">
                                         {assignments.length}件の現場
                                     </p>
@@ -205,7 +213,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                                     </div>
 
                                                     {/* 編集ボタン（権限がある場合のみ） */}
-                                                    {canEdit(manager.id) && (
+                                                    {canEdit(foreman.id) && (
                                                         <div className="ml-4">
                                                             <button className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-slate-600">
                                                                 編集
