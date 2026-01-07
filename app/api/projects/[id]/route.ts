@@ -70,8 +70,9 @@ export async function PATCH(
         return NextResponse.json(response);
     } catch (error) {
         console.error('Update project error:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return NextResponse.json(
-            { error: 'プロジェクトの更新に失敗しました' },
+            { error: 'プロジェクトの更新に失敗しました', details: errorMessage },
             { status: 500 }
         );
     }
