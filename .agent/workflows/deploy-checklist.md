@@ -35,6 +35,16 @@ postgresql://postgres.[project-ref]:[password]@aws-0-[region].pooler.supabase.co
 ### RLS（Row Level Security）
 - [ ] 必要なテーブルでRLSポリシーが設定されているか
 
+### Prismaスキーマ変更時（重要！）
+Prismaスキーマ（`prisma/schema.prisma`）にカラムを追加した場合：
+
+- [ ] SupabaseのSQL Editorで新しいカラムを追加
+```sql
+-- 例: ProjectテーブルにmeetingTimeを追加
+ALTER TABLE "Project" ADD COLUMN "meetingTime" TEXT;
+```
+- [ ] デプロイ後、500エラーが出る場合はカラム追加を確認
+
 ## 3. コードの確認
 
 // turbo
