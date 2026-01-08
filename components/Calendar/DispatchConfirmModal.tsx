@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Check, Users, Truck, UserCircle } from 'lucide-react';
+import { X, Check, Users, Truck } from 'lucide-react';
 import { Project } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/contexts/ProjectContext';
 import { formatDateKey } from '@/utils/employeeUtils';
+
 
 interface DispatchUser {
     id: string;
@@ -28,14 +29,10 @@ export default function DispatchConfirmModal({
     const { projects, updateProject } = useProjects();
 
     // ユーザーデータの状態
-    const [foremen, setForemen] = useState<DispatchUser[]>([]);
     const [workers, setWorkers] = useState<DispatchUser[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
 
     // 初期値設定
-    const [selectedForemanId, setSelectedForemanId] = useState<string>(
-        project.confirmedForemanId || project.assignedEmployeeId || ''
-    );
     const [selectedWorkerIds, setSelectedWorkerIds] = useState<string[]>(
         project.confirmedWorkerIds || []
     );
@@ -51,16 +48,7 @@ export default function DispatchConfirmModal({
         const fetchUsers = async () => {
             setIsLoadingUsers(true);
             try {
-                const [foremenRes, workersRes] = await Promise.all([
-                    fetch('/api/dispatch/foremen'),
-                    fetch('/api/dispatch/workers'),
-                ]);
-
-                if (foremenRes.ok) {
-                    const data = await foremenRes.json();
-                    setForemen(data);
-                }
-
+                const workersRes = await fetch('/api/dispatch/workers');
                 if (workersRes.ok) {
                     const data = await workersRes.json();
                     setWorkers(data);
@@ -118,7 +106,6 @@ export default function DispatchConfirmModal({
         setIsSubmitting(true);
         try {
             await updateProject(project.id, {
-                confirmedForemanId: selectedForemanId,
                 confirmedWorkerIds: selectedWorkerIds,
                 confirmedVehicleIds: selectedVehicleIds,
                 isDispatchConfirmed: true,
@@ -138,7 +125,6 @@ export default function DispatchConfirmModal({
         setIsSubmitting(true);
         try {
             await updateProject(project.id, {
-                confirmedForemanId: undefined,
                 confirmedWorkerIds: undefined,
                 confirmedVehicleIds: undefined,
                 isDispatchConfirmed: false,
@@ -179,26 +165,6 @@ export default function DispatchConfirmModal({
                         </div>
                     ) : (
                         <>
-                            {/* 職長選択 */}
-                            <div>
-                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                                    <UserCircle className="w-4 h-4" />
-                                    職長
-                                </label>
-                                <select
-                                    value={selectedForemanId}
-                                    onChange={(e) => setSelectedForemanId(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                                >
-                                    <option value="">選択してください</option>
-                                    {foremen.map(foreman => (
-                                        <option key={foreman.id} value={foreman.id}>
-                                            {foreman.displayName}
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-
                             {/* 職方選択 */}
                             <div>
                                 <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
