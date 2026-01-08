@@ -255,8 +255,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                                                         <Users className="w-4 h-4 flex-shrink-0 mt-0.5" />
                                                                         <span>
                                                                             {project.confirmedWorkerIds
-                                                                                .filter(id => id !== foreman.id)
-                                                                                .map(id => workerNameMap.get(id) || id)
+                                                                                .filter(id => id !== foreman.id && workerNameMap.has(id))
+                                                                                .map(id => workerNameMap.get(id))
                                                                                 .join(', ')}
                                                                         </span>
                                                                     </div>
