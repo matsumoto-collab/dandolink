@@ -124,21 +124,28 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
 
     // 職長別の行データを生成（表示設定された職長のみ、順番も維持）
     const employeeRows = useMemo(() => {
-        // partnerModeの場合は自分のチーム（自分自身のID）のみ表示
-        let targetIds = displayedForemanIds;
+        let filteredEmployees: Employee[] = [];
+
         if (partnerMode && partnerId) {
-            // partnerIdがdisplayedForemanIdsに含まれていれば表示、なければ空
-            targetIds = displayedForemanIds.includes(partnerId) ? [partnerId] : [];
+            // partnerModeの場合は自分自身のデータをallForemenから直接取得
+            const partnerData = allForemen.find(f => f.id === partnerId);
+            if (partnerData) {
+                filteredEmployees = [{
+                    id: partnerData.id,
+                    name: partnerData.displayName,
+                }];
+            }
+        } else {
+            // 通常モード: displayedForemanIdsの順番を維持してEmployee形式に変換
+            filteredEmployees = displayedForemanIds
+                .map(id => allForemen.find(f => f.id === id))
+                .filter((foreman): foreman is typeof allForemen[0] => foreman !== undefined)
+                .map(foreman => ({
+                    id: foreman.id,
+                    name: foreman.displayName,
+                }));
         }
 
-        // displayedForemanIdsの順番を維持してEmployee形式に変換
-        const filteredEmployees: Employee[] = targetIds
-            .map(id => allForemen.find(f => f.id === id))
-            .filter((foreman): foreman is typeof allForemen[0] => foreman !== undefined)
-            .map(foreman => ({
-                id: foreman.id,
-                name: foreman.displayName,
-            }));
         return generateEmployeeRows(filteredEmployees, events, weekDays);
     }, [events, weekDays, displayedForemanIds, allForemen, partnerMode, partnerId]);
 
