@@ -14,6 +14,7 @@ interface CalendarDisplayContextType {
     isLoading: boolean;
     addForeman: (employeeId: string) => Promise<void>;
     removeForeman: (employeeId: string) => Promise<void>;
+    moveForeman: (employeeId: string, direction: 'up' | 'down') => Promise<void>;
     getAvailableForemen: () => { id: string; name: string }[];
     allForemen: ForemanUser[];
     getForemanName: (id: string) => string;
@@ -102,6 +103,19 @@ export function CalendarDisplayProvider({ children }: { children: React.ReactNod
         await saveSettings(newIds);
     }, [displayedForemanIds, saveSettings]);
 
+    const moveForeman = useCallback(async (employeeId: string, direction: 'up' | 'down') => {
+        const currentIndex = displayedForemanIds.indexOf(employeeId);
+        if (currentIndex === -1) return;
+
+        const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+        if (newIndex < 0 || newIndex >= displayedForemanIds.length) return;
+
+        const newIds = [...displayedForemanIds];
+        [newIds[currentIndex], newIds[newIndex]] = [newIds[newIndex], newIds[currentIndex]];
+        setDisplayedForemanIds(newIds);
+        await saveSettings(newIds);
+    }, [displayedForemanIds, saveSettings]);
+
     const getAvailableForemen = useCallback(() => {
         return allForemen
             .filter(user => !displayedForemanIds.includes(user.id))
@@ -119,6 +133,7 @@ export function CalendarDisplayProvider({ children }: { children: React.ReactNod
             isLoading,
             addForeman,
             removeForeman,
+            moveForeman,
             getAvailableForemen,
             allForemen,
             getForemanName,

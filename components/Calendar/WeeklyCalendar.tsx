@@ -27,7 +27,7 @@ export default function WeeklyCalendar() {
     const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
-    const { displayedForemanIds, removeForeman, allForemen } = useCalendarDisplay();
+    const { displayedForemanIds, removeForeman, allForemen, moveForeman } = useCalendarDisplay();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -395,7 +395,7 @@ export default function WeeklyCalendar() {
 
                         {/* 各職長のイベント */}
                         <div className="flex-1 flex flex-col">
-                            {employeeRows.map((row) => (
+                            {employeeRows.map((row, index) => (
                                 <EmployeeRowComponent
                                     key={row.employeeId}
                                     row={row}
@@ -405,6 +405,9 @@ export default function WeeklyCalendar() {
                                     onCellClick={handleCellClick}
                                     onMoveEvent={handleMoveEvent}
                                     onRemoveForeman={removeForeman}
+                                    onMoveForeman={moveForeman}
+                                    isFirst={index === 0}
+                                    isLast={index === employeeRows.length - 1}
                                     onDispatch={(projectId) => {
                                         const project = projects.find(p => p.id === projectId);
                                         if (project) {

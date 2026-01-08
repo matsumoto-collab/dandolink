@@ -4,7 +4,7 @@ import { WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import DraggableEventCard from './DraggableEventCard';
 import DroppableCell from './DroppableCell';
-import { X } from 'lucide-react';
+import { X, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface EmployeeRowComponentProps {
     row: EmployeeRow;
@@ -14,9 +14,12 @@ interface EmployeeRowComponentProps {
     onCellClick?: (employeeId: string, date: Date) => void;
     onMoveEvent?: (eventId: string, direction: 'up' | 'down') => void;
     onRemoveForeman?: (employeeId: string) => void;
+    onMoveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     onDispatch?: (projectId: string) => void;
     canDispatch?: boolean;
     projects?: Project[];
+    isFirst?: boolean;
+    isLast?: boolean;
 }
 
 export default function EmployeeRowComponent({
@@ -27,9 +30,12 @@ export default function EmployeeRowComponent({
     onCellClick,
     onMoveEvent,
     onRemoveForeman,
+    onMoveForeman,
     onDispatch,
     canDispatch = false,
     projects = [],
+    isFirst = false,
+    isLast = false,
 }: EmployeeRowComponentProps) {
 
     const handleDelete = () => {
@@ -37,6 +43,19 @@ export default function EmployeeRowComponent({
             onRemoveForeman(row.employeeId);
         }
     };
+
+    const handleMoveUp = () => {
+        if (onMoveForeman) {
+            onMoveForeman(row.employeeId, 'up');
+        }
+    };
+
+    const handleMoveDown = () => {
+        if (onMoveForeman) {
+            onMoveForeman(row.employeeId, 'down');
+        }
+    };
+
     return (
         <div className="flex border-b border-gray-200 hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200 min-h-[120px]">
             {/* 班長セル（固定） */}
@@ -47,10 +66,31 @@ export default function EmployeeRowComponent({
                             <span className="text-xs font-semibold text-gray-700 tracking-wide">
                                 {row.employeeName}
                             </span>
+                            {/* 操作ボタン群 */}
+                            <div className="absolute right-0 top-0 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                                {onMoveForeman && !isFirst && (
+                                    <button
+                                        onClick={handleMoveUp}
+                                        className="p-0.5 hover:bg-blue-100 rounded transition-colors"
+                                        title="上へ移動"
+                                    >
+                                        <ChevronUp className="w-3 h-3 text-blue-600" />
+                                    </button>
+                                )}
+                                {onMoveForeman && !isLast && (
+                                    <button
+                                        onClick={handleMoveDown}
+                                        className="p-0.5 hover:bg-blue-100 rounded transition-colors"
+                                        title="下へ移動"
+                                    >
+                                        <ChevronDown className="w-3 h-3 text-blue-600" />
+                                    </button>
+                                )}
+                            </div>
                             {onRemoveForeman && (
                                 <button
                                     onClick={handleDelete}
-                                    className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-full"
+                                    className="absolute right-1 bottom-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-full"
                                     title="職長を削除"
                                 >
                                     <X className="w-3 h-3 text-red-600" />
