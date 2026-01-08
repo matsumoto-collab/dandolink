@@ -44,13 +44,17 @@ export default function EmployeeRowComponent({
         }
     };
 
-    const handleMoveUp = () => {
+    const handleMoveUp = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
         if (onMoveForeman) {
             onMoveForeman(row.employeeId, 'up');
         }
     };
 
-    const handleMoveDown = () => {
+    const handleMoveDown = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
         if (onMoveForeman) {
             onMoveForeman(row.employeeId, 'down');
         }
