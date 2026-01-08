@@ -181,34 +181,43 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                         担当現場なし
                                     </div>
                                 ) : (
-                                    Object.values(assignmentsByEmployee).flat().map(project => (
-                                        <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                            <div className="flex items-start justify-between">
-                                                <div className="flex-1">
-                                                    <h4 className="font-bold text-slate-800 text-lg">
-                                                        {project.title}
-                                                    </h4>
-                                                    {project.customer && (
-                                                        <p className="text-sm text-slate-600 mt-1">
-                                                            {project.customer}
-                                                        </p>
-                                                    )}
-                                                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
-                                                        <div className="flex items-center gap-1">
-                                                            <Clock className="w-4 h-4" />
-                                                            <span>未設定</span>
-                                                        </div>
-                                                        {project.location && (
-                                                            <div className="flex items-center gap-1">
-                                                                <MapPin className="w-4 h-4" />
-                                                                <span className="truncate max-w-[200px]">{project.location}</span>
-                                                            </div>
+                                    Object.values(assignmentsByEmployee).flat().map(project => {
+                                        // 職長名を取得
+                                        const foremanName = mockEmployees.find(emp => emp.id === project.assignedEmployeeId)?.name || '未設定';
+
+                                        return (
+                                            <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                                <div className="flex items-start justify-between">
+                                                    <div className="flex-1">
+                                                        {/* 班名 */}
+                                                        <span className="inline-block px-2 py-0.5 bg-slate-600 text-white text-xs font-medium rounded mb-2">
+                                                            {foremanName}班
+                                                        </span>
+                                                        <h4 className="font-bold text-slate-800 text-lg">
+                                                            {project.title}
+                                                        </h4>
+                                                        {project.customer && (
+                                                            <p className="text-sm text-slate-600 mt-1">
+                                                                {project.customer}
+                                                            </p>
                                                         )}
+                                                        <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
+                                                            <div className="flex items-center gap-1">
+                                                                <Clock className="w-4 h-4" />
+                                                                <span>未設定</span>
+                                                            </div>
+                                                            {project.location && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <MapPin className="w-4 h-4" />
+                                                                    <span className="truncate max-w-[200px]">{project.location}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
