@@ -18,8 +18,8 @@ export async function GET(_req: NextRequest) {
 
         const role = session.user.role;
 
-        // Check dispatch permission
-        if (role !== 'admin' && role !== 'manager' && role !== 'foreman1') {
+        // Check dispatch permission (partner allowed for viewing their own data)
+        if (role !== 'admin' && role !== 'manager' && role !== 'foreman1' && role !== 'partner') {
             return NextResponse.json({ error: '権限がありません' }, { status: 403 });
         }
 
