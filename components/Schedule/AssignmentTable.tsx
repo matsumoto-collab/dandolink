@@ -64,10 +64,11 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         return tomorrow;
     });
 
-    // 表示する職長リスト（allForemenからdisplayedForemanIdsでフィルタリング）
+    // 表示する職長リスト（displayedForemanIdsの順番を維持）
     const foremen = useMemo(() => {
-        return allForemen
-            .filter(user => displayedForemanIds.includes(user.id))
+        return displayedForemanIds
+            .map(id => allForemen.find(user => user.id === id))
+            .filter((user): user is typeof allForemen[0] => user !== undefined)
             .map(user => ({ id: user.id, name: user.displayName }));
     }, [displayedForemanIds, allForemen]);
 
