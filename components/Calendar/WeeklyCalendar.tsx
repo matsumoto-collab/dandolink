@@ -15,12 +15,12 @@ import CalendarHeader from './CalendarHeader';
 import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import ProjectModal from '../Projects/ProjectModal';
-import ProjectSearchModal from '../ProjectSearchModal';
+import ProjectMasterSearchModal from '../ProjectMasterSearchModal';
 import DispatchConfirmModal from './DispatchConfirmModal';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
-import { CalendarEvent, Project, Employee } from '@/types/calendar';
+import { CalendarEvent, Project, ProjectMaster, Employee } from '@/types/calendar';
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;  // 協力会社モード（閲覧のみ）
@@ -176,27 +176,27 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         }
     };
 
-    // 案件を選択したら複製して新規作成
-    const handleSelectProject = (project: Project) => {
+    // 案件マスターを選択したら配置を作成
+    const handleSelectProjectMaster = (projectMaster: ProjectMaster) => {
         if (!cellContext) return;
 
-        // 選択した案件を複製して新しい案件を作成
+        // 選択した案件マスターの配置を作成
         const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
-            title: project.title,
-            customer: project.customer,
-            location: project.location,
+            title: projectMaster.title,
+            customer: projectMaster.customer,
+            location: projectMaster.location,
             startDate: cellContext.date,
             endDate: cellContext.date,
             assignedEmployeeId: cellContext.employeeId,
-            constructionType: project.constructionType || 'assembly',
+            constructionType: projectMaster.constructionType || 'assembly',
             status: 'pending',
-            remarks: project.remarks,
-            workers: project.workers || [],
-            vehicles: project.vehicles || [],
-            trucks: project.trucks || [],
-            meetingTime: project.meetingTime,
-            category: project.category,
-            color: project.color,
+            remarks: projectMaster.remarks,
+            workers: [],
+            vehicles: [],
+            trucks: [],
+            category: 'construction',
+            color: '',
+            projectMasterId: projectMaster.id,
         };
 
         addProject(newProject as Project);
@@ -462,14 +462,21 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                 readOnly={isReadOnly}
             />
 
-            {/* 案件検索モーダル */}
-            <ProjectSearchModal
+            {/* 案件マスター検索モーダル */}
+            <ProjectMasterSearchModal
                 isOpen={isSearchModalOpen}
                 onClose={() => {
                     setIsSearchModalOpen(false);
                     setCellContext(null);
                 }}
-                onSelect={handleSelectProject}
+                onSelect={handleSelectProjectMaster}
+                onCreateNew={() => {
+                    setModalInitialData({
+                        startDate: cellContext?.date,
+                        assignedEmployeeId: cellContext?.employeeId,
+                    });
+                    setIsModalOpen(true);
+                }}
             />
 
             {/* 手配確定モーダル */}
