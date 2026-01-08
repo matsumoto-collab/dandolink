@@ -27,29 +27,45 @@ model User {
   @@index([email])
 }
 
-model Project {
+// 案件マスター（1現場=1レコード）
+model ProjectMaster {
+  id               String   @id @default(uuid())
+  title            String   // 現場名
+  customer         String?  // 顧客名
+  constructionType String   // 工事種別: assembly, demolition, other
+  status           String   @default("active") // active, completed, cancelled
+  location         String?  // 場所
+  description      String?  // 説明
+  remarks          String?  // 備考
+  createdBy        String?  // 案件担当者（JSON array for multiple）
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // リレーション
+  assignments      ProjectAssignment[]
+
+  @@index([title])
+  @@index([customer])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// 案件配置（班・日付への割り当て）
+model ProjectAssignment {
   id                   String   @id @default(uuid())
-  title                String
-  constructionType     String
-  startDate            DateTime
-  endDate              DateTime?
-  assemblyStartDate    DateTime?
-  assemblyDuration     Int?
-  demolitionStartDate  DateTime?
-  demolitionDuration   Int?
-  assignedEmployeeId   String
-  customer             String?
-  description          String?
-  location             String?
-  category             String?
-  workers              String?  // JSON array
-  vehicles             String?  // JSON array
-  remarks              String?
+  projectMasterId      String   // 案件マスターへの参照
+  projectMaster        ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  
+  assignedEmployeeId   String   // 担当職長ID
+  date                 DateTime // 作業日
+  memberCount          Int      @default(0) // 人数
+  workers              String?  // JSON array: 職方ID配列
+  vehicles             String?  // JSON array: 車両ID配列
   meetingTime          String?  // 集合時間（例: "08:00"）
-  sortOrder            Int      @default(0)
+  sortOrder            Int      @default(0) // カレンダー内での表示順序
+  remarks              String?  // 配置固有の備考
   
   // 手配確定フィールド
-  confirmedForemanId   String?  // 確定職長ID
   confirmedWorkerIds   String?  // JSON array: 確定職方ID配列
   confirmedVehicleIds  String?  // JSON array: 確定車両ID配列
   isDispatchConfirmed  Boolean  @default(false)
@@ -57,12 +73,11 @@ model Project {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  @@index([projectMasterId])
   @@index([assignedEmployeeId])
-  @@index([startDate])
-  @@index([endDate])
-  @@index([createdAt])
-  @@index([updatedAt])
+  @@index([date])
   @@index([isDispatchConfirmed])
+  @@unique([projectMasterId, assignedEmployeeId, date]) // 同一案件・同一職長・同一日付は1件
 }
 
 model Customer {
@@ -85,7 +100,7 @@ model Customer {
 
 model Estimate {
   id              String   @id @default(uuid())
-  projectId       String?
+  projectMasterId String?  // 案件マスターへの参照
   estimateNumber  String   @unique
   title           String
   items           String   // JSON array of EstimateItem
@@ -99,7 +114,7 @@ model Estimate {
   updatedAt       DateTime @updatedAt
 
   @@index([estimateNumber])
-  @@index([projectId])
+  @@index([projectMasterId])
   @@index([status])
   @@index([createdAt])
   @@index([updatedAt])
@@ -107,7 +122,7 @@ model Estimate {
 
 model Invoice {
   id             String    @id @default(uuid())
-  projectId      String
+  projectMasterId String   // 案件マスターへの参照
   estimateId     String?
   invoiceNumber  String    @unique
   title          String
@@ -123,7 +138,7 @@ model Invoice {
   updatedAt      DateTime  @updatedAt
 
   @@index([invoiceNumber])
-  @@index([projectId])
+  @@index([projectMasterId])
   @@index([status])
   @@index([dueDate])
   @@index([createdAt])

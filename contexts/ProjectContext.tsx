@@ -1,8 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, useState, useEffect, useRef } from 'react';
+/**
+ * @deprecated This context is deprecated. Use ProjectMasterContext and AssignmentContext instead.
+ * This is a backward-compatible wrapper that maps the new Assignment-based system to the old Project API.
+ */
+
+import React, { createContext, useContext, useCallback, useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS, ProjectAssignment, ProjectMaster } from '@/types/calendar';
 
 interface ProjectContextType {
     projects: Project[];
@@ -18,103 +23,105 @@ interface ProjectContextType {
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
+// Convert Assignment to legacy Project format
+function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: ProjectMaster }): Project {
+    const constructionType = assignment.projectMaster?.constructionType || 'other';
+    const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
+
+    return {
+        id: assignment.id,
+        title: assignment.projectMaster?.title || '不明な案件',
+        startDate: assignment.date,
+        category: 'construction',
+        color,
+        description: assignment.projectMaster?.description,
+        location: assignment.projectMaster?.location,
+        customer: assignment.projectMaster?.customer,
+        workers: assignment.workers,
+        trucks: assignment.vehicles,
+        remarks: assignment.remarks || assignment.projectMaster?.remarks,
+        constructionType: constructionType as 'assembly' | 'demolition' | 'other',
+        assignedEmployeeId: assignment.assignedEmployeeId,
+        sortOrder: assignment.sortOrder,
+        vehicles: assignment.vehicles,
+        meetingTime: assignment.meetingTime,
+        projectMasterId: assignment.projectMasterId,
+        assignmentId: assignment.id,
+        confirmedWorkerIds: assignment.confirmedWorkerIds,
+        confirmedVehicleIds: assignment.confirmedVehicleIds,
+        isDispatchConfirmed: assignment.isDispatchConfirmed,
+        createdAt: assignment.createdAt,
+        updatedAt: assignment.updatedAt,
+    };
+}
+
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const { status } = useSession();
-    const [projects, setProjects] = useState<Project[]>([]);
+    const [assignments, setAssignments] = useState<(ProjectAssignment & { projectMaster?: ProjectMaster })[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Track the last update timestamp to prevent realtime from overwriting recent changes
-    const lastLocalUpdateTime = useRef<number>(0);
-    // Track IDs being updated locally
-    const pendingUpdateIds = useRef<Set<string>>(new Set());
-    // Minimum time to wait before allowing realtime updates (5 seconds)
-    const REALTIME_BLOCK_DURATION = 5000;
-
-    // Parse project from API response
-    const parseProject = useCallback((project: any): Project => ({
-        ...project,
-        startDate: new Date(project.startDate),
-        endDate: project.endDate ? new Date(project.endDate) : undefined,
-        assemblyStartDate: project.assemblyStartDate ? new Date(project.assemblyStartDate) : undefined,
-        demolitionStartDate: project.demolitionStartDate ? new Date(project.demolitionStartDate) : undefined,
-        createdAt: new Date(project.createdAt),
-        updatedAt: new Date(project.updatedAt),
-    }), []);
-
-    // Fetch projects from API
-    const fetchProjects = useCallback(async () => {
+    // Fetch assignments from API
+    const fetchAssignments = useCallback(async () => {
         try {
-            const response = await fetch('/api/projects');
+            const response = await fetch('/api/assignments');
             if (response.ok) {
                 const data = await response.json();
-                const parsedProjects = data.map(parseProject);
-
-                // Only update if not in the middle of local updates
-                const now = Date.now();
-                if (now - lastLocalUpdateTime.current > REALTIME_BLOCK_DURATION && pendingUpdateIds.current.size === 0) {
-                    setProjects(parsedProjects);
-                }
+                const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({
+                    ...a,
+                    date: new Date(a.date),
+                    createdAt: new Date(a.createdAt),
+                    updatedAt: new Date(a.updatedAt),
+                    projectMaster: a.projectMaster ? {
+                        ...a.projectMaster,
+                        createdAt: new Date(a.projectMaster.createdAt),
+                        updatedAt: new Date(a.projectMaster.updatedAt),
+                    } : undefined,
+                }));
+                setAssignments(parsed);
             }
         } catch (error) {
-            console.error('Failed to fetch projects:', error);
+            console.error('Failed to fetch assignments:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [parseProject]);
+    }, []);
 
     // Initial load when authenticated
     useEffect(() => {
         if (status === 'authenticated') {
-            // Force initial load regardless of timing
-            const doInitialFetch = async () => {
-                try {
-                    const response = await fetch('/api/projects');
-                    if (response.ok) {
-                        const data = await response.json();
-                        const parsedProjects = data.map(parseProject);
-                        setProjects(parsedProjects);
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch projects:', error);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            doInitialFetch();
+            fetchAssignments();
         } else if (status === 'unauthenticated') {
-            setProjects([]);
+            setAssignments([]);
             setIsLoading(false);
         }
-    }, [status, parseProject]);
+    }, [status, fetchAssignments]);
 
-    // Supabase Realtime subscription - only for OTHER users' changes
+    // Supabase Realtime subscription
     useEffect(() => {
         if (status !== 'authenticated') return;
 
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let channel: any = null;
-        let debounceTimer: NodeJS.Timeout | null = null;
 
         const setupRealtime = async () => {
             try {
                 const { supabase } = await import('@/lib/supabase');
                 channel = supabase
-                    .channel('projects-realtime-v2')
-                    .on('postgres_changes', { event: '*', schema: 'public', table: 'Project' }, () => {
-                        // Check if we should skip this update
-                        const now = Date.now();
-                        const timeSinceLastUpdate = now - lastLocalUpdateTime.current;
-
-                        // Skip if within protection period or having pending updates
-                        if (timeSinceLastUpdate < REALTIME_BLOCK_DURATION || pendingUpdateIds.current.size > 0) {
-                            return;
+                    .channel('project_assignments_changes')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'ProjectAssignment' },
+                        () => {
+                            fetchAssignments();
                         }
-
-                        // Debounce fetches
-                        if (debounceTimer) clearTimeout(debounceTimer);
-                        debounceTimer = setTimeout(() => {
-                            fetchProjects();
-                        }, 500);
-                    })
+                    )
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'ProjectMaster' },
+                        () => {
+                            fetchAssignments();
+                        }
+                    )
                     .subscribe();
             } catch (error) {
                 console.error('Failed to setup realtime:', error);
@@ -124,238 +131,176 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setupRealtime();
 
         return () => {
-            if (debounceTimer) clearTimeout(debounceTimer);
             if (channel) {
                 import('@/lib/supabase').then(({ supabase }) => {
                     supabase.removeChannel(channel);
                 });
             }
         };
-    }, [status, fetchProjects]);
+    }, [status, fetchAssignments]);
 
-    // Add a new project
-    const addProject = useCallback(async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-        lastLocalUpdateTime.current = Date.now();
+    // Convert assignments to legacy Project format
+    const projects = useMemo(() => {
+        return assignments.map(assignmentToProject);
+    }, [assignments]);
 
+    // Add project (creates both ProjectMaster and Assignment)
+    const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
         try {
-            const response = await fetch('/api/projects', {
+            // First, check if project master exists or create new one
+            let projectMasterId: string;
+
+            // Try to find existing project master by title
+            const mastersRes = await fetch(`/api/project-masters?search=${encodeURIComponent(project.title)}`);
+            const masters = await mastersRes.json();
+            const existing = masters.find((m: ProjectMaster) => m.title === project.title);
+
+            if (existing) {
+                projectMasterId = existing.id;
+            } else {
+                // Create new project master
+                const createMasterRes = await fetch('/api/project-masters', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: project.title,
+                        customer: project.customer,
+                        constructionType: project.constructionType || 'other',
+                        location: project.location,
+                        description: project.description,
+                        remarks: project.remarks,
+                    }),
+                });
+                const newMaster = await createMasterRes.json();
+                projectMasterId = newMaster.id;
+            }
+
+            // Create assignment
+            await fetch('/api/assignments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(projectData),
+                body: JSON.stringify({
+                    projectMasterId,
+                    assignedEmployeeId: project.assignedEmployeeId,
+                    date: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
+                    memberCount: project.workers?.length || 0,
+                    workers: project.workers,
+                    vehicles: project.vehicles,
+                    meetingTime: project.meetingTime,
+                    sortOrder: project.sortOrder || 0,
+                    remarks: project.remarks,
+                }),
             });
 
-            if (response.ok) {
-                const newProject = await response.json();
-                const parsedProject = parseProject(newProject);
-                setProjects(prev => [...prev, parsedProject]);
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to add project');
-            }
+            await fetchAssignments();
         } catch (error) {
             console.error('Failed to add project:', error);
             throw error;
         }
-    }, [parseProject]);
+    }, [fetchAssignments]);
 
-    // Update a project with optimistic update
+    // Update project (updates assignment)
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
-        // Mark as pending and set timestamp
-        pendingUpdateIds.current.add(id);
-        lastLocalUpdateTime.current = Date.now();
-
-        // Store previous state for rollback
-        const previousProjects = projects;
-
-        // Optimistic update
-        setProjects(prev => prev.map(p =>
-            p.id === id ? { ...p, ...updates, updatedAt: new Date() } : p
-        ));
-
         try {
-            const response = await fetch(`/api/projects/${id}`, {
+            await fetch(`/api/assignments/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updates),
+                body: JSON.stringify({
+                    assignedEmployeeId: updates.assignedEmployeeId,
+                    date: updates.startDate instanceof Date ? updates.startDate.toISOString() : updates.startDate,
+                    memberCount: updates.workers?.length,
+                    workers: updates.workers,
+                    vehicles: updates.vehicles,
+                    meetingTime: updates.meetingTime,
+                    sortOrder: updates.sortOrder,
+                    remarks: updates.remarks,
+                    isDispatchConfirmed: updates.isDispatchConfirmed,
+                    confirmedWorkerIds: updates.confirmedWorkerIds,
+                    confirmedVehicleIds: updates.confirmedVehicleIds,
+                }),
             });
 
-            if (response.ok) {
-                const updatedProject = await response.json();
-                const parsedProject = parseProject(updatedProject);
-                setProjects(prev => prev.map(p => p.id === id ? parsedProject : p));
-            } else {
-                // Rollback on error
-                setProjects(previousProjects);
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update project');
-            }
+            // Optimistic update
+            setAssignments(prev => prev.map(a =>
+                a.id === id
+                    ? { ...a, ...updates, date: updates.startDate || a.date }
+                    : a
+            ));
         } catch (error) {
-            // Rollback on error
-            setProjects(previousProjects);
             console.error('Failed to update project:', error);
             throw error;
-        } finally {
-            // Clear pending after a longer delay to ensure realtime events have passed
-            setTimeout(() => {
-                pendingUpdateIds.current.delete(id);
-            }, REALTIME_BLOCK_DURATION);
         }
-    }, [projects, parseProject]);
+    }, []);
 
-    // Update multiple projects
+    // Batch update projects
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
-        lastLocalUpdateTime.current = Date.now();
-        updates.forEach(u => pendingUpdateIds.current.add(u.id));
-
         try {
-            await Promise.all(
-                updates.map(({ id, data }) =>
-                    fetch(`/api/projects/${id}`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(data),
-                    })
-                )
-            );
-            // Fetch fresh data after batch update
-            const response = await fetch('/api/projects');
-            if (response.ok) {
-                const data = await response.json();
-                setProjects(data.map(parseProject));
-            }
+            await fetch('/api/assignments/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    updates: updates.map(u => ({
+                        id: u.id,
+                        data: {
+                            assignedEmployeeId: u.data.assignedEmployeeId,
+                            date: u.data.startDate instanceof Date ? u.data.startDate.toISOString() : u.data.startDate,
+                            sortOrder: u.data.sortOrder,
+                            workers: u.data.workers,
+                            vehicles: u.data.vehicles,
+                            meetingTime: u.data.meetingTime,
+                            remarks: u.data.remarks,
+                        },
+                    })),
+                }),
+            });
+
+            // Optimistic update
+            setAssignments(prev => {
+                const newAssignments = [...prev];
+                updates.forEach(update => {
+                    const index = newAssignments.findIndex(a => a.id === update.id);
+                    if (index !== -1) {
+                        newAssignments[index] = {
+                            ...newAssignments[index],
+                            ...update.data,
+                            date: update.data.startDate || newAssignments[index].date,
+                        };
+                    }
+                });
+                return newAssignments;
+            });
         } catch (error) {
-            console.error('Failed to update projects:', error);
+            console.error('Failed to batch update projects:', error);
             throw error;
-        } finally {
-            setTimeout(() => {
-                updates.forEach(u => pendingUpdateIds.current.delete(u.id));
-            }, REALTIME_BLOCK_DURATION);
         }
-    }, [parseProject]);
+    }, []);
 
-    // Delete a project
+    // Delete project (deletes assignment)
     const deleteProject = useCallback(async (id: string) => {
-        lastLocalUpdateTime.current = Date.now();
-        pendingUpdateIds.current.add(id);
-
-        // Optimistic delete
-        const previousProjects = projects;
-        setProjects(prev => prev.filter(p => p.id !== id));
-
         try {
-            const response = await fetch(`/api/projects/${id}`, { method: 'DELETE' });
-            if (!response.ok) {
-                setProjects(previousProjects);
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to delete project');
-            }
+            await fetch(`/api/assignments/${id}`, {
+                method: 'DELETE',
+            });
+
+            setAssignments(prev => prev.filter(a => a.id !== id));
         } catch (error) {
-            setProjects(previousProjects);
             console.error('Failed to delete project:', error);
             throw error;
-        } finally {
-            setTimeout(() => {
-                pendingUpdateIds.current.delete(id);
-            }, REALTIME_BLOCK_DURATION);
         }
-    }, [projects]);
+    }, []);
 
-    // Get project by ID
     const getProjectById = useCallback((id: string) => {
-        return projects.find(p => p.id === id);
-    }, [projects]);
+        const assignment = assignments.find(a => a.id === id);
+        return assignment ? assignmentToProject(assignment) : undefined;
+    }, [assignments]);
 
-    // Convert projects to calendar events
     const getCalendarEvents = useCallback((): CalendarEvent[] => {
-        const events: CalendarEvent[] = [];
-
-        projects.forEach(project => {
-            if (project.assemblyStartDate && project.assemblyDuration) {
-                const assemblyEnd = new Date(project.assemblyStartDate);
-                assemblyEnd.setDate(assemblyEnd.getDate() + project.assemblyDuration - 1);
-
-                events.push({
-                    id: `${project.id}-assembly`,
-                    title: project.title,
-                    startDate: project.assemblyStartDate,
-                    endDate: assemblyEnd,
-                    category: 'construction',
-                    color: CONSTRUCTION_TYPE_COLORS.assembly,
-                    constructionType: 'assembly',
-                    assignedEmployeeId: project.assignedEmployeeId,
-                    customer: project.customer,
-                    location: project.location,
-                    description: project.description,
-                    workers: project.workers,
-                    trucks: project.trucks || project.vehicles,
-                    remarks: project.remarks,
-                    sortOrder: project.sortOrder,
-                });
-            }
-
-            if (project.demolitionStartDate && project.demolitionDuration) {
-                const demolitionEnd = new Date(project.demolitionStartDate);
-                demolitionEnd.setDate(demolitionEnd.getDate() + project.demolitionDuration - 1);
-
-                events.push({
-                    id: `${project.id}-demolition`,
-                    title: project.title,
-                    startDate: project.demolitionStartDate,
-                    endDate: demolitionEnd,
-                    category: 'construction',
-                    color: CONSTRUCTION_TYPE_COLORS.demolition,
-                    constructionType: 'demolition',
-                    assignedEmployeeId: project.assignedEmployeeId,
-                    customer: project.customer,
-                    location: project.location,
-                    description: project.description,
-                    workers: project.workers,
-                    trucks: project.trucks || project.vehicles,
-                    remarks: project.remarks,
-                    sortOrder: project.sortOrder,
-                });
-            }
-
-            if (!project.assemblyStartDate && !project.demolitionStartDate) {
-                // constructionTypeに基づいて色を設定
-                const constructionType = project.constructionType || 'other';
-                const color = CONSTRUCTION_TYPE_COLORS[constructionType] || CONSTRUCTION_TYPE_COLORS.other;
-
-                events.push({
-                    id: project.id,
-                    title: project.title,
-                    startDate: project.startDate,
-                    endDate: project.endDate,
-                    category: constructionType === 'assembly' ? 'construction' : constructionType === 'demolition' ? 'construction' : 'other',
-                    color: color,
-                    constructionType: constructionType,
-                    assignedEmployeeId: project.assignedEmployeeId,
-                    customer: project.customer,
-                    location: project.location,
-                    description: project.description,
-                    workers: project.workers,
-                    trucks: project.trucks || project.vehicles,
-                    remarks: project.remarks,
-                    sortOrder: project.sortOrder,
-                });
-            }
-        });
-
-        return events;
+        return projects;
     }, [projects]);
 
-    // Force refresh - bypasses protection
-    const forceRefreshProjects = useCallback(async () => {
-        try {
-            const response = await fetch('/api/projects');
-            if (response.ok) {
-                const data = await response.json();
-                setProjects(data.map(parseProject));
-            }
-        } catch (error) {
-            console.error('Failed to refresh projects:', error);
-        }
-    }, [parseProject]);
+    const refreshProjects = useCallback(async () => {
+        await fetchAssignments();
+    }, [fetchAssignments]);
 
     return (
         <ProjectContext.Provider
@@ -368,7 +313,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 deleteProject,
                 getProjectById,
                 getCalendarEvents,
-                refreshProjects: forceRefreshProjects,
+                refreshProjects,
             }}
         >
             {children}

@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         const {
-            projectId,
+            projectMasterId,
             estimateId,
             invoiceNumber,
             title,
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
         } = body;
 
         // Validation
-        if (!projectId || !invoiceNumber || !title) {
+        if (!projectMasterId || !invoiceNumber || !title) {
             return NextResponse.json(
                 { error: '案件ID、請求書番号、タイトルは必須です' },
                 { status: 400 }
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
         // Create invoice
         const newInvoice = await prisma.invoice.create({
             data: {
-                projectId,
+                projectMasterId,
                 estimateId: estimateId || null,
                 invoiceNumber,
                 title,

@@ -36,7 +36,7 @@ export async function PATCH(
         // Prepare update data
         const updateData: any = {};
 
-        if (body.projectId !== undefined) updateData.projectId = body.projectId;
+        if (body.projectMasterId !== undefined) updateData.projectMasterId = body.projectMasterId;
         if (body.estimateId !== undefined) updateData.estimateId = body.estimateId || null;
         if (body.invoiceNumber !== undefined) updateData.invoiceNumber = body.invoiceNumber;
         if (body.title !== undefined) updateData.title = body.title;

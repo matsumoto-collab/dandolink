@@ -58,35 +58,82 @@ export interface WorkSchedule {
     dailySchedules: DailySchedule[]; // 各日のスケジュール
 }
 
-// 案件型（CalendarEventを拡張）
+// ===== 新データモデル =====
+
+// 案件マスター（1現場=1レコード）
+export interface ProjectMaster {
+    id: string;
+    title: string;           // 現場名
+    customer?: string;       // 顧客名
+    constructionType: ConstructionType; // 工事種別
+    status: 'active' | 'completed' | 'cancelled';
+    location?: string;       // 場所
+    description?: string;    // 説明
+    remarks?: string;        // 備考
+    createdBy?: string | string[]; // 案件担当者
+    createdAt: Date;
+    updatedAt: Date;
+    // リレーション（optional）
+    assignments?: ProjectAssignment[];
+}
+
+// 案件配置（班・日付への割り当て）
+export interface ProjectAssignment {
+    id: string;
+    projectMasterId: string; // 案件マスターへの参照
+    projectMaster?: ProjectMaster; // リレーション（optional）
+
+    assignedEmployeeId: string; // 担当職長ID
+    date: Date;              // 作業日
+    memberCount: number;     // 人数
+    workers?: string[];      // 職方ID配列
+    vehicles?: string[];     // 車両ID配列
+    meetingTime?: string;    // 集合時間（例: "08:00"）
+    sortOrder: number;       // カレンダー内での表示順序
+    remarks?: string;        // 配置固有の備考
+
+    // 手配確定フィールド
+    confirmedWorkerIds?: string[];  // 確定職方ID配列
+    confirmedVehicleIds?: string[]; // 確定車両ID配列
+    isDispatchConfirmed: boolean;   // 手配確定フラグ
+
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+// カレンダー表示用：ProjectAssignmentからCalendarEventへの変換時の型
+export interface AssignmentCalendarEvent extends CalendarEvent {
+    projectMasterId: string;
+    assignmentId: string;
+    memberCount: number;
+    confirmedWorkerIds?: string[];
+    confirmedVehicleIds?: string[];
+    isDispatchConfirmed: boolean;
+}
+
+// ===== 後方互換用（非推奨） =====
+
+/**
+ * @deprecated Use ProjectMaster + ProjectAssignment instead
+ * 旧システム互換用。新規開発では使用しないでください。
+ */
 export interface Project extends CalendarEvent {
     createdAt: Date;
     updatedAt: Date;
-    createdBy?: string | string[]; // 案件担当者（複数選択可能）
-    sortOrder?: number; // セル内での表示順序
-
-    // 組立・解体の期間設定
-    assemblyDuration?: number;    // 組立日数
-    demolitionDuration?: number;  // 解体日数
-    vehicles?: string[];          // 車両（DBとの互換性）
-
-    // 集合時間
-    meetingTime?: string;  // 例: "08:00"
-
-    // 複数日作業スケジュール（新システム）
+    createdBy?: string | string[];
+    sortOrder?: number;
+    assemblyDuration?: number;
+    demolitionDuration?: number;
+    vehicles?: string[];
+    meetingTime?: string;
     workSchedules?: WorkSchedule[];
-
-    // 新しい案件マスター・割り当てシステムとの互換性
-    projectMasterId?: string; // 案件マスターへの参照（新システム）
-    assignmentId?: string;    // 案件割り当てへの参照（新システム）
-
-    // 手配確定フィールド
-    confirmedForemanId?: string;   // 確定職長ID
-    confirmedWorkerIds?: string[]; // 確定職方ID配列
-    confirmedVehicleIds?: string[]; // 確定車両ID配列
-    isDispatchConfirmed?: boolean;  // 手配確定フラグ
+    projectMasterId?: string;
+    assignmentId?: string;
+    confirmedForemanId?: string;
+    confirmedWorkerIds?: string[];
+    confirmedVehicleIds?: string[];
+    isDispatchConfirmed?: boolean;
 }
-
 
 
 // 班長の型定義

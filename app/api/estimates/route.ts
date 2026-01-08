@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         const {
-            projectId,
+            projectMasterId,
             estimateNumber,
             title,
             items,
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
         // Create estimate
         const newEstimate = await prisma.estimate.create({
             data: {
-                projectId: projectId || null,
+                projectMasterId: projectMasterId || null,
                 estimateNumber,
                 title,
                 items: items ? JSON.stringify(items) : '[]',
