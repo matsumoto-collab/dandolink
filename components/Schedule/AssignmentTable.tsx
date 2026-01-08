@@ -95,10 +95,17 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         const dateStr = formatDateKey(selectedDate);
 
         // 該当日の案件をフィルタ
-        const dayProjects = projects.filter(project => {
+        let dayProjects = projects.filter(project => {
             const projectDateStr = formatDateKey(new Date(project.startDate));
             return projectDateStr === dateStr;
         });
+
+        // workerロールの場合、自分がアサインされた案件のみに絞り込み
+        if (userRole === 'worker' && userTeamId) {
+            dayProjects = dayProjects.filter(project =>
+                project.confirmedWorkerIds?.includes(userTeamId)
+            );
+        }
 
         // 職長ごとにグループ化
         const grouped: Record<string, typeof dayProjects> = {};
@@ -106,15 +113,6 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         foremen.forEach(foreman => {
             grouped[foreman.id] = dayProjects.filter(p => p.assignedEmployeeId === foreman.id);
         });
-
-        // 職方の場合は自分の職長のみ表示
-        if (userRole === 'worker' && userTeamId) {
-            const filtered: Record<string, typeof dayProjects> = {};
-            if (grouped[userTeamId]) {
-                filtered[userTeamId] = grouped[userTeamId];
-            }
-            return filtered;
-        }
 
         return grouped;
     }, [projects, foremen, selectedDate, userRole, userTeamId]);

@@ -162,38 +162,50 @@ export default function Sidebar() {
 
                 {/* Navigation Menu */}
                 <nav className="flex-1 overflow-y-auto py-6 px-3">
-                    {navigationSections.map((section, sectionIndex) => (
-                        <div key={section.title} className={sectionIndex > 0 ? 'mt-8' : ''}>
-                            <h3 className="px-3 mb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                                {section.title}
-                            </h3>
-                            <ul className="space-y-1.5">
-                                {section.items.map((item) => {
-                                    const Icon = item.icon;
-                                    const isActive = activePage === item.page;
+                    {navigationSections
+                        .map(section => {
+                            // workerロールの場合、スケジュール管理のみ表示
+                            if (session?.user?.role === 'worker') {
+                                if (section.title !== '業務管理') return null;
+                                const filteredItems = section.items.filter(item => item.page === 'schedule');
+                                if (filteredItems.length === 0) return null;
+                                return { ...section, items: filteredItems };
+                            }
+                            return section;
+                        })
+                        .filter((section): section is NavSection => section !== null)
+                        .map((section, sectionIndex) => (
+                            <div key={section.title} className={sectionIndex > 0 ? 'mt-8' : ''}>
+                                <h3 className="px-3 mb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                    {section.title}
+                                </h3>
+                                <ul className="space-y-1.5">
+                                    {section.items.map((item) => {
+                                        const Icon = item.icon;
+                                        const isActive = activePage === item.page;
 
-                                    return (
-                                        <li key={item.name}>
-                                            <button
-                                                onClick={() => handleNavigation(item.page)}
-                                                className={`
+                                        return (
+                                            <li key={item.name}>
+                                                <button
+                                                    onClick={() => handleNavigation(item.page)}
+                                                    className={`
                                                     w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200
                                                     ${isActive
-                                                        ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-lg shadow-slate-900/50 scale-[1.02] ring-1 ring-slate-500/50'
-                                                        : 'text-slate-300 hover:bg-slate-800/50 hover:text-white hover:scale-[1.01]'
-                                                    }
+                                                            ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-lg shadow-slate-900/50 scale-[1.02] ring-1 ring-slate-500/50'
+                                                            : 'text-slate-300 hover:bg-slate-800/50 hover:text-white hover:scale-[1.01]'
+                                                        }
                                                 `}
-                                            >
-                                                <Icon className={`w-5 h-5 ${isActive ? 'text-slate-100' : 'text-slate-400'}`} />
-                                                <span className="flex-1 text-left">{item.name}</span>
-                                                {isActive && <ChevronRight className="w-4 h-4 text-slate-300" />}
-                                            </button>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </div>
-                    ))}
+                                                >
+                                                    <Icon className={`w-5 h-5 ${isActive ? 'text-slate-100' : 'text-slate-400'}`} />
+                                                    <span className="flex-1 text-left">{item.name}</span>
+                                                    {isActive && <ChevronRight className="w-4 h-4 text-slate-300" />}
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            </div>
+                        ))}
                 </nav>
 
                 {/* Utility Area */}

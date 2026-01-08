@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
+import { useSession } from 'next-auth/react';
 import WeeklyCalendar from './Calendar/WeeklyCalendar';
 import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 import AssignmentTable from './Schedule/AssignmentTable';
@@ -25,12 +26,24 @@ function PlaceholderPage({ title }: { title: string }) {
 
 export default function MainContent() {
     const { activePage } = useNavigation();
+    const { data: session } = useSession();
     const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
+
+    const userRole = session?.user?.role;
+    const userId = session?.user?.id;
 
     // Render content based on active page
     const renderContent = () => {
         switch (activePage) {
             case 'schedule':
+                // workerロールの場合は手配表のみ表示（タブなし）
+                if (userRole === 'worker') {
+                    return (
+                        <div className="flex-1 min-h-0">
+                            <AssignmentTable userRole="worker" userTeamId={userId} />
+                        </div>
+                    );
+                }
                 // Schedule management (calendar/assignment view)
                 return (
                     <>
