@@ -100,6 +100,8 @@ export default function UserManagement() {
                 return 'bg-teal-100 text-teal-800';
             case 'worker':
                 return 'bg-gray-100 text-gray-800';
+            case 'partner':
+                return 'bg-orange-100 text-orange-800';
             default:
                 return 'bg-gray-100 text-gray-800';
         }
@@ -117,6 +119,8 @@ export default function UserManagement() {
                 return '職長2';
             case 'worker':
                 return '職方';
+            case 'partner':
+                return '協力会社';
             default:
                 return role;
         }

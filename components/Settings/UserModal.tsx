@@ -185,6 +185,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                                 <option value="foreman1">職長1（全般操作可）</option>
                                 <option value="foreman2">職長2（自班のみ操作可）</option>
                                 <option value="worker">職方（自班のみ表示）</option>
+                                <option value="partner">協力会社（閲覧のみ）</option>
                             </select>
                         </div>
 
