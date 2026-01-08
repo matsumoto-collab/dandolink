@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Check, Users, Truck, UserCircle } from 'lucide-react';
 import { Project } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/contexts/ProjectContext';
-import { mockEmployees } from '@/data/mockEmployees';
 import { formatDateKey } from '@/utils/employeeUtils';
+
+interface DispatchUser {
+    id: string;
+    displayName: string;
+    role: string;
+}
 
 interface DispatchConfirmModalProps {
     isOpen: boolean;
@@ -19,8 +24,13 @@ export default function DispatchConfirmModal({
     onClose,
     project,
 }: DispatchConfirmModalProps) {
-    const { workers, vehicles } = useMasterData();
+    const { vehicles } = useMasterData();
     const { projects, updateProject } = useProjects();
+
+    // ユーザーデータの状態
+    const [foremen, setForemen] = useState<DispatchUser[]>([]);
+    const [workers, setWorkers] = useState<DispatchUser[]>([]);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(true);
 
     // 初期値設定
     const [selectedForemanId, setSelectedForemanId] = useState<string>(
@@ -33,6 +43,37 @@ export default function DispatchConfirmModal({
         project.confirmedVehicleIds || []
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // ユーザーデータの取得
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const fetchUsers = async () => {
+            setIsLoadingUsers(true);
+            try {
+                const [foremenRes, workersRes] = await Promise.all([
+                    fetch('/api/dispatch/foremen'),
+                    fetch('/api/dispatch/workers'),
+                ]);
+
+                if (foremenRes.ok) {
+                    const data = await foremenRes.json();
+                    setForemen(data);
+                }
+
+                if (workersRes.ok) {
+                    const data = await workersRes.json();
+                    setWorkers(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch dispatch users:', error);
+            } finally {
+                setIsLoadingUsers(false);
+            }
+        };
+
+        fetchUsers();
+    }, [isOpen]);
 
     // 同日の他案件で使用中のワーカーと車両を取得
     const { usedWorkerIds, usedVehicleIds } = useMemo(() => {
@@ -132,111 +173,131 @@ export default function DispatchConfirmModal({
 
                 {/* コンテンツ */}
                 <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
-                    {/* 職長選択 */}
-                    <div>
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                            <UserCircle className="w-4 h-4" />
-                            職長
-                        </label>
-                        <select
-                            value={selectedForemanId}
-                            onChange={(e) => setSelectedForemanId(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                        >
-                            <option value="">選択してください</option>
-                            {mockEmployees.map(emp => (
-                                <option key={emp.id} value={emp.id}>
-                                    {emp.name}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* 職方選択 */}
-                    <div>
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                            <Users className="w-4 h-4" />
-                            職方（メンバー）
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                            {workers.map(worker => {
-                                const isUsed = usedWorkerIds.has(worker.id);
-                                const isSelected = selectedWorkerIds.includes(worker.id);
-
-                                return (
-                                    <label
-                                        key={worker.id}
-                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : isSelected
-                                                    ? 'bg-blue-50 border border-blue-300'
-                                                    : 'hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            disabled={isUsed}
-                                            onChange={() => !isUsed && handleWorkerToggle(worker.id)}
-                                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
-                                        />
-                                        <span className="text-sm">
-                                            {worker.name}
-                                            {isUsed && <span className="text-xs ml-1">(使用中)</span>}
-                                        </span>
-                                    </label>
-                                );
-                            })}
+                    {isLoadingUsers ? (
+                        <div className="text-center py-8 text-gray-500">
+                            ユーザーデータを読み込み中...
                         </div>
-                        {selectedWorkerIds.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                                選択中: {selectedWorkerIds.length}名
-                            </p>
-                        )}
-                    </div>
+                    ) : (
+                        <>
+                            {/* 職長選択 */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                                    <UserCircle className="w-4 h-4" />
+                                    職長
+                                </label>
+                                <select
+                                    value={selectedForemanId}
+                                    onChange={(e) => setSelectedForemanId(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                >
+                                    <option value="">選択してください</option>
+                                    {foremen.map(foreman => (
+                                        <option key={foreman.id} value={foreman.id}>
+                                            {foreman.displayName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
 
-                    {/* 車両選択 */}
-                    <div>
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-                            <Truck className="w-4 h-4" />
-                            車両
-                        </label>
-                        <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
-                            {vehicles.map(vehicle => {
-                                const isUsed = usedVehicleIds.has(vehicle.id);
-                                const isSelected = selectedVehicleIds.includes(vehicle.id);
+                            {/* 職方選択 */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                                    <Users className="w-4 h-4" />
+                                    職方（メンバー）
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                                    {workers.length === 0 ? (
+                                        <p className="col-span-2 text-center text-gray-500 py-4">
+                                            ユーザー管理でworkerロールのユーザーを追加してください
+                                        </p>
+                                    ) : (
+                                        workers.map(worker => {
+                                            const isUsed = usedWorkerIds.has(worker.id);
+                                            const isSelected = selectedWorkerIds.includes(worker.id);
 
-                                return (
-                                    <label
-                                        key={vehicle.id}
-                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
-                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                : isSelected
-                                                    ? 'bg-green-50 border border-green-300'
-                                                    : 'hover:bg-gray-50'
-                                            }`}
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            checked={isSelected}
-                                            disabled={isUsed}
-                                            onChange={() => !isUsed && handleVehicleToggle(vehicle.id)}
-                                            className="w-4 h-4 text-green-600 rounded focus:ring-green-500 disabled:opacity-50"
-                                        />
-                                        <span className="text-sm">
-                                            {vehicle.name}
-                                            {isUsed && <span className="text-xs ml-1">(使用中)</span>}
-                                        </span>
-                                    </label>
-                                );
-                            })}
-                        </div>
-                        {selectedVehicleIds.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                                選択中: {selectedVehicleIds.length}台
-                            </p>
-                        )}
-                    </div>
+                                            return (
+                                                <label
+                                                    key={worker.id}
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : isSelected
+                                                            ? 'bg-blue-50 border border-blue-300'
+                                                            : 'hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        disabled={isUsed}
+                                                        onChange={() => !isUsed && handleWorkerToggle(worker.id)}
+                                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
+                                                    />
+                                                    <span className="text-sm">
+                                                        {worker.displayName}
+                                                        {isUsed && <span className="text-xs ml-1">(使用中)</span>}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                {selectedWorkerIds.length > 0 && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        選択中: {selectedWorkerIds.length}名
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* 車両選択 */}
+                            <div>
+                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                                    <Truck className="w-4 h-4" />
+                                    車両
+                                </label>
+                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                                    {vehicles.length === 0 ? (
+                                        <p className="col-span-2 text-center text-gray-500 py-4">
+                                            設定の車両マスターから車両を追加してください
+                                        </p>
+                                    ) : (
+                                        vehicles.map(vehicle => {
+                                            const isUsed = usedVehicleIds.has(vehicle.id);
+                                            const isSelected = selectedVehicleIds.includes(vehicle.id);
+
+                                            return (
+                                                <label
+                                                    key={vehicle.id}
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
+                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        : isSelected
+                                                            ? 'bg-green-50 border border-green-300'
+                                                            : 'hover:bg-gray-50'
+                                                        }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        disabled={isUsed}
+                                                        onChange={() => !isUsed && handleVehicleToggle(vehicle.id)}
+                                                        className="w-4 h-4 text-green-600 rounded focus:ring-green-500 disabled:opacity-50"
+                                                    />
+                                                    <span className="text-sm">
+                                                        {vehicle.name}
+                                                        {isUsed && <span className="text-xs ml-1">(使用中)</span>}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                                {selectedVehicleIds.length > 0 && (
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        選択中: {selectedVehicleIds.length}台
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 {/* フッター */}
@@ -261,7 +322,7 @@ export default function DispatchConfirmModal({
                         </button>
                         <button
                             onClick={handleConfirm}
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || isLoadingUsers}
                             className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
                         >
                             <Check className="w-4 h-4" />
