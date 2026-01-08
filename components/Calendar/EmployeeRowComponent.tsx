@@ -40,7 +40,10 @@ export default function EmployeeRowComponent({
 
     const handleDelete = () => {
         if (onRemoveForeman) {
-            onRemoveForeman(row.employeeId);
+            const confirmed = window.confirm(`${row.employeeName}を表示リストから削除しますか？`);
+            if (confirmed) {
+                onRemoveForeman(row.employeeId);
+            }
         }
     };
 
