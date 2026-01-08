@@ -54,6 +54,12 @@ export async function PATCH(
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;
         if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
 
+        // 手配確定フィールド
+        if (body.confirmedForemanId !== undefined) updateData.confirmedForemanId = body.confirmedForemanId || null;
+        if (body.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = body.confirmedWorkerIds ? JSON.stringify(body.confirmedWorkerIds) : null;
+        if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = body.confirmedVehicleIds ? JSON.stringify(body.confirmedVehicleIds) : null;
+        if (body.isDispatchConfirmed !== undefined) updateData.isDispatchConfirmed = body.isDispatchConfirmed;
+
         // Update project
         const updatedProject = await prisma.project.update({
             where: { id },
@@ -65,6 +71,8 @@ export async function PATCH(
             ...updatedProject,
             workers: updatedProject.workers ? JSON.parse(updatedProject.workers) : [],
             vehicles: updatedProject.vehicles ? JSON.parse(updatedProject.vehicles) : [],
+            confirmedWorkerIds: updatedProject.confirmedWorkerIds ? JSON.parse(updatedProject.confirmedWorkerIds) : [],
+            confirmedVehicleIds: updatedProject.confirmedVehicleIds ? JSON.parse(updatedProject.confirmedVehicleIds) : [],
         };
 
         return NextResponse.json(response);

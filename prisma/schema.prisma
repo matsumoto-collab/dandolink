@@ -47,6 +47,13 @@ model Project {
   remarks              String?
   meetingTime          String?  // 集合時間（例: "08:00"）
   sortOrder            Int      @default(0)
+  
+  // 手配確定フィールド
+  confirmedForemanId   String?  // 確定職長ID
+  confirmedWorkerIds   String?  // JSON array: 確定職方ID配列
+  confirmedVehicleIds  String?  // JSON array: 確定車両ID配列
+  isDispatchConfirmed  Boolean  @default(false)
+  
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -55,6 +62,7 @@ model Project {
   @@index([endDate])
   @@index([createdAt])
   @@index([updatedAt])
+  @@index([isDispatchConfirmed])
 }
 
 model Customer {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { EmployeeRow } from '@/types/calendar';
+import { EmployeeRow, Project } from '@/types/calendar';
 import { WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import DraggableEventCard from './DraggableEventCard';
@@ -14,6 +14,9 @@ interface EmployeeRowComponentProps {
     onCellClick?: (employeeId: string, date: Date) => void;
     onMoveEvent?: (eventId: string, direction: 'up' | 'down') => void;
     onRemoveForeman?: (employeeId: string) => void;
+    onDispatch?: (projectId: string) => void;
+    canDispatch?: boolean;
+    projects?: Project[];
 }
 
 export default function EmployeeRowComponent({
@@ -24,6 +27,9 @@ export default function EmployeeRowComponent({
     onCellClick,
     onMoveEvent,
     onRemoveForeman,
+    onDispatch,
+    canDispatch = false,
+    projects = [],
 }: EmployeeRowComponentProps) {
 
     const handleDelete = () => {
@@ -69,17 +75,26 @@ export default function EmployeeRowComponent({
                         events={events}
                         onClick={() => onCellClick?.(row.employeeId, day.date)}
                     >
-                        {events.map((event, eventIndex) => (
-                            <DraggableEventCard
-                                key={event.id}
-                                event={event}
-                                onClick={() => onEventClick?.(event.id)}
-                                onMoveUp={() => onMoveEvent?.(event.id, 'up')}
-                                onMoveDown={() => onMoveEvent?.(event.id, 'down')}
-                                canMoveUp={eventIndex > 0}
-                                canMoveDown={eventIndex < events.length - 1}
-                            />
-                        ))}
+                        {events.map((event, eventIndex) => {
+                            // イベントIDからプロジェクトIDを取得
+                            const projectId = event.id.replace(/-assembly$|-demolition$/, '');
+                            const project = projects.find(p => p.id === projectId);
+
+                            return (
+                                <DraggableEventCard
+                                    key={event.id}
+                                    event={event}
+                                    onClick={() => onEventClick?.(event.id)}
+                                    onMoveUp={() => onMoveEvent?.(event.id, 'up')}
+                                    onMoveDown={() => onMoveEvent?.(event.id, 'down')}
+                                    canMoveUp={eventIndex > 0}
+                                    canMoveDown={eventIndex < events.length - 1}
+                                    onDispatch={() => onDispatch?.(projectId)}
+                                    isDispatchConfirmed={project?.isDispatchConfirmed || false}
+                                    canDispatch={canDispatch}
+                                />
+                            );
+                        })}
                     </DroppableCell>
                 );
             })}

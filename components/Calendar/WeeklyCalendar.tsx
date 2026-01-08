@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
+import { useSession } from 'next-auth/react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useProjects } from '@/contexts/ProjectContext';
@@ -15,12 +16,14 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import ProjectModal from '../Projects/ProjectModal';
 import ProjectSearchModal from '../ProjectSearchModal';
+import DispatchConfirmModal from './DispatchConfirmModal';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project } from '@/types/calendar';
 
 export default function WeeklyCalendar() {
+    const { data: session } = useSession();
     const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
@@ -33,6 +36,16 @@ export default function WeeklyCalendar() {
     // 新しいモーダルの状態
     const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
     const [cellContext, setCellContext] = useState<{ employeeId: string; date: Date } | null>(null);
+
+    // 手配確定モーダルの状態
+    const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
+    const [dispatchProject, setDispatchProject] = useState<Project | null>(null);
+
+    // 手配確定権限チェック（admin, manager, foreman1のみ）
+    const canDispatch = useMemo(() => {
+        const role = session?.user?.role;
+        return role === 'admin' || role === 'manager' || role === 'foreman1';
+    }, [session?.user?.role]);
 
     // クライアントサイドでのみレンダリング
     useEffect(() => {
@@ -388,6 +401,15 @@ export default function WeeklyCalendar() {
                                     onCellClick={handleCellClick}
                                     onMoveEvent={handleMoveEvent}
                                     onRemoveForeman={removeForeman}
+                                    onDispatch={(projectId) => {
+                                        const project = projects.find(p => p.id === projectId);
+                                        if (project) {
+                                            setDispatchProject(project);
+                                            setIsDispatchModalOpen(true);
+                                        }
+                                    }}
+                                    canDispatch={canDispatch}
+                                    projects={projects}
                                 />
                             ))}
                         </div>
@@ -433,6 +455,18 @@ export default function WeeklyCalendar() {
                 }}
                 onSelect={handleSelectProject}
             />
+
+            {/* 手配確定モーダル */}
+            {dispatchProject && (
+                <DispatchConfirmModal
+                    isOpen={isDispatchModalOpen}
+                    onClose={() => {
+                        setIsDispatchModalOpen(false);
+                        setDispatchProject(null);
+                    }}
+                    project={dispatchProject}
+                />
+            )}
         </DndContext>
     );
 }

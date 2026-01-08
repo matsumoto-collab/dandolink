@@ -79,6 +79,12 @@ export interface Project extends CalendarEvent {
     // 新しい案件マスター・割り当てシステムとの互換性
     projectMasterId?: string; // 案件マスターへの参照（新システム）
     assignmentId?: string;    // 案件割り当てへの参照（新システム）
+
+    // 手配確定フィールド
+    confirmedForemanId?: string;   // 確定職長ID
+    confirmedWorkerIds?: string[]; // 確定職方ID配列
+    confirmedVehicleIds?: string[]; // 確定車両ID配列
+    isDispatchConfirmed?: boolean;  // 手配確定フラグ
 }
 
 

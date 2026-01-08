@@ -43,6 +43,8 @@ export async function GET(req: NextRequest) {
                 ...project,
                 workers: project.workers ? JSON.parse(project.workers) : [],
                 vehicles: project.vehicles ? JSON.parse(project.vehicles) : [],
+                confirmedWorkerIds: project.confirmedWorkerIds ? JSON.parse(project.confirmedWorkerIds) : [],
+                confirmedVehicleIds: project.confirmedVehicleIds ? JSON.parse(project.confirmedVehicleIds) : [],
             }));
 
             return NextResponse.json({
@@ -69,6 +71,8 @@ export async function GET(req: NextRequest) {
             ...project,
             workers: project.workers ? JSON.parse(project.workers) : [],
             vehicles: project.vehicles ? JSON.parse(project.vehicles) : [],
+            confirmedWorkerIds: project.confirmedWorkerIds ? JSON.parse(project.confirmedWorkerIds) : [],
+            confirmedVehicleIds: project.confirmedVehicleIds ? JSON.parse(project.confirmedVehicleIds) : [],
         }));
 
         return NextResponse.json(parsedProjects);

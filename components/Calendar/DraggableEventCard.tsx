@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent } from '@/types/calendar';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle } from 'lucide-react';
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -11,6 +11,9 @@ interface DraggableEventCardProps {
     onMoveDown?: () => void;
     canMoveUp?: boolean;
     canMoveDown?: boolean;
+    onDispatch?: () => void;
+    isDispatchConfirmed?: boolean;
+    canDispatch?: boolean;
 }
 
 export default function DraggableEventCard({
@@ -20,6 +23,9 @@ export default function DraggableEventCard({
     onMoveDown,
     canMoveUp = false,
     canMoveDown = false,
+    onDispatch,
+    isDispatchConfirmed = false,
+    canDispatch = false,
 }: DraggableEventCardProps) {
     const {
         attributes,
@@ -150,6 +156,27 @@ export default function DraggableEventCard({
                             >
                                 <ChevronDown className="w-3 h-3" />
                             </button>
+
+                            {/* 手配確定ボタン */}
+                            {canDispatch && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onDispatch?.();
+                                    }}
+                                    className={`p-0.5 rounded transition-colors ${isDispatchConfirmed
+                                            ? 'text-green-600 hover:bg-green-100'
+                                            : 'text-gray-700 hover:bg-gray-500 hover:bg-opacity-20'
+                                        }`}
+                                    title={isDispatchConfirmed ? '手配確定済み' : '手配確定'}
+                                >
+                                    {isDispatchConfirmed ? (
+                                        <CheckCircle className="w-3 h-3" />
+                                    ) : (
+                                        <ClipboardCheck className="w-3 h-3" />
+                                    )}
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>
