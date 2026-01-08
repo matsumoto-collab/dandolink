@@ -58,9 +58,12 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
                 const { supabase } = await import('@/lib/supabase');
                 if (!isSubscribed) return;
 
+                console.log('[Vacations Realtime] Setting up subscription...');
+
                 channel = supabase
                     .channel('vacations-realtime')
                     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'VacationRecord' }, (payload: any) => {
+                        console.log('[Vacations Realtime] INSERT event received:', payload);
                         const record = payload.new;
                         if (record && record.dateKey) {
                             setVacations(prev => ({
@@ -73,6 +76,7 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
                         }
                     })
                     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'VacationRecord' }, (payload: any) => {
+                        console.log('[Vacations Realtime] UPDATE event received:', payload);
                         const record = payload.new;
                         if (record && record.dateKey) {
                             setVacations(prev => ({
@@ -85,6 +89,7 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
                         }
                     })
                     .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'VacationRecord' }, (payload: any) => {
+                        console.log('[Vacations Realtime] DELETE event received:', payload);
                         const record = payload.old;
                         if (record && record.dateKey) {
                             setVacations(prev => {
@@ -94,7 +99,9 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
                             });
                         }
                     })
-                    .subscribe();
+                    .subscribe((status: string) => {
+                        console.log('[Vacations Realtime] Subscription status:', status);
+                    });
             } catch (error) {
                 console.error('[Realtime] Failed to setup vacations subscription:', error);
             }
@@ -105,6 +112,7 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
         return () => {
             isSubscribed = false;
             if (channel) {
+                console.log('[Vacations Realtime] Cleaning up subscription...');
                 import('@/lib/supabase').then(({ supabase }) => {
                     supabase.removeChannel(channel);
                 });
