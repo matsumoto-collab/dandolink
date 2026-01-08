@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent } from '@/types/calendar';
-import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Users, Truck } from 'lucide-react';
+import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle } from 'lucide-react';
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -14,8 +14,6 @@ interface DraggableEventCardProps {
     onDispatch?: () => void;
     isDispatchConfirmed?: boolean;
     canDispatch?: boolean;
-    confirmedWorkerNames?: string[];
-    confirmedVehicleNames?: string[];
 }
 
 export default function DraggableEventCard({
@@ -28,8 +26,6 @@ export default function DraggableEventCard({
     onDispatch,
     isDispatchConfirmed = false,
     canDispatch = false,
-    confirmedWorkerNames = [],
-    confirmedVehicleNames = [],
 }: DraggableEventCardProps) {
     const {
         attributes,
@@ -126,26 +122,6 @@ export default function DraggableEventCard({
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
                                     <span className="truncate">{event.remarks}</span>
-                                </div>
-                            )}
-
-                            {/* 確定済み職方表示 */}
-                            {isDispatchConfirmed && confirmedWorkerNames.length > 0 && (
-                                <div className="flex items-start gap-1 mt-1 pt-1 border-t border-gray-300/50">
-                                    <Users className="w-3 h-3 flex-shrink-0 mt-0.5 text-blue-600" />
-                                    <span className="text-xs text-blue-700 truncate">
-                                        {confirmedWorkerNames.join(', ')}
-                                    </span>
-                                </div>
-                            )}
-
-                            {/* 確定済み車両表示 */}
-                            {isDispatchConfirmed && confirmedVehicleNames.length > 0 && (
-                                <div className="flex items-start gap-1 mt-0.5">
-                                    <Truck className="w-3 h-3 flex-shrink-0 mt-0.5 text-green-600" />
-                                    <span className="text-xs text-green-700 truncate">
-                                        {confirmedVehicleNames.join(', ')}
-                                    </span>
                                 </div>
                             )}
                         </div>

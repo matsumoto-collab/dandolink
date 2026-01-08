@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { mockEmployees } from '@/data/mockEmployees';
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle } from 'lucide-react';
 
 interface AssignmentTableProps {
     userRole?: string;  // admin, manager, foreman1, foreman2, worker
@@ -15,6 +15,43 @@ interface AssignmentTableProps {
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
     const { projects } = useProjects();
     const { displayedForemanIds } = useCalendarDisplay();
+
+    // ワーカー・車両名のマップ
+    const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
+    const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
+
+    // ワーカー・車両名の取得
+    useEffect(() => {
+        const fetchNames = async () => {
+            try {
+                // ワーカー名取得
+                const workersRes = await fetch('/api/dispatch/workers');
+                if (workersRes.ok) {
+                    const workersData = await workersRes.json();
+                    const map = new Map<string, string>();
+                    workersData.forEach((w: { id: string; displayName: string }) => {
+                        map.set(w.id, w.displayName);
+                    });
+                    setWorkerNameMap(map);
+                }
+
+                // 車両名取得
+                const vehiclesRes = await fetch('/api/master-data');
+                if (vehiclesRes.ok) {
+                    const masterData = await vehiclesRes.json();
+                    const map = new Map<string, string>();
+                    (masterData.vehicles || []).forEach((v: { id: string; name: string }) => {
+                        map.set(v.id, v.name);
+                    });
+                    setVehicleNameMap(map);
+                }
+            } catch (error) {
+                console.error('Failed to fetch names:', error);
+            }
+        };
+
+        fetchNames();
+    }, []);
 
     // デフォルトは明日
     const [selectedDate, setSelectedDate] = useState(() => {
@@ -203,6 +240,40 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                                                 </span>
                                                             </div>
                                                         </div>
+
+                                                        {/* 確定済み手配情報表示 */}
+                                                        {project.isDispatchConfirmed && (
+                                                            <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                                                <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
+                                                                    <CheckCircle className="w-4 h-4" />
+                                                                    <span>手配確定済み</span>
+                                                                </div>
+
+                                                                {/* 確定済み職方 */}
+                                                                {project.confirmedWorkerIds && project.confirmedWorkerIds.length > 0 && (
+                                                                    <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
+                                                                        <Users className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                                        <span>
+                                                                            {project.confirmedWorkerIds
+                                                                                .map(id => workerNameMap.get(id) || id)
+                                                                                .join(', ')}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* 確定済み車両 */}
+                                                                {project.confirmedVehicleIds && project.confirmedVehicleIds.length > 0 && (
+                                                                    <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
+                                                                        <Truck className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                                        <span>
+                                                                            {project.confirmedVehicleIds
+                                                                                .map(id => vehicleNameMap.get(id) || id)
+                                                                                .join(', ')}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
 
                                                         {/* 備考 */}
                                                         {project.remarks && (

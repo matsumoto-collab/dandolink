@@ -47,49 +47,10 @@ export default function WeeklyCalendar() {
         return role === 'admin' || role === 'manager' || role === 'foreman1';
     }, [session?.user?.role]);
 
-    // ワーカー・車両名のマップ
-    const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
-    const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
-
     // クライアントサイドでのみレンダリング
     useEffect(() => {
         setIsMounted(true);
     }, []);
-
-    // ワーカー・車両名の取得
-    useEffect(() => {
-        if (!canDispatch) return;
-
-        const fetchNames = async () => {
-            try {
-                // ワーカー名取得
-                const workersRes = await fetch('/api/dispatch/workers');
-                if (workersRes.ok) {
-                    const workersData = await workersRes.json();
-                    const map = new Map<string, string>();
-                    workersData.forEach((w: { id: string; displayName: string }) => {
-                        map.set(w.id, w.displayName);
-                    });
-                    setWorkerNameMap(map);
-                }
-
-                // 車両名取得（設定の車両マスターから）
-                const vehiclesRes = await fetch('/api/master-data');
-                if (vehiclesRes.ok) {
-                    const masterData = await vehiclesRes.json();
-                    const map = new Map<string, string>();
-                    (masterData.vehicles || []).forEach((v: { id: string; name: string }) => {
-                        map.set(v.id, v.name);
-                    });
-                    setVehicleNameMap(map);
-                }
-            } catch (error) {
-                console.error('Failed to fetch names:', error);
-            }
-        };
-
-        fetchNames();
-    }, [canDispatch]);
 
     // 案件をカレンダーイベントに展開
     const events: CalendarEvent[] = useMemo(() => getCalendarEvents(), [getCalendarEvents]);
@@ -449,8 +410,6 @@ export default function WeeklyCalendar() {
                                     }}
                                     canDispatch={canDispatch}
                                     projects={projects}
-                                    workerNameMap={workerNameMap}
-                                    vehicleNameMap={vehicleNameMap}
                                 />
                             ))}
                         </div>

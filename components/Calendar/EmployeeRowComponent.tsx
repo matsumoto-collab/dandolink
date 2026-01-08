@@ -17,8 +17,6 @@ interface EmployeeRowComponentProps {
     onDispatch?: (projectId: string) => void;
     canDispatch?: boolean;
     projects?: Project[];
-    workerNameMap?: Map<string, string>;
-    vehicleNameMap?: Map<string, string>;
 }
 
 export default function EmployeeRowComponent({
@@ -32,8 +30,6 @@ export default function EmployeeRowComponent({
     onDispatch,
     canDispatch = false,
     projects = [],
-    workerNameMap = new Map(),
-    vehicleNameMap = new Map(),
 }: EmployeeRowComponentProps) {
 
     const handleDelete = () => {
@@ -84,14 +80,6 @@ export default function EmployeeRowComponent({
                             const projectId = event.id.replace(/-assembly$|-demolition$/, '');
                             const project = projects.find(p => p.id === projectId);
 
-                            // 確定済みワーカー・車両名を解決
-                            const confirmedWorkerNames = (project?.confirmedWorkerIds || [])
-                                .map(id => workerNameMap.get(id))
-                                .filter((name): name is string => !!name);
-                            const confirmedVehicleNames = (project?.confirmedVehicleIds || [])
-                                .map(id => vehicleNameMap.get(id))
-                                .filter((name): name is string => !!name);
-
                             return (
                                 <DraggableEventCard
                                     key={event.id}
@@ -104,8 +92,6 @@ export default function EmployeeRowComponent({
                                     onDispatch={() => onDispatch?.(projectId)}
                                     isDispatchConfirmed={project?.isDispatchConfirmed || false}
                                     canDispatch={canDispatch}
-                                    confirmedWorkerNames={confirmedWorkerNames}
-                                    confirmedVehicleNames={confirmedVehicleNames}
                                 />
                             );
                         })}
