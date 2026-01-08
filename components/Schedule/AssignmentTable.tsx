@@ -166,141 +166,184 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             {/* 手配表本体 */}
             <div className="flex-1 overflow-auto">
                 <div className="grid gap-4">
-                    {foremen.map(foreman => {
-                        const assignments = assignmentsByEmployee[foreman.id] || [];
-
-                        // 職方で自分の班でない場合はスキップ
-                        if (userRole === 'worker' && userTeamId && foreman.id !== userTeamId) {
-                            return null;
-                        }
-
-                        return (
-                            <div key={foreman.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                                {/* 職長ヘッダー */}
-                                <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-6 py-4">
-                                    <h3 className="text-lg font-bold">{foreman.name} 班</h3>
-                                    <p className="text-sm text-slate-300">
-                                        {assignments.length}件の現場
-                                    </p>
-                                </div>
-
-                                {/* 案件リスト */}
-                                <div className="divide-y divide-slate-100">
-                                    {assignments.length === 0 ? (
-                                        <div className="p-6 text-center text-slate-400">
-                                            予定なし
-                                        </div>
-                                    ) : (
-                                        assignments.map(project => (
-                                            <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        {/* 現場名 */}
-                                                        <h4 className="font-bold text-slate-800 text-lg">
-                                                            {project.title}
-                                                        </h4>
-
-                                                        {/* 顧客名 */}
-                                                        {project.customer && (
-                                                            <p className="text-sm text-slate-600 mt-1">
-                                                                {project.customer}
-                                                            </p>
+                    {/* workerロールの場合はシンプルなリストで表示 */}
+                    {userRole === 'worker' ? (
+                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                            <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-6 py-4">
+                                <h3 className="text-lg font-bold">あなたの担当現場</h3>
+                                <p className="text-sm text-slate-300">
+                                    {Object.values(assignmentsByEmployee).flat().length}件の現場
+                                </p>
+                            </div>
+                            <div className="divide-y divide-slate-100">
+                                {Object.values(assignmentsByEmployee).flat().length === 0 ? (
+                                    <div className="p-6 text-center text-slate-400">
+                                        担当現場なし
+                                    </div>
+                                ) : (
+                                    Object.values(assignmentsByEmployee).flat().map(project => (
+                                        <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                            <div className="flex items-start justify-between">
+                                                <div className="flex-1">
+                                                    <h4 className="font-bold text-slate-800 text-lg">
+                                                        {project.title}
+                                                    </h4>
+                                                    {project.customer && (
+                                                        <p className="text-sm text-slate-600 mt-1">
+                                                            {project.customer}
+                                                        </p>
+                                                    )}
+                                                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
+                                                        <div className="flex items-center gap-1">
+                                                            <Clock className="w-4 h-4" />
+                                                            <span>未設定</span>
+                                                        </div>
+                                                        {project.location && (
+                                                            <div className="flex items-center gap-1">
+                                                                <MapPin className="w-4 h-4" />
+                                                                <span className="truncate max-w-[200px]">{project.location}</span>
+                                                            </div>
                                                         )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        /* 管理者・職長用の職長ごとグループ表示 */
+                        foremen.map(foreman => {
+                            const assignments = assignmentsByEmployee[foreman.id] || [];
 
-                                                        {/* 詳細情報 */}
-                                                        <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                                                            {/* 集合時間 */}
-                                                            <div className="flex items-center gap-2 text-slate-600">
-                                                                <Clock className="w-4 h-4 text-slate-400" />
-                                                                <span>
-                                                                    {project.meetingTime || '未設定'}
-                                                                </span>
+                            return (
+                                <div key={foreman.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                                    {/* 職長ヘッダー */}
+                                    <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-6 py-4">
+                                        <h3 className="text-lg font-bold">{foreman.name} 班</h3>
+                                        <p className="text-sm text-slate-300">
+                                            {assignments.length}件の現場
+                                        </p>
+                                    </div>
+
+                                    {/* 案件リスト */}
+                                    <div className="divide-y divide-slate-100">
+                                        {assignments.length === 0 ? (
+                                            <div className="p-6 text-center text-slate-400">
+                                                予定なし
+                                            </div>
+                                        ) : (
+                                            assignments.map(project => (
+                                                <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
+                                                    <div className="flex items-start justify-between">
+                                                        <div className="flex-1">
+                                                            {/* 現場名 */}
+                                                            <h4 className="font-bold text-slate-800 text-lg">
+                                                                {project.title}
+                                                            </h4>
+
+                                                            {/* 顧客名 */}
+                                                            {project.customer && (
+                                                                <p className="text-sm text-slate-600 mt-1">
+                                                                    {project.customer}
+                                                                </p>
+                                                            )}
+
+                                                            {/* 詳細情報 */}
+                                                            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                                                                {/* 集合時間 */}
+                                                                <div className="flex items-center gap-2 text-slate-600">
+                                                                    <Clock className="w-4 h-4 text-slate-400" />
+                                                                    <span>
+                                                                        {project.meetingTime || '未設定'}
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* 場所 */}
+                                                                {project.location && (
+                                                                    <div className="flex items-center gap-2 text-slate-600">
+                                                                        <MapPin className="w-4 h-4 text-slate-400" />
+                                                                        <span>{project.location}</span>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* メンバー */}
+                                                                <div className="flex items-center gap-2 text-slate-600">
+                                                                    <Users className="w-4 h-4 text-slate-400" />
+                                                                    <span>
+                                                                        {project.workers?.length || 0}名
+                                                                    </span>
+                                                                </div>
+
+                                                                {/* 車両 */}
+                                                                <div className="flex items-center gap-2 text-slate-600">
+                                                                    <Truck className="w-4 h-4 text-slate-400" />
+                                                                    <span>
+                                                                        {project.trucks?.length || project.vehicles?.length || 0}台
+                                                                    </span>
+                                                                </div>
                                                             </div>
 
-                                                            {/* 場所 */}
-                                                            {project.location && (
-                                                                <div className="flex items-center gap-2 text-slate-600">
-                                                                    <MapPin className="w-4 h-4 text-slate-400" />
-                                                                    <span>{project.location}</span>
+                                                            {/* 確定済み手配情報表示 */}
+                                                            {project.isDispatchConfirmed && isNamesLoaded && (
+                                                                <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
+                                                                    <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
+                                                                        <CheckCircle className="w-4 h-4" />
+                                                                        <span>手配確定済み</span>
+                                                                    </div>
+
+                                                                    {/* 確定済み職方 */}
+                                                                    {project.confirmedWorkerIds && project.confirmedWorkerIds.length > 0 && (
+                                                                        <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
+                                                                            <Users className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                                            <span>
+                                                                                {project.confirmedWorkerIds
+                                                                                    .filter(id => id !== foreman.id && workerNameMap.has(id))
+                                                                                    .map(id => workerNameMap.get(id))
+                                                                                    .join(', ')}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {/* 確定済み車両 */}
+                                                                    {project.confirmedVehicleIds && project.confirmedVehicleIds.length > 0 && (
+                                                                        <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
+                                                                            <Truck className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                                                                            <span>
+                                                                                {project.confirmedVehicleIds
+                                                                                    .map(id => vehicleNameMap.get(id) || id)
+                                                                                    .join(', ')}
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
                                                                 </div>
                                                             )}
 
-                                                            {/* メンバー */}
-                                                            <div className="flex items-center gap-2 text-slate-600">
-                                                                <Users className="w-4 h-4 text-slate-400" />
-                                                                <span>
-                                                                    {project.workers?.length || 0}名
-                                                                </span>
-                                                            </div>
-
-                                                            {/* 車両 */}
-                                                            <div className="flex items-center gap-2 text-slate-600">
-                                                                <Truck className="w-4 h-4 text-slate-400" />
-                                                                <span>
-                                                                    {project.trucks?.length || project.vehicles?.length || 0}台
-                                                                </span>
-                                                            </div>
+                                                            {/* 備考 */}
+                                                            {project.remarks && (
+                                                                <p className="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded">
+                                                                    {project.remarks}
+                                                                </p>
+                                                            )}
                                                         </div>
 
-                                                        {/* 確定済み手配情報表示 */}
-                                                        {project.isDispatchConfirmed && isNamesLoaded && (
-                                                            <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                                                <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
-                                                                    <CheckCircle className="w-4 h-4" />
-                                                                    <span>手配確定済み</span>
-                                                                </div>
-
-                                                                {/* 確定済み職方 */}
-                                                                {project.confirmedWorkerIds && project.confirmedWorkerIds.length > 0 && (
-                                                                    <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
-                                                                        <Users className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                                                        <span>
-                                                                            {project.confirmedWorkerIds
-                                                                                .filter(id => id !== foreman.id && workerNameMap.has(id))
-                                                                                .map(id => workerNameMap.get(id))
-                                                                                .join(', ')}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* 確定済み車両 */}
-                                                                {project.confirmedVehicleIds && project.confirmedVehicleIds.length > 0 && (
-                                                                    <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
-                                                                        <Truck className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                                                        <span>
-                                                                            {project.confirmedVehicleIds
-                                                                                .map(id => vehicleNameMap.get(id) || id)
-                                                                                .join(', ')}
-                                                                        </span>
-                                                                    </div>
-                                                                )}
+                                                        {/* 編集ボタン（権限がある場合のみ） */}
+                                                        {canEdit(foreman.id) && (
+                                                            <div className="ml-4">
+                                                                <button className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-slate-600">
+                                                                    編集
+                                                                </button>
                                                             </div>
-                                                        )}
-
-                                                        {/* 備考 */}
-                                                        {project.remarks && (
-                                                            <p className="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded">
-                                                                {project.remarks}
-                                                            </p>
                                                         )}
                                                     </div>
-
-                                                    {/* 編集ボタン（権限がある場合のみ） */}
-                                                    {canEdit(foreman.id) && (
-                                                        <div className="ml-4">
-                                                            <button className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-slate-600">
-                                                                編集
-                                                            </button>
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            </div>
-                                        ))
-                                    )}
+                                            ))
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        );
-                    })}
+                            );
+                        }))}
                 </div>
             </div>
         </div>
