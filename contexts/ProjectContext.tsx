@@ -36,7 +36,7 @@ function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: P
         color,
         description: assignment.projectMaster?.description,
         location: assignment.projectMaster?.location,
-        customer: assignment.projectMaster?.customer,
+        customer: assignment.projectMaster?.customerName,
         workers: assignment.workers,
         trucks: assignment.vehicles,
         remarks: assignment.remarks || assignment.projectMaster?.remarks,
@@ -167,7 +167,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             title: project.title,
-                            customer: project.customer,
+                            customerName: project.customer,
                             constructionType: project.constructionType || 'other',
                             location: project.location,
                             description: project.description,
