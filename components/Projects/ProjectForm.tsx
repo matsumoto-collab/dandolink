@@ -114,7 +114,7 @@ export default function ProjectForm({
 
         // 総メンバー数（マスターデータから取得）
         return TOTAL_MEMBERS - usedMembers;
-    }, [projects, initialData, defaultDate]);
+    }, [projects, initialData, defaultDate, TOTAL_MEMBERS]);
 
     const handleVehicleToggle = (vehicleName: string) => {
         setFormData(prev => ({

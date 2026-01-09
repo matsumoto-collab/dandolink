@@ -183,7 +183,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         // 選択した案件マスターの配置を作成
         const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
             title: projectMaster.title,
-            customer: projectMaster.customer,
+            customer: projectMaster.customerName,
             location: projectMaster.location,
             startDate: cellContext.date,
             endDate: cellContext.date,
