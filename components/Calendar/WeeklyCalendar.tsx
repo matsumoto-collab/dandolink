@@ -32,7 +32,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
-    const { displayedForemanIds, removeForeman, allForemen, moveForeman } = useCalendarDisplay();
+    const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -267,11 +267,13 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         updateProjects(updates);
     }, [projects, updateProjects]);
 
-    // サーバーサイドレンダリング時はローディング表示
-    if (!isMounted) {
+    // サーバーサイドレンダリング時またはデータ読み込み中はローディング表示
+    if (!isMounted || isCalendarLoading) {
         return (
-            <div className="h-full flex items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200">
-                <div className="text-gray-500">読み込み中...</div>
+            <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 min-h-[400px]">
+                <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
+                <div className="text-gray-600 font-medium">週間スケジュールを読み込み中...</div>
+                <div className="text-gray-400 text-sm mt-1">しばらくお待ちください</div>
             </div>
         );
     }
