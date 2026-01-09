@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/contexts/ProjectMasterContext';
 import { ProjectMaster, CONSTRUCTION_TYPE_LABELS, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
-import { Plus, Edit2, Trash2, Search, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, Calendar, ChevronDown, ChevronUp, User } from 'lucide-react';
+
+interface ManagerUser {
+    id: string;
+    displayName: string;
+    role: string;
+}
 
 export default function ProjectMasterListPage() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster } = useProjectMasters();
@@ -22,7 +28,31 @@ export default function ProjectMasterListPage() {
         location: '',
         description: '',
         remarks: '',
+        createdBy: [] as string[],
     });
+
+    // Admin/Manager users for project manager selection
+    const [managers, setManagers] = useState<ManagerUser[]>([]);
+
+    // Fetch admin/manager users
+    useEffect(() => {
+        const fetchManagers = async () => {
+            try {
+                const res = await fetch('/api/users');
+                if (res.ok) {
+                    const users = await res.json();
+                    // Filter only admin and manager roles
+                    const filtered = users.filter((u: ManagerUser) =>
+                        u.role === 'admin' || u.role === 'manager'
+                    );
+                    setManagers(filtered);
+                }
+            } catch (error) {
+                console.error('Failed to fetch managers:', error);
+            }
+        };
+        fetchManagers();
+    }, []);
 
     // Filter and sort
     const filteredMasters = useMemo(() => {
@@ -69,6 +99,7 @@ export default function ProjectMasterListPage() {
                 location: formData.location || undefined,
                 description: formData.description || undefined,
                 remarks: formData.remarks || undefined,
+                createdBy: formData.createdBy.length > 0 ? formData.createdBy : undefined,
             });
             setIsCreating(false);
             setFormData({
@@ -78,6 +109,7 @@ export default function ProjectMasterListPage() {
                 location: '',
                 description: '',
                 remarks: '',
+                createdBy: [],
             });
         } catch (error) {
             console.error('Failed to create project master:', error);
@@ -94,6 +126,7 @@ export default function ProjectMasterListPage() {
             location: pm.location || '',
             description: pm.description || '',
             remarks: pm.remarks || '',
+            createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
         });
     };
 
@@ -108,6 +141,7 @@ export default function ProjectMasterListPage() {
                 location: formData.location || undefined,
                 description: formData.description || undefined,
                 remarks: formData.remarks || undefined,
+                createdBy: formData.createdBy.length > 0 ? formData.createdBy : undefined,
             });
             setEditingId(null);
             setFormData({
@@ -117,6 +151,7 @@ export default function ProjectMasterListPage() {
                 location: '',
                 description: '',
                 remarks: '',
+                createdBy: [],
             });
         } catch (error) {
             console.error('Failed to update project master:', error);
@@ -271,6 +306,37 @@ export default function ProjectMasterListPage() {
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             />
                         </div>
+                        <div className="md:col-span-3">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <User className="inline w-4 h-4 mr-1" />
+                                案件担当者
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                                {managers.map(manager => (
+                                    <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                                        <input
+                                            type="checkbox"
+                                            checked={formData.createdBy.includes(manager.id)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setFormData({ ...formData, createdBy: [...formData.createdBy, manager.id] });
+                                                } else {
+                                                    setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
+                                                }
+                                            }}
+                                            className="w-4 h-4 text-blue-600 rounded"
+                                        />
+                                        <span className="text-sm text-gray-700">{manager.displayName}</span>
+                                        <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                            {manager.role === 'admin' ? '管理者' : 'マネージャー'}
+                                        </span>
+                                    </label>
+                                ))}
+                                {managers.length === 0 && (
+                                    <span className="text-sm text-gray-500">担当者を読み込み中...</span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                     <div className="flex gap-2 mt-4">
                         <button
@@ -354,6 +420,37 @@ export default function ProjectMasterListPage() {
                                                 onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                             />
+                                        </div>
+                                        <div className="md:col-span-3">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                <User className="inline w-4 h-4 mr-1" />
+                                                案件担当者
+                                            </label>
+                                            <div className="flex flex-wrap gap-2">
+                                                {managers.map(manager => (
+                                                    <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.createdBy.includes(manager.id)}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setFormData({ ...formData, createdBy: [...formData.createdBy, manager.id] });
+                                                                } else {
+                                                                    setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
+                                                                }
+                                                            }}
+                                                            className="w-4 h-4 text-blue-600 rounded"
+                                                        />
+                                                        <span className="text-sm text-gray-700">{manager.displayName}</span>
+                                                        <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                            {manager.role === 'admin' ? '管理者' : 'マネージャー'}
+                                                        </span>
+                                                    </label>
+                                                ))}
+                                                {managers.length === 0 && (
+                                                    <span className="text-sm text-gray-500">担当者を読み込み中...</span>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="flex gap-2 mt-4">
