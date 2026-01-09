@@ -205,6 +205,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
     // Update project (updates assignment)
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+        // Store previous state for rollback
+        const previousAssignments = [...assignments];
+
+        // Optimistic update BEFORE API call for smooth UI
+        setAssignments(prev => prev.map(a =>
+            a.id === id
+                ? { ...a, ...updates, date: updates.startDate || a.date }
+                : a
+        ));
+
         try {
             await fetch(`/api/assignments/${id}`, {
                 method: 'PATCH',
@@ -223,21 +233,35 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     confirmedVehicleIds: updates.confirmedVehicleIds,
                 }),
             });
-
-            // Optimistic update
-            setAssignments(prev => prev.map(a =>
-                a.id === id
-                    ? { ...a, ...updates, date: updates.startDate || a.date }
-                    : a
-            ));
         } catch (error) {
+            // Rollback on error
+            setAssignments(previousAssignments);
             console.error('Failed to update project:', error);
             throw error;
         }
-    }, []);
+    }, [assignments]);
 
     // Batch update projects
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
+        // Store previous state for rollback
+        const previousAssignments = [...assignments];
+
+        // Optimistic update BEFORE API call for smooth UI
+        setAssignments(prev => {
+            const newAssignments = [...prev];
+            updates.forEach(update => {
+                const index = newAssignments.findIndex(a => a.id === update.id);
+                if (index !== -1) {
+                    newAssignments[index] = {
+                        ...newAssignments[index],
+                        ...update.data,
+                        date: update.data.startDate || newAssignments[index].date,
+                    };
+                }
+            });
+            return newAssignments;
+        });
+
         try {
             await fetch('/api/assignments/batch', {
                 method: 'POST',
@@ -257,27 +281,13 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     })),
                 }),
             });
-
-            // Optimistic update
-            setAssignments(prev => {
-                const newAssignments = [...prev];
-                updates.forEach(update => {
-                    const index = newAssignments.findIndex(a => a.id === update.id);
-                    if (index !== -1) {
-                        newAssignments[index] = {
-                            ...newAssignments[index],
-                            ...update.data,
-                            date: update.data.startDate || newAssignments[index].date,
-                        };
-                    }
-                });
-                return newAssignments;
-            });
         } catch (error) {
+            // Rollback on error
+            setAssignments(previousAssignments);
             console.error('Failed to batch update projects:', error);
             throw error;
         }
-    }, []);
+    }, [assignments]);
 
     // Delete project (deletes assignment)
     const deleteProject = useCallback(async (id: string) => {
