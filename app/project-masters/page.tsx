@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/contexts/ProjectMasterContext';
-import { ProjectMaster, CONSTRUCTION_TYPE_LABELS, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { ProjectMaster } from '@/types/calendar';
 import { Plus, Edit2, Trash2, Search, Calendar, ChevronDown, ChevronUp, User } from 'lucide-react';
 
 interface ManagerUser {
@@ -487,24 +487,10 @@ export default function ProjectMasterListPage() {
                             ) : (
                                 // Normal display
                                 <div className="p-4 flex items-center gap-4">
-                                    {/* Color indicator */}
-                                    <div
-                                        className="w-2 h-12 rounded-full flex-shrink-0"
-                                        style={{
-                                            backgroundColor: CONSTRUCTION_TYPE_COLORS[pm.constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other
-                                        }}
-                                    />
-
                                     {/* Main info */}
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2">
                                             <h3 className="text-lg font-bold text-gray-800 truncate">{pm.title}</h3>
-                                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${pm.constructionType === 'assembly' ? 'bg-blue-100 text-blue-700' :
-                                                pm.constructionType === 'demolition' ? 'bg-red-100 text-red-700' :
-                                                    'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                {CONSTRUCTION_TYPE_LABELS[pm.constructionType as keyof typeof CONSTRUCTION_TYPE_LABELS] || pm.constructionType}
-                                            </span>
                                             {pm.status === 'completed' && (
                                                 <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
                                                     完了
