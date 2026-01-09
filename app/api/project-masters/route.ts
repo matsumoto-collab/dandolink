@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
         if (search) {
             where.OR = [
                 { title: { contains: search, mode: 'insensitive' } },
-                { customer: { contains: search, mode: 'insensitive' } },
+                { customerName: { contains: search, mode: 'insensitive' } },
                 { location: { contains: search, mode: 'insensitive' } },
             ];
         }
@@ -94,10 +94,27 @@ export async function POST(req: NextRequest) {
         const projectMaster = await prisma.projectMaster.create({
             data: {
                 title: body.title,
-                customer: body.customer || null,
+                customerId: body.customerId || null,
+                customerName: body.customerName || null,
                 constructionType: body.constructionType || 'other',
+                constructionContent: body.constructionContent || null,
                 status: body.status || 'active',
+                // 住所情報
                 location: body.location || null,
+                postalCode: body.postalCode || null,
+                prefecture: body.prefecture || null,
+                city: body.city || null,
+                plusCode: body.plusCode || null,
+                // 工事情報
+                area: body.area || null,
+                areaRemarks: body.areaRemarks || null,
+                assemblyDate: body.assemblyDate ? new Date(body.assemblyDate) : null,
+                demolitionDate: body.demolitionDate ? new Date(body.demolitionDate) : null,
+                estimatedAssemblyWorkers: body.estimatedAssemblyWorkers || null,
+                estimatedDemolitionWorkers: body.estimatedDemolitionWorkers || null,
+                contractAmount: body.contractAmount || null,
+                // 足場仕様
+                scaffoldingSpec: body.scaffoldingSpec || null,
                 description: body.description || null,
                 remarks: body.remarks || null,
                 createdBy: body.createdBy ? JSON.stringify(body.createdBy) : null,
@@ -109,6 +126,8 @@ export async function POST(req: NextRequest) {
             createdBy: projectMaster.createdBy ? JSON.parse(projectMaster.createdBy) : null,
             createdAt: projectMaster.createdAt.toISOString(),
             updatedAt: projectMaster.updatedAt.toISOString(),
+            assemblyDate: projectMaster.assemblyDate?.toISOString() || null,
+            demolitionDate: projectMaster.demolitionDate?.toISOString() || null,
         });
     } catch (error) {
         console.error('Create project master error:', error);

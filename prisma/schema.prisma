@@ -31,10 +31,31 @@ model User {
 model ProjectMaster {
   id               String   @id @default(uuid())
   title            String   // 現場名
-  customer         String?  // 顧客名
-  constructionType String   // 工事種別: assembly, demolition, other
+  customerId       String?  // 顧客ID (FK to Customer)
+  customerName     String?  // 顧客名（表示用、後方互換性）
+  constructionType String   @default("other") // 工事種別: assembly, demolition, other（カレンダー登録時に設定）
+  constructionContent String? // 工事内容: new_construction, renovation, large_scale, other
   status           String   @default("active") // active, completed, cancelled
-  location         String?  // 場所
+  
+  // 住所情報
+  location         String?  // 場所（その他住所）
+  postalCode       String?  // 郵便番号
+  prefecture       String?  // 都道府県
+  city             String?  // 市区町村
+  plusCode         String?  // Plus Code/座標（緯度,経度）
+  
+  // 工事情報
+  area             Float?   // 面積（m2）
+  areaRemarks      String?  // 面積備考
+  assemblyDate     DateTime? // 組立日
+  demolitionDate   DateTime? // 解体日
+  estimatedAssemblyWorkers Int? // 予定組立人工
+  estimatedDemolitionWorkers Int? // 予定解体人工
+  contractAmount   Int?     // 請負金額（円、税抜）
+  
+  // 足場仕様
+  scaffoldingSpec  Json?    // 足場仕様（JSON）
+  
   description      String?  // 説明
   remarks          String?  // 備考
   createdBy        String?  // 案件担当者（JSON array for multiple）
@@ -45,7 +66,8 @@ model ProjectMaster {
   assignments      ProjectAssignment[]
 
   @@index([title])
-  @@index([customer])
+  @@index([customerId])
+  @@index([customerName])
   @@index([status])
   @@index([createdAt])
 }

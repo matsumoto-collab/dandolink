@@ -60,17 +60,101 @@ export interface WorkSchedule {
 
 // ===== 新データモデル =====
 
+// 工事内容タイプ
+export type ConstructionContentType = 'new_construction' | 'renovation' | 'large_scale' | 'other';
+
+export const CONSTRUCTION_CONTENT_LABELS: Record<ConstructionContentType, string> = {
+    new_construction: '新築',
+    renovation: '改修',
+    large_scale: '大規模',
+    other: 'その他',
+};
+
+// 足場仕様インターフェース
+export interface ScaffoldingSpec {
+    // 項目1
+    singleSideScaffold: boolean;  // 一側足場
+    mainScaffold: boolean;        // 本足場
+    outerHandrail: '1本' | '2本' | null; // 外手摺
+    innerHandrail: string;        // 内手摺（本数）
+    fallPreventionHandrail: '1本' | '2本' | '3本' | null; // 落下防止手摺
+    baseboard: 'L型' | '木' | null; // 巾木
+    narrowNet: boolean;           // 小幅ネット
+    wallTie: string;              // 壁つなぎ
+
+    // 項目2
+    sheet: boolean;               // シート
+    sheetType: string;            // シート種別※カヤシートの場合
+    imageSheet: '持参' | '現場' | null; // イメージシート
+    scaffoldSign: boolean;        // 足場表示看板
+    stairs: boolean;              // 階段
+    ladder: boolean;              // タラップ
+    stairUnit: boolean;           // 階段墜
+    cornerAnti: '400' | '250' | null; // 1・2コマアンチ
+
+    // 項目3
+    parentRope: string;           // 親綱
+    cushionCover: boolean;        // 養生カバークッション
+    spaceTube: boolean;           // スペースチューブ
+    gableHandrail: boolean;       // 切妻単管手摺
+}
+
+// デフォルト足場仕様
+export const DEFAULT_SCAFFOLDING_SPEC: ScaffoldingSpec = {
+    singleSideScaffold: false,
+    mainScaffold: false,
+    outerHandrail: null,
+    innerHandrail: '',
+    fallPreventionHandrail: null,
+    baseboard: null,
+    narrowNet: false,
+    wallTie: '',
+    sheet: false,
+    sheetType: '',
+    imageSheet: null,
+    scaffoldSign: false,
+    stairs: false,
+    ladder: false,
+    stairUnit: false,
+    cornerAnti: null,
+    parentRope: '',
+    cushionCover: false,
+    spaceTube: false,
+    gableHandrail: false,
+};
+
 // 案件マスター（1現場=1レコード）
 export interface ProjectMaster {
     id: string;
-    title: string;           // 現場名
-    customer?: string;       // 顧客名
-    constructionType: ConstructionType; // 工事種別
+    title: string;                   // 現場名
+    customerId?: string;             // 顧客ID
+    customerName?: string;           // 顧客名（表示用）
+    constructionType: ConstructionType; // 工事種別（カレンダー登録時に設定）
+    constructionContent?: ConstructionContentType; // 工事内容
     status: 'active' | 'completed' | 'cancelled';
-    location?: string;       // 場所
-    description?: string;    // 説明
-    remarks?: string;        // 備考
-    createdBy?: string | string[]; // 案件担当者
+
+    // 住所情報
+    location?: string;               // その他住所
+    postalCode?: string;             // 郵便番号
+    prefecture?: string;             // 都道府県
+    city?: string;                   // 市区町村
+    plusCode?: string;               // Plus Code/座標
+
+    // 工事情報
+    area?: number;                   // 面積（m2）
+    areaRemarks?: string;            // 面積備考
+    assemblyDate?: Date;             // 組立日
+    demolitionDate?: Date;           // 解体日
+    estimatedAssemblyWorkers?: number;   // 予定組立人工
+    estimatedDemolitionWorkers?: number; // 予定解体人工
+    contractAmount?: number;         // 請負金額（円、税抜）
+
+    // 足場仕様
+    scaffoldingSpec?: ScaffoldingSpec;
+
+    description?: string;            // 説明
+    remarks?: string;                // 備考
+    createdBy?: string | string[];   // 案件担当者
     createdAt: Date;
     updatedAt: Date;
     // リレーション（optional）

@@ -80,11 +80,30 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const body = await req.json();
 
         const updateData: Record<string, unknown> = {};
+        // 基本情報
         if (body.title !== undefined) updateData.title = body.title;
-        if (body.customer !== undefined) updateData.customer = body.customer;
+        if (body.customerId !== undefined) updateData.customerId = body.customerId;
+        if (body.customerName !== undefined) updateData.customerName = body.customerName;
         if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;
+        if (body.constructionContent !== undefined) updateData.constructionContent = body.constructionContent;
         if (body.status !== undefined) updateData.status = body.status;
+        // 住所情報
         if (body.location !== undefined) updateData.location = body.location;
+        if (body.postalCode !== undefined) updateData.postalCode = body.postalCode;
+        if (body.prefecture !== undefined) updateData.prefecture = body.prefecture;
+        if (body.city !== undefined) updateData.city = body.city;
+        if (body.plusCode !== undefined) updateData.plusCode = body.plusCode;
+        // 工事情報
+        if (body.area !== undefined) updateData.area = body.area;
+        if (body.areaRemarks !== undefined) updateData.areaRemarks = body.areaRemarks;
+        if (body.assemblyDate !== undefined) updateData.assemblyDate = body.assemblyDate ? new Date(body.assemblyDate) : null;
+        if (body.demolitionDate !== undefined) updateData.demolitionDate = body.demolitionDate ? new Date(body.demolitionDate) : null;
+        if (body.estimatedAssemblyWorkers !== undefined) updateData.estimatedAssemblyWorkers = body.estimatedAssemblyWorkers;
+        if (body.estimatedDemolitionWorkers !== undefined) updateData.estimatedDemolitionWorkers = body.estimatedDemolitionWorkers;
+        if (body.contractAmount !== undefined) updateData.contractAmount = body.contractAmount;
+        // 足場仕様
+        if (body.scaffoldingSpec !== undefined) updateData.scaffoldingSpec = body.scaffoldingSpec;
+        // その他
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks;
         if (body.createdBy !== undefined) updateData.createdBy = JSON.stringify(body.createdBy);
@@ -99,6 +118,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             createdBy: projectMaster.createdBy ? JSON.parse(projectMaster.createdBy) : null,
             createdAt: projectMaster.createdAt.toISOString(),
             updatedAt: projectMaster.updatedAt.toISOString(),
+            assemblyDate: projectMaster.assemblyDate?.toISOString() || null,
+            demolitionDate: projectMaster.demolitionDate?.toISOString() || null,
         });
     } catch (error) {
         console.error('Update project master error:', error);

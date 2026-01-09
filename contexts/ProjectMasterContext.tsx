@@ -69,10 +69,12 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
             const data = await res.json();
 
             // Date文字列をDateオブジェクトに変換
-            const formatted = data.map((pm: ProjectMaster & { createdAt: string; updatedAt: string }) => ({
+            const formatted = data.map((pm: ProjectMaster & { createdAt: string; updatedAt: string; assemblyDate?: string; demolitionDate?: string }) => ({
                 ...pm,
                 createdAt: new Date(pm.createdAt),
                 updatedAt: new Date(pm.updatedAt),
+                assemblyDate: pm.assemblyDate ? new Date(pm.assemblyDate) : undefined,
+                demolitionDate: pm.demolitionDate ? new Date(pm.demolitionDate) : undefined,
             }));
 
             setProjectMasters(formatted);
@@ -101,6 +103,8 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
             ...newPm,
             createdAt: new Date(newPm.createdAt),
             updatedAt: new Date(newPm.updatedAt),
+            assemblyDate: newPm.assemblyDate ? new Date(newPm.assemblyDate) : undefined,
+            demolitionDate: newPm.demolitionDate ? new Date(newPm.demolitionDate) : undefined,
         };
 
         setProjectMasters(prev => [formatted, ...prev]);
@@ -124,6 +128,8 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
             ...updatedPm,
             createdAt: new Date(updatedPm.createdAt),
             updatedAt: new Date(updatedPm.updatedAt),
+            assemblyDate: updatedPm.assemblyDate ? new Date(updatedPm.assemblyDate) : undefined,
+            demolitionDate: updatedPm.demolitionDate ? new Date(updatedPm.demolitionDate) : undefined,
         };
 
         setProjectMasters(prev => prev.map(pm => pm.id === id ? formatted : pm));
