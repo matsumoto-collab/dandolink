@@ -71,10 +71,12 @@ export default function ProjectForm({
 
     // Admin/Manager users for project manager selection (from API)
     const [apiManagers, setApiManagers] = useState<ManagerUser[]>([]);
+    const [isLoadingManagers, setIsLoadingManagers] = useState(true);
 
     // Fetch admin/manager users from API
     useEffect(() => {
         const fetchManagers = async () => {
+            setIsLoadingManagers(true);
             try {
                 const res = await fetch('/api/users');
                 if (res.ok) {
@@ -87,6 +89,8 @@ export default function ProjectForm({
                 }
             } catch (error) {
                 console.error('Failed to fetch managers:', error);
+            } finally {
+                setIsLoadingManagers(false);
             }
         };
         fetchManagers();
@@ -444,8 +448,13 @@ export default function ProjectForm({
                     <User className="inline w-4 h-4 mr-1" />
                     案件担当者
                 </label>
-                <div className="flex flex-wrap gap-2 border border-gray-200 rounded-md p-3">
-                    {apiManagers.length > 0 ? (
+                <div className="flex flex-wrap gap-2 border border-gray-200 rounded-md p-3 min-h-[60px]">
+                    {isLoadingManagers ? (
+                        <div className="flex items-center gap-2 text-gray-500">
+                            <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                            <span className="text-sm">担当者を読み込み中...</span>
+                        </div>
+                    ) : apiManagers.length > 0 ? (
                         apiManagers.map(manager => (
                             <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
                                 <input
@@ -461,7 +470,7 @@ export default function ProjectForm({
                             </label>
                         ))
                     ) : (
-                        <span className="text-sm text-gray-500">担当者を読み込み中...</span>
+                        <span className="text-sm text-gray-500">担当者が見つかりません</span>
                     )}
                 </div>
                 {formData.selectedManagers.length > 0 && (

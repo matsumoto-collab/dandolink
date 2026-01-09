@@ -33,10 +33,12 @@ export default function ProjectMasterListPage() {
 
     // Admin/Manager users for project manager selection
     const [managers, setManagers] = useState<ManagerUser[]>([]);
+    const [isLoadingManagers, setIsLoadingManagers] = useState(true);
 
     // Fetch admin/manager users
     useEffect(() => {
         const fetchManagers = async () => {
+            setIsLoadingManagers(true);
             try {
                 const res = await fetch('/api/users');
                 if (res.ok) {
@@ -49,6 +51,8 @@ export default function ProjectMasterListPage() {
                 }
             } catch (error) {
                 console.error('Failed to fetch managers:', error);
+            } finally {
+                setIsLoadingManagers(false);
             }
         };
         fetchManagers();
@@ -311,29 +315,35 @@ export default function ProjectMasterListPage() {
                                 <User className="inline w-4 h-4 mr-1" />
                                 案件担当者
                             </label>
-                            <div className="flex flex-wrap gap-2">
-                                {managers.map(manager => (
-                                    <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                                        <input
-                                            type="checkbox"
-                                            checked={formData.createdBy.includes(manager.id)}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    setFormData({ ...formData, createdBy: [...formData.createdBy, manager.id] });
-                                                } else {
-                                                    setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
-                                                }
-                                            }}
-                                            className="w-4 h-4 text-blue-600 rounded"
-                                        />
-                                        <span className="text-sm text-gray-700">{manager.displayName}</span>
-                                        <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                            {manager.role === 'admin' ? '管理者' : 'マネージャー'}
-                                        </span>
-                                    </label>
-                                ))}
-                                {managers.length === 0 && (
-                                    <span className="text-sm text-gray-500">担当者を読み込み中...</span>
+                            <div className="flex flex-wrap gap-2 min-h-[50px]">
+                                {isLoadingManagers ? (
+                                    <div className="flex items-center gap-2 text-gray-500">
+                                        <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                        <span className="text-sm">担当者を読み込み中...</span>
+                                    </div>
+                                ) : managers.length > 0 ? (
+                                    managers.map(manager => (
+                                        <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                                            <input
+                                                type="checkbox"
+                                                checked={formData.createdBy.includes(manager.id)}
+                                                onChange={(e) => {
+                                                    if (e.target.checked) {
+                                                        setFormData({ ...formData, createdBy: [...formData.createdBy, manager.id] });
+                                                    } else {
+                                                        setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
+                                                    }
+                                                }}
+                                                className="w-4 h-4 text-blue-600 rounded"
+                                            />
+                                            <span className="text-sm text-gray-700">{manager.displayName}</span>
+                                            <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                {manager.role === 'admin' ? '管理者' : 'マネージャー'}
+                                            </span>
+                                        </label>
+                                    ))
+                                ) : (
+                                    <span className="text-sm text-gray-500">担当者が見つかりません</span>
                                 )}
                             </div>
                         </div>
@@ -426,29 +436,35 @@ export default function ProjectMasterListPage() {
                                                 <User className="inline w-4 h-4 mr-1" />
                                                 案件担当者
                                             </label>
-                                            <div className="flex flex-wrap gap-2">
-                                                {managers.map(manager => (
-                                                    <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={formData.createdBy.includes(manager.id)}
-                                                            onChange={(e) => {
-                                                                if (e.target.checked) {
-                                                                    setFormData({ ...formData, createdBy: [...formData.createdBy, manager.id] });
-                                                                } else {
-                                                                    setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
-                                                                }
-                                                            }}
-                                                            className="w-4 h-4 text-blue-600 rounded"
-                                                        />
-                                                        <span className="text-sm text-gray-700">{manager.displayName}</span>
-                                                        <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                            {manager.role === 'admin' ? '管理者' : 'マネージャー'}
-                                                        </span>
-                                                    </label>
-                                                ))}
-                                                {managers.length === 0 && (
-                                                    <span className="text-sm text-gray-500">担当者を読み込み中...</span>
+                                            <div className="flex flex-wrap gap-2 min-h-[50px]">
+                                                {isLoadingManagers ? (
+                                                    <div className="flex items-center gap-2 text-gray-500">
+                                                        <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                                        <span className="text-sm">担当者を読み込み中...</span>
+                                                    </div>
+                                                ) : managers.length > 0 ? (
+                                                    managers.map(manager => (
+                                                        <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.createdBy.includes(manager.id)}
+                                                                onChange={(e) => {
+                                                                    if (e.target.checked) {
+                                                                        setFormData({ ...formData, createdBy: [...formData.createdBy, manager.id] });
+                                                                    } else {
+                                                                        setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
+                                                                    }
+                                                                }}
+                                                                className="w-4 h-4 text-blue-600 rounded"
+                                                            />
+                                                            <span className="text-sm text-gray-700">{manager.displayName}</span>
+                                                            <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                                {manager.role === 'admin' ? '管理者' : 'マネージャー'}
+                                                            </span>
+                                                        </label>
+                                                    ))
+                                                ) : (
+                                                    <span className="text-sm text-gray-500">担当者が見つかりません</span>
                                                 )}
                                             </div>
                                         </div>
