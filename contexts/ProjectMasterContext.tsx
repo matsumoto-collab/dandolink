@@ -22,34 +22,6 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Supabase Realtimeセットアップ
-    useEffect(() => {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            console.warn('[ProjectMaster Realtime] Supabase credentials not found');
-            return;
-        }
-
-        const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
-
-        const channel = supabase
-            .channel('project_masters_changes')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'ProjectMaster' },
-                () => {
-                    fetchProjectMasters();
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
-
     const fetchProjectMasters = useCallback(async (search?: string, status?: string) => {
         try {
             setIsLoading(true);
@@ -85,6 +57,35 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
         }
     }, []);
+
+    // Supabase Realtimeセットアップ
+    useEffect(() => {
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+            console.warn('[ProjectMaster Realtime] Supabase credentials not found');
+            return;
+        }
+
+        const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+
+        const channel = supabase
+            .channel('project_masters_changes')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'ProjectMaster' },
+                () => {
+                    console.log('[ProjectMaster Realtime] Change detected, refreshing...');
+                    fetchProjectMasters();
+                }
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, [fetchProjectMasters]);
 
     const createProjectMaster = useCallback(async (data: Omit<ProjectMaster, 'id' | 'createdAt' | 'updatedAt'>): Promise<ProjectMaster> => {
         const res = await fetch('/api/project-masters', {
