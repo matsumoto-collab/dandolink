@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent } from '@/types/calendar';
-import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle } from 'lucide-react';
+import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy } from 'lucide-react';
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -15,6 +15,7 @@ interface DraggableEventCardProps {
     isDispatchConfirmed?: boolean;
     canDispatch?: boolean;
     disabled?: boolean;
+    onCopy?: () => void;
 }
 
 export default function DraggableEventCard({
@@ -28,6 +29,7 @@ export default function DraggableEventCard({
     isDispatchConfirmed = false,
     canDispatch = false,
     disabled = false,
+    onCopy,
 }: DraggableEventCardProps) {
     const {
         attributes,
@@ -159,6 +161,20 @@ export default function DraggableEventCard({
                             >
                                 <ChevronDown className="w-3 h-3" />
                             </button>
+
+                            {/* コピーボタン */}
+                            {onCopy && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onCopy();
+                                    }}
+                                    className="p-0.5 rounded transition-colors hover:bg-gray-500 hover:bg-opacity-20 text-gray-700"
+                                    title="コピー"
+                                >
+                                    <Copy className="w-3 h-3" />
+                                </button>
+                            )}
 
                             {/* 手配確定ボタン */}
                             {canDispatch && (

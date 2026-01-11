@@ -21,6 +21,7 @@ interface EmployeeRowComponentProps {
     isFirst?: boolean;
     isLast?: boolean;
     isReadOnly?: boolean;
+    onCopyEvent?: (eventId: string) => void;
 }
 
 export default function EmployeeRowComponent({
@@ -38,6 +39,7 @@ export default function EmployeeRowComponent({
     isFirst = false,
     isLast = false,
     isReadOnly = false,
+    onCopyEvent,
 }: EmployeeRowComponentProps) {
 
     const handleDelete = () => {
@@ -142,6 +144,7 @@ export default function EmployeeRowComponent({
                                     isDispatchConfirmed={project?.isDispatchConfirmed || false}
                                     canDispatch={canDispatch}
                                     disabled={isReadOnly}
+                                    onCopy={onCopyEvent ? () => onCopyEvent(event.id) : undefined}
                                 />
                             );
                         })}

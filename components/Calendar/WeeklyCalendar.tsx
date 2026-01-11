@@ -17,6 +17,7 @@ import DraggableEventCard from './DraggableEventCard';
 import ProjectModal from '../Projects/ProjectModal';
 import ProjectMasterSearchModal from '../ProjectMasterSearchModal';
 import DispatchConfirmModal from './DispatchConfirmModal';
+import CopyAssignmentModal from './CopyAssignmentModal';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -48,6 +49,10 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     // 手配確定モーダルの状態
     const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
     const [dispatchProject, setDispatchProject] = useState<Project | null>(null);
+
+    // コピーモーダルの状態
+    const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+    const [copyEvent, setCopyEvent] = useState<CalendarEvent | null>(null);
 
     // 手配確定権限チェック（admin, manager, foreman1のみ）
     const canDispatch = useMemo(() => {
@@ -267,6 +272,50 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         updateProjects(updates);
     }, [projects, updateProjects]);
 
+    // コピーイベントクリック
+    const handleCopyEvent = useCallback((eventId: string) => {
+        const event = events.find(e => e.id === eventId);
+        if (event) {
+            setCopyEvent(event);
+            setIsCopyModalOpen(true);
+        }
+    }, [events]);
+
+    // コピー実行
+    const handleCopyAssignment = useCallback(async (startDate: Date, endDate: Date, employeeId: string) => {
+        if (!copyEvent) return;
+
+        // 元のプロジェクトを取得
+        const projectId = copyEvent.id.replace(/-assembly$|-demolition$/, '');
+        const sourceProject = projects.find(p => p.id === projectId);
+        if (!sourceProject) return;
+
+        // 開始日から終了日までの各日にアサインメントを作成
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+                title: sourceProject.title,
+                customer: sourceProject.customer,
+                location: sourceProject.location,
+                startDate: new Date(currentDate),
+                endDate: new Date(currentDate),
+                assignedEmployeeId: employeeId,
+                constructionType: sourceProject.constructionType || 'assembly',
+                status: 'pending',
+                remarks: sourceProject.remarks,
+                workers: sourceProject.workers || [],
+                vehicles: sourceProject.vehicles || [],
+                trucks: sourceProject.trucks || [],
+                category: sourceProject.category || 'construction',
+                color: sourceProject.color || '',
+                projectMasterId: sourceProject.projectMasterId,
+            };
+
+            await addProject(newProject as Project);
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+    }, [copyEvent, projects, addProject]);
+
     // サーバーサイドレンダリング時またはデータ読み込み中はローディング表示
     if (!isMounted || isCalendarLoading) {
         return (
@@ -427,6 +476,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                                     canDispatch={isReadOnly ? false : canDispatch}
                                     projects={projects}
                                     isReadOnly={isReadOnly}
+                                    onCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                                 />
                             ))}
                         </div>
@@ -492,6 +542,18 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     project={dispatchProject}
                 />
             )}
+
+            {/* コピーモーダル */}
+            <CopyAssignmentModal
+                isOpen={isCopyModalOpen}
+                onClose={() => {
+                    setIsCopyModalOpen(false);
+                    setCopyEvent(null);
+                }}
+                event={copyEvent}
+                employees={allForemen.map(f => ({ id: f.id, name: f.displayName }))}
+                onCopy={handleCopyAssignment}
+            />
         </DndContext>
     );
 }
