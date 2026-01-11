@@ -481,13 +481,12 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             type="number"
                                             value={item.unitPrice}
                                             onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                                            min="0"
+                                            className={`w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${item.unitPrice < 0 ? 'text-red-600' : ''}`}
                                         />
                                     </td>
                                     <td className="px-3 py-2">
-                                        <div className="text-right font-medium">
-                                            ¥{item.amount.toLocaleString()}
+                                        <div className={`text-right font-medium ${item.amount < 0 ? 'text-red-600' : ''}`}>
+                                            {item.amount < 0 ? `(${Math.abs(item.amount).toLocaleString()})` : `¥${item.amount.toLocaleString()}`}
                                         </div>
                                     </td>
                                     <td className="px-3 py-2">

@@ -28,13 +28,14 @@ export default function EstimateDetailModal({
 }: EstimateDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
+    const [includeCoverPage, setIncludeCoverPage] = useState(true);
 
     useEffect(() => {
         let currentUrl = '';
         if (isOpen && estimate && project && companyInfo) {
             const generatePDF = async () => {
                 try {
-                    const url = await generateEstimatePDFBlob(estimate, project, companyInfo);
+                    const url = await generateEstimatePDFBlob(estimate, project, companyInfo, { includeCoverPage });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -50,11 +51,11 @@ export default function EstimateDetailModal({
                 URL.revokeObjectURL(currentUrl);
             }
         };
-    }, [isOpen, estimate, project, companyInfo]);
+    }, [isOpen, estimate, project, companyInfo, includeCoverPage]);
 
     const handleDownload = () => {
         if (estimate && project && companyInfo) {
-            exportEstimatePDF(estimate, project, companyInfo);
+            exportEstimatePDF(estimate, project, companyInfo, { includeCoverPage });
         }
     };
 
@@ -121,32 +122,44 @@ export default function EstimateDetailModal({
                     </div>
 
                     {/* アクションバー */}
+                    {/* アクションバー */}
                     <div className="bg-white border-b border-gray-200 px-6 py-3">
-                        <div className="flex items-center gap-2">
-                            <button
-                                onClick={handleDownload}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                                title="PDF出力"
-                            >
-                                <FileDown size={18} />
-                                <span className="hidden sm:inline">PDF出力</span>
-                            </button>
-                            <button
-                                onClick={handlePrint}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-                                title="印刷"
-                            >
-                                <Printer size={18} />
-                                <span className="hidden sm:inline">印刷</span>
-                            </button>
-                            <button
-                                onClick={handleDelete}
-                                className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                                title="削除"
-                            >
-                                <Trash2 size={18} />
-                                <span className="hidden sm:inline">削除</span>
-                            </button>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleDownload}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                    title="PDF出力"
+                                >
+                                    <FileDown size={18} />
+                                    <span className="hidden sm:inline">PDF出力</span>
+                                </button>
+                                <button
+                                    onClick={handlePrint}
+                                    className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                    title="印刷"
+                                >
+                                    <Printer size={18} />
+                                    <span className="hidden sm:inline">印刷</span>
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                    title="削除"
+                                >
+                                    <Trash2 size={18} />
+                                    <span className="hidden sm:inline">削除</span>
+                                </button>
+                            </div>
+                            <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={includeCoverPage}
+                                    onChange={(e) => setIncludeCoverPage(e.target.checked)}
+                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                />
+                                表紙を含める
+                            </label>
                         </div>
                     </div>
 
