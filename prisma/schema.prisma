@@ -56,6 +56,11 @@ model ProjectMaster {
   // 足場仕様
   scaffoldingSpec  Json?    // 足場仕様（JSON）
   
+  // 原価情報
+  materialCost     Float?   // 材料費
+  subcontractorCost Float?  // 外注費
+  otherExpenses    Float?   // その他経費
+  
   description      String?  // 説明
   remarks          String?  // 備考
   createdBy        String?  // 案件担当者（JSON array for multiple）
@@ -94,6 +99,9 @@ model ProjectAssignment {
   
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
+
+  // リレーション
+  dailyReportWorkItems DailyReportWorkItem[]
 
   @@index([projectMasterId])
   @@index([assignedEmployeeId])
@@ -171,6 +179,7 @@ model Invoice {
 model Vehicle {
   id        String   @id @default(uuid())
   name      String
+  dailyRate Float?   // 日額（原価計算用）
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -202,10 +211,12 @@ model Manager {
 
 // システム設定
 model SystemSettings {
-  id           String   @id @default("default")
-  totalMembers Int      @default(20)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String   @id @default("default")
+  totalMembers        Int      @default(20)
+  laborDailyRate      Float    @default(15000) // 基本日当（円）
+  standardWorkMinutes Int      @default(480)   // 標準労働時間（分）= 8時間
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 // 単価マスター
@@ -271,3 +282,40 @@ model UserSettings {
 
   @@index([userId])
 }
+
+// 日報（職長ごと、日付ごと）
+model DailyReport {
+  id                    String   @id @default(uuid())
+  foremanId             String   // 職長ID
+  date                  DateTime // 日付
+  morningLoadingMinutes Int      @default(0)  // 朝積込（分）
+  eveningLoadingMinutes Int      @default(0)  // 夕積込（分）
+  earlyStartMinutes     Int      @default(0)  // 早出（分）- 保留
+  overtimeMinutes       Int      @default(0)  // 残業（分）- 保留
+  notes                 String?  // 備考
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // リレーション
+  workItems             DailyReportWorkItem[]
+
+  @@unique([foremanId, date]) // 同一職長・同一日付は1件
+  @@index([foremanId])
+  @@index([date])
+}
+
+// 日報作業明細（案件ごとの作業時間）
+model DailyReportWorkItem {
+  id            String   @id @default(uuid())
+  dailyReportId String   // 日報ID
+  dailyReport   DailyReport @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
+  assignmentId  String   // 配置ID
+  assignment    ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  workMinutes   Int      // 作業時間（分）
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([dailyReportId])
+  @@index([assignmentId])
+}
+
