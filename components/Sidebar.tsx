@@ -38,7 +38,7 @@ const navigationSections: NavSection[] = [
         items: [
             { name: 'スケジュール管理', icon: Home, page: 'schedule' },
             { name: '案件マスター管理', icon: Briefcase, page: 'project-masters' },
-            { name: '日報入力', icon: FileText, page: 'reports' },
+            { name: '日報一覧', icon: FileText, page: 'reports' },
         ],
     },
     {
