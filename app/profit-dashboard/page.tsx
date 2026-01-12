@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3, Loader2, Filter, Building, RefreshCw } from 'lucide-react';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 
@@ -22,6 +22,7 @@ interface ProjectProfit {
     grossProfit: number;
     profitMargin: number;
     updatedAt: string;
+    _costLoaded?: boolean;
 }
 
 interface DashboardSummary {
@@ -35,36 +36,75 @@ interface DashboardSummary {
 interface DashboardData {
     projects: ProjectProfit[];
     summary: DashboardSummary;
+    mode?: 'fast' | 'full';
 }
 
 export default function ProfitDashboardPage() {
     const [data, setData] = useState<DashboardData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingFull, setIsLoadingFull] = useState(false);
     const [statusFilter, setStatusFilter] = useState<string>('active');
     const [sortBy, setSortBy] = useState<'profitMargin' | 'grossProfit' | 'revenue'>('profitMargin');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
+    const abortControllerRef = useRef<AbortController | null>(null);
 
-    const fetchData = async () => {
+    // 2段階読み込み: まずfast、その後full
+    const fetchData = async (forceFullOnly = false) => {
         try {
-            setIsLoading(true);
+            // 前のリクエストをキャンセル
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+            abortControllerRef.current = new AbortController();
+
             const params = new URLSearchParams();
             if (statusFilter !== 'all') {
                 params.set('status', statusFilter);
             }
-            const response = await fetch(`/api/profit-dashboard?${params.toString()}`);
-            if (response.ok) {
-                const result = await response.json();
-                setData(result);
+
+            if (!forceFullOnly) {
+                // Phase 1: fast modeで高速表示
+                setIsLoading(true);
+                params.set('mode', 'fast');
+                const fastResponse = await fetch(`/api/profit-dashboard?${params.toString()}`, {
+                    signal: abortControllerRef.current.signal,
+                });
+                if (fastResponse.ok) {
+                    const fastResult = await fastResponse.json();
+                    setData(fastResult);
+                    setIsLoading(false);
+                }
+            }
+
+            // Phase 2: full modeで原価情報を取得
+            setIsLoadingFull(true);
+            params.set('mode', 'full');
+            const fullResponse = await fetch(`/api/profit-dashboard?${params.toString()}`, {
+                signal: abortControllerRef.current.signal,
+            });
+            if (fullResponse.ok) {
+                const fullResult = await fullResponse.json();
+                setData(fullResult);
             }
         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') {
+                // リクエストがキャンセルされた場合は無視
+                return;
+            }
             console.error('Failed to fetch dashboard data:', error);
         } finally {
             setIsLoading(false);
+            setIsLoadingFull(false);
         }
     };
 
     useEffect(() => {
         fetchData();
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
     }, [statusFilter]);
 
     // ソート
@@ -114,13 +154,21 @@ export default function ProfitDashboardPage() {
                         </h1>
                         <p className="text-sm text-gray-500 mt-1">全案件の利益状況を一覧で確認</p>
                     </div>
-                    <button
-                        onClick={fetchData}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                        <RefreshCw className="w-4 h-4" />
-                        更新
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {isLoadingFull && (
+                            <div className="flex items-center gap-1 text-sm text-blue-600">
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                原価計算中...
+                            </div>
+                        )}
+                        <button
+                            onClick={() => fetchData()}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                            更新
+                        </button>
+                    </div>
                 </div>
 
                 {/* サマリーカード */}
@@ -168,8 +216,8 @@ export default function ProfitDashboardPage() {
                                     key={option.value}
                                     onClick={() => setStatusFilter(option.value)}
                                     className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${statusFilter === option.value
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                         }`}
                                 >
                                     {option.label}
