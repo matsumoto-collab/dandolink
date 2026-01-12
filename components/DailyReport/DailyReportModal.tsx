@@ -4,8 +4,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useDailyReports } from '@/contexts/DailyReportContext';
 import { useProjects } from '@/contexts/ProjectContext';
+import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { DailyReportInput } from '@/types/dailyReport';
-import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User } from 'lucide-react';
 
 interface DailyReportModalProps {
     isOpen: boolean;
@@ -19,9 +20,20 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const { data: session } = useSession();
     const { saveDailyReport, getDailyReportByForemanAndDate, fetchDailyReports } = useDailyReports();
     const { projects } = useProjects();
+    const { allForemen } = useCalendarDisplay();
 
     const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
-    const effectiveForemanId = foremanId || session?.user?.id || '';
+    const [selectedForemanId, setSelectedForemanId] = useState<string>(foremanId || '');
+
+    // 管理者またはマネージャーかどうか
+    const userRole = session?.user?.role;
+    const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
+
+    // 職長IDの決定: 管理者/マネージャーは選択可能、それ以外は自分のID
+    const effectiveForemanId = isAdminOrManager
+        ? (selectedForemanId || foremanId || session?.user?.id || '')
+        : (foremanId || session?.user?.id || '');
+
     const dateStr = selectedDate.toISOString().split('T')[0];
 
     // フォーム状態
@@ -33,6 +45,16 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [workItems, setWorkItems] = useState<{ assignmentId: string; workMinutes: number }[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+    // 初期値の設定（モーダルが開いたとき）
+    useEffect(() => {
+        if (isOpen && foremanId) {
+            setSelectedForemanId(foremanId);
+        } else if (isOpen && !foremanId && isAdminOrManager && allForemen.length > 0) {
+            // 新規作成で管理者/マネージャーの場合、最初の職長を選択
+            setSelectedForemanId(allForemen[0].id);
+        }
+    }, [isOpen, foremanId, isAdminOrManager, allForemen]);
 
     // この日の配置を取得
     const todayAssignments = projects.filter(p => {
@@ -218,6 +240,27 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                 <ChevronRight className="w-5 h-5 text-gray-600" />
                             </button>
                         </div>
+
+                        {/* 職長選択（管理者/マネージャーのみ） */}
+                        {isAdminOrManager && (
+                            <div className="mb-6">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                    <User className="w-5 h-5" />
+                                    職長選択
+                                </h3>
+                                <select
+                                    value={selectedForemanId}
+                                    onChange={(e) => setSelectedForemanId(e.target.value)}
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                >
+                                    {allForemen.map(foreman => (
+                                        <option key={foreman.id} value={foreman.id}>
+                                            {foreman.displayName}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
 
                         {/* メッセージ */}
                         {saveMessage && (
