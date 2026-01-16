@@ -136,12 +136,6 @@ export default function LoginPage() {
                         </button>
                     </form>
 
-                    {/* Footer */}
-                    <div className="mt-6 text-center">
-                        <p className="text-xs text-gray-500">
-                            初期管理者アカウント: admin / ChangeMe123!
-                        </p>
-                    </div>
                 </div>
 
                 {/* Additional Info */}
