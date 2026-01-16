@@ -1,12 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useProjects } from '@/contexts/ProjectContext';
 import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit2, Trash2, Search } from 'lucide-react';
-import ProjectModal from '@/components/Projects/ProjectModal';
+import { Plus, Edit2, Trash2, Search, Loader2 } from 'lucide-react';
 import { mockEmployees } from '@/data/mockEmployees';
+
+// モーダルを遅延読み込み
+const ProjectModal = dynamic(
+    () => import('@/components/Projects/ProjectModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 
 export default function ProjectListPage() {
     const { projects, addProject, updateProject, deleteProject } = useProjects();

@@ -1,20 +1,31 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useEstimates } from '@/contexts/EstimateContext';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useCompany } from '@/contexts/CompanyContext';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, XCircle, Clock } from 'lucide-react';
-import EstimateModal from '@/components/Estimates/EstimateModal';
-import EstimateDetailModal from '@/components/Estimates/EstimateDetailModal';
+import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+
+// 大きなモーダルコンポーネントを遅延読み込み
+const EstimateModal = dynamic(
+    () => import('@/components/Estimates/EstimateModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
+const EstimateDetailModal = dynamic(
+    () => import('@/components/Estimates/EstimateDetailModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 
 export default function EstimateListPage() {
     const { estimates, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
     const { projects } = useProjects();
     const { companyInfo } = useCompany();
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
@@ -22,11 +33,11 @@ export default function EstimateListPage() {
     const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
 
-    // プロジェクト名を取得
-    const getProjectName = (projectId: string) => {
+    // プロジェクト名を取得（useCallbackでメモ化）
+    const getProjectName = useCallback((projectId: string) => {
         const project = projects.find(p => p.id === projectId);
         return project?.title || '不明な案件';
-    };
+    }, [projects]);
 
     // ステータスアイコンとカラー
     const getStatusInfo = (status: Estimate['status']) => {
@@ -42,16 +53,18 @@ export default function EstimateListPage() {
         }
     };
 
-    // フィルタリング
-    const filteredEstimates = estimates
-        .filter(est => {
-            const matchesSearch = est.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                est.estimateNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                getProjectName(est.projectId ?? '').toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
-            return matchesSearch && matchesStatus;
-        })
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // フィルタリング（useMemoでメモ化）
+    const filteredEstimates = useMemo(() => {
+        return estimates
+            .filter(est => {
+                const matchesSearch = est.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                    est.estimateNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                    getProjectName(est.projectId ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            })
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [estimates, debouncedSearchTerm, statusFilter, getProjectName]);
 
     const handleDelete = async (id: string) => {
         if (confirm('この見積書を削除してもよろしいですか?')) {

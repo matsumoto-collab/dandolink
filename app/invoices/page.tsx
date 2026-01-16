@@ -1,27 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useInvoices } from '@/contexts/InvoiceContext';
 import { useProjects } from '@/contexts/ProjectContext';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle } from 'lucide-react';
-import InvoiceModal from '@/components/Invoices/InvoiceModal';
+import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+
+// モーダルを遅延読み込み
+const InvoiceModal = dynamic(
+    () => import('@/components/Invoices/InvoiceModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 
 export default function InvoiceListPage() {
     const { invoices, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projects } = useProjects();
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
 
-    // プロジェクト名を取得
-    const getProjectName = (projectId: string) => {
+    // プロジェクト名を取得（useCallbackでメモ化）
+    const getProjectName = useCallback((projectId: string) => {
         const project = projects.find(p => p.id === projectId);
         return project?.title || '不明な案件';
-    };
+    }, [projects]);
 
     // ステータスアイコンとカラー
     const getStatusInfo = (status: Invoice['status']) => {
@@ -37,16 +45,18 @@ export default function InvoiceListPage() {
         }
     };
 
-    // フィルタリング
-    const filteredInvoices = invoices
-        .filter(inv => {
-            const matchesSearch = inv.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                getProjectName(inv.projectId).toLowerCase().includes(searchTerm.toLowerCase());
-            const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
-            return matchesSearch && matchesStatus;
-        })
-        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // フィルタリング（useMemoでメモ化）
+    const filteredInvoices = useMemo(() => {
+        return invoices
+            .filter(inv => {
+                const matchesSearch = inv.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                    inv.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+                    getProjectName(inv.projectId).toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
+                return matchesSearch && matchesStatus;
+            })
+            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }, [invoices, debouncedSearchTerm, statusFilter, getProjectName]);
 
     const handleDelete = async (id: string) => {
         if (confirm('この請求書を削除してもよろしいですか?')) {
@@ -87,8 +97,8 @@ export default function InvoiceListPage() {
         }
     };
 
-    // 統計情報
-    const stats = {
+    // 統計情報（useMemoでメモ化）
+    const stats = useMemo(() => ({
         total: invoices.length,
         draft: invoices.filter(i => i.status === 'draft').length,
         sent: invoices.filter(i => i.status === 'sent').length,
@@ -96,7 +106,7 @@ export default function InvoiceListPage() {
         overdue: invoices.filter(i => i.status === 'overdue').length,
         totalAmount: invoices.filter(i => i.status !== 'draft').reduce((sum, i) => sum + i.total, 0),
         unpaidAmount: invoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + i.total, 0),
-    };
+    }), [invoices]);
 
     return (
         <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-gray-50 to-white w-full max-w-[1800px] mx-auto">

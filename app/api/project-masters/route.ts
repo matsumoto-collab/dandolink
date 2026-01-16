@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const status = searchParams.get('status');
         const search = searchParams.get('search');
+        const page = searchParams.get('page');
+        const limit = searchParams.get('limit');
 
         const where: Record<string, unknown> = {};
 
@@ -34,18 +36,68 @@ export async function GET(req: NextRequest) {
             ];
         }
 
+        // ページネーション付きレスポンス
+        if (page && limit) {
+            const pageNum = parseInt(page);
+            const limitNum = parseInt(limit);
+            const skip = (pageNum - 1) * limitNum;
+
+            const [projectMasters, total] = await Promise.all([
+                prisma.projectMaster.findMany({
+                    where,
+                    include: {
+                        assignments: {
+                            orderBy: { date: 'desc' },
+                            take: 5,
+                        },
+                    },
+                    orderBy: { updatedAt: 'desc' },
+                    skip,
+                    take: limitNum,
+                }),
+                prisma.projectMaster.count({ where }),
+            ]);
+
+            const formatted = projectMasters.map(pm => ({
+                ...pm,
+                createdBy: pm.createdBy ? JSON.parse(pm.createdBy) : null,
+                createdAt: pm.createdAt.toISOString(),
+                updatedAt: pm.updatedAt.toISOString(),
+                assignments: pm.assignments.map(a => ({
+                    ...a,
+                    date: a.date.toISOString(),
+                    workers: a.workers ? JSON.parse(a.workers) : [],
+                    vehicles: a.vehicles ? JSON.parse(a.vehicles) : [],
+                    confirmedWorkerIds: a.confirmedWorkerIds ? JSON.parse(a.confirmedWorkerIds) : [],
+                    confirmedVehicleIds: a.confirmedVehicleIds ? JSON.parse(a.confirmedVehicleIds) : [],
+                    createdAt: a.createdAt.toISOString(),
+                    updatedAt: a.updatedAt.toISOString(),
+                })),
+            }));
+
+            return NextResponse.json({
+                data: formatted,
+                pagination: {
+                    page: pageNum,
+                    limit: limitNum,
+                    total,
+                    totalPages: Math.ceil(total / limitNum),
+                },
+            });
+        }
+
+        // ページネーションなし（従来の全件取得）
         const projectMasters = await prisma.projectMaster.findMany({
             where,
             include: {
                 assignments: {
                     orderBy: { date: 'desc' },
-                    take: 5, // 最新5件の配置のみ
+                    take: 5,
                 },
             },
             orderBy: { updatedAt: 'desc' },
         });
 
-        // Date型をISO文字列に変換
         const formatted = projectMasters.map(pm => ({
             ...pm,
             createdBy: pm.createdBy ? JSON.parse(pm.createdBy) : null,

@@ -1,18 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useDailyReports } from '@/contexts/DailyReportContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
+import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar } from 'lucide-react';
-import DailyReportModal from '@/components/DailyReport/DailyReportModal';
+import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar, Loader2 } from 'lucide-react';
+
+// モーダルを遅延読み込み
+const DailyReportModal = dynamic(
+    () => import('@/components/DailyReport/DailyReportModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 
 export default function DailyReportPage() {
     const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports();
     const { allForemen, getForemanName } = useCalendarDisplay();
 
     const [searchTerm, setSearchTerm] = useState('');
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [foremanFilter, setForemanFilter] = useState<string>('all');
     const [dateFilter, setDateFilter] = useState<string>('');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -37,39 +45,41 @@ export default function DailyReportPage() {
         return `${hours}:${mins.toString().padStart(2, '0')}`;
     };
 
-    // フィルタリング
-    const filteredReports = dailyReports
-        .filter(report => {
-            // 職長フィルター
-            if (foremanFilter !== 'all' && report.foremanId !== foremanFilter) {
-                return false;
-            }
-
-            // 日付フィルター
-            if (dateFilter) {
-                const reportDate = report.date instanceof Date
-                    ? report.date.toISOString().split('T')[0]
-                    : new Date(report.date).toISOString().split('T')[0];
-                if (reportDate !== dateFilter) {
+    // フィルタリング（useMemoでメモ化）
+    const filteredReports = useMemo(() => {
+        return dailyReports
+            .filter(report => {
+                // 職長フィルター
+                if (foremanFilter !== 'all' && report.foremanId !== foremanFilter) {
                     return false;
                 }
-            }
 
-            // 検索フィルター
-            if (searchTerm) {
-                const foremanName = getForemanName(report.foremanId).toLowerCase();
-                const notes = (report.notes || '').toLowerCase();
-                const search = searchTerm.toLowerCase();
-                return foremanName.includes(search) || notes.includes(search);
-            }
+                // 日付フィルター
+                if (dateFilter) {
+                    const reportDate = report.date instanceof Date
+                        ? report.date.toISOString().split('T')[0]
+                        : new Date(report.date).toISOString().split('T')[0];
+                    if (reportDate !== dateFilter) {
+                        return false;
+                    }
+                }
 
-            return true;
-        })
-        .sort((a, b) => {
-            const dateA = a.date instanceof Date ? a.date : new Date(a.date);
-            const dateB = b.date instanceof Date ? b.date : new Date(b.date);
-            return dateB.getTime() - dateA.getTime();
-        });
+                // 検索フィルター
+                if (debouncedSearchTerm) {
+                    const foremanName = getForemanName(report.foremanId).toLowerCase();
+                    const notes = (report.notes || '').toLowerCase();
+                    const search = debouncedSearchTerm.toLowerCase();
+                    return foremanName.includes(search) || notes.includes(search);
+                }
+
+                return true;
+            })
+            .sort((a, b) => {
+                const dateA = a.date instanceof Date ? a.date : new Date(a.date);
+                const dateB = b.date instanceof Date ? b.date : new Date(b.date);
+                return dateB.getTime() - dateA.getTime();
+            });
+    }, [dailyReports, foremanFilter, dateFilter, debouncedSearchTerm, getForemanName]);
 
     const handleDelete = async (id: string) => {
         if (confirm('この日報を削除してもよろしいですか?')) {

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, useState } from 'react';
+import React, { createContext, useContext, useCallback, useState, useMemo } from 'react';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 
 interface DailyReportContextType {
@@ -102,15 +102,18 @@ export function DailyReportProvider({ children }: { children: React.ReactNode })
         setDailyReports(prev => prev.filter(r => r.id !== id));
     }, []);
 
+    // Context valueをuseMemoでメモ化
+    const contextValue = useMemo(() => ({
+        dailyReports,
+        isLoading,
+        fetchDailyReports,
+        getDailyReportByForemanAndDate,
+        saveDailyReport,
+        deleteDailyReport,
+    }), [dailyReports, isLoading, fetchDailyReports, getDailyReportByForemanAndDate, saveDailyReport, deleteDailyReport]);
+
     return (
-        <DailyReportContext.Provider value={{
-            dailyReports,
-            isLoading,
-            fetchDailyReports,
-            getDailyReportByForemanAndDate,
-            saveDailyReport,
-            deleteDailyReport,
-        }}>
+        <DailyReportContext.Provider value={contextValue}>
             {children}
         </DailyReportContext.Provider>
     );

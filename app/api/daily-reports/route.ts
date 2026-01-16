@@ -36,16 +36,38 @@ export async function GET(request: Request) {
 
         const dailyReports = await prisma.dailyReport.findMany({
             where,
-            include: {
+            select: {
+                id: true,
+                foremanId: true,
+                date: true,
+                morningLoadingMinutes: true,
+                eveningLoadingMinutes: true,
+                earlyStartMinutes: true,
+                overtimeMinutes: true,
+                notes: true,
+                createdAt: true,
+                updatedAt: true,
                 workItems: {
-                    include: {
+                    select: {
+                        id: true,
+                        dailyReportId: true,
+                        assignmentId: true,
+                        workMinutes: true,
                         assignment: {
-                            include: {
-                                projectMaster: true,
-                            },
-                        },
-                    },
-                },
+                            select: {
+                                id: true,
+                                date: true,
+                                projectMaster: {
+                                    select: {
+                                        id: true,
+                                        title: true,
+                                        customerName: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
             orderBy: [
                 { date: 'desc' },
@@ -130,16 +152,38 @@ export async function POST(request: Request) {
         // 作成/更新した日報を再取得
         const result = await prisma.dailyReport.findUnique({
             where: { id: dailyReport.id },
-            include: {
+            select: {
+                id: true,
+                foremanId: true,
+                date: true,
+                morningLoadingMinutes: true,
+                eveningLoadingMinutes: true,
+                earlyStartMinutes: true,
+                overtimeMinutes: true,
+                notes: true,
+                createdAt: true,
+                updatedAt: true,
                 workItems: {
-                    include: {
+                    select: {
+                        id: true,
+                        dailyReportId: true,
+                        assignmentId: true,
+                        workMinutes: true,
                         assignment: {
-                            include: {
-                                projectMaster: true,
-                            },
-                        },
-                    },
-                },
+                            select: {
+                                id: true,
+                                date: true,
+                                projectMaster: {
+                                    select: {
+                                        id: true,
+                                        title: true,
+                                        customerName: true,
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             },
         });
 

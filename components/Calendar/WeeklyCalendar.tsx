@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useSession } from 'next-auth/react';
 import { useCalendar } from '@/hooks/useCalendar';
@@ -14,14 +15,25 @@ import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import CalendarHeader from './CalendarHeader';
 import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
-import ProjectModal from '../Projects/ProjectModal';
-import ProjectMasterSearchModal from '../ProjectMasterSearchModal';
-import DispatchConfirmModal from './DispatchConfirmModal';
-import CopyAssignmentModal from './CopyAssignmentModal';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project, ProjectMaster, Employee } from '@/types/calendar';
+import { Loader2 } from 'lucide-react';
+
+// モーダルを遅延読み込み
+const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
+    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+});
+const ProjectMasterSearchModal = dynamic(() => import('../ProjectMasterSearchModal'), {
+    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+});
+const DispatchConfirmModal = dynamic(() => import('./DispatchConfirmModal'), {
+    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+});
+const CopyAssignmentModal = dynamic(() => import('./CopyAssignmentModal'), {
+    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+});
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;  // 協力会社モード（閲覧のみ）
