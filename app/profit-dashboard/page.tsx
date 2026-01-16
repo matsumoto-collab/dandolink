@@ -1,364 +1,39 @@
-'use client';
+import { Suspense } from 'react';
+import { fetchProfitDashboardData } from '@/lib/profitDashboard';
+import ProfitDashboardClient from './components/ProfitDashboardClient';
+import ProfitDashboardLoading from './loading';
 
-import React, { useState, useEffect, useRef } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, BarChart3, Loader2, Filter, Building, RefreshCw } from 'lucide-react';
-import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
-
-interface ProjectProfit {
-    id: string;
-    title: string;
-    customerName: string | null;
-    status: string;
-    assignmentCount: number;
-    estimateAmount: number;
-    revenue: number;
-    laborCost: number;
-    loadingCost: number;
-    vehicleCost: number;
-    materialCost: number;
-    subcontractorCost: number;
-    otherExpenses: number;
-    totalCost: number;
-    grossProfit: number;
-    profitMargin: number;
-    updatedAt: string;
-    _costLoaded?: boolean;
+interface Props {
+    searchParams: Promise<{ status?: string }>;
 }
 
-interface DashboardSummary {
-    totalProjects: number;
-    totalRevenue: number;
-    totalCost: number;
-    totalGrossProfit: number;
-    averageProfitMargin: number;
-}
+// データ取得を行うServer Component
+async function ProfitDashboardContent({ status }: { status: string }) {
+    const data = await fetchProfitDashboardData(status);
 
-interface DashboardData {
-    projects: ProjectProfit[];
-    summary: DashboardSummary;
-    mode?: 'fast' | 'full';
-}
-
-export default function ProfitDashboardPage() {
-    const [data, setData] = useState<DashboardData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingFull, setIsLoadingFull] = useState(false);
-    const [statusFilter, setStatusFilter] = useState<string>('active');
-    const [sortBy, setSortBy] = useState<'profitMargin' | 'grossProfit' | 'revenue'>('profitMargin');
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-    const abortControllerRef = useRef<AbortController | null>(null);
-
-    // 2段階読み込み: まずfast、その後full
-    const fetchData = async (forceFullOnly = false) => {
-        try {
-            // 前のリクエストをキャンセル
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-            abortControllerRef.current = new AbortController();
-
-            const params = new URLSearchParams();
-            if (statusFilter !== 'all') {
-                params.set('status', statusFilter);
-            }
-
-            if (!forceFullOnly) {
-                // Phase 1: fast modeで高速表示
-                setIsLoading(true);
-                params.set('mode', 'fast');
-                const fastResponse = await fetch(`/api/profit-dashboard?${params.toString()}`, {
-                    signal: abortControllerRef.current.signal,
-                });
-                if (fastResponse.ok) {
-                    const fastResult = await fastResponse.json();
-                    setData(fastResult);
-                    setIsLoading(false);
-                }
-            }
-
-            // Phase 2: full modeで原価情報を取得
-            setIsLoadingFull(true);
-            params.set('mode', 'full');
-            const fullResponse = await fetch(`/api/profit-dashboard?${params.toString()}`, {
-                signal: abortControllerRef.current.signal,
-            });
-            if (fullResponse.ok) {
-                const fullResult = await fullResponse.json();
-                setData(fullResult);
-            }
-        } catch (error) {
-            if (error instanceof Error && error.name === 'AbortError') {
-                // リクエストがキャンセルされた場合は無視
-                return;
-            }
-            console.error('Failed to fetch dashboard data:', error);
-        } finally {
-            setIsLoading(false);
-            setIsLoadingFull(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchData();
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
-    }, [statusFilter]);
-
-    // ソート
-    const sortedProjects = data?.projects.slice().sort((a, b) => {
-        const aVal = a[sortBy];
-        const bVal = b[sortBy];
-        return sortOrder === 'desc' ? bVal - aVal : aVal - bVal;
-    }) || [];
-
-    const handleSort = (field: 'profitMargin' | 'grossProfit' | 'revenue') => {
-        if (sortBy === field) {
-            setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
-        } else {
-            setSortBy(field);
-            setSortOrder('desc');
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6 flex items-center justify-center">
-                <div className="flex items-center gap-2 text-gray-500">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                    読み込み中...
-                </div>
-            </div>
-        );
-    }
-
-    const summary = data?.summary || {
-        totalProjects: 0,
-        totalRevenue: 0,
-        totalCost: 0,
-        totalGrossProfit: 0,
-        averageProfitMargin: 0,
-    };
+    // Date型をシリアライズ可能な形式に変換
+    const serializedProjects = data.projects.map(p => ({
+        ...p,
+        updatedAt: p.updatedAt.toISOString(),
+    }));
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-6">
-            <div className="max-w-7xl mx-auto">
-                {/* ヘッダー */}
-                <div className="flex items-center justify-between mb-6">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-                            <BarChart3 className="w-7 h-7" />
-                            利益ダッシュボード
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-1">全案件の利益状況を一覧で確認</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                        {isLoadingFull && (
-                            <div className="flex items-center gap-1 text-sm text-blue-600">
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                原価計算中...
-                            </div>
-                        )}
-                        <button
-                            onClick={() => fetchData()}
-                            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                        >
-                            <RefreshCw className="w-4 h-4" />
-                            更新
-                        </button>
-                    </div>
-                </div>
-
-                {/* サマリーカード */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                    <SummaryCard
-                        title="総売上"
-                        value={formatCurrency(summary.totalRevenue)}
-                        icon={DollarSign}
-                        color="blue"
-                    />
-                    <SummaryCard
-                        title="総原価"
-                        value={formatCurrency(summary.totalCost)}
-                        icon={BarChart3}
-                        color="gray"
-                    />
-                    <SummaryCard
-                        title="総粗利"
-                        value={formatCurrency(summary.totalGrossProfit)}
-                        icon={summary.totalGrossProfit >= 0 ? TrendingUp : TrendingDown}
-                        color={summary.totalGrossProfit >= 0 ? 'green' : 'red'}
-                    />
-                    <SummaryCard
-                        title="平均利益率"
-                        value={`${summary.averageProfitMargin}%`}
-                        icon={BarChart3}
-                        color="purple"
-                    />
-                </div>
-
-                {/* フィルター */}
-                <div className="bg-white rounded-lg shadow p-4 mb-6">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
-                            <Filter className="w-4 h-4 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-600">ステータス:</span>
-                        </div>
-                        <div className="flex gap-2">
-                            {[
-                                { value: 'all', label: 'すべて' },
-                                { value: 'active', label: '進行中' },
-                                { value: 'completed', label: '完了' },
-                            ].map(option => (
-                                <button
-                                    key={option.value}
-                                    onClick={() => setStatusFilter(option.value)}
-                                    className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${statusFilter === option.value
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    {option.label}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="ml-auto text-sm text-gray-500">
-                            {summary.totalProjects}件の案件
-                        </div>
-                    </div>
-                </div>
-
-                {/* テーブル */}
-                <div className="bg-white rounded-lg shadow overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        案件名
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        顧客
-                                    </th>
-                                    <th
-                                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleSort('revenue')}
-                                    >
-                                        売上 {sortBy === 'revenue' && (sortOrder === 'desc' ? '↓' : '↑')}
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        原価
-                                    </th>
-                                    <th
-                                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleSort('grossProfit')}
-                                    >
-                                        粗利 {sortBy === 'grossProfit' && (sortOrder === 'desc' ? '↓' : '↑')}
-                                    </th>
-                                    <th
-                                        className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                        onClick={() => handleSort('profitMargin')}
-                                    >
-                                        利益率 {sortBy === 'profitMargin' && (sortOrder === 'desc' ? '↓' : '↑')}
-                                    </th>
-                                    <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                                        配置
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {sortedProjects.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                                            該当する案件がありません
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    sortedProjects.map(project => (
-                                        <tr key={project.id} className="hover:bg-gray-50 transition-colors">
-                                            <td className="px-4 py-3">
-                                                <div className="font-medium text-gray-800">{project.title}</div>
-                                                <div className="text-xs text-gray-500">
-                                                    {project.status === 'completed' ? '完了' : '進行中'}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <div className="flex items-center gap-1 text-sm text-gray-600">
-                                                    <Building className="w-3.5 h-3.5" />
-                                                    {project.customerName || '-'}
-                                                </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <div className="font-medium text-gray-800">
-                                                    {formatCurrency(project.revenue)}
-                                                </div>
-                                                {project.estimateAmount > 0 && project.estimateAmount !== project.revenue && (
-                                                    <div className="text-xs text-gray-400">
-                                                        見積: {formatCurrency(project.estimateAmount)}
-                                                    </div>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-3 text-right text-gray-600">
-                                                {formatCurrency(project.totalCost)}
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <span className={`font-medium ${project.grossProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                                    {formatCurrency(project.grossProfit)}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right">
-                                                <span className={`font-bold ${getProfitMarginColor(project.profitMargin)}`}>
-                                                    {project.profitMargin}%
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-center text-sm text-gray-500">
-                                                {project.assignmentCount}件
-                                            </td>
-                                        </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <ProfitDashboardClient
+            projects={serializedProjects as any}
+            summary={data.summary}
+            currentStatus={status}
+        />
     );
 }
 
-interface SummaryCardProps {
-    title: string;
-    value: string;
-    icon: React.ElementType;
-    color: 'blue' | 'gray' | 'green' | 'red' | 'purple';
-}
-
-function SummaryCard({ title, value, icon: Icon, color }: SummaryCardProps) {
-    const colorClasses = {
-        blue: 'bg-blue-50 text-blue-600 border-blue-200',
-        gray: 'bg-gray-50 text-gray-600 border-gray-200',
-        green: 'bg-green-50 text-green-600 border-green-200',
-        red: 'bg-red-50 text-red-600 border-red-200',
-        purple: 'bg-purple-50 text-purple-600 border-purple-200',
-    };
-
-    const iconColorClasses = {
-        blue: 'text-blue-500',
-        gray: 'text-gray-500',
-        green: 'text-green-500',
-        red: 'text-red-500',
-        purple: 'text-purple-500',
-    };
+// メインページ（Server Component）
+export default async function ProfitDashboardPage({ searchParams }: Props) {
+    const resolvedParams = await searchParams;
+    const status = resolvedParams.status || 'active';
 
     return (
-        <div className={`rounded-lg border p-4 ${colorClasses[color]}`}>
-            <div className="flex items-center gap-2 mb-2">
-                <Icon className={`w-5 h-5 ${iconColorClasses[color]}`} />
-                <span className="text-sm font-medium">{title}</span>
-            </div>
-            <div className="text-2xl font-bold">{value}</div>
-        </div>
+        <Suspense fallback={<ProfitDashboardLoading />}>
+            <ProfitDashboardContent status={status} />
+        </Suspense>
     );
 }
