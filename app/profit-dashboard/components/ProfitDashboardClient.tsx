@@ -32,9 +32,10 @@ interface Props {
     summary: DashboardSummary;
     currentStatus: string;
     onStatusChange?: (status: string) => void; // Wrapper経由の場合に使用
+    onRefresh?: () => Promise<void>; // Wrapper経由の場合に使用
 }
 
-export default function ProfitDashboardClient({ projects, summary, currentStatus, onStatusChange }: Props) {
+export default function ProfitDashboardClient({ projects, summary, currentStatus, onStatusChange, onRefresh }: Props) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [sortBy, setSortBy] = useState<'profitMargin' | 'grossProfit' | 'revenue'>('profitMargin');
@@ -73,10 +74,14 @@ export default function ProfitDashboardClient({ projects, summary, currentStatus
         }
     };
 
-    const handleRefresh = () => {
+    const handleRefresh = async () => {
         setIsRefreshing(true);
-        router.refresh();
-        setTimeout(() => setIsRefreshing(false), 500);
+        if (onRefresh) {
+            await onRefresh();
+        } else {
+            router.refresh();
+        }
+        setIsRefreshing(false);
     };
 
     return (

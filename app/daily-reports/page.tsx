@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { useDailyReports } from '@/contexts/DailyReportContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
@@ -26,17 +26,7 @@ export default function DailyReportPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
 
-    // 初回読み込み - 過去30日分を取得
-    useEffect(() => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
-
-        fetchDailyReports({
-            startDate: startDate.toISOString().split('T')[0],
-            endDate: endDate.toISOString().split('T')[0],
-        });
-    }, [fetchDailyReports]);
+    // データはContextで自動取得されるため、ここでのfetchは不要
 
     // 分を時間:分形式に変換
     const formatMinutes = (minutes: number): string => {

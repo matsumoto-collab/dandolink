@@ -1,89 +1,36 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
+import { useProfitDashboard } from '@/contexts/ProfitDashboardContext';
 import ProfitDashboardClient from './ProfitDashboardClient';
 import ProfitDashboardLoading from '../loading';
-
-interface ProjectProfit {
-    id: string;
-    title: string;
-    customerName: string | null;
-    status: string;
-    assignmentCount: number;
-    estimateAmount: number;
-    revenue: number;
-    laborCost: number;
-    loadingCost: number;
-    vehicleCost: number;
-    materialCost: number;
-    subcontractorCost: number;
-    otherExpenses: number;
-    totalCost: number;
-    grossProfit: number;
-    profitMargin: number;
-    updatedAt: string;
-}
-
-interface DashboardSummary {
-    totalProjects: number;
-    totalRevenue: number;
-    totalCost: number;
-    totalGrossProfit: number;
-    averageProfitMargin: number;
-}
-
-interface DashboardData {
-    projects: ProjectProfit[];
-    summary: DashboardSummary;
-}
 
 /**
  * Client Component版の利益ダッシュボード
  * MainContent.tsxから使用される
+ * Contextからキャッシュされたデータを使用
  */
 export default function ProfitDashboardWrapper() {
-    const [data, setData] = useState<DashboardData | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const { isLoading, isInitialLoaded, getFilteredData, refreshData } = useProfitDashboard();
     const [status, setStatus] = useState('active');
 
-    useEffect(() => {
-        const fetchData = async () => {
-            setIsLoading(true);
-            try {
-                const params = new URLSearchParams();
-                if (status !== 'all') {
-                    params.set('status', status);
-                }
-                params.set('mode', 'full');
+    // ステータスでフィルタリングしたデータを取得
+    const filteredData = useMemo(() => {
+        return getFilteredData(status);
+    }, [status, getFilteredData]);
 
-                const response = await fetch(`/api/profit-dashboard?${params.toString()}`);
-                if (response.ok) {
-                    const result = await response.json();
-                    setData({
-                        projects: result.projects,
-                        summary: result.summary,
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to fetch dashboard data:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchData();
-    }, [status]);
-
-    if (isLoading || !data) {
+    // 初回読み込み中
+    if (!isInitialLoaded || isLoading) {
         return <ProfitDashboardLoading />;
     }
 
     return (
         <ProfitDashboardClient
-            projects={data.projects}
-            summary={data.summary}
+            projects={filteredData.projects}
+            summary={filteredData.summary}
             currentStatus={status}
             onStatusChange={setStatus}
+            onRefresh={refreshData}
         />
     );
 }

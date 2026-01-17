@@ -1,11 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useCallback, useState, useMemo } from 'react';
+import React, { createContext, useContext, useCallback, useState, useMemo, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 
 interface DailyReportContextType {
     dailyReports: DailyReport[];
     isLoading: boolean;
+    isInitialLoaded: boolean;
     fetchDailyReports: (params?: { foremanId?: string; date?: string; startDate?: string; endDate?: string }) => Promise<void>;
     getDailyReportByForemanAndDate: (foremanId: string, date: string) => DailyReport | undefined;
     saveDailyReport: (input: DailyReportInput) => Promise<DailyReport>;
@@ -15,8 +17,10 @@ interface DailyReportContextType {
 const DailyReportContext = createContext<DailyReportContextType | undefined>(undefined);
 
 export function DailyReportProvider({ children }: { children: React.ReactNode }) {
+    const { status } = useSession();
     const [dailyReports, setDailyReports] = useState<DailyReport[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isInitialLoaded, setIsInitialLoaded] = useState(false);
 
     // 日報一覧を取得
     const fetchDailyReports = useCallback(async (params?: { foremanId?: string; date?: string; startDate?: string; endDate?: string }) => {
@@ -38,6 +42,7 @@ export function DailyReportProvider({ children }: { children: React.ReactNode })
                     updatedAt: new Date(report.updatedAt),
                 }));
                 setDailyReports(parsed);
+                setIsInitialLoaded(true);
             }
         } catch (error) {
             console.error('Failed to fetch daily reports:', error);
@@ -45,6 +50,20 @@ export function DailyReportProvider({ children }: { children: React.ReactNode })
             setIsLoading(false);
         }
     }, []);
+
+    // 認証後に初回データを自動取得（過去30日分）
+    useEffect(() => {
+        if (status === 'authenticated' && !isInitialLoaded) {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - 30);
+
+            fetchDailyReports({
+                startDate: startDate.toISOString().split('T')[0],
+                endDate: endDate.toISOString().split('T')[0],
+            });
+        }
+    }, [status, isInitialLoaded, fetchDailyReports]);
 
     // 職長と日付で日報を取得
     const getDailyReportByForemanAndDate = useCallback((foremanId: string, date: string): DailyReport | undefined => {
@@ -106,11 +125,12 @@ export function DailyReportProvider({ children }: { children: React.ReactNode })
     const contextValue = useMemo(() => ({
         dailyReports,
         isLoading,
+        isInitialLoaded,
         fetchDailyReports,
         getDailyReportByForemanAndDate,
         saveDailyReport,
         deleteDailyReport,
-    }), [dailyReports, isLoading, fetchDailyReports, getDailyReportByForemanAndDate, saveDailyReport, deleteDailyReport]);
+    }), [dailyReports, isLoading, isInitialLoaded, fetchDailyReports, getDailyReportByForemanAndDate, saveDailyReport, deleteDailyReport]);
 
     return (
         <DailyReportContext.Provider value={contextValue}>

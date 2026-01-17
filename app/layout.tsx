@@ -15,6 +15,7 @@ import { CompanyProvider } from '@/contexts/CompanyContext';
 import { CustomerProvider } from '@/contexts/CustomerContext';
 import { UnitPriceMasterProvider } from '@/contexts/UnitPriceMasterContext';
 import { DailyReportProvider } from '@/contexts/DailyReportContext';
+import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 import AuthProvider from '@/components/AuthProvider';
 
 const inter = Inter({ subsets: ["latin"] });
@@ -47,7 +48,9 @@ export default function RootLayout({
                                                                 <CustomerProvider>
                                                                     <UnitPriceMasterProvider>
                                                                         <DailyReportProvider>
-                                                                            {children}
+                                                                            <ProfitDashboardProvider>
+                                                                                {children}
+                                                                            </ProfitDashboardProvider>
                                                                         </DailyReportProvider>
                                                                     </UnitPriceMasterProvider>
                                                                 </CustomerProvider>
