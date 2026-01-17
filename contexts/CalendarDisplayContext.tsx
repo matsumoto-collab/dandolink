@@ -27,6 +27,8 @@ export function CalendarDisplayProvider({ children }: { children: React.ReactNod
     const [displayedForemanIds, setDisplayedForemanIds] = useState<string[]>([]);
     const [allForemen, setAllForemen] = useState<ForemanUser[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [settingsLoaded, setSettingsLoaded] = useState(false);
+    const [hasSavedSettings, setHasSavedSettings] = useState(false);
 
     // Fetch all available foremen from API
     const fetchForemen = useCallback(async () => {
@@ -54,26 +56,34 @@ export function CalendarDisplayProvider({ children }: { children: React.ReactNod
                 const data = await response.json();
                 if (data.displayedForemanIds && data.displayedForemanIds.length > 0) {
                     setDisplayedForemanIds(data.displayedForemanIds);
+                    setHasSavedSettings(true);
                 }
             }
         } catch (error) {
             console.error('Failed to fetch user settings:', error);
         } finally {
+            setSettingsLoaded(true);
             setIsLoading(false);
         }
     }, [status]);
 
-    useEffect(() => {
-        fetchForemen();
-    }, [fetchForemen]);
-
+    // 認証済みの場合のみデータを取得
     useEffect(() => {
         if (status === 'authenticated') {
+            fetchForemen();
             fetchSettings();
         } else {
             setIsLoading(false);
         }
-    }, [status, fetchSettings]);
+    }, [status, fetchForemen, fetchSettings]);
+
+    // 設定が未保存で職長データが読み込まれたら、全職長を初期表示
+    useEffect(() => {
+        if (settingsLoaded && !hasSavedSettings && allForemen.length > 0 && displayedForemanIds.length === 0) {
+            const allForemanIds = allForemen.map(f => f.id);
+            setDisplayedForemanIds(allForemanIds);
+        }
+    }, [settingsLoaded, hasSavedSettings, allForemen, displayedForemanIds.length]);
 
     const saveSettings = useCallback(async (newIds: string[]) => {
         if (status !== 'authenticated') return;

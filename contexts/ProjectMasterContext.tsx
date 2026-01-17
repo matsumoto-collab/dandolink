@@ -1,8 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 import { ProjectMaster } from '@/types/calendar';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 interface ProjectMasterContextType {
     projectMasters: ProjectMaster[];
@@ -18,6 +19,7 @@ interface ProjectMasterContextType {
 const ProjectMasterContext = createContext<ProjectMasterContextType | undefined>(undefined);
 
 export function ProjectMasterProvider({ children }: { children: ReactNode }) {
+    const { status } = useSession();
     const [projectMasters, setProjectMasters] = useState<ProjectMaster[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -58,17 +60,9 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // Supabase Realtimeセットアップ
+    // Supabase Realtimeセットアップ（認証済みの場合のみ）
     useEffect(() => {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            console.warn('[ProjectMaster Realtime] Supabase credentials not found');
-            return;
-        }
-
-        const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+        if (status !== 'authenticated') return;
 
         const channel = supabase
             .channel('project_masters_changes')
@@ -85,7 +79,7 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [fetchProjectMasters]);
+    }, [status, fetchProjectMasters]);
 
     // Browser event listener for cross-context sync (fallback for Supabase Realtime)
     useEffect(() => {
@@ -167,10 +161,12 @@ export function ProjectMasterProvider({ children }: { children: ReactNode }) {
         return projectMasters.find(pm => pm.id === id);
     }, [projectMasters]);
 
-    // 初回データ取得
+    // 初回データ取得（認証済みの場合のみ）
     useEffect(() => {
-        fetchProjectMasters();
-    }, [fetchProjectMasters]);
+        if (status === 'authenticated') {
+            fetchProjectMasters();
+        }
+    }, [status, fetchProjectMasters]);
 
     return (
         <ProjectMasterContext.Provider

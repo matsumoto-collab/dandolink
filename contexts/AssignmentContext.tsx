@@ -1,8 +1,9 @@
 'use client';
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { useSession } from 'next-auth/react';
 import { ProjectAssignment, AssignmentCalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 
 interface AssignmentContextType {
     assignments: ProjectAssignment[];
@@ -21,21 +22,14 @@ interface AssignmentContextType {
 const AssignmentContext = createContext<AssignmentContextType | undefined>(undefined);
 
 export function AssignmentProvider({ children }: { children: ReactNode }) {
+    const { status } = useSession();
     const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Supabase Realtimeセットアップ
+    // Supabase Realtimeセットアップ（認証済みの場合のみ）
     useEffect(() => {
-        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-        if (!supabaseUrl || !supabaseKey) {
-            console.warn('[Assignment Realtime] Supabase credentials not found');
-            return;
-        }
-
-        const supabase = createSupabaseClient(supabaseUrl, supabaseKey);
+        if (status !== 'authenticated') return;
 
         const channel = supabase
             .channel('assignments_changes')
@@ -51,7 +45,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, []);
+    }, [status]);
 
     const fetchAssignments = useCallback(async (startDate?: string, endDate?: string, assignedEmployeeId?: string) => {
         try {
@@ -235,10 +229,12 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
         });
     }, [assignments]);
 
-    // 初回データ取得
+    // 初回データ取得（認証済みの場合のみ）
     useEffect(() => {
-        fetchAssignments();
-    }, [fetchAssignments]);
+        if (status === 'authenticated') {
+            fetchAssignments();
+        }
+    }, [status, fetchAssignments]);
 
     return (
         <AssignmentContext.Provider
