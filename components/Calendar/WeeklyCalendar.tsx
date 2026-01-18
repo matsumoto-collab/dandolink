@@ -6,7 +6,6 @@ import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useSession } from 'next-auth/react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useVacation } from '@/contexts/VacationContext';
@@ -18,7 +17,6 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
-import MobileDayView from './MobileDayView';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project, ProjectMaster, Employee } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
@@ -48,7 +46,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
-    const isMobileView = useIsMobile();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -340,56 +337,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         );
     }
 
-    // モバイルビュー: 1日表示
-    if (isMobileView) {
-        // 職長リストを生成
-        const mobileEmployees: Employee[] = partnerMode && partnerId
-            ? allForemen
-                .filter(f => f.id === partnerId)
-                .map(f => ({ id: f.id, name: f.displayName }))
-            : displayedForemanIds
-                .map(id => allForemen.find(f => f.id === id))
-                .filter((foreman): foreman is typeof allForemen[0] => foreman !== undefined)
-                .map(foreman => ({ id: foreman.id, name: foreman.displayName }));
-
-        return (
-            <>
-                <MobileDayView
-                    currentDate={weekDays[0]?.date || new Date()}
-                    events={events}
-                    employees={mobileEmployees}
-                    onPreviousDay={goToPreviousDay}
-                    onNextDay={goToNextDay}
-                    onToday={goToToday}
-                    onEventClick={handleEventClick}
-                    onAddEvent={isReadOnly ? undefined : () => {
-                        setModalInitialData({
-                            startDate: weekDays[0]?.date || new Date(),
-                        });
-                        setIsModalOpen(true);
-                    }}
-                    isReadOnly={isReadOnly}
-                />
-
-                {/* モーダル */}
-                <ProjectModal
-                    isOpen={isModalOpen}
-                    onClose={() => {
-                        setIsModalOpen(false);
-                        setModalInitialData({});
-                    }}
-                    onSubmit={handleSaveProject}
-                    onDelete={deleteProject}
-                    initialData={modalInitialData.id ? modalInitialData : undefined}
-                    defaultDate={modalInitialData.startDate}
-                    defaultEmployeeId={modalInitialData.assignedEmployeeId}
-                    title={modalInitialData.id ? '案件編集' : '案件登録'}
-                    readOnly={isReadOnly}
-                />
-            </>
-        );
-    }
-
     return (
         <DndContext
             collisionDetection={closestCenter}
@@ -434,7 +381,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                                     <div
                                         key={index}
                                         className={`
-                      flex-1 min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center
+                      flex-1 min-w-[100px] border-r border-slate-300 h-8 flex items-center justify-center
                       ${isSaturday ? 'bg-gradient-to-b from-blue-100 to-blue-50' : isSunday ? 'bg-gradient-to-b from-rose-100 to-rose-50' : 'bg-gradient-to-b from-slate-100 to-slate-50'}
                       ${day.isToday ? 'bg-gradient-to-r from-slate-700 to-slate-600' : ''}
                     `}
@@ -488,7 +435,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                                     <div
                                         key={index}
                                         className={`
-                                            flex-1 min-w-[140px] h-full border-r border-gray-100 p-1
+                                            flex-1 min-w-[100px] h-full border-r border-gray-100 p-1
                                             flex items-center justify-center
                                             ${isSaturday ? 'bg-blue-50/30' : isSunday ? 'bg-red-50/30' : 'bg-white'}
                                         `}
