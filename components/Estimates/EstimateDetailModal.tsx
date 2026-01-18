@@ -4,7 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
-import { generateEstimatePDFBlob, exportEstimatePDF } from '@/utils/pdfGenerator';
+// PDF生成は動的インポート（バンドルサイズ最適化）
+const loadPdfGenerator = () => import('@/utils/pdfGenerator');
 import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
 
 interface EstimateDetailModalProps {
@@ -48,6 +49,7 @@ export default function EstimateDetailModal({
         if (isOpen && estimate && companyInfo) {
             const generatePDF = async () => {
                 try {
+                    const { generateEstimatePDFBlob } = await loadPdfGenerator();
                     const url = await generateEstimatePDFBlob(estimate, effectiveProject, companyInfo, { includeCoverPage });
                     currentUrl = url;
                     setPdfUrl(url);
@@ -66,8 +68,9 @@ export default function EstimateDetailModal({
         };
     }, [isOpen, estimate, effectiveProject, companyInfo, includeCoverPage]);
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
         if (estimate && companyInfo) {
+            const { exportEstimatePDF } = await loadPdfGenerator();
             exportEstimatePDF(estimate, effectiveProject, companyInfo, { includeCoverPage });
         }
     };

@@ -5,7 +5,8 @@ import { useEffect, useState } from 'react';
 import { useEstimates } from '@/contexts/EstimateContext';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useCompany } from '@/contexts/CompanyContext';
-import { generateEstimatePDFBlob, exportEstimatePDF } from '@/utils/pdfGenerator';
+// PDF生成は動的インポート（バンドルサイズ最適化）
+const loadPdfGenerator = () => import('@/utils/pdfGenerator');
 import { ArrowLeft, FileDown, Printer, Trash2, Edit, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Estimate } from '@/types/estimate';
@@ -36,6 +37,7 @@ export default function EstimateDetailPage() {
         if (estimate && project && companyInfo) {
             const generatePDF = async () => {
                 try {
+                    const { generateEstimatePDFBlob } = await loadPdfGenerator();
                     const url = await generateEstimatePDFBlob(estimate, project, companyInfo);
                     currentUrl = url;
                     setPdfUrl(url);
@@ -54,8 +56,9 @@ export default function EstimateDetailPage() {
         };
     }, [estimate, project, companyInfo]);
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
         if (estimate && project && companyInfo) {
+            const { exportEstimatePDF } = await loadPdfGenerator();
             exportEstimatePDF(estimate, project, companyInfo);
         }
     };
