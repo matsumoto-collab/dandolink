@@ -8,6 +8,8 @@ import { Estimate } from '@/types/estimate';
 interface InvoiceContextType {
     invoices: Invoice[];
     isLoading: boolean;
+    isInitialized: boolean;
+    ensureDataLoaded: () => Promise<void>;
     addInvoice: (invoice: InvoiceInput) => Promise<Invoice>;
     updateInvoice: (id: string, invoice: Partial<InvoiceInput>) => Promise<void>;
     deleteInvoice: (id: string) => Promise<void>;
@@ -20,9 +22,11 @@ interface InvoiceContextType {
 const InvoiceContext = createContext<InvoiceContextType | undefined>(undefined);
 
 export function InvoiceProvider({ children }: { children: ReactNode }) {
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [realtimeSetup, setRealtimeSetup] = useState(false);
 
     // Fetch invoices from API
     const fetchInvoices = useCallback(async () => {
@@ -34,6 +38,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
         }
 
         try {
+            setIsLoading(true);
             const response = await fetch('/api/invoices');
             if (response.ok) {
                 const data = await response.json();
@@ -53,40 +58,58 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
             console.error('Failed to fetch invoices:', error);
         } finally {
             setIsLoading(false);
+            setIsInitialized(true);
         }
     }, [status]);
 
-    // Load invoices on mount and when session changes
+    // 遅延読み込み: ページから呼び出された時のみデータ取得
+    const ensureDataLoaded = useCallback(async () => {
+        if (status === 'authenticated' && !isInitialized) {
+            await fetchInvoices();
+        }
+    }, [status, isInitialized, fetchInvoices]);
+
+    // 未認証時はリセット
     useEffect(() => {
-        fetchInvoices();
-    }, [fetchInvoices, session?.user?.email]);
+        if (status === 'unauthenticated') {
+            setInvoices([]);
+            setIsInitialized(false);
+        }
+    }, [status]);
 
-    // Supabase Realtime subscription for instant updates
+    // Supabase Realtime subscription（初回データ取得後のみ）
     useEffect(() => {
-        if (status !== 'authenticated') return;
+        if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        import('@/lib/supabase').then(({ supabase }) => {
-            const channel = supabase
-                .channel('invoices-changes')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'Invoice',
-                    },
-                    (payload) => {
-                        console.log('Invoice changed:', payload);
-                        fetchInvoices();
-                    }
-                )
-                .subscribe();
+        let channel: any = null;
+        setRealtimeSetup(true);
 
-            return () => {
-                supabase.removeChannel(channel);
-            };
-        });
-    }, [status, fetchInvoices]);
+        const setupRealtime = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                channel = supabase
+                    .channel('invoices-changes')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'Invoice' },
+                        () => fetchInvoices()
+                    )
+                    .subscribe();
+            } catch (error) {
+                console.error('Failed to setup realtime:', error);
+            }
+        };
+
+        setupRealtime();
+
+        return () => {
+            if (channel) {
+                import('@/lib/supabase').then(({ supabase }) => {
+                    supabase.removeChannel(channel);
+                });
+            }
+        };
+    }, [status, isInitialized, realtimeSetup, fetchInvoices]);
 
     const addInvoice = useCallback(async (input: InvoiceInput): Promise<Invoice> => {
         try {
@@ -194,6 +217,8 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
             value={{
                 invoices,
                 isLoading,
+                isInitialized,
+                ensureDataLoaded,
                 addInvoice,
                 updateInvoice,
                 deleteInvoice,

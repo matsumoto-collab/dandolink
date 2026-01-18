@@ -7,6 +7,8 @@ import { Customer, CustomerInput } from '@/types/customer';
 interface CustomerContextType {
     customers: Customer[];
     isLoading: boolean;
+    isInitialized: boolean;
+    ensureDataLoaded: () => Promise<void>;
     addCustomer: (customer: CustomerInput) => Promise<void>;
     updateCustomer: (id: string, customer: Partial<CustomerInput>) => Promise<void>;
     deleteCustomer: (id: string) => Promise<void>;
@@ -17,9 +19,11 @@ interface CustomerContextType {
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
 export function CustomerProvider({ children }: { children: React.ReactNode }) {
-    const { data: session, status } = useSession();
+    const { status } = useSession();
     const [customers, setCustomers] = useState<Customer[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [realtimeSetup, setRealtimeSetup] = useState(false);
 
     // Fetch customers from API
     const fetchCustomers = useCallback(async () => {
@@ -31,6 +35,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         }
 
         try {
+            setIsLoading(true);
             const response = await fetch('/api/customers');
             if (response.ok) {
                 const data = await response.json();
@@ -48,40 +53,58 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
             console.error('Failed to fetch customers:', error);
         } finally {
             setIsLoading(false);
+            setIsInitialized(true);
         }
     }, [status]);
 
-    // Load customers on mount and when session changes
+    // 遅延読み込み: ページから呼び出された時のみデータ取得
+    const ensureDataLoaded = useCallback(async () => {
+        if (status === 'authenticated' && !isInitialized) {
+            await fetchCustomers();
+        }
+    }, [status, isInitialized, fetchCustomers]);
+
+    // 未認証時はリセット
     useEffect(() => {
-        fetchCustomers();
-    }, [fetchCustomers, session?.user?.email]);
+        if (status === 'unauthenticated') {
+            setCustomers([]);
+            setIsInitialized(false);
+        }
+    }, [status]);
 
-    // Supabase Realtime subscription for instant updates
+    // Supabase Realtime subscription（初回データ取得後のみ）
     useEffect(() => {
-        if (status !== 'authenticated') return;
+        if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        import('@/lib/supabase').then(({ supabase }) => {
-            const channel = supabase
-                .channel('customers-changes')
-                .on(
-                    'postgres_changes',
-                    {
-                        event: '*',
-                        schema: 'public',
-                        table: 'Customer',
-                    },
-                    (payload) => {
-                        console.log('Customer changed:', payload);
-                        fetchCustomers();
-                    }
-                )
-                .subscribe();
+        let channel: any = null;
+        setRealtimeSetup(true);
 
-            return () => {
-                supabase.removeChannel(channel);
-            };
-        });
-    }, [status, fetchCustomers]);
+        const setupRealtime = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                channel = supabase
+                    .channel('customers-changes')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'Customer' },
+                        () => fetchCustomers()
+                    )
+                    .subscribe();
+            } catch (error) {
+                console.error('Failed to setup realtime:', error);
+            }
+        };
+
+        setupRealtime();
+
+        return () => {
+            if (channel) {
+                import('@/lib/supabase').then(({ supabase }) => {
+                    supabase.removeChannel(channel);
+                });
+            }
+        };
+    }, [status, isInitialized, realtimeSetup, fetchCustomers]);
 
     // Add customer
     const addCustomer = useCallback(async (customerData: CustomerInput) => {
@@ -166,6 +189,8 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
             value={{
                 customers,
                 isLoading,
+                isInitialized,
+                ensureDataLoaded,
                 addCustomer,
                 updateCustomer,
                 deleteCustomer,

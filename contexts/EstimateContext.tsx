@@ -7,6 +7,8 @@ import { Estimate, EstimateInput } from '@/types/estimate';
 interface EstimateContextType {
     estimates: Estimate[];
     isLoading: boolean;
+    isInitialized: boolean;
+    ensureDataLoaded: () => Promise<void>;
     addEstimate: (estimate: EstimateInput) => Promise<Estimate>;
     updateEstimate: (id: string, estimate: Partial<EstimateInput>) => Promise<void>;
     deleteEstimate: (id: string) => Promise<void>;
@@ -20,68 +22,64 @@ const EstimateContext = createContext<EstimateContextType | undefined>(undefined
 export function EstimateProvider({ children }: { children: ReactNode }) {
     const { status } = useSession();
     const [estimates, setEstimates] = useState<Estimate[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasFetched, setHasFetched] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [realtimeSetup, setRealtimeSetup] = useState(false);
 
     // Fetch estimates from API
     const fetchEstimates = useCallback(async () => {
         try {
+            setIsLoading(true);
             const response = await fetch('/api/estimates');
             if (response.ok) {
                 const data = await response.json();
-                // Convert date strings to Date objects
                 const parsedEstimates = data.map((estimate: any) => ({
                     ...estimate,
                     validUntil: new Date(estimate.validUntil),
                     createdAt: new Date(estimate.createdAt),
                     updatedAt: new Date(estimate.updatedAt),
                 }));
-
                 setEstimates(parsedEstimates);
             }
         } catch (error) {
             console.error('Failed to fetch estimates:', error);
         } finally {
             setIsLoading(false);
-            setHasFetched(true);
+            setIsInitialized(true);
         }
     }, []);
 
-    // Load estimates when authenticated
-    useEffect(() => {
-        if (status === 'authenticated' && !hasFetched) {
-            fetchEstimates();
-        } else if (status === 'unauthenticated') {
-            setEstimates([]);
-            setIsLoading(false);
+    // 遅延読み込み: ページから呼び出された時のみデータ取得
+    const ensureDataLoaded = useCallback(async () => {
+        if (status === 'authenticated' && !isInitialized) {
+            await fetchEstimates();
         }
-    }, [status, hasFetched, fetchEstimates]);
+    }, [status, isInitialized, fetchEstimates]);
 
-    // Supabase Realtime subscription for instant updates
+    // 未認証時はリセット
     useEffect(() => {
-        if (status !== 'authenticated') return;
+        if (status === 'unauthenticated') {
+            setEstimates([]);
+            setIsInitialized(false);
+        }
+    }, [status]);
+
+    // Supabase Realtime subscription（初回データ取得後のみ）
+    useEffect(() => {
+        if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
         let channel: any = null;
-        let isSubscribed = true;
+        setRealtimeSetup(true);
 
         const setupRealtime = async () => {
             try {
                 const { supabase } = await import('@/lib/supabase');
-                if (!isSubscribed) return;
-
                 channel = supabase
                     .channel('estimates-changes')
                     .on(
                         'postgres_changes',
-                        {
-                            event: '*',
-                            schema: 'public',
-                            table: 'Estimate',
-                        },
-                        (payload) => {
-                            console.log('Estimate changed:', payload);
-                            fetchEstimates();
-                        }
+                        { event: '*', schema: 'public', table: 'Estimate' },
+                        () => fetchEstimates()
                     )
                     .subscribe();
             } catch (error) {
@@ -92,14 +90,13 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
         setupRealtime();
 
         return () => {
-            isSubscribed = false;
             if (channel) {
                 import('@/lib/supabase').then(({ supabase }) => {
                     supabase.removeChannel(channel);
                 });
             }
         };
-    }, [status, fetchEstimates]);
+    }, [status, isInitialized, realtimeSetup, fetchEstimates]);
 
     const addEstimate = useCallback(async (input: EstimateInput): Promise<Estimate> => {
         try {
@@ -187,6 +184,8 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
             value={{
                 estimates,
                 isLoading,
+                isInitialized,
+                ensureDataLoaded,
                 addEstimate,
                 updateEstimate,
                 deleteEstimate,

@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { Customer } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
 
 export default function CustomersPage() {
-    const { customers, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
+    const { customers, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
+
+    // ページ表示時にデータを読み込み
+    useEffect(() => {
+        ensureDataLoaded();
+    }, [ensureDataLoaded]);
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);

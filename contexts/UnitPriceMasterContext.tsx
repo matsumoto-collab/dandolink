@@ -7,6 +7,8 @@ import { UnitPriceMaster, UnitPriceMasterInput, TemplateType } from '@/types/uni
 interface UnitPriceMasterContextType {
     unitPrices: UnitPriceMaster[];
     isLoading: boolean;
+    isInitialized: boolean;
+    ensureDataLoaded: () => Promise<void>;
     addUnitPrice: (unitPrice: UnitPriceMasterInput) => Promise<void>;
     updateUnitPrice: (id: string, unitPrice: Partial<UnitPriceMasterInput>) => Promise<void>;
     deleteUnitPrice: (id: string) => Promise<void>;
@@ -20,7 +22,9 @@ const UnitPriceMasterContext = createContext<UnitPriceMasterContextType | undefi
 export function UnitPriceMasterProvider({ children }: { children: React.ReactNode }) {
     const { status } = useSession();
     const [unitPrices, setUnitPrices] = useState<UnitPriceMaster[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [realtimeSetup, setRealtimeSetup] = useState(false);
 
     // Fetch from API
     const fetchUnitPrices = useCallback(async () => {
@@ -30,6 +34,7 @@ export function UnitPriceMasterProvider({ children }: { children: React.ReactNod
         }
 
         try {
+            setIsLoading(true);
             const response = await fetch('/api/master-data/unit-prices');
             if (response.ok) {
                 const data = await response.json();
@@ -43,24 +48,35 @@ export function UnitPriceMasterProvider({ children }: { children: React.ReactNod
             console.error('Failed to fetch unit prices:', error);
         } finally {
             setIsLoading(false);
+            setIsInitialized(true);
         }
     }, [status]);
 
-    useEffect(() => {
-        fetchUnitPrices();
-    }, [fetchUnitPrices]);
+    // 遅延読み込み: ページから呼び出された時のみデータ取得
+    const ensureDataLoaded = useCallback(async () => {
+        if (status === 'authenticated' && !isInitialized) {
+            await fetchUnitPrices();
+        }
+    }, [status, isInitialized, fetchUnitPrices]);
 
-    // Realtime subscription
+    // 未認証時はリセット
     useEffect(() => {
-        if (status !== 'authenticated') return;
+        if (status === 'unauthenticated') {
+            setUnitPrices([]);
+            setIsInitialized(false);
+        }
+    }, [status]);
+
+    // Realtime subscription（初回データ取得後のみ）
+    useEffect(() => {
+        if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
         let channel: any = null;
-        let isSubscribed = true;
+        setRealtimeSetup(true);
 
         const setupRealtimeSubscription = async () => {
             try {
                 const { supabase } = await import('@/lib/supabase');
-                if (!isSubscribed) return;
 
                 channel = supabase
                     .channel('unit-prices-realtime')
@@ -76,14 +92,13 @@ export function UnitPriceMasterProvider({ children }: { children: React.ReactNod
         setupRealtimeSubscription();
 
         return () => {
-            isSubscribed = false;
             if (channel) {
                 import('@/lib/supabase').then(({ supabase }) => {
                     supabase.removeChannel(channel);
                 });
             }
         };
-    }, [status, fetchUnitPrices]);
+    }, [status, isInitialized, realtimeSetup, fetchUnitPrices]);
 
     const addUnitPrice = useCallback(async (unitPriceData: UnitPriceMasterInput) => {
         const response = await fetch('/api/master-data/unit-prices', {
@@ -137,6 +152,8 @@ export function UnitPriceMasterProvider({ children }: { children: React.ReactNod
             value={{
                 unitPrices,
                 isLoading,
+                isInitialized,
+                ensureDataLoaded,
                 addUnitPrice,
                 updateUnitPrice,
                 deleteUnitPrice,

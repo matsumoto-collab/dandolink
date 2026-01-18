@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useInvoices } from '@/contexts/InvoiceContext';
 import { useProjects } from '@/contexts/ProjectContext';
@@ -16,8 +16,13 @@ const InvoiceModal = dynamic(
 );
 
 export default function InvoiceListPage() {
-    const { invoices, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
+    const { invoices, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projects } = useProjects();
+
+    // ページ表示時にデータを読み込み
+    useEffect(() => {
+        ensureDataLoaded();
+    }, [ensureDataLoaded]);
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');

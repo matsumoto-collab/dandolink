@@ -13,9 +13,9 @@ import { Project } from '@/types/calendar';
 export default function EstimateDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const { estimates, deleteEstimate } = useEstimates();
+    const { estimates, ensureDataLoaded: ensureEstimatesLoaded, deleteEstimate } = useEstimates();
     const { projects } = useProjects();
-    const { companyInfo } = useCompany();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
 
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
@@ -23,6 +23,12 @@ export default function EstimateDetailPage() {
     const estimateId = params.id as string;
     const estimate = estimates.find((e: Estimate) => e.id === estimateId);
     const project = estimate ? projects.find((p: Project) => p.id === estimate.projectId) : null;
+
+    // ページ表示時にデータを読み込み
+    useEffect(() => {
+        ensureEstimatesLoaded();
+        ensureCompanyLoaded();
+    }, [ensureEstimatesLoaded, ensureCompanyLoaded]);
 
     useEffect(() => {
         let currentUrl = '';

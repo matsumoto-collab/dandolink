@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useEstimates } from '@/contexts/EstimateContext';
 import { useProjects } from '@/contexts/ProjectContext';
@@ -21,12 +21,18 @@ const EstimateDetailModal = dynamic(
 );
 
 export default function EstimateListPage() {
-    const { estimates, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
+    const { estimates, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
     const { projects } = useProjects();
-    const { companyInfo } = useCompany();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
+
+    // ページ表示時にデータを読み込み
+    useEffect(() => {
+        ensureDataLoaded();
+        ensureCompanyLoaded();
+    }, [ensureDataLoaded, ensureCompanyLoaded]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);

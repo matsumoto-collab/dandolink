@@ -1,12 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useUnitPriceMaster } from '@/contexts/UnitPriceMasterContext';
 import { UnitPriceMaster, UnitPriceMasterInput, TEMPLATE_LABELS, TemplateType } from '@/types/unitPrice';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 
 export default function UnitPriceMasterSettings() {
-    const { unitPrices, addUnitPrice, updateUnitPrice, deleteUnitPrice } = useUnitPriceMaster();
+    const { unitPrices, ensureDataLoaded, addUnitPrice, updateUnitPrice, deleteUnitPrice } = useUnitPriceMaster();
+
+    // コンポーネント表示時にデータを読み込み
+    useEffect(() => {
+        ensureDataLoaded();
+    }, [ensureDataLoaded]);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<UnitPriceMaster | null>(null);
     const [filterTemplate, setFilterTemplate] = useState<TemplateType | 'all'>('all');

@@ -7,6 +7,8 @@ import { CompanyInfo, CompanyInfoInput } from '@/types/company';
 interface CompanyContextType {
     companyInfo: CompanyInfo | null;
     isLoading: boolean;
+    isInitialized: boolean;
+    ensureDataLoaded: () => Promise<void>;
     updateCompanyInfo: (data: CompanyInfoInput) => Promise<void>;
     refreshCompanyInfo: () => Promise<void>;
 }
@@ -16,7 +18,9 @@ const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 export function CompanyProvider({ children }: { children: ReactNode }) {
     const { status } = useSession();
     const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [realtimeSetup, setRealtimeSetup] = useState(false);
 
     // Fetch from API
     const fetchCompanyInfo = useCallback(async () => {
@@ -26,6 +30,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         }
 
         try {
+            setIsLoading(true);
             const response = await fetch('/api/master-data/company');
             if (response.ok) {
                 const data = await response.json();
@@ -39,24 +44,35 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
             console.error('Failed to fetch company info:', error);
         } finally {
             setIsLoading(false);
+            setIsInitialized(true);
         }
     }, [status]);
 
-    useEffect(() => {
-        fetchCompanyInfo();
-    }, [fetchCompanyInfo]);
+    // 遅延読み込み: ページから呼び出された時のみデータ取得
+    const ensureDataLoaded = useCallback(async () => {
+        if (status === 'authenticated' && !isInitialized) {
+            await fetchCompanyInfo();
+        }
+    }, [status, isInitialized, fetchCompanyInfo]);
 
-    // Realtime subscription
+    // 未認証時はリセット
     useEffect(() => {
-        if (status !== 'authenticated') return;
+        if (status === 'unauthenticated') {
+            setCompanyInfo(null);
+            setIsInitialized(false);
+        }
+    }, [status]);
+
+    // Realtime subscription（初回データ取得後のみ）
+    useEffect(() => {
+        if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
         let channel: any = null;
-        let isSubscribed = true;
+        setRealtimeSetup(true);
 
         const setupRealtimeSubscription = async () => {
             try {
                 const { supabase } = await import('@/lib/supabase');
-                if (!isSubscribed) return;
 
                 channel = supabase
                     .channel('company-info-realtime')
@@ -72,14 +88,13 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         setupRealtimeSubscription();
 
         return () => {
-            isSubscribed = false;
             if (channel) {
                 import('@/lib/supabase').then(({ supabase }) => {
                     supabase.removeChannel(channel);
                 });
             }
         };
-    }, [status, fetchCompanyInfo]);
+    }, [status, isInitialized, realtimeSetup, fetchCompanyInfo]);
 
     const updateCompanyInfo = useCallback(async (data: CompanyInfoInput) => {
         const response = await fetch('/api/master-data/company', {
@@ -98,7 +113,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <CompanyContext.Provider value={{ companyInfo, isLoading, updateCompanyInfo, refreshCompanyInfo: fetchCompanyInfo }}>
+        <CompanyContext.Provider value={{ companyInfo, isLoading, isInitialized, ensureDataLoaded, updateCompanyInfo, refreshCompanyInfo: fetchCompanyInfo }}>
             {children}
         </CompanyContext.Provider>
     );
