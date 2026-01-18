@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { canManageUsers } from '@/utils/permissions';
+import { updateUserSchema, validateRequest } from '@/lib/validations';
 
 /**
  * Get a specific user
@@ -82,10 +83,20 @@ export async function PATCH(
         }
 
         const body = await req.json();
-        const { email, displayName, password, role, assignedProjects, isActive } = body;
+
+        // Zodバリデーション
+        const validation = validateRequest(updateUserSchema, body);
+        if (!validation.success) {
+            return NextResponse.json(
+                { error: validation.error, details: validation.details },
+                { status: 400 }
+            );
+        }
+
+        const { email, displayName, password, role, assignedProjects, isActive } = validation.data;
 
         // Build update data
-        const updateData: any = {};
+        const updateData: Record<string, unknown> = {};
 
         if (email !== undefined) updateData.email = email;
         if (displayName !== undefined) updateData.displayName = displayName;

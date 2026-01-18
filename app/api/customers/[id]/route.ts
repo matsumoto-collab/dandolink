@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { updateCustomerSchema, validateRequest } from '@/lib/validations';
 
 /**
  * Update a customer
@@ -21,6 +22,15 @@ export async function PATCH(
         const { id } = params;
         const body = await req.json();
 
+        // Zodバリデーション
+        const validation = validateRequest(updateCustomerSchema, body);
+        if (!validation.success) {
+            return NextResponse.json(
+                { error: validation.error, details: validation.details },
+                { status: 400 }
+            );
+        }
+
         // Check if customer exists
         const existingCustomer = await prisma.customer.findUnique({
             where: { id },
@@ -34,16 +44,17 @@ export async function PATCH(
         }
 
         // Prepare update data
-        const updateData: any = {};
+        const { name, shortName, contactPersons, email, phone, fax, address, notes } = validation.data;
+        const updateData: Record<string, unknown> = {};
 
-        if (body.name !== undefined) updateData.name = body.name;
-        if (body.shortName !== undefined) updateData.shortName = body.shortName || null;
-        if (body.contactPersons !== undefined) updateData.contactPersons = body.contactPersons ? JSON.stringify(body.contactPersons) : null;
-        if (body.email !== undefined) updateData.email = body.email || null;
-        if (body.phone !== undefined) updateData.phone = body.phone || null;
-        if (body.fax !== undefined) updateData.fax = body.fax || null;
-        if (body.address !== undefined) updateData.address = body.address || null;
-        if (body.notes !== undefined) updateData.notes = body.notes || null;
+        if (name !== undefined) updateData.name = name;
+        if (shortName !== undefined) updateData.shortName = shortName || null;
+        if (contactPersons !== undefined) updateData.contactPersons = contactPersons ? JSON.stringify(contactPersons) : null;
+        if (email !== undefined) updateData.email = email || null;
+        if (phone !== undefined) updateData.phone = phone || null;
+        if (fax !== undefined) updateData.fax = fax || null;
+        if (address !== undefined) updateData.address = address || null;
+        if (notes !== undefined) updateData.notes = notes || null;
 
         // Update customer
         const updatedCustomer = await prisma.customer.update({
