@@ -363,7 +363,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                         <div className="flex border-b-2 border-slate-300 bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-20 shadow-md">
                             {/* 職長カラム（固定） */}
                             <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 shadow-md">
-                                <div className="w-32 h-8 flex items-center justify-center font-bold text-slate-700 text-xs tracking-wide">
+                                <div className="w-24 h-8 flex items-center justify-center font-bold text-slate-700 text-xs tracking-wide">
                                     職長
                                 </div>
                             </div>
@@ -381,7 +381,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                                     <div
                                         key={index}
                                         className={`
-                      flex-1 min-w-[100px] border-r border-slate-300 h-8 flex items-center justify-center
+                      flex-1 min-w-[80px] border-r border-slate-300 h-8 flex items-center justify-center
                       ${isSaturday ? 'bg-gradient-to-b from-blue-100 to-blue-50' : isSunday ? 'bg-gradient-to-b from-rose-100 to-rose-50' : 'bg-gradient-to-b from-slate-100 to-slate-50'}
                       ${day.isToday ? 'bg-gradient-to-r from-slate-700 to-slate-600' : ''}
                     `}
@@ -404,7 +404,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                         <div className="flex border-b-2 border-slate-400 bg-gradient-to-r from-slate-100 to-slate-50 sticky top-[32px] z-[25] shadow-sm h-9">
                             {/* 職長セル */}
                             <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-400 shadow-md">
-                                <div className="w-32 h-full flex items-center justify-center">
+                                <div className="w-24 h-full flex items-center justify-center">
                                     <span className="text-xs font-bold text-slate-700 tracking-wide">
                                         {unassignedEmployee.name}
                                     </span>
@@ -435,7 +435,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                                     <div
                                         key={index}
                                         className={`
-                                            flex-1 min-w-[100px] h-full border-r border-gray-100 p-1
+                                            flex-1 min-w-[80px] h-full border-r border-gray-100 p-1
                                             flex items-center justify-center
                                             ${isSaturday ? 'bg-blue-50/30' : isSunday ? 'bg-red-50/30' : 'bg-white'}
                                         `}
