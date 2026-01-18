@@ -41,7 +41,11 @@ export async function GET(_req: NextRequest) {
             },
         });
 
-        return NextResponse.json(workers);
+        return NextResponse.json(workers, {
+            headers: {
+                'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+            },
+        });
     } catch (error) {
         console.error('Get dispatch workers error:', error);
         return NextResponse.json(

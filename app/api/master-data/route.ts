@@ -23,6 +23,10 @@ export async function GET() {
             workers,
             managers,
             totalMembers: settings?.totalMembers || 20,
+        }, {
+            headers: {
+                'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+            },
         });
     } catch (error) {
         console.error('Failed to fetch master data:', error);

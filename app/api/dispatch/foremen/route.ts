@@ -41,7 +41,11 @@ export async function GET(_req: NextRequest) {
             },
         });
 
-        return NextResponse.json(foremen);
+        return NextResponse.json(foremen, {
+            headers: {
+                'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+            },
+        });
     } catch (error) {
         console.error('Get dispatch foremen error:', error);
         return NextResponse.json(
