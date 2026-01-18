@@ -6,6 +6,7 @@ import { useEstimates } from '@/contexts/EstimateContext';
 import { InvoiceInput } from '@/types/invoice';
 import { EstimateItem } from '@/types/estimate';
 import { Plus, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface InvoiceFormProps {
     initialData?: Partial<InvoiceInput>;
@@ -98,7 +99,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         e.preventDefault();
 
         if (!projectId || !title) {
-            alert('案件とタイトルは必須です');
+            toast.error('案件とタイトルは必須です');
             return;
         }
 

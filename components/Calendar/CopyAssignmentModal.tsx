@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarEvent, Employee } from '@/types/calendar';
 import { X, Copy, Calendar } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface CopyAssignmentModalProps {
     isOpen: boolean;
@@ -61,7 +62,7 @@ export default function CopyAssignmentModal({
         const end = new Date(endDate);
 
         if (end < start) {
-            alert('終了日は開始日以降に設定してください');
+            toast.error('終了日は開始日以降に設定してください');
             return;
         }
 
@@ -71,7 +72,7 @@ export default function CopyAssignmentModal({
             onClose();
         } catch (error) {
             console.error('Failed to copy assignment:', error);
-            alert('コピーに失敗しました');
+            toast.error('コピーに失敗しました');
         } finally {
             setIsSubmitting(false);
         }

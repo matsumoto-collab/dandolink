@@ -9,6 +9,7 @@ import VehicleModal from '../VehicleModal';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
 import { Plus, User } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
+import toast from 'react-hot-toast';
 
 interface ManagerUser {
     id: string;
@@ -139,7 +140,7 @@ export default function ProjectForm({
 
         // バリデーション: 少なくとも組立、解体、その他のどれか1つは選択必須
         if (!formData.hasAssembly && !formData.hasDemolition && !formData.hasOther) {
-            alert('組立、解体、その他のいずれかを選択してください');
+            toast.error('組立、解体、その他のいずれかを選択してください');
             return;
         }
 

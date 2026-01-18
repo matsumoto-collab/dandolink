@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Check, Users, Truck } from 'lucide-react';
 import { Project } from '@/types/calendar';
+import toast from 'react-hot-toast';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/contexts/ProjectContext';
 import { formatDateKey } from '@/utils/employeeUtils';
@@ -113,7 +114,7 @@ export default function DispatchConfirmModal({
             onClose();
         } catch (error) {
             console.error('Failed to confirm dispatch:', error);
-            alert('手配確定に失敗しました');
+            toast.error('手配確定に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -132,7 +133,7 @@ export default function DispatchConfirmModal({
             onClose();
         } catch (error) {
             console.error('Failed to cancel dispatch:', error);
-            alert('手配解除に失敗しました');
+            toast.error('手配解除に失敗しました');
         } finally {
             setIsSubmitting(false);
         }

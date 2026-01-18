@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
 const DailyReportModal = dynamic(
@@ -77,7 +78,7 @@ export default function DailyReportPage() {
                 await deleteDailyReport(id);
             } catch (error) {
                 console.error('Failed to delete daily report:', error);
-                alert('日報の削除に失敗しました');
+                toast.error('日報の削除に失敗しました');
             }
         }
     };

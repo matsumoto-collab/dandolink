@@ -6,6 +6,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Trash2, Edit2, Plus, Check, X } from 'lucide-react';
 import UnitPriceMasterSettings from '@/components/Settings/UnitPriceMasterSettings';
 import UserManagement from '@/components/Settings/UserManagement';
+import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
     const { data: session } = useSession();
@@ -118,7 +119,7 @@ export default function SettingsPage() {
         const count = parseInt(newTotalMembers);
         if (!isNaN(count) && count > 0) {
             updateTotalMembers(count);
-            alert('総メンバー数を更新しました');
+            toast.success('総メンバー数を更新しました');
         }
     };
 

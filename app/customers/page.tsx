@@ -5,6 +5,7 @@ import { useCustomers } from '@/contexts/CustomerContext';
 import { Customer } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
     const { customers, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -33,7 +34,7 @@ export default function CustomersPage() {
             setIsModalOpen(false);
         } catch (error) {
             console.error('Failed to add customer:', error);
-            alert(error instanceof Error ? error.message : '顧客の追加に失敗しました');
+            toast.error(error instanceof Error ? error.message : '顧客の追加に失敗しました');
         } finally {
             setIsSubmitting(false);
         }
@@ -49,7 +50,7 @@ export default function CustomersPage() {
                 setIsModalOpen(false);
             } catch (error) {
                 console.error('Failed to update customer:', error);
-                alert(error instanceof Error ? error.message : '顧客の更新に失敗しました');
+                toast.error(error instanceof Error ? error.message : '顧客の更新に失敗しました');
             } finally {
                 setIsSubmitting(false);
             }
@@ -63,7 +64,7 @@ export default function CustomersPage() {
                 await deleteCustomer(id);
             } catch (error) {
                 console.error('Failed to delete customer:', error);
-                alert(error instanceof Error ? error.message : '顧客の削除に失敗しました');
+                toast.error(error instanceof Error ? error.message : '顧客の削除に失敗しました');
             }
         }
     };

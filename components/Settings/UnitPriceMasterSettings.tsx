@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useUnitPriceMaster } from '@/contexts/UnitPriceMasterContext';
 import { UnitPriceMaster, UnitPriceMasterInput, TEMPLATE_LABELS, TemplateType } from '@/types/unitPrice';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function UnitPriceMasterSettings() {
     const { unitPrices, ensureDataLoaded, addUnitPrice, updateUnitPrice, deleteUnitPrice } = useUnitPriceMaster();
@@ -60,7 +61,7 @@ export default function UnitPriceMasterSettings() {
         e.preventDefault();
 
         if (!formData.description || !formData.unit) {
-            alert('品目と単位は必須です');
+            toast.error('品目と単位は必須です');
             return;
         }
 

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { DailySchedule, ConstructionType } from '@/types/calendar';
 import { Plus, X } from 'lucide-react';
 import { mockEmployees } from '@/data/mockEmployees';
+import toast from 'react-hot-toast';
 
 interface MultiDayScheduleEditorProps {
     type: ConstructionType;
@@ -27,7 +28,7 @@ export default function MultiDayScheduleEditor({
     // 期間から日程を生成
     const generateFromRange = () => {
         if (!rangeStart || !rangeEnd) {
-            alert('開始日と終了日を入力してください');
+            toast.error('開始日と終了日を入力してください');
             return;
         }
 
@@ -35,7 +36,7 @@ export default function MultiDayScheduleEditor({
         const end = new Date(rangeEnd);
 
         if (start > end) {
-            alert('開始日は終了日より前にしてください');
+            toast.error('開始日は終了日より前にしてください');
             return;
         }
 
@@ -61,7 +62,7 @@ export default function MultiDayScheduleEditor({
     // 平日のみ生成
     const generateWeekdaysOnly = () => {
         if (!rangeStart || !rangeEnd) {
-            alert('開始日と終了日を入力してください');
+            toast.error('開始日と終了日を入力してください');
             return;
         }
 
@@ -69,7 +70,7 @@ export default function MultiDayScheduleEditor({
         const end = new Date(rangeEnd);
 
         if (start > end) {
-            alert('開始日は終了日より前にしてください');
+            toast.error('開始日は終了日より前にしてください');
             return;
         }
 

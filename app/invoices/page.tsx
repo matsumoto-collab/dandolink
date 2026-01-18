@@ -8,6 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
 const InvoiceModal = dynamic(
@@ -69,7 +70,7 @@ export default function InvoiceListPage() {
                 await deleteInvoice(id);
             } catch (error) {
                 console.error('Failed to delete invoice:', error);
-                alert(error instanceof Error ? error.message : '請求書の削除に失敗しました');
+                toast.error(error instanceof Error ? error.message : '請求書の削除に失敗しました');
             }
         }
     };
@@ -96,7 +97,7 @@ export default function InvoiceListPage() {
             setEditingInvoice(null);
         } catch (error) {
             console.error('Failed to save invoice:', error);
-            alert(error instanceof Error ? error.message : '請求書の保存に失敗しました');
+            toast.error(error instanceof Error ? error.message : '請求書の保存に失敗しました');
         } finally {
             setIsSubmitting(false);
         }

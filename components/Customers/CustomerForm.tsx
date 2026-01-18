@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { CustomerInput, ContactPerson } from '@/types/customer';
 import { Plus, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface CustomerFormProps {
     initialData?: Partial<CustomerInput>;
@@ -58,7 +59,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
         e.preventDefault();
 
         if (!formData.name) {
-            alert('会社名は必須です');
+            toast.error('会社名は必須です');
             return;
         }
 

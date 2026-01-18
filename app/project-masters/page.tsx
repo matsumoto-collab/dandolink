@@ -6,6 +6,7 @@ import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types
 import { Plus, Edit2, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, Building } from 'lucide-react';
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
+import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster } = useProjectMasters();
@@ -46,19 +47,19 @@ export default function ProjectMasterListPage() {
 
     const handleCreate = async () => {
         if (!formData.title.trim()) {
-            alert('現場名は必須です');
+            toast.error('現場名は必須です');
             return;
         }
         if (!formData.constructionContent) {
-            alert('工事内容は必須です');
+            toast.error('工事内容は必須です');
             return;
         }
         if (formData.createdBy.length === 0) {
-            alert('案件責任者は必須です');
+            toast.error('案件責任者は必須です');
             return;
         }
         if (!formData.customerName) {
-            alert('元請けは必須です');
+            toast.error('元請けは必須です');
             return;
         }
 
@@ -93,7 +94,7 @@ export default function ProjectMasterListPage() {
             setFormData(DEFAULT_FORM_DATA);
         } catch (error) {
             console.error('Failed to create project master:', error);
-            alert('案件マスターの作成に失敗しました');
+            toast.error('案件マスターの作成に失敗しました');
         }
     };
 
@@ -154,7 +155,7 @@ export default function ProjectMasterListPage() {
             setFormData(DEFAULT_FORM_DATA);
         } catch (error) {
             console.error('Failed to update project master:', error);
-            alert('案件マスターの更新に失敗しました');
+            toast.error('案件マスターの更新に失敗しました');
         }
     };
 
@@ -165,7 +166,7 @@ export default function ProjectMasterListPage() {
             await deleteProjectMaster(id);
         } catch (error) {
             console.error('Failed to delete project master:', error);
-            alert('案件マスターの削除に失敗しました');
+            toast.error('案件マスターの削除に失敗しました');
         }
     };
 

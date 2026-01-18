@@ -7,6 +7,7 @@ import { useProjects } from '@/contexts/ProjectContext';
 import { useCompany } from '@/contexts/CompanyContext';
 import { generateEstimatePDFBlob, exportEstimatePDF } from '@/utils/pdfGenerator';
 import { ArrowLeft, FileDown, Printer, Trash2, Edit, ExternalLink } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 
@@ -72,7 +73,7 @@ export default function EstimateDetailPage() {
 
     const handleEdit = () => {
         // TODO: 編集モーダルを開く
-        alert('編集機能は今後実装予定です');
+        toast('編集機能は今後実装予定です');
     };
 
     const handleGoToProject = () => {

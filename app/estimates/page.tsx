@@ -9,6 +9,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 // 大きなモーダルコンポーネントを遅延読み込み
 const EstimateModal = dynamic(
@@ -78,7 +79,7 @@ export default function EstimateListPage() {
                 await deleteEstimate(id);
             } catch (error) {
                 console.error('Failed to delete estimate:', error);
-                alert(error instanceof Error ? error.message : '見積書の削除に失敗しました');
+                toast.error(error instanceof Error ? error.message : '見積書の削除に失敗しました');
             }
         }
     };
@@ -105,7 +106,7 @@ export default function EstimateListPage() {
             setEditingEstimate(null);
         } catch (error) {
             console.error('Failed to save estimate:', error);
-            alert(error instanceof Error ? error.message : '見積書の保存に失敗しました');
+            toast.error(error instanceof Error ? error.message : '見積書の保存に失敗しました');
         } finally {
             setIsSubmitting(false);
         }

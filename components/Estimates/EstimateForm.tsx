@@ -5,6 +5,7 @@ import { useProjects } from '@/contexts/ProjectContext';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import toast from 'react-hot-toast';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from './UnitPriceMasterModal';
 import { UnitPriceMaster } from '@/types/unitPrice';
@@ -218,7 +219,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         e.preventDefault();
 
         if (!title) {
-            alert('タイトルは必須です');
+            toast.error('タイトルは必須です');
             return;
         }
 

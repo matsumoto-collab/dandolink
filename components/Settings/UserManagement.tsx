@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash2, Shield } from 'lucide-react';
 import { User } from '@/types/user';
 import UserModal from './UserModal';
+import toast from 'react-hot-toast';
 
 export default function UserManagement() {
     const [users, setUsers] = useState<User[]>([]);
@@ -56,11 +57,11 @@ export default function UserManagement() {
                 fetchUsers();
             } else {
                 const data = await response.json();
-                alert(data.error || 'ユーザーの削除に失敗しました');
+                toast.error(data.error || 'ユーザーの削除に失敗しました');
             }
         } catch (error) {
             console.error('Failed to delete user:', error);
-            alert('ユーザーの削除に失敗しました');
+            toast.error('ユーザーの削除に失敗しました');
         }
     };
 
