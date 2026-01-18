@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Truck, Users, Wrench, Package, MoreHorizontal, Loader2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Truck, Users, Wrench, Package, MoreHorizontal } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 
 interface CostBreakdown {
@@ -60,8 +61,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
         return (
             <div className="bg-white rounded-lg shadow p-6">
                 <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
-                    <span className="ml-2 text-gray-500">利益情報を読み込み中...</span>
+                    <Loading text="利益情報を読み込み中..." />
                 </div>
             </div>
         );

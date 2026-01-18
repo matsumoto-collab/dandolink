@@ -10,7 +10,7 @@
 | カテゴリ | 完了 | 未完了 |
 |---------|------|--------|
 | パフォーマンス | 6 | 1 |
-| UI/UX | 0 | 3 |
+| UI/UX | 2 | 1 |
 | コード品質 | 1 | 2 |
 | セキュリティ | 1 | 1 |
 | テスト | 0 | 1 |
@@ -119,25 +119,63 @@
 
 ## 2. UI/UX問題
 
-### 2.1 ローディング状態の統一 - ⏳ 未対応
+### 2.1 ローディング状態の統一 - ✅ 改善済み (2026-01-18)
 
 **問題**: ローディング表示が統一されていない（スピナー、スケルトン、何もなしなど）
 
-**推奨対応**:
-- 共通のLoadingコンポーネント作成
-- Suspense境界の適切な配置
-- スケルトンUIの実装
+**解決策**: 統一されたLoadingコンポーネントを作成し、全アプリケーションで使用
+
+**変更内容**:
+- `components/ui/Loading.tsx` を新規作成:
+  - `Loading`: 基本ローディングスピナー（サイズ、テキスト、フルスクリーン、オーバーレイオプション）
+  - `PageLoading`: ページ全体のローディング表示
+  - `TableRowSkeleton`: テーブル行のスケルトン
+  - `CardSkeleton`: カードのスケルトン
+  - `ButtonLoading`: ボタン内のローディング表示
+
+- 以下のファイルで統一コンポーネントに置き換え:
+  - `app/daily-reports/page.tsx` - インラインスピナー → Loading
+  - `app/login/page.tsx` - SVGスピナー → ButtonLoading
+  - `components/Settings/UserManagement.tsx` - テキスト → Loading
+  - `components/Projects/ProjectForm.tsx` - インラインスピナー → ButtonLoading
+  - `components/Calendar/WeeklyCalendar.tsx` - インラインスピナー → Loading, overlay
+  - `components/ProjectMaster/ProjectProfitDisplay.tsx` - Loader2 → Loading
+  - `components/Settings/UserModal.tsx` - テキスト → ButtonLoading
+  - `components/ProjectMasterSearchModal.tsx` - インラインスピナー → Loading
+  - `components/ProjectMasters/ProjectMasterForm.tsx` - インラインスピナー → ButtonLoading
+  - `components/Calendar/DispatchConfirmModal.tsx` - テキスト → Loading
 
 ---
 
-### 2.2 エラーハンドリングの統一 - ⏳ 未対応
+### 2.2 エラーハンドリングの統一 - ✅ 改善済み (2026-01-18)
 
 **問題**: `alert()` と `console.error()` が混在、ユーザーフレンドリーでない
 
-**推奨対応**:
-- トースト通知システムの導入（react-hot-toast等）
-- グローバルエラーハンドラーの実装
-- Error Boundaryの追加
+**解決策**: react-hot-toastを導入し、全てのalert()をtoastに置き換え
+
+**変更内容**:
+- `react-hot-toast` パッケージをインストール
+- `app/layout.tsx` に `<Toaster>` コンポーネントを追加
+- 以下のファイルで `alert()` を `toast.error()` / `toast.success()` に置き換え:
+  - `app/estimates/page.tsx`
+  - `app/invoices/page.tsx`
+  - `app/customers/page.tsx`
+  - `app/daily-reports/page.tsx`
+  - `app/projects/page.tsx`
+  - `app/project-masters/page.tsx`
+  - `app/settings/page.tsx`
+  - `app/estimates/[id]/page.tsx`
+  - `components/Settings/UnitPriceMasterSettings.tsx`
+  - `components/Customers/CustomerForm.tsx`
+  - `components/Invoices/InvoiceForm.tsx`
+  - `components/Calendar/CopyAssignmentModal.tsx`
+  - `components/Projects/ProjectForm.tsx`
+  - `components/Calendar/DispatchConfirmModal.tsx`
+  - `components/Estimates/EstimateForm.tsx`
+  - `components/Projects/MultiDayScheduleEditor.tsx`
+  - `components/Settings/UserManagement.tsx`
+
+**コミット**: `0fa6761`
 
 ---
 
@@ -280,8 +318,8 @@ useEffect(() => {
 1. ~~Context遅延読み込み~~ ✅
 2. ~~日報・ダッシュボード速度改善~~ ✅
 3. ~~N+1クエリ修正~~ ✅
-4. エラーハンドリング統一
-5. ローディング状態統一
+4. ~~エラーハンドリング統一~~ ✅
+5. ~~ローディング状態統一~~ ✅
 
 ### 中優先度
 6. バンドルサイズ最適化
@@ -299,6 +337,8 @@ useEffect(() => {
 
 | 日付 | 内容 | コミット |
 |------|------|----------|
+| 2026-01-18 | ローディング状態統一（統一Loadingコンポーネント） | - |
+| 2026-01-18 | エラーハンドリング統一（react-hot-toast導入） | 0fa6761 |
 | 2026-01-18 | Context遅延読み込み実装 | e97d23a |
 | 2026-01-18 | 利益ダッシュボード高速化 | eb6cfc3, e5c35b7 |
 | 2026-01-18 | 401エラー修正（'use server'削除） | - |

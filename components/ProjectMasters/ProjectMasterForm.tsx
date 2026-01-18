@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, MapPin, Plus, Search } from 'lucide-react';
+import { ButtonLoading } from '@/components/ui/Loading';
 import {
     ScaffoldingSpec,
     DEFAULT_SCAFFOLDING_SPEC,
@@ -222,7 +223,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                             <div className="flex flex-wrap gap-2 min-h-[42px] p-2 border border-gray-300 rounded-lg bg-white">
                                 {isLoadingManagers ? (
                                     <div className="flex items-center gap-2 text-gray-500">
-                                        <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                                        <ButtonLoading />
                                         <span className="text-sm">担当者を読み込み中...</span>
                                     </div>
                                 ) : managers.length > 0 ? (

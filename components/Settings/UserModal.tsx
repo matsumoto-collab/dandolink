@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import { X } from 'lucide-react';
+import { ButtonLoading } from '@/components/ui/Loading';
 import { User, UserRole } from '@/types/user';
 
 interface UserModalProps {
@@ -218,7 +219,12 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                             className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={isLoading}
                         >
-                            {isLoading ? '保存中...' : mode === 'create' ? '追加' : '更新'}
+                            {isLoading ? (
+                                <span className="flex items-center gap-2">
+                                    <ButtonLoading />
+                                    保存中...
+                                </span>
+                            ) : mode === 'create' ? '追加' : '更新'}
                         </button>
                     </div>
                 </form>

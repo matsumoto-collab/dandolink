@@ -7,13 +7,14 @@ import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar, Loader2 } from 'lucide-react';
+import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
 const DailyReportModal = dynamic(
     () => import('@/components/DailyReport/DailyReportModal'),
-    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+    { loading: () => <Loading overlay /> }
 );
 
 export default function DailyReportPage() {
@@ -193,8 +194,7 @@ export default function DailyReportPage() {
             <div className="flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-48">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                        <span className="ml-3 text-gray-600">読み込み中...</span>
+                        <Loading text="読み込み中..." />
                     </div>
                 ) : (
                     <table className="min-w-full divide-y divide-gray-200">

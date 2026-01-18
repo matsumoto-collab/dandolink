@@ -19,20 +19,20 @@ import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project, ProjectMaster, Employee } from '@/types/calendar';
-import { Loader2 } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
-    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+    loading: () => <Loading overlay />
 });
 const ProjectMasterSearchModal = dynamic(() => import('../ProjectMasterSearchModal'), {
-    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+    loading: () => <Loading overlay />
 });
 const DispatchConfirmModal = dynamic(() => import('./DispatchConfirmModal'), {
-    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+    loading: () => <Loading overlay />
 });
 const CopyAssignmentModal = dynamic(() => import('./CopyAssignmentModal'), {
-    loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div>
+    loading: () => <Loading overlay />
 });
 
 interface WeeklyCalendarProps {
@@ -332,9 +332,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     if (!isMounted || isCalendarLoading) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 min-h-[400px]">
-                <div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-                <div className="text-gray-600 font-medium">週間スケジュールを読み込み中...</div>
-                <div className="text-gray-400 text-sm mt-1">しばらくお待ちください</div>
+                <Loading size="lg" text="週間スケジュールを読み込み中..." />
             </div>
         );
     }

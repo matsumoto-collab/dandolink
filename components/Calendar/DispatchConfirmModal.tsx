@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, Check, Users, Truck } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 import { Project } from '@/types/calendar';
 import toast from 'react-hot-toast';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -161,8 +162,8 @@ export default function DispatchConfirmModal({
                 {/* コンテンツ */}
                 <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
                     {isLoadingUsers ? (
-                        <div className="text-center py-8 text-gray-500">
-                            ユーザーデータを読み込み中...
+                        <div className="flex items-center justify-center py-8">
+                            <Loading text="ユーザーデータを読み込み中..." />
                         </div>
                     ) : (
                         <>

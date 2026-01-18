@@ -8,6 +8,7 @@ import { formatDateKey } from '@/utils/employeeUtils';
 import VehicleModal from '../VehicleModal';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
 import { Plus, User } from 'lucide-react';
+import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
 
@@ -452,7 +453,7 @@ export default function ProjectForm({
                 <div className="flex flex-wrap gap-2 border border-gray-200 rounded-md p-3 min-h-[60px]">
                     {isLoadingManagers ? (
                         <div className="flex items-center gap-2 text-gray-500">
-                            <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                            <ButtonLoading />
                             <span className="text-sm">担当者を読み込み中...</span>
                         </div>
                     ) : apiManagers.length > 0 ? (

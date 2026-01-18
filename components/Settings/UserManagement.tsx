@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Users, Plus, Edit, Trash2, Shield } from 'lucide-react';
+import Loading from '@/components/ui/Loading';
 import { User } from '@/types/user';
 import UserModal from './UserModal';
 import toast from 'react-hot-toast';
@@ -130,7 +131,7 @@ export default function UserManagement() {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="text-gray-500">読み込み中...</div>
+                <Loading text="読み込み中..." />
             </div>
         );
     }

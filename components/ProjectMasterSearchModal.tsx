@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/contexts/ProjectMasterContext';
+import Loading from '@/components/ui/Loading';
 import { ProjectMaster, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 
 interface ProjectMasterSearchModalProps {
@@ -156,8 +157,7 @@ export default function ProjectMasterSearchModal({
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {isLoading ? (
                         <div className="text-center py-12">
-                            <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
-                            <p className="text-gray-500 mt-4">読み込み中...</p>
+                            <Loading text="読み込み中..." />
                         </div>
                     ) : filteredMasters.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">
