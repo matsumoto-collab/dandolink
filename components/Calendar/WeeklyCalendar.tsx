@@ -6,6 +6,7 @@ import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useSession } from 'next-auth/react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
+import { useIsMobile } from '@/hooks/useIsMobile';
 import { useProjects } from '@/contexts/ProjectContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useVacation } from '@/contexts/VacationContext';
@@ -17,6 +18,7 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
+import MobileDayView from './MobileDayView';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { CalendarEvent, Project, ProjectMaster, Employee } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
@@ -46,6 +48,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
+    const isMobileView = useIsMobile();
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -334,6 +337,56 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
             <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 min-h-[400px]">
                 <Loading size="lg" text="週間スケジュールを読み込み中..." />
             </div>
+        );
+    }
+
+    // モバイルビュー: 1日表示
+    if (isMobileView) {
+        // 職長リストを生成
+        const mobileEmployees: Employee[] = partnerMode && partnerId
+            ? allForemen
+                .filter(f => f.id === partnerId)
+                .map(f => ({ id: f.id, name: f.displayName }))
+            : displayedForemanIds
+                .map(id => allForemen.find(f => f.id === id))
+                .filter((foreman): foreman is typeof allForemen[0] => foreman !== undefined)
+                .map(foreman => ({ id: foreman.id, name: foreman.displayName }));
+
+        return (
+            <>
+                <MobileDayView
+                    currentDate={weekDays[0]?.date || new Date()}
+                    events={events}
+                    employees={mobileEmployees}
+                    onPreviousDay={goToPreviousDay}
+                    onNextDay={goToNextDay}
+                    onToday={goToToday}
+                    onEventClick={handleEventClick}
+                    onAddEvent={isReadOnly ? undefined : () => {
+                        setModalInitialData({
+                            startDate: weekDays[0]?.date || new Date(),
+                        });
+                        setIsModalOpen(true);
+                    }}
+                    isReadOnly={isReadOnly}
+                />
+
+                {/* モーダル */}
+                <ProjectModal
+                    isOpen={isModalOpen}
+                    onClose={() => {
+                        setIsModalOpen(false);
+                        setModalInitialData({});
+                    }}
+                    onSubmit={handleSaveProject}
+                    onDelete={deleteProject}
+                    initialData={modalInitialData.id ? modalInitialData : undefined}
+                    defaultDate={modalInitialData.startDate}
+                    defaultEmployeeId={modalInitialData.assignedEmployeeId}
+                    title={modalInitialData.id ? '案件編集' : '案件登録'}
+                    readOnly={isReadOnly}
+                />
+            </>
         );
     }
 
