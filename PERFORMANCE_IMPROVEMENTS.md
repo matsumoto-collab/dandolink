@@ -251,13 +251,70 @@ ANALYZE=true npm run build
 
 ---
 
-### 4.2 入力バリデーション - ⏳ 未対応
+### 4.2 入力バリデーション - 🔄 作業中
 
 **問題**: クライアント側のバリデーションのみで、サーバー側が不十分
 
 **推奨対応**:
 - Zodによるスキーマバリデーション
 - サーバー側での入力検証強化
+
+---
+
+### 4.3 Zodバリデーション基盤 - ✅ 作成済み (2026-01-18)
+
+**作成ファイル**: `lib/validations/index.ts`
+
+**実装済みスキーマ**:
+- `userRoleSchema` - ユーザーロール
+- `createUserSchema` / `updateUserSchema` - ユーザー管理
+- `contactPersonSchema` - 担当者情報
+- `createCustomerSchema` / `updateCustomerSchema` - 顧客管理
+- `constructionTypeSchema` - 工事種別
+- `createProjectMasterSchema` / `updateProjectMasterSchema` - 案件マスター
+- `workItemSchema` - 作業項目
+- `createDailyReportSchema` / `updateDailyReportSchema` - 日報
+
+**ヘルパー関数**:
+- `validateRequest<T>()` - 汎用バリデーション関数
+
+---
+
+> [!IMPORTANT]
+> ### 🔧 Zod V4 への対応について（別AIへの引き継ぎ情報）
+> 
+> **発生した問題**: プロジェクトのZodがV4にアップグレードされたため、以下のAPI変更が必要でした。
+> 
+> **修正箇所** (`lib/validations/index.ts`):
+> 
+> 1. **`z.enum()` の errorMap パラメータを削除**
+>    ```diff
+>    - export const userRoleSchema = z.enum([...], {
+>    -     errorMap: () => ({ message: 'エラーメッセージ' }),
+>    - });
+>    + export const userRoleSchema = z.enum([...]);
+>    ```
+>    Zod V4では `errorMap` の代わりに `error` または `message` を使用します。
+> 
+> 2. **`result.error.errors` → `result.error.issues` に変更**
+>    ```diff
+>    - const firstError = result.error.errors[0];
+>    - details: result.error.errors,
+>    + const issues = result.error.issues;
+>    + const firstError = issues[0];
+>    + details: issues,
+>    ```
+> 
+> 3. **型定義の変更**
+>    ```diff
+>    - details?: z.ZodError['errors']
+>    + details?: z.ZodIssue[]
+>    ```
+> 
+> **残タスク（別AIで続ける場合）**:
+> - 各APIルートでバリデーションスキーマを実際に使用する実装
+> - エラーメッセージのカスタマイズが必要な場合は、Zod V4の新しい構文を使用
+
 
 ---
 
