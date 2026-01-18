@@ -1,6 +1,6 @@
 # YuSystem パフォーマンス改善計画
 
-**最終更新**: 2026-01-18
+**最終更新**: 2026-01-19
 **総合評価（改善前）**: 65/100
 
 ---
@@ -11,7 +11,7 @@
 |---------|------|--------|
 | パフォーマンス | 7 | 0 |
 | UI/UX | 2 | 1 |
-| コード品質 | 2 | 2 |
+| コード品質 | 3 | 1 |
 | セキュリティ | 2 | 0 |
 | テスト | 0 | 1 |
 
@@ -263,13 +263,31 @@ return NextResponse.json(data, {
 
 ## 3. コード品質問題
 
-### 3.1 TypeScript strict mode - ⏳ 未対応
+### 3.1 TypeScript strict mode - ✅ 改善済み (2026-01-19)
 
-**問題**: `any` 型が多用されている
+**問題**: `any` 型が多用されている（38箇所）
 
-**推奨対応**:
-- `tsconfig.json` で strict mode を有効化
-- `any` を適切な型に置き換え
+**解決策**: すべての `: any` 型注釈と `as any` キャストを適切な型に置き換え
+
+**変更内容**:
+- **Supabase RealtimeChannel型**: 8つのContextファイルで `any` → `RealtimeChannel | null`
+  - `VacationContext.tsx`, `UnitPriceMasterContext.tsx`, `EstimateContext.tsx`
+  - `ProjectContext.tsx`, `RemarksContext.tsx`, `CustomerContext.tsx`
+  - `MasterDataContext.tsx`, `CompanyContext.tsx`, `InvoiceContext.tsx`
+- **Prisma結果型**: APIルートで明示的な型注釈を削除し、Prismaの推論型を使用
+  - `app/api/estimates/route.ts`, `app/api/invoices/route.ts`, `app/api/customers/route.ts`
+- **DnD Kit イベント型**: `DragStartEvent`, `DragEndEvent`, `DragOverEvent` を使用
+  - `hooks/useDragAndDrop.ts`
+- **jsPDF型**: `jsPDF` 型をインポートして使用
+  - `utils/fonts/japanese.ts`
+- **フォーム入力型**: 適切なユニオン型に置き換え
+  - `components/Estimates/EstimateForm.tsx`, `components/Invoices/InvoiceForm.tsx`
+- **権限チェック型**: `PermissionUser` インターフェースを作成してNextAuthセッションと互換性を確保
+  - `utils/permissions.ts`, `app/api/users/route.ts`, `app/api/users/[id]/route.ts`
+- **ローカルストレージ型**: `unknown` 型を使用
+  - `hooks/useLocalStorage.ts`
+- **ページコンポーネント型**: 適切な型をインポート
+  - `app/customers/page.tsx` - `CustomerInput`
 
 ---
 
@@ -474,7 +492,7 @@ useEffect(() => {
 ### 中優先度
 7. ~~バンドルサイズ最適化~~ ✅
 8. ~~入力バリデーション強化~~ ✅
-9. TypeScript strict mode
+9. ~~TypeScript strict mode~~ ✅
 10. SWR / React Query 導入（複数タブ間キャッシュ共有）
 
 ### 低優先度
@@ -511,6 +529,7 @@ useEffect(() => {
 
 | 日付 | 内容 | コミット |
 |------|------|----------|
+| 2026-01-19 | TypeScript any型完全排除（38箇所修正、RealtimeChannel型、PermissionUser型等） | - |
 | 2026-01-18 | as anyキャスト解消（ProjectStatus, SerializedProjectProfit型追加） | fb56352 |
 | 2026-01-18 | Zodバリデーション適用（users, customers API） | - |
 | 2026-01-18 | バンドルサイズ最適化（jsPDF動的インポート） | f401249 |
