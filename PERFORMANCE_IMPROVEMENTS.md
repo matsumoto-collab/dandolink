@@ -11,7 +11,7 @@
 |---------|------|--------|
 | パフォーマンス | 7 | 0 |
 | UI/UX | 2 | 1 |
-| コード品質 | 1 | 2 |
+| コード品質 | 2 | 2 |
 | セキュリティ | 2 | 0 |
 | テスト | 0 | 1 |
 
@@ -273,7 +273,24 @@ return NextResponse.json(data, {
 
 ---
 
-### 3.2 重複コード - ⏳ 未対応
+### 3.2 as any キャストの排除 - ✅ 改善済み (2026-01-18)
+
+**問題**: 型アサーション `as any` がコードベースに残存
+
+**解決策**: 適切な型定義を追加し、型安全なキャストに置換
+
+**変更内容**:
+- `types/calendar.ts`: `ProjectStatus` 型を新規追加・エクスポート
+- `components/Projects/ProjectForm.tsx`: `as any` → `as ProjectStatus`
+- `app/profit-dashboard/page.tsx`: `as any` → `SerializedProjectProfit[]` 型注釈
+- `app/profit-dashboard/components/ProfitDashboardClient.tsx`: `SerializedProjectProfit` 型をエクスポート
+- `utils/permissions.ts`: 未使用 `User` インポートを削除
+
+**コミット**: `fb56352`
+
+---
+
+### 3.3 重複コード - ⏳ 未対応
 
 **問題**: 同様のCRUD処理が各Contextで重複
 
@@ -283,7 +300,7 @@ return NextResponse.json(data, {
 
 ---
 
-### 3.3 未使用変数の警告 - ✅ 一部対応済み
+### 3.4 未使用変数の警告 - ✅ 一部対応済み
 
 **問題**: `_isSubmitting` など未使用変数が存在
 
@@ -494,6 +511,7 @@ useEffect(() => {
 
 | 日付 | 内容 | コミット |
 |------|------|----------|
+| 2026-01-18 | as anyキャスト解消（ProjectStatus, SerializedProjectProfit型追加） | fb56352 |
 | 2026-01-18 | Zodバリデーション適用（users, customers API） | - |
 | 2026-01-18 | バンドルサイズ最適化（jsPDF動的インポート） | f401249 |
 | 2026-01-18 | ローディング状態統一（統一Loadingコンポーネント） | 9cb3413 |
