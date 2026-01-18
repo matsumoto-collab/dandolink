@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { fetchProfitDashboardData } from '@/lib/profitDashboard';
-import ProfitDashboardClient from './components/ProfitDashboardClient';
+import ProfitDashboardClient, { type SerializedProjectProfit } from './components/ProfitDashboardClient';
 import ProfitDashboardLoading from './loading';
 
 interface Props {
@@ -12,14 +12,14 @@ async function ProfitDashboardContent({ status }: { status: string }) {
     const data = await fetchProfitDashboardData(status);
 
     // Date型をシリアライズ可能な形式に変換
-    const serializedProjects = data.projects.map(p => ({
+    const serializedProjects: SerializedProjectProfit[] = data.projects.map(p => ({
         ...p,
         updatedAt: p.updatedAt.toISOString(),
     }));
 
     return (
         <ProfitDashboardClient
-            projects={serializedProjects as any}
+            projects={serializedProjects}
             summary={data.summary}
             currentStatus={status}
         />

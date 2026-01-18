@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useCallback, useState, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS, ProjectAssignment, ProjectMaster } from '@/types/calendar';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface ProjectContextType {
     projects: Project[];
@@ -100,8 +101,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
 
         const setupRealtime = async () => {
             try {
@@ -131,9 +131,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         setupRealtime();
 
         return () => {
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

@@ -1,3 +1,6 @@
+// プロジェクトステータス型
+export type ProjectStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+
 // カレンダーイベントの型定義
 export interface CalendarEvent {
     id: string;
@@ -12,7 +15,7 @@ export interface CalendarEvent {
     workers?: string[];
     trucks?: string[];
     remarks?: string;
-    status?: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+    status?: ProjectStatus;
     constructionType?: ConstructionType; // 工事種別(後方互換性のため保持)
     // 班長割り当て用
     assignedEmployeeId?: string;

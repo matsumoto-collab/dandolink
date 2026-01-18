@@ -21,7 +21,7 @@ export async function GET(
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
-        if (!canManageUsers(session.user as any)) {
+        if (!canManageUsers(session.user)) {
             return NextResponse.json({ error: '権限がありません' }, { status: 403 });
         }
 
@@ -78,7 +78,7 @@ export async function PATCH(
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
-        if (!canManageUsers(session.user as any)) {
+        if (!canManageUsers(session.user)) {
             return NextResponse.json({ error: '権限がありません' }, { status: 403 });
         }
 
@@ -153,7 +153,7 @@ export async function DELETE(
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
-        if (!canManageUsers(session.user as any)) {
+        if (!canManageUsers(session.user)) {
             return NextResponse.json({ error: '権限がありません' }, { status: 403 });
         }
 

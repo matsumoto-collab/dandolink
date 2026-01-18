@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { VacationRecord } from '@/types/vacation';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface VacationContextType {
     isLoading: boolean;
@@ -50,7 +51,7 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         let debounceTimer: NodeJS.Timeout | null = null;
 
         const setupRealtimeSubscription = async () => {
@@ -81,10 +82,11 @@ export function VacationProvider({ children }: { children: React.ReactNode }) {
 
         return () => {
             if (debounceTimer) clearTimeout(debounceTimer);
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 console.log('[Vacations Realtime] Cleaning up subscription...');
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

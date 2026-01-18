@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 
-type PageType =
+export type PageType =
     | 'schedule'         // スケジュール管理
     | 'project-masters'  // 案件マスター管理
     | 'reports'          // 日報入力

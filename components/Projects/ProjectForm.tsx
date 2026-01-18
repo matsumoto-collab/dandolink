@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule } from '@/types/calendar';
+import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule, ProjectStatus } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/contexts/ProjectContext';
 import { formatDateKey } from '@/utils/employeeUtils';
@@ -551,7 +551,7 @@ export default function ProjectForm({
                 </label>
                 <select
                     value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value as ProjectStatus })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                     <option value="pending">保留</option>

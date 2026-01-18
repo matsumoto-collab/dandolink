@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useSession } from 'next-auth/react';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { Estimate } from '@/types/estimate';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface InvoiceContextType {
     invoices: Invoice[];
@@ -43,7 +44,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
             if (response.ok) {
                 const data = await response.json();
                 // Convert date strings to Date objects
-                const parsedInvoices = data.map((invoice: any) => ({
+                const parsedInvoices = data.map((invoice: Invoice) => ({
                     ...invoice,
                     dueDate: new Date(invoice.dueDate),
                     paidDate: invoice.paidDate ? new Date(invoice.paidDate) : undefined,
@@ -81,7 +82,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         setRealtimeSetup(true);
 
         const setupRealtime = async () => {
@@ -103,9 +104,10 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
         setupRealtime();
 
         return () => {
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

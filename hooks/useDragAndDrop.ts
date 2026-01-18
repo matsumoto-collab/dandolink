@@ -1,13 +1,14 @@
 import { useState, useCallback } from 'react';
+import { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import { CalendarEvent } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { arrayMove } from '@dnd-kit/sortable';
 
 interface UseDragAndDropReturn {
     activeId: string | null;
-    handleDragStart: (event: any) => void;
-    handleDragEnd: (event: any) => void;
-    handleDragOver: (event: any) => void;
+    handleDragStart: (event: DragStartEvent) => void;
+    handleDragEnd: (event: DragEndEvent) => void;
+    handleDragOver: (event: DragOverEvent) => void;
     handleDragCancel: () => void;
     moveEvent: (eventId: string, newEmployeeId: string, newDate: Date) => void;
 }
@@ -42,12 +43,12 @@ export function useDragAndDrop(
     }, [events, onEventsChange]);
 
     // ドラッグ開始
-    const handleDragStart = useCallback((event: any) => {
-        setActiveId(event.active.id);
+    const handleDragStart = useCallback((event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
     }, []);
 
     // ドラッグオーバー（セル内ソート用）
-    const handleDragOver = useCallback((event: any) => {
+    const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event;
 
         if (!over || active.id === over.id) {
@@ -87,7 +88,7 @@ export function useDragAndDrop(
     }, [events, onEventsChange]);
 
     // ドラッグ終了（ドロップ）
-    const handleDragEnd = useCallback((event: any) => {
+    const handleDragEnd = useCallback((event: DragEndEvent) => {
         const { active, over } = event;
 
         setActiveId(null);

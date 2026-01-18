@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Customer, CustomerInput } from '@/types/customer';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface CustomerContextType {
     customers: Customer[];
@@ -40,7 +41,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
             if (response.ok) {
                 const data = await response.json();
                 // Convert date strings to Date objects
-                const parsedCustomers = data.map((customer: any) => ({
+                const parsedCustomers = data.map((customer: Customer) => ({
                     ...customer,
                     createdAt: new Date(customer.createdAt),
                     updatedAt: new Date(customer.updatedAt),
@@ -76,7 +77,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         setRealtimeSetup(true);
 
         const setupRealtime = async () => {
@@ -98,9 +99,10 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         setupRealtime();
 
         return () => {
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

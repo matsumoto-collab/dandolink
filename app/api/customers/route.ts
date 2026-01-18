@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
                 prisma.customer.count(),
             ]);
 
-            const parsedCustomers = customers.map((customer: any) => ({
+            const parsedCustomers = customers.map((customer) => ({
                 ...customer,
                 contactPersons: customer.contactPersons ? JSON.parse(customer.contactPersons) : [],
             }));
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Parse JSON fields
-        const parsedCustomers = customers.map((customer: any) => ({
+        const parsedCustomers = customers.map((customer) => ({
             ...customer,
             contactPersons: customer.contactPersons ? JSON.parse(customer.contactPersons) : [],
         }));

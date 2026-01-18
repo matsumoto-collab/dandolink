@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 export interface Vehicle {
     id: string;
@@ -81,7 +82,7 @@ export function MasterDataProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        let channels: any[] = [];
+        let channels: RealtimeChannel[] = [];
         let isSubscribed = true;
 
         const setupRealtimeSubscription = async () => {

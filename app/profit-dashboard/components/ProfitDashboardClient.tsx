@@ -7,7 +7,7 @@ import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import type { DashboardSummary } from '@/lib/profitDashboard';
 
 // Server Componentから渡されるシリアライズ済みの型
-interface SerializedProjectProfit {
+export interface SerializedProjectProfit {
     id: string;
     title: string;
     customerName: string | null;
@@ -153,7 +153,7 @@ export default function ProfitDashboardClient({ projects, summary, currentStatus
                                     className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${currentStatus === option.value
                                         ? 'bg-blue-600 text-white'
                                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
+                                        }`}
                                 >
                                     {option.label}
                                 </button>

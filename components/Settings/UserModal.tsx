@@ -57,7 +57,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
         setIsLoading(true);
 
         try {
-            const dataToSave: any = {
+            const dataToSave: Partial<User> & { password?: string; username?: string } = {
                 email: formData.email,
                 displayName: formData.displayName,
                 role: formData.role,
@@ -74,8 +74,9 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
 
             await onSave(dataToSave);
             onClose();
-        } catch (err: any) {
-            setError(err.message || 'エラーが発生しました');
+        } catch (err) {
+            const message = err instanceof Error ? err.message : 'エラーが発生しました';
+            setError(message);
         } finally {
             setIsLoading(false);
         }

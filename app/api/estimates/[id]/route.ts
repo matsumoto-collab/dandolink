@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * Update an estimate
@@ -34,7 +35,7 @@ export async function PATCH(
         }
 
         // Prepare update data
-        const updateData: any = {};
+        const updateData: Prisma.EstimateUpdateInput = {};
 
         if (body.projectMasterId !== undefined) updateData.projectMasterId = body.projectMasterId || null;
         if (body.estimateNumber !== undefined) updateData.estimateNumber = body.estimateNumber;

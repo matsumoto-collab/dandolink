@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
                 prisma.estimate.count(),
             ]);
 
-            const parsedEstimates = estimates.map((estimate: any) => ({
+            const parsedEstimates = estimates.map((estimate) => ({
                 ...estimate,
                 items: estimate.items ? JSON.parse(estimate.items) : [],
                 validUntil: new Date(estimate.validUntil),
@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Parse JSON fields
-        const parsedEstimates = estimates.map((estimate: any) => ({
+        const parsedEstimates = estimates.map((estimate) => ({
             ...estimate,
             items: estimate.items ? JSON.parse(estimate.items) : [],
             validUntil: new Date(estimate.validUntil),

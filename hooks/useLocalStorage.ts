@@ -39,7 +39,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 /**
  * JSON.parseでDate型を復元するためのreviver関数
  */
-function dateReviver(_key: string, value: any) {
+function dateReviver(_key: string, value: unknown): unknown {
     if (typeof value === 'string') {
         // ISO 8601形式の日付文字列を検出
         const dateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/;

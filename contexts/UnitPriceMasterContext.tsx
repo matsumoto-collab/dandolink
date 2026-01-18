@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { UnitPriceMaster, UnitPriceMasterInput, TemplateType } from '@/types/unitPrice';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface UnitPriceMasterContextType {
     unitPrices: UnitPriceMaster[];
@@ -71,7 +72,7 @@ export function UnitPriceMasterProvider({ children }: { children: React.ReactNod
     useEffect(() => {
         if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         setRealtimeSetup(true);
 
         const setupRealtimeSubscription = async () => {
@@ -92,9 +93,10 @@ export function UnitPriceMasterProvider({ children }: { children: React.ReactNod
         setupRealtimeSubscription();
 
         return () => {
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

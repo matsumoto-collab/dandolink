@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useNavigation } from '@/contexts/NavigationContext';
+import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession, signOut } from 'next-auth/react';
 import {
     Home,
@@ -71,7 +71,7 @@ export default function Sidebar() {
         }
     };
 
-    const handleNavigation = (page: any) => {
+    const handleNavigation = (page: PageType) => {
         setActivePage(page);
         closeMobileMenu(); // Close mobile menu after navigation
     };

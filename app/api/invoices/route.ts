@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
                 prisma.invoice.count(),
             ]);
 
-            const parsedInvoices = invoices.map((invoice: any) => ({
+            const parsedInvoices = invoices.map((invoice) => ({
                 ...invoice,
                 items: invoice.items ? JSON.parse(invoice.items) : [],
                 dueDate: new Date(invoice.dueDate),
@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
         });
 
         // Parse JSON fields
-        const parsedInvoices = invoices.map((invoice: any) => ({
+        const parsedInvoices = invoices.map((invoice) => ({
             ...invoice,
             items: invoice.items ? JSON.parse(invoice.items) : [],
             dueDate: new Date(invoice.dueDate),

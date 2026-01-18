@@ -21,14 +21,14 @@ export async function GET(_req: NextRequest) {
         }
 
         console.log('User role:', session.user.role);
-        console.log('Can manage users:', canManageUsers(session.user as any));
+        console.log('Can manage users:', canManageUsers(session.user));
 
-        if (!canManageUsers(session.user as any)) {
+        if (!canManageUsers(session.user)) {
             return NextResponse.json({
                 error: '権限がありません',
                 debug: {
                     role: session.user.role,
-                    canManage: canManageUsers(session.user as any)
+                    canManage: canManageUsers(session.user)
                 }
             }, { status: 403 });
         }
@@ -51,7 +51,7 @@ export async function GET(_req: NextRequest) {
         });
 
         // Parse assignedProjects JSON
-        const parsedUsers = users.map((user: any) => ({
+        const parsedUsers = users.map((user) => ({
             ...user,
             role: user.role.toLowerCase(),
             assignedProjects: user.assignedProjects
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
-        if (!canManageUsers(session.user as any)) {
+        if (!canManageUsers(session.user)) {
             return NextResponse.json({ error: '権限がありません' }, { status: 403 });
         }
 

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface RemarksData {
     [dateKey: string]: string; // dateKey (YYYY-MM-DD) -> remark text
@@ -50,7 +51,7 @@ export function RemarksProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         let isSubscribed = true;
 
         const setupRealtimeSubscription = async () => {
@@ -73,9 +74,10 @@ export function RemarksProvider({ children }: { children: ReactNode }) {
 
         return () => {
             isSubscribed = false;
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

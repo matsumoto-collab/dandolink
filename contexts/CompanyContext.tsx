@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
 import { CompanyInfo, CompanyInfoInput } from '@/types/company';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface CompanyContextType {
     companyInfo: CompanyInfo | null;
@@ -67,7 +68,7 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         setRealtimeSetup(true);
 
         const setupRealtimeSubscription = async () => {
@@ -88,9 +89,10 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
         setupRealtimeSubscription();
 
         return () => {
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

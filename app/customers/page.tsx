@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useCustomers } from '@/contexts/CustomerContext';
-import { Customer } from '@/types/customer';
+import { Customer, CustomerInput } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { CardSkeleton } from '@/components/ui/Loading';
 import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
@@ -28,7 +28,7 @@ export default function CustomersPage() {
     );
 
     // 新規顧客を追加
-    const handleAddCustomer = async (data: any) => {
+    const handleAddCustomer = async (data: CustomerInput) => {
         try {
             setIsSubmitting(true);
             await addCustomer(data);
@@ -42,7 +42,7 @@ export default function CustomersPage() {
     };
 
     // 顧客を更新
-    const handleUpdateCustomer = async (data: any) => {
+    const handleUpdateCustomer = async (data: Partial<CustomerInput>) => {
         if (editingCustomer) {
             try {
                 setIsSubmitting(true);

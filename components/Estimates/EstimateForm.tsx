@@ -184,7 +184,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     // 明細行の更新
-    const updateItem = (id: string, field: keyof EstimateItem, value: any) => {
+    const updateItem = (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
         setItems(items.map(item => {
             if (item.id === id) {
                 const updated = { ...item, [field]: value };

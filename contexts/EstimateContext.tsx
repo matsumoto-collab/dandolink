@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Estimate, EstimateInput } from '@/types/estimate';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 interface EstimateContextType {
     estimates: Estimate[];
@@ -33,7 +34,7 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
             const response = await fetch('/api/estimates');
             if (response.ok) {
                 const data = await response.json();
-                const parsedEstimates = data.map((estimate: any) => ({
+                const parsedEstimates = data.map((estimate: Estimate) => ({
                     ...estimate,
                     validUntil: new Date(estimate.validUntil),
                     createdAt: new Date(estimate.createdAt),
@@ -68,7 +69,7 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
 
-        let channel: any = null;
+        let channel: RealtimeChannel | null = null;
         setRealtimeSetup(true);
 
         const setupRealtime = async () => {
@@ -90,9 +91,10 @@ export function EstimateProvider({ children }: { children: ReactNode }) {
         setupRealtime();
 
         return () => {
-            if (channel) {
+            const channelToRemove = channel;
+            if (channelToRemove) {
                 import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channel);
+                    supabase.removeChannel(channelToRemove);
                 });
             }
         };

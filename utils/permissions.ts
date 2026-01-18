@@ -1,4 +1,11 @@
-import { User } from '@/types/user';
+import { UserRole } from '@/types/user';
+
+// Minimal user type for permission checks (compatible with NextAuth session.user)
+interface PermissionUser {
+    role: UserRole | string;
+    isActive: boolean;
+    assignedProjects?: string[];
+}
 
 // Role-based permissions configuration
 const ROLE_PERMISSIONS = {
@@ -53,7 +60,7 @@ const ROLE_PERMISSIONS = {
  * Check if a user has permission to perform an action on a resource
  */
 export function hasPermission(
-    user: User | null | undefined,
+    user: PermissionUser | null | undefined,
     resource: string,
     action: 'view' | 'create' | 'edit' | 'delete'
 ): boolean {
@@ -72,7 +79,7 @@ export function hasPermission(
  * Check if a user can access a specific project
  */
 export function canAccessProject(
-    user: User | null | undefined,
+    user: PermissionUser | null | undefined,
     projectId: string
 ): boolean {
     if (!user || !user.isActive) return false;
@@ -95,14 +102,14 @@ export function canAccessProject(
 /**
  * Check if a user is an admin
  */
-export function isAdmin(user: User | null | undefined): boolean {
+export function isAdmin(user: PermissionUser | null | undefined): boolean {
     return user?.role === 'admin' && user?.isActive === true;
 }
 
 /**
  * Check if a user can manage other users
  */
-export function canManageUsers(user: User | null | undefined): boolean {
+export function canManageUsers(user: PermissionUser | null | undefined): boolean {
     return user?.role === 'admin' && user?.isActive === true;
 }
 
