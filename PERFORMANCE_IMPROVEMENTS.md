@@ -154,6 +154,11 @@ ANALYZE=true npm run build
   - `components/ProjectMasters/ProjectMasterForm.tsx` - インラインスピナー → ButtonLoading
   - `components/Calendar/DispatchConfirmModal.tsx` - テキスト → Loading
 
+- **追加改善 (2026-01-18)**: 読み込み中に「データなし」と誤表示される問題を修正:
+  - `app/customers/page.tsx` - 読み込み中はCardSkeletonを表示
+  - `app/estimates/page.tsx` - 読み込み中はテーブルスケルトン行を表示
+  - Context の `isLoading`, `isInitialized` を使用して空データ判定を正確に
+
 ---
 
 ### 2.2 エラーハンドリングの統一 - ✅ 改善済み (2026-01-18)

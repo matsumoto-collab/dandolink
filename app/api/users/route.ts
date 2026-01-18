@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { canManageUsers } from '@/utils/permissions';
+import { createUserSchema, validateRequest } from '@/lib/validations';
 
 /**
  * Get all users
@@ -85,15 +86,17 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { username, email, displayName, password, role, assignedProjects } = body;
 
-        // Validation
-        if (!username || !email || !displayName || !password || !role) {
+        // Zodバリデーション
+        const validation = validateRequest(createUserSchema, body);
+        if (!validation.success) {
             return NextResponse.json(
-                { error: '必須項目を入力してください' },
+                { error: validation.error, details: validation.details },
                 { status: 400 }
             );
         }
+
+        const { username, email, displayName, password, role, assignedProjects } = validation.data;
 
         // Check if username already exists
         const existingUser = await prisma.user.findUnique({

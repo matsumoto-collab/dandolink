@@ -4,11 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useCustomers } from '@/contexts/CustomerContext';
 import { Customer } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
+import { CardSkeleton } from '@/components/ui/Loading';
 import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
-    const { customers, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
+    const { customers, isLoading, isInitialized, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
 
     // ページ表示時にデータを読み込み
     useEffect(() => {
@@ -111,7 +112,14 @@ export default function CustomersPage() {
             </div>
 
             {/* 顧客一覧 */}
-            {filteredCustomers.length === 0 ? (
+            {!isInitialized || isLoading ? (
+                /* 読み込み中はスケルトン表示 */
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[...Array(6)].map((_, i) => (
+                        <CardSkeleton key={i} />
+                    ))}
+                </div>
+            ) : filteredCustomers.length === 0 ? (
                 <div className="text-center py-12 bg-gray-50 rounded-lg">
                     <p className="text-gray-500">
                         {searchQuery ? '該当する顧客が見つかりません' : '顧客が登録されていません'}

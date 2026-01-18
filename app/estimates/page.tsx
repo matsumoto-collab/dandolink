@@ -22,7 +22,7 @@ const EstimateDetailModal = dynamic(
 );
 
 export default function EstimateListPage() {
-    const { estimates, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
+    const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
     const { projects } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const [searchTerm, setSearchTerm] = useState('');
@@ -197,7 +197,20 @@ export default function EstimateListPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredEstimates.length === 0 ? (
+                        {!isInitialized || isLoading ? (
+                            /* 読み込み中はスケルトン表示 */
+                            [...Array(5)].map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+                                    <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-16"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4 text-right"><div className="h-4 bg-gray-200 rounded w-16 ml-auto"></div></td>
+                                </tr>
+                            ))
+                        ) : filteredEstimates.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                                     {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '見積書が登録されていません'}
