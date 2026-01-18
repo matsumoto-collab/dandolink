@@ -43,7 +43,7 @@ export default function DroppableCell({ id, children, dayOfWeek, events, onClick
             ref={setNodeRef}
             onClick={handleClick}
             className={`
-        flex-1 min-w-[80px] min-h-[120px] border-r border-gray-200 p-1
+        flex-1 min-w-[140px] min-h-[120px] border-r border-gray-200 p-1
         transition-all duration-200
         ${isSaturday ? 'bg-blue-50/40' : isSunday ? 'bg-red-50/40' : 'bg-white'}
         ${isOver ? 'bg-blue-100 ring-2 ring-blue-400 ring-inset shadow-inner' : ''}
