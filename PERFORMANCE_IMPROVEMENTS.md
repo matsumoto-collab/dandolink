@@ -126,6 +126,45 @@ ANALYZE=true npm run build
 
 ---
 
+### 1.8 APIレスポンスキャッシュ - ✅ 改善済み (2026-01-18)
+
+**問題**: 頻繁にアクセスされる参照データが毎回DBから取得される
+
+**解決策**: Cache-Controlヘッダーで5分間のプライベートキャッシュを設定
+
+**変更内容**:
+- `app/api/master-data/route.ts` - 車両・作業員・管理者一覧
+- `app/api/dispatch/foremen/route.ts` - 職長一覧
+- `app/api/dispatch/workers/route.ts` - 作業員一覧
+
+```typescript
+return NextResponse.json(data, {
+    headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
+    },
+});
+```
+
+---
+
+### 1.9 データベースインデックス - ⏳ 適用待ち
+
+**問題**: 頻繁にクエリされるカラムにインデックスがない
+
+**解決策**: `scripts/add_performance_indexes.sql` を作成
+
+**適用方法**:
+1. Supabaseダッシュボードを開く
+2. SQL Editor を選択
+3. `scripts/add_performance_indexes.sql` の内容を貼り付けて実行
+
+**対象テーブル**:
+- `ProjectAssignment` - date, assignedEmployeeId+date, projectMasterId
+- `Customer` - name
+- `Estimate` - createdAt, status
+- `ProjectMaster` - title, customerId
+
+
 ## 2. UI/UX問題
 
 ### 2.1 ローディング状態の統一 - ✅ 改善済み (2026-01-18)
