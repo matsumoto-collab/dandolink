@@ -263,6 +263,7 @@ return NextResponse.json(data, {
 - `app/estimates/page.tsx` - 見積書一覧（モバイルカード追加）
 - `app/invoices/page.tsx` - 請求書一覧（統計カードも2列対応）
 - `app/daily-reports/page.tsx` - 日報一覧（モバイルカード追加）
+- `app/projects/page.tsx` - 案件一覧（モバイルカード追加）
 
 **モバイルカードの特徴**:
 - 主要情報を縦に配置（タイトル、金額、ステータス、日付）
@@ -271,7 +272,6 @@ return NextResponse.json(data, {
 - 新規追加ボタンのテキストを短縮（例: 「新規見積書作成」→「新規作成」）
 
 **今後の改善**:
-- 案件一覧ページのモバイル対応
 - タッチ操作の最適化（スワイプジェスチャー）
 - フォントサイズ・間隔の微調整
 
