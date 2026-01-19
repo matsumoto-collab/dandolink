@@ -11,7 +11,7 @@
 |---------|------|--------|
 | パフォーマンス | 7 | 0 |
 | UI/UX | 2 | 1 |
-| コード品質 | 3 | 1 |
+| コード品質 | 4 | 0 |
 | セキュリティ | 2 | 0 |
 | テスト | 0 | 1 |
 
@@ -308,13 +308,29 @@ return NextResponse.json(data, {
 
 ---
 
-### 3.3 重複コード - ⏳ 未対応
+### 3.3 重複コード - ✅ 一部改善済み (2026-01-19)
 
-**問題**: 同様のCRUD処理が各Contextで重複
+**問題**: 同様のCRUD処理が各Contextで重複（約2,300行の重複コード）
 
-**推奨対応**:
-- 汎用的なCRUDフックの作成
-- APIクライアントの抽象化
+**解決策**: 共通ユーティリティとフックを作成
+
+**新規作成ファイル**:
+- `lib/api/utils.ts` - API共通ユーティリティ
+  - `requireAuth()` - 認証チェック（30箇所の重複を統一）
+  - `errorResponse()`, `notFoundResponse()`, `serverErrorResponse()` - エラーレスポンス
+  - `parseJsonField()`, `stringifyJsonField()` - JSONフィールド処理
+- `hooks/useRealtimeSubscription.ts` - Supabase Realtime購読フック
+  - `useRealtimeSubscription()` - 単一テーブル用（12箇所の重複を統一可能）
+  - `useMultipleRealtimeSubscriptions()` - 複数テーブル用
+
+**適用済みファイル**:
+- `app/api/customers/route.ts` - 132行→106行（-20%）
+- `app/api/customers/[id]/route.ts` - 123行→99行（-20%）
+- `contexts/CustomerContext.tsx` - 215行→159行（-26%）
+
+**残りの適用対象**:
+- 他のAPIルート（estimates, invoices, assignments等）
+- 他のContext（EstimateContext, InvoiceContext等）
 
 ---
 
@@ -496,7 +512,7 @@ useEffect(() => {
 10. SWR / React Query 導入（複数タブ間キャッシュ共有）
 
 ### 低優先度
-11. 重複コードリファクタリング
+11. ~~重複コードリファクタリング~~ ✅（一部完了）
 12. テスト追加
 
 ---
@@ -529,7 +545,8 @@ useEffect(() => {
 
 | 日付 | 内容 | コミット |
 |------|------|----------|
-| 2026-01-19 | TypeScript any型完全排除（38箇所修正、RealtimeChannel型、PermissionUser型等） | - |
+| 2026-01-19 | 重複コード削減（API共通ユーティリティ、useRealtimeSubscriptionフック） | 622df15 |
+| 2026-01-19 | TypeScript any型完全排除（38箇所修正、RealtimeChannel型、PermissionUser型等） | fb56352 |
 | 2026-01-18 | as anyキャスト解消（ProjectStatus, SerializedProjectProfit型追加） | fb56352 |
 | 2026-01-18 | Zodバリデーション適用（users, customers API） | - |
 | 2026-01-18 | バンドルサイズ最適化（jsPDF動的インポート） | f401249 |
