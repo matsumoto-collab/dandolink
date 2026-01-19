@@ -8,15 +8,19 @@ import { useState, useEffect } from 'react';
  * @returns モバイルかどうか
  */
 export function useIsMobile(breakpoint: number = 1024): boolean {
-    const [isMobile, setIsMobile] = useState(false);
+    // SSR時はfalse、クライアント側で初期値を判定
+    const [isMobile, setIsMobile] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        return window.innerWidth < breakpoint;
+    });
 
     useEffect(() => {
-        // 初期値を設定
+        // クライアント側で初期チェック（SSRからの復帰時に必要）
         const checkMobile = () => {
             setIsMobile(window.innerWidth < breakpoint);
         };
 
-        // 初回チェック
+        // 初回チェック（マウント時に必ず実行）
         checkMobile();
 
         // リサイズイベントを監視
