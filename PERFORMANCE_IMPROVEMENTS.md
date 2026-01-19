@@ -165,6 +165,22 @@ return NextResponse.json(data, {
 - `ProjectMaster` - title, customerId
 
 
+### 1.10 WeeklyCalendar日付範囲フィルタリング - ✅ 改善済み (2026-01-19)
+
+**問題**: `ProjectContext` が全期間の配置データを取得し、カレンダー表示が遅い
+
+**解決策**: 表示週 ± 1週のみフェッチ
+
+**変更内容**:
+- `contexts/ProjectContext.tsx` - `fetchForDateRange()` メソッド追加、日付範囲パラメータ対応
+- `components/Calendar/WeeklyCalendar.tsx` - 週変更時に日付範囲を指定してフェッチ
+
+**期待効果**:
+- APIレスポンスサイズの大幅削減
+- 初期読み込み速度の改善
+
+---
+
 ## 2. UI/UX問題
 
 ### 2.1 ローディング状態の統一 - ✅ 改善済み (2026-01-18)
@@ -561,6 +577,7 @@ useEffect(() => {
 
 | 日付 | 内容 | コミット |
 |------|------|----------|
+| 2026-01-19 | WeeklyCalendar日付範囲フィルタリング実装（表示週±1週のみフェッチ） | - |
 | 2026-01-19 | モバイルUI/UX Phase3（見積書・請求書・日報のカードレイアウト対応） | - |
 | 2026-01-19 | 重複コード削減（API共通ユーティリティ、useRealtimeSubscriptionフック） | 622df15 |
 | 2026-01-19 | TypeScript any型完全排除（38箇所修正、RealtimeChannel型、PermissionUser型等） | fb56352 |

@@ -17,7 +17,7 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
-import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
+import { formatDate, getDayOfWeekString, addDays } from '@/utils/dateUtils';
 import { CalendarEvent, Project, ProjectMaster, Employee } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
 
@@ -42,7 +42,7 @@ interface WeeklyCalendarProps {
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
     const { data: session } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents } = useProjects();
+    const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents, fetchForDateRange, isLoading: isProjectsLoading, isInitialized } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
@@ -81,6 +81,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const events: CalendarEvent[] = useMemo(() => getCalendarEvents(), [getCalendarEvents]);
 
     const {
+        currentDate,
         weekDays,
         goToPreviousWeek,
         goToNextWeek,
@@ -88,6 +89,19 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         goToNextDay,
         goToToday,
     } = useCalendar(events);
+
+    // 表示週の前後1週間のデータをフェッチ
+    useEffect(() => {
+        if (session && isMounted) {
+            // currentDateから週の開始日（表示開始日）を計算
+            const weekStart = new Date(currentDate);
+            const weekEnd = addDays(weekStart, 6);
+            // 前後1週間のマージンを追加
+            const rangeStart = addDays(weekStart, -7);
+            const rangeEnd = addDays(weekEnd, 7);
+            fetchForDateRange(rangeStart, rangeEnd);
+        }
+    }, [currentDate, session, isMounted, fetchForDateRange]);
 
     const {
         activeId,
@@ -329,7 +343,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     }, [copyEvent, projects, addProject]);
 
     // サーバーサイドレンダリング時またはデータ読み込み中はローディング表示
-    if (!isMounted || isCalendarLoading) {
+    if (!isMounted || isCalendarLoading || (isProjectsLoading && !isInitialized)) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 min-h-[400px]">
                 <Loading size="lg" text="週間スケジュールを読み込み中..." />

@@ -13,6 +13,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 interface ProjectContextType {
     projects: Project[];
     isLoading: boolean;
+    isInitialized: boolean;
     addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => Promise<void>;
@@ -20,6 +21,7 @@ interface ProjectContextType {
     getProjectById: (id: string) => Project | undefined;
     getCalendarEvents: () => CalendarEvent[];
     refreshProjects: () => Promise<void>;
+    fetchForDateRange: (startDate: Date, endDate: Date) => Promise<void>;
 }
 
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
@@ -59,12 +61,20 @@ function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: P
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const { status } = useSession();
     const [assignments, setAssignments] = useState<(ProjectAssignment & { projectMaster?: ProjectMaster })[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [currentDateRange, setCurrentDateRange] = useState<{ start: string; end: string } | null>(null);
 
-    // Fetch assignments from API
-    const fetchAssignments = useCallback(async () => {
+    // Fetch assignments from API with optional date range
+    const fetchAssignments = useCallback(async (startDate?: string, endDate?: string) => {
         try {
-            const response = await fetch('/api/assignments');
+            setIsLoading(true);
+            const params = new URLSearchParams();
+            if (startDate) params.append('startDate', startDate);
+            if (endDate) params.append('endDate', endDate);
+            const url = `/api/assignments${params.toString() ? `?${params}` : ''}`;
+
+            const response = await fetch(url);
             if (response.ok) {
                 const data = await response.json();
                 const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({
@@ -79,6 +89,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     } : undefined,
                 }));
                 setAssignments(parsed);
+                setIsInitialized(true);
             }
         } catch (error) {
             console.error('Failed to fetch assignments:', error);
@@ -87,15 +98,29 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         }
     }, []);
 
-    // Initial load when authenticated
+    // Fetch for a specific date range (called by WeeklyCalendar)
+    const fetchForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+
+        // Skip if same range is already loaded
+        if (currentDateRange?.start === startStr && currentDateRange?.end === endStr && isInitialized) {
+            return;
+        }
+
+        setCurrentDateRange({ start: startStr, end: endStr });
+        await fetchAssignments(startStr, endStr);
+    }, [fetchAssignments, currentDateRange, isInitialized]);
+
+    // Reset state when unauthenticated
     useEffect(() => {
-        if (status === 'authenticated') {
-            fetchAssignments();
-        } else if (status === 'unauthenticated') {
+        if (status === 'unauthenticated') {
             setAssignments([]);
             setIsLoading(false);
+            setIsInitialized(false);
+            setCurrentDateRange(null);
         }
-    }, [status, fetchAssignments]);
+    }, [status]);
 
     // Supabase Realtime subscription
     useEffect(() => {
@@ -327,6 +352,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             value={{
                 projects,
                 isLoading,
+                isInitialized,
                 addProject,
                 updateProject,
                 updateProjects,
@@ -334,6 +360,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 getProjectById,
                 getCalendarEvents,
                 refreshProjects,
+                fetchForDateRange,
             }}
         >
             {children}
