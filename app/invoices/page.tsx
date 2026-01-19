@@ -125,61 +125,64 @@ export default function InvoiceListPage() {
             </div>
 
             {/* 統計カード */}
-            <div className="grid grid-cols-5 gap-4 mb-6">
-                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <div className="text-sm text-gray-600 mb-1">全体</div>
-                    <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-1">全体</div>
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
                 </div>
-                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <div className="text-sm text-blue-600 mb-1">送付済み</div>
-                    <div className="text-2xl font-bold text-blue-600">{stats.sent}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+                    <div className="text-xs sm:text-sm text-blue-600 mb-1">送付済み</div>
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.sent}</div>
                 </div>
-                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <div className="text-sm text-green-600 mb-1">支払済み</div>
-                    <div className="text-2xl font-bold text-green-600">{stats.paid}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+                    <div className="text-xs sm:text-sm text-green-600 mb-1">支払済み</div>
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.paid}</div>
                 </div>
-                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <div className="text-sm text-red-600 mb-1">期限超過</div>
-                    <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
+                    <div className="text-xs sm:text-sm text-red-600 mb-1">期限超過</div>
+                    <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.overdue}</div>
                 </div>
-                <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-                    <div className="text-sm text-orange-600 mb-1">未回収</div>
-                    <div className="text-lg font-bold text-orange-600">¥{stats.unpaidAmount.toLocaleString()}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 col-span-2 sm:col-span-1">
+                    <div className="text-xs sm:text-sm text-orange-600 mb-1">未回収</div>
+                    <div className="text-base sm:text-lg font-bold text-orange-600">¥{stats.unpaidAmount.toLocaleString()}</div>
                 </div>
             </div>
 
             {/* ツールバー */}
-            <div className="mb-6 flex items-center justify-between gap-4">
-                {/* 検索バー */}
-                <div className="flex-1 max-w-md relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                        type="text"
-                        placeholder="請求番号、案件名で検索..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                    />
-                </div>
+            <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+                {/* 検索バーとフィルター */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                    {/* 検索バー */}
+                    <div className="flex-1 sm:max-w-md relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="請求番号、案件名で検索..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                        />
+                    </div>
 
-                {/* ステータスフィルター */}
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
-                >
-                    <option value="all">全てのステータス</option>
-                    <option value="draft">下書き</option>
-                    <option value="sent">送付済み</option>
-                    <option value="paid">支払済み</option>
-                    <option value="overdue">期限超過</option>
-                </select>
+                    {/* ステータスフィルター */}
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                    >
+                        <option value="all">全てのステータス</option>
+                        <option value="draft">下書き</option>
+                        <option value="sent">送付済み</option>
+                        <option value="paid">支払済み</option>
+                        <option value="overdue">期限超過</option>
+                    </select>
+                </div>
 
                 {/* 新規追加ボタン */}
                 <button
                     onClick={handleAddNew}
                     className="
-                        flex items-center gap-2 px-5 py-2.5
+                        flex items-center justify-center gap-2 px-5 py-2.5
                         bg-gradient-to-r from-blue-600 to-blue-700
                         text-white font-semibold rounded-lg
                         hover:from-blue-700 hover:to-blue-800
@@ -188,12 +191,82 @@ export default function InvoiceListPage() {
                     "
                 >
                     <Plus className="w-5 h-5" />
-                    新規請求書作成
+                    <span className="hidden sm:inline">新規請求書作成</span>
+                    <span className="sm:hidden">新規作成</span>
                 </button>
             </div>
 
-            {/* テーブル */}
-            <div className="flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
+            {/* モバイルカードビュー */}
+            <div className="md:hidden flex-1 overflow-auto">
+                {filteredInvoices.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">
+                            {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {filteredInvoices.map((invoice) => {
+                            const statusInfo = getStatusInfo(invoice.status);
+                            const StatusIcon = statusInfo.icon;
+
+                            return (
+                                <div
+                                    key={invoice.id}
+                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                >
+                                    {/* ヘッダー: 請求番号とアクション */}
+                                    <div className="flex items-start justify-between mb-3">
+                                        <span className="text-base font-semibold text-gray-900">
+                                            {invoice.invoiceNumber}
+                                        </span>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleEdit(invoice)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="編集"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(invoice.id)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="削除"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 案件名 */}
+                                    <div className="text-sm text-gray-700 mb-3">
+                                        {getProjectName(invoice.projectId)}
+                                    </div>
+
+                                    {/* 金額 */}
+                                    <div className="text-lg font-bold text-gray-900 mb-3">
+                                        ¥{invoice.total.toLocaleString()}
+                                    </div>
+
+                                    {/* ステータスと支払期限 */}
+                                    <div className="flex items-center justify-between">
+                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
+                                            <StatusIcon className="w-4 h-4" />
+                                            {statusInfo.label}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                            期限: {formatDate(invoice.dueDate, 'short')}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* デスクトップテーブルビュー */}
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gradient-to-r from-gray-100 to-gray-50 sticky top-0 z-10">
                         <tr>

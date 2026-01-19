@@ -127,21 +127,41 @@ export default function DailyReportPage() {
             </div>
 
             {/* ツールバー */}
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-                {/* 検索バー */}
-                <div className="flex-1 max-w-md relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                        type="text"
-                        placeholder="職長名、備考で検索..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                    />
+            <div className="mb-6 flex flex-col gap-3 sm:gap-4">
+                {/* 上段: 検索バーと新規追加ボタン */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    {/* 検索バー */}
+                    <div className="flex-1 sm:max-w-md relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="職長名、備考で検索..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                        />
+                    </div>
+
+                    {/* 新規追加ボタン */}
+                    <button
+                        onClick={handleAddNew}
+                        className="
+                            flex items-center justify-center gap-2 px-5 py-2.5
+                            bg-gradient-to-r from-blue-600 to-blue-700
+                            text-white font-semibold rounded-lg
+                            hover:from-blue-700 hover:to-blue-800
+                            active:scale-95
+                            transition-all duration-200 shadow-md hover:shadow-lg
+                        "
+                    >
+                        <Plus className="w-5 h-5" />
+                        <span className="hidden sm:inline">新規日報追加</span>
+                        <span className="sm:hidden">新規追加</span>
+                    </button>
                 </div>
 
-                {/* フィルター */}
-                <div className="flex items-center gap-3">
+                {/* 下段: フィルター */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     {/* 職長フィルター */}
                     <select
                         value={foremanFilter}
@@ -157,41 +177,106 @@ export default function DailyReportPage() {
                     </select>
 
                     {/* 日付フィルター */}
-                    <input
-                        type="date"
-                        value={dateFilter}
-                        onChange={(e) => setDateFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
-                    />
-                    {dateFilter && (
-                        <button
-                            onClick={() => setDateFilter('')}
-                            className="px-3 py-2.5 text-sm text-gray-600 hover:text-gray-800 transition-colors"
-                        >
-                            クリア
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="date"
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            className="flex-1 sm:flex-none px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                        />
+                        {dateFilter && (
+                            <button
+                                onClick={() => setDateFilter('')}
+                                className="px-3 py-2.5 text-sm text-gray-600 hover:text-gray-800 transition-colors whitespace-nowrap"
+                            >
+                                クリア
+                            </button>
+                        )}
+                    </div>
                 </div>
-
-                {/* 新規追加ボタン */}
-                <button
-                    onClick={handleAddNew}
-                    className="
-                        flex items-center gap-2 px-5 py-2.5
-                        bg-gradient-to-r from-blue-600 to-blue-700
-                        text-white font-semibold rounded-lg
-                        hover:from-blue-700 hover:to-blue-800
-                        active:scale-95
-                        transition-all duration-200 shadow-md hover:shadow-lg
-                    "
-                >
-                    <Plus className="w-5 h-5" />
-                    新規日報追加
-                </button>
             </div>
 
-            {/* テーブル */}
-            <div className="flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
+            {/* モバイルカードビュー */}
+            <div className="md:hidden flex-1 overflow-auto">
+                {isLoading ? (
+                    <div className="flex items-center justify-center h-48">
+                        <Loading text="読み込み中..." />
+                    </div>
+                ) : filteredReports.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">
+                            {searchTerm || foremanFilter !== 'all' || dateFilter ?
+                                '検索結果が見つかりませんでした' :
+                                '日報が登録されていません'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {filteredReports.map((report) => {
+                            const totalWork = getTotalWorkMinutes(report);
+
+                            return (
+                                <div
+                                    key={report.id}
+                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                >
+                                    {/* ヘッダー: 日付とアクション */}
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Calendar className="w-4 h-4 text-gray-500" />
+                                            <span className="text-base font-semibold text-gray-900">
+                                                {formatDate(report.date, 'full')}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleViewReport(report)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="詳細"
+                                            >
+                                                <Eye className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(report.id)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="削除"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 職長名 */}
+                                    <div className="text-sm text-gray-700 mb-3">
+                                        職長: {getForemanName(report.foremanId)}
+                                    </div>
+
+                                    {/* 作業時間と積込時間 */}
+                                    <div className="flex flex-wrap items-center gap-3 mb-3">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                            <Clock className="w-3 h-3" />
+                                            作業 {formatMinutes(totalWork)}
+                                        </span>
+                                        <span className="text-xs text-gray-600">
+                                            積込: 朝 {formatMinutes(report.morningLoadingMinutes)} / 夕 {formatMinutes(report.eveningLoadingMinutes)}
+                                        </span>
+                                    </div>
+
+                                    {/* 備考 */}
+                                    {report.notes && (
+                                        <div className="text-sm text-gray-600 truncate border-t border-gray-100 pt-2 mt-2">
+                                            {report.notes}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* デスクトップテーブルビュー */}
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-48">
                         <Loading text="読み込み中..." />

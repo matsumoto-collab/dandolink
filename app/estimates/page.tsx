@@ -125,37 +125,40 @@ export default function EstimateListPage() {
 
 
             {/* ツールバー */}
-            <div className="mb-6 flex items-center justify-between gap-4">
-                {/* 検索バー */}
-                <div className="flex-1 max-w-md relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                    <input
-                        type="text"
-                        placeholder="見積番号、案件名で検索..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
-                    />
-                </div>
+            <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+                {/* 検索バーとフィルター */}
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                    {/* 検索バー */}
+                    <div className="flex-1 sm:max-w-md relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <input
+                            type="text"
+                            placeholder="見積番号、案件名で検索..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                        />
+                    </div>
 
-                {/* ステータスフィルター */}
-                <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
-                >
-                    <option value="all">全てのステータス</option>
-                    <option value="draft">下書き</option>
-                    <option value="sent">送付済み</option>
-                    <option value="approved">承認済み</option>
-                    <option value="rejected">却下</option>
-                </select>
+                    {/* ステータスフィルター */}
+                    <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                    >
+                        <option value="all">全てのステータス</option>
+                        <option value="draft">下書き</option>
+                        <option value="sent">送付済み</option>
+                        <option value="approved">承認済み</option>
+                        <option value="rejected">却下</option>
+                    </select>
+                </div>
 
                 {/* 新規追加ボタン */}
                 <button
                     onClick={handleAddNew}
                     className="
-                        flex items-center gap-2 px-5 py-2.5
+                        flex items-center justify-center gap-2 px-5 py-2.5
                         bg-gradient-to-r from-blue-600 to-blue-700
                         text-white font-semibold rounded-lg
                         hover:from-blue-700 hover:to-blue-800
@@ -164,12 +167,105 @@ export default function EstimateListPage() {
                     "
                 >
                     <Plus className="w-5 h-5" />
-                    新規見積書作成
+                    <span className="hidden sm:inline">新規見積書作成</span>
+                    <span className="sm:hidden">新規作成</span>
                 </button>
             </div>
 
-            {/* テーブル */}
-            <div className="flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
+            {/* モバイルカードビュー */}
+            <div className="md:hidden flex-1 overflow-auto">
+                {!isInitialized || isLoading ? (
+                    <div className="grid grid-cols-1 gap-4">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse">
+                                <div className="h-5 bg-gray-200 rounded w-32 mb-3"></div>
+                                <div className="h-4 bg-gray-200 rounded w-48 mb-2"></div>
+                                <div className="h-6 bg-gray-200 rounded w-24 mb-2"></div>
+                                <div className="h-5 bg-gray-200 rounded-full w-20"></div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filteredEstimates.length === 0 ? (
+                    <div className="text-center py-12 bg-gray-50 rounded-lg">
+                        <p className="text-gray-500">
+                            {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '見積書が登録されていません'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 gap-4">
+                        {filteredEstimates.map((estimate) => {
+                            const statusInfo = getStatusInfo(estimate.status);
+                            const StatusIcon = statusInfo.icon;
+
+                            return (
+                                <div
+                                    key={estimate.id}
+                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                >
+                                    {/* ヘッダー: 見積番号とアクション */}
+                                    <div className="flex items-start justify-between mb-3">
+                                        <button
+                                            onClick={() => {
+                                                setSelectedEstimate(estimate);
+                                                setIsDetailModalOpen(true);
+                                            }}
+                                            className="text-base font-semibold text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                                        >
+                                            {estimate.estimateNumber}
+                                        </button>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => handleEdit(estimate)}
+                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                title="編集"
+                                            >
+                                                <Edit2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(estimate.id)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                title="削除"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* 案件名 */}
+                                    <button
+                                        onClick={() => {
+                                            setSelectedEstimate(estimate);
+                                            setIsDetailModalOpen(true);
+                                        }}
+                                        className="text-sm text-gray-700 hover:text-blue-600 hover:underline transition-colors mb-3 block text-left"
+                                    >
+                                        {getProjectName(estimate.projectId ?? '')}
+                                    </button>
+
+                                    {/* 金額 */}
+                                    <div className="text-lg font-bold text-gray-900 mb-3">
+                                        ¥{estimate.total.toLocaleString()}
+                                    </div>
+
+                                    {/* ステータスと日付 */}
+                                    <div className="flex items-center justify-between">
+                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
+                                            <StatusIcon className="w-4 h-4" />
+                                            {statusInfo.label}
+                                        </span>
+                                        <span className="text-xs text-gray-500">
+                                            有効期限: {formatDate(estimate.validUntil, 'short')}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* デスクトップテーブルビュー */}
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gradient-to-r from-gray-100 to-gray-50 sticky top-0 z-10">
                         <tr>
