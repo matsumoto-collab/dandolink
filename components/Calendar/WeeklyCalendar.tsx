@@ -10,7 +10,6 @@ import { useProjects } from '@/contexts/ProjectContext';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useVacation } from '@/contexts/VacationContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { unassignedEmployee } from '@/data/mockEmployees';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import CalendarHeader from './CalendarHeader';
@@ -47,7 +46,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
-    const isMobile = useIsMobile(1024); // lg breakpoint
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalInitialData, setModalInitialData] = useState<Partial<Project>>({});
@@ -360,14 +358,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
 
                 {/* カレンダーグリッド */}
                 <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 via-white to-slate-50">
-                    {/* モバイル時にPC幅(約1280px)を強制し、画面幅に合わせて縮小 */}
-                    <div
-                        className="flex flex-col min-w-full origin-top-left"
-                        style={isMobile ? {
-                            width: '1280px',
-                            transform: 'scale(0.29)',
-                        } : undefined}
-                    >
+                    <div className="flex flex-col min-w-full">
                         {/* ヘッダー行: 日付と曜日 */}
                         <div className="flex border-b-2 border-slate-300 bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-20 shadow-md">
                             {/* 職長カラム（固定） */}
