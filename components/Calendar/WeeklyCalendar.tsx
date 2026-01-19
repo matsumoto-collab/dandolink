@@ -42,7 +42,7 @@ interface WeeklyCalendarProps {
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
     const { data: session } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents, fetchForDateRange, isLoading: isProjectsLoading, isInitialized } = useProjects();
+    const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents, fetchForDateRange, isInitialized } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
@@ -342,8 +342,9 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         }
     }, [copyEvent, projects, addProject]);
 
-    // サーバーサイドレンダリング時またはデータ読み込み中はローディング表示
-    if (!isMounted || isCalendarLoading || (isProjectsLoading && !isInitialized)) {
+    // サーバーサイドレンダリング時または初回データ読み込み中はローディング表示
+    // 週切り替え時はスムーズな遷移のためローディング表示しない
+    if (!isMounted || isCalendarLoading || !isInitialized) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 min-h-[400px]">
                 <Loading size="lg" text="週間スケジュールを読み込み中..." />

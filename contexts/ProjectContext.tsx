@@ -63,7 +63,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [assignments, setAssignments] = useState<(ProjectAssignment & { projectMaster?: ProjectMaster })[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
-    const [currentDateRange, setCurrentDateRange] = useState<{ start: string; end: string } | null>(null);
 
     // Fetch assignments from API with optional date range
     const fetchAssignments = useCallback(async (startDate?: string, endDate?: string) => {
@@ -99,18 +98,22 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     // Fetch for a specific date range (called by WeeklyCalendar)
+    // Use ref to avoid callback recreation on every render
+    const currentDateRangeRef = React.useRef<{ start: string; end: string } | null>(null);
+
     const fetchForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
         const startStr = startDate.toISOString().split('T')[0];
         const endStr = endDate.toISOString().split('T')[0];
 
         // Skip if same range is already loaded
-        if (currentDateRange?.start === startStr && currentDateRange?.end === endStr && isInitialized) {
+        const currentRange = currentDateRangeRef.current;
+        if (currentRange?.start === startStr && currentRange?.end === endStr) {
             return;
         }
 
-        setCurrentDateRange({ start: startStr, end: endStr });
+        currentDateRangeRef.current = { start: startStr, end: endStr };
         await fetchAssignments(startStr, endStr);
-    }, [fetchAssignments, currentDateRange, isInitialized]);
+    }, [fetchAssignments]);
 
     // Reset state when unauthenticated
     useEffect(() => {
@@ -118,7 +121,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             setAssignments([]);
             setIsLoading(false);
             setIsInitialized(false);
-            setCurrentDateRange(null);
+            currentDateRangeRef.current = null;
         }
     }, [status]);
 
