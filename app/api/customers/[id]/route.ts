@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { updateCustomerSchema, validateRequest } from '@/lib/validations';
+import {
+    requireAuth,
+    parseJsonField,
+    stringifyJsonField,
+    notFoundResponse,
+    serverErrorResponse,
+    validationErrorResponse,
+    deleteSuccessResponse,
+} from '@/lib/api/utils';
+
+// 顧客レコードのJSONフィールドをパース
+function parseCustomer<T extends { contactPersons: string | null }>(customer: T) {
+    return {
+        ...customer,
+        contactPersons: parseJsonField(customer.contactPersons, []),
+    };
+}
 
 /**
  * Update a customer
@@ -13,11 +28,8 @@ export async function PATCH(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
         const { id } = params;
         const body = await req.json();
@@ -25,56 +37,36 @@ export async function PATCH(
         // Zodバリデーション
         const validation = validateRequest(updateCustomerSchema, body);
         if (!validation.success) {
-            return NextResponse.json(
-                { error: validation.error, details: validation.details },
-                { status: 400 }
-            );
+            return validationErrorResponse(validation.error!, validation.details);
         }
 
-        // Check if customer exists
-        const existingCustomer = await prisma.customer.findUnique({
-            where: { id },
-        });
-
-        if (!existingCustomer) {
-            return NextResponse.json(
-                { error: '顧客が見つかりません' },
-                { status: 404 }
-            );
+        // 存在チェック
+        const existing = await prisma.customer.findUnique({ where: { id } });
+        if (!existing) {
+            return notFoundResponse('顧客');
         }
 
-        // Prepare update data
+        // 更新データを構築
         const { name, shortName, contactPersons, email, phone, fax, address, notes } = validation.data;
         const updateData: Record<string, unknown> = {};
 
         if (name !== undefined) updateData.name = name;
         if (shortName !== undefined) updateData.shortName = shortName || null;
-        if (contactPersons !== undefined) updateData.contactPersons = contactPersons ? JSON.stringify(contactPersons) : null;
+        if (contactPersons !== undefined) updateData.contactPersons = stringifyJsonField(contactPersons);
         if (email !== undefined) updateData.email = email || null;
         if (phone !== undefined) updateData.phone = phone || null;
         if (fax !== undefined) updateData.fax = fax || null;
         if (address !== undefined) updateData.address = address || null;
         if (notes !== undefined) updateData.notes = notes || null;
 
-        // Update customer
-        const updatedCustomer = await prisma.customer.update({
+        const updated = await prisma.customer.update({
             where: { id },
             data: updateData,
         });
 
-        // Parse JSON fields for response
-        const response = {
-            ...updatedCustomer,
-            contactPersons: updatedCustomer.contactPersons ? JSON.parse(updatedCustomer.contactPersons) : [],
-        };
-
-        return NextResponse.json(response);
+        return NextResponse.json(parseCustomer(updated));
     } catch (error) {
-        console.error('Update customer error:', error);
-        return NextResponse.json(
-            { error: '顧客の更新に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('顧客の更新', error);
     }
 }
 
@@ -87,37 +79,21 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
         const { id } = params;
 
-        // Check if customer exists
-        const existingCustomer = await prisma.customer.findUnique({
-            where: { id },
-        });
-
-        if (!existingCustomer) {
-            return NextResponse.json(
-                { error: '顧客が見つかりません' },
-                { status: 404 }
-            );
+        // 存在チェック
+        const existing = await prisma.customer.findUnique({ where: { id } });
+        if (!existing) {
+            return notFoundResponse('顧客');
         }
 
-        // Delete customer
-        await prisma.customer.delete({
-            where: { id },
-        });
+        await prisma.customer.delete({ where: { id } });
 
-        return NextResponse.json({ message: '顧客を削除しました' });
+        return deleteSuccessResponse('顧客');
     } catch (error) {
-        console.error('Delete customer error:', error);
-        return NextResponse.json(
-            { error: '顧客の削除に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('顧客の削除', error);
     }
 }

@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useCallback, useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { Customer, CustomerInput } from '@/types/customer';
-import type { RealtimeChannel } from '@supabase/supabase-js';
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 
 interface CustomerContextType {
     customers: Customer[];
@@ -19,16 +19,23 @@ interface CustomerContextType {
 
 const CustomerContext = createContext<CustomerContextType | undefined>(undefined);
 
+// 日付文字列をDateオブジェクトに変換
+function parseCustomerDates(customer: Customer & { createdAt: string | Date; updatedAt: string | Date }): Customer {
+    return {
+        ...customer,
+        createdAt: new Date(customer.createdAt),
+        updatedAt: new Date(customer.updatedAt),
+    };
+}
+
 export function CustomerProvider({ children }: { children: React.ReactNode }) {
     const { status } = useSession();
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
-    const [realtimeSetup, setRealtimeSetup] = useState(false);
 
     // Fetch customers from API
     const fetchCustomers = useCallback(async () => {
-        // Skip if not authenticated
         if (status !== 'authenticated') {
             setCustomers([]);
             setIsLoading(false);
@@ -40,15 +47,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
             const response = await fetch('/api/customers');
             if (response.ok) {
                 const data = await response.json();
-                // Convert date strings to Date objects
-                const parsedCustomers = data.map((customer: Customer) => ({
-                    ...customer,
-                    createdAt: new Date(customer.createdAt),
-                    updatedAt: new Date(customer.updatedAt),
-                }));
-
-                // Always update state with fresh data
-                setCustomers(parsedCustomers);
+                setCustomers(data.map(parseCustomerDates));
             }
         } catch (error) {
             console.error('Failed to fetch customers:', error);
@@ -58,7 +57,7 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         }
     }, [status]);
 
-    // 遅延読み込み: ページから呼び出された時のみデータ取得
+    // 遅延読み込み
     const ensureDataLoaded = useCallback(async () => {
         if (status === 'authenticated' && !isInitialized) {
             await fetchCustomers();
@@ -73,112 +72,58 @@ export function CustomerProvider({ children }: { children: React.ReactNode }) {
         }
     }, [status]);
 
-    // Supabase Realtime subscription（初回データ取得後のみ）
-    useEffect(() => {
-        if (status !== 'authenticated' || !isInitialized || realtimeSetup) return;
-
-        let channel: RealtimeChannel | null = null;
-        setRealtimeSetup(true);
-
-        const setupRealtime = async () => {
-            try {
-                const { supabase } = await import('@/lib/supabase');
-                channel = supabase
-                    .channel('customers-changes')
-                    .on(
-                        'postgres_changes',
-                        { event: '*', schema: 'public', table: 'Customer' },
-                        () => fetchCustomers()
-                    )
-                    .subscribe();
-            } catch (error) {
-                console.error('Failed to setup realtime:', error);
-            }
-        };
-
-        setupRealtime();
-
-        return () => {
-            const channelToRemove = channel;
-            if (channelToRemove) {
-                import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channelToRemove);
-                });
-            }
-        };
-    }, [status, isInitialized, realtimeSetup, fetchCustomers]);
+    // Supabase Realtime subscription（共通フック使用）
+    useRealtimeSubscription({
+        table: 'Customer',
+        channelName: 'customers-changes',
+        onDataChange: fetchCustomers,
+        enabled: status === 'authenticated' && isInitialized,
+    });
 
     // Add customer
     const addCustomer = useCallback(async (customerData: CustomerInput) => {
-        try {
-            const response = await fetch('/api/customers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(customerData),
-            });
+        const response = await fetch('/api/customers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customerData),
+        });
 
-            if (response.ok) {
-                const newCustomer = await response.json();
-                const parsedCustomer = {
-                    ...newCustomer,
-                    createdAt: new Date(newCustomer.createdAt),
-                    updatedAt: new Date(newCustomer.updatedAt),
-                };
-                setCustomers(prev => [...prev, parsedCustomer]);
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || '顧客の追加に失敗しました');
-            }
-        } catch (error) {
-            console.error('Failed to add customer:', error);
-            throw error;
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '顧客の追加に失敗しました');
         }
+
+        const newCustomer = await response.json();
+        setCustomers(prev => [...prev, parseCustomerDates(newCustomer)]);
     }, []);
 
     // Update customer
     const updateCustomer = useCallback(async (id: string, customerData: Partial<CustomerInput>) => {
-        try {
-            const response = await fetch(`/api/customers/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(customerData),
-            });
+        const response = await fetch(`/api/customers/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(customerData),
+        });
 
-            if (response.ok) {
-                const updatedCustomer = await response.json();
-                const parsedCustomer = {
-                    ...updatedCustomer,
-                    createdAt: new Date(updatedCustomer.createdAt),
-                    updatedAt: new Date(updatedCustomer.updatedAt),
-                };
-                setCustomers(prev => prev.map(c => c.id === id ? parsedCustomer : c));
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || '顧客の更新に失敗しました');
-            }
-        } catch (error) {
-            console.error('Failed to update customer:', error);
-            throw error;
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '顧客の更新に失敗しました');
         }
+
+        const updated = await response.json();
+        setCustomers(prev => prev.map(c => c.id === id ? parseCustomerDates(updated) : c));
     }, []);
 
     // Delete customer
     const deleteCustomer = useCallback(async (id: string) => {
-        try {
-            const response = await fetch(`/api/customers/${id}`, {
-                method: 'DELETE',
-            });
+        const response = await fetch(`/api/customers/${id}`, { method: 'DELETE' });
 
-            if (response.ok) {
-                setCustomers(prev => prev.filter(c => c.id !== id));
-            } else {
-                const error = await response.json();
-                throw new Error(error.error || '顧客の削除に失敗しました');
-            }
-        } catch (error) {
-            console.error('Failed to delete customer:', error);
-            throw error;
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '顧客の削除に失敗しました');
         }
+
+        setCustomers(prev => prev.filter(c => c.id !== id));
     }, []);
 
     // Get customer by ID

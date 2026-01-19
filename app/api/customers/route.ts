@@ -1,8 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { createCustomerSchema, validateRequest } from '@/lib/validations';
+import {
+    requireAuth,
+    parseJsonField,
+    stringifyJsonField,
+    serverErrorResponse,
+    validationErrorResponse,
+} from '@/lib/api/utils';
+
+// 顧客レコードのJSONフィールドをパース
+function parseCustomer<T extends { contactPersons: string | null }>(customer: T) {
+    return {
+        ...customer,
+        contactPersons: parseJsonField(customer.contactPersons, []),
+    };
+}
 
 /**
  * Get all customers
@@ -10,18 +23,14 @@ import { createCustomerSchema, validateRequest } from '@/lib/validations';
  */
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
-
-        // Get pagination parameters
         const { searchParams } = new URL(req.url);
         const page = searchParams.get('page');
         const limit = searchParams.get('limit');
 
-        // If pagination params are provided, return paginated data
+        // ページネーションあり
         if (page && limit) {
             const pageNum = parseInt(page);
             const limitNum = parseInt(limit);
@@ -36,13 +45,8 @@ export async function GET(req: NextRequest) {
                 prisma.customer.count(),
             ]);
 
-            const parsedCustomers = customers.map((customer) => ({
-                ...customer,
-                contactPersons: customer.contactPersons ? JSON.parse(customer.contactPersons) : [],
-            }));
-
             return NextResponse.json({
-                data: parsedCustomers,
+                data: customers.map(parseCustomer),
                 pagination: {
                     page: pageNum,
                     limit: limitNum,
@@ -52,26 +56,14 @@ export async function GET(req: NextRequest) {
             });
         }
 
-        // Otherwise, return all data
+        // 全件取得
         const customers = await prisma.customer.findMany({
-            orderBy: {
-                name: 'asc',
-            },
+            orderBy: { name: 'asc' },
         });
 
-        // Parse JSON fields
-        const parsedCustomers = customers.map((customer) => ({
-            ...customer,
-            contactPersons: customer.contactPersons ? JSON.parse(customer.contactPersons) : [],
-        }));
-
-        return NextResponse.json(parsedCustomers);
+        return NextResponse.json(customers.map(parseCustomer));
     } catch (error) {
-        console.error('Get customers error:', error);
-        return NextResponse.json(
-            { error: '顧客一覧の取得に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('顧客一覧の取得', error);
     }
 }
 
@@ -81,31 +73,24 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
         const body = await req.json();
 
         // Zodバリデーション
         const validation = validateRequest(createCustomerSchema, body);
         if (!validation.success) {
-            return NextResponse.json(
-                { error: validation.error, details: validation.details },
-                { status: 400 }
-            );
+            return validationErrorResponse(validation.error!, validation.details);
         }
 
         const { name, shortName, contactPersons, email, phone, fax, address, notes } = validation.data;
 
-        // Create customer
         const newCustomer = await prisma.customer.create({
             data: {
                 name,
                 shortName: shortName || null,
-                contactPersons: contactPersons ? JSON.stringify(contactPersons) : null,
+                contactPersons: stringifyJsonField(contactPersons),
                 email: email || null,
                 phone: phone || null,
                 fax: fax || null,
@@ -114,18 +99,8 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        // Parse JSON fields for response
-        const response = {
-            ...newCustomer,
-            contactPersons: newCustomer.contactPersons ? JSON.parse(newCustomer.contactPersons) : [],
-        };
-
-        return NextResponse.json(response);
+        return NextResponse.json(parseCustomer(newCustomer));
     } catch (error) {
-        console.error('Create customer error:', error);
-        return NextResponse.json(
-            { error: '顧客の作成に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('顧客の作成', error);
     }
 }
