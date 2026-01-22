@@ -14,10 +14,25 @@ interface UseCalendarReturn {
 }
 
 /**
+ * 指定した日付から週の月曜日を取得
+ * @param date 基準となる日付
+ * @returns その週の月曜日
+ */
+function getMonday(date: Date): Date {
+    const d = new Date(date);
+    const day = d.getDay();
+    // 日曜日(0)の場合は-6、それ以外は1-dayで月曜日に調整
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d;
+}
+
+/**
  * カレンダーのロジックを管理するカスタムフック
  */
 export function useCalendar(initialEvents: CalendarEvent[] = []): UseCalendarReturn {
-    const [currentDate, setCurrentDate] = useState<Date>(new Date());
+    // 初期値は今週の月曜日
+    const [currentDate, setCurrentDate] = useState<Date>(() => getMonday(new Date()));
     const [events, setEventsState] = useState<CalendarEvent[]>(initialEvents);
 
     // 現在の週の日付を取得
@@ -51,9 +66,9 @@ export function useCalendar(initialEvents: CalendarEvent[] = []): UseCalendarRet
         setCurrentDate(prevDate => addDays(prevDate, 1));
     };
 
-    // 今週へ戻る
+    // 今週へ戻る（今週の月曜日に移動）
     const goToToday = () => {
-        setCurrentDate(new Date());
+        setCurrentDate(getMonday(new Date()));
     };
 
     // イベントを設定
