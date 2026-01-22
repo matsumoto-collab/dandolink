@@ -220,6 +220,7 @@ export interface Project extends CalendarEvent {
     confirmedWorkerIds?: string[];
     confirmedVehicleIds?: string[];
     isDispatchConfirmed?: boolean;
+    constructionContent?: ConstructionContentType; // 工事内容（案件マスターから連携）
 }
 
 

@@ -6,6 +6,7 @@ import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types
 import { Plus, Edit2, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, Building } from 'lucide-react';
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
+import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
@@ -427,6 +428,11 @@ export default function ProjectMasterListPage() {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* 作業履歴 */}
+                                            <div className="mt-4">
+                                                <WorkHistoryDisplay projectMasterId={pm.id} />
+                                            </div>
 
                                             {/* 利益サマリー */}
                                             <div className="mt-4">

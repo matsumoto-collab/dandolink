@@ -236,6 +236,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
             endDate: cellContext.date,
             assignedEmployeeId: cellContext.employeeId,
             constructionType: projectMaster.constructionType || 'assembly',
+            constructionContent: projectMaster.constructionContent, // 工事内容を連携
             status: 'pending',
             remarks: projectMaster.remarks,
             workers: [],
