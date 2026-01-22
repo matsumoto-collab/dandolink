@@ -20,10 +20,18 @@ export async function GET(
 
         const { id } = await context.params;
 
-        // 案件マスターIDに紐づく配置を取得
+        // 案件マスターIDに紐づく配置を取得（ProjectMasterをincludeして工事種別も取得）
         const assignments = await prisma.projectAssignment.findMany({
             where: { projectMasterId: id },
             orderBy: { date: 'desc' },
+            include: {
+                projectMaster: {
+                    select: {
+                        constructionType: true,
+                        constructionContent: true,
+                    }
+                }
+            }
         });
 
         // 職長・職方・車両の名前を取得するため、追加のクエリ
@@ -35,12 +43,12 @@ export async function GET(
             const workers = a.confirmedWorkerIds
                 ? JSON.parse(a.confirmedWorkerIds)
                 : (a.workers ? JSON.parse(a.workers) : []);
-            workers.forEach((id: string) => employeeIds.add(id));
+            workers.forEach((wid: string) => employeeIds.add(wid));
 
             const vehicles = a.confirmedVehicleIds
                 ? JSON.parse(a.confirmedVehicleIds)
                 : (a.vehicles ? JSON.parse(a.vehicles) : []);
-            vehicles.forEach((id: string) => vehicleIds.add(id));
+            vehicles.forEach((vid: string) => vehicleIds.add(vid));
         });
 
         // ユーザー名取得
@@ -73,8 +81,8 @@ export async function GET(
                 date: a.date.toISOString(),
                 foremanId: a.assignedEmployeeId,
                 foremanName: userMap.get(a.assignedEmployeeId) || '不明',
-                constructionType: a.constructionType,
-                constructionContent: a.constructionContent,
+                constructionType: a.projectMaster.constructionType,
+                constructionContent: a.projectMaster.constructionContent,
                 workerIds,
                 workerNames: workerIds
                     .map((wid: string) => userMap.get(wid) || wid)
