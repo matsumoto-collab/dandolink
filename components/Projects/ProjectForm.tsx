@@ -8,7 +8,7 @@ import { useProjects } from '@/contexts/ProjectContext';
 import { formatDateKey } from '@/utils/employeeUtils';
 import VehicleModal from '../VehicleModal';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
-import { Plus, User } from 'lucide-react';
+import { Plus, User, Search } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
 import toast from 'react-hot-toast';
@@ -73,10 +73,10 @@ export default function ProjectForm({
 
     const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
 
-    // 顧客選択用のstate（将来の機能用）
-    const [_customers, setCustomers] = useState<Customer[]>([]);
-    const [_customerSearchTerm, _setCustomerSearchTerm] = useState('');
-    const [_showCustomerDropdown, _setShowCustomerDropdown] = useState(false);
+    // 顧客選択用のstate
+    const [customers, setCustomers] = useState<Customer[]>([]);
+    const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
     // Admin/Manager users for project manager selection (from API)
     const [apiManagers, setApiManagers] = useState<ManagerUser[]>([]);
@@ -98,7 +98,15 @@ export default function ProjectForm({
         fetchCustomers();
     }, []);
 
-    // Fetch admin/manager users from API
+    // 顧客検索フィルタリング
+    const filteredCustomers = useMemo(() => {
+        if (!customerSearchTerm) return customers;
+        const lowerTerm = customerSearchTerm.toLowerCase();
+        return customers.filter(c =>
+            c.name.toLowerCase().includes(lowerTerm) ||
+            c.shortName?.toLowerCase().includes(lowerTerm)
+        );
+    }, [customers, customerSearchTerm]);
 
     // Fetch admin/manager users from API
     useEffect(() => {
@@ -263,18 +271,53 @@ export default function ProjectForm({
                 />
             </div>
 
-            {/* 元請名 */}
-            <div>
+            {/* 元請名（顧客選択） */}
+            <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     元請名
                 </label>
-                <input
-                    type="text"
-                    value={formData.customer}
-                    onChange={(e) => setFormData({ ...formData, customer: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="例: 長浜機設"
-                />
+                <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                        type="text"
+                        value={customerSearchTerm || formData.customer}
+                        onChange={(e) => {
+                            setCustomerSearchTerm(e.target.value);
+                            setShowCustomerDropdown(true);
+                            // 入力値をそのままcustomerにもセット（新規入力の場合など）
+                            setFormData({ ...formData, customer: e.target.value });
+                        }}
+                        onFocus={() => setShowCustomerDropdown(true)}
+                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="顧客を検索または入力..."
+                    />
+                </div>
+
+                {showCustomerDropdown && filteredCustomers.length > 0 && customerSearchTerm && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                        {filteredCustomers.map(customer => (
+                            <button
+                                key={customer.id}
+                                type="button"
+                                onClick={() => {
+                                    setFormData({
+                                        ...formData,
+                                        customerId: customer.id, // IDを保存
+                                        customer: customer.name, // 名前を表示用に保存
+                                    });
+                                    setCustomerSearchTerm(''); // 検索語をクリア（表示はformData.customer優先）
+                                    setShowCustomerDropdown(false);
+                                }}
+                                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                            >
+                                <span>{customer.name}</span>
+                                {customer.shortName && (
+                                    <span className="text-sm text-gray-500">({customer.shortName})</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* 工事種別（チェックボックス） */}
