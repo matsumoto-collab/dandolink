@@ -250,6 +250,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 }),
             });
 
+            // キャッシュをクリアして最新データを強制取得
+            currentDateRangeRef.current = null;
             await fetchAssignments();
         } catch (error) {
             console.error('Failed to add project:', error);
@@ -262,6 +264,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // Store previous state for rollback
         const previousAssignments = [...assignments];
 
+        // Find the assignment to get projectMasterId
+        const assignment = assignments.find(a => a.id === id);
+
         // Optimistic update BEFORE API call for smooth UI
         setAssignments(prev => prev.map(a =>
             a.id === id
@@ -270,6 +275,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         ));
 
         try {
+            // 工事種別が変更されている場合はProjectMasterを更新
+            if (updates.constructionType && assignment?.projectMasterId) {
+                await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        constructionType: updates.constructionType,
+                    }),
+                });
+            }
+
             await fetch(`/api/assignments/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -287,13 +303,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                     confirmedVehicleIds: updates.confirmedVehicleIds,
                 }),
             });
+
+            // キャッシュをクリアして最新データを強制取得
+            currentDateRangeRef.current = null;
+            await fetchAssignments();
         } catch (error) {
             // Rollback on error
             setAssignments(previousAssignments);
             console.error('Failed to update project:', error);
             throw error;
         }
-    }, [assignments]);
+    }, [assignments, fetchAssignments]);
 
     // Batch update projects
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
@@ -367,6 +387,8 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, [projects]);
 
     const refreshProjects = useCallback(async () => {
+        // キャッシュをクリアして最新データを強制取得
+        currentDateRangeRef.current = null;
         await fetchAssignments();
     }, [fetchAssignments]);
 
