@@ -1,93 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+interface RouteContext {
+    params: Promise<{ id: string }>;
+}
 
 // GET: 案件マスターに紐づく配置（作業履歴）を取得
 export async function GET(
     _req: NextRequest,
-    context: { params: Promise<{ id: string }> }
+    context: RouteContext
 ) {
     try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+        }
+
         const { id } = await context.params;
 
         // 案件マスターIDに紐づく配置を取得
-        const { data: assignments, error } = await supabase
-            .from('assignments')
-            .select(`
-                id,
-                date,
-                assigned_employee_id,
-                construction_type,
-                construction_content,
-                workers,
-                vehicles,
-                confirmed_worker_ids,
-                confirmed_vehicle_ids,
-                is_dispatch_confirmed,
-                remarks,
-                created_at
-            `)
-            .eq('project_master_id', id)
-            .order('date', { ascending: false });
-
-        if (error) {
-            console.error('Error fetching assignment history:', error);
-            return NextResponse.json({ error: error.message }, { status: 500 });
-        }
+        const assignments = await prisma.projectAssignment.findMany({
+            where: { projectMasterId: id },
+            orderBy: { date: 'desc' },
+        });
 
         // 職長・職方・車両の名前を取得するため、追加のクエリ
         const employeeIds = new Set<string>();
         const vehicleIds = new Set<string>();
 
-        assignments?.forEach(a => {
-            if (a.assigned_employee_id) employeeIds.add(a.assigned_employee_id);
-            a.confirmed_worker_ids?.forEach((id: string) => employeeIds.add(id));
-            a.confirmed_vehicle_ids?.forEach((id: string) => vehicleIds.add(id));
+        assignments.forEach(a => {
+            if (a.assignedEmployeeId) employeeIds.add(a.assignedEmployeeId);
+            const workers = a.confirmedWorkerIds
+                ? JSON.parse(a.confirmedWorkerIds)
+                : (a.workers ? JSON.parse(a.workers) : []);
+            workers.forEach((id: string) => employeeIds.add(id));
+
+            const vehicles = a.confirmedVehicleIds
+                ? JSON.parse(a.confirmedVehicleIds)
+                : (a.vehicles ? JSON.parse(a.vehicles) : []);
+            vehicles.forEach((id: string) => vehicleIds.add(id));
         });
 
         // ユーザー名取得
-        const { data: users } = await supabase
-            .from('users')
-            .select('id, display_name')
-            .in('id', Array.from(employeeIds));
-
+        const users = await prisma.user.findMany({
+            where: { id: { in: Array.from(employeeIds) } },
+            select: { id: true, displayName: true },
+        });
         const userMap = new Map<string, string>();
-        users?.forEach(u => userMap.set(u.id, u.display_name));
+        users.forEach(u => userMap.set(u.id, u.displayName || u.id));
 
         // 車両名取得
-        const { data: vehicles } = await supabase
-            .from('vehicles')
-            .select('id, name')
-            .in('id', Array.from(vehicleIds));
-
+        const vehicleRecords = await prisma.vehicle.findMany({
+            where: { id: { in: Array.from(vehicleIds) } },
+            select: { id: true, name: true },
+        });
         const vehicleMap = new Map<string, string>();
-        vehicles?.forEach(v => vehicleMap.set(v.id, v.name));
+        vehicleRecords.forEach(v => vehicleMap.set(v.id, v.name));
 
         // レスポンス整形
-        const history = assignments?.map(a => ({
-            id: a.id,
-            date: a.date,
-            foremanId: a.assigned_employee_id,
-            foremanName: userMap.get(a.assigned_employee_id) || '不明',
-            constructionType: a.construction_type,
-            constructionContent: a.construction_content,
-            workerIds: a.confirmed_worker_ids || a.workers || [],
-            workerNames: (a.confirmed_worker_ids || a.workers || [])
-                .map((id: string) => userMap.get(id) || id)
-                .filter((name: string) => name !== userMap.get(a.assigned_employee_id)), // 職長を除外
-            vehicleIds: a.confirmed_vehicle_ids || a.vehicles || [],
-            vehicleNames: (a.confirmed_vehicle_ids || a.vehicles || [])
-                .map((id: string) => vehicleMap.get(id) || id),
-            isConfirmed: a.is_dispatch_confirmed,
-            remarks: a.remarks,
-            createdAt: a.created_at,
-        }));
+        const history = assignments.map(a => {
+            const workerIds = a.confirmedWorkerIds
+                ? JSON.parse(a.confirmedWorkerIds)
+                : (a.workers ? JSON.parse(a.workers) : []);
+            const vehicleIdList = a.confirmedVehicleIds
+                ? JSON.parse(a.confirmedVehicleIds)
+                : (a.vehicles ? JSON.parse(a.vehicles) : []);
 
-        return NextResponse.json(history || []);
+            return {
+                id: a.id,
+                date: a.date.toISOString(),
+                foremanId: a.assignedEmployeeId,
+                foremanName: userMap.get(a.assignedEmployeeId) || '不明',
+                constructionType: a.constructionType,
+                constructionContent: a.constructionContent,
+                workerIds,
+                workerNames: workerIds
+                    .map((wid: string) => userMap.get(wid) || wid)
+                    .filter((name: string) => name !== userMap.get(a.assignedEmployeeId)),
+                vehicleIds: vehicleIdList,
+                vehicleNames: vehicleIdList.map((vid: string) => vehicleMap.get(vid) || vid),
+                isConfirmed: a.isDispatchConfirmed,
+                remarks: a.remarks,
+                createdAt: a.createdAt.toISOString(),
+            };
+        });
+
+        return NextResponse.json(history);
     } catch (error) {
         console.error('Error in assignment history API:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
