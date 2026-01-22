@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useProjectMasters } from '@/contexts/ProjectMasterContext';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
-import { Plus, Edit2, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, Building } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, Building } from 'lucide-react';
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
@@ -359,7 +359,7 @@ export default function ProjectMasterListPage() {
                                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="編集"
                                             >
-                                                <Edit2 className="w-5 h-5" />
+                                                <Edit className="w-5 h-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleArchive(pm)}

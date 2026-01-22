@@ -7,7 +7,7 @@ import { useProjects } from '@/contexts/ProjectContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit2, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
@@ -226,7 +226,7 @@ export default function InvoiceListPage() {
                                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="編集"
                                             >
-                                                <Edit2 className="w-4 h-4" />
+                                                <Edit className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(invoice.id)}
@@ -339,7 +339,7 @@ export default function InvoiceListPage() {
                                                 className="text-blue-600 hover:text-blue-800 mr-4 transition-colors"
                                                 title="編集"
                                             >
-                                                <Edit2 className="w-5 h-5" />
+                                                <Edit className="w-5 h-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(invoice.id)}

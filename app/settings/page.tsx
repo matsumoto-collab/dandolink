@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useMasterData } from '@/hooks/useMasterData';
-import { Trash2, Edit2, Plus, Check, X } from 'lucide-react';
+import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import UnitPriceMasterSettings from '@/components/Settings/UnitPriceMasterSettings';
 import UserManagement from '@/components/Settings/UserManagement';
 import toast from 'react-hot-toast';
@@ -295,7 +295,7 @@ export default function SettingsPage() {
                                                         className="p-2 text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
                                                         title="編集"
                                                     >
-                                                        <Edit2 className="w-4 h-4" />
+                                                        <Edit className="w-4 h-4" />
                                                     </button>
                                                     {deleteConfirm === item.id ? (
                                                         <div className="flex gap-1">
