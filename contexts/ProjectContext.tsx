@@ -189,6 +189,17 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
                 if (existing) {
                     projectMasterId = existing.id;
+                    // 工事種別が変更されている場合はProjectMasterを更新
+                    if (project.constructionType && existing.constructionType !== project.constructionType) {
+                        await fetch(`/api/project-masters/${existing.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...existing,
+                                constructionType: project.constructionType,
+                            }),
+                        });
+                    }
                 } else {
                     // Create new project master
                     const createMasterRes = await fetch('/api/project-masters', {
