@@ -110,11 +110,13 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             return { '_worker': dayProjects };
         }
 
-        // 職長ごとにグループ化
+        // 職長ごとにグループ化（sortOrderでソート）
         const grouped: Record<string, typeof dayProjects> = {};
 
         foremen.forEach(foreman => {
-            grouped[foreman.id] = dayProjects.filter(p => p.assignedEmployeeId === foreman.id);
+            grouped[foreman.id] = dayProjects
+                .filter(p => p.assignedEmployeeId === foreman.id)
+                .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         });
 
         return grouped;
