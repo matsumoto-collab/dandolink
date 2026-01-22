@@ -181,6 +181,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             // If projectMasterId is already provided (from ProjectMasterSearchModal), use it directly
             if (project.projectMasterId) {
                 projectMasterId = project.projectMasterId;
+                // 工事種別が指定されている場合はProjectMasterを更新
+                if (project.constructionType) {
+                    await fetch(`/api/project-masters/${project.projectMasterId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            constructionType: project.constructionType,
+                        }),
+                    });
+                }
             } else {
                 // Check if project master exists by title or create new one
                 const mastersRes = await fetch(`/api/project-masters?search=${encodeURIComponent(project.title)}`);
