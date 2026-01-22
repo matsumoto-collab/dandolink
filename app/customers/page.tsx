@@ -5,6 +5,7 @@ import { useCustomers } from '@/contexts/CustomerContext';
 import { Customer, CustomerInput } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { CardSkeleton } from '@/components/ui/Loading';
+import { Button, IconButton } from '@/components/ui/Button';
 import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -90,13 +91,12 @@ export default function CustomersPage() {
                 <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">
                     顧客一覧
                 </h1>
-                <button
+                <Button
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg hover:from-slate-800 hover:to-slate-900 transition-all shadow-md hover:shadow-lg"
+                    leftIcon={<Plus />}
                 >
-                    <Plus className="w-5 h-5" />
                     新規登録
-                </button>
+                </Button>
             </div>
 
             {/* 検索バー */}
@@ -125,12 +125,13 @@ export default function CustomersPage() {
                         {searchQuery ? '該当する顧客が見つかりません' : '顧客が登録されていません'}
                     </p>
                     {!searchQuery && (
-                        <button
+                        <Button
+                            variant="ghost"
                             onClick={() => setIsModalOpen(true)}
-                            className="mt-4 text-slate-700 hover:text-slate-900 font-medium"
+                            className="mt-4"
                         >
                             最初の顧客を登録する
-                        </button>
+                        </Button>
                     )}
                 </div>
             ) : (
@@ -146,20 +147,21 @@ export default function CustomersPage() {
                                     {customer.name}
                                 </h3>
                                 <div className="flex gap-2">
-                                    <button
+                                    <IconButton
                                         onClick={() => handleEditClick(customer)}
-                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                                        title="編集"
+                                        aria-label="編集"
+                                        size="sm"
                                     >
                                         <Edit className="w-4 h-4" />
-                                    </button>
-                                    <button
+                                    </IconButton>
+                                    <IconButton
                                         onClick={() => handleDeleteCustomer(customer.id, customer.name)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="削除"
+                                        aria-label="削除"
+                                        size="sm"
+                                        className="text-red-600 hover:bg-red-50"
                                     >
                                         <Trash2 className="w-4 h-4" />
-                                    </button>
+                                    </IconButton>
                                 </div>
                             </div>
 

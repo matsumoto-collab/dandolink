@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule, ProjectStatus } from '@/types/calendar';
+import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/contexts/ProjectContext';
 import { formatDateKey } from '@/utils/employeeUtils';
@@ -39,6 +40,7 @@ export default function ProjectForm({
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
         customer: initialData?.customer || '',
+        customerId: '', // 顧客ID追加
         selectedManagers: Array.isArray(initialData?.createdBy)
             ? initialData.createdBy
             : initialData?.createdBy
@@ -71,9 +73,32 @@ export default function ProjectForm({
 
     const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
 
+    // 顧客選択用のstate（将来の機能用）
+    const [_customers, setCustomers] = useState<Customer[]>([]);
+    const [_customerSearchTerm, _setCustomerSearchTerm] = useState('');
+    const [_showCustomerDropdown, _setShowCustomerDropdown] = useState(false);
+
     // Admin/Manager users for project manager selection (from API)
     const [apiManagers, setApiManagers] = useState<ManagerUser[]>([]);
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
+
+    // 顧客一覧を取得
+    useEffect(() => {
+        const fetchCustomers = async () => {
+            try {
+                const res = await fetch('/api/customers');
+                if (res.ok) {
+                    const data = await res.json();
+                    setCustomers(data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch customers:', error);
+            }
+        };
+        fetchCustomers();
+    }, []);
+
+    // Fetch admin/manager users from API
 
     // Fetch admin/manager users from API
     useEffect(() => {
