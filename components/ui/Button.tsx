@@ -164,18 +164,19 @@ interface IconButtonProps extends Omit<ButtonProps, 'size' | 'leftIcon' | 'right
 }
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
-  ({ size = 'md', variant = 'ghost', children, ...props }, ref) => {
-    const iconSizeMap = {
-      sm: 'h-8 w-8',
-      md: 'h-10 w-10',
-      lg: 'h-12 w-12',
+  ({ size = 'md', variant = 'ghost', className = '', children, ...props }, ref) => {
+    const sizeMap = {
+      sm: 'h-8 w-8 min-h-[32px] min-w-[32px]',
+      md: 'h-10 w-10 min-h-[40px] min-w-[40px]',
+      lg: 'h-12 w-12 min-h-[48px] min-w-[48px]',
     };
 
     return (
       <Button
         ref={ref}
         variant={variant}
-        className={`${iconSizeMap[size]} p-0`}
+        size="icon"
+        className={`${sizeMap[size]} ${className}`}
         {...props}
       >
         {children}
