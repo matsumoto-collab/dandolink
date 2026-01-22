@@ -34,6 +34,9 @@ const DispatchConfirmModal = dynamic(() => import('./DispatchConfirmModal'), {
 const CopyAssignmentModal = dynamic(() => import('./CopyAssignmentModal'), {
     loading: () => <Loading overlay />
 });
+const ProjectSelectionModal = dynamic(() => import('./ProjectSelectionModal'), {
+    loading: () => <Loading overlay />
+});
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;  // 協力会社モード（閲覧のみ）
@@ -65,6 +68,9 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     // コピーモーダルの状態
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
     const [copyEvent, setCopyEvent] = useState<CalendarEvent | null>(null);
+
+    // 案件登録方法選択モーダルの状態
+    const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
 
     // 手配確定権限チェック（admin, manager, foreman1のみ）
     const canDispatch = useMemo(() => {
@@ -186,25 +192,35 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         return events.find(event => event.id === activeId);
     }, [activeId, events]);
 
-    // セルクリック時に選択肢を表示（partnerModeの場合は無効）
+    // セルクリック時に選択モーダルを表示（partnerModeの場合は無効）
     const handleCellClick = (employeeId: string, date: Date) => {
         if (isReadOnly) return; // 閲覧モードでは操作不可
 
         setCellContext({ employeeId, date });
-        // 既存案件から選択するか、新規作成するかを選択
-        const choice = confirm('既存案件から選択しますか?\n\nOK: 既存案件から選択\nキャンセル: 新規作成');
+        setIsSelectionModalOpen(true);
+    };
 
-        if (choice) {
-            // 既存案件から選択
-            setIsSearchModalOpen(true);
-        } else {
-            // 新規作成
-            setModalInitialData({
-                startDate: date,
-                assignedEmployeeId: employeeId,
-            });
-            setIsModalOpen(true);
-        }
+    // 既存案件から作成を選択
+    const handleSelectExisting = () => {
+        setIsSelectionModalOpen(false);
+        setIsSearchModalOpen(true);
+    };
+
+    // 新規作成を選択
+    const handleCreateNew = () => {
+        if (!cellContext) return;
+        setIsSelectionModalOpen(false);
+        setModalInitialData({
+            startDate: cellContext.date,
+            assignedEmployeeId: cellContext.employeeId,
+        });
+        setIsModalOpen(true);
+    };
+
+    // 選択モーダルをキャンセル
+    const handleSelectionCancel = () => {
+        setIsSelectionModalOpen(false);
+        setCellContext(null);
     };
 
     // 案件マスターを選択したら配置を作成
@@ -578,6 +594,14 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                 event={copyEvent}
                 employees={allForemen.map(f => ({ id: f.id, name: f.displayName }))}
                 onCopy={handleCopyAssignment}
+            />
+
+            {/* 案件登録方法選択モーダル */}
+            <ProjectSelectionModal
+                isOpen={isSelectionModalOpen}
+                onClose={handleSelectionCancel}
+                onSelectExisting={handleSelectExisting}
+                onCreateNew={handleCreateNew}
             />
         </DndContext>
     );
