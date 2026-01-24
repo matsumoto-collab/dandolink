@@ -4,8 +4,8 @@ import { useEffect, useState, useMemo } from 'react';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
-// PDF生成は動的インポート（バンドルサイズ最適化）
-const loadPdfGenerator = () => import('@/utils/pdfGenerator');
+// React PDF生成は動的インポート（バンドルサイズ最適化）
+const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
 
 interface EstimateDetailModalProps {
@@ -49,8 +49,8 @@ export default function EstimateDetailModal({
         if (isOpen && estimate && companyInfo) {
             const generatePDF = async () => {
                 try {
-                    const { generateEstimatePDFBlob } = await loadPdfGenerator();
-                    const url = await generateEstimatePDFBlob(estimate, effectiveProject, companyInfo, { includeCoverPage });
+                    const { generateEstimatePDFBlobReact } = await loadPdfGenerator();
+                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { includeCoverPage });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -70,8 +70,8 @@ export default function EstimateDetailModal({
 
     const handleDownload = async () => {
         if (estimate && companyInfo) {
-            const { exportEstimatePDF } = await loadPdfGenerator();
-            exportEstimatePDF(estimate, effectiveProject, companyInfo, { includeCoverPage });
+            const { exportEstimatePDFReact } = await loadPdfGenerator();
+            await exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { includeCoverPage });
         }
     };
 

@@ -4,10 +4,12 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useInvoices } from '@/contexts/InvoiceContext';
 import { useProjects } from '@/contexts/ProjectContext';
+import { useCompany } from '@/contexts/CompanyContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { exportInvoicePDFReact } from '@/utils/reactPdfGenerator';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, Download } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
@@ -19,6 +21,7 @@ const InvoiceModal = dynamic(
 export default function InvoiceListPage() {
     const { invoices, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projects } = useProjects();
+    const { companyInfo } = useCompany();
 
     // ページ表示時にデータを読み込み
     useEffect(() => {
@@ -83,6 +86,26 @@ export default function InvoiceListPage() {
     const handleEdit = (invoice: Invoice) => {
         setEditingInvoice(invoice);
         setIsModalOpen(true);
+    };
+
+    const handleDownloadPDF = async (invoice: Invoice) => {
+        if (!companyInfo) {
+            toast.error('会社情報が設定されていません');
+            return;
+        }
+        const project = projects.find(p => p.id === invoice.projectId);
+        if (!project) {
+            toast.error('関連する案件が見つかりません');
+            return;
+        }
+        try {
+            toast.loading('PDFを生成中...', { id: 'pdf-generating' });
+            await exportInvoicePDFReact(invoice, project, companyInfo, { includeCoverPage: false });
+            toast.success('PDFをダウンロードしました', { id: 'pdf-generating' });
+        } catch (error) {
+            console.error('PDF generation error:', error);
+            toast.error('PDFの生成に失敗しました', { id: 'pdf-generating' });
+        }
     };
 
     const handleSubmit = async (data: InvoiceInput) => {
@@ -222,6 +245,13 @@ export default function InvoiceListPage() {
                                         </span>
                                         <div className="flex gap-2">
                                             <button
+                                                onClick={() => handleDownloadPDF(invoice)}
+                                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                title="PDFダウンロード"
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEdit(invoice)}
                                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="編集"
@@ -334,6 +364,13 @@ export default function InvoiceListPage() {
                                             {formatDate(invoice.createdAt, 'full')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <button
+                                                onClick={() => handleDownloadPDF(invoice)}
+                                                className="text-green-600 hover:text-green-800 mr-4 transition-colors"
+                                                title="PDFダウンロード"
+                                            >
+                                                <Download className="w-5 h-5" />
+                                            </button>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
                                                 className="text-blue-600 hover:text-blue-800 mr-4 transition-colors"
