@@ -14,23 +14,12 @@ export async function GET(_req: NextRequest) {
     try {
         const session = await getServerSession(authOptions);
 
-        console.log('Session:', JSON.stringify(session, null, 2));
-
         if (!session?.user) {
             return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
         }
 
-        console.log('User role:', session.user.role);
-        console.log('Can manage users:', canManageUsers(session.user));
-
         if (!canManageUsers(session.user)) {
-            return NextResponse.json({
-                error: '権限がありません',
-                debug: {
-                    role: session.user.role,
-                    canManage: canManageUsers(session.user)
-                }
-            }, { status: 403 });
+            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
         }
 
         const users = await prisma.user.findMany({
