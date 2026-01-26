@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ProjectProvider } from "@/contexts/ProjectContext";
 import { ProjectMasterProvider } from "@/contexts/ProjectMasterContext";
-import { AssignmentProvider } from "@/contexts/AssignmentContext";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import { MasterDataProvider } from "@/contexts/MasterDataContext";
 import { RemarksProvider } from "@/contexts/RemarksContext";
@@ -61,8 +60,7 @@ export default function RootLayout({
                         <MasterDataProvider>
                             <ProjectProvider>
                                 <ProjectMasterProvider>
-                                    <AssignmentProvider>
-                                        <RemarksProvider>
+                                    <RemarksProvider>
                                             <VacationProvider>
                                                 <CalendarDisplayProvider>
                                                     <EstimateProvider>
@@ -83,7 +81,6 @@ export default function RootLayout({
                                                 </CalendarDisplayProvider>
                                             </VacationProvider>
                                         </RemarksProvider>
-                                    </AssignmentProvider>
                                 </ProjectMasterProvider>
                             </ProjectProvider>
                         </MasterDataProvider>

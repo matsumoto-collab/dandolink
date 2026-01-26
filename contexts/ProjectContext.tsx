@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * @deprecated This context is deprecated. Use ProjectMasterContext and AssignmentContext instead.
- * This is a backward-compatible wrapper that maps the new Assignment-based system to the old Project API.
+ * ProjectContext - プロジェクト（配置）管理の統合API
+ * 内部でAssignment APIを使用し、カレンダー表示用のデータを提供
  */
 
 import React, { createContext, useContext, useCallback, useState, useEffect, useMemo } from 'react';
