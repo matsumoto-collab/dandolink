@@ -1,58 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
-// GET: Fetch system settings
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        let settings = await prisma.systemSettings.findFirst({
-            where: { id: 'default' },
-        });
-
-        // Create default settings if not exist
+        let settings = await prisma.systemSettings.findFirst({ where: { id: 'default' } });
         if (!settings) {
-            settings = await prisma.systemSettings.create({
-                data: { id: 'default', totalMembers: 20 },
-            });
+            settings = await prisma.systemSettings.create({ data: { id: 'default', totalMembers: 20 } });
         }
-
         return NextResponse.json(settings);
     } catch (error) {
-        console.error('Failed to fetch settings:', error);
-        return NextResponse.json({ error: 'Failed to fetch settings' }, { status: 500 });
+        return serverErrorResponse('システム設定取得', error);
     }
 }
 
-// PATCH: Update system settings
 export async function PATCH(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        const body = await request.json();
-        const { totalMembers } = body;
-
+        const { totalMembers } = await request.json();
         if (typeof totalMembers !== 'number' || totalMembers < 1) {
-            return NextResponse.json({ error: 'Invalid totalMembers' }, { status: 400 });
+            return validationErrorResponse('totalMembersは1以上の数値が必要です');
         }
 
-        const settings = await prisma.systemSettings.upsert({
-            where: { id: 'default' },
-            update: { totalMembers },
-            create: { id: 'default', totalMembers },
-        });
-
+        const settings = await prisma.systemSettings.upsert({ where: { id: 'default' }, update: { totalMembers }, create: { id: 'default', totalMembers } });
         return NextResponse.json(settings);
     } catch (error) {
-        console.error('Failed to update settings:', error);
-        return NextResponse.json({ error: 'Failed to update settings' }, { status: 500 });
+        return serverErrorResponse('システム設定更新', error);
     }
 }

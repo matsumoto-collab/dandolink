@@ -1,56 +1,25 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requireAuth, errorResponse, serverErrorResponse } from '@/lib/api/utils';
 
-/**
- * Get workers for dispatch assignment
- * GET /api/dispatch/workers
- * Available for: admin, manager, foreman1
- */
-export async function GET(_req: NextRequest) {
+export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
+        const { session, error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
+        const role = session!.user.role;
+        if (!['admin', 'manager', 'foreman1', 'worker'].includes(role)) {
+            return errorResponse('権限がありません', 403);
         }
 
-        const role = session.user.role;
-
-        // Check dispatch permission (worker allowed for viewing their own assignments)
-        if (role !== 'admin' && role !== 'manager' && role !== 'foreman1' && role !== 'worker') {
-            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
-        }
-
-        // Get users with worker role (including foreman2 for worker selection)
         const workers = await prisma.user.findMany({
-            where: {
-                isActive: true,
-                role: {
-                    in: ['worker', 'WORKER', 'foreman2', 'FOREMAN2', 'foreman1', 'FOREMAN1', 'admin', 'ADMIN', 'manager', 'MANAGER'],
-                },
-            },
-            select: {
-                id: true,
-                displayName: true,
-                role: true,
-            },
-            orderBy: {
-                displayName: 'asc',
-            },
+            where: { isActive: true, role: { in: ['worker', 'WORKER', 'foreman2', 'FOREMAN2', 'foreman1', 'FOREMAN1', 'admin', 'ADMIN', 'manager', 'MANAGER'] } },
+            select: { id: true, displayName: true, role: true },
+            orderBy: { displayName: 'asc' },
         });
 
-        return NextResponse.json(workers, {
-            headers: {
-                'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
-            },
-        });
+        return NextResponse.json(workers, { headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=60' } });
     } catch (error) {
-        console.error('Get dispatch workers error:', error);
-        return NextResponse.json(
-            { error: 'ワーカー一覧の取得に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('ワーカー一覧取得', error);
     }
 }

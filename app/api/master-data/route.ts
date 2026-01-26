@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { requireAuth, serverErrorResponse } from '@/lib/api/utils';
 
-// GET: Fetch all master data
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
         const [vehicles, workers, managers, settings] = await Promise.all([
             prisma.vehicle.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
@@ -18,18 +14,11 @@ export async function GET() {
             prisma.systemSettings.findFirst({ where: { id: 'default' } }),
         ]);
 
-        return NextResponse.json({
-            vehicles,
-            workers,
-            managers,
-            totalMembers: settings?.totalMembers || 20,
-        }, {
-            headers: {
-                'Cache-Control': 'private, max-age=300, stale-while-revalidate=60',
-            },
-        });
+        return NextResponse.json(
+            { vehicles, workers, managers, totalMembers: settings?.totalMembers || 20 },
+            { headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=60' } }
+        );
     } catch (error) {
-        console.error('Failed to fetch master data:', error);
-        return NextResponse.json({ error: 'Failed to fetch master data' }, { status: 500 });
+        return serverErrorResponse('マスタデータ取得', error);
     }
 }
