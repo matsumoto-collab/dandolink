@@ -12,6 +12,7 @@ import { useVacation } from '@/contexts/VacationContext';
 import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
 import { unassignedEmployee } from '@/data/mockEmployees';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
+import { canDispatch as canDispatchCheck } from '@/utils/permissions';
 import CalendarHeader from './CalendarHeader';
 import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
@@ -72,11 +73,10 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     // 案件登録方法選択モーダルの状態
     const [isSelectionModalOpen, setIsSelectionModalOpen] = useState(false);
 
-    // 手配確定権限チェック（admin, manager, foreman1のみ）
+    // 手配確定権限チェック
     const canDispatch = useMemo(() => {
-        const role = session?.user?.role;
-        return role === 'admin' || role === 'manager' || role === 'foreman1';
-    }, [session?.user?.role]);
+        return canDispatchCheck(session?.user);
+    }, [session?.user]);
 
     // クライアントサイドでのみレンダリング
     useEffect(() => {

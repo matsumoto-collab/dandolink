@@ -6,6 +6,7 @@ import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/contexts/ProjectContext';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { isManagerOrAbove } from '@/utils/permissions';
 import VehicleModal from '../VehicleModal';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
 import { Plus, User, Search } from 'lucide-react';
@@ -17,6 +18,7 @@ interface ManagerUser {
     id: string;
     displayName: string;
     role: string;
+    isActive: boolean;
 }
 
 interface ProjectFormProps {
@@ -118,7 +120,7 @@ export default function ProjectForm({
                     const users = await res.json();
                     // Filter only admin and manager roles
                     const filtered = users.filter((u: ManagerUser) =>
-                        u.role === 'admin' || u.role === 'manager'
+                        isManagerOrAbove(u)
                     );
                     setApiManagers(filtered);
                 }

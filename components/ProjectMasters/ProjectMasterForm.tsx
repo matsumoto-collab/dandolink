@@ -10,6 +10,7 @@ import {
     CONSTRUCTION_CONTENT_LABELS
 } from '@/types/calendar';
 import { Customer } from '@/types/customer';
+import { isManagerOrAbove } from '@/utils/permissions';
 
 // 都道府県リスト
 const PREFECTURES = [
@@ -74,6 +75,7 @@ interface ManagerUser {
     id: string;
     displayName: string;
     role: string;
+    isActive: boolean;
 }
 
 interface ProjectMasterFormProps {
@@ -131,7 +133,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 if (res.ok) {
                     const users = await res.json();
                     const filtered = users.filter((u: ManagerUser) =>
-                        u.role === 'admin' || u.role === 'manager'
+                        isManagerOrAbove(u)
                     );
                     setManagers(filtered);
                 }

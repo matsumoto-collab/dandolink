@@ -114,6 +114,24 @@ export function canManageUsers(user: PermissionUser | null | undefined): boolean
 }
 
 /**
+ * Check if a user can dispatch (手配確定権限)
+ * admin, manager, foreman1 のみ可能
+ */
+export function canDispatch(user: PermissionUser | null | undefined): boolean {
+    if (!user || !user.isActive) return false;
+    return user.role === 'admin' || user.role === 'manager' || user.role === 'foreman1';
+}
+
+/**
+ * Check if a user is manager or above
+ * admin, manager のみ
+ */
+export function isManagerOrAbove(user: PermissionUser | null | undefined): boolean {
+    if (!user || !user.isActive) return false;
+    return user.role === 'admin' || user.role === 'manager';
+}
+
+/**
  * Get role display name
  */
 export function getRoleDisplayName(role: string): string {
