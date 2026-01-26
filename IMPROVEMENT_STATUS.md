@@ -22,6 +22,7 @@
 | 権限管理一元化 | canDispatch, isManagerOrAbove 関数追加 |
 | テスト追加 | permissions.ts 97%、dateUtils.ts 88% カバレッジ |
 | テスト修正 | useCalendarテストのタイムゾーン問題を修正（全77テストパス） |
+| 入力バリデーション | zodによるスキーマ検証（users, customers, project-masters, assignments） |
 
 ---
 
@@ -30,7 +31,6 @@
 ### 優先度1: セキュリティ強化（推奨）
 | 項目 | 工数 | 内容 |
 |------|------|------|
-| 入力バリデーション | 中 | zodによるAPIスキーマ検証 |
 | Rate Limiting | 中 | API乱用防止（1分間100リクエスト等） |
 
 ### 優先度2: コード品質（任意）
@@ -63,6 +63,7 @@
 lib/
 ├── api/utils.ts       # API共通ユーティリティ（認証、エラー処理）
 ├── json-utils.ts      # JSON処理（純粋関数、テスト済み）
+├── validations/       # zodバリデーションスキーマ
 
 utils/
 ├── permissions.ts     # 権限管理（テスト済み 97%）
