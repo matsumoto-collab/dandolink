@@ -1,3 +1,10 @@
+export interface BankAccount {
+    bankName: string;
+    branchName: string;
+    accountType: string;
+    accountNumber: string;
+}
+
 export interface CompanyInfo {
     id: string;
     name: string;
@@ -7,7 +14,10 @@ export interface CompanyInfo {
     fax?: string;
     email?: string;
     representative: string;
-    sealImage?: string; // Base64 encoded image or URL
+    sealImage?: string;
+    licenseNumber?: string;      // 建設業許可番号
+    registrationNumber?: string; // インボイス登録番号
+    bankAccounts?: BankAccount[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -21,4 +31,7 @@ export interface CompanyInfoInput {
     email?: string;
     representative: string;
     sealImage?: string;
+    licenseNumber?: string;
+    registrationNumber?: string;
+    bankAccounts?: BankAccount[];
 }

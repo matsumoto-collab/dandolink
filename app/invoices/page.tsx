@@ -100,7 +100,7 @@ export default function InvoiceListPage() {
         }
         try {
             toast.loading('PDFを生成中...', { id: 'pdf-generating' });
-            await exportInvoicePDFReact(invoice, project, companyInfo, { includeCoverPage: false });
+            await exportInvoicePDFReact(invoice, project, companyInfo);
             toast.success('PDFをダウンロードしました', { id: 'pdf-generating' });
         } catch (error) {
             console.error('PDF generation error:', error);

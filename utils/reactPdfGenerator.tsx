@@ -15,17 +15,13 @@ interface EstimatePDFOptions {
     includeCoverPage?: boolean;
 }
 
-interface InvoicePDFOptions {
-    includeCoverPage?: boolean;
-}
-
 /**
  * Generate Estimate PDF and download it
  */
 export async function exportEstimatePDFReact(
     estimate: Estimate,
     project: Project,
-    _companyInfo: CompanyInfo,
+    companyInfo: CompanyInfo,
     options: EstimatePDFOptions = { includeCoverPage: true }
 ): Promise<void> {
     try {
@@ -33,11 +29,11 @@ export async function exportEstimatePDFReact(
             <EstimatePDF
                 estimate={estimate}
                 project={project}
+                companyInfo={companyInfo}
                 includeCoverPage={options.includeCoverPage}
             />
         ).toBlob();
 
-        // Create download link
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -46,11 +42,8 @@ export async function exportEstimatePDFReact(
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-
-        console.log('PDF生成成功:', link.download);
     } catch (error) {
         console.error('PDF生成エラー:', error);
-        alert('PDFの生成に失敗しました。エラー: ' + (error as Error).message);
         throw error;
     }
 }
@@ -61,7 +54,7 @@ export async function exportEstimatePDFReact(
 export async function generateEstimatePDFBlobReact(
     estimate: Estimate,
     project: Project,
-    _companyInfo: CompanyInfo,
+    companyInfo: CompanyInfo,
     options: EstimatePDFOptions = { includeCoverPage: true }
 ): Promise<string> {
     try {
@@ -69,6 +62,7 @@ export async function generateEstimatePDFBlobReact(
             <EstimatePDF
                 estimate={estimate}
                 project={project}
+                companyInfo={companyInfo}
                 includeCoverPage={options.includeCoverPage}
             />
         ).toBlob();
@@ -86,18 +80,17 @@ export async function generateEstimatePDFBlobReact(
 export async function exportInvoicePDFReact(
     invoice: Invoice,
     project: Project,
-    _companyInfo: CompanyInfo,
-    _options: InvoicePDFOptions = { includeCoverPage: true }
+    companyInfo: CompanyInfo
 ): Promise<void> {
     try {
         const blob = await pdf(
             <InvoicePDF
                 invoice={invoice}
                 project={project}
+                companyInfo={companyInfo}
             />
         ).toBlob();
 
-        // Create download link
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -106,11 +99,8 @@ export async function exportInvoicePDFReact(
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
-
-        console.log('PDF生成成功:', link.download);
     } catch (error) {
         console.error('PDF生成エラー:', error);
-        alert('PDFの生成に失敗しました。エラー: ' + (error as Error).message);
         throw error;
     }
 }
@@ -121,14 +111,14 @@ export async function exportInvoicePDFReact(
 export async function generateInvoicePDFBlobReact(
     invoice: Invoice,
     project: Project,
-    _companyInfo: CompanyInfo,
-    _options: InvoicePDFOptions = { includeCoverPage: true }
+    companyInfo: CompanyInfo
 ): Promise<string> {
     try {
         const blob = await pdf(
             <InvoicePDF
                 invoice={invoice}
                 project={project}
+                companyInfo={companyInfo}
             />
         ).toBlob();
 

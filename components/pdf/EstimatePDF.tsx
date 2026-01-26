@@ -378,7 +378,7 @@ interface EstimatePDFProps {
 }
 
 // Cover Page Component
-function CoverPage({ estimate, project }: Omit<EstimatePDFProps, 'includeCoverPage' | 'companyInfo'>) {
+function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeCoverPage'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
@@ -471,11 +471,13 @@ function CoverPage({ estimate, project }: Omit<EstimatePDFProps, 'includeCoverPa
                 <View style={styles.companySection}>
                     <View style={styles.companyRow}>
                         <View style={styles.companyInfo}>
-                            <Text style={styles.companyText}>愛媛県知事　許可（般-6）　第17335号</Text>
-                            <Text style={styles.companyName}>株式会社　雄伸工業</Text>
-                            <Text style={styles.companyRep}>代表取締役　今井　公一郎</Text>
-                            <Text style={styles.companyText}>〒799-3104　伊予市上三谷甲3517番地</Text>
-                            <Text style={styles.companyText}>TEL:089-989-7350　FAX：089-989-7351</Text>
+                            {companyInfo.licenseNumber && (
+                                <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
+                            )}
+                            <Text style={styles.companyName}>{companyInfo.name}</Text>
+                            <Text style={styles.companyRep}>代表取締役　{companyInfo.representative}</Text>
+                            <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
+                            <Text style={styles.companyText}>TEL:{companyInfo.tel}　FAX：{companyInfo.fax || ''}</Text>
                         </View>
                         <View style={styles.stampBox} />
                     </View>
@@ -628,17 +630,17 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
 }
 
 // Main Estimate PDF Document
-export function EstimatePDF({ estimate, project, includeCoverPage = true }: Omit<EstimatePDFProps, 'companyInfo'>) {
+export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage = true }: EstimatePDFProps) {
     return (
         <Document
             title={`見積書 ${estimate.estimateNumber}`}
-            author="株式会社雄伸工業"
+            author={companyInfo.name}
             subject={`${project.title}の見積書`}
             keywords="見積書, estimate"
             creator="YuSystem"
         >
             {includeCoverPage && (
-                <CoverPage estimate={estimate} project={project} />
+                <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
             )}
             <DetailsPage estimate={estimate} />
         </Document>

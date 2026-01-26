@@ -341,8 +341,8 @@ interface InvoicePDFProps {
 function InvoicePage({
     invoice,
     project,
-    bankAccounts = [],
-}: Omit<InvoicePDFProps, 'includeCoverPage' | 'companyInfo' | 'registrationNumber'>) {
+    companyInfo,
+}: Omit<InvoicePDFProps, 'includeCoverPage' | 'bankAccounts' | 'registrationNumber'>) {
     const createdDate = new Date(invoice.createdAt);
 
     // 明細データ準備
@@ -379,18 +379,20 @@ function InvoicePage({
                     </View>
 
                     <View style={styles.companyInfo}>
-                        <Text style={styles.companyName}>㈱雄伸工業</Text>
-                        <Text style={styles.companyText}>〒799-3104</Text>
-                        <Text style={styles.companyText}>伊予市上三谷甲3517番地</Text>
-                        <Text style={styles.companyText}>TEL 089-989-7350 FAX 089-989-7351</Text>
-                        <Text style={styles.companyText}>登録番号：T8500001018289</Text>
+                        <Text style={styles.companyName}>㈱{companyInfo.name.replace('株式会社', '').trim()}</Text>
+                        <Text style={styles.companyText}>〒{companyInfo.postalCode}</Text>
+                        <Text style={styles.companyText}>{companyInfo.address}</Text>
+                        <Text style={styles.companyText}>TEL {companyInfo.tel} FAX {companyInfo.fax || ''}</Text>
+                        {companyInfo.registrationNumber && (
+                            <Text style={styles.companyText}>登録番号：{companyInfo.registrationNumber}</Text>
+                        )}
                     </View>
 
                     {/* 振込先 */}
-                    {bankAccounts.length > 0 && (
+                    {companyInfo.bankAccounts && companyInfo.bankAccounts.length > 0 && (
                         <View style={styles.bankSection}>
                             <Text style={styles.bankLabel}>お振込先：</Text>
-                            {bankAccounts.map((bank, idx) => (
+                            {companyInfo.bankAccounts.map((bank, idx) => (
                                 <Text key={idx} style={styles.bankText}>
                                     {bank.bankName} {bank.branchName}（{bank.accountType}）{bank.accountNumber}
                                 </Text>
@@ -527,15 +529,12 @@ function InvoicePage({
 export function InvoicePDF({
     invoice,
     project,
-    bankAccounts = [
-        { bankName: '愛媛銀行', branchName: '古川支店', accountType: '普', accountNumber: '3916237' },
-        { bankName: '伊予銀行', branchName: '郡中支店', accountType: '普', accountNumber: '1844218' },
-    ],
-}: Omit<InvoicePDFProps, 'companyInfo' | 'includeCoverPage' | 'registrationNumber'>) {
+    companyInfo,
+}: Omit<InvoicePDFProps, 'includeCoverPage' | 'bankAccounts' | 'registrationNumber'>) {
     return (
         <Document
             title={`請求書 ${invoice.invoiceNumber}`}
-            author="株式会社雄伸工業"
+            author={companyInfo.name}
             subject={`${project.title}の請求書`}
             keywords="請求書, invoice"
             creator="YuSystem"
@@ -543,7 +542,7 @@ export function InvoicePDF({
             <InvoicePage
                 invoice={invoice}
                 project={project}
-                bankAccounts={bankAccounts}
+                companyInfo={companyInfo}
             />
         </Document>
     );
