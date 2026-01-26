@@ -1,42 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
 
-/**
- * Update an estimate
- * PATCH /api/estimates/[id]
- */
-export async function PATCH(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+interface RouteContext { params: Promise<{ id: string }>; }
+
+function formatEstimate(estimate: { items: string | null; [key: string]: unknown }) {
+    return { ...estimate, items: parseJsonField<unknown[]>(estimate.items, []) };
+}
+
+export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
-
-        const { id } = params;
+        const { id } = await context.params;
         const body = await req.json();
 
-        // Check if estimate exists
-        const existingEstimate = await prisma.estimate.findUnique({
-            where: { id },
-        });
+        const existingEstimate = await prisma.estimate.findUnique({ where: { id } });
+        if (!existingEstimate) return notFoundResponse('見積');
 
-        if (!existingEstimate) {
-            return NextResponse.json(
-                { error: '見積が見つかりません' },
-                { status: 404 }
-            );
-        }
-
-        // Prepare update data
         const updateData: Prisma.EstimateUpdateInput = {};
-
         if (body.projectMasterId !== undefined) updateData.projectMasterId = body.projectMasterId || null;
         if (body.estimateNumber !== undefined) updateData.estimateNumber = body.estimateNumber;
         if (body.title !== undefined) updateData.title = body.title;
@@ -48,68 +32,25 @@ export async function PATCH(
         if (body.status !== undefined) updateData.status = body.status;
         if (body.notes !== undefined) updateData.notes = body.notes || null;
 
-        // Update estimate
-        const updatedEstimate = await prisma.estimate.update({
-            where: { id },
-            data: updateData,
-        });
-
-        // Parse JSON fields for response
-        const response = {
-            ...updatedEstimate,
-            items: updatedEstimate.items ? JSON.parse(updatedEstimate.items) : [],
-        };
-
-        return NextResponse.json(response);
+        const updatedEstimate = await prisma.estimate.update({ where: { id }, data: updateData });
+        return NextResponse.json(formatEstimate(updatedEstimate));
     } catch (error) {
-        console.error('Update estimate error:', error);
-        return NextResponse.json(
-            { error: '見積の更新に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('見積の更新', error);
     }
 }
 
-/**
- * Delete an estimate
- * DELETE /api/estimates/[id]
- */
-export async function DELETE(
-    _req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { id } = await context.params;
+        const existingEstimate = await prisma.estimate.findUnique({ where: { id } });
+        if (!existingEstimate) return notFoundResponse('見積');
 
-        const { id } = params;
-
-        // Check if estimate exists
-        const existingEstimate = await prisma.estimate.findUnique({
-            where: { id },
-        });
-
-        if (!existingEstimate) {
-            return NextResponse.json(
-                { error: '見積が見つかりません' },
-                { status: 404 }
-            );
-        }
-
-        // Delete estimate
-        await prisma.estimate.delete({
-            where: { id },
-        });
-
+        await prisma.estimate.delete({ where: { id } });
         return NextResponse.json({ message: '見積を削除しました' });
     } catch (error) {
-        console.error('Delete estimate error:', error);
-        return NextResponse.json(
-            { error: '見積の削除に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('見積の削除', error);
     }
 }

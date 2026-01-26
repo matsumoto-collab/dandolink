@@ -1,143 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
-/**
- * Get all estimates
- * GET /api/estimates
- */
+function formatEstimate(estimate: { items: string | null; validUntil: Date; [key: string]: unknown }) {
+    return { ...estimate, items: parseJsonField<unknown[]>(estimate.items, []), validUntil: new Date(estimate.validUntil) };
+}
+
 export async function GET(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
-
-        // Get pagination parameters
         const { searchParams } = new URL(req.url);
         const page = searchParams.get('page');
         const limit = searchParams.get('limit');
 
-        // If pagination params are provided, return paginated data
         if (page && limit) {
             const pageNum = parseInt(page);
             const limitNum = parseInt(limit);
-            const skip = (pageNum - 1) * limitNum;
-
             const [estimates, total] = await Promise.all([
-                prisma.estimate.findMany({
-                    skip,
-                    take: limitNum,
-                    orderBy: { createdAt: 'desc' },
-                }),
+                prisma.estimate.findMany({ skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
                 prisma.estimate.count(),
             ]);
-
-            const parsedEstimates = estimates.map((estimate) => ({
-                ...estimate,
-                items: estimate.items ? JSON.parse(estimate.items) : [],
-                validUntil: new Date(estimate.validUntil),
-            }));
-
             return NextResponse.json({
-                data: parsedEstimates,
-                pagination: {
-                    page: pageNum,
-                    limit: limitNum,
-                    total,
-                    totalPages: Math.ceil(total / limitNum),
-                },
+                data: estimates.map(formatEstimate),
+                pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
             });
         }
 
-        // Otherwise, return all data
-        const estimates = await prisma.estimate.findMany({
-            orderBy: {
-                createdAt: 'desc',
-            },
-        });
-
-        // Parse JSON fields
-        const parsedEstimates = estimates.map((estimate) => ({
-            ...estimate,
-            items: estimate.items ? JSON.parse(estimate.items) : [],
-            validUntil: new Date(estimate.validUntil),
-        }));
-
-        return NextResponse.json(parsedEstimates);
+        const estimates = await prisma.estimate.findMany({ orderBy: { createdAt: 'desc' } });
+        return NextResponse.json(estimates.map(formatEstimate));
     } catch (error) {
-        console.error('Get estimates error:', error);
-        return NextResponse.json(
-            { error: '見積一覧の取得に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('見積一覧の取得', error);
     }
 }
 
-/**
- * Create a new estimate
- * POST /api/estimates
- */
 export async function POST(req: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
         const body = await req.json();
-        const {
-            projectMasterId,
-            estimateNumber,
-            title,
-            items,
-            subtotal,
-            tax,
-            total,
-            validUntil,
-            status,
-            notes,
-        } = body;
+        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes } = body;
 
-        // Validation
         if (!estimateNumber || !title) {
-            return NextResponse.json(
-                { error: '見積番号とタイトルは必須です' },
-                { status: 400 }
-            );
+            return validationErrorResponse('見積番号とタイトルは必須です');
         }
 
-        // Create estimate
         const newEstimate = await prisma.estimate.create({
             data: {
-                projectMasterId: projectMasterId || null,
-                estimateNumber,
-                title,
-                items: items ? JSON.stringify(items) : '[]',
-                subtotal: subtotal || 0,
-                tax: tax || 0,
-                total: total || 0,
-                validUntil: validUntil ? new Date(validUntil) : new Date(),
-                status: status || 'draft',
-                notes: notes || null,
+                projectMasterId: projectMasterId || null, estimateNumber, title,
+                items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
+                validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null,
             },
         });
 
-        // Parse JSON fields for response
-        const response = {
-            ...newEstimate,
-            items: newEstimate.items ? JSON.parse(newEstimate.items) : [],
-        };
-
-        return NextResponse.json(response);
+        return NextResponse.json(formatEstimate(newEstimate));
     } catch (error) {
-        console.error('Create estimate error:', error);
-        return NextResponse.json(
-            { error: '見積の作成に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('見積の作成', error);
     }
 }

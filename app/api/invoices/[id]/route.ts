@@ -1,42 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
 
-/**
- * Update an invoice
- * PATCH /api/invoices/[id]
- */
-export async function PATCH(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+interface RouteContext { params: Promise<{ id: string }>; }
+
+function formatInvoice(invoice: { items: string | null; [key: string]: unknown }) {
+    return { ...invoice, items: parseJsonField<unknown[]>(invoice.items, []) };
+}
+
+export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
-
-        const { id } = params;
+        const { id } = await context.params;
         const body = await req.json();
 
-        // Check if invoice exists
-        const existingInvoice = await prisma.invoice.findUnique({
-            where: { id },
-        });
+        const existingInvoice = await prisma.invoice.findUnique({ where: { id } });
+        if (!existingInvoice) return notFoundResponse('請求書');
 
-        if (!existingInvoice) {
-            return NextResponse.json(
-                { error: '請求書が見つかりません' },
-                { status: 404 }
-            );
-        }
-
-        // Prepare update data
         const updateData: Prisma.InvoiceUpdateInput = {};
-
         if (body.projectMasterId !== undefined) updateData.projectMasterId = body.projectMasterId;
         if (body.estimateId !== undefined) updateData.estimateId = body.estimateId || null;
         if (body.invoiceNumber !== undefined) updateData.invoiceNumber = body.invoiceNumber;
@@ -50,68 +34,25 @@ export async function PATCH(
         if (body.paidDate !== undefined) updateData.paidDate = body.paidDate ? new Date(body.paidDate) : null;
         if (body.notes !== undefined) updateData.notes = body.notes || null;
 
-        // Update invoice
-        const updatedInvoice = await prisma.invoice.update({
-            where: { id },
-            data: updateData,
-        });
-
-        // Parse JSON fields for response
-        const response = {
-            ...updatedInvoice,
-            items: updatedInvoice.items ? JSON.parse(updatedInvoice.items) : [],
-        };
-
-        return NextResponse.json(response);
+        const updatedInvoice = await prisma.invoice.update({ where: { id }, data: updateData });
+        return NextResponse.json(formatInvoice(updatedInvoice));
     } catch (error) {
-        console.error('Update invoice error:', error);
-        return NextResponse.json(
-            { error: '請求書の更新に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('請求書の更新', error);
     }
 }
 
-/**
- * Delete an invoice
- * DELETE /api/invoices/[id]
- */
-export async function DELETE(
-    _req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { id } = await context.params;
+        const existingInvoice = await prisma.invoice.findUnique({ where: { id } });
+        if (!existingInvoice) return notFoundResponse('請求書');
 
-        const { id } = params;
-
-        // Check if invoice exists
-        const existingInvoice = await prisma.invoice.findUnique({
-            where: { id },
-        });
-
-        if (!existingInvoice) {
-            return NextResponse.json(
-                { error: '請求書が見つかりません' },
-                { status: 404 }
-            );
-        }
-
-        // Delete invoice
-        await prisma.invoice.delete({
-            where: { id },
-        });
-
+        await prisma.invoice.delete({ where: { id } });
         return NextResponse.json({ message: '請求書を削除しました' });
     } catch (error) {
-        console.error('Delete invoice error:', error);
-        return NextResponse.json(
-            { error: '請求書の削除に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('請求書の削除', error);
     }
 }
