@@ -378,7 +378,7 @@ interface EstimatePDFProps {
 }
 
 // Cover Page Component
-function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeCoverPage'>) {
+function CoverPage({ estimate, project }: Omit<EstimatePDFProps, 'includeCoverPage'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
@@ -628,17 +628,17 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
 }
 
 // Main Estimate PDF Document
-export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage = true }: EstimatePDFProps) {
+export function EstimatePDF({ estimate, project, includeCoverPage = true }: Omit<EstimatePDFProps, 'companyInfo'>) {
     return (
         <Document
             title={`見積書 ${estimate.estimateNumber}`}
-            author={companyInfo.name}
+            author="株式会社雄伸工業"
             subject={`${project.title}の見積書`}
             keywords="見積書, estimate"
             creator="YuSystem"
         >
             {includeCoverPage && (
-                <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
+                <CoverPage estimate={estimate} project={project} />
             )}
             <DetailsPage estimate={estimate} />
         </Document>

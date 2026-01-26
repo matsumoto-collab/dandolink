@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { Estimate } from '@/types/estimate';
 import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
-import { CompanyInfo } from '@/types/company';
 
 // Sample data for development
 const sampleEstimate: Estimate = {
@@ -97,19 +96,6 @@ const sampleProject: Project = {
     updatedAt: new Date(),
 };
 
-const sampleCompanyInfo: CompanyInfo = {
-    id: 'company-001',
-    name: '株式会社サンプル建設',
-    postalCode: '150-0001',
-    address: '東京都渋谷区神宮前4-5-6',
-    tel: '03-1234-5678',
-    fax: '03-1234-5679',
-    email: 'info@sample-construction.co.jp',
-    representative: '山田太郎',
-    createdAt: new Date(),
-    updatedAt: new Date(),
-};
-
 const sampleInvoice: Invoice = {
     id: 'inv-001',
     projectId: 'proj-001',
@@ -135,8 +121,8 @@ export default function PDFPreviewPage() {
     const [PdfComponents, setPdfComponents] = useState<{
         // Using any for PDFViewer due to @react-pdf/renderer style type incompatibility
         PDFViewer: React.ComponentType<any> | null;
-        EstimatePDF: React.ComponentType<{ estimate: Estimate; project: Project; companyInfo: CompanyInfo; includeCoverPage?: boolean }> | null;
-        InvoicePDF: React.ComponentType<{ invoice: Invoice; project: Project; companyInfo: CompanyInfo; includeCoverPage?: boolean }> | null;
+        EstimatePDF: React.ComponentType<{ estimate: Estimate; project: Project; includeCoverPage?: boolean }> | null;
+        InvoicePDF: React.ComponentType<{ invoice: Invoice; project: Project }> | null;
     }>({ PDFViewer: null, EstimatePDF: null, InvoicePDF: null });
 
     useEffect(() => {
@@ -257,7 +243,6 @@ export default function PDFPreviewPage() {
                                     <PdfComponents.EstimatePDF
                                         estimate={sampleEstimate}
                                         project={sampleProject}
-                                        companyInfo={sampleCompanyInfo}
                                         includeCoverPage={includeCoverPage}
                                     />
                                 </PdfComponents.PDFViewer>
@@ -271,8 +256,6 @@ export default function PDFPreviewPage() {
                                     <PdfComponents.InvoicePDF
                                         invoice={sampleInvoice}
                                         project={sampleProject}
-                                        companyInfo={sampleCompanyInfo}
-                                        includeCoverPage={includeCoverPage}
                                     />
                                 </PdfComponents.PDFViewer>
                             )}

@@ -25,7 +25,7 @@ interface InvoicePDFOptions {
 export async function exportEstimatePDFReact(
     estimate: Estimate,
     project: Project,
-    companyInfo: CompanyInfo,
+    _companyInfo: CompanyInfo,
     options: EstimatePDFOptions = { includeCoverPage: true }
 ): Promise<void> {
     try {
@@ -33,7 +33,6 @@ export async function exportEstimatePDFReact(
             <EstimatePDF
                 estimate={estimate}
                 project={project}
-                companyInfo={companyInfo}
                 includeCoverPage={options.includeCoverPage}
             />
         ).toBlob();
@@ -62,7 +61,7 @@ export async function exportEstimatePDFReact(
 export async function generateEstimatePDFBlobReact(
     estimate: Estimate,
     project: Project,
-    companyInfo: CompanyInfo,
+    _companyInfo: CompanyInfo,
     options: EstimatePDFOptions = { includeCoverPage: true }
 ): Promise<string> {
     try {
@@ -70,7 +69,6 @@ export async function generateEstimatePDFBlobReact(
             <EstimatePDF
                 estimate={estimate}
                 project={project}
-                companyInfo={companyInfo}
                 includeCoverPage={options.includeCoverPage}
             />
         ).toBlob();
@@ -88,7 +86,7 @@ export async function generateEstimatePDFBlobReact(
 export async function exportInvoicePDFReact(
     invoice: Invoice,
     project: Project,
-    companyInfo: CompanyInfo,
+    _companyInfo: CompanyInfo,
     options: InvoicePDFOptions = { includeCoverPage: true }
 ): Promise<void> {
     try {
@@ -96,8 +94,6 @@ export async function exportInvoicePDFReact(
             <InvoicePDF
                 invoice={invoice}
                 project={project}
-                companyInfo={companyInfo}
-                includeCoverPage={options.includeCoverPage}
             />
         ).toBlob();
 
@@ -125,7 +121,7 @@ export async function exportInvoicePDFReact(
 export async function generateInvoicePDFBlobReact(
     invoice: Invoice,
     project: Project,
-    companyInfo: CompanyInfo,
+    _companyInfo: CompanyInfo,
     options: InvoicePDFOptions = { includeCoverPage: true }
 ): Promise<string> {
     try {
@@ -133,8 +129,6 @@ export async function generateInvoicePDFBlobReact(
             <InvoicePDF
                 invoice={invoice}
                 project={project}
-                companyInfo={companyInfo}
-                includeCoverPage={options.includeCoverPage}
             />
         ).toBlob();
 

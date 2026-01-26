@@ -341,9 +341,7 @@ interface InvoicePDFProps {
 function InvoicePage({
     invoice,
     project,
-    companyInfo,
     bankAccounts = [],
-    registrationNumber = '',
 }: Omit<InvoicePDFProps, 'includeCoverPage'>) {
     const createdDate = new Date(invoice.createdAt);
 
@@ -529,18 +527,15 @@ function InvoicePage({
 export function InvoicePDF({
     invoice,
     project,
-    companyInfo,
-    includeCoverPage: _includeCoverPage = true,
     bankAccounts = [
         { bankName: '愛媛銀行', branchName: '古川支店', accountType: '普', accountNumber: '3916237' },
         { bankName: '伊予銀行', branchName: '郡中支店', accountType: '普', accountNumber: '1844218' },
     ],
-    registrationNumber = 'T8500001018289',
-}: InvoicePDFProps) {
+}: Omit<InvoicePDFProps, 'companyInfo' | 'includeCoverPage' | 'registrationNumber'>) {
     return (
         <Document
             title={`請求書 ${invoice.invoiceNumber}`}
-            author={companyInfo.name}
+            author="株式会社雄伸工業"
             subject={`${project.title}の請求書`}
             keywords="請求書, invoice"
             creator="YuSystem"
@@ -548,9 +543,7 @@ export function InvoicePDF({
             <InvoicePage
                 invoice={invoice}
                 project={project}
-                companyInfo={companyInfo}
                 bankAccounts={bankAccounts}
-                registrationNumber={registrationNumber}
             />
         </Document>
     );
