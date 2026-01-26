@@ -1,65 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '@/lib/auth';
+import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
-// GET: Fetch all unit prices
+function formatUnitPrice(up: { templates: string; [key: string]: unknown }) {
+    return { ...up, templates: parseJsonField<unknown[]>(up.templates, []) };
+}
+
 export async function GET() {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        const unitPrices = await prisma.unitPriceMaster.findMany({
-            where: { isActive: true },
-            orderBy: { description: 'asc' },
-        });
-
-        // Parse templates JSON string to array
-        const parsed = unitPrices.map(up => ({
-            ...up,
-            templates: JSON.parse(up.templates || '[]'),
-        }));
-
-        return NextResponse.json(parsed);
+        const unitPrices = await prisma.unitPriceMaster.findMany({ where: { isActive: true }, orderBy: { description: 'asc' } });
+        return NextResponse.json(unitPrices.map(formatUnitPrice));
     } catch (error) {
-        console.error('Failed to fetch unit prices:', error);
-        return NextResponse.json({ error: 'Failed to fetch unit prices' }, { status: 500 });
+        return serverErrorResponse('単価マスタ取得', error);
     }
 }
 
-// POST: Create a new unit price
 export async function POST(request: NextRequest) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
-        const body = await request.json();
-        const { description, unit, unitPrice, templates, notes } = body;
-
+        const { description, unit, unitPrice, templates, notes } = await request.json();
         if (!description || !unit || unitPrice === undefined || !templates) {
-            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+            return validationErrorResponse('説明、単位、単価、テンプレートは必須です');
         }
 
         const newUnitPrice = await prisma.unitPriceMaster.create({
-            data: {
-                description,
-                unit,
-                unitPrice,
-                templates: JSON.stringify(templates),
-                notes: notes || null,
-            },
+            data: { description, unit, unitPrice, templates: JSON.stringify(templates), notes: notes || null },
         });
 
-        return NextResponse.json({
-            ...newUnitPrice,
-            templates: JSON.parse(newUnitPrice.templates),
-        }, { status: 201 });
+        return NextResponse.json(formatUnitPrice(newUnitPrice), { status: 201 });
     } catch (error) {
-        console.error('Failed to create unit price:', error);
-        return NextResponse.json({ error: 'Failed to create unit price' }, { status: 500 });
+        return serverErrorResponse('単価マスタ作成', error);
     }
 }
