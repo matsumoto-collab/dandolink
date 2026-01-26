@@ -1,75 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+    requireAuth,
+    parseJsonField,
+    stringifyJsonField,
+    errorResponse,
+    notFoundResponse,
+    serverErrorResponse,
+} from '@/lib/api/utils';
+import { canDispatch } from '@/utils/permissions';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
 }
 
+// 配置レコードをフォーマット
+function formatAssignment(a: {
+    date: Date;
+    workers: string | null;
+    vehicles: string | null;
+    confirmedWorkerIds: string | null;
+    confirmedVehicleIds: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    projectMaster?: {
+        createdBy: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+    } | null;
+    [key: string]: unknown;
+}) {
+    return {
+        ...a,
+        date: a.date.toISOString(),
+        workers: parseJsonField<string[]>(a.workers, []),
+        vehicles: parseJsonField<string[]>(a.vehicles, []),
+        confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
+        confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []),
+        createdAt: a.createdAt.toISOString(),
+        updatedAt: a.updatedAt.toISOString(),
+        projectMaster: a.projectMaster ? {
+            ...a.projectMaster,
+            createdBy: parseJsonField<string[] | null>(a.projectMaster.createdBy, null),
+            createdAt: a.projectMaster.createdAt.toISOString(),
+            updatedAt: a.projectMaster.updatedAt.toISOString(),
+        } : null,
+    };
+}
+
 /**
- * GET /api/assignments/[id]
- * 配置詳細取得
+ * GET /api/assignments/[id] - 配置詳細取得
  */
 export async function GET(_req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { error } = await requireAuth();
+        if (error) return error;
 
         const { id } = await context.params;
 
         const assignment = await prisma.projectAssignment.findUnique({
             where: { id },
-            include: {
-                projectMaster: true,
-            },
+            include: { projectMaster: true },
         });
 
         if (!assignment) {
-            return NextResponse.json({ error: '配置が見つかりません' }, { status: 404 });
+            return notFoundResponse('配置');
         }
 
-        return NextResponse.json({
-            ...assignment,
-            date: assignment.date.toISOString(),
-            workers: assignment.workers ? JSON.parse(assignment.workers) : [],
-            vehicles: assignment.vehicles ? JSON.parse(assignment.vehicles) : [],
-            confirmedWorkerIds: assignment.confirmedWorkerIds ? JSON.parse(assignment.confirmedWorkerIds) : [],
-            confirmedVehicleIds: assignment.confirmedVehicleIds ? JSON.parse(assignment.confirmedVehicleIds) : [],
-            createdAt: assignment.createdAt.toISOString(),
-            updatedAt: assignment.updatedAt.toISOString(),
-            projectMaster: assignment.projectMaster ? {
-                ...assignment.projectMaster,
-                createdBy: assignment.projectMaster.createdBy ? JSON.parse(assignment.projectMaster.createdBy) : null,
-                createdAt: assignment.projectMaster.createdAt.toISOString(),
-                updatedAt: assignment.projectMaster.updatedAt.toISOString(),
-            } : null,
-        });
+        return NextResponse.json(formatAssignment(assignment));
     } catch (error) {
-        console.error('Get assignment error:', error);
-        return NextResponse.json(
-            { error: '配置の取得に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('配置の取得', error);
     }
 }
 
 /**
- * PATCH /api/assignments/[id]
- * 配置更新
+ * PATCH /api/assignments/[id] - 配置更新
  */
 export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { session, error } = await requireAuth();
+        if (error) return error;
 
-        const role = session.user.role;
-        if (role !== 'admin' && role !== 'manager' && role !== 'foreman1') {
-            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
+        if (!canDispatch(session!.user)) {
+            return errorResponse('権限がありません', 403);
         }
 
         const { id } = await context.params;
@@ -79,76 +92,45 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.assignedEmployeeId !== undefined) updateData.assignedEmployeeId = body.assignedEmployeeId;
         if (body.date !== undefined) updateData.date = new Date(body.date);
         if (body.memberCount !== undefined) updateData.memberCount = body.memberCount;
-        if (body.workers !== undefined) updateData.workers = JSON.stringify(body.workers);
-        if (body.vehicles !== undefined) updateData.vehicles = JSON.stringify(body.vehicles);
+        if (body.workers !== undefined) updateData.workers = stringifyJsonField(body.workers);
+        if (body.vehicles !== undefined) updateData.vehicles = stringifyJsonField(body.vehicles);
         if (body.meetingTime !== undefined) updateData.meetingTime = body.meetingTime;
         if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
         if (body.remarks !== undefined) updateData.remarks = body.remarks;
         if (body.isDispatchConfirmed !== undefined) updateData.isDispatchConfirmed = body.isDispatchConfirmed;
-        if (body.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = JSON.stringify(body.confirmedWorkerIds);
-        if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = JSON.stringify(body.confirmedVehicleIds);
+        if (body.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = stringifyJsonField(body.confirmedWorkerIds);
+        if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);
 
         const assignment = await prisma.projectAssignment.update({
             where: { id },
             data: updateData,
-            include: {
-                projectMaster: true,
-            },
+            include: { projectMaster: true },
         });
 
-        return NextResponse.json({
-            ...assignment,
-            date: assignment.date.toISOString(),
-            workers: assignment.workers ? JSON.parse(assignment.workers) : [],
-            vehicles: assignment.vehicles ? JSON.parse(assignment.vehicles) : [],
-            confirmedWorkerIds: assignment.confirmedWorkerIds ? JSON.parse(assignment.confirmedWorkerIds) : [],
-            confirmedVehicleIds: assignment.confirmedVehicleIds ? JSON.parse(assignment.confirmedVehicleIds) : [],
-            createdAt: assignment.createdAt.toISOString(),
-            updatedAt: assignment.updatedAt.toISOString(),
-            projectMaster: assignment.projectMaster ? {
-                ...assignment.projectMaster,
-                createdBy: assignment.projectMaster.createdBy ? JSON.parse(assignment.projectMaster.createdBy) : null,
-                createdAt: assignment.projectMaster.createdAt.toISOString(),
-                updatedAt: assignment.projectMaster.updatedAt.toISOString(),
-            } : null,
-        });
+        return NextResponse.json(formatAssignment(assignment));
     } catch (error) {
-        console.error('Update assignment error:', error);
-        return NextResponse.json(
-            { error: '配置の更新に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('配置の更新', error);
     }
 }
 
 /**
- * DELETE /api/assignments/[id]
- * 配置削除
+ * DELETE /api/assignments/[id] - 配置削除
  */
 export async function DELETE(_req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { session, error } = await requireAuth();
+        if (error) return error;
 
-        const role = session.user.role;
-        if (role !== 'admin' && role !== 'manager' && role !== 'foreman1') {
-            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
+        if (!canDispatch(session!.user)) {
+            return errorResponse('権限がありません', 403);
         }
 
         const { id } = await context.params;
 
-        await prisma.projectAssignment.delete({
-            where: { id },
-        });
+        await prisma.projectAssignment.delete({ where: { id } });
 
         return NextResponse.json({ success: true });
     } catch (error) {
-        console.error('Delete assignment error:', error);
-        return NextResponse.json(
-            { error: '配置の削除に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('配置の削除', error);
     }
 }
