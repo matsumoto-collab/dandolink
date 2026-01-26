@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, stringifyJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 export async function GET() {
     try {
@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
 
         const vacation = await prisma.vacationRecord.upsert({
             where: { dateKey },
-            update: { employeeIds: stringifyJsonField(employeeIds || []), remarks: remarks || null },
-            create: { dateKey, employeeIds: stringifyJsonField(employeeIds || []), remarks: remarks || null },
+            update: { employeeIds: JSON.stringify(employeeIds || []), remarks: remarks || null },
+            create: { dateKey, employeeIds: JSON.stringify(employeeIds || []), remarks: remarks || null },
         });
 
         return NextResponse.json({ ...vacation, employeeIds: parseJsonField<string[]>(vacation.employeeIds, []) });
