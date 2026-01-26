@@ -471,11 +471,11 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                 <View style={styles.companySection}>
                     <View style={styles.companyRow}>
                         <View style={styles.companyInfo}>
-                            <Text style={styles.companyText}>許可（般−1）第{companyInfo.tel.slice(-5) || '00000'}号</Text>
-                            <Text style={styles.companyName}>株式会社　{companyInfo.name.replace('株式会社', '').trim()}</Text>
-                            <Text style={styles.companyRep}>代表取締役　{companyInfo.representative}</Text>
-                            <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
-                            <Text style={styles.companyText}>TEL:{companyInfo.tel} FAX:{companyInfo.fax || ''}</Text>
+                            <Text style={styles.companyText}>愛媛県知事　許可（般-6）　第17335号</Text>
+                            <Text style={styles.companyName}>株式会社　雄伸工業</Text>
+                            <Text style={styles.companyRep}>代表取締役　今井　公一郎</Text>
+                            <Text style={styles.companyText}>〒799-3104　伊予市上三谷甲3517番地</Text>
+                            <Text style={styles.companyText}>TEL:089-989-7350　FAX：089-989-7351</Text>
                         </View>
                         <View style={styles.stampBox} />
                     </View>

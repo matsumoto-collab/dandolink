@@ -381,13 +381,11 @@ function InvoicePage({
                     </View>
 
                     <View style={styles.companyInfo}>
-                        <Text style={styles.companyName}>㈱{companyInfo.name.replace('株式会社', '').trim()}</Text>
-                        <Text style={styles.companyText}>〒{companyInfo.postalCode}</Text>
-                        <Text style={styles.companyText}>{companyInfo.address}</Text>
-                        <Text style={styles.companyText}>TEL {companyInfo.tel} FAX {companyInfo.fax || ''}</Text>
-                        {registrationNumber && (
-                            <Text style={styles.companyText}>登録番号：{registrationNumber}</Text>
-                        )}
+                        <Text style={styles.companyName}>㈱雄伸工業</Text>
+                        <Text style={styles.companyText}>〒799-3104</Text>
+                        <Text style={styles.companyText}>伊予市上三谷甲3517番地</Text>
+                        <Text style={styles.companyText}>TEL 089-989-7350 FAX 089-989-7351</Text>
+                        <Text style={styles.companyText}>登録番号：T8500001018289</Text>
                     </View>
 
                     {/* 振込先 */}
