@@ -13,7 +13,16 @@
       "Bash(powershell:*)",
       "Bash(git push:*)",
       "Bash(npm install:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(vercel --version:*)",
+      "Bash(wc:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prisma:*)",
+      "Bash(ls:*)",
+      "Bash(npm test:*)",
+      "Bash(npx jest:*)",
+      "Bash(npm run test:coverage:*)"
     ]
   }
 }
