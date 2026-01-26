@@ -378,7 +378,7 @@ interface EstimatePDFProps {
 }
 
 // Cover Page Component
-function CoverPage({ estimate, project }: Omit<EstimatePDFProps, 'includeCoverPage'>) {
+function CoverPage({ estimate, project }: Omit<EstimatePDFProps, 'includeCoverPage' | 'companyInfo'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));

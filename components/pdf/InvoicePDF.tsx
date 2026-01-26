@@ -342,7 +342,7 @@ function InvoicePage({
     invoice,
     project,
     bankAccounts = [],
-}: Omit<InvoicePDFProps, 'includeCoverPage'>) {
+}: Omit<InvoicePDFProps, 'includeCoverPage' | 'companyInfo' | 'registrationNumber'>) {
     const createdDate = new Date(invoice.createdAt);
 
     // 明細データ準備
