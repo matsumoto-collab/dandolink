@@ -21,6 +21,7 @@
 | WeeklyCalendar分割 | 609行→323行（47%削減）、useCalendarModals hook作成 |
 | 権限管理一元化 | canDispatch, isManagerOrAbove 関数追加 |
 | テスト追加 | permissions.ts 97%、dateUtils.ts 88% カバレッジ |
+| テスト修正 | useCalendarテストのタイムゾーン問題を修正（全77テストパス） |
 
 ---
 
@@ -52,7 +53,6 @@
 | 項目 | リスク | 備考 |
 |------|--------|------|
 | Context 14層 | 低 | 動作に問題なし、大規模改修時に対応 |
-| useCalendarテスト失敗 | 低 | タイムゾーン問題、機能に影響なし |
 | any型使用 | 低 | 新規コードでは使用禁止を推奨 |
 
 ---
