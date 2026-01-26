@@ -49,7 +49,7 @@ function formatAssignment(a: {
  */
 export async function GET(req: NextRequest) {
     try {
-        const { session, error } = await requireAuth();
+        const { error } = await requireAuth();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);
