@@ -1,181 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { canManageUsers } from '@/utils/permissions';
 import { updateUserSchema, validateRequest } from '@/lib/validations';
+import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, notFoundResponse, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
-/**
- * Get a specific user
- * GET /api/users/[id]
- */
-export async function GET(
-    _req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+interface RouteContext {
+    params: Promise<{ id: string }>;
+}
+
+function formatUser(user: { role: string; assignedProjects: string | null; [key: string]: unknown }) {
+    return { ...user, role: user.role.toLowerCase(), assignedProjects: parseJsonField<string[]>(user.assignedProjects, []) };
+}
+
+export async function GET(_req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { session, error } = await requireAuth();
+        if (error) return error;
+        if (!canManageUsers(session!.user)) return errorResponse('権限がありません', 403);
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
-
-        if (!canManageUsers(session.user)) {
-            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
-        }
-
+        const { id } = await context.params;
         const user = await prisma.user.findUnique({
-            where: { id: params.id },
-            select: {
-                id: true,
-                username: true,
-                email: true,
-                displayName: true,
-                role: true,
-                assignedProjects: true,
-                isActive: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+            where: { id },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, createdAt: true, updatedAt: true },
         });
 
-        if (!user) {
-            return NextResponse.json(
-                { error: 'ユーザーが見つかりません' },
-                { status: 404 }
-            );
-        }
-
-        return NextResponse.json({
-            ...user,
-            role: user.role.toLowerCase(),
-            assignedProjects: user.assignedProjects
-                ? JSON.parse(user.assignedProjects)
-                : undefined,
-        });
+        if (!user) return notFoundResponse('ユーザー');
+        return NextResponse.json(formatUser(user));
     } catch (error) {
-        console.error('Get user error:', error);
-        return NextResponse.json(
-            { error: 'ユーザーの取得に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('ユーザーの取得', error);
     }
 }
 
-/**
- * Update a user
- * PATCH /api/users/[id]
- */
-export async function PATCH(
-    req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { session, error } = await requireAuth();
+        if (error) return error;
+        if (!canManageUsers(session!.user)) return errorResponse('権限がありません', 403);
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
-
-        if (!canManageUsers(session.user)) {
-            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
-        }
-
+        const { id } = await context.params;
         const body = await req.json();
 
-        // Zodバリデーション
         const validation = validateRequest(updateUserSchema, body);
-        if (!validation.success) {
-            return NextResponse.json(
-                { error: validation.error, details: validation.details },
-                { status: 400 }
-            );
-        }
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
 
         const { email, displayName, password, role, assignedProjects, isActive } = validation.data;
 
-        // Build update data
         const updateData: Record<string, unknown> = {};
-
         if (email !== undefined) updateData.email = email;
         if (displayName !== undefined) updateData.displayName = displayName;
         if (role !== undefined) updateData.role = role.toUpperCase();
         if (isActive !== undefined) updateData.isActive = isActive;
-        if (assignedProjects !== undefined) {
-            updateData.assignedProjects = assignedProjects
-                ? JSON.stringify(assignedProjects)
-                : null;
-        }
-        if (password) {
-            updateData.passwordHash = await bcrypt.hash(password, 10);
-        }
+        if (assignedProjects !== undefined) updateData.assignedProjects = stringifyJsonField(assignedProjects);
+        if (password) updateData.passwordHash = await bcrypt.hash(password, 10);
 
-        const updatedUser = await prisma.user.update({
-            where: { id: params.id },
-            data: updateData,
-        });
-
-        return NextResponse.json({
-            id: updatedUser.id,
-            username: updatedUser.username,
-            email: updatedUser.email,
-            displayName: updatedUser.displayName,
-            role: updatedUser.role.toLowerCase(),
-            assignedProjects: updatedUser.assignedProjects
-                ? JSON.parse(updatedUser.assignedProjects)
-                : undefined,
-            isActive: updatedUser.isActive,
-            createdAt: updatedUser.createdAt,
-            updatedAt: updatedUser.updatedAt,
-        });
+        const updatedUser = await prisma.user.update({ where: { id }, data: updateData });
+        return NextResponse.json(formatUser(updatedUser));
     } catch (error) {
-        console.error('Update user error:', error);
-        return NextResponse.json(
-            { error: 'ユーザーの更新に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('ユーザーの更新', error);
     }
 }
 
-/**
- * Delete a user
- * DELETE /api/users/[id]
- */
-export async function DELETE(
-    _req: NextRequest,
-    { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, context: RouteContext) {
     try {
-        const session = await getServerSession(authOptions);
+        const { session, error } = await requireAuth();
+        if (error) return error;
+        if (!canManageUsers(session!.user)) return errorResponse('権限がありません', 403);
 
-        if (!session?.user) {
-            return NextResponse.json({ error: '認証が必要です' }, { status: 401 });
-        }
+        const { id } = await context.params;
+        if (session!.user.id === id) return errorResponse('自分自身を削除することはできません', 400);
 
-        if (!canManageUsers(session.user)) {
-            return NextResponse.json({ error: '権限がありません' }, { status: 403 });
-        }
-
-        // Prevent deleting yourself
-        if (session.user.id === params.id) {
-            return NextResponse.json(
-                { error: '自分自身を削除することはできません' },
-                { status: 400 }
-            );
-        }
-
-        await prisma.user.delete({
-            where: { id: params.id },
-        });
-
+        await prisma.user.delete({ where: { id } });
         return NextResponse.json({ message: 'ユーザーを削除しました' });
     } catch (error) {
-        console.error('Delete user error:', error);
-        return NextResponse.json(
-            { error: 'ユーザーの削除に失敗しました' },
-            { status: 500 }
-        );
+        return serverErrorResponse('ユーザーの削除', error);
     }
 }
-
