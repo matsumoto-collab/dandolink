@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, stringifyJsonField, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, serverErrorResponse } from '@/lib/api/utils';
 
 export async function GET() {
     try {
@@ -22,8 +22,8 @@ export async function PATCH(request: NextRequest) {
         const { displayedForemanIds } = await request.json();
         const settings = await prisma.userSettings.upsert({
             where: { userId: session!.user.id },
-            update: { displayedForemanIds: stringifyJsonField(displayedForemanIds || []) },
-            create: { userId: session!.user.id, displayedForemanIds: stringifyJsonField(displayedForemanIds || []) },
+            update: { displayedForemanIds: JSON.stringify(displayedForemanIds || []) },
+            create: { userId: session!.user.id, displayedForemanIds: JSON.stringify(displayedForemanIds || []) },
         });
 
         return NextResponse.json({ displayedForemanIds: parseJsonField<string[]>(settings.displayedForemanIds, []) });
