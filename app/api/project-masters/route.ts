@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
+import { createProjectMasterSchema, validateRequest } from '@/lib/validations';
 
 // 配置レコードをフォーマット
 function formatAssignment(a: { date: Date; workers: string | null; vehicles: string | null; confirmedWorkerIds: string | null; confirmedVehicleIds: string | null; createdAt: Date; updatedAt: Date; [key: string]: unknown }) {
@@ -92,31 +93,25 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
+        const validation = validateRequest(createProjectMasterSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error, validation.details);
+
+        const { title, customerId, customerName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
 
         const projectMaster = await prisma.projectMaster.create({
             data: {
-                title: body.title,
-                customerId: body.customerId || null,
-                customerName: body.customerName || null,
-                constructionType: body.constructionType || 'other',
-                constructionContent: body.constructionContent || null,
-                status: body.status || 'active',
-                location: body.location || null,
-                postalCode: body.postalCode || null,
-                prefecture: body.prefecture || null,
-                city: body.city || null,
-                plusCode: body.plusCode || null,
-                area: body.area || null,
-                areaRemarks: body.areaRemarks || null,
-                assemblyDate: body.assemblyDate ? new Date(body.assemblyDate) : null,
-                demolitionDate: body.demolitionDate ? new Date(body.demolitionDate) : null,
-                estimatedAssemblyWorkers: body.estimatedAssemblyWorkers || null,
-                estimatedDemolitionWorkers: body.estimatedDemolitionWorkers || null,
-                contractAmount: body.contractAmount || null,
-                scaffoldingSpec: body.scaffoldingSpec || null,
-                description: body.description || null,
-                remarks: body.remarks || null,
-                createdBy: stringifyJsonField(body.createdBy),
+                title, customerId: customerId || null, customerName: customerName || null,
+                constructionType: constructionType || 'other', constructionContent: constructionContent || null,
+                status: status || 'active', location: location || null, postalCode: postalCode || null,
+                prefecture: prefecture || null, city: city || null, plusCode: plusCode || null,
+                area: area || null, areaRemarks: areaRemarks || null,
+                assemblyDate: assemblyDate ? new Date(assemblyDate) : null,
+                demolitionDate: demolitionDate ? new Date(demolitionDate) : null,
+                estimatedAssemblyWorkers: estimatedAssemblyWorkers || null,
+                estimatedDemolitionWorkers: estimatedDemolitionWorkers || null,
+                contractAmount: contractAmount || null, scaffoldingSpec: scaffoldingSpec || undefined,
+                description: description || null, remarks: remarks || null,
+                createdBy: stringifyJsonField(createdBy),
             },
         });
 

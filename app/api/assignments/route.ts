@@ -1,14 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import {
-    requireAuth,
-    parseJsonField,
-    stringifyJsonField,
-    errorResponse,
-    serverErrorResponse,
-    validationErrorResponse,
-} from '@/lib/api/utils';
+import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
+import { createAssignmentSchema, validateRequest } from '@/lib/validations';
 
 // 配置レコードをフォーマット
 function formatAssignment(a: {
@@ -93,40 +87,23 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
+        const validation = validateRequest(createAssignmentSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        if (!body.projectMasterId || !body.assignedEmployeeId || !body.date) {
-            return validationErrorResponse('projectMasterId, assignedEmployeeId, date は必須です');
-        }
+        const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds } = validation.data;
 
-        // 重複チェック
         const existing = await prisma.projectAssignment.findUnique({
-            where: {
-                projectMasterId_assignedEmployeeId_date: {
-                    projectMasterId: body.projectMasterId,
-                    assignedEmployeeId: body.assignedEmployeeId,
-                    date: new Date(body.date),
-                },
-            },
+            where: { projectMasterId_assignedEmployeeId_date: { projectMasterId, assignedEmployeeId, date: new Date(date) } },
         });
-
-        if (existing) {
-            return errorResponse('同一案件・同一職長・同一日付の配置は既に存在します', 400);
-        }
+        if (existing) return errorResponse('同一案件・同一職長・同一日付の配置は既に存在します', 400);
 
         const assignment = await prisma.projectAssignment.create({
             data: {
-                projectMasterId: body.projectMasterId,
-                assignedEmployeeId: body.assignedEmployeeId,
-                date: new Date(body.date),
-                memberCount: body.memberCount || 0,
-                workers: stringifyJsonField(body.workers),
-                vehicles: stringifyJsonField(body.vehicles),
-                meetingTime: body.meetingTime || null,
-                sortOrder: body.sortOrder || 0,
-                remarks: body.remarks || null,
-                isDispatchConfirmed: body.isDispatchConfirmed || false,
-                confirmedWorkerIds: stringifyJsonField(body.confirmedWorkerIds),
-                confirmedVehicleIds: stringifyJsonField(body.confirmedVehicleIds),
+                projectMasterId, assignedEmployeeId, date: new Date(date),
+                memberCount: memberCount || 0, workers: stringifyJsonField(workers), vehicles: stringifyJsonField(vehicles),
+                meetingTime: meetingTime || null, sortOrder: sortOrder || 0, remarks: remarks || null,
+                isDispatchConfirmed: isDispatchConfirmed || false,
+                confirmedWorkerIds: stringifyJsonField(confirmedWorkerIds), confirmedVehicleIds: stringifyJsonField(confirmedVehicleIds),
             },
             include: { projectMaster: true },
         });

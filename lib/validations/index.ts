@@ -101,13 +101,16 @@ export const createProjectMasterSchema = z.object({
     location: z.string().max(500).optional().nullable(),
     plusCode: z.string().optional().nullable(),
     // 工事情報
-    area: z.string().optional().nullable(),
+    area: z.number().optional().nullable(),
     areaRemarks: z.string().optional().nullable(),
     assemblyDate: z.string().optional().nullable(),
     demolitionDate: z.string().optional().nullable(),
     estimatedAssemblyWorkers: z.number().int().min(0).optional().nullable(),
     estimatedDemolitionWorkers: z.number().int().min(0).optional().nullable(),
     contractAmount: z.number().min(0).optional().nullable(),
+    // 足場仕様
+    scaffoldingSpec: z.unknown().optional().nullable(),
+    description: z.string().optional().nullable(),
     // その他
     remarks: z.string().max(2000).optional().nullable(),
     createdBy: z.array(z.string()).optional(),
@@ -115,6 +118,27 @@ export const createProjectMasterSchema = z.object({
 });
 
 export const updateProjectMasterSchema = createProjectMasterSchema.partial();
+
+// ============================================
+// Assignment Schemas
+// ============================================
+
+export const createAssignmentSchema = z.object({
+    projectMasterId: z.string().min(1, '案件IDは必須です'),
+    assignedEmployeeId: z.string().min(1, '職長IDは必須です'),
+    date: z.string().min(1, '日付は必須です'),
+    memberCount: z.number().int().min(0).optional(),
+    workers: z.array(z.string()).optional(),
+    vehicles: z.array(z.string()).optional(),
+    meetingTime: z.string().optional().nullable(),
+    sortOrder: z.number().int().optional(),
+    remarks: z.string().max(1000).optional().nullable(),
+    isDispatchConfirmed: z.boolean().optional(),
+    confirmedWorkerIds: z.array(z.string()).optional(),
+    confirmedVehicleIds: z.array(z.string()).optional(),
+});
+
+export const updateAssignmentSchema = createAssignmentSchema.partial();
 
 // ============================================
 // Daily Report Schemas
@@ -173,3 +197,5 @@ export type CreateProjectMasterInput = z.infer<typeof createProjectMasterSchema>
 export type UpdateProjectMasterInput = z.infer<typeof updateProjectMasterSchema>;
 export type CreateDailyReportInput = z.infer<typeof createDailyReportSchema>;
 export type UpdateDailyReportInput = z.infer<typeof updateDailyReportSchema>;
+export type CreateAssignmentInput = z.infer<typeof createAssignmentSchema>;
+export type UpdateAssignmentInput = z.infer<typeof updateAssignmentSchema>;
