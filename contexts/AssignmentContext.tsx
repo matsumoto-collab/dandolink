@@ -121,31 +121,44 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const updateAssignment = useCallback(async (id: string, data: Partial<ProjectAssignment>): Promise<ProjectAssignment> => {
-        const res = await fetch(`/api/assignments/${id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ...data,
-                date: data.date instanceof Date ? data.date.toISOString() : data.date,
-            }),
-        });
+        // Optimistic Update: 先にローカル状態を更新
+        const previousAssignments = assignments;
+        setAssignments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
 
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || '配置の更新に失敗しました');
+        try {
+            const res = await fetch(`/api/assignments/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...data,
+                    date: data.date instanceof Date ? data.date.toISOString() : data.date,
+                }),
+            });
+
+            if (!res.ok) {
+                // エラー時はロールバック
+                setAssignments(previousAssignments);
+                const error = await res.json();
+                throw new Error(error.error || '配置の更新に失敗しました');
+            }
+
+            const updated = await res.json();
+            const formatted = {
+                ...updated,
+                date: new Date(updated.date),
+                createdAt: new Date(updated.createdAt),
+                updatedAt: new Date(updated.updatedAt),
+            };
+
+            // サーバーからの正確なデータで再更新
+            setAssignments(prev => prev.map(a => a.id === id ? formatted : a));
+            return formatted;
+        } catch (err) {
+            // ネットワークエラー等もロールバック
+            setAssignments(previousAssignments);
+            throw err;
         }
-
-        const updated = await res.json();
-        const formatted = {
-            ...updated,
-            date: new Date(updated.date),
-            createdAt: new Date(updated.createdAt),
-            updatedAt: new Date(updated.updatedAt),
-        };
-
-        setAssignments(prev => prev.map(a => a.id === id ? formatted : a));
-        return formatted;
-    }, []);
+    }, [assignments]);
 
     const deleteAssignment = useCallback(async (id: string): Promise<void> => {
         const res = await fetch(`/api/assignments/${id}`, {
