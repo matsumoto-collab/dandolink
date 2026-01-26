@@ -63,6 +63,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     const [assignments, setAssignments] = useState<(ProjectAssignment & { projectMaster?: ProjectMaster })[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isUpdating, setIsUpdating] = useState(false);
 
     // Fetch assignments from API with optional date range
     const fetchAssignments = useCallback(async (startDate?: string, endDate?: string) => {
@@ -126,6 +127,10 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     }, [status]);
 
     // Supabase Realtime subscription
+    // isUpdatingをRefで保持（subscriptionコールバック内で最新値を参照するため）
+    const isUpdatingRef = React.useRef(isUpdating);
+    isUpdatingRef.current = isUpdating;
+
     useEffect(() => {
         if (status !== 'authenticated') return;
 
@@ -140,14 +145,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                         'postgres_changes',
                         { event: '*', schema: 'public', table: 'ProjectAssignment' },
                         () => {
-                            fetchAssignments();
+                            // 更新中はRealtimeの通知を無視して競合を防止
+                            if (!isUpdatingRef.current) {
+                                fetchAssignments();
+                            }
                         }
                     )
                     .on(
                         'postgres_changes',
                         { event: '*', schema: 'public', table: 'ProjectMaster' },
                         () => {
-                            fetchAssignments();
+                            // 更新中はRealtimeの通知を無視して競合を防止
+                            if (!isUpdatingRef.current) {
+                                fetchAssignments();
+                            }
                         }
                     )
                     .subscribe();
@@ -267,6 +278,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         // Find the assignment to get projectMasterId
         const assignment = assignments.find(a => a.id === id);
 
+        // 更新中フラグをセット（Realtimeの通知を無視するため）
+        setIsUpdating(true);
+
         // Optimistic update BEFORE API call for smooth UI
         setAssignments(prev => prev.map(a =>
             a.id === id
@@ -304,21 +318,26 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
                 }),
             });
 
-            // キャッシュをクリアして最新データを強制取得
-            currentDateRangeRef.current = null;
-            await fetchAssignments();
+            // Optimistic Updateで十分なので、fetchAssignmentsは呼ばない
+            // RealtimeがisUpdating解除後に必要に応じてデータを同期する
         } catch (error) {
             // Rollback on error
             setAssignments(previousAssignments);
             console.error('Failed to update project:', error);
             throw error;
+        } finally {
+            // 少し遅延してRealtimeを再開（DBへの伝播を待つ）
+            setTimeout(() => setIsUpdating(false), 500);
         }
-    }, [assignments, fetchAssignments]);
+    }, [assignments]);
 
     // Batch update projects
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
         // Store previous state for rollback
         const previousAssignments = [...assignments];
+
+        // 更新中フラグをセット（Realtimeの通知を無視するため）
+        setIsUpdating(true);
 
         // Optimistic update BEFORE API call for smooth UI
         setAssignments(prev => {
@@ -360,6 +379,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
             setAssignments(previousAssignments);
             console.error('Failed to batch update projects:', error);
             throw error;
+        } finally {
+            // 少し遅延してRealtimeを再開（DBへの伝播を待つ）
+            setTimeout(() => setIsUpdating(false), 500);
         }
     }, [assignments]);
 
