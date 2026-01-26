@@ -87,7 +87,7 @@ export async function exportInvoicePDFReact(
     invoice: Invoice,
     project: Project,
     _companyInfo: CompanyInfo,
-    options: InvoicePDFOptions = { includeCoverPage: true }
+    _options: InvoicePDFOptions = { includeCoverPage: true }
 ): Promise<void> {
     try {
         const blob = await pdf(
@@ -122,7 +122,7 @@ export async function generateInvoicePDFBlobReact(
     invoice: Invoice,
     project: Project,
     _companyInfo: CompanyInfo,
-    options: InvoicePDFOptions = { includeCoverPage: true }
+    _options: InvoicePDFOptions = { includeCoverPage: true }
 ): Promise<string> {
     try {
         const blob = await pdf(
