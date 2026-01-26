@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
+// JSON処理関数を再エクスポート（後方互換性）
+export { parseJsonField, stringifyJsonField, parseJsonFields } from '@/lib/json-utils';
+
 /**
  * API共通ユーティリティ
  * 認証チェック、エラーレスポンス、JSON処理を統一
@@ -100,48 +103,7 @@ export function serverErrorResponse(
     );
 }
 
-// ============================================
-// JSON フィールド処理
-// ============================================
-
-/**
- * JSON文字列をパースする（null/undefined対応）
- */
-export function parseJsonField<T>(value: string | null | undefined, defaultValue: T): T {
-    if (!value) return defaultValue;
-    try {
-        return JSON.parse(value) as T;
-    } catch {
-        return defaultValue;
-    }
-}
-
-/**
- * 値をJSON文字列に変換（null/undefined対応）
- */
-export function stringifyJsonField<T>(value: T | null | undefined): string | null {
-    if (value === null || value === undefined) return null;
-    return JSON.stringify(value);
-}
-
-/**
- * Prismaレコードの複数JSONフィールドをパース
- * @param record Prismaから取得したレコード
- * @param fields パースするフィールド名と型のマップ
- */
-export function parseJsonFields<T extends Record<string, unknown>>(
-    record: T,
-    fields: { [K in keyof T]?: unknown }
-): T {
-    const result = { ...record };
-    for (const [key, defaultValue] of Object.entries(fields)) {
-        const value = record[key as keyof T];
-        if (typeof value === 'string') {
-            (result as Record<string, unknown>)[key] = parseJsonField(value, defaultValue);
-        }
-    }
-    return result;
-}
+// JSON処理関数は @/lib/json-utils から再エクスポート済み
 
 // ============================================
 // レスポンスヘルパー

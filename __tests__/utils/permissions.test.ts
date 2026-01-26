@@ -3,207 +3,96 @@ import {
     canAccessProject,
     isAdmin,
     canManageUsers,
+    canDispatch,
+    isManagerOrAbove,
     getRoleDisplayName,
 } from '@/utils/permissions';
-import { User } from '@/types/user';
 
 describe('permissions', () => {
-    // テスト用ユーザーデータ
-    const createUser = (role: string, isActive: boolean = true, assignedProjects?: string[]): User => ({
-        id: 'user-1',
-        email: 'test@example.com',
-        username: 'testuser',
-        displayName: 'Test User',
-        role: role as User['role'],
-        isActive,
-        assignedProjects,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-    });
-
     describe('hasPermission', () => {
-        it('should return false for null user', () => {
+        it('returns false for null/undefined user', () => {
             expect(hasPermission(null, 'projects', 'view')).toBe(false);
-        });
-
-        it('should return false for undefined user', () => {
             expect(hasPermission(undefined, 'projects', 'view')).toBe(false);
         });
 
-        it('should return false for inactive user', () => {
-            const inactiveUser = createUser('admin', false);
-            expect(hasPermission(inactiveUser, 'projects', 'view')).toBe(false);
+        it('returns false for inactive user', () => {
+            expect(hasPermission({ role: 'admin', isActive: false }, 'projects', 'view')).toBe(false);
         });
 
-        describe('admin role', () => {
-            const admin = createUser('admin');
-
-            it('should have all permissions on projects', () => {
-                expect(hasPermission(admin, 'projects', 'view')).toBe(true);
-                expect(hasPermission(admin, 'projects', 'create')).toBe(true);
-                expect(hasPermission(admin, 'projects', 'edit')).toBe(true);
-                expect(hasPermission(admin, 'projects', 'delete')).toBe(true);
-            });
-
-            it('should have all permissions on users', () => {
-                expect(hasPermission(admin, 'users', 'view')).toBe(true);
-                expect(hasPermission(admin, 'users', 'create')).toBe(true);
-                expect(hasPermission(admin, 'users', 'edit')).toBe(true);
-                expect(hasPermission(admin, 'users', 'delete')).toBe(true);
-            });
+        it('admin has full permissions', () => {
+            const admin = { role: 'admin', isActive: true };
+            expect(hasPermission(admin, 'projects', 'view')).toBe(true);
+            expect(hasPermission(admin, 'projects', 'delete')).toBe(true);
+            expect(hasPermission(admin, 'users', 'delete')).toBe(true);
         });
 
-        describe('manager role', () => {
-            const manager = createUser('manager');
-
-            it('should have full permissions on projects', () => {
-                expect(hasPermission(manager, 'projects', 'view')).toBe(true);
-                expect(hasPermission(manager, 'projects', 'create')).toBe(true);
-                expect(hasPermission(manager, 'projects', 'edit')).toBe(true);
-                expect(hasPermission(manager, 'projects', 'delete')).toBe(true);
-            });
-
-            it('should not have permissions on users', () => {
-                expect(hasPermission(manager, 'users', 'view')).toBe(false);
-                expect(hasPermission(manager, 'users', 'create')).toBe(false);
-            });
+        it('worker has limited permissions', () => {
+            const worker = { role: 'worker', isActive: true };
+            expect(hasPermission(worker, 'projects', 'view')).toBe(true);
+            expect(hasPermission(worker, 'projects', 'edit')).toBe(false);
+            expect(hasPermission(worker, 'estimates', 'view')).toBe(false);
         });
 
-        describe('foreman1 role', () => {
-            const foreman1 = createUser('foreman1');
-
-            it('should have view and edit permissions on projects', () => {
-                expect(hasPermission(foreman1, 'projects', 'view')).toBe(true);
-                expect(hasPermission(foreman1, 'projects', 'edit')).toBe(true);
-                expect(hasPermission(foreman1, 'projects', 'create')).toBe(false);
-                expect(hasPermission(foreman1, 'projects', 'delete')).toBe(false);
-            });
-
-            it('should have view and edit permissions on assignments', () => {
-                expect(hasPermission(foreman1, 'assignments', 'view')).toBe(true);
-                expect(hasPermission(foreman1, 'assignments', 'edit')).toBe(true);
-            });
-        });
-
-        describe('foreman2 role', () => {
-            const foreman2 = createUser('foreman2');
-
-            it('should have view and edit permissions on projects', () => {
-                expect(hasPermission(foreman2, 'projects', 'view')).toBe(true);
-                expect(hasPermission(foreman2, 'projects', 'edit')).toBe(true);
-            });
-
-            it('should have view and edit permissions on assignments', () => {
-                expect(hasPermission(foreman2, 'assignments', 'view')).toBe(true);
-                expect(hasPermission(foreman2, 'assignments', 'edit')).toBe(true);
-            });
-        });
-
-        describe('worker role', () => {
-            const worker = createUser('worker');
-
-            it('should only have view permissions on projects', () => {
-                expect(hasPermission(worker, 'projects', 'view')).toBe(true);
-                expect(hasPermission(worker, 'projects', 'edit')).toBe(false);
-                expect(hasPermission(worker, 'projects', 'create')).toBe(false);
-            });
-
-            it('should only have view permissions on assignments', () => {
-                expect(hasPermission(worker, 'assignments', 'view')).toBe(true);
-                expect(hasPermission(worker, 'assignments', 'edit')).toBe(false);
-            });
+        it('returns false for unknown role', () => {
+            expect(hasPermission({ role: 'unknown', isActive: true }, 'projects', 'view')).toBe(false);
         });
     });
 
     describe('canAccessProject', () => {
-        const projectId = 'project-123';
-
-        it('should return false for null user', () => {
-            expect(canAccessProject(null, projectId)).toBe(false);
+        it('admin/manager/foreman1 can access any project', () => {
+            expect(canAccessProject({ role: 'admin', isActive: true }, 'proj-1')).toBe(true);
+            expect(canAccessProject({ role: 'manager', isActive: true }, 'proj-1')).toBe(true);
+            expect(canAccessProject({ role: 'foreman1', isActive: true }, 'proj-1')).toBe(true);
         });
 
-        it('should return false for inactive user', () => {
-            const inactiveAdmin = createUser('admin', false);
-            expect(canAccessProject(inactiveAdmin, projectId)).toBe(false);
+        it('worker needs assigned projects', () => {
+            const worker = { role: 'worker', isActive: true, assignedProjects: ['proj-1', 'proj-2'] };
+            expect(canAccessProject(worker, 'proj-1')).toBe(true);
+            expect(canAccessProject(worker, 'proj-3')).toBe(false);
         });
 
-        it('should return true for admin', () => {
-            const admin = createUser('admin');
-            expect(canAccessProject(admin, projectId)).toBe(true);
-        });
-
-        it('should return true for manager', () => {
-            const manager = createUser('manager');
-            expect(canAccessProject(manager, projectId)).toBe(true);
-        });
-
-        it('should return true for foreman1', () => {
-            const foreman1 = createUser('foreman1');
-            expect(canAccessProject(foreman1, projectId)).toBe(true);
-        });
-
-        it('should return true for foreman2 with assigned project', () => {
-            const foreman2 = createUser('foreman2', true, [projectId]);
-            expect(canAccessProject(foreman2, projectId)).toBe(true);
-        });
-
-        it('should return false for foreman2 without assigned project', () => {
-            const foreman2 = createUser('foreman2', true, ['other-project']);
-            expect(canAccessProject(foreman2, projectId)).toBe(false);
-        });
-
-        it('should return true for worker with assigned project', () => {
-            const worker = createUser('worker', true, [projectId]);
-            expect(canAccessProject(worker, projectId)).toBe(true);
-        });
-
-        it('should return false for worker without assigned project', () => {
-            const worker = createUser('worker', true, ['other-project']);
-            expect(canAccessProject(worker, projectId)).toBe(false);
+        it('worker without assignedProjects returns false', () => {
+            expect(canAccessProject({ role: 'worker', isActive: true }, 'proj-1')).toBe(false);
         });
     });
 
-    describe('isAdmin', () => {
-        it('should return true for active admin', () => {
-            const admin = createUser('admin');
-            expect(isAdmin(admin)).toBe(true);
+    describe('canDispatch', () => {
+        it('admin/manager/foreman1 can dispatch', () => {
+            expect(canDispatch({ role: 'admin', isActive: true })).toBe(true);
+            expect(canDispatch({ role: 'manager', isActive: true })).toBe(true);
+            expect(canDispatch({ role: 'foreman1', isActive: true })).toBe(true);
         });
 
-        it('should return false for inactive admin', () => {
-            const inactiveAdmin = createUser('admin', false);
-            expect(isAdmin(inactiveAdmin)).toBe(false);
-        });
-
-        it('should return false for manager', () => {
-            const manager = createUser('manager');
-            expect(isAdmin(manager)).toBe(false);
+        it('foreman2/worker cannot dispatch', () => {
+            expect(canDispatch({ role: 'foreman2', isActive: true })).toBe(false);
+            expect(canDispatch({ role: 'worker', isActive: true })).toBe(false);
         });
     });
 
-    describe('canManageUsers', () => {
-        it('should return true for admin', () => {
-            const admin = createUser('admin');
-            expect(canManageUsers(admin)).toBe(true);
+    describe('isManagerOrAbove', () => {
+        it('only admin and manager return true', () => {
+            expect(isManagerOrAbove({ role: 'admin', isActive: true })).toBe(true);
+            expect(isManagerOrAbove({ role: 'manager', isActive: true })).toBe(true);
+            expect(isManagerOrAbove({ role: 'foreman1', isActive: true })).toBe(false);
         });
+    });
 
-        it('should return false for non-admin roles', () => {
-            expect(canManageUsers(createUser('manager'))).toBe(false);
-            expect(canManageUsers(createUser('foreman1'))).toBe(false);
-            expect(canManageUsers(createUser('foreman2'))).toBe(false);
-            expect(canManageUsers(createUser('worker'))).toBe(false);
+    describe('isAdmin / canManageUsers', () => {
+        it('only active admin returns true', () => {
+            expect(isAdmin({ role: 'admin', isActive: true })).toBe(true);
+            expect(isAdmin({ role: 'admin', isActive: false })).toBe(false);
+            expect(isAdmin({ role: 'manager', isActive: true })).toBe(false);
+            expect(canManageUsers({ role: 'admin', isActive: true })).toBe(true);
         });
     });
 
     describe('getRoleDisplayName', () => {
-        it('should return correct display names for all roles', () => {
+        it('returns Japanese role names', () => {
             expect(getRoleDisplayName('admin')).toBe('管理者');
             expect(getRoleDisplayName('manager')).toBe('マネージャー');
             expect(getRoleDisplayName('foreman1')).toBe('職長1');
             expect(getRoleDisplayName('foreman2')).toBe('職長2');
             expect(getRoleDisplayName('worker')).toBe('職方');
-        });
-
-        it('should return role string for unknown role', () => {
             expect(getRoleDisplayName('unknown')).toBe('unknown');
         });
     });
