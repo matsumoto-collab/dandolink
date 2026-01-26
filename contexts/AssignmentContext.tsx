@@ -26,6 +26,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
     const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isUpdating, setIsUpdating] = useState(false);
 
     // Supabase Realtimeセットアップ（認証済みの場合のみ）
     useEffect(() => {
@@ -37,7 +38,10 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'ProjectAssignment' },
                 () => {
-                    fetchAssignments();
+                    // 更新中はRealtimeの通知を無視
+                    if (!isUpdating) {
+                        fetchAssignments();
+                    }
                 }
             )
             .subscribe();
@@ -45,7 +49,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [status]);
+    }, [status, isUpdating]);
 
     const fetchAssignments = useCallback(async (startDate?: string, endDate?: string, assignedEmployeeId?: string) => {
         try {
@@ -124,6 +128,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
         // Optimistic Update: 先にローカル状態を更新
         const previousAssignments = assignments;
         setAssignments(prev => prev.map(a => a.id === id ? { ...a, ...data } : a));
+        setIsUpdating(true);
 
         try {
             const res = await fetch(`/api/assignments/${id}`, {
@@ -157,6 +162,9 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
             // ネットワークエラー等もロールバック
             setAssignments(previousAssignments);
             throw err;
+        } finally {
+            // 少し遅延してRealtimeを再開（DBへの伝播を待つ）
+            setTimeout(() => setIsUpdating(false), 500);
         }
     }, [assignments]);
 
@@ -174,36 +182,41 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const updateAssignments = useCallback(async (updates: { id: string; data: Partial<ProjectAssignment> }[]): Promise<void> => {
-        const res = await fetch('/api/assignments/batch', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                updates: updates.map(u => ({
-                    id: u.id,
-                    data: {
-                        ...u.data,
-                        date: u.data.date instanceof Date ? u.data.date.toISOString() : u.data.date,
-                    },
-                })),
-            }),
-        });
-
-        if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.error || '配置の一括更新に失敗しました');
-        }
-
-        // ローカル状態を更新
-        setAssignments(prev => {
-            const newAssignments = [...prev];
-            updates.forEach(update => {
-                const index = newAssignments.findIndex(a => a.id === update.id);
-                if (index !== -1) {
-                    newAssignments[index] = { ...newAssignments[index], ...update.data };
-                }
+        setIsUpdating(true);
+        try {
+            const res = await fetch('/api/assignments/batch', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    updates: updates.map(u => ({
+                        id: u.id,
+                        data: {
+                            ...u.data,
+                            date: u.data.date instanceof Date ? u.data.date.toISOString() : u.data.date,
+                        },
+                    })),
+                }),
             });
-            return newAssignments;
-        });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || '配置の一括更新に失敗しました');
+            }
+
+            // ローカル状態を更新
+            setAssignments(prev => {
+                const newAssignments = [...prev];
+                updates.forEach(update => {
+                    const index = newAssignments.findIndex(a => a.id === update.id);
+                    if (index !== -1) {
+                        newAssignments[index] = { ...newAssignments[index], ...update.data };
+                    }
+                });
+                return newAssignments;
+            });
+        } finally {
+            setTimeout(() => setIsUpdating(false), 500);
+        }
     }, []);
 
     const getAssignmentById = useCallback((id: string): ProjectAssignment | undefined => {
