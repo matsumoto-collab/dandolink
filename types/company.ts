@@ -13,10 +13,11 @@ export interface CompanyInfo {
     tel: string;
     fax?: string;
     email?: string;
-    representative: string;
-    sealImage?: string;
-    licenseNumber?: string;      // 建設業許可番号
-    registrationNumber?: string; // インボイス登録番号
+    representativeTitle?: string; // 肩書
+    representative: string;       // 氏名
+    sealImage?: string;           // 会社印（Base64）
+    licenseNumber?: string;
+    registrationNumber?: string;
     bankAccounts?: BankAccount[];
     createdAt: Date;
     updatedAt: Date;
@@ -29,6 +30,7 @@ export interface CompanyInfoInput {
     tel: string;
     fax?: string;
     email?: string;
+    representativeTitle?: string;
     representative: string;
     sealImage?: string;
     licenseNumber?: string;

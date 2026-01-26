@@ -8,6 +8,7 @@ import {
     View,
     StyleSheet,
     Font,
+    Image,
 } from '@react-pdf/renderer';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
@@ -475,11 +476,15 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
                             )}
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
-                            <Text style={styles.companyRep}>代表取締役　{companyInfo.representative}</Text>
+                            <Text style={styles.companyRep}>{companyInfo.representativeTitle || '代表取締役'}　{companyInfo.representative}</Text>
                             <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
                             <Text style={styles.companyText}>TEL:{companyInfo.tel}　FAX：{companyInfo.fax || ''}</Text>
                         </View>
-                        <View style={styles.stampBox} />
+                        {companyInfo.sealImage ? (
+                            <Image src={companyInfo.sealImage} style={styles.stampBox} />
+                        ) : (
+                            <View style={styles.stampBox} />
+                        )}
                     </View>
                 </View>
             </View>

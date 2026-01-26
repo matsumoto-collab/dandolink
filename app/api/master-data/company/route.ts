@@ -46,7 +46,7 @@ export async function PATCH(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, postalCode, address, tel, fax, email, representative, sealImage, licenseNumber, registrationNumber, bankAccounts } = body;
+        const { name, postalCode, address, tel, fax, email, representativeTitle, representative, sealImage, licenseNumber, registrationNumber, bankAccounts } = body;
 
         const company = await prisma.companyInfo.upsert({
             where: { id: 'default' },
@@ -57,6 +57,7 @@ export async function PATCH(request: NextRequest) {
                 tel,
                 fax: fax || null,
                 email: email || null,
+                representativeTitle: representativeTitle || null,
                 representative,
                 sealImage: sealImage || null,
                 licenseNumber: licenseNumber || null,
@@ -71,6 +72,7 @@ export async function PATCH(request: NextRequest) {
                 tel,
                 fax: fax || null,
                 email: email || null,
+                representativeTitle: representativeTitle || null,
                 representative,
                 sealImage: sealImage || null,
                 licenseNumber: licenseNumber || null,

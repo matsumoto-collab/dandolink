@@ -15,7 +15,9 @@ export default function CompanyInfoSettings() {
         tel: '',
         fax: '',
         email: '',
+        representativeTitle: '',
         representative: '',
+        sealImage: '',
         licenseNumber: '',
         registrationNumber: '',
         bankAccounts: [] as BankAccount[],
@@ -31,7 +33,9 @@ export default function CompanyInfoSettings() {
                 tel: companyInfo.tel || '',
                 fax: companyInfo.fax || '',
                 email: companyInfo.email || '',
+                representativeTitle: companyInfo.representativeTitle || '',
                 representative: companyInfo.representative || '',
+                sealImage: companyInfo.sealImage || '',
                 licenseNumber: companyInfo.licenseNumber || '',
                 registrationNumber: companyInfo.registrationNumber || '',
                 bankAccounts: companyInfo.bankAccounts || [],
@@ -102,7 +106,17 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">代表者名</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">代表者肩書</label>
+                    <input
+                        type="text"
+                        value={formData.representativeTitle}
+                        onChange={(e) => handleChange('representativeTitle', e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="例：代表取締役"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">代表者氏名</label>
                     <input
                         type="text"
                         value={formData.representative}
@@ -181,6 +195,45 @@ export default function CompanyInfoSettings() {
                             className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             placeholder="例：T8500001018289"
                         />
+                    </div>
+                </div>
+            </div>
+
+            {/* 会社印 */}
+            <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-slate-800 mb-3">会社印</h4>
+                <div className="flex items-start gap-4">
+                    {formData.sealImage && (
+                        <div className="border border-slate-300 rounded-md p-2 bg-white">
+                            <img src={formData.sealImage} alt="会社印" className="w-16 h-16 object-contain" />
+                        </div>
+                    )}
+                    <div className="flex-1">
+                        <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                        handleChange('sealImage', reader.result as string);
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            }}
+                            className="text-sm"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">PNG/JPG推奨、背景透過PNG推奨</p>
+                        {formData.sealImage && (
+                            <button
+                                type="button"
+                                onClick={() => handleChange('sealImage', '')}
+                                className="text-xs text-red-500 mt-1 hover:underline"
+                            >
+                                削除
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

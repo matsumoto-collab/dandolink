@@ -243,8 +243,9 @@ model CompanyInfo {
   tel                String
   fax                String?
   email              String?
-  representative     String
-  sealImage          String?  // Base64 or URL
+  representativeTitle String?  // 肩書（代表取締役など）
+  representative     String   // 氏名
+  sealImage          String?  // 会社印（Base64）
   licenseNumber      String?  // 建設業許可番号（例：愛媛県知事 許可（般-6） 第17335号）
   registrationNumber String?  // インボイス登録番号（例：T8500001018289）
   bankAccounts       Json?    // 銀行口座情報の配列
