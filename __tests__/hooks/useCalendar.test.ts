@@ -13,14 +13,23 @@ describe('useCalendar', () => {
         color: '#3B82F6',
     });
 
-    describe('initialization', () => {
-        it('should initialize with current date', () => {
-            const { result } = renderHook(() => useCalendar());
-            const today = new Date();
+    // 今週の月曜日を取得するヘルパー
+    const getMonday = (date: Date): Date => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = day === 0 ? -6 : 1 - day;
+        d.setDate(d.getDate() + diff);
+        return d;
+    };
 
-            expect(result.current.currentDate.getDate()).toBe(today.getDate());
-            expect(result.current.currentDate.getMonth()).toBe(today.getMonth());
-            expect(result.current.currentDate.getFullYear()).toBe(today.getFullYear());
+    describe('initialization', () => {
+        it('should initialize with Monday of current week', () => {
+            const { result } = renderHook(() => useCalendar());
+            const monday = getMonday(new Date());
+
+            expect(result.current.currentDate.getDate()).toBe(monday.getDate());
+            expect(result.current.currentDate.getMonth()).toBe(monday.getMonth());
+            expect(result.current.currentDate.getFullYear()).toBe(monday.getFullYear());
         });
 
         it('should return 7 week days', () => {
@@ -95,21 +104,21 @@ describe('useCalendar', () => {
             expect(newDate === initialDate - 1 || newDate >= 28).toBe(true);
         });
 
-        it('should go to today', () => {
+        it('should go to Monday of current week', () => {
             const { result } = renderHook(() => useCalendar());
-            const today = new Date();
+            const monday = getMonday(new Date());
 
             // Move to next week first
             act(() => {
                 result.current.goToNextWeek();
             });
 
-            // Then go back to today
+            // Then go back to today (returns Monday of current week)
             act(() => {
                 result.current.goToToday();
             });
 
-            expect(result.current.currentDate.getDate()).toBe(today.getDate());
+            expect(result.current.currentDate.getDate()).toBe(monday.getDate());
         });
     });
 
