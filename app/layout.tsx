@@ -4,6 +4,9 @@ import "./globals.css";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import AuthProvider from '@/components/AuthProvider';
 import { Toaster } from 'react-hot-toast';
+import { CalendarProviders } from './providers/CalendarProviders';
+import { FinanceProviders } from './providers/FinanceProviders';
+import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,7 +47,13 @@ export default function RootLayout({
                 />
                 <AuthProvider>
                     <NavigationProvider>
-                        {children}
+                        <CalendarProviders>
+                            <FinanceProviders>
+                                <ProfitDashboardProvider>
+                                    {children}
+                                </ProfitDashboardProvider>
+                            </FinanceProviders>
+                        </CalendarProviders>
                     </NavigationProvider>
                 </AuthProvider>
             </body>

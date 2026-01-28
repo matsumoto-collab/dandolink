@@ -13,10 +13,6 @@ import InvoiceListPage from '@/app/(finance)/invoices/page';
 import CustomersPage from '@/app/(master)/customers/page';
 import DailyReportPage from '@/app/(calendar)/daily-reports/page';
 import ProfitDashboardWrapper from '@/app/(standalone)/profit-dashboard/components/ProfitDashboardWrapper';
-import { CalendarProviders } from '@/app/providers/CalendarProviders';
-import { FinanceProviders } from '@/app/providers/FinanceProviders';
-import { MasterProviders } from '@/app/providers/MasterProviders';
-import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -45,26 +41,22 @@ export default function MainContent() {
                 // workerロールの場合は手配表のみ表示（タブなし）
                 if (userRole === 'worker') {
                     return (
-                        <CalendarProviders>
-                            <div className="flex-1 min-h-0">
-                                <AssignmentTable userRole="worker" userTeamId={userId} />
-                            </div>
-                        </CalendarProviders>
+                        <div className="flex-1 min-h-0">
+                            <AssignmentTable userRole="worker" userTeamId={userId} />
+                        </div>
                     );
                 }
                 // partnerロールの場合は週間カレンダーのみ表示（閲覧のみ、自分のチームのみ）
                 if (userRole === 'partner') {
                     return (
-                        <CalendarProviders>
-                            <div className="flex-1 min-h-0">
-                                <WeeklyCalendar partnerMode={true} partnerId={userId} />
-                            </div>
-                        </CalendarProviders>
+                        <div className="flex-1 min-h-0">
+                            <WeeklyCalendar partnerMode={true} partnerId={userId} />
+                        </div>
                     );
                 }
                 // Schedule management (calendar/assignment view)
                 return (
-                    <CalendarProviders>
+                    <>
                         <ScheduleViewTabs
                             activeView={scheduleView}
                             onViewChange={setScheduleView}
@@ -76,27 +68,26 @@ export default function MainContent() {
                                 <AssignmentTable />
                             )}
                         </div>
-                    </CalendarProviders>
+                    </>
                 );
 
             case 'settings':
-                // Settings page (master data management)
-                return <MasterProviders><SettingsPage /></MasterProviders>;
+                return <SettingsPage />;
 
             case 'project-masters':
-                return <MasterProviders><ProjectMasterListPage /></MasterProviders>;
+                return <ProjectMasterListPage />;
 
             case 'estimates':
-                return <FinanceProviders><EstimateListPage /></FinanceProviders>;
+                return <EstimateListPage />;
 
             case 'invoices':
-                return <FinanceProviders><InvoiceListPage /></FinanceProviders>;
+                return <InvoiceListPage />;
 
             case 'reports':
-                return <CalendarProviders><DailyReportPage /></CalendarProviders>;
+                return <DailyReportPage />;
 
             case 'profit-dashboard':
-                return <ProfitDashboardProvider><ProfitDashboardWrapper /></ProfitDashboardProvider>;
+                return <ProfitDashboardWrapper />;
 
             case 'orders':
                 return <PlaceholderPage title="発注書" />;
@@ -105,7 +96,7 @@ export default function MainContent() {
                 return <PlaceholderPage title="協力会社" />;
 
             case 'customers':
-                return <MasterProviders><CustomersPage /></MasterProviders>;
+                return <CustomersPage />;
 
             case 'company':
                 return <PlaceholderPage title="自社情報" />;
