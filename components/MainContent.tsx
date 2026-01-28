@@ -16,6 +16,7 @@ import ProfitDashboardWrapper from '@/app/(standalone)/profit-dashboard/componen
 import { CalendarProviders } from '@/app/providers/CalendarProviders';
 import { FinanceProviders } from '@/app/providers/FinanceProviders';
 import { MasterProviders } from '@/app/providers/MasterProviders';
+import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -95,7 +96,7 @@ export default function MainContent() {
                 return <CalendarProviders><DailyReportPage /></CalendarProviders>;
 
             case 'profit-dashboard':
-                return <ProfitDashboardWrapper />;
+                return <ProfitDashboardProvider><ProfitDashboardWrapper /></ProfitDashboardProvider>;
 
             case 'orders':
                 return <PlaceholderPage title="発注書" />;
