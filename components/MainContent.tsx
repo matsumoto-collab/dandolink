@@ -13,6 +13,9 @@ import InvoiceListPage from '@/app/(finance)/invoices/page';
 import CustomersPage from '@/app/(master)/customers/page';
 import DailyReportPage from '@/app/(calendar)/daily-reports/page';
 import ProfitDashboardWrapper from '@/app/(standalone)/profit-dashboard/components/ProfitDashboardWrapper';
+import { CalendarProviders } from '@/app/providers/CalendarProviders';
+import { FinanceProviders } from '@/app/providers/FinanceProviders';
+import { MasterProviders } from '@/app/providers/MasterProviders';
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -41,22 +44,26 @@ export default function MainContent() {
                 // workerロールの場合は手配表のみ表示（タブなし）
                 if (userRole === 'worker') {
                     return (
-                        <div className="flex-1 min-h-0">
-                            <AssignmentTable userRole="worker" userTeamId={userId} />
-                        </div>
+                        <CalendarProviders>
+                            <div className="flex-1 min-h-0">
+                                <AssignmentTable userRole="worker" userTeamId={userId} />
+                            </div>
+                        </CalendarProviders>
                     );
                 }
                 // partnerロールの場合は週間カレンダーのみ表示（閲覧のみ、自分のチームのみ）
                 if (userRole === 'partner') {
                     return (
-                        <div className="flex-1 min-h-0">
-                            <WeeklyCalendar partnerMode={true} partnerId={userId} />
-                        </div>
+                        <CalendarProviders>
+                            <div className="flex-1 min-h-0">
+                                <WeeklyCalendar partnerMode={true} partnerId={userId} />
+                            </div>
+                        </CalendarProviders>
                     );
                 }
                 // Schedule management (calendar/assignment view)
                 return (
-                    <>
+                    <CalendarProviders>
                         <ScheduleViewTabs
                             activeView={scheduleView}
                             onViewChange={setScheduleView}
@@ -68,24 +75,24 @@ export default function MainContent() {
                                 <AssignmentTable />
                             )}
                         </div>
-                    </>
+                    </CalendarProviders>
                 );
 
             case 'settings':
                 // Settings page (master data management)
-                return <SettingsPage />;
+                return <MasterProviders><SettingsPage /></MasterProviders>;
 
             case 'project-masters':
-                return <ProjectMasterListPage />;
+                return <MasterProviders><ProjectMasterListPage /></MasterProviders>;
 
             case 'estimates':
-                return <EstimateListPage />;
+                return <FinanceProviders><EstimateListPage /></FinanceProviders>;
 
             case 'invoices':
-                return <InvoiceListPage />;
+                return <FinanceProviders><InvoiceListPage /></FinanceProviders>;
 
             case 'reports':
-                return <DailyReportPage />;
+                return <CalendarProviders><DailyReportPage /></CalendarProviders>;
 
             case 'profit-dashboard':
                 return <ProfitDashboardWrapper />;
@@ -97,7 +104,7 @@ export default function MainContent() {
                 return <PlaceholderPage title="協力会社" />;
 
             case 'customers':
-                return <CustomersPage />;
+                return <MasterProviders><CustomersPage /></MasterProviders>;
 
             case 'company':
                 return <PlaceholderPage title="自社情報" />;
