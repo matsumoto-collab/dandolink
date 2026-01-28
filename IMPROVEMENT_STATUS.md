@@ -247,13 +247,25 @@ Context層の再設計とZustand導入により、パフォーマンスと保守
 ### 最終作業（2026-01-28）
 - Context層再設計（Route Groups導入）完了
 - Zustandストア作成完了（masterStore, financeStore, calendarStore）
-- MainContentで各ページにProviderを適用（エラー修正）
+- Providerをapp/layout.tsxに配置（キャッシュ維持のため）
 - デプロイ完了・動作確認済み
+
+### 現在のProvider構成
+```
+app/layout.tsx
+└─ AuthProvider
+   └─ NavigationProvider
+      └─ CalendarProviders (7個のContext)
+         └─ FinanceProviders (6個のContext)
+            └─ ProfitDashboardProvider
+               └─ {children}
+```
 
 ### 残作業（次回）
 - Zustandへのコンポーネント移行（Phase 3）
   - 既存のuseContext呼び出しをZustandストアに置き換え
   - 移行完了後にContextファイルを削除
+  - これにより、Providerのネストが完全に不要になる
 
 ### 未コミットの変更
 ```bash
@@ -365,3 +377,31 @@ npm run build
 # React DevToolsでProviderのネスト数を確認
 # - 各ページで必要なProviderのみがマウントされていることを確認
 ```
+
+---
+
+## 次回の作業指示
+
+次回、Zustand移行作業を続ける場合は、以下のように指示してください：
+
+```
+IMPROVEMENT_STATUS.mdを読んで、Zustandへのコンポーネント移行（Phase 3）を進めてください。
+```
+
+または、具体的に指定する場合：
+
+```
+stores/masterStore.ts を使うようにコンポーネントを移行してください。
+対象: contexts/MasterDataContext.tsx を使用しているコンポーネント
+```
+
+### 移行の優先順位（推奨）
+1. **MasterDataContext → masterStore** （最もシンプル、影響範囲が小さい）
+2. **CustomerContext → financeStore**
+3. **CompanyContext → financeStore**
+4. **EstimateContext → financeStore**
+5. **InvoiceContext → financeStore**
+6. **ProjectMasterContext → calendarStore**
+7. **CalendarDisplayContext → calendarStore**
+8. **DailyReportContext → calendarStore**
+9. **ProjectContext → calendarStore** （最も複雑、Realtime連携あり）
