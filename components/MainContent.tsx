@@ -6,13 +6,13 @@ import { useSession } from 'next-auth/react';
 import WeeklyCalendar from './Calendar/WeeklyCalendar';
 import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 import AssignmentTable from './Schedule/AssignmentTable';
-import SettingsPage from '@/app/settings/page';
-import ProjectMasterListPage from '@/app/project-masters/page';
-import EstimateListPage from '@/app/estimates/page';
-import InvoiceListPage from '@/app/invoices/page';
-import CustomersPage from '@/app/customers/page';
-import DailyReportPage from '@/app/daily-reports/page';
-import ProfitDashboardWrapper from '@/app/profit-dashboard/components/ProfitDashboardWrapper';
+import SettingsPage from '@/app/(master)/settings/page';
+import ProjectMasterListPage from '@/app/(master)/project-masters/page';
+import EstimateListPage from '@/app/(finance)/estimates/page';
+import InvoiceListPage from '@/app/(finance)/invoices/page';
+import CustomersPage from '@/app/(master)/customers/page';
+import DailyReportPage from '@/app/(calendar)/daily-reports/page';
+import ProfitDashboardWrapper from '@/app/(standalone)/profit-dashboard/components/ProfitDashboardWrapper';
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {

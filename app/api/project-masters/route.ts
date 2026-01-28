@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { createProjectMasterSchema, validateRequest } from '@/lib/validations';
 
@@ -35,6 +35,9 @@ function formatProjectMaster(pm: { createdBy: string | null; createdAt: Date; up
  * GET /api/project-masters - 案件マスター一覧取得
  */
 export async function GET(req: NextRequest) {
+    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    if (rateLimitError) return rateLimitError;
+
     try {
         const { error } = await requireAuth();
         if (error) return error;
@@ -84,6 +87,9 @@ export async function GET(req: NextRequest) {
  * POST /api/project-masters - 案件マスター作成
  */
 export async function POST(req: NextRequest) {
+    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    if (rateLimitError) return rateLimitError;
+
     try {
         const { session, error } = await requireAuth();
         if (error) return error;

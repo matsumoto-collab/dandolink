@@ -3,12 +3,15 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { canManageUsers } from '@/utils/permissions';
 import { createUserSchema, validateRequest } from '@/lib/validations';
-import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 
 /**
  * GET /api/users - ユーザー一覧取得
  */
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    if (rateLimitError) return rateLimitError;
+
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
@@ -33,6 +36,9 @@ export async function GET(_req: NextRequest) {
  * POST /api/users - ユーザー作成
  */
 export async function POST(req: NextRequest) {
+    const rateLimitError = applyRateLimit(req, RATE_LIMITS.auth);
+    if (rateLimitError) return rateLimitError;
+
     try {
         const { session, error } = await requireAuth();
         if (error) return error;

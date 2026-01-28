@@ -1,20 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { ProjectProvider } from "@/contexts/ProjectContext";
-import { ProjectMasterProvider } from "@/contexts/ProjectMasterContext";
 import { NavigationProvider } from "@/contexts/NavigationContext";
-import { MasterDataProvider } from "@/contexts/MasterDataContext";
-import { RemarksProvider } from "@/contexts/RemarksContext";
-import { VacationProvider } from "@/contexts/VacationContext";
-import { CalendarDisplayProvider } from "@/contexts/CalendarDisplayContext";
-import { EstimateProvider } from "@/contexts/EstimateContext";
-import { InvoiceProvider } from "@/contexts/InvoiceContext";
-import { CompanyProvider } from '@/contexts/CompanyContext';
-import { CustomerProvider } from '@/contexts/CustomerContext';
-import { UnitPriceMasterProvider } from '@/contexts/UnitPriceMasterContext';
-import { DailyReportProvider } from '@/contexts/DailyReportContext';
-import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 import AuthProvider from '@/components/AuthProvider';
 import { Toaster } from 'react-hot-toast';
 
@@ -57,33 +44,7 @@ export default function RootLayout({
                 />
                 <AuthProvider>
                     <NavigationProvider>
-                        <MasterDataProvider>
-                            <ProjectProvider>
-                                <ProjectMasterProvider>
-                                    <RemarksProvider>
-                                            <VacationProvider>
-                                                <CalendarDisplayProvider>
-                                                    <EstimateProvider>
-                                                        <InvoiceProvider>
-                                                            <CompanyProvider>
-                                                                <CustomerProvider>
-                                                                    <UnitPriceMasterProvider>
-                                                                        <DailyReportProvider>
-                                                                            <ProfitDashboardProvider>
-                                                                                {children}
-                                                                            </ProfitDashboardProvider>
-                                                                        </DailyReportProvider>
-                                                                    </UnitPriceMasterProvider>
-                                                                </CustomerProvider>
-                                                            </CompanyProvider>
-                                                        </InvoiceProvider>
-                                                    </EstimateProvider>
-                                                </CalendarDisplayProvider>
-                                            </VacationProvider>
-                                        </RemarksProvider>
-                                </ProjectMasterProvider>
-                            </ProjectProvider>
-                        </MasterDataProvider>
+                        {children}
                     </NavigationProvider>
                 </AuthProvider>
             </body>

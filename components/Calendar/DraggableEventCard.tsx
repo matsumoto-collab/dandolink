@@ -54,11 +54,13 @@ export default function DraggableEventCard({
             ref={setNodeRef}
             style={style}
             {...attributes}
+            {...(disabled ? {} : listeners)}
             data-event-card="true"
             className={`
         mb-1 p-1 rounded-xl border-none
         transition-all duration-300 ease-out
         text-xs relative overflow-hidden
+        ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}
         ${isDragging ? 'shadow-2xl scale-105 z-50' : 'shadow-md hover:shadow-lg hover:scale-[1.02] hover:-translate-y-0.5'}
       `}
         >
@@ -71,10 +73,8 @@ export default function DraggableEventCard({
                 <div className="pl-2">
                     {/* ドラッグハンドルと矢印ボタン */}
                     <div className="flex items-start gap-2">
-                        <div
-                            className="flex-shrink-0 mt-0.5 cursor-grab active:cursor-grabbing"
-                            {...listeners}
-                        >
+                        {/* ドラッグ可能を示すグリップアイコン（視覚的ヒント） */}
+                        <div className="flex-shrink-0 mt-0.5">
                             <svg
                                 className="w-3 h-3 text-gray-600 opacity-70"
                                 fill="currentColor"
@@ -91,6 +91,7 @@ export default function DraggableEventCard({
 
                         <div
                             className="flex-1 min-w-0 cursor-pointer"
+                            onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 if (!isDragging && onClick) {
@@ -132,7 +133,7 @@ export default function DraggableEventCard({
                         </div>
 
                         {/* 上下矢印ボタン */}
-                        <div className="flex flex-col gap-0.5">
+                        <div className="flex flex-col gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();

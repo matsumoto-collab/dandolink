@@ -1,9 +1,11 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { checkRateLimit, RateLimitConfig, RATE_LIMITS } from '@/lib/rate-limit';
 
 // JSON処理関数を再エクスポート（後方互換性）
 export { parseJsonField, stringifyJsonField, parseJsonFields } from '@/lib/json-utils';
+export { RATE_LIMITS } from '@/lib/rate-limit';
 
 /**
  * API共通ユーティリティ
@@ -134,4 +136,42 @@ export function successResponse<T>(
  */
 export function deleteSuccessResponse(resourceName: string) {
     return NextResponse.json({ message: `${resourceName}を削除しました` });
+}
+
+// ============================================
+// Rate Limiting
+// ============================================
+
+/**
+ * IPアドレスを取得
+ */
+function getClientIp(req: NextRequest): string {
+    return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+        || req.headers.get('x-real-ip')
+        || 'unknown';
+}
+
+/**
+ * Rate Limitチェック（エラー時はレスポンスを返す）
+ */
+export function applyRateLimit(req: NextRequest, config: RateLimitConfig = RATE_LIMITS.api): NextResponse | null {
+    const ip = getClientIp(req);
+    const result = checkRateLimit(ip, config);
+
+    if (!result.success) {
+        return NextResponse.json(
+            { error: 'リクエスト数が上限を超えました。しばらく待ってから再試行してください。' },
+            {
+                status: 429,
+                headers: {
+                    'X-RateLimit-Limit': result.limit.toString(),
+                    'X-RateLimit-Remaining': '0',
+                    'X-RateLimit-Reset': result.resetTime.toString(),
+                    'Retry-After': Math.ceil((result.resetTime - Date.now()) / 1000).toString(),
+                },
+            }
+        );
+    }
+
+    return null;
 }

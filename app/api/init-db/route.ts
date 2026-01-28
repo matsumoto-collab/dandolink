@@ -1,9 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
-import { validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { validationErrorResponse, serverErrorResponse, applyRateLimit } from '@/lib/api/utils';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+    const rateLimitError = applyRateLimit(req, { limit: 3, windowMs: 60000 });
+    if (rateLimitError) return rateLimitError;
+
     try {
         const userCount = await prisma.user.count();
         if (userCount > 0) return validationErrorResponse('データベースは既に初期化されています');

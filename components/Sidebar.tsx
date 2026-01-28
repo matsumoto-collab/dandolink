@@ -119,7 +119,7 @@ export default function Sidebar() {
             {/* Sidebar */}
             <aside
                 className={`
-                    fixed left-0 top-0 h-screen bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 
+                    fixed left-0 top-0 h-dvh bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800
                     border-r border-slate-700/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
                     w-64
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -211,7 +211,7 @@ export default function Sidebar() {
                 </nav>
 
                 {/* Utility Area */}
-                <div className="border-t border-slate-700/50 p-3 space-y-1.5 bg-gradient-to-t from-slate-800/30 to-transparent">
+                <div className="flex-shrink-0 border-t border-slate-700/50 p-3 space-y-1.5 bg-gradient-to-t from-slate-800/30 to-transparent">
                     <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/50 hover:text-white transition-all duration-200 hover:scale-[1.01]">
                         <HelpCircle className="w-5 h-5 text-slate-400" />
                         <span>ヘルプ</span>
