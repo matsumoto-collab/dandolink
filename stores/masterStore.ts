@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // Types
 export interface Vehicle {
@@ -17,6 +18,13 @@ export interface Manager {
     name: string;
 }
 
+export interface MasterData {
+    vehicles: Vehicle[];
+    workers: Worker[];
+    managers: Manager[];
+    totalMembers: number;
+}
+
 interface MasterState {
     // Data
     vehicles: Vehicle[];
@@ -27,11 +35,15 @@ interface MasterState {
     // Status
     isLoading: boolean;
     isInitialized: boolean;
+
+    // Realtime
+    _realtimeChannels: RealtimeChannel[];
 }
 
 interface MasterActions {
     // Fetch
     fetchMasterData: () => Promise<void>;
+    refreshMasterData: () => Promise<void>;
 
     // Vehicle operations
     addVehicle: (name: string) => Promise<void>;
@@ -51,6 +63,10 @@ interface MasterActions {
     // Total members
     updateTotalMembers: (count: number) => Promise<void>;
 
+    // Realtime
+    setupRealtimeSubscription: () => Promise<void>;
+    cleanupRealtimeSubscription: () => void;
+
     // Reset
     reset: () => void;
 }
@@ -64,6 +80,7 @@ const initialState: MasterState = {
     totalMembers: 20,
     isLoading: false,
     isInitialized: false,
+    _realtimeChannels: [],
 };
 
 export const useMasterStore = create<MasterStore>()(
@@ -90,6 +107,25 @@ export const useMasterStore = create<MasterStore>()(
                 console.error('Failed to fetch master data:', error);
             } finally {
                 set({ isLoading: false });
+            }
+        },
+
+        refreshMasterData: async () => {
+            // Force refresh without checking isLoading
+            try {
+                const response = await fetch('/api/master-data');
+                if (response.ok) {
+                    const data = await response.json();
+                    set({
+                        vehicles: data.vehicles || [],
+                        workers: data.workers || [],
+                        managers: data.managers || [],
+                        totalMembers: data.totalMembers || 20,
+                        isInitialized: true,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to refresh master data:', error);
             }
         },
 
@@ -216,7 +252,58 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
-        reset: () => set(initialState),
+        // Realtime subscription
+        setupRealtimeSubscription: async () => {
+            const existingChannels = get()._realtimeChannels;
+            if (existingChannels.length > 0) return;
+
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                const channels: RealtimeChannel[] = [];
+                const tables = ['Vehicle', 'Worker', 'Manager', 'SystemSettings'];
+
+                tables.forEach(table => {
+                    const channel = supabase
+                        .channel(`master-data-${table.toLowerCase()}-zustand`)
+                        .on(
+                            'postgres_changes',
+                            {
+                                event: '*',
+                                schema: 'public',
+                                table: table,
+                            },
+                            () => {
+                                get().refreshMasterData();
+                            }
+                        )
+                        .subscribe();
+
+                    channels.push(channel);
+                });
+
+                set({ _realtimeChannels: channels });
+            } catch (error) {
+                console.error('[Zustand] Failed to setup master data realtime subscription:', error);
+            }
+        },
+
+        cleanupRealtimeSubscription: () => {
+            const channels = get()._realtimeChannels;
+            if (channels.length === 0) return;
+
+            import('@/lib/supabase').then(({ supabase }) => {
+                channels.forEach(channel => {
+                    supabase.removeChannel(channel);
+                });
+            });
+
+            set({ _realtimeChannels: [] });
+        },
+
+        reset: () => {
+            get().cleanupRealtimeSubscription();
+            set(initialState);
+        },
     }))
 );
 

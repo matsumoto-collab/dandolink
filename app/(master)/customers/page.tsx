@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useCustomers } from '@/contexts/CustomerContext';
+import { useCustomers } from '@/hooks/useCustomers';
 import { Customer, CustomerInput } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { CardSkeleton } from '@/components/ui/Loading';

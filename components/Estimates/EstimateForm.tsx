@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useProjects } from '@/contexts/ProjectContext';
-import { useCustomers } from '@/contexts/CustomerContext';
+import { useCustomers } from '@/hooks/useCustomers';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import toast from 'react-hot-toast';

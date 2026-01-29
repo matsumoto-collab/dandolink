@@ -4,7 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useEstimates } from '@/contexts/EstimateContext';
 import { useProjects } from '@/contexts/ProjectContext';
-import { useCompany } from '@/contexts/CompanyContext';
+import { useCompany } from '@/hooks/useCompany';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { formatDate } from '@/utils/dateUtils';

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useCompany } from '@/contexts/CompanyContext';
+import { useCompany } from '@/hooks/useCompany';
 import { BankAccount } from '@/types/company';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';

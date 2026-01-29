@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useMasterDataContext } from '@/contexts/MasterDataContext';
+import { useMasterData } from '@/hooks/useMasterData';
 import { X, Plus } from 'lucide-react';
 
 interface VacationSelectorProps {
@@ -17,7 +17,7 @@ export default function VacationSelector({
 }: VacationSelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const { workers } = useMasterDataContext();
+    const { workers } = useMasterData();
 
     // 選択されていない職人のみを表示
     const availableWorkers = workers.filter(
