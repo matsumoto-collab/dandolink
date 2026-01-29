@@ -30,6 +30,7 @@ body {
       rgb(var(--background-start-rgb)) 0%,
       rgb(var(--background-end-rgb)) 100%);
   min-height: 100vh;
+  font-size: 14px;
 }
 
 /* Modern scrollbar */
