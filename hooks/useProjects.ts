@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { Project, CalendarEvent } from '@/types/calendar';
+import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // Re-export types for backward compatibility
@@ -150,12 +150,7 @@ export function useProjects() {
     // Get projects from store (now reactive because we subscribe to assignments)
     const projects = assignments.map((a) => {
         const constructionType = a.projectMaster?.constructionType || 'other';
-        const CONSTRUCTION_TYPE_COLORS: Record<string, string> = {
-            assembly: '#3B82F6',
-            demolition: '#EF4444',
-            other: '#6B7280',
-        };
-        const color = CONSTRUCTION_TYPE_COLORS[constructionType] || CONSTRUCTION_TYPE_COLORS.other;
+        const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
 
         return {
             id: a.id,
