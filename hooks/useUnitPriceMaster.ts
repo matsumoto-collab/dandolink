@@ -4,10 +4,10 @@ import { useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useFinanceStore } from '@/stores/financeStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
-import { UnitPriceMasterInput, TemplateType } from '@/types/unitPrice';
+import { UnitPriceMasterInput } from '@/types/unitPrice';
 
 // Re-export types for backward compatibility
-export type { UnitPriceMaster, UnitPriceMasterInput, TemplateType } from '@/types/unitPrice';
+export type { UnitPriceMaster, UnitPriceMasterInput } from '@/types/unitPrice';
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useUnitPriceMaster() {
