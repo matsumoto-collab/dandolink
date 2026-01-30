@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useProjects } from '@/contexts/ProjectContext';
-import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
+import { useProjects } from '@/hooks/useProjects';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 
 import { formatDateKey } from '@/utils/employeeUtils';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle } from 'lucide-react';

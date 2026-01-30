@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { formatInvoice } from '@/lib/formatters';
 
 interface RouteContext { params: Promise<{ id: string }>; }
-
-function formatInvoice(invoice: { items: string | null; [key: string]: unknown }) {
-    return { ...invoice, items: parseJsonField<unknown[]>(invoice.items, []) };
-}
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
     try {

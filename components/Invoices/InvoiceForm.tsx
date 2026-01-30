@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useProjects } from '@/contexts/ProjectContext';
-import { useEstimates } from '@/contexts/EstimateContext';
+import { useProjects } from '@/hooks/useProjects';
+import { useEstimates } from '@/hooks/useEstimates';
 import { InvoiceInput } from '@/types/invoice';
 import { EstimateItem } from '@/types/estimate';
 import { Plus, Trash2 } from 'lucide-react';

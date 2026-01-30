@@ -2,8 +2,8 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useEstimates } from '@/contexts/EstimateContext';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useEstimates } from '@/hooks/useEstimates';
+import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
 // PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');

@@ -22,7 +22,17 @@
       "Bash(ls:*)",
       "Bash(npm test:*)",
       "Bash(npx jest:*)",
-      "Bash(npm run test:coverage:*)"
+      "Bash(npm run test:coverage:*)",
+      "Bash(vercel --prod:*)",
+      "Bash(npx vercel --prod)",
+      "Bash(npx vercel:*)",
+      "Bash(npm ls:*)",
+      "Bash(copy \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\app\\\\page.tsx\" \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\app\\\\\\(calendar\\)\\\\page.tsx\")",
+      "Bash(copy:*)",
+      "Bash(grep:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\components\\\\ProjectMasters\" -Recurse -Filter \"*.tsx\")",
+      "Bash(ForEach-Object { $content = Get-Content $_FullName)",
+      "Bash($lines = $content.Count)"
     ]
   }
 }

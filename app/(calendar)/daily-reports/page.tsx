@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
-import { useDailyReports } from '@/contexts/DailyReportContext';
-import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
+import { useDailyReports } from '@/hooks/useDailyReports';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDate } from '@/utils/dateUtils';

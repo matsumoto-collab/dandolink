@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule, ProjectStatus } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useProjects } from '@/hooks/useProjects';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import VehicleModal from '../VehicleModal';

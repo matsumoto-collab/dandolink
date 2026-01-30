@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, stringifyJsonField, errorResponse, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
 import { canDispatch, isManagerOrAbove } from '@/utils/permissions';
+import { formatProjectMaster } from '@/lib/formatters';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
-}
-
-function formatAssignment(a: { date: Date; workers: string | null; vehicles: string | null; confirmedWorkerIds: string | null; confirmedVehicleIds: string | null; createdAt: Date; updatedAt: Date; [key: string]: unknown }) {
-    return { ...a, date: a.date.toISOString(), workers: parseJsonField<string[]>(a.workers, []), vehicles: parseJsonField<string[]>(a.vehicles, []), confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []), confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []), createdAt: a.createdAt.toISOString(), updatedAt: a.updatedAt.toISOString() };
-}
-
-function formatProjectMaster(pm: { createdBy: string | null; createdAt: Date; updatedAt: Date; assemblyDate?: Date | null; demolitionDate?: Date | null; assignments?: unknown[]; [key: string]: unknown }) {
-    return { ...pm, createdBy: parseJsonField<string[] | null>(pm.createdBy, null), createdAt: pm.createdAt.toISOString(), updatedAt: pm.updatedAt.toISOString(), assemblyDate: pm.assemblyDate?.toISOString() || null, demolitionDate: pm.demolitionDate?.toISOString() || null, assignments: pm.assignments?.map((a: unknown) => formatAssignment(a as Parameters<typeof formatAssignment>[0])) };
 }
 
 export async function GET(_req: NextRequest, context: RouteContext) {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useProjects } from '@/hooks/useProjects';
 import { Project, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 
 interface ProjectSearchModalProps {

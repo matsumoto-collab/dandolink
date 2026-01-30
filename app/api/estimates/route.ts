@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
-
-function formatEstimate(estimate: { items: string | null; validUntil: Date; [key: string]: unknown }) {
-    return { ...estimate, items: parseJsonField<unknown[]>(estimate.items, []), validUntil: new Date(estimate.validUntil) };
-}
+import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { formatEstimate } from '@/lib/formatters';
 
 export async function GET(req: NextRequest) {
     try {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useProjectMasters } from '@/contexts/ProjectMasterContext';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
 import Loading from '@/components/ui/Loading';
 import { ProjectMaster, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 

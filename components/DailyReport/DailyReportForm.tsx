@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useDailyReports } from '@/contexts/DailyReportContext';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useDailyReports } from '@/hooks/useDailyReports';
+import { useProjects } from '@/hooks/useProjects';
 import { DailyReportInput } from '@/types/dailyReport';
 import { Clock, Save, Loader2, FileText, Truck, AlertCircle } from 'lucide-react';
 

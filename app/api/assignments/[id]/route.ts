@@ -2,50 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import {
     requireAuth,
-    parseJsonField,
     stringifyJsonField,
     errorResponse,
     notFoundResponse,
     serverErrorResponse,
 } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
+import { formatAssignment } from '@/lib/formatters';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
-}
-
-// 配置レコードをフォーマット
-function formatAssignment(a: {
-    date: Date;
-    workers: string | null;
-    vehicles: string | null;
-    confirmedWorkerIds: string | null;
-    confirmedVehicleIds: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-    projectMaster?: {
-        createdBy: string | null;
-        createdAt: Date;
-        updatedAt: Date;
-    } | null;
-    [key: string]: unknown;
-}) {
-    return {
-        ...a,
-        date: a.date.toISOString(),
-        workers: parseJsonField<string[]>(a.workers, []),
-        vehicles: parseJsonField<string[]>(a.vehicles, []),
-        confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
-        confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []),
-        createdAt: a.createdAt.toISOString(),
-        updatedAt: a.updatedAt.toISOString(),
-        projectMaster: a.projectMaster ? {
-            ...a.projectMaster,
-            createdBy: parseJsonField<string[] | null>(a.projectMaster.createdBy, null),
-            createdAt: a.projectMaster.createdAt.toISOString(),
-            updatedAt: a.projectMaster.updatedAt.toISOString(),
-        } : null,
-    };
 }
 
 /**

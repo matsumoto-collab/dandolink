@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { checkRateLimit, RateLimitConfig, RATE_LIMITS } from '@/lib/rate-limit';
+import { Prisma } from '@prisma/client';
 
 // JSON処理関数を再エクスポート（後方互換性）
 export { parseJsonField, stringifyJsonField, parseJsonFields } from '@/lib/json-utils';
@@ -92,13 +93,77 @@ export function validationErrorResponse(message: string, details?: unknown) {
 }
 
 /**
- * サーバーエラー（コンソールにログも出力）
+ * Prismaエラーの種類を判定
+ */
+function getPrismaErrorInfo(error: unknown): { status: number; message: string; code?: string } | null {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        switch (error.code) {
+            case 'P2002': // Unique constraint violation
+                return { status: 400, message: '同じデータが既に存在します', code: error.code };
+            case 'P2003': // Foreign key constraint violation
+                return { status: 400, message: '関連するデータが存在しないか、削除できません', code: error.code };
+            case 'P2025': // Record not found
+                return { status: 404, message: '対象のデータが見つかりません', code: error.code };
+            case 'P2014': // Required relation violation
+                return { status: 400, message: '必要な関連データが不足しています', code: error.code };
+            default:
+                return { status: 500, message: 'データベースエラーが発生しました', code: error.code };
+        }
+    }
+    if (error instanceof Prisma.PrismaClientValidationError) {
+        return { status: 400, message: '入力データが不正です', code: 'VALIDATION_ERROR' };
+    }
+    return null;
+}
+
+/**
+ * エラー詳細をログ用に構造化
+ */
+function formatErrorForLog(operation: string, error: unknown): Record<string, unknown> {
+    const timestamp = new Date().toISOString();
+    const base = { timestamp, operation };
+
+    if (error instanceof Error) {
+        return {
+            ...base,
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+            // Prisma特有のプロパティ
+            ...(error instanceof Prisma.PrismaClientKnownRequestError && {
+                code: error.code,
+                meta: error.meta,
+            }),
+        };
+    }
+
+    return { ...base, error: String(error) };
+}
+
+/**
+ * サーバーエラー（詳細なログ出力 + Prismaエラー区別）
  */
 export function serverErrorResponse(
     operation: string,
     error: unknown
 ) {
-    console.error(`${operation} error:`, error);
+    // 構造化されたエラーログを出力
+    const errorLog = formatErrorForLog(operation, error);
+    console.error('[API Error]', JSON.stringify(errorLog, null, 2));
+
+    // Prismaエラーの場合は適切なステータスとメッセージを返す
+    const prismaError = getPrismaErrorInfo(error);
+    if (prismaError) {
+        return NextResponse.json(
+            {
+                error: `${operation}に失敗しました: ${prismaError.message}`,
+                code: prismaError.code,
+            },
+            { status: prismaError.status }
+        );
+    }
+
+    // その他のエラーは500を返す
     return NextResponse.json(
         { error: `${operation}に失敗しました` },
         { status: 500 }

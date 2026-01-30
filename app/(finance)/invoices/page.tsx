@@ -2,8 +2,8 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useInvoices } from '@/contexts/InvoiceContext';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';

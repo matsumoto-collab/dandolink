@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useProjects } from '@/hooks/useProjects';
 import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';

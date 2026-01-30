@@ -1,35 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
+import { requireAuth, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { createProjectMasterSchema, validateRequest } from '@/lib/validations';
-
-// 配置レコードをフォーマット
-function formatAssignment(a: { date: Date; workers: string | null; vehicles: string | null; confirmedWorkerIds: string | null; confirmedVehicleIds: string | null; createdAt: Date; updatedAt: Date; [key: string]: unknown }) {
-    return {
-        ...a,
-        date: a.date.toISOString(),
-        workers: parseJsonField<string[]>(a.workers, []),
-        vehicles: parseJsonField<string[]>(a.vehicles, []),
-        confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
-        confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []),
-        createdAt: a.createdAt.toISOString(),
-        updatedAt: a.updatedAt.toISOString(),
-    };
-}
-
-// 案件マスターをフォーマット
-function formatProjectMaster(pm: { createdBy: string | null; createdAt: Date; updatedAt: Date; assemblyDate?: Date | null; demolitionDate?: Date | null; assignments?: unknown[]; [key: string]: unknown }) {
-    return {
-        ...pm,
-        createdBy: parseJsonField<string[] | null>(pm.createdBy, null),
-        createdAt: pm.createdAt.toISOString(),
-        updatedAt: pm.updatedAt.toISOString(),
-        assemblyDate: pm.assemblyDate?.toISOString() || null,
-        demolitionDate: pm.demolitionDate?.toISOString() || null,
-        assignments: pm.assignments?.map((a: unknown) => formatAssignment(a as Parameters<typeof formatAssignment>[0])),
-    };
-}
+import { formatProjectMaster } from '@/lib/formatters';
 
 /**
  * GET /api/project-masters - 案件マスター一覧取得

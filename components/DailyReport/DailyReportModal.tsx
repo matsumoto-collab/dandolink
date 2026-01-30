@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { useDailyReports } from '@/contexts/DailyReportContext';
-import { useProjects } from '@/contexts/ProjectContext';
-import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
+import { useDailyReports } from '@/hooks/useDailyReports';
+import { useProjects } from '@/hooks/useProjects';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { DailyReportInput } from '@/types/dailyReport';
 import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User } from 'lucide-react';
 

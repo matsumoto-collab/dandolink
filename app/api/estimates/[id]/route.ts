@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { formatEstimate } from '@/lib/formatters';
 
 interface RouteContext { params: Promise<{ id: string }>; }
-
-function formatEstimate(estimate: { items: string | null; [key: string]: unknown }) {
-    return { ...estimate, items: parseJsonField<unknown[]>(estimate.items, []) };
-}
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
     try {

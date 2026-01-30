@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useUnitPriceMaster } from '@/contexts/UnitPriceMasterContext';
+import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
 import { UnitPriceMaster, TemplateType, TEMPLATE_LABELS } from '@/types/unitPrice';
 import { X } from 'lucide-react';
 

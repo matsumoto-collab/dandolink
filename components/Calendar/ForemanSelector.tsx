@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useCalendarDisplay } from '@/contexts/CalendarDisplayContext';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { Plus } from 'lucide-react';
 
 export default function ForemanSelector() {

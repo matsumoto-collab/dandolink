@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useUnitPriceMaster } from '@/contexts/UnitPriceMasterContext';
+import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
 import { UnitPriceMaster, UnitPriceMasterInput, TEMPLATE_LABELS, TemplateType } from '@/types/unitPrice';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';

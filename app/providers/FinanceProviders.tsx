@@ -1,20 +1,10 @@
 'use client';
 
-import { UnitPriceMasterProvider } from "@/contexts/UnitPriceMasterContext";
-import { EstimateProvider } from "@/contexts/EstimateContext";
-import { InvoiceProvider } from "@/contexts/InvoiceContext";
-import { ProjectProvider } from "@/contexts/ProjectContext";
+// All finance-related state has been migrated to Zustand stores
+// - Projects: calendarStore + useProjects hook
+// - Estimates: financeStore + useEstimates hook
+// - Invoices: financeStore + useInvoices hook
 
 export function FinanceProviders({ children }: { children: React.ReactNode }) {
-    return (
-        <ProjectProvider>
-            <UnitPriceMasterProvider>
-                <EstimateProvider>
-                    <InvoiceProvider>
-                        {children}
-                    </InvoiceProvider>
-                </EstimateProvider>
-            </UnitPriceMasterProvider>
-        </ProjectProvider>
-    );
+    return <>{children}</>;
 }

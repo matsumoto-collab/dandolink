@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { ProjectMaster, Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS, ProjectAssignment } from '@/types/calendar';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
+import { VacationRecord } from '@/types/vacation';
 
 // Types
 interface ForemanUser {
@@ -82,6 +83,16 @@ interface CalendarState {
     assignments: (ProjectAssignment & { projectMaster?: ProjectMaster })[];
     projectsLoading: boolean;
     projectsInitialized: boolean;
+
+    // Vacations
+    vacations: VacationRecord;
+    vacationsLoading: boolean;
+    vacationsInitialized: boolean;
+
+    // Remarks (Calendar remarks)
+    remarks: { [dateKey: string]: string };
+    remarksLoading: boolean;
+    remarksInitialized: boolean;
 }
 
 interface CalendarActions {
@@ -117,6 +128,20 @@ interface CalendarActions {
     getCalendarEvents: () => CalendarEvent[];
     getProjects: () => Project[];
 
+    // Vacations
+    fetchVacations: () => Promise<void>;
+    getVacationEmployees: (dateKey: string) => string[];
+    setVacationEmployees: (dateKey: string, employeeIds: string[]) => Promise<void>;
+    addVacationEmployee: (dateKey: string, employeeId: string) => Promise<void>;
+    removeVacationEmployee: (dateKey: string, employeeId: string) => Promise<void>;
+    getVacationRemarks: (dateKey: string) => string;
+    setVacationRemarks: (dateKey: string, remarks: string) => Promise<void>;
+
+    // Remarks (Calendar remarks)
+    fetchRemarks: () => Promise<void>;
+    getRemark: (dateKey: string) => string;
+    setRemark: (dateKey: string, text: string) => Promise<void>;
+
     // Reset
     reset: () => void;
 }
@@ -137,6 +162,12 @@ const initialState: CalendarState = {
     assignments: [],
     projectsLoading: false,
     projectsInitialized: false,
+    vacations: {},
+    vacationsLoading: false,
+    vacationsInitialized: false,
+    remarks: {},
+    remarksLoading: false,
+    remarksInitialized: false,
 };
 
 export const useCalendarStore = create<CalendarStore>()(
@@ -583,6 +614,122 @@ export const useCalendarStore = create<CalendarStore>()(
 
         getProjects: () => get().assignments.map(assignmentToProject),
 
+        // ========== Vacations ==========
+        fetchVacations: async () => {
+            set({ vacationsLoading: true });
+            try {
+                const response = await fetch('/api/calendar/vacations');
+                if (response.ok) {
+                    const data = await response.json();
+                    set({ vacations: data, vacationsInitialized: true });
+                }
+            } catch (error) {
+                console.error('Failed to fetch vacations:', error);
+            } finally {
+                set({ vacationsLoading: false });
+            }
+        },
+
+        getVacationEmployees: (dateKey: string) => {
+            return get().vacations[dateKey]?.employeeIds || [];
+        },
+
+        setVacationEmployees: async (dateKey: string, employeeIds: string[]) => {
+            const currentRemarks = get().vacations[dateKey]?.remarks || '';
+            set((state) => ({
+                vacations: {
+                    ...state.vacations,
+                    [dateKey]: { employeeIds, remarks: currentRemarks },
+                },
+            }));
+            try {
+                await fetch('/api/calendar/vacations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dateKey, employeeIds, remarks: currentRemarks }),
+                });
+            } catch (error) {
+                console.error('Failed to save vacation:', error);
+                get().fetchVacations();
+            }
+        },
+
+        addVacationEmployee: async (dateKey: string, employeeId: string) => {
+            const current = get().getVacationEmployees(dateKey);
+            if (!current.includes(employeeId)) {
+                await get().setVacationEmployees(dateKey, [...current, employeeId]);
+            }
+        },
+
+        removeVacationEmployee: async (dateKey: string, employeeId: string) => {
+            const current = get().getVacationEmployees(dateKey);
+            await get().setVacationEmployees(dateKey, current.filter((id) => id !== employeeId));
+        },
+
+        getVacationRemarks: (dateKey: string) => {
+            return get().vacations[dateKey]?.remarks || '';
+        },
+
+        setVacationRemarks: async (dateKey: string, remarks: string) => {
+            const currentEmployees = get().vacations[dateKey]?.employeeIds || [];
+            set((state) => ({
+                vacations: {
+                    ...state.vacations,
+                    [dateKey]: { employeeIds: currentEmployees, remarks },
+                },
+            }));
+            try {
+                await fetch('/api/calendar/vacations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dateKey, employeeIds: currentEmployees, remarks }),
+                });
+            } catch (error) {
+                console.error('Failed to save vacation remarks:', error);
+                get().fetchVacations();
+            }
+        },
+
+        // ========== Remarks (Calendar remarks) ==========
+        fetchRemarks: async () => {
+            set({ remarksLoading: true });
+            try {
+                const response = await fetch('/api/calendar/remarks');
+                if (response.ok) {
+                    const data = await response.json();
+                    set({ remarks: data, remarksInitialized: true });
+                }
+            } catch (error) {
+                console.error('Failed to fetch remarks:', error);
+            } finally {
+                set({ remarksLoading: false });
+            }
+        },
+
+        getRemark: (dateKey: string) => {
+            return get().remarks[dateKey] || '';
+        },
+
+        setRemark: async (dateKey: string, text: string) => {
+            // Optimistic update
+            set((state) => ({
+                remarks: {
+                    ...state.remarks,
+                    [dateKey]: text,
+                },
+            }));
+            try {
+                await fetch('/api/calendar/remarks', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dateKey, text }),
+                });
+            } catch (error) {
+                console.error('Failed to set remark:', error);
+                get().fetchRemarks();
+            }
+        },
+
         reset: () => set(initialState),
     }))
 );
@@ -597,3 +744,11 @@ export const selectDailyReportsLoading = (state: CalendarStore) => state.dailyRe
 export const selectProjects = (state: CalendarStore) => state.assignments.map(assignmentToProject);
 export const selectProjectsLoading = (state: CalendarStore) => state.projectsLoading;
 export const selectProjectsInitialized = (state: CalendarStore) => state.projectsInitialized;
+
+export const selectVacations = (state: CalendarStore) => state.vacations;
+export const selectVacationsLoading = (state: CalendarStore) => state.vacationsLoading;
+export const selectVacationsInitialized = (state: CalendarStore) => state.vacationsInitialized;
+
+export const selectRemarks = (state: CalendarStore) => state.remarks;
+export const selectRemarksLoading = (state: CalendarStore) => state.remarksLoading;
+export const selectRemarksInitialized = (state: CalendarStore) => state.remarksInitialized;

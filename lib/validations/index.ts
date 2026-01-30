@@ -8,8 +8,12 @@ export const emailSchema = z.string().email('有効なメールアドレスを�
 
 export const passwordSchema = z
     .string()
-    .min(6, 'パスワードは6文字以上で入力してください')
-    .max(100, 'パスワードは100文字以内で入力してください');
+    .min(8, 'パスワードは8文字以上で入力してください')
+    .max(100, 'パスワードは100文字以内で入力してください')
+    .regex(
+        /^(?=.*[a-zA-Z])(?=.*\d)/,
+        'パスワードは英字と数字を含む必要があります'
+    );
 
 export const phoneSchema = z
     .string()

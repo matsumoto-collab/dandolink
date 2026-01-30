@@ -6,7 +6,7 @@ import Loading from '@/components/ui/Loading';
 import { Project } from '@/types/calendar';
 import toast from 'react-hot-toast';
 import { useMasterData } from '@/hooks/useMasterData';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useProjects } from '@/hooks/useProjects';
 import { formatDateKey } from '@/utils/employeeUtils';
 
 

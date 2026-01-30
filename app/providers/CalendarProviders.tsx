@@ -1,26 +1,11 @@
 'use client';
 
-import { ProjectProvider } from "@/contexts/ProjectContext";
-import { ProjectMasterProvider } from "@/contexts/ProjectMasterContext";
-import { VacationProvider } from "@/contexts/VacationContext";
-import { RemarksProvider } from "@/contexts/RemarksContext";
-import { CalendarDisplayProvider } from "@/contexts/CalendarDisplayContext";
-import { DailyReportProvider } from "@/contexts/DailyReportContext";
+// All calendar-related state has been migrated to Zustand stores
+// - Projects: calendarStore + useProjects hook
+// - ProjectMasters: calendarStore + useProjectMasters hook
+// - CalendarDisplay: calendarStore + useCalendarDisplay hook
+// - DailyReports: calendarStore + useDailyReports hook
 
 export function CalendarProviders({ children }: { children: React.ReactNode }) {
-    return (
-        <ProjectProvider>
-            <ProjectMasterProvider>
-                <VacationProvider>
-                    <RemarksProvider>
-                        <CalendarDisplayProvider>
-                            <DailyReportProvider>
-                                {children}
-                            </DailyReportProvider>
-                        </CalendarDisplayProvider>
-                    </RemarksProvider>
-                </VacationProvider>
-            </ProjectMasterProvider>
-        </ProjectProvider>
-    );
+    return <>{children}</>;
 }

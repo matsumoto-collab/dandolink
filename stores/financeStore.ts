@@ -4,6 +4,7 @@ import { CompanyInfo, CompanyInfoInput } from '@/types/company';
 import { Customer, CustomerInput } from '@/types/customer';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
+import { UnitPriceMaster, UnitPriceMasterInput, TemplateType } from '@/types/unitPrice';
 
 // Helper to parse dates
 function parseCustomerDates(customer: Customer & { createdAt: string | Date; updatedAt: string | Date }): Customer {
@@ -33,6 +34,14 @@ function parseInvoiceDates(invoice: Invoice & { dueDate: string | Date; paidDate
     };
 }
 
+function parseUnitPriceDates(unitPrice: UnitPriceMaster & { createdAt: string | Date; updatedAt: string | Date }): UnitPriceMaster {
+    return {
+        ...unitPrice,
+        createdAt: new Date(unitPrice.createdAt),
+        updatedAt: new Date(unitPrice.updatedAt),
+    };
+}
+
 interface FinanceState {
     // Company
     companyInfo: CompanyInfo | null;
@@ -53,6 +62,11 @@ interface FinanceState {
     invoices: Invoice[];
     invoicesLoading: boolean;
     invoicesInitialized: boolean;
+
+    // UnitPriceMaster
+    unitPrices: UnitPriceMaster[];
+    unitPricesLoading: boolean;
+    unitPricesInitialized: boolean;
 }
 
 interface FinanceActions {
@@ -81,6 +95,15 @@ interface FinanceActions {
     updateInvoice: (id: string, data: Partial<InvoiceInput>) => Promise<void>;
     deleteInvoice: (id: string) => Promise<void>;
     getInvoice: (id: string) => Invoice | undefined;
+    getInvoicesByProject: (projectId: string) => Invoice[];
+
+    // UnitPriceMaster
+    fetchUnitPrices: () => Promise<void>;
+    addUnitPrice: (data: UnitPriceMasterInput) => Promise<void>;
+    updateUnitPrice: (id: string, data: Partial<UnitPriceMasterInput>) => Promise<void>;
+    deleteUnitPrice: (id: string) => Promise<void>;
+    getUnitPriceById: (id: string) => UnitPriceMaster | undefined;
+    getUnitPricesByTemplate: (template: TemplateType) => UnitPriceMaster[];
 
     // Reset
     reset: () => void;
@@ -101,6 +124,9 @@ const initialState: FinanceState = {
     invoices: [],
     invoicesLoading: false,
     invoicesInitialized: false,
+    unitPrices: [],
+    unitPricesLoading: false,
+    unitPricesInitialized: false,
 };
 
 export const useFinanceStore = create<FinanceStore>()(
@@ -373,6 +399,84 @@ export const useFinanceStore = create<FinanceStore>()(
 
         getInvoice: (id: string) => get().invoices.find((i) => i.id === id),
 
+        getInvoicesByProject: (projectId: string) =>
+            get().invoices.filter((i) => i.projectId === projectId),
+
+        // ========== UnitPriceMaster ==========
+        fetchUnitPrices: async () => {
+            if (get().unitPricesLoading) return;
+
+            set({ unitPricesLoading: true });
+            try {
+                const response = await fetch('/api/master-data/unit-prices');
+                if (response.ok) {
+                    const data = await response.json();
+                    set({
+                        unitPrices: data.map(parseUnitPriceDates),
+                        unitPricesInitialized: true,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch unit prices:', error);
+            } finally {
+                set({ unitPricesLoading: false });
+            }
+        },
+
+        addUnitPrice: async (data: UnitPriceMasterInput) => {
+            const response = await fetch('/api/master-data/unit-prices', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '単価マスターの追加に失敗しました');
+            }
+
+            const newUnitPrice = await response.json();
+            set((state) => ({
+                unitPrices: [...state.unitPrices, parseUnitPriceDates(newUnitPrice)],
+            }));
+        },
+
+        updateUnitPrice: async (id: string, data: Partial<UnitPriceMasterInput>) => {
+            const response = await fetch(`/api/master-data/unit-prices/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '単価マスターの更新に失敗しました');
+            }
+
+            const updated = await response.json();
+            set((state) => ({
+                unitPrices: state.unitPrices.map((up) => (up.id === id ? parseUnitPriceDates(updated) : up)),
+            }));
+        },
+
+        deleteUnitPrice: async (id: string) => {
+            const response = await fetch(`/api/master-data/unit-prices/${id}`, { method: 'DELETE' });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '単価マスターの削除に失敗しました');
+            }
+
+            set((state) => ({
+                unitPrices: state.unitPrices.filter((up) => up.id !== id),
+            }));
+        },
+
+        getUnitPriceById: (id: string) => get().unitPrices.find((up) => up.id === id),
+
+        getUnitPricesByTemplate: (template: TemplateType) =>
+            get().unitPrices.filter((up) => up.templates.includes(template)),
+
         reset: () => set(initialState),
     }))
 );
@@ -393,3 +497,7 @@ export const selectEstimatesInitialized = (state: FinanceStore) => state.estimat
 export const selectInvoices = (state: FinanceStore) => state.invoices;
 export const selectInvoicesLoading = (state: FinanceStore) => state.invoicesLoading;
 export const selectInvoicesInitialized = (state: FinanceStore) => state.invoicesInitialized;
+
+export const selectUnitPrices = (state: FinanceStore) => state.unitPrices;
+export const selectUnitPricesLoading = (state: FinanceStore) => state.unitPricesLoading;
+export const selectUnitPricesInitialized = (state: FinanceStore) => state.unitPricesInitialized;

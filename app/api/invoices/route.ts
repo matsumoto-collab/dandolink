@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
-
-function formatInvoice(invoice: { items: string | null; dueDate: Date; paidDate: Date | null; [key: string]: unknown }) {
-    return { ...invoice, items: parseJsonField<unknown[]>(invoice.items, []), dueDate: new Date(invoice.dueDate), paidDate: invoice.paidDate ? new Date(invoice.paidDate) : null };
-}
+import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { formatInvoice } from '@/lib/formatters';
 
 export async function GET(req: NextRequest) {
     try {

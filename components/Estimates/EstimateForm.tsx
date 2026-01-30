@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProjects } from '@/contexts/ProjectContext';
+import { useProjects } from '@/hooks/useProjects';
 import { useCustomers } from '@/hooks/useCustomers';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
 import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react';

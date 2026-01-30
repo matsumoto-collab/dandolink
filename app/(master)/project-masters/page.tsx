@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useProjectMasters } from '@/contexts/ProjectMasterContext';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { Plus, Edit, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, Building } from 'lucide-react';
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
