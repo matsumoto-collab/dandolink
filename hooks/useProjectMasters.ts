@@ -17,6 +17,7 @@ export function useProjectMasters() {
     const projectMasters = useCalendarStore((state) => state.projectMasters);
     const isLoading = useCalendarStore((state) => state.projectMastersLoading);
     const error = useCalendarStore((state) => state.projectMastersError);
+    const isInitialized = useCalendarStore((state) => state.projectMastersInitialized);
 
     // Get actions from Zustand store
     const fetchProjectMastersStore = useCalendarStore((state) => state.fetchProjectMasters);
@@ -25,12 +26,12 @@ export function useProjectMasters() {
     const deleteProjectMasterStore = useCalendarStore((state) => state.deleteProjectMaster);
     const getProjectMasterById = useCalendarStore((state) => state.getProjectMasterById);
 
-    // Initial fetch
+    // Initial fetch - only if not already initialized
     useEffect(() => {
-        if (status === 'authenticated') {
+        if (status === 'authenticated' && !isInitialized) {
             fetchProjectMastersStore();
         }
-    }, [status, fetchProjectMastersStore]);
+    }, [status, isInitialized, fetchProjectMastersStore]);
 
     // Wrapper functions for backward compatibility
     const fetchProjectMasters = useCallback(async (search?: string, statusFilter?: string) => {
@@ -72,6 +73,7 @@ export function useProjectMasters() {
     return {
         projectMasters,
         isLoading,
+        isInitialized,
         error,
         fetchProjectMasters,
         createProjectMaster,

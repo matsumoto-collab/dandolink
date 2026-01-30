@@ -67,6 +67,7 @@ interface CalendarState {
     projectMasters: ProjectMaster[];
     projectMastersLoading: boolean;
     projectMastersError: string | null;
+    projectMastersInitialized: boolean;
 
     // Calendar Display (Foreman settings)
     displayedForemanIds: string[];
@@ -152,6 +153,7 @@ const initialState: CalendarState = {
     projectMasters: [],
     projectMastersLoading: false,
     projectMastersError: null,
+    projectMastersInitialized: false,
     displayedForemanIds: [],
     allForemen: [],
     foremanSettingsLoading: false,
@@ -192,6 +194,7 @@ export const useCalendarStore = create<CalendarStore>()(
                 const data = await res.json();
                 set({
                     projectMasters: data.map(parseProjectMasterDates),
+                    projectMastersInitialized: true,
                 });
             } catch (err) {
                 console.error('Fetch project masters error:', err);

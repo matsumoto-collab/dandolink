@@ -28,7 +28,6 @@ export function useProjects() {
     const deleteProjectStore = useCalendarStore((state) => state.deleteProject);
     const getProjectByIdStore = useCalendarStore((state) => state.getProjectById);
     const getCalendarEventsStore = useCalendarStore((state) => state.getCalendarEvents);
-    const getProjectsStore = useCalendarStore((state) => state.getProjects);
 
     // Use ref for date range to avoid callback recreation
     const currentDateRangeRef = useRef<{ start: string; end: string } | null>(null);
@@ -145,8 +144,45 @@ export function useProjects() {
         await fetchAssignmentsStore();
     }, [fetchAssignmentsStore]);
 
-    // Get projects from store
-    const projects = getProjectsStore();
+    // Subscribe to assignments changes to trigger re-renders
+    const assignments = useCalendarStore((state) => state.assignments);
+
+    // Get projects from store (now reactive because we subscribe to assignments)
+    const projects = assignments.map((a) => {
+        const constructionType = a.projectMaster?.constructionType || 'other';
+        const CONSTRUCTION_TYPE_COLORS: Record<string, string> = {
+            assembly: '#3B82F6',
+            demolition: '#EF4444',
+            other: '#6B7280',
+        };
+        const color = CONSTRUCTION_TYPE_COLORS[constructionType] || CONSTRUCTION_TYPE_COLORS.other;
+
+        return {
+            id: a.id,
+            title: a.projectMaster?.title || '不明な案件',
+            startDate: a.date,
+            category: 'construction' as const,
+            color,
+            description: a.projectMaster?.description,
+            location: a.projectMaster?.location,
+            customer: a.projectMaster?.customerName,
+            workers: a.workers,
+            trucks: a.vehicles,
+            remarks: a.remarks || a.projectMaster?.remarks,
+            constructionType: constructionType as 'assembly' | 'demolition' | 'other',
+            assignedEmployeeId: a.assignedEmployeeId,
+            sortOrder: a.sortOrder,
+            vehicles: a.vehicles,
+            meetingTime: a.meetingTime,
+            projectMasterId: a.projectMasterId,
+            assignmentId: a.id,
+            confirmedWorkerIds: a.confirmedWorkerIds,
+            confirmedVehicleIds: a.confirmedVehicleIds,
+            isDispatchConfirmed: a.isDispatchConfirmed,
+            createdAt: a.createdAt,
+            updatedAt: a.updatedAt,
+        };
+    });
 
     return {
         projects,
