@@ -46,8 +46,8 @@ interface WeeklyCalendarProps {
 }
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
-    const { data: session } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, getCalendarEvents, fetchForDateRange, isInitialized } = useProjects();
+    const { data: session, status } = useSession();
+    const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
@@ -55,8 +55,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const [isMounted, setIsMounted] = useState(false);
     const isReadOnly = partnerMode;
 
-    // 案件をカレンダーイベントに展開
-    const events: CalendarEvent[] = useMemo(() => getCalendarEvents(), [getCalendarEvents]);
+    // 案件をカレンダーイベントに展開 (projectsが変わると再計算)
+    const events: CalendarEvent[] = useMemo(() => projects as CalendarEvent[], [projects]);
 
     // モーダル関連のロジックをカスタムフックに分離
     const {
@@ -76,14 +76,14 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
 
     // 表示週の前後1週間のデータをフェッチ
     useEffect(() => {
-        if (session && isMounted) {
+        if (status === 'authenticated' && isMounted) {
             const weekStart = new Date(currentDate);
             const weekEnd = addDays(weekStart, 6);
             const rangeStart = addDays(weekStart, -7);
             const rangeEnd = addDays(weekEnd, 7);
             fetchForDateRange(rangeStart, rangeEnd);
         }
-    }, [currentDate, session, isMounted, fetchForDateRange]);
+    }, [currentDate, status, isMounted, fetchForDateRange]);
 
     const { activeId, handleDragStart, handleDragEnd, handleDragOver, handleDragCancel } = useDragAndDrop(events, useCallback((updatedEvents: CalendarEvent[]) => {
         updatedEvents.forEach(updatedEvent => {
