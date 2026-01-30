@@ -19,6 +19,8 @@ export interface RawAssignment {
     createdAt: Date;
     updatedAt: Date;
     projectMaster?: RawProjectMasterBase | null;
+    assignmentWorkers?: Array<{ workerName: string; workerId?: string | null }>;
+    assignmentVehicles?: Array<{ vehicleName: string; vehicleId?: string | null }>;
     [key: string]: unknown;
 }
 
@@ -64,13 +66,24 @@ export interface RawInvoice {
  * 配置レコードをAPIレスポンス用にフォーマット
  * - Date → ISO文字列
  * - JSON文字列 → パース済み配列
+ * - 新テーブル（assignmentWorkers/Vehicles）があればそちらを優先
  */
 export function formatAssignment(a: RawAssignment) {
+    // 新リレーションが存在する場合は、そこから名前のリストを生成
+    // 存在しない（未移行）場合は、既存のJSONフィールドを使用
+    const workers = a.assignmentWorkers && a.assignmentWorkers.length > 0
+        ? a.assignmentWorkers.map(w => w.workerName)
+        : parseJsonField<string[]>(a.workers, []);
+
+    const vehicles = a.assignmentVehicles && a.assignmentVehicles.length > 0
+        ? a.assignmentVehicles.map(v => v.vehicleName)
+        : parseJsonField<string[]>(a.vehicles, []);
+
     return {
         ...a,
         date: a.date.toISOString(),
-        workers: parseJsonField<string[]>(a.workers, []),
-        vehicles: parseJsonField<string[]>(a.vehicles, []),
+        workers,
+        vehicles,
         confirmedWorkerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
         confirmedVehicleIds: parseJsonField<string[]>(a.confirmedVehicleIds, []),
         createdAt: a.createdAt.toISOString(),

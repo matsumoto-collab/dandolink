@@ -41,6 +41,7 @@ export default function DroppableCell({ id, children, dayOfWeek, events, onClick
     return (
         <div
             ref={setNodeRef}
+            data-testid="calendar-cell"
             onClick={handleClick}
             className={`
         flex-1 min-w-[140px] min-h-[120px] border-r border-gray-200 p-1

@@ -32,7 +32,10 @@
       "Bash(grep:*)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\components\\\\ProjectMasters\" -Recurse -Filter \"*.tsx\")",
       "Bash(ForEach-Object { $content = Get-Content $_FullName)",
-      "Bash($lines = $content.Count)"
+      "Bash($lines = $content.Count)",
+      "Bash(1 --prefix /c/Users/yushink/Desktop/yusystem -- --listTests)",
+      "Bash(npm init:*)",
+      "Bash(npx playwright install:*)"
     ]
   }
 }

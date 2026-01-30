@@ -106,10 +106,12 @@ export function useDragAndDrop(
         }
 
         // セル間移動の処理
-        // over.id の形式: "employeeId-date" (例: "2-2025-12-15")
+        // over.id の形式: "employeeId-date" (例: "user-123-2025-12-15")
+        // NOTE: UUIDなどハイフンを含むIDに対応するため、末尾の日付(10文字)で分割
         const dropTargetId = over.id as string;
-        const [newEmployeeId, ...dateParts] = dropTargetId.split('-');
-        const newDateStr = dateParts.join('-'); // "2025-12-15"
+        const datePart = dropTargetId.slice(-10); // "YYYY-MM-DD"
+        const newEmployeeId = dropTargetId.slice(0, -11); // "employeeId"
+        const newDateStr = datePart;
 
         // イベントIDを取得
         const eventId = active.id as string;

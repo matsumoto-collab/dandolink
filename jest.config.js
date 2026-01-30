@@ -23,6 +23,7 @@ const config = {
     testPathIgnorePatterns: [
         '<rootDir>/node_modules/',
         '<rootDir>/.next/',
+        '<rootDir>/e2e/',
     ],
 
     // モジュール名マッピング（@/エイリアス対応）

@@ -34,7 +34,11 @@ export async function GET(req: NextRequest) {
 
         const assignments = await prisma.projectAssignment.findMany({
             where,
-            include: { projectMaster: true },
+            include: {
+                projectMaster: true,
+                assignmentWorkers: true,
+                assignmentVehicles: true,
+            },
             orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
         });
 
@@ -77,8 +81,19 @@ export async function POST(req: NextRequest) {
                 meetingTime: meetingTime || null, sortOrder: sortOrder || 0, remarks: remarks || null,
                 isDispatchConfirmed: isDispatchConfirmed || false,
                 confirmedWorkerIds: stringifyJsonField(confirmedWorkerIds), confirmedVehicleIds: stringifyJsonField(confirmedVehicleIds),
+
+                assignmentWorkers: {
+                    create: Array.isArray(workers) ? workers.map((w: string) => ({ workerName: w })) : [],
+                },
+                assignmentVehicles: {
+                    create: Array.isArray(vehicles) ? vehicles.map((v: string) => ({ vehicleName: v })) : [],
+                },
             },
-            include: { projectMaster: true },
+            include: {
+                projectMaster: true,
+                assignmentWorkers: true,
+                assignmentVehicles: true,
+            },
         });
 
         return NextResponse.json(formatAssignment(assignment));
