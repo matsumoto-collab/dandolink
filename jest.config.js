@@ -38,6 +38,8 @@ const config = {
         'contexts/**/*.{ts,tsx}',
         'hooks/**/*.{ts,tsx}',
         'utils/**/*.{ts,tsx}',
+        'lib/**/*.{ts,tsx}',
+        'stores/**/*.{ts,tsx}',
         '!**/*.d.ts',
         '!**/node_modules/**',
     ],

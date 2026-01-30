@@ -3,6 +3,8 @@
  * エラーレスポンス、バリデーション、JSON処理のテスト
  */
 
+jest.unmock('@/lib/api/utils');
+
 import { NextResponse, NextRequest } from 'next/server';
 import { Prisma } from '@prisma/client';
 
@@ -158,7 +160,7 @@ describe('API Utils', () => {
     describe('serverErrorResponse', () => {
         beforeEach(() => {
             // console.errorをモック
-            jest.spyOn(console, 'error').mockImplementation(() => {});
+            jest.spyOn(console, 'error').mockImplementation(() => { });
         });
 
         afterEach(() => {

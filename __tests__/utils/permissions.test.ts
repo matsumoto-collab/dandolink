@@ -1,3 +1,5 @@
+jest.unmock('@/utils/permissions');
+
 import {
     hasPermission,
     canAccessProject,

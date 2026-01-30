@@ -7,6 +7,8 @@ import {
     addDays,
     isToday,
     addWeeks,
+    getFirstDayOfMonth,
+    getLastDayOfMonth,
 } from '@/utils/dateUtils';
 
 describe('dateUtils', () => {
@@ -163,6 +165,57 @@ describe('dateUtils', () => {
         it('should return empty string for empty array', () => {
             const rangeString = getWeekRangeString([]);
             expect(rangeString).toBe('');
+        });
+
+        it('should return full format for cross-month week', () => {
+            const startDate = new Date(2026, 0, 28); // Jan 28
+            const weekDays = getWeekDays(startDate); // Jan 28 - Feb 3
+            const rangeString = getWeekRangeString(weekDays);
+            expect(rangeString).toBe('2026年1月28日〜2026年2月3日');
+        });
+    });
+
+    describe('getFirstDayOfMonth', () => {
+        it('should return first day of the month', () => {
+            const date = new Date(2026, 0, 15);
+            const firstDay = getFirstDayOfMonth(date);
+            expect(firstDay.getDate()).toBe(1);
+            expect(firstDay.getMonth()).toBe(0);
+            expect(firstDay.getFullYear()).toBe(2026);
+        });
+
+        it('should handle different months', () => {
+            const date = new Date(2026, 5, 20); // June 20
+            const firstDay = getFirstDayOfMonth(date);
+            expect(firstDay.getDate()).toBe(1);
+            expect(firstDay.getMonth()).toBe(5);
+        });
+    });
+
+    describe('getLastDayOfMonth', () => {
+        it('should return last day of January (31 days)', () => {
+            const date = new Date(2026, 0, 15);
+            const lastDay = getLastDayOfMonth(date);
+            expect(lastDay.getDate()).toBe(31);
+            expect(lastDay.getMonth()).toBe(0);
+        });
+
+        it('should return last day of February (28 days)', () => {
+            const date = new Date(2026, 1, 15);
+            const lastDay = getLastDayOfMonth(date);
+            expect(lastDay.getDate()).toBe(28);
+        });
+
+        it('should return last day of February in leap year (29 days)', () => {
+            const date = new Date(2028, 1, 15); // 2028 is leap year
+            const lastDay = getLastDayOfMonth(date);
+            expect(lastDay.getDate()).toBe(29);
+        });
+
+        it('should return last day of April (30 days)', () => {
+            const date = new Date(2026, 3, 15);
+            const lastDay = getLastDayOfMonth(date);
+            expect(lastDay.getDate()).toBe(30);
         });
     });
 });

@@ -11,6 +11,7 @@ import { parseJsonField } from '@/lib/json-utils';
 
 /** 配置レコードの生データ型 */
 export interface RawAssignment {
+    id: string;
     date: Date;
     workers: string | null;
     vehicles: string | null;
@@ -21,11 +22,17 @@ export interface RawAssignment {
     projectMaster?: RawProjectMasterBase | null;
     assignmentWorkers?: Array<{ workerName: string; workerId?: string | null }>;
     assignmentVehicles?: Array<{ vehicleName: string; vehicleId?: string | null }>;
+    // Optional fields present in schema
+    memberCount?: number;
+    remarks?: string | null;
+    isDispatchConfirmed?: boolean;
     [key: string]: unknown;
 }
 
 /** 案件マスターの基本生データ型 */
 export interface RawProjectMasterBase {
+    id: string;
+    title: string;
     createdBy: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -41,15 +48,24 @@ export interface RawProjectMaster extends RawProjectMasterBase {
 
 /** 見積の生データ型 */
 export interface RawEstimate {
+    id: string;
+    estimateNumber: string;
+    title: string;
     items: string | null;
     validUntil: Date;
     createdAt: Date;
     updatedAt: Date;
+    subtotal?: number;
+    tax?: number;
+    total?: number;
     [key: string]: unknown;
 }
 
 /** 請求書の生データ型 */
 export interface RawInvoice {
+    id: string;
+    invoiceNumber: string;
+    title: string;
     items: string | null;
     dueDate: Date;
     paidDate: Date | null;

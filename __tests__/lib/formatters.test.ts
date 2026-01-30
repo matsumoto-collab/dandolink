@@ -1,3 +1,5 @@
+jest.unmock('@/lib/formatters');
+
 import {
     formatAssignment,
     formatProjectMaster,
@@ -249,6 +251,8 @@ describe('Formatters', () => {
         it('should return empty array for null items', () => {
             const raw: RawEstimate = {
                 id: 'est-1',
+                estimateNumber: 'EST-001',
+                title: 'Test Estimate',
                 items: null,
                 validUntil: testDate,
                 createdAt: testCreatedAt,
@@ -263,6 +267,8 @@ describe('Formatters', () => {
         it('should preserve numeric fields', () => {
             const raw: RawEstimate = {
                 id: 'est-1',
+                estimateNumber: 'EST-001',
+                title: 'Test Estimate',
                 items: '[]',
                 validUntil: testDate,
                 createdAt: testCreatedAt,
@@ -303,6 +309,8 @@ describe('Formatters', () => {
         it('should handle null paidDate', () => {
             const raw: RawInvoice = {
                 id: 'inv-1',
+                invoiceNumber: 'INV-001',
+                title: 'Test Invoice',
                 items: '[]',
                 dueDate: testDate,
                 paidDate: null,
@@ -318,6 +326,8 @@ describe('Formatters', () => {
         it('should return empty array for null items', () => {
             const raw: RawInvoice = {
                 id: 'inv-1',
+                invoiceNumber: 'INV-001',
+                title: 'Test Invoice',
                 items: null,
                 dueDate: testDate,
                 paidDate: null,

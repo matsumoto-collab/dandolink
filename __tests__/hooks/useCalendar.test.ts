@@ -3,164 +3,164 @@ import { useCalendar } from '@/hooks/useCalendar';
 import { CalendarEvent } from '@/types/calendar';
 
 describe('useCalendar', () => {
-    const createEvent = (id: string, startDate: Date): CalendarEvent => ({
-        id,
-        title: `Event ${id}`,
-        startDate,
-        endDate: startDate,
-        assignedEmployeeId: 'employee-1',
-        category: 'construction',
-        color: '#3B82F6',
+    beforeEach(() => {
+        jest.useFakeTimers();
+        // Set a fixed date: 2024-01-15 (Monday)
+        jest.setSystemTime(new Date('2024-01-15T00:00:00.000Z'));
     });
 
-    // 今週の月曜日を取得するヘルパー
-    const getMonday = (date: Date): Date => {
-        const d = new Date(date);
-        const day = d.getDay();
-        const diff = day === 0 ? -6 : 1 - day;
-        d.setDate(d.getDate() + diff);
-        return d;
-    };
-
-    describe('initialization', () => {
-        it('should initialize with Monday of current week', () => {
-            const { result } = renderHook(() => useCalendar());
-            const monday = getMonday(new Date());
-
-            expect(result.current.currentDate.getDate()).toBe(monday.getDate());
-            expect(result.current.currentDate.getMonth()).toBe(monday.getMonth());
-            expect(result.current.currentDate.getFullYear()).toBe(monday.getFullYear());
-        });
-
-        it('should return 7 week days', () => {
-            const { result } = renderHook(() => useCalendar());
-            expect(result.current.weekDays).toHaveLength(7);
-        });
-
-        it('should initialize with provided events', () => {
-            const today = new Date();
-            const events = [createEvent('1', today)];
-            const { result } = renderHook(() => useCalendar(events));
-
-            // Find today in weekDays
-            const todayDay = result.current.weekDays.find(
-                day => day.date.getDate() === today.getDate()
-            );
-            expect(todayDay?.events).toHaveLength(1);
-        });
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
-    describe('navigation', () => {
-        it('should go to next week', () => {
-            const { result } = renderHook(() => useCalendar());
-            const initialDate = result.current.currentDate.getDate();
+    it('should initialize with current week Monday', () => {
+        const { result } = renderHook(() => useCalendar());
 
-            act(() => {
-                result.current.goToNextWeek();
-            });
-
-            expect(result.current.currentDate.getDate()).not.toBe(initialDate);
-        });
-
-        it('should go to previous week', () => {
-            const { result } = renderHook(() => useCalendar());
-            const initialDate = result.current.currentDate.getDate();
-
-            act(() => {
-                result.current.goToPreviousWeek();
-            });
-
-            expect(result.current.currentDate.getDate()).not.toBe(initialDate);
-        });
-
-        it('should go to next day', () => {
-            const { result } = renderHook(() => useCalendar());
-            const initialDate = result.current.currentDate.getDate();
-
-            act(() => {
-                result.current.goToNextDay();
-            });
-
-            // Handle month boundary
-            const newDate = result.current.currentDate.getDate();
-            expect(newDate === initialDate + 1 || newDate === 1).toBe(true);
-        });
-
-        it('should go to previous day', () => {
-            const { result } = renderHook(() => useCalendar());
-
-            // Move forward first to avoid month boundary issues
-            act(() => {
-                result.current.goToNextDay();
-            });
-
-            const initialDate = result.current.currentDate.getDate();
-
-            act(() => {
-                result.current.goToPreviousDay();
-            });
-
-            const newDate = result.current.currentDate.getDate();
-            expect(newDate === initialDate - 1 || newDate >= 28).toBe(true);
-        });
-
-        it('should go to Monday of current week', () => {
-            const { result } = renderHook(() => useCalendar());
-            const monday = getMonday(new Date());
-
-            // Move to next week first
-            act(() => {
-                result.current.goToNextWeek();
-            });
-
-            // Then go back to today (returns Monday of current week)
-            act(() => {
-                result.current.goToToday();
-            });
-
-            expect(result.current.currentDate.getDate()).toBe(monday.getDate());
-        });
+        // 2024-01-15 is Monday, so it should be the current date
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-15');
     });
 
-    describe('setEvents', () => {
-        it('should update events', () => {
-            const { result } = renderHook(() => useCalendar());
-            const today = new Date();
-            const newEvents = [
-                createEvent('1', today),
-                createEvent('2', today),
-            ];
+    it('should navigate to next week', () => {
+        const { result } = renderHook(() => useCalendar());
 
-            act(() => {
-                result.current.setEvents(newEvents);
-            });
-
-            const todayDay = result.current.weekDays.find(
-                day => day.date.getDate() === today.getDate()
-            );
-            expect(todayDay?.events).toHaveLength(2);
+        act(() => {
+            result.current.goToNextWeek();
         });
 
-        it('should filter events by date', () => {
-            const { result } = renderHook(() => useCalendar());
-            const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
+        // 2024-01-15 + 7 days = 2024-01-22
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-22');
+    });
 
-            const events = [
-                createEvent('1', today),
-                createEvent('2', tomorrow),
-            ];
+    it('should navigate to previous week', () => {
+        const { result } = renderHook(() => useCalendar());
 
-            act(() => {
-                result.current.setEvents(events);
-            });
-
-            const todayDay = result.current.weekDays.find(
-                day => day.date.getDate() === today.getDate()
-            );
-            expect(todayDay?.events).toHaveLength(1);
-            expect(todayDay?.events[0].id).toBe('1');
+        act(() => {
+            result.current.goToPreviousWeek();
         });
+
+        // 2024-01-15 - 7 days = 2024-01-08
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-08');
+    });
+
+    it('should navigate to next day', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        act(() => {
+            result.current.goToNextDay();
+        });
+
+        // 2024-01-15 + 1 day = 2024-01-16
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-16');
+    });
+
+    it('should navigate to previous day', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        act(() => {
+            result.current.goToPreviousDay();
+        });
+
+        // 2024-01-15 - 1 day = 2024-01-14
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-14');
+    });
+
+    it('should return to today', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        // Move to somewhere else first
+        act(() => {
+            result.current.goToNextWeek();
+        });
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-22');
+
+        act(() => {
+            result.current.goToToday();
+        });
+
+        // Should be back to 2024-01-15 (mocked system time)
+        expect(result.current.currentDate.toISOString()).toContain('2024-01-15');
+    });
+
+    it('should calculate weekDays correctly', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        // Default implementation typically returns 7 days starting from current date (which is Monday)
+        expect(result.current.weekDays).toHaveLength(7);
+        expect(result.current.weekDays[0].date.toISOString()).toContain('2024-01-15'); // Mon
+        expect(result.current.weekDays[6].date.toISOString()).toContain('2024-01-21'); // Sun
+    });
+
+    it('should filter events for weekDays', () => {
+        const mockEvents: CalendarEvent[] = [
+            {
+                id: '1',
+                title: 'Event 1',
+                startDate: new Date('2024-01-15T10:00:00.000Z'), // Monday
+                color: '#fff',
+                category: 'construction',
+                workers: [],
+                trucks: [],
+                vehicles: [],
+                confirmedWorkerIds: [],
+                confirmedVehicleIds: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
+            },
+            {
+                id: '2',
+                title: 'Event 2',
+                startDate: new Date('2024-01-16T10:00:00.000Z'), // Tuesday
+                color: '#fff',
+                category: 'construction',
+                workers: [],
+                trucks: [],
+                vehicles: [],
+                confirmedWorkerIds: [],
+                confirmedVehicleIds: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        ];
+
+        const { result } = renderHook(() => useCalendar(mockEvents));
+
+        // Monday should have Event 1
+        expect(result.current.weekDays[0].events).toHaveLength(1);
+        expect(result.current.weekDays[0].events[0].id).toBe('1');
+
+        // Tuesday should have Event 2
+        expect(result.current.weekDays[1].events).toHaveLength(1);
+        expect(result.current.weekDays[1].events[0].id).toBe('2');
+
+        // Wednesday should have no events
+        expect(result.current.weekDays[2].events).toHaveLength(0);
+    });
+
+    it('should update events via setEvents', () => {
+        const { result } = renderHook(() => useCalendar());
+
+        const newEvents: CalendarEvent[] = [
+            {
+                id: '1',
+                title: 'New Event',
+                startDate: new Date('2024-01-15T10:00:00.000Z'),
+                color: '#fff',
+                category: 'construction',
+                workers: [],
+                trucks: [],
+                vehicles: [],
+                confirmedWorkerIds: [],
+                confirmedVehicleIds: [],
+                createdAt: new Date(),
+                updatedAt: new Date()
+            }
+        ];
+
+        act(() => {
+            result.current.setEvents(newEvents);
+        });
+
+        expect(result.current.weekDays[0].events).toHaveLength(1);
+        expect(result.current.weekDays[0].events[0].title).toBe('New Event');
     });
 });
