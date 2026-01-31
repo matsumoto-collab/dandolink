@@ -20,11 +20,14 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
+    const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
 
     // ワーカー・車両名の取得
     useEffect(() => {
         const fetchNames = async () => {
             try {
+                setNamesLoadError(null);
+
                 // ワーカー名取得
                 const workersRes = await fetch('/api/dispatch/workers');
                 if (workersRes.ok) {
@@ -47,8 +50,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                     setVehicleNameMap(map);
                 }
                 setIsNamesLoaded(true);
-            } catch (error) {
-                console.error('Failed to fetch names:', error);
+            } catch {
+                setNamesLoadError('データの取得に失敗しました');
                 setIsNamesLoaded(true);
             }
         };
@@ -135,6 +138,13 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
 
     return (
         <div className="flex flex-col h-full">
+            {/* エラー表示 */}
+            {namesLoadError && (
+                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                    {namesLoadError}（名前の表示に影響がある可能性があります）
+                </div>
+            )}
+
             {/* ヘッダー：日付選択 */}
             <div className="flex items-center justify-center gap-4 mb-6 bg-white rounded-lg shadow-sm p-4">
                 <button

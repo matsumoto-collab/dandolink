@@ -58,7 +58,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                             onChange={handlePostalCodeChange}
                             maxLength={7}
                             className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="1234567"
+                            placeholder="例: 1600023"
                         />
                         <span className="text-sm text-gray-500">市区町村が自動で入力されます</span>
                     </div>
@@ -84,7 +84,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="市区町村"
+                    placeholder="例: 新宿区西新宿"
                 />
             </FormField>
             {/* その他住所 */}
@@ -104,7 +104,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     value={formData.plusCode}
                     onChange={(e) => setFormData({ ...formData, plusCode: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Plus Code/座標（緯度,経度）"
+                    placeholder="例: 8Q7XMQ22+MC または 35.6895,139.6917"
                 />
             </FormField>
             {/* Google Maps Preview */}

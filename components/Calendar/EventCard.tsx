@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { CalendarEvent } from '@/types/calendar';
 
 interface EventCardProps {
@@ -7,7 +7,7 @@ interface EventCardProps {
     compact?: boolean; // コンパクト表示モード
 }
 
-export default function EventCard({ event, onClick, compact = false }: EventCardProps) {
+const EventCard = memo(function EventCard({ event, onClick, compact = false }: EventCardProps) {
     if (compact) {
         // コンパクト表示(社員別行表示用)
         return (
@@ -41,7 +41,7 @@ export default function EventCard({ event, onClick, compact = false }: EventCard
                 {/* 3段目: 人数 */}
                 {event.workers && event.workers.length > 0 && (
                     <div className="flex items-center gap-1 mt-0.5 text-white opacity-90 relative z-10">
-                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
                         <span>{event.workers.length}人</span>
@@ -51,7 +51,7 @@ export default function EventCard({ event, onClick, compact = false }: EventCard
                 {/* 4段目: 備考 */}
                 {event.remarks && (
                     <div className="flex items-start gap-1 mt-0.5 text-white opacity-90 relative z-10">
-                        <svg className="w-3 h-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-3 h-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                         <span className="truncate">{event.remarks}</span>
@@ -130,4 +130,6 @@ export default function EventCard({ event, onClick, compact = false }: EventCard
             </div>
         </div>
     );
-}
+});
+
+export default EventCard;

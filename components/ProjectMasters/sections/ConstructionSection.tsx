@@ -22,7 +22,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                             value={formData.area}
                             onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="m2"
+                            placeholder="例: 150"
                         />
                     </div>
                 </FormField>
@@ -33,7 +33,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         value={formData.areaRemarks}
                         onChange={(e) => setFormData({ ...formData, areaRemarks: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="備考"
+                        placeholder="例: 外周のみ"
                     />
                 </FormField>
             </div>
@@ -66,7 +66,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                             value={formData.estimatedAssemblyWorkers}
                             onChange={(e) => setFormData({ ...formData, estimatedAssemblyWorkers: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="予定組立人工"
+                            placeholder="例: 3"
                         />
                         <span className="text-sm text-gray-500">名</span>
                     </div>
@@ -79,7 +79,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                             value={formData.estimatedDemolitionWorkers}
                             onChange={(e) => setFormData({ ...formData, estimatedDemolitionWorkers: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            placeholder="予定解体人工"
+                            placeholder="例: 2"
                         />
                         <span className="text-sm text-gray-500">名</span>
                     </div>
@@ -93,7 +93,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         value={formData.contractAmount}
                         onChange={(e) => setFormData({ ...formData, contractAmount: e.target.value })}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="請負金額"
+                        placeholder="例: 500000"
                     />
                     <span className="text-sm text-gray-500">円(税抜)</span>
                 </div>

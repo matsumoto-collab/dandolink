@@ -3,175 +3,143 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import DraggableEventCard from '@/components/Calendar/DraggableEventCard';
 import { CalendarEvent } from '@/types/calendar';
 
-// dnd-kit モック
+// Mock dnd-kit
 jest.mock('@dnd-kit/sortable', () => ({
-    useSortable: () => ({
+    useSortable: jest.fn(() => ({
         attributes: {},
         listeners: {},
         setNodeRef: jest.fn(),
         transform: null,
         transition: null,
         isDragging: false,
-    }),
+    })),
 }));
 
+// Mock utilities
 jest.mock('@dnd-kit/utilities', () => ({
     CSS: {
         Transform: {
-            toString: () => null,
+            toString: jest.fn(),
         },
     },
 }));
 
-// lucide-react モック
-jest.mock('lucide-react', () => ({
-    ChevronUp: () => <svg data-testid="chevron-up" />,
-    ChevronDown: () => <svg data-testid="chevron-down" />,
-    ClipboardCheck: () => <svg data-testid="clipboard-check" />,
-    CheckCircle: () => <svg data-testid="check-circle" />,
-    Copy: () => <svg data-testid="copy-icon" />,
-}));
-
 describe('DraggableEventCard', () => {
-    const baseEvent: CalendarEvent = {
-        id: 'event-1',
-        title: 'テスト現場',
-        date: new Date('2026-01-15'),
-        color: '#3B82F6',
+    const mockEvent: CalendarEvent = {
+        id: 'evt1',
+        title: 'Test Project',
+        customer: 'Test Customer',
+        date: new Date('2024-01-01'),
+        color: '#ff0000',
+        workers: ['w1', 'w2'],
+        remarks: 'Sample remark',
+        projectMasterId: 'pm1',
     };
 
-    describe('基本表示', () => {
-        it('タイトルを表示する', () => {
-            render(<DraggableEventCard event={baseEvent} />);
-            expect(screen.getByText('テスト現場')).toBeInTheDocument();
-        });
+    const mockOnClick = jest.fn();
+    const mockOnMoveUp = jest.fn();
+    const mockOnMoveDown = jest.fn();
+    const mockOnDispatch = jest.fn();
+    const mockOnCopy = jest.fn();
 
-        it('顧客名を表示する', () => {
-            const event = { ...baseEvent, customer: '株式会社テスト' };
-            render(<DraggableEventCard event={event} />);
-            expect(screen.getByText('株式会社テスト')).toBeInTheDocument();
-        });
-
-        it('作業員数を表示する', () => {
-            const event = { ...baseEvent, workers: ['田中', '山田'] };
-            render(<DraggableEventCard event={event} />);
-            expect(screen.getByText('2人')).toBeInTheDocument();
-        });
-
-        it('備考を表示する', () => {
-            const event = { ...baseEvent, remarks: 'メモ内容' };
-            render(<DraggableEventCard event={event} />);
-            expect(screen.getByText('メモ内容')).toBeInTheDocument();
-        });
+    beforeEach(() => {
+        jest.clearAllMocks();
     });
 
-    describe('クリックイベント', () => {
-        it('カードクリックでonClickが呼ばれる', () => {
-            const handleClick = jest.fn();
-            render(<DraggableEventCard event={baseEvent} onClick={handleClick} />);
-            fireEvent.click(screen.getByText('テスト現場'));
-            expect(handleClick).toHaveBeenCalledTimes(1);
-        });
+    it('renders event details correctly', () => {
+        render(<DraggableEventCard event={mockEvent} />);
+
+        expect(screen.getByText('Test Project')).toBeInTheDocument();
+        expect(screen.getByText('Test Customer')).toBeInTheDocument();
+        expect(screen.getByText('2人')).toBeInTheDocument(); // workers length
+        expect(screen.getByText('Sample remark')).toBeInTheDocument();
     });
 
-    describe('移動ボタン', () => {
-        it('canMoveUp=trueで上移動ボタンが有効', () => {
-            const handleMoveUp = jest.fn();
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    canMoveUp={true}
-                    onMoveUp={handleMoveUp}
-                />
-            );
-            const upButton = screen.getByTestId('chevron-up').closest('button');
-            expect(upButton).not.toBeDisabled();
-        });
+    it('handles click event', () => {
+        render(<DraggableEventCard event={mockEvent} onClick={mockOnClick} />);
 
-        it('canMoveDown=trueで下移動ボタンが有効', () => {
-            const handleMoveDown = jest.fn();
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    canMoveDown={true}
-                    onMoveDown={handleMoveDown}
-                />
-            );
-            const downButton = screen.getByTestId('chevron-down').closest('button');
-            expect(downButton).not.toBeDisabled();
-        });
-
-        it('上移動ボタンクリックでonMoveUpが呼ばれる', () => {
-            const handleMoveUp = jest.fn();
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    canMoveUp={true}
-                    onMoveUp={handleMoveUp}
-                />
-            );
-            const upButton = screen.getByTestId('chevron-up').closest('button');
-            fireEvent.click(upButton!);
-            expect(handleMoveUp).toHaveBeenCalledTimes(1);
-        });
+        fireEvent.click(screen.getByText('Test Project'));
+        expect(mockOnClick).toHaveBeenCalled();
     });
 
-    describe('配車確認', () => {
-        it('canDispatch=trueで配車ボタンが表示される', () => {
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    canDispatch={true}
-                    onDispatch={jest.fn()}
-                />
-            );
-            expect(screen.getByTestId('clipboard-check')).toBeInTheDocument();
-        });
+    it('handles move up/down actions', () => {
+        render(
+            <DraggableEventCard
+                event={mockEvent}
+                canMoveUp={true}
+                canMoveDown={true}
+                onMoveUp={mockOnMoveUp}
+                onMoveDown={mockOnMoveDown}
+            />
+        );
 
-        it('isDispatchConfirmed=trueで確認済みアイコンが表示される', () => {
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    canDispatch={true}
-                    isDispatchConfirmed={true}
-                />
-            );
-            expect(screen.getByTestId('check-circle')).toBeInTheDocument();
-        });
+        fireEvent.click(screen.getByTitle('上に移動'));
+        expect(mockOnMoveUp).toHaveBeenCalled();
+
+        fireEvent.click(screen.getByTitle('下に移動'));
+        expect(mockOnMoveDown).toHaveBeenCalled();
     });
 
-    describe('コピー機能', () => {
-        it('onCopyがある時コピーボタンが表示される', () => {
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    onCopy={jest.fn()}
-                />
-            );
-            expect(screen.getByTestId('copy-icon')).toBeInTheDocument();
-        });
+    it('disables move buttons when cannot move', () => {
+        render(
+            <DraggableEventCard
+                event={mockEvent}
+                canMoveUp={false}
+                canMoveDown={false}
+                onMoveUp={mockOnMoveUp}
+                onMoveDown={mockOnMoveDown}
+            />
+        );
 
-        it('コピーボタンクリックでonCopyが呼ばれる', () => {
-            const handleCopy = jest.fn();
-            render(
-                <DraggableEventCard
-                    event={baseEvent}
-                    onCopy={handleCopy}
-                />
-            );
-            const copyButton = screen.getByTestId('copy-icon').closest('button');
-            fireEvent.click(copyButton!);
-            expect(handleCopy).toHaveBeenCalledTimes(1);
-        });
+        const upButton = screen.getByTitle('上に移動');
+        const downButton = screen.getByTitle('下に移動');
+
+        expect(upButton).toBeDisabled();
+        expect(downButton).toBeDisabled();
+
+        // Ensure callbacks not called if somehow clicked
+        fireEvent.click(upButton);
+        expect(mockOnMoveUp).not.toHaveBeenCalled();
     });
 
-    describe('disabled状態', () => {
-        it('disabled=trueでcursor-grabクラスがない', () => {
-            const { container } = render(
-                <DraggableEventCard event={baseEvent} disabled={true} />
-            );
-            const card = container.querySelector('[data-event-card="true"]');
-            expect(card).not.toHaveClass('cursor-grab');
-        });
+    it('handles dispatch confirmation interaction', () => {
+        render(
+            <DraggableEventCard
+                event={mockEvent}
+                canDispatch={true}
+                isDispatchConfirmed={false}
+                onDispatch={mockOnDispatch}
+            />
+        );
+
+        const dispatchButton = screen.getByTitle('手配確定');
+        fireEvent.click(dispatchButton);
+        expect(mockOnDispatch).toHaveBeenCalled();
+    });
+
+    it('shows confirmed dispatch state', () => {
+        render(
+            <DraggableEventCard
+                event={mockEvent}
+                canDispatch={true}
+                isDispatchConfirmed={true}
+                onDispatch={mockOnDispatch}
+            />
+        );
+
+        expect(screen.getByTitle('手配確定済み')).toBeInTheDocument();
+    });
+
+    it('handles copy action', () => {
+        render(
+            <DraggableEventCard
+                event={mockEvent}
+                onCopy={mockOnCopy}
+            />
+        );
+
+        const copyButton = screen.getByTitle('コピー');
+        fireEvent.click(copyButton);
+        expect(mockOnCopy).toHaveBeenCalled();
     });
 });

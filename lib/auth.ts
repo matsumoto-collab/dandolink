@@ -4,6 +4,19 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@/types/user';
 
+// NEXTAUTH_SECRET検証 - 本番環境では必須
+if (!process.env.NEXTAUTH_SECRET) {
+    if (process.env.NODE_ENV === 'production') {
+        throw new Error(
+            'NEXTAUTH_SECRET環境変数が設定されていません。本番環境では必須です。'
+        );
+    } else {
+        console.warn(
+            '⚠️ NEXTAUTH_SECRET環境変数が設定されていません。開発環境のみ許容されます。'
+        );
+    }
+}
+
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({

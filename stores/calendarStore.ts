@@ -531,7 +531,7 @@ export const useCalendarStore = create<CalendarStore>()(
                     });
                 }
 
-                await fetch(`/api/assignments/${id}`, {
+                const response = await fetch(`/api/assignments/${id}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -548,6 +548,10 @@ export const useCalendarStore = create<CalendarStore>()(
                         confirmedVehicleIds: updates.confirmedVehicleIds,
                     }),
                 });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update assignment');
+                }
             } catch (error) {
                 // Rollback on error
                 set({ assignments: previousAssignments });

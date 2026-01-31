@@ -64,10 +64,7 @@ export function exportEstimatePDF(
         // PDFをダウンロード
         const fileName = `見積書_${estimate.estimateNumber}_${new Date().getTime()}.pdf`;
         doc.save(fileName);
-
-        console.log('PDF生成成功:', fileName);
     } catch (error) {
-        console.error('PDF生成エラー:', error);
         alert('PDFの生成に失敗しました。エラー: ' + (error as Error).message);
     }
 }

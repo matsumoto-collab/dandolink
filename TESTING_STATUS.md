@@ -39,7 +39,7 @@
 
 ### Phase 2: テストカバレッジ向上
 
-**開始時**: 9% → **現在**: 24%
+**開始時**: 9% → **現在**: 31.31%
 
 #### 追加したテストファイル
 
@@ -47,12 +47,23 @@
 |----------|----------|------------|
 | Utils | `employeeUtils.test.ts` | 100% |
 | Utils | `dateUtils.test.ts` | 98% |
-| Lib | `json-utils.test.ts` | 100% (新規) |
-| Lib | `rate-limit.test.ts` | 83% (新規) |
-| Contexts | `NavigationContext.test.tsx` | 100% (新規) |
-| Contexts | `ProfitDashboardContext.test.tsx` | (新規) |
-| Stores | `calendarStore.test.ts` | (新規) |
-| Stores | `financeStore.test.ts` | (新規) |
+| Lib | `json-utils.test.ts` | 100% |
+| Lib | `rate-limit.test.ts` | 83% |
+| Contexts | `NavigationContext.test.tsx` | 100% |
+| Contexts | `ProfitDashboardContext.test.tsx` | |
+| Contexts | `AssignmentContext.test.tsx` | 新規 |
+| Stores | `calendarStore.test.ts` | |
+| Stores | `financeStore.test.ts` | |
+| Hooks | `useCustomers.test.ts` | 新規 |
+| Hooks | `useEstimates.test.ts` | 新規 |
+| Hooks | `useInvoices.test.ts` | 新規 |
+| Hooks | `useDailyReports.test.ts` | 新規 |
+| Hooks | `useMasterData.test.ts` | 新規 |
+| Hooks | `useProjectMasters.test.ts` | 新規 |
+| Hooks | `useVacation.test.ts` | 新規 |
+| Hooks | `useRemarks.test.ts` | 新規 |
+| Hooks | `useCompany.test.ts` | 新規 |
+| Hooks | `useCustomerSearch.test.ts` | 新規 |
 
 #### E2Eテスト
 
@@ -70,9 +81,9 @@
 ### テスト統計
 
 ```
-Test Suites: 45 passed
-Tests:       519 passed
-Coverage:    24.15% (Lines)
+Test Suites: 56 passed
+Tests:       645 passed
+Coverage:    31.31% (Lines)
 ```
 
 ### カバレッジ詳細
@@ -83,9 +94,9 @@ Coverage:    24.15% (Lines)
 | lib/api/ | 93.44% | 良好 |
 | lib/validations/ | 100% | 良好 |
 | lib/ (全体) | 28.39% | auth.ts, profitDashboard.ts が0% |
-| hooks/ | 25.86% | 多くが0% |
+| hooks/ | ~60% | 10ファイル追加 |
 | stores/ | 32.31% | calendarStore, financeStore が22% |
-| contexts/ | 部分的 | AssignmentContext が0% |
+| contexts/ | ~80% | AssignmentContext追加 |
 | components/ | 低い | 多くが0% |
 | app/api/ | 低い | 36ルート中一部のみ |
 

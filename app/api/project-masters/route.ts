@@ -36,8 +36,11 @@ export async function GET(req: NextRequest) {
         const orderBy = { updatedAt: 'desc' as const };
 
         if (page && limit) {
-            const pageNum = parseInt(page);
-            const limitNum = parseInt(limit);
+            const pageNum = parseInt(page, 10);
+            const limitNum = parseInt(limit, 10);
+            if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1) {
+                return validationErrorResponse('無効なページネーションパラメータです');
+            }
 
             const [projectMasters, total] = await Promise.all([
                 prisma.projectMaster.findMany({ where, include, orderBy, skip: (pageNum - 1) * limitNum, take: limitNum }),

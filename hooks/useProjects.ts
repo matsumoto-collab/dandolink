@@ -94,9 +94,13 @@ export function useProjects() {
         return () => {
             const channelToRemove = channel;
             if (channelToRemove) {
-                import('@/lib/supabase').then(({ supabase }) => {
-                    supabase.removeChannel(channelToRemove);
-                });
+                import('@/lib/supabase')
+                    .then(({ supabase }) => {
+                        supabase.removeChannel(channelToRemove);
+                    })
+                    .catch(() => {
+                        // クリーンアップ時のエラーは無視（コンポーネントは既にアンマウント済み）
+                    });
             }
         };
     }, [status, fetchAssignmentsStore]);

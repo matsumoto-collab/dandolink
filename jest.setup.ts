@@ -34,6 +34,15 @@ jest.mock('next/navigation', () => ({
     },
 }));
 
+// Mock next-auth/react
+jest.mock('next-auth/react', () => ({
+    useSession: jest.fn(() => ({
+        data: { user: { name: 'Test User', email: 'test@example.com' } },
+        status: 'authenticated',
+    })),
+    SessionProvider: ({ children }: { children: React.ReactNode }) => React.createElement('div', null, children),
+}));
+
 // window.matchMedia のモック
 if (typeof window !== 'undefined') {
     Object.defineProperty(window, 'matchMedia', {
@@ -60,6 +69,15 @@ if (typeof window !== 'undefined') {
 
 // Global Mocks for API Testing
 // These mocks are applied to all tests, but can be overridden in individual test files using jest.mock()
+
+// Mock fetch globally
+global.fetch = jest.fn(() =>
+    Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({}),
+        text: () => Promise.resolve(''),
+    })
+) as jest.Mock;
 
 // Mock @/lib/prisma
 jest.mock('@/lib/prisma', () => ({
