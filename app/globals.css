@@ -58,3 +58,30 @@ body {
       rgb(51, 65, 85) 0%,
       rgb(71, 85, 105) 100%);
 }
+
+/* Mobile calendar zoom-out view */
+@media (max-width: 768px) {
+  .calendar-container {
+    transform: scale(0.6);
+    transform-origin: top left;
+    width: 166.67%;
+    /* 100% / 0.6 to compensate for scale */
+    min-height: auto;
+  }
+
+  /* スケジュールページのメインコンテナ */
+  .mobile-schedule-wrapper {
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+    max-height: calc(100dvh - 60px);
+  }
+}
+
+/* Even smaller for very small screens */
+@media (max-width: 480px) {
+  .calendar-container {
+    transform: scale(0.5);
+    width: 200%;
+    /* 100% / 0.5 */
+  }
+}
