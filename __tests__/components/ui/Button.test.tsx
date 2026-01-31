@@ -19,8 +19,8 @@ describe('Button', () => {
         it('デフォルトでprimaryバリアントが適用される', () => {
             render(<Button>保存</Button>);
             const button = screen.getByRole('button');
-            expect(button).toHaveClass('bg-gradient-to-r');
-            expect(button).toHaveClass('from-slate-700');
+            expect(button).toHaveClass('bg-slate-800');
+            expect(button).toHaveClass('text-white');
         });
 
         it('デフォルトでmdサイズが適用される', () => {
@@ -34,7 +34,7 @@ describe('Button', () => {
         it('secondaryバリアントが正しく適用される', () => {
             render(<Button variant="secondary">キャンセル</Button>);
             const button = screen.getByRole('button');
-            expect(button).toHaveClass('bg-gray-100');
+            expect(button).toHaveClass('bg-slate-100');
         });
 
         it('dangerバリアントが正しく適用される', () => {

@@ -90,12 +90,12 @@ export default function CopyAssignmentModal({
 
             {/* モーダル */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div className="bg-white rounded-lg shadow-lg w-full max-w-md" onClick={e => e.stopPropagation()}>
                     {/* ヘッダー */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                         <div className="flex items-center gap-2">
-                            <Copy className="w-5 h-5 text-blue-600" />
-                            <h2 className="text-lg font-bold text-gray-800">案件をコピー</h2>
+                            <Copy className="w-5 h-5 text-slate-600" />
+                            <h2 className="text-lg font-semibold text-gray-800">案件をコピー</h2>
                         </div>
                         <button
                             onClick={onClose}

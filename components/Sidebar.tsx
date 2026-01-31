@@ -119,20 +119,20 @@ export default function Sidebar() {
             {/* Sidebar */}
             <aside
                 className={`
-                    fixed left-0 top-0 h-dvh bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800
-                    border-r border-slate-700/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
+                    fixed left-0 top-0 h-dvh bg-slate-900
+                    border-r border-slate-800 flex flex-col shadow-lg z-50 transition-transform duration-300
                     w-64
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
                 `}
             >
                 {/* Logo Area */}
-                <div className="h-16 flex items-center px-6 border-b border-slate-700/50 bg-gradient-to-r from-slate-800/50 to-transparent">
+                <div className="h-16 flex items-center px-6 border-b border-slate-800">
                     <div className="flex items-center gap-3 flex-1">
-                        <div className="w-9 h-9 bg-gradient-to-br from-slate-600 via-slate-700 to-slate-800 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-slate-600/30">
-                            <Building className="w-5 h-5 text-slate-100" />
+                        <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
+                            <Building className="w-5 h-5 text-slate-200" />
                         </div>
-                        <span className="text-xl font-bold bg-gradient-to-r from-slate-50 to-slate-300 bg-clip-text text-transparent">YuSystem</span>
+                        <span className="text-xl font-semibold text-slate-100">YuSystem</span>
                     </div>
                     {/* Mobile Close Button */}
                     <button
@@ -145,10 +145,10 @@ export default function Sidebar() {
 
                 {/* User Info */}
                 {session?.user && (
-                    <div className="px-3 py-4 border-b border-slate-700/50">
-                        <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/50 rounded-xl">
-                            <div className="w-10 h-10 bg-gradient-to-br from-slate-600 to-slate-700 rounded-full flex items-center justify-center ring-2 ring-slate-600/30">
-                                <UserIcon className="w-5 h-5 text-slate-200" />
+                    <div className="px-3 py-4 border-b border-slate-800">
+                        <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/60 rounded-lg">
+                            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
+                                <UserIcon className="w-5 h-5 text-slate-300" />
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-slate-200 truncate">
@@ -191,14 +191,14 @@ export default function Sidebar() {
                                                 <button
                                                     onClick={() => handleNavigation(item.page)}
                                                     className={`
-                                                    w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                                                    w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150
                                                     ${isActive
-                                                            ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-lg shadow-slate-900/50 scale-[1.02] ring-1 ring-slate-500/50'
-                                                            : 'text-slate-300 hover:bg-slate-800/50 hover:text-white hover:scale-[1.01]'
+                                                            ? 'bg-slate-700/80 text-white'
+                                                            : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                                                         }
                                                 `}
                                                 >
-                                                    <Icon className={`w-5 h-5 ${isActive ? 'text-slate-100' : 'text-slate-400'}`} />
+                                                    <Icon className={`w-5 h-5 ${isActive ? 'text-slate-200' : 'text-slate-500'}`} />
                                                     <span className="flex-1 text-left">{item.name}</span>
                                                     {isActive && <ChevronRight className="w-4 h-4 text-slate-300" />}
                                                 </button>
@@ -211,16 +211,16 @@ export default function Sidebar() {
                 </nav>
 
                 {/* Utility Area */}
-                <div className="flex-shrink-0 border-t border-slate-700/50 p-3 space-y-1.5 bg-gradient-to-t from-slate-800/30 to-transparent">
-                    <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-slate-300 hover:bg-slate-800/50 hover:text-white transition-all duration-200 hover:scale-[1.01]">
-                        <HelpCircle className="w-5 h-5 text-slate-400" />
+                <div className="flex-shrink-0 border-t border-slate-800 p-3 space-y-1">
+                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-colors duration-150">
+                        <HelpCircle className="w-5 h-5 text-slate-500" />
                         <span>ヘルプ</span>
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-red-300 hover:bg-red-900/20 hover:text-red-200 transition-all duration-200 hover:scale-[1.01]"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors duration-150"
                     >
-                        <LogOut className="w-5 h-5 text-red-400" />
+                        <LogOut className="w-5 h-5" />
                         <span>ログアウト</span>
                     </button>
                 </div>

@@ -28,10 +28,10 @@ export default function EstimateModal({ isOpen, onClose, onSubmit, initialData }
             />
 
             {/* モーダルコンテンツ */}
-            <div className="relative bg-white rounded-xl shadow-2xl max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="relative bg-white rounded-lg shadow-lg max-w-6xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 {/* ヘッダー */}
-                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-xl">
-                    <h2 className="text-xl font-bold text-gray-900">
+                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-lg">
+                    <h2 className="text-xl font-semibold text-gray-900">
                         {initialData ? '見積書編集' : '新規見積書作成'}
                     </h2>
                     <button

@@ -35,7 +35,9 @@
       "Bash($lines = $content.Count)",
       "Bash(1 --prefix /c/Users/yushink/Desktop/yusystem -- --listTests)",
       "Bash(npm init:*)",
-      "Bash(npx playwright install:*)"
+      "Bash(npx playwright install:*)",
+      "Bash(npx next build:*)",
+      "Bash(done)"
     ]
   }
 }

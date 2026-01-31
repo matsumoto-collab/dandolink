@@ -144,16 +144,16 @@ export default function DispatchConfirmModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
                 {/* ヘッダー */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-slate-700 to-slate-600">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-800">
                     <div>
-                        <h2 className="text-lg font-bold text-white">手配確定</h2>
-                        <p className="text-sm text-slate-300">{project.title}</p>
+                        <h2 className="text-lg font-semibold text-white">手配確定</h2>
+                        <p className="text-sm text-slate-400">{project.title}</p>
                     </div>
                     <button
                         onClick={onClose}
-                        className="p-2 text-white/80 hover:text-white rounded-full hover:bg-white/10"
+                        className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors duration-150"
                     >
                         <X className="w-5 h-5" />
                     </button>

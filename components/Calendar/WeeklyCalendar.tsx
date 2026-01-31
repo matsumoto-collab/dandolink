@@ -187,7 +187,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
             onDragEnd={isReadOnly ? undefined : handleDragEnd}
             onDragCancel={isReadOnly ? undefined : handleDragCancel}
         >
-            <div className="h-full flex flex-col bg-white rounded-xl shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="h-full flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
                 <CalendarHeader
                     weekDays={weekDays}
                     onPreviousWeek={goToPreviousWeek}

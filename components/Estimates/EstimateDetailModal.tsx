@@ -107,14 +107,14 @@ export default function EstimateDetailModal({
 
             {/* モーダル */}
             <div className="fixed inset-0 lg:left-64 z-[60] flex items-center justify-center p-4">
-                <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col">
+                <div className="bg-white rounded-lg shadow-lg w-full max-w-6xl h-[90vh] flex flex-col">
                     {/* ヘッダー */}
-                    <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
+                    <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <div>
                                     <div className="text-sm text-gray-500">見積書</div>
-                                    <h2 className="text-2xl font-bold text-gray-800">
+                                    <h2 className="text-xl font-semibold text-gray-800">
                                         {effectiveProject.title}
                                     </h2>
                                 </div>

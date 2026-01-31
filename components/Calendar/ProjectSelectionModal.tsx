@@ -26,8 +26,8 @@ export default function ProjectSelectionModal({
             />
 
             {/* モーダル本体 */}
-            <div className="relative bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm mx-4">
-                <h3 className="text-lg font-bold text-slate-800 mb-4 text-center">
+            <div className="relative bg-white rounded-lg shadow-lg p-6 w-full max-w-sm mx-4">
+                <h3 className="text-lg font-semibold text-slate-800 mb-4 text-center">
                     案件の登録方法を選択
                 </h3>
 
@@ -38,14 +38,14 @@ export default function ProjectSelectionModal({
                 <div className="flex flex-col gap-3">
                     <button
                         onClick={onSelectExisting}
-                        className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors shadow-md"
+                        className="w-full py-3 px-4 bg-slate-800 hover:bg-slate-700 text-white font-medium rounded-lg transition-colors duration-150"
                     >
                         既存案件から作成
                     </button>
 
                     <button
                         onClick={onCreateNew}
-                        className="w-full py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition-colors shadow-md"
+                        className="w-full py-3 px-4 bg-slate-600 hover:bg-slate-500 text-white font-medium rounded-lg transition-colors duration-150"
                     >
                         新規作成
                     </button>

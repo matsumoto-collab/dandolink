@@ -57,19 +57,17 @@ export default function DraggableEventCard({
             {...(disabled ? {} : listeners)}
             data-event-card="true"
             className={`
-        mb-1 p-1 rounded-xl border-none
-        transition-all duration-300 ease-out
+        mb-1 p-1 rounded-lg
+        transition-colors duration-150
         text-xs relative overflow-hidden
         ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}
-        ${isDragging ? 'shadow-2xl scale-105 z-50' : 'shadow-md hover:shadow-lg hover:scale-[1.02] hover:-translate-y-0.5'}
+        ${isDragging ? 'shadow-lg z-50 opacity-90' : 'shadow-sm hover:brightness-105'}
       `}
         >
             <div
-                className="relative rounded-xl"
+                className="relative rounded-lg"
                 style={{ backgroundColor: event.color }}
             >
-                {/* Gradient overlay for depth */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent pointer-events-none rounded-xl" />
                 <div className="pl-2">
                     {/* ドラッグハンドルと矢印ボタン */}
                     <div className="flex items-start gap-2">

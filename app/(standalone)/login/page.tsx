@@ -40,17 +40,17 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
             <div className="w-full max-w-md px-6">
                 {/* Login Card */}
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
+                <div className="bg-white rounded-lg shadow-lg p-8 border border-slate-200">
                     {/* Logo/Title */}
                     <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-                            <Lock className="w-8 h-8 text-white" />
+                        <div className="inline-flex items-center justify-center w-14 h-14 bg-slate-800 rounded-lg mb-4">
+                            <Lock className="w-7 h-7 text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold text-gray-800 mb-2">YuSystem</h1>
-                        <p className="text-gray-600">施工管理システム</p>
+                        <h1 className="text-2xl font-semibold text-gray-800 mb-1">YuSystem</h1>
+                        <p className="text-gray-500 text-sm">施工管理システム</p>
                     </div>
 
                     {/* Error Message */}
@@ -121,7 +121,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-600 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl"
+                            className="w-full bg-slate-800 text-white py-3 px-4 rounded-lg font-medium hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150"
                         >
                             {isLoading ? (
                                 <span className="flex items-center justify-center gap-2">

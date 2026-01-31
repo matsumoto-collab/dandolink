@@ -195,10 +195,10 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
 
                 {/* Modal */}
-                <div className="relative inline-block w-full max-w-2xl bg-white rounded-xl shadow-2xl transform transition-all text-left overflow-hidden">
+                <div className="relative inline-block w-full max-w-2xl bg-white rounded-lg shadow-lg transform transition-all text-left overflow-hidden">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
-                        <h2 className="text-xl font-bold text-gray-800">日報入力</h2>
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                        <h2 className="text-xl font-semibold text-gray-800">日報入力</h2>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"

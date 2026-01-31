@@ -85,11 +85,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                    <h2 className="text-2xl font-bold text-gray-800">
+                    <h2 className="text-xl font-semibold text-gray-800">
                         {mode === 'create' ? 'ユーザー追加' : 'ユーザー編集'}
                     </h2>
                     <button
@@ -217,7 +217,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
                             disabled={isLoading}
                         >
                             {isLoading ? (

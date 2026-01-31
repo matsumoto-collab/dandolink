@@ -108,11 +108,11 @@ export default function MainContent() {
 
     return (
         <main className="
-            fixed top-0 bottom-0 bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-auto
-            
+            fixed top-0 bottom-0 bg-slate-50 overflow-auto
+
             /* Mobile: Full width with top padding for header */
             left-0 right-0 pt-16
-            
+
             /* Desktop: Offset by sidebar width, no top padding */
             lg:left-64 lg:pt-0 lg:right-0
         ">

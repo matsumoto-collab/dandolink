@@ -1,0 +1,3375 @@
+﻿
+> yusystem@0.1.0 test
+> jest __tests__/components/Settings/UserManagement.test.tsx __tests__/components/ProjectMasters/ProjectMasterForm.test.tsx __tests__/components/Calendar/ForemanSelector.test.tsx
+
+node.exe : FAIL __tests__/components/Calendar/ForemanSelector.test.
+tsx
+発生場所 行:1 文字:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/nod
+e_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          : NotSpecified: (FAIL __tests__/...lec 
+   tor.test.tsx:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  笳・Console
+
+    console.error
+      Warning: An update to ForemanSelector inside a test was not w
+rapped in act(...).
+      
+      When testing, code that causes React state updates should be 
+wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would 
+see in the browser. Learn more at https://reactjs.org/link/wrap-tes
+ts-with-act
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+
+    [0m [90m 266 |[39m                 [36mif[39m (response[3
+3m.[39mok) {
+     [90m 267 |[39m                     [36mconst[39m data [33
+m=[39m [36mawait[39m response[33m.[39mjson()[33m;[39m
+    [31m[1m>[22m[39m[90m 268 |[39m                     [36ms
+et[39m({ allForemen[33m:[39m data })[33m;[39m
+     [90m     |[39m                     [31m[1m^[22m[39m
+     [90m 269 |[39m                 }
+     [90m 270 |[39m             } [36mcatch[39m (error) {
+     [90m 271 |[39m                 console[33m.[39merror([32m
+'Failed to fetch foremen:'[39m[33m,[39m error)[33m;[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.develop
+ment.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js
+:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/
+cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-do
+m.development.js:25547:5)
+      at forceStoreRerender (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:16158:5)
+      at handleStoreChange (node_modules/react-dom/cjs/react-dom.de
+velopment.js:16134:7)
+      at node_modules/zustand/vanilla.js:11:39
+          at Set.forEach (<anonymous>)
+      at setState (node_modules/zustand/vanilla.js:11:17)
+      at set (stores/calendarStore.ts:268:21)
+
+    console.error
+      Warning: An update to ForemanSelector inside a test was not w
+rapped in act(...).
+      
+      When testing, code that causes React state updates should be 
+wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would 
+see in the browser. Learn more at https://reactjs.org/link/wrap-tes
+ts-with-act
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+
+    [0m [90m 286 |[39m                 console[33m.[39merror(
+[32m'Failed to fetch user settings:'[39m[33m,[39m error)[33m;[
+39m
+     [90m 287 |[39m             } [36mfinally[39m {
+    [31m[1m>[22m[39m[90m 288 |[39m                 [36mset[
+39m({ foremanSettingsLoading[33m:[39m [36mfalse[39m[33m,[39m 
+foremanSettingsInitialized[33m:[39m [36mtrue[39m })[33m;[39m
+     [90m     |[39m                 [31m[1m^[22m[39m
+     [90m 289 |[39m             }
+     [90m 290 |[39m         }[33m,[39m
+     [90m 291 |[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.develop
+ment.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js
+:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/
+cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-do
+m.development.js:25547:5)
+      at forceStoreRerender (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:16158:5)
+      at handleStoreChange (node_modules/react-dom/cjs/react-dom.de
+velopment.js:16134:7)
+      at node_modules/zustand/vanilla.js:11:39
+          at Set.forEach (<anonymous>)
+      at setState (node_modules/zustand/vanilla.js:11:17)
+      at set (stores/calendarStore.ts:288:17)
+
+    console.error
+      Warning: An update to ForemanSelector inside a test was not w
+rapped in act(...).
+      
+      When testing, code that causes React state updates should be 
+wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would 
+see in the browser. Learn more at https://reactjs.org/link/wrap-tes
+ts-with-act
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+
+    [0m [90m 286 |[39m                 console[33m.[39merror(
+[32m'Failed to fetch user settings:'[39m[33m,[39m error)[33m;[
+39m
+     [90m 287 |[39m             } [36mfinally[39m {
+    [31m[1m>[22m[39m[90m 288 |[39m                 [36mset[
+39m({ foremanSettingsLoading[33m:[39m [36mfalse[39m[33m,[39m 
+foremanSettingsInitialized[33m:[39m [36mtrue[39m })[33m;[39m
+     [90m     |[39m                 [31m[1m^[22m[39m
+     [90m 289 |[39m             }
+     [90m 290 |[39m         }[33m,[39m
+     [90m 291 |[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.develop
+ment.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js
+:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/
+cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-do
+m.development.js:25547:5)
+      at forceStoreRerender (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:16158:5)
+      at handleStoreChange (node_modules/react-dom/cjs/react-dom.de
+velopment.js:16134:7)
+      at node_modules/zustand/vanilla.js:11:39
+          at Set.forEach (<anonymous>)
+      at setState (node_modules/zustand/vanilla.js:11:17)
+      at set (stores/calendarStore.ts:288:17)
+
+    console.error
+      Warning: An update to ForemanSelector inside a test was not w
+rapped in act(...).
+      
+      When testing, code that causes React state updates should be 
+wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would 
+see in the browser. Learn more at https://reactjs.org/link/wrap-tes
+ts-with-act
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+
+    [0m [90m 286 |[39m                 console[33m.[39merror(
+[32m'Failed to fetch user settings:'[39m[33m,[39m error)[33m;[
+39m
+     [90m 287 |[39m             } [36mfinally[39m {
+    [31m[1m>[22m[39m[90m 288 |[39m                 [36mset[
+39m({ foremanSettingsLoading[33m:[39m [36mfalse[39m[33m,[39m 
+foremanSettingsInitialized[33m:[39m [36mtrue[39m })[33m;[39m
+     [90m     |[39m                 [31m[1m^[22m[39m
+     [90m 289 |[39m             }
+     [90m 290 |[39m         }[33m,[39m
+     [90m 291 |[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.develop
+ment.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js
+:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/
+cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-do
+m.development.js:25547:5)
+      at forceStoreRerender (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:16158:5)
+      at handleStoreChange (node_modules/react-dom/cjs/react-dom.de
+velopment.js:16134:7)
+      at node_modules/zustand/vanilla.js:11:39
+          at Set.forEach (<anonymous>)
+      at setState (node_modules/zustand/vanilla.js:11:17)
+      at set (stores/calendarStore.ts:288:17)
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at performSyncWorkOnRoot (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:26124:20)
+          at flushSyncCallbacks (C:\Users\yushink\Desktop\yusystem\
+node_modules\react-dom\cjs\react-dom.development.js:12042:22)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\react-d
+om\cjs\react-dom.development.js:25690:13
+          at invokeTheCallbackFunction (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\generated\Function.js:19
+:26)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jsdom\l
+ib\jsdom\browser\Window.js:613:9
+          at node:internal/process/task_queues:149:7
+          at AsyncResource.runInAsyncScope (node:async_hooks:214:14
+)
+          at AsyncResource.runMicrotask (node:internal/process/task
+_queues:146:8)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at updateFunctionComponent (C:\Users\yushink\Desktop\yu
+system\node_modules\react-dom\cjs\react-dom.development.js:19617:20
+)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21640:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at performSyncWorkOnRoot (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:26124:20)
+            at flushSyncCallbacks (C:\Users\yushink\Desktop\yusyste
+m\node_modules\react-dom\cjs\react-dom.development.js:12042:22)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\react
+-dom\cjs\react-dom.development.js:25690:13
+            at invokeTheCallbackFunction (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\generated\Function.js:
+19:26)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jsdom
+\lib\jsdom\browser\Window.js:613:9
+            at node:internal/process/task_queues:149:7
+            at AsyncResource.runInAsyncScope (node:async_hooks:214:
+14)
+            at AsyncResource.runMicrotask (node:internal/process/ta
+sk_queues:146:8)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5),
+        type: 'unhandled exception'
+      }
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-do
+m.development.js:26124:20)
+      at flushSyncCallbacks (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:12042:22)
+      at node_modules/react-dom/cjs/react-dom.development.js:25690:
+13
+      at invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/li
+ving/generated/Function.js:19:26)
+      at node_modules/jsdom/lib/jsdom/browser/Window.js:613:9
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at recoverFromConcurrentError (C:\Users\yushink\Desktop\y
+usystem\node_modules\react-dom\cjs\react-dom.development.js:25889:2
+0)
+          at performSyncWorkOnRoot (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:26135:20)
+          at flushSyncCallbacks (C:\Users\yushink\Desktop\yusystem\
+node_modules\react-dom\cjs\react-dom.development.js:12042:22)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\react-d
+om\cjs\react-dom.development.js:25690:13
+          at invokeTheCallbackFunction (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\generated\Function.js:19
+:26)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jsdom\l
+ib\jsdom\browser\Window.js:613:9
+          at node:internal/process/task_queues:149:7
+          at AsyncResource.runInAsyncScope (node:async_hooks:214:14
+)
+          at AsyncResource.runMicrotask (node:internal/process/task
+_queues:146:8)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at updateFunctionComponent (C:\Users\yushink\Desktop\yu
+system\node_modules\react-dom\cjs\react-dom.development.js:19617:20
+)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21640:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at recoverFromConcurrentError (C:\Users\yushink\Desktop
+\yusystem\node_modules\react-dom\cjs\react-dom.development.js:25889
+:20)
+            at performSyncWorkOnRoot (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:26135:20)
+            at flushSyncCallbacks (C:\Users\yushink\Desktop\yusyste
+m\node_modules\react-dom\cjs\react-dom.development.js:12042:22)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\react
+-dom\cjs\react-dom.development.js:25690:13
+            at invokeTheCallbackFunction (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\generated\Function.js:
+19:26)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jsdom
+\lib\jsdom\browser\Window.js:613:9
+            at node:internal/process/task_queues:149:7
+            at AsyncResource.runInAsyncScope (node:async_hooks:214:
+14)
+            at AsyncResource.runMicrotask (node:internal/process/ta
+sk_queues:146:8)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5),
+        type: 'unhandled exception'
+      }
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-do
+m.development.js:26135:20)
+      at flushSyncCallbacks (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:12042:22)
+      at node_modules/react-dom/cjs/react-dom.development.js:25690:
+13
+      at invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/li
+ving/generated/Function.js:19:26)
+      at node_modules/jsdom/lib/jsdom/browser/Window.js:613:9
+
+    console.error
+      The above error occurred in the <ForemanSelector> component:
+      
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+      
+      Consider adding an error boundary to your tree to customize e
+rror handling behavior.
+      Visit https://reactjs.org/link/error-boundaries to learn more
+ about error boundaries.
+
+      at logCapturedError (node_modules/react-dom/cjs/react-dom.dev
+elopment.js:18704:23)
+      at update.callback (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:18737:5)
+      at callCallback (node_modules/react-dom/cjs/react-dom.develop
+ment.js:15036:12)
+      at commitUpdateQueue (node_modules/react-dom/cjs/react-dom.de
+velopment.js:15057:9)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/reac
+t-dom.development.js:23430:13)
+      at commitLayoutMountEffects_complete (node_modules/react-dom/
+cjs/react-dom.development.js:24727:9)
+      at commitLayoutEffects_begin (node_modules/react-dom/cjs/reac
+t-dom.development.js:24713:7)
+      at commitLayoutEffects (node_modules/react-dom/cjs/react-dom.
+development.js:24651:3)
+      at commitRootImpl (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26862:5)
+      at commitRoot (node_modules/react-dom/cjs/react-dom.developme
+nt.js:26721:5)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-do
+m.development.js:26156:3)
+      at flushSyncCallbacks (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:12042:22)
+      at node_modules/react-dom/cjs/react-dom.development.js:25690:
+13
+      at invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/li
+ving/generated/Function.js:19:26)
+      at node_modules/jsdom/lib/jsdom/browser/Window.js:613:9
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jsdom\l
+ib\jsdom\browser\Window.js:615:9
+          at node:internal/process/task_queues:149:7
+          at AsyncResource.runInAsyncScope (node:async_hooks:214:14
+)
+          at AsyncResource.runMicrotask (node:internal/process/task
+_queues:146:8)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at updateFunctionComponent (C:\Users\yushink\Desktop\yu
+system\node_modules\react-dom\cjs\react-dom.development.js:19617:20
+)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21640:16)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27465:14)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at recoverFromConcurrentError (C:\Users\yushink\Desktop
+\yusystem\node_modules\react-dom\cjs\react-dom.development.js:25889
+:20)
+            at performSyncWorkOnRoot (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:26135:20)
+            at flushSyncCallbacks (C:\Users\yushink\Desktop\yusyste
+m\node_modules\react-dom\cjs\react-dom.development.js:12042:22)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\react
+-dom\cjs\react-dom.development.js:25690:13
+            at invokeTheCallbackFunction (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\generated\Function.js:
+19:26)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jsdom
+\lib\jsdom\browser\Window.js:613:9
+            at node:internal/process/task_queues:149:7
+            at AsyncResource.runInAsyncScope (node:async_hooks:214:
+14)
+            at AsyncResource.runMicrotask (node:internal/process/ta
+sk_queues:146:8)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5),
+        type: 'unhandled exception'
+      }
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at node_modules/jsdom/lib/jsdom/browser/Window.js:615:9
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at performConcurrentWorkOnRoot (C:\Users\yushink\Desktop\
+yusystem\node_modules\react-dom\cjs\react-dom.development.js:25777:
+74)
+          at flushActQueue (C:\Users\yushink\Desktop\yusystem\node_
+modules\react\cjs\react.development.js:2667:24)
+          at act (C:\Users\yushink\Desktop\yusystem\node_modules\re
+act\cjs\react.development.js:2582:11)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\@testin
+g-library\react\dist\act-compat.js:46:25
+          at renderRoot (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\@testing-library\react\dist\pure.js:189:26)
+          at render (C:\Users\yushink\Desktop\yusystem\node_modules
+\@testing-library\react\dist\pure.js:291:10)
+          at Object.<anonymous> (C:\Users\yushink\Desktop\yusystem\
+__tests__\components\Calendar\ForemanSelector.test.tsx:27:36)
+          at Promise.finally.completed (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5)
+          at _runTest (C:\Users\yushink\Desktop\yusystem\node_modul
+es\jest-circus\build\jestAdapterInit.js:947:3)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jest-ci
+rcus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (C:\Users\yushink\Desktop\yusystem\node_modules\je
+st-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (C:\Users\yushink\D
+esktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1
+918:21)
+          at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:275:16)
+          at runTest (C:\Users\yushink\Desktop\yusystem\node_module
+s\jest-runner\build\testWorker.js:343:7)
+          at Object.worker (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-runner\build\testWorker.js:497:12) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at mountIndeterminateComponent (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2010
+3:13)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21626:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at performConcurrentWorkOnRoot (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2577
+7:74)
+            at flushActQueue (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\react\cjs\react.development.js:2667:24)
+            at act (C:\Users\yushink\Desktop\yusystem\node_modules\
+react\cjs\react.development.js:2582:11)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\@test
+ing-library\react\dist\act-compat.js:46:25
+            at renderRoot (C:\Users\yushink\Desktop\yusystem\node_m
+odules\@testing-library\react\dist\pure.js:189:26)
+            at render (C:\Users\yushink\Desktop\yusystem\node_modul
+es\@testing-library\react\dist\pure.js:291:10)
+            at Object.<anonymous> (C:\Users\yushink\Desktop\yusyste
+m\__tests__\components\Calendar\ForemanSelector.test.tsx:27:36)
+            at Promise.finally.completed (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+            at new Promise (<anonymous>)
+            at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem
+\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+            at _callCircusTest (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5)
+            at _runTest (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\jest-circus\build\jestAdapterInit.js:947:3)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jest-
+circus\build\jestAdapterInit.js:849:7
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+            at run (C:\Users\yushink\Desktop\yusystem\node_modules\
+jest-circus\build\jestAdapterInit.js:761:3)
+            at runAndTransformResultsToJestFormat (C:\Users\yushink
+\Desktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js
+:1918:21)
+            at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-circus\build\runner.js:101:19)
+            at runTestInternal (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-runner\build\testWorker.js:275:16)
+            at runTest (C:\Users\yushink\Desktop\yusystem\node_modu
+les\jest-runner\build\testWorker.js:343:7)
+            at Object.worker (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:497:12),
+        type: 'unhandled exception'
+      }
+
+    [0m [90m 25 |[39m
+     [90m 26 |[39m     it([32m'highlights selected foreman'[39m
+[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 27 |[39m         [36mconst[39m { r
+erender } [33m=[39m render([33m<[39m[33mForemanSelector[39m f
+oremen[33m=[39m{mockForemen} selectedId[33m=[39m[32m"f1"[39m 
+onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>[39m)[33m;[39
+m
+     [90m    |[39m                                    [31m[1m^
+[22m[39m
+     [90m 28 |[39m
+     [90m 29 |[39m         [36mconst[39m f1Button [33m=[39m s
+creen[33m.[39mgetByText([32m'Foreman 1'[39m)[33m.[39mclosest(
+[32m'button'[39m)[33m;[39m
+     [90m 30 |[39m         expect(f1Button)[33m.[39mtoHaveClass
+([32m'ring-2'[39m)[33m;[39m[0m
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25777:74)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:27:36)
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at recoverFromConcurrentError (C:\Users\yushink\Desktop\y
+usystem\node_modules\react-dom\cjs\react-dom.development.js:25889:2
+0)
+          at performConcurrentWorkOnRoot (C:\Users\yushink\Desktop\
+yusystem\node_modules\react-dom\cjs\react-dom.development.js:25789:
+22)
+          at flushActQueue (C:\Users\yushink\Desktop\yusystem\node_
+modules\react\cjs\react.development.js:2667:24)
+          at act (C:\Users\yushink\Desktop\yusystem\node_modules\re
+act\cjs\react.development.js:2582:11)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\@testin
+g-library\react\dist\act-compat.js:46:25
+          at renderRoot (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\@testing-library\react\dist\pure.js:189:26)
+          at render (C:\Users\yushink\Desktop\yusystem\node_modules
+\@testing-library\react\dist\pure.js:291:10)
+          at Object.<anonymous> (C:\Users\yushink\Desktop\yusystem\
+__tests__\components\Calendar\ForemanSelector.test.tsx:27:36)
+          at Promise.finally.completed (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5)
+          at _runTest (C:\Users\yushink\Desktop\yusystem\node_modul
+es\jest-circus\build\jestAdapterInit.js:947:3)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jest-ci
+rcus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (C:\Users\yushink\Desktop\yusystem\node_modules\je
+st-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (C:\Users\yushink\D
+esktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1
+918:21)
+          at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:275:16)
+          at runTest (C:\Users\yushink\Desktop\yusystem\node_module
+s\jest-runner\build\testWorker.js:343:7)
+          at Object.worker (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-runner\build\testWorker.js:497:12) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at mountIndeterminateComponent (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2010
+3:13)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21626:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at recoverFromConcurrentError (C:\Users\yushink\Desktop
+\yusystem\node_modules\react-dom\cjs\react-dom.development.js:25889
+:20)
+            at performConcurrentWorkOnRoot (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2578
+9:22)
+            at flushActQueue (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\react\cjs\react.development.js:2667:24)
+            at act (C:\Users\yushink\Desktop\yusystem\node_modules\
+react\cjs\react.development.js:2582:11)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\@test
+ing-library\react\dist\act-compat.js:46:25
+            at renderRoot (C:\Users\yushink\Desktop\yusystem\node_m
+odules\@testing-library\react\dist\pure.js:189:26)
+            at render (C:\Users\yushink\Desktop\yusystem\node_modul
+es\@testing-library\react\dist\pure.js:291:10)
+            at Object.<anonymous> (C:\Users\yushink\Desktop\yusyste
+m\__tests__\components\Calendar\ForemanSelector.test.tsx:27:36)
+            at Promise.finally.completed (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+            at new Promise (<anonymous>)
+            at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem
+\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+            at _callCircusTest (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5)
+            at _runTest (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\jest-circus\build\jestAdapterInit.js:947:3)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jest-
+circus\build\jestAdapterInit.js:849:7
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+            at run (C:\Users\yushink\Desktop\yusystem\node_modules\
+jest-circus\build\jestAdapterInit.js:761:3)
+            at runAndTransformResultsToJestFormat (C:\Users\yushink
+\Desktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js
+:1918:21)
+            at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-circus\build\runner.js:101:19)
+            at runTestInternal (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-runner\build\testWorker.js:275:16)
+            at runTest (C:\Users\yushink\Desktop\yusystem\node_modu
+les\jest-runner\build\testWorker.js:343:7)
+            at Object.worker (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:497:12),
+        type: 'unhandled exception'
+      }
+
+    [0m [90m 25 |[39m
+     [90m 26 |[39m     it([32m'highlights selected foreman'[39m
+[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 27 |[39m         [36mconst[39m { r
+erender } [33m=[39m render([33m<[39m[33mForemanSelector[39m f
+oremen[33m=[39m{mockForemen} selectedId[33m=[39m[32m"f1"[39m 
+onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>[39m)[33m;[39
+m
+     [90m    |[39m                                    [31m[1m^
+[22m[39m
+     [90m 28 |[39m
+     [90m 29 |[39m         [36mconst[39m f1Button [33m=[39m s
+creen[33m.[39mgetByText([32m'Foreman 1'[39m)[33m.[39mclosest(
+[32m'button'[39m)[33m;[39m
+     [90m 30 |[39m         expect(f1Button)[33m.[39mtoHaveClass
+([32m'ring-2'[39m)[33m;[39m[0m
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25789:22)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:27:36)
+
+    console.error
+      The above error occurred in the <ForemanSelector> component:
+      
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+      
+      Consider adding an error boundary to your tree to customize e
+rror handling behavior.
+      Visit https://reactjs.org/link/error-boundaries to learn more
+ about error boundaries.
+
+    [0m [90m 25 |[39m
+     [90m 26 |[39m     it([32m'highlights selected foreman'[39m
+[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 27 |[39m         [36mconst[39m { r
+erender } [33m=[39m render([33m<[39m[33mForemanSelector[39m f
+oremen[33m=[39m{mockForemen} selectedId[33m=[39m[32m"f1"[39m 
+onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>[39m)[33m;[39
+m
+     [90m    |[39m                                    [31m[1m^
+[22m[39m
+     [90m 28 |[39m
+     [90m 29 |[39m         [36mconst[39m f1Button [33m=[39m s
+creen[33m.[39mgetByText([32m'Foreman 1'[39m)[33m.[39mclosest(
+[32m'button'[39m)[33m;[39m
+     [90m 30 |[39m         expect(f1Button)[33m.[39mtoHaveClass
+([32m'ring-2'[39m)[33m;[39m[0m
+
+      at logCapturedError (node_modules/react-dom/cjs/react-dom.dev
+elopment.js:18704:23)
+      at update.callback (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:18737:5)
+      at callCallback (node_modules/react-dom/cjs/react-dom.develop
+ment.js:15036:12)
+      at commitUpdateQueue (node_modules/react-dom/cjs/react-dom.de
+velopment.js:15057:9)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/reac
+t-dom.development.js:23430:13)
+      at commitLayoutMountEffects_complete (node_modules/react-dom/
+cjs/react-dom.development.js:24727:9)
+      at commitLayoutEffects_begin (node_modules/react-dom/cjs/reac
+t-dom.development.js:24713:7)
+      at commitLayoutEffects (node_modules/react-dom/cjs/react-dom.
+development.js:24651:3)
+      at commitRootImpl (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26862:5)
+      at commitRoot (node_modules/react-dom/cjs/react-dom.developme
+nt.js:26721:5)
+      at finishConcurrentRender (node_modules/react-dom/cjs/react-d
+om.development.js:25931:9)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25848:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:27:36)
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at performConcurrentWorkOnRoot (C:\Users\yushink\Desktop\
+yusystem\node_modules\react-dom\cjs\react-dom.development.js:25777:
+74)
+          at flushActQueue (C:\Users\yushink\Desktop\yusystem\node_
+modules\react\cjs\react.development.js:2667:24)
+          at act (C:\Users\yushink\Desktop\yusystem\node_modules\re
+act\cjs\react.development.js:2582:11)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\@testin
+g-library\react\dist\act-compat.js:46:25
+          at renderRoot (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\@testing-library\react\dist\pure.js:189:26)
+          at render (C:\Users\yushink\Desktop\yusystem\node_modules
+\@testing-library\react\dist\pure.js:291:10)
+          at Object.<anonymous> (C:\Users\yushink\Desktop\yusystem\
+__tests__\components\Calendar\ForemanSelector.test.tsx:43:15)
+          at Promise.finally.completed (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5)
+          at _runTest (C:\Users\yushink\Desktop\yusystem\node_modul
+es\jest-circus\build\jestAdapterInit.js:947:3)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jest-ci
+rcus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (C:\Users\yushink\Desktop\yusystem\node_modules\je
+st-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (C:\Users\yushink\D
+esktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1
+918:21)
+          at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:275:16)
+          at runTest (C:\Users\yushink\Desktop\yusystem\node_module
+s\jest-runner\build\testWorker.js:343:7)
+          at Object.worker (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-runner\build\testWorker.js:497:12) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at mountIndeterminateComponent (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2010
+3:13)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21626:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at performConcurrentWorkOnRoot (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2577
+7:74)
+            at flushActQueue (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\react\cjs\react.development.js:2667:24)
+            at act (C:\Users\yushink\Desktop\yusystem\node_modules\
+react\cjs\react.development.js:2582:11)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\@test
+ing-library\react\dist\act-compat.js:46:25
+            at renderRoot (C:\Users\yushink\Desktop\yusystem\node_m
+odules\@testing-library\react\dist\pure.js:189:26)
+            at render (C:\Users\yushink\Desktop\yusystem\node_modul
+es\@testing-library\react\dist\pure.js:291:10)
+            at Object.<anonymous> (C:\Users\yushink\Desktop\yusyste
+m\__tests__\components\Calendar\ForemanSelector.test.tsx:43:15)
+            at Promise.finally.completed (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+            at new Promise (<anonymous>)
+            at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem
+\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+            at _callCircusTest (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5)
+            at _runTest (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\jest-circus\build\jestAdapterInit.js:947:3)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jest-
+circus\build\jestAdapterInit.js:849:7
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+            at run (C:\Users\yushink\Desktop\yusystem\node_modules\
+jest-circus\build\jestAdapterInit.js:761:3)
+            at runAndTransformResultsToJestFormat (C:\Users\yushink
+\Desktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js
+:1918:21)
+            at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-circus\build\runner.js:101:19)
+            at runTestInternal (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-runner\build\testWorker.js:275:16)
+            at runTest (C:\Users\yushink\Desktop\yusystem\node_modu
+les\jest-runner\build\testWorker.js:343:7)
+            at Object.worker (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:497:12),
+        type: 'unhandled exception'
+      }
+
+    [0m [90m 41 |[39m
+     [90m 42 |[39m     it([32m'calls onSelect when clicked'[39m
+[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 43 |[39m         render([33m<[39m
+[33mForemanSelector[39m foremen[33m=[39m{mockForemen} selectedId
+[33m=[39m[32m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[3
+9m[33m>[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 44 |[39m
+     [90m 45 |[39m         fireEvent[33m.[39mclick(screen[33m.
+[39mgetByText([32m'Foreman 1'[39m))[33m;[39m
+     [90m 46 |[39m         expect(mockOnSelect)[33m.[39mtoHaveB
+eenCalledWith([32m'f1'[39m)[33m;[39m[0m
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25777:74)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:43:15)
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at recoverFromConcurrentError (C:\Users\yushink\Desktop\y
+usystem\node_modules\react-dom\cjs\react-dom.development.js:25889:2
+0)
+          at performConcurrentWorkOnRoot (C:\Users\yushink\Desktop\
+yusystem\node_modules\react-dom\cjs\react-dom.development.js:25789:
+22)
+          at flushActQueue (C:\Users\yushink\Desktop\yusystem\node_
+modules\react\cjs\react.development.js:2667:24)
+          at act (C:\Users\yushink\Desktop\yusystem\node_modules\re
+act\cjs\react.development.js:2582:11)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\@testin
+g-library\react\dist\act-compat.js:46:25
+          at renderRoot (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\@testing-library\react\dist\pure.js:189:26)
+          at render (C:\Users\yushink\Desktop\yusystem\node_modules
+\@testing-library\react\dist\pure.js:291:10)
+          at Object.<anonymous> (C:\Users\yushink\Desktop\yusystem\
+__tests__\components\Calendar\ForemanSelector.test.tsx:43:15)
+          at Promise.finally.completed (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5)
+          at _runTest (C:\Users\yushink\Desktop\yusystem\node_modul
+es\jest-circus\build\jestAdapterInit.js:947:3)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jest-ci
+rcus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (C:\Users\yushink\Desktop\yusystem\node_modules\je
+st-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (C:\Users\yushink\D
+esktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1
+918:21)
+          at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:275:16)
+          at runTest (C:\Users\yushink\Desktop\yusystem\node_module
+s\jest-runner\build\testWorker.js:343:7)
+          at Object.worker (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-runner\build\testWorker.js:497:12) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at mountIndeterminateComponent (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2010
+3:13)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21626:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at recoverFromConcurrentError (C:\Users\yushink\Desktop
+\yusystem\node_modules\react-dom\cjs\react-dom.development.js:25889
+:20)
+            at performConcurrentWorkOnRoot (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2578
+9:22)
+            at flushActQueue (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\react\cjs\react.development.js:2667:24)
+            at act (C:\Users\yushink\Desktop\yusystem\node_modules\
+react\cjs\react.development.js:2582:11)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\@test
+ing-library\react\dist\act-compat.js:46:25
+            at renderRoot (C:\Users\yushink\Desktop\yusystem\node_m
+odules\@testing-library\react\dist\pure.js:189:26)
+            at render (C:\Users\yushink\Desktop\yusystem\node_modul
+es\@testing-library\react\dist\pure.js:291:10)
+            at Object.<anonymous> (C:\Users\yushink\Desktop\yusyste
+m\__tests__\components\Calendar\ForemanSelector.test.tsx:43:15)
+            at Promise.finally.completed (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+            at new Promise (<anonymous>)
+            at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem
+\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+            at _callCircusTest (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5)
+            at _runTest (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\jest-circus\build\jestAdapterInit.js:947:3)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jest-
+circus\build\jestAdapterInit.js:849:7
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+            at run (C:\Users\yushink\Desktop\yusystem\node_modules\
+jest-circus\build\jestAdapterInit.js:761:3)
+            at runAndTransformResultsToJestFormat (C:\Users\yushink
+\Desktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js
+:1918:21)
+            at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-circus\build\runner.js:101:19)
+            at runTestInternal (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-runner\build\testWorker.js:275:16)
+            at runTest (C:\Users\yushink\Desktop\yusystem\node_modu
+les\jest-runner\build\testWorker.js:343:7)
+            at Object.worker (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:497:12),
+        type: 'unhandled exception'
+      }
+
+    [0m [90m 41 |[39m
+     [90m 42 |[39m     it([32m'calls onSelect when clicked'[39m
+[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 43 |[39m         render([33m<[39m
+[33mForemanSelector[39m foremen[33m=[39m{mockForemen} selectedId
+[33m=[39m[32m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[3
+9m[33m>[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 44 |[39m
+     [90m 45 |[39m         fireEvent[33m.[39mclick(screen[33m.
+[39mgetByText([32m'Foreman 1'[39m))[33m;[39m
+     [90m 46 |[39m         expect(mockOnSelect)[33m.[39mtoHaveB
+eenCalledWith([32m'f1'[39m)[33m;[39m[0m
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25789:22)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:43:15)
+
+    console.error
+      The above error occurred in the <ForemanSelector> component:
+      
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+      
+      Consider adding an error boundary to your tree to customize e
+rror handling behavior.
+      Visit https://reactjs.org/link/error-boundaries to learn more
+ about error boundaries.
+
+    [0m [90m 41 |[39m
+     [90m 42 |[39m     it([32m'calls onSelect when clicked'[39m
+[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 43 |[39m         render([33m<[39m
+[33mForemanSelector[39m foremen[33m=[39m{mockForemen} selectedId
+[33m=[39m[32m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[3
+9m[33m>[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 44 |[39m
+     [90m 45 |[39m         fireEvent[33m.[39mclick(screen[33m.
+[39mgetByText([32m'Foreman 1'[39m))[33m;[39m
+     [90m 46 |[39m         expect(mockOnSelect)[33m.[39mtoHaveB
+eenCalledWith([32m'f1'[39m)[33m;[39m[0m
+
+      at logCapturedError (node_modules/react-dom/cjs/react-dom.dev
+elopment.js:18704:23)
+      at update.callback (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:18737:5)
+      at callCallback (node_modules/react-dom/cjs/react-dom.develop
+ment.js:15036:12)
+      at commitUpdateQueue (node_modules/react-dom/cjs/react-dom.de
+velopment.js:15057:9)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/reac
+t-dom.development.js:23430:13)
+      at commitLayoutMountEffects_complete (node_modules/react-dom/
+cjs/react-dom.development.js:24727:9)
+      at commitLayoutEffects_begin (node_modules/react-dom/cjs/reac
+t-dom.development.js:24713:7)
+      at commitLayoutEffects (node_modules/react-dom/cjs/react-dom.
+development.js:24651:3)
+      at commitRootImpl (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26862:5)
+      at commitRoot (node_modules/react-dom/cjs/react-dom.developme
+nt.js:26721:5)
+      at finishConcurrentRender (node_modules/react-dom/cjs/react-d
+om.development.js:25931:9)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25848:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:43:15)
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at performConcurrentWorkOnRoot (C:\Users\yushink\Desktop\
+yusystem\node_modules\react-dom\cjs\react-dom.development.js:25777:
+74)
+          at flushActQueue (C:\Users\yushink\Desktop\yusystem\node_
+modules\react\cjs\react.development.js:2667:24)
+          at act (C:\Users\yushink\Desktop\yusystem\node_modules\re
+act\cjs\react.development.js:2582:11)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\@testin
+g-library\react\dist\act-compat.js:46:25
+          at renderRoot (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\@testing-library\react\dist\pure.js:189:26)
+          at render (C:\Users\yushink\Desktop\yusystem\node_modules
+\@testing-library\react\dist\pure.js:291:10)
+          at Object.<anonymous> (C:\Users\yushink\Desktop\yusystem\
+__tests__\components\Calendar\ForemanSelector.test.tsx:53:15)
+          at Promise.finally.completed (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5)
+          at _runTest (C:\Users\yushink\Desktop\yusystem\node_modul
+es\jest-circus\build\jestAdapterInit.js:947:3)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jest-ci
+rcus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (C:\Users\yushink\Desktop\yusystem\node_modules\je
+st-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (C:\Users\yushink\D
+esktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1
+918:21)
+          at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:275:16)
+          at runTest (C:\Users\yushink\Desktop\yusystem\node_module
+s\jest-runner\build\testWorker.js:343:7)
+          at Object.worker (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-runner\build\testWorker.js:497:12) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at mountIndeterminateComponent (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2010
+3:13)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21626:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at performConcurrentWorkOnRoot (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2577
+7:74)
+            at flushActQueue (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\react\cjs\react.development.js:2667:24)
+            at act (C:\Users\yushink\Desktop\yusystem\node_modules\
+react\cjs\react.development.js:2582:11)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\@test
+ing-library\react\dist\act-compat.js:46:25
+            at renderRoot (C:\Users\yushink\Desktop\yusystem\node_m
+odules\@testing-library\react\dist\pure.js:189:26)
+            at render (C:\Users\yushink\Desktop\yusystem\node_modul
+es\@testing-library\react\dist\pure.js:291:10)
+            at Object.<anonymous> (C:\Users\yushink\Desktop\yusyste
+m\__tests__\components\Calendar\ForemanSelector.test.tsx:53:15)
+            at Promise.finally.completed (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+            at new Promise (<anonymous>)
+            at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem
+\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+            at _callCircusTest (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5)
+            at _runTest (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\jest-circus\build\jestAdapterInit.js:947:3)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jest-
+circus\build\jestAdapterInit.js:849:7
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+            at run (C:\Users\yushink\Desktop\yusystem\node_modules\
+jest-circus\build\jestAdapterInit.js:761:3)
+            at runAndTransformResultsToJestFormat (C:\Users\yushink
+\Desktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js
+:1918:21)
+            at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-circus\build\runner.js:101:19)
+            at runTestInternal (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-runner\build\testWorker.js:275:16)
+            at runTest (C:\Users\yushink\Desktop\yusystem\node_modu
+les\jest-runner\build\testWorker.js:343:7)
+            at Object.worker (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:497:12),
+        type: 'unhandled exception'
+      }
+
+    [0m [90m 51 |[39m
+     [90m 52 |[39m     it([32m'renders empty list gracefully'[3
+9m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 53 |[39m         render([33m<[39m
+[33mForemanSelector[39m foremen[33m=[39m{[]} selectedId[33m=[3
+9m[32m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>
+[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 54 |[39m         expect(screen[33m.[39mgetByText([32
+m'閨ｷ髟ｷ:'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 55 |[39m         [90m// Should not crash[39m
+     [90m 56 |[39m     })[33m;[39m[0m
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25777:74)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:53:15)
+
+    console.error
+      Error: Uncaught [TypeError: allForemen.filter is not a functi
+on]
+          at reportException (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jsdom\lib\jsdom\living\helpers\runtime-script-errors.js:6
+6:24)
+          at innerInvokeEventListeners (C:\Users\yushink\Desktop\yu
+system\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.
+js:353:9)
+          at invokeEventListeners (C:\Users\yushink\Desktop\yusyste
+m\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:28
+6:3)
+          at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarge
+t-impl.js:233:9)
+          at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushink
+\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventT
+arget-impl.js:104:17)
+          at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\Des
+ktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\EventTa
+rget.js:241:34)
+          at Object.invokeGuardedCallbackDev (C:\Users\yushink\Desk
+top\yusystem\node_modules\react-dom\cjs\react-dom.development.js:42
+13:16)
+          at invokeGuardedCallback (C:\Users\yushink\Desktop\yusyst
+em\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+          at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:27490:7)
+          at performUnitOfWork (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:26599:12)
+          at workLoopSync (C:\Users\yushink\Desktop\yusystem\node_m
+odules\react-dom\cjs\react-dom.development.js:26505:5)
+          at renderRootSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26473:7)
+          at recoverFromConcurrentError (C:\Users\yushink\Desktop\y
+usystem\node_modules\react-dom\cjs\react-dom.development.js:25889:2
+0)
+          at performConcurrentWorkOnRoot (C:\Users\yushink\Desktop\
+yusystem\node_modules\react-dom\cjs\react-dom.development.js:25789:
+22)
+          at flushActQueue (C:\Users\yushink\Desktop\yusystem\node_
+modules\react\cjs\react.development.js:2667:24)
+          at act (C:\Users\yushink\Desktop\yusystem\node_modules\re
+act\cjs\react.development.js:2582:11)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\@testin
+g-library\react\dist\act-compat.js:46:25
+          at renderRoot (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\@testing-library\react\dist\pure.js:189:26)
+          at render (C:\Users\yushink\Desktop\yusystem\node_modules
+\@testing-library\react\dist\pure.js:291:10)
+          at Object.<anonymous> (C:\Users\yushink\Desktop\yusystem\
+__tests__\components\Calendar\ForemanSelector.test.tsx:53:15)
+          at Promise.finally.completed (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at processTicksAndRejections (node:internal/process/task_
+queues:103:5)
+          at _runTest (C:\Users\yushink\Desktop\yusystem\node_modul
+es\jest-circus\build\jestAdapterInit.js:947:3)
+          at C:\Users\yushink\Desktop\yusystem\node_modules\jest-ci
+rcus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\yu
+system\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (C:\Users\yushink\Desktop\yusystem\node_modules\je
+st-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (C:\Users\yushink\D
+esktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1
+918:21)
+          at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:275:16)
+          at runTest (C:\Users\yushink\Desktop\yusystem\node_module
+s\jest-runner\build\testWorker.js:343:7)
+          at Object.worker (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-runner\build\testWorker.js:497:12) {
+        detail: TypeError: allForemen.filter is not a function
+            at filter (C:\Users\yushink\Desktop\yusystem\stores\cal
+endarStore.ts:336:18)
+            at getAvailableForemenStore (C:\Users\yushink\Desktop\y
+usystem\hooks\useCalendarDisplay.ts:48:16)
+            at getAvailableForemen (C:\Users\yushink\Desktop\yusyst
+em\components\Calendar\ForemanSelector.tsx:10:30)
+            at renderWithHooks (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\react-dom\cjs\react-dom.development.js:15486:18)
+            at mountIndeterminateComponent (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2010
+3:13)
+            at beginWork (C:\Users\yushink\Desktop\yusystem\node_mo
+dules\react-dom\cjs\react-dom.development.js:21626:16)
+            at HTMLUnknownElement.callCallback (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4164:14)
+            at HTMLUnknownElement.callTheUserObjectsOperation (C:\U
+sers\yushink\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\g
+enerated\EventListener.js:26:30)
+            at innerInvokeEventListeners (C:\Users\yushink\Desktop\
+yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-imp
+l.js:350:25)
+            at invokeEventListeners (C:\Users\yushink\Desktop\yusys
+tem\node_modules\jsdom\lib\jsdom\living\events\EventTarget-impl.js:
+286:3)
+            at HTMLUnknownElementImpl._dispatch (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\EventTar
+get-impl.js:233:9)
+            at HTMLUnknownElementImpl.dispatchEvent (C:\Users\yushi
+nk\Desktop\yusystem\node_modules\jsdom\lib\jsdom\living\events\Even
+tTarget-impl.js:104:17)
+            at HTMLUnknownElement.dispatchEvent (C:\Users\yushink\D
+esktop\yusystem\node_modules\jsdom\lib\jsdom\living\generated\Event
+Target.js:241:34)
+            at Object.invokeGuardedCallbackDev (C:\Users\yushink\De
+sktop\yusystem\node_modules\react-dom\cjs\react-dom.development.js:
+4213:16)
+            at invokeGuardedCallback (C:\Users\yushink\Desktop\yusy
+stem\node_modules\react-dom\cjs\react-dom.development.js:4277:31)
+            at beginWork$1 (C:\Users\yushink\Desktop\yusystem\node_
+modules\react-dom\cjs\react-dom.development.js:27490:7)
+            at performUnitOfWork (C:\Users\yushink\Desktop\yusystem
+\node_modules\react-dom\cjs\react-dom.development.js:26599:12)
+            at workLoopSync (C:\Users\yushink\Desktop\yusystem\node
+_modules\react-dom\cjs\react-dom.development.js:26505:5)
+            at renderRootSync (C:\Users\yushink\Desktop\yusystem\no
+de_modules\react-dom\cjs\react-dom.development.js:26473:7)
+            at recoverFromConcurrentError (C:\Users\yushink\Desktop
+\yusystem\node_modules\react-dom\cjs\react-dom.development.js:25889
+:20)
+            at performConcurrentWorkOnRoot (C:\Users\yushink\Deskto
+p\yusystem\node_modules\react-dom\cjs\react-dom.development.js:2578
+9:22)
+            at flushActQueue (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\react\cjs\react.development.js:2667:24)
+            at act (C:\Users\yushink\Desktop\yusystem\node_modules\
+react\cjs\react.development.js:2582:11)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\@test
+ing-library\react\dist\act-compat.js:46:25
+            at renderRoot (C:\Users\yushink\Desktop\yusystem\node_m
+odules\@testing-library\react\dist\pure.js:189:26)
+            at render (C:\Users\yushink\Desktop\yusystem\node_modul
+es\@testing-library\react\dist\pure.js:291:10)
+            at Object.<anonymous> (C:\Users\yushink\Desktop\yusyste
+m\__tests__\components\Calendar\ForemanSelector.test.tsx:53:15)
+            at Promise.finally.completed (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+            at new Promise (<anonymous>)
+            at callAsyncCircusFn (C:\Users\yushink\Desktop\yusystem
+\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+            at _callCircusTest (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+            at processTicksAndRejections (node:internal/process/tas
+k_queues:103:5)
+            at _runTest (C:\Users\yushink\Desktop\yusystem\node_mod
+ules\jest-circus\build\jestAdapterInit.js:947:3)
+            at C:\Users\yushink\Desktop\yusystem\node_modules\jest-
+circus\build\jestAdapterInit.js:849:7
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+            at _runTestsForDescribeBlock (C:\Users\yushink\Desktop\
+yusystem\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+            at run (C:\Users\yushink\Desktop\yusystem\node_modules\
+jest-circus\build\jestAdapterInit.js:761:3)
+            at runAndTransformResultsToJestFormat (C:\Users\yushink
+\Desktop\yusystem\node_modules\jest-circus\build\jestAdapterInit.js
+:1918:21)
+            at jestAdapter (C:\Users\yushink\Desktop\yusystem\node_
+modules\jest-circus\build\runner.js:101:19)
+            at runTestInternal (C:\Users\yushink\Desktop\yusystem\n
+ode_modules\jest-runner\build\testWorker.js:275:16)
+            at runTest (C:\Users\yushink\Desktop\yusystem\node_modu
+les\jest-runner\build\testWorker.js:343:7)
+            at Object.worker (C:\Users\yushink\Desktop\yusystem\nod
+e_modules\jest-runner\build\testWorker.js:497:12),
+        type: 'unhandled exception'
+      }
+
+    [0m [90m 51 |[39m
+     [90m 52 |[39m     it([32m'renders empty list gracefully'[3
+9m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 53 |[39m         render([33m<[39m
+[33mForemanSelector[39m foremen[33m=[39m{[]} selectedId[33m=[3
+9m[32m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>
+[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 54 |[39m         expect(screen[33m.[39mgetByText([32
+m'閨ｷ髟ｷ:'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 55 |[39m         [90m// Should not crash[39m
+     [90m 56 |[39m     })[33m;[39m[0m
+
+      at VirtualConsole.<anonymous> (node_modules/@jest/environment
+-jsdom-abstract/build/index.js:87:23)
+      at reportException (node_modules/jsdom/lib/jsdom/living/helpe
+rs/runtime-script-errors.js:70:28)
+      at innerInvokeEventListeners (node_modules/jsdom/lib/jsdom/li
+ving/events/EventTarget-impl.js:353:9)
+      at invokeEventListeners (node_modules/jsdom/lib/jsdom/living/
+events/EventTarget-impl.js:286:3)
+      at HTMLUnknownElementImpl._dispatch (node_modules/jsdom/lib/j
+sdom/living/events/EventTarget-impl.js:233:9)
+      at HTMLUnknownElementImpl.dispatchEvent (node_modules/jsdom/l
+ib/jsdom/living/events/EventTarget-impl.js:104:17)
+      at HTMLUnknownElement.dispatchEvent (node_modules/jsdom/lib/j
+sdom/living/generated/EventTarget.js:241:34)
+      at Object.invokeGuardedCallbackDev (node_modules/react-dom/cj
+s/react-dom.development.js:4213:16)
+      at invokeGuardedCallback (node_modules/react-dom/cjs/react-do
+m.development.js:4277:31)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27490:7)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25789:22)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:53:15)
+
+    console.error
+      The above error occurred in the <ForemanSelector> component:
+      
+          at ForemanSelector (C:\Users\yushink\Desktop\yusystem\com
+ponents\Calendar\ForemanSelector.tsx:6:57)
+      
+      Consider adding an error boundary to your tree to customize e
+rror handling behavior.
+      Visit https://reactjs.org/link/error-boundaries to learn more
+ about error boundaries.
+
+    [0m [90m 51 |[39m
+     [90m 52 |[39m     it([32m'renders empty list gracefully'[3
+9m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 53 |[39m         render([33m<[39m
+[33mForemanSelector[39m foremen[33m=[39m{[]} selectedId[33m=[3
+9m[32m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>
+[39m)[33m;[39m
+     [90m    |[39m               [31m[1m^[22m[39m
+     [90m 54 |[39m         expect(screen[33m.[39mgetByText([32
+m'閨ｷ髟ｷ:'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 55 |[39m         [90m// Should not crash[39m
+     [90m 56 |[39m     })[33m;[39m[0m
+
+      at logCapturedError (node_modules/react-dom/cjs/react-dom.dev
+elopment.js:18704:23)
+      at update.callback (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:18737:5)
+      at callCallback (node_modules/react-dom/cjs/react-dom.develop
+ment.js:15036:12)
+      at commitUpdateQueue (node_modules/react-dom/cjs/react-dom.de
+velopment.js:15057:9)
+      at commitLayoutEffectOnFiber (node_modules/react-dom/cjs/reac
+t-dom.development.js:23430:13)
+      at commitLayoutMountEffects_complete (node_modules/react-dom/
+cjs/react-dom.development.js:24727:9)
+      at commitLayoutEffects_begin (node_modules/react-dom/cjs/reac
+t-dom.development.js:24713:7)
+      at commitLayoutEffects (node_modules/react-dom/cjs/react-dom.
+development.js:24651:3)
+      at commitRootImpl (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26862:5)
+      at commitRoot (node_modules/react-dom/cjs/react-dom.developme
+nt.js:26721:5)
+      at finishConcurrentRender (node_modules/react-dom/cjs/react-d
+om.development.js:25931:9)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25848:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:53:15)
+
+  笳・ForemanSelector 窶ｺ renders label and foreman list
+
+    TypeError: allForemen.filter is not a function
+
+    [0m [90m 334 |[39m             [36mconst[39m { allForemen
+[33m,[39m displayedForemanIds } [33m=[39m [36mget[39m()[33m;
+[39m
+     [90m 335 |[39m             [36mreturn[39m allForemen
+    [31m[1m>[22m[39m[90m 336 |[39m                 [33m.[39
+mfilter((user) [33m=>[39m [33m![39mdisplayedForemanIds[33m.[3
+9mincludes(user[33m.[39mid))
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 337 |[39m                 [33m.[39mmap((user) [33m=>
+[39m ({ id[33m:[39m user[33m.[39mid[33m,[39m name[33m:[39m
+ user[33m.[39mdisplayName }))[33m;[39m
+     [90m 338 |[39m         }[33m,[39m
+     [90m 339 |[39m[0m
+
+      at filter (stores/calendarStore.ts:336:18)
+      at getAvailableForemenStore (hooks/useCalendarDisplay.ts:48:1
+6)
+      at getAvailableForemen (components/Calendar/ForemanSelector.t
+sx:10:30)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:15486:18)
+      at updateFunctionComponent (node_modules/react-dom/cjs/react-
+dom.development.js:19617:20)
+      at beginWork (node_modules/react-dom/cjs/react-dom.developmen
+t.js:21640:16)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27465:14)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performSyncWorkOnRoot (node_modules/react-dom/cjs/react-do
+m.development.js:26135:20)
+      at flushSyncCallbacks (node_modules/react-dom/cjs/react-dom.d
+evelopment.js:12042:22)
+      at node_modules/react-dom/cjs/react-dom.development.js:25690:
+13
+      at invokeTheCallbackFunction (node_modules/jsdom/lib/jsdom/li
+ving/generated/Function.js:19:26)
+      at node_modules/jsdom/lib/jsdom/browser/Window.js:613:9
+
+  笳・ForemanSelector 窶ｺ renders label and foreman list
+
+    TestingLibraryElementError: Unable to find an element with the 
+text: 閨ｷ髟ｷ:. This could be because the text is broken up by multipl
+e elements. In this case, you can provide a function for your text 
+matcher to make your matcher more flexible.
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"relative"[39m
+        [36m>[39m
+          [36m<button[39m
+            [33mclass[39m=[32m"flex items-center gap-2 px-4 py-2
+ text-sm rounded-lg transition-colors border text-gray-400 bg-gray-
+50 border-gray-200 cursor-not-allowed"[39m
+            [33mdisabled[39m=[32m""[39m
+            [33mtitle[39m=[32m"蜈ｨ縺ｦ縺ｮ閨ｷ髟ｷ縺瑚｡ｨ遉ｺ縺輔ｌ縺ｦ縺・∪縺・[39m
+            [33mtype[39m=[32m"button"[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33mclass[39m=[32m"lucide lucide-plus w-4 h-4"[39
+m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39
+m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M5 12h14"[39m
+              [36m/>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M12 5v14"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [0m閨ｷ髟ｷ繧定ｿｽ蜉[0m
+          [36m</button>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m 19 |[39m         render([33m<[39m[33mForemanSele
+ctor[39m foremen[33m=[39m{mockForemen} selectedId[33m=[39m[32
+m""[39m onSelect[33m=[39m{mockOnSelect} [33m/[39m[33m>[39m)
+[33m;[39m
+     [90m 20 |[39m
+    [31m[1m>[22m[39m[90m 21 |[39m         expect(screen[33m.
+[39mgetByText([32m'閨ｷ髟ｷ:'[39m))[33m.[39mtoBeInTheDocument()[3
+3m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 22 |[39m         expect(screen[33m.[39mgetByText([32
+m'Foreman 1'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 23 |[39m         expect(screen[33m.[39mgetByText([32
+m'Foreman 2'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 24 |[39m     })[33m;[39m[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/
+dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76
+:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52
+:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95
+:19
+      at Object.getByText (__tests__/components/Calendar/ForemanSel
+ector.test.tsx:21:23)
+
+  笳・ForemanSelector 窶ｺ highlights selected foreman
+
+    TypeError: allForemen.filter is not a function
+
+    [0m [90m 334 |[39m             [36mconst[39m { allForemen
+[33m,[39m displayedForemanIds } [33m=[39m [36mget[39m()[33m;
+[39m
+     [90m 335 |[39m             [36mreturn[39m allForemen
+    [31m[1m>[22m[39m[90m 336 |[39m                 [33m.[39
+mfilter((user) [33m=>[39m [33m![39mdisplayedForemanIds[33m.[3
+9mincludes(user[33m.[39mid))
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 337 |[39m                 [33m.[39mmap((user) [33m=>
+[39m ({ id[33m:[39m user[33m.[39mid[33m,[39m name[33m:[39m
+ user[33m.[39mdisplayName }))[33m;[39m
+     [90m 338 |[39m         }[33m,[39m
+     [90m 339 |[39m[0m
+
+      at filter (stores/calendarStore.ts:336:18)
+      at getAvailableForemenStore (hooks/useCalendarDisplay.ts:48:1
+6)
+      at getAvailableForemen (components/Calendar/ForemanSelector.t
+sx:10:30)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:15486:18)
+      at mountIndeterminateComponent (node_modules/react-dom/cjs/re
+act-dom.development.js:20103:13)
+      at beginWork (node_modules/react-dom/cjs/react-dom.developmen
+t.js:21626:16)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27465:14)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25789:22)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:27:36)
+
+  笳・ForemanSelector 窶ｺ calls onSelect when clicked
+
+    TypeError: allForemen.filter is not a function
+
+    [0m [90m 334 |[39m             [36mconst[39m { allForemen
+[33m,[39m displayedForemanIds } [33m=[39m [36mget[39m()[33m;
+[39m
+     [90m 335 |[39m             [36mreturn[39m allForemen
+    [31m[1m>[22m[39m[90m 336 |[39m                 [33m.[39
+mfilter((user) [33m=>[39m [33m![39mdisplayedForemanIds[33m.[3
+9mincludes(user[33m.[39mid))
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 337 |[39m                 [33m.[39mmap((user) [33m=>
+[39m ({ id[33m:[39m user[33m.[39mid[33m,[39m name[33m:[39m
+ user[33m.[39mdisplayName }))[33m;[39m
+     [90m 338 |[39m         }[33m,[39m
+     [90m 339 |[39m[0m
+
+      at filter (stores/calendarStore.ts:336:18)
+      at getAvailableForemenStore (hooks/useCalendarDisplay.ts:48:1
+6)
+      at getAvailableForemen (components/Calendar/ForemanSelector.t
+sx:10:30)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:15486:18)
+      at mountIndeterminateComponent (node_modules/react-dom/cjs/re
+act-dom.development.js:20103:13)
+      at beginWork (node_modules/react-dom/cjs/react-dom.developmen
+t.js:21626:16)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27465:14)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25789:22)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:43:15)
+
+  笳・ForemanSelector 窶ｺ renders empty list gracefully
+
+    TypeError: allForemen.filter is not a function
+
+    [0m [90m 334 |[39m             [36mconst[39m { allForemen
+[33m,[39m displayedForemanIds } [33m=[39m [36mget[39m()[33m;
+[39m
+     [90m 335 |[39m             [36mreturn[39m allForemen
+    [31m[1m>[22m[39m[90m 336 |[39m                 [33m.[39
+mfilter((user) [33m=>[39m [33m![39mdisplayedForemanIds[33m.[3
+9mincludes(user[33m.[39mid))
+     [90m     |[39m                  [31m[1m^[22m[39m
+     [90m 337 |[39m                 [33m.[39mmap((user) [33m=>
+[39m ({ id[33m:[39m user[33m.[39mid[33m,[39m name[33m:[39m
+ user[33m.[39mdisplayName }))[33m;[39m
+     [90m 338 |[39m         }[33m,[39m
+     [90m 339 |[39m[0m
+
+      at filter (stores/calendarStore.ts:336:18)
+      at getAvailableForemenStore (hooks/useCalendarDisplay.ts:48:1
+6)
+      at getAvailableForemen (components/Calendar/ForemanSelector.t
+sx:10:30)
+      at renderWithHooks (node_modules/react-dom/cjs/react-dom.deve
+lopment.js:15486:18)
+      at mountIndeterminateComponent (node_modules/react-dom/cjs/re
+act-dom.development.js:20103:13)
+      at beginWork (node_modules/react-dom/cjs/react-dom.developmen
+t.js:21626:16)
+      at beginWork$1 (node_modules/react-dom/cjs/react-dom.developm
+ent.js:27465:14)
+      at performUnitOfWork (node_modules/react-dom/cjs/react-dom.de
+velopment.js:26599:12)
+      at workLoopSync (node_modules/react-dom/cjs/react-dom.develop
+ment.js:26505:5)
+      at renderRootSync (node_modules/react-dom/cjs/react-dom.devel
+opment.js:26473:7)
+      at recoverFromConcurrentError (node_modules/react-dom/cjs/rea
+ct-dom.development.js:25889:20)
+      at performConcurrentWorkOnRoot (node_modules/react-dom/cjs/re
+act-dom.development.js:25789:22)
+      at flushActQueue (node_modules/react/cjs/react.development.js
+:2667:24)
+      at act (node_modules/react/cjs/react.development.js:2582:11)
+      at node_modules/@testing-library/react/dist/act-compat.js:46:
+25
+      at renderRoot (node_modules/@testing-library/react/dist/pure.
+js:189:26)
+      at render (node_modules/@testing-library/react/dist/pure.js:2
+91:10)
+      at Object.<anonymous> (__tests__/components/Calendar/ForemanS
+elector.test.tsx:53:15)
+
+FAIL __tests__/components/Settings/UserManagement.test.tsx
+  笳・Console
+
+    console.error
+      Warning: An update to UserManagement inside a test was not wr
+apped in act(...).
+      
+      When testing, code that causes React state updates should be 
+wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would 
+see in the browser. Learn more at https://reactjs.org/link/wrap-tes
+ts-with-act
+          at UserManagement (C:\Users\yushink\Desktop\yusystem\comp
+onents\Settings\UserManagement.tsx:11:39)
+
+    [0m [90m 24 |[39m             [36mif[39m (response[33m.[
+39mok) {
+     [90m 25 |[39m                 [36mconst[39m data [33m=[3
+9m [36mawait[39m response[33m.[39mjson()[33m;[39m
+    [31m[1m>[22m[39m[90m 26 |[39m                 setUsers(da
+ta)[33m;[39m
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 27 |[39m             }
+     [90m 28 |[39m         } [36mcatch[39m (error) {
+     [90m 29 |[39m             console[33m.[39merror([32m'Fail
+ed to fetch users:'[39m[33m,[39m error)[33m;[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.develop
+ment.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js
+:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/
+cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-do
+m.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.dev
+elopment.js:16708:7)
+      at setUsers (components/Settings/UserManagement.tsx:26:17)
+
+    console.error
+      Warning: An update to UserManagement inside a test was not wr
+apped in act(...).
+      
+      When testing, code that causes React state updates should be 
+wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would 
+see in the browser. Learn more at https://reactjs.org/link/wrap-tes
+ts-with-act
+          at UserManagement (C:\Users\yushink\Desktop\yusystem\comp
+onents\Settings\UserManagement.tsx:11:39)
+
+    [0m [90m 29 |[39m             console[33m.[39merror([32m'
+Failed to fetch users:'[39m[33m,[39m error)[33m;[39m
+     [90m 30 |[39m         } [36mfinally[39m {
+    [31m[1m>[22m[39m[90m 31 |[39m             setIsLoading([
+36mfalse[39m)[33m;[39m
+     [90m    |[39m             [31m[1m^[22m[39m
+     [90m 32 |[39m         }
+     [90m 33 |[39m     }[33m;[39m
+     [90m 34 |[39m[0m
+
+      at printWarning (node_modules/react-dom/cjs/react-dom.develop
+ment.js:86:30)
+      at error (node_modules/react-dom/cjs/react-dom.development.js
+:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/
+cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-do
+m.development.js:25547:5)
+      at dispatchSetState (node_modules/react-dom/cjs/react-dom.dev
+elopment.js:16708:7)
+      at setIsLoading (components/Settings/UserManagement.tsx:31:13
+)
+
+  笳・UserManagement 窶ｺ renders user list correctly
+
+    TestingLibraryElementError: Unable to find an element with the 
+text: 繝ｦ繝ｼ繧ｶ繝ｼ邂｡逅・ This could be because the text is broken up by m
+ultiple elements. In this case, you can provide a function for your
+ text matcher to make your matcher more flexible.
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"flex items-center justify-center h-
+64"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex flex-col items-center justif
+y-center gap-3 "[39m
+          [36m>[39m
+            [36m<svg[39m
+              [33mclass[39m=[32m"lucide lucide-loader2 animate-s
+pin text-slate-600 w-8 h-8"[39m
+              [33mfill[39m=[32m"none"[39m
+              [33mheight[39m=[32m"24"[39m
+              [33mstroke[39m=[32m"currentColor"[39m
+              [33mstroke-linecap[39m=[32m"round"[39m
+              [33mstroke-linejoin[39m=[32m"round"[39m
+              [33mstroke-width[39m=[32m"2"[39m
+              [33mviewBox[39m=[32m"0 0 24 24"[39m
+              [33mwidth[39m=[32m"24"[39m
+              [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39
+m
+            [36m>[39m
+              [36m<path[39m
+                [33md[39m=[32m"M21 12a9 9 0 1 1-6.219-8.56"[39m
+              [36m/>[39m
+            [36m</svg>[39m
+            [36m<p[39m
+              [33mclass[39m=[32m"text-sm text-slate-600 animate-
+pulse"[39m
+            [36m>[39m
+              [0m隱ｭ縺ｿ霎ｼ縺ｿ荳ｭ...[0m
+            [36m</p>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m 57 |[39m         render([33m<[39m[33mUserManagem
+ent[39m [33m/[39m[33m>[39m)[33m;[39m
+     [90m 58 |[39m
+    [31m[1m>[22m[39m[90m 59 |[39m         expect(screen[33m.
+[39mgetByText([32m'繝ｦ繝ｼ繧ｶ繝ｼ邂｡逅・[39m))[33m.[39mtoBeInTheDocumen
+t()[33m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 60 |[39m         expect(screen[33m.[39mgetByText([32
+m'隱ｭ縺ｿ霎ｼ縺ｿ荳ｭ...'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+     [90m 61 |[39m
+     [90m 62 |[39m         [36mawait[39m waitFor(() [33m=>[39
+m {[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/
+dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76
+:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52
+:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95
+:19
+      at Object.getByText (__tests__/components/Settings/UserManage
+ment.test.tsx:59:23)
+
+  笳・UserManagement 窶ｺ opens create modal when add button is clicked
+
+    TestingLibraryElementError: Found multiple elements with the te
+xt: 繝ｦ繝ｼ繧ｶ繝ｼ霑ｽ蜉
+
+    Here are the matching elements:
+
+    Ignored nodes: comments, script, style
+    [36m<button[39m
+      [33mclass[39m=[32m"flex items-center gap-2 px-4 py-2 bg-gr
+adient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover
+:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:s
+hadow-xl"[39m
+    [36m>[39m
+      [36m<svg[39m
+        [33mclass[39m=[32m"lucide lucide-plus w-5 h-5"[39m
+        [33mfill[39m=[32m"none"[39m
+        [33mheight[39m=[32m"24"[39m
+        [33mstroke[39m=[32m"currentColor"[39m
+        [33mstroke-linecap[39m=[32m"round"[39m
+        [33mstroke-linejoin[39m=[32m"round"[39m
+        [33mstroke-width[39m=[32m"2"[39m
+        [33mviewBox[39m=[32m"0 0 24 24"[39m
+        [33mwidth[39m=[32m"24"[39m
+        [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+      [36m>[39m
+        [36m<path[39m
+          [33md[39m=[32m"M5 12h14"[39m
+        [36m/>[39m
+        [36m<path[39m
+          [33md[39m=[32m"M12 5v14"[39m
+        [36m/>[39m
+      [36m</svg>[39m
+      [0m繝ｦ繝ｼ繧ｶ繝ｼ霑ｽ蜉[0m
+    [36m</button>[39m
+
+    Ignored nodes: comments, script, style
+    [36m<h2>[39m
+      [0m繝ｦ繝ｼ繧ｶ繝ｼ霑ｽ蜉[0m
+    [36m</h2>[39m
+
+    (If this is intentional, then use the `*AllBy*` variant of the 
+query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex items-center justify-between
+"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center gap-3"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"p-3 bg-gradient-to-br from-pu
+rple-500 to-indigo-600 rounded-xl shadow-lg"[39m
+              [36m>[39m
+                [36m<svg[39m
+                  [33mclass[39m=[32m"lucide lucide-users w-6 h-6
+ text-white"[39m
+                  [33mfill[39m=[32m"none"[39m
+                  [33mheight[39m=[32m"24"[39m
+                  [33mstroke[39m=[32m"currentColor"[39m
+                  [33mstroke-linecap[39m=[32m"round"[39m
+                  [33mstroke-linejoin[39m=[32m"round"[39m
+                  [33mstroke-width[39m=[32m"2"[39m
+                  [33mviewBox[39m=[32m"0 0 24 24"[39m
+                  [33mwidth[39m=[32m"24"[39m
+                  [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"
+[39m
+                [36m>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4
+ 0 0 0-4 4v2"[39m
+                  [36m/>[39m
+                  [36m<circle[39m
+                    [33mcx[39m=[32m"9"[39m
+                    [33mcy[39m=[32m"7"[39m
+                    [33mr[39m=[32m"4"[39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[
+39m
+                  [36m/>[39m
+                  [36m<path[39m
+                    [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[3
+9m
+                  [36m/>[39m
+                [36m</svg>[39m
+              [36m</div>[39m
+              [36m<div>[39m
+                [36m<h2[39m
+                  [33mclass[39m=[32m"text-2xl font-bold text-gra
+y-800"[39m
+                [36m>[39m
+                  [0m繝ｦ繝ｼ繧ｶ繝ｼ邂｡逅・[0m
+                [36m</h2>[39m
+                [36m<p[39m
+                  [33mclass[39m=[32m"text-sm text-gray-600"[39m
+                [36m>[39m
+                  [0m繧ｷ繧ｹ繝・Β繝ｦ繝ｼ繧ｶ繝ｼ縺ｮ邂｡逅・[0m
+                [36m</p>[39m
+              [36m</div>[39m
+            [36m</div>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"flex items-center gap-2 px-4 py
+-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-
+lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg
+ hover:shadow-xl"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33mclass[39m=[32m"lucide lucide-plus w-5 h-5"[
+39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[
+39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M5 12h14"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M12 5v14"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [0m繝ｦ繝ｼ繧ｶ繝ｼ霑ｽ蜉[0m
+            [36m</button>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"bg-white rounded-xl shadow-lg ove
+rflow-hidden border border-gray-200"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"overflow-x-auto"[39m
+            [36m>[39m
+              [36m<table[39m
+                [33mclass[39m=[32m"w-full"[39m
+              [36m>[39m
+                [36m<thead[39m
+                  [33mclass[39m=[32m"bg-gradient-to-r from-gray-
+50 to-gray-100 border-b border-gray-200"[39m
+                [36m>[39m
+                  [36m<tr>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-6 py-4 text-left tex
+t-xs font-semibold text-gray-700 uppercase tracking-wider"[39m
+                    [36m>[39m
+                      [0m繝ｦ繝ｼ繧ｶ繝ｼ[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-6 py-4 text-left tex
+t-xs font-semibold text-gray-700 uppercase tracking-wider"[39m
+                    [36m>[39m
+                      [0m繝｡繝ｼ繝ｫ[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-6 py-4 text-left tex
+t-xs font-semibold text-gray-700 uppercase tracking-wider"[39m
+                    [36m>[39m
+                      [0m繝ｭ繝ｼ繝ｫ[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-6 py-4 text-left tex
+t-xs font-semibold text-gray-700 uppercase tracking-wider"[39m
+                    [36m>[39m
+                      [0m繧ｹ繝・・繧ｿ繧ｹ[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-6 py-4 text-right te
+xt-xs font-semibold text-gray-700 uppercase tracking-wider"[39m
+                    [36m>[39m
+                      [0m謫堺ｽ・[0m
+                    [36m</th>[39m
+                  [36m</tr>[39m
+                [36m</thead>[39m
+                [36m<tbody[39m
+                  [33mclass[39m=[32m"divide-y divide-gray-200"[
+39m
+                [36m/>[39m
+              [36m</table>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"text-center py-12"[39m
+            [36m>[39m
+              [36m<svg[39m
+                [33mclass[39m=[32m"lucide lucide-users w-12 h-12
+ text-gray-400 mx-auto mb-4"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[
+39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0
+ 0 0-4 4v2"[39m
+                [36m/>[39m
+                [36m<circle[39m
+                  [33mcx[39m=[32m"9"[39m
+                  [33mcy[39m=[32m"7"[39m
+                  [33mr[39m=[32m"4"[39m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M22 21v-2a4 4 0 0 0-3-3.87"[39
+m
+                [36m/>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"M16 3.13a4 4 0 0 1 0 7.75"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+              [36m<p[39m
+                [33mclass[39m=[32m"text-gray-500"[39m
+              [36m>[39m
+                [0m繝ｦ繝ｼ繧ｶ繝ｼ縺檎匳骭ｲ縺輔ｌ縺ｦ縺・∪縺帙ｓ[0m
+              [36m</p>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mdata-testid[39m=[32m"user-modal"[39m
+          [36m>[39m
+            [36m<h2>[39m
+              [0m繝ｦ繝ｼ繧ｶ繝ｼ霑ｽ蜉[0m
+            [36m</h2>[39m
+            [36m<button>[39m
+              [0mSave[0m
+            [36m</button>[39m
+            [36m<button>[39m
+              [0mClose[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m  95 |[39m
+     [90m  96 |[39m         expect(screen[33m.[39mgetByTestId(
+[32m'user-modal'[39m))[33m.[39mtoBeInTheDocument()[33m;[39m
+    [31m[1m>[22m[39m[90m  97 |[39m         expect(screen[33m
+.[39mgetByText([32m'繝ｦ繝ｼ繧ｶ繝ｼ霑ｽ蜉'[39m))[33m.[39mtoBeInTheDocum
+ent()[33m;[39m
+     [90m     |[39m                       [31m[1m^[22m[39m
+     [90m  98 |[39m     })[33m;[39m
+     [90m  99 |[39m
+     [90m 100 |[39m     it([32m'handles user creation'[39m[33m
+,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/
+dist/config.js:37:19)
+      at getElementError (node_modules/@testing-library/dom/dist/qu
+ery-helpers.js:20:35)
+      at getMultipleElementsFoundError (node_modules/@testing-libra
+ry/dom/dist/query-helpers.js:23:10)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:55
+:13
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95
+:19
+      at Object.getByText (__tests__/components/Settings/UserManage
+ment.test.tsx:97:23)
+
+FAIL __tests__/components/ProjectMasters/ProjectMasterForm.test.tsx
+  笳・ProjectMasterForm 窶ｺ renders all sections and initially expands
+ correct ones
+
+    TestingLibraryElementError: Unable to find an element with the 
+placeholder text of: 蟾･莠句錐遘ｰ
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"border border-gray-200 rounded-lg
+ overflow-hidden"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"w-full flex items-center justif
+y-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-bold text-gray-800"[39m
+              [36m>[39m
+                [0m蝓ｺ譛ｬ諠・ｱ[0m
+              [36m</span>[39m
+              [36m<svg[39m
+                [33mclass[39m=[32m"lucide lucide-chevron-up w-5 
+h-5"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[
+39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m18 15-6-6-6 6"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"p-4"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium
+ text-gray-700 mb-1"[39m
+                  [36m>[39m
+                    [0m蟾･莠句・螳ｹ[0m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-red-500"[39m
+                    [36m>[39m
+                      [0m *[0m
+                    [36m</span>[39m
+                  [36m</label>[39m
+                  [36m<select[39m
+                    [33mclass[39m=[32m"w-full px-3 py-2 border b
+order-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0m驕ｸ謚槭＠縺ｦ縺上□縺輔＞[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"new_construction"[39m
+                    [36m>[39m
+                      [0m譁ｰ遽・[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"renovation"[39m
+                    [36m>[39m
+                      [0m謾ｹ菫ｮ[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"large_scale"[39m
+                    [36m>[39m
+                      [0m螟ｧ隕乗ｨ｡[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"other"[39m
+                    [36m>[39m
+                      [0m縺昴・莉・[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium
+ text-gray-700 mb-1"[39m
+                  [36m>[39m
+                    [0m譯井ｻｶ雋ｬ莉ｻ閠・[0m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-red-500"[39m
+                    [36m>[39m
+                      [0m *[0m
+                    [36m</span>[39m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"flex flex-wrap gap-2 min-
+h-[42px] p-2 border border-gray-300 rounded-lg bg-white"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-sm text-gray-500"
+[39m
+                    [36m>[39m
+                      [0m諡・ｽ楢・′隕九▽縺九ｊ縺ｾ縺帙ｓ[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium
+ text-gray-700 mb-1"[39m
+                  [36m>[39m
+                    [0m迴ｾ蝣ｴ蜷・[0m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-red-500"[39m
+                    [36m>[39m
+                      [0m *[0m
+                    [36m</span>[39m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"w-full px-3 py-2 border b
+order-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"[39m
+                    [33mplaceholder[39m=[32m"萓・ 譚ｾ譛ｬ讒倬ず"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"relative"[39m
+                [36m>[39m
+                  [36m<div>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"block text-sm font-medi
+um text-gray-700 mb-1"[39m
+                    [36m>[39m
+                      [0m蜈・ｫ九￠[0m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"text-red-500"[39m
+                      [36m>[39m
+                        [0m *[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"relative"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33mclass[39m=[32m"lucide lucide-search 
+absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"[39
+m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/200
+0/svg"[39m
+                      [36m>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"11"[39m
+                          [33mcy[39m=[32m"11"[39m
+                          [33mr[39m=[32m"8"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m21 21-4.3-4.3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                      [36m<input[39m
+                        [33mclass[39m=[32m"w-full pl-10 pr-3 py-
+2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-50
+0"[39m
+                        [33mplaceholder[39m=[32m"鬘ｧ螳｢繧呈､懃ｴ｢..."
+[39m
+                        [33mtype[39m=[32m"text"[39m
+                        [33mvalue[39m=[32m""[39m
+                      [36m/>[39m
+                    [36m</div>[39m
+                  [36m</div>[39m
+                [36m<...
+
+    [0m [90m 55 |[39m
+     [90m 56 |[39m         [90m// Check content visibility[39m
+    [31m[1m>[22m[39m[90m 57 |[39m         expect(screen[33m.
+[39mgetByPlaceholderText([32m'蟾･莠句錐遘ｰ'[39m))[33m.[39mtoBeInThe
+Document()[33m;[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 58 |[39m     })[33m;[39m
+     [90m 59 |[39m
+     [90m 60 |[39m     it([32m'toggles sections'[39m[33m,[39m
+ [36masync[39m () [33m=>[39m {[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/
+dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76
+:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52
+:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95
+:19
+      at Object.getByPlaceholderText (__tests__/components/ProjectM
+asters/ProjectMasterForm.test.tsx:57:23)
+
+  笳・ProjectMasterForm 窶ｺ updates form data when input changes
+
+    TestingLibraryElementError: Unable to find an element with the 
+placeholder text of: 蟾･莠句錐遘ｰ
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"space-y-4"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"border border-gray-200 rounded-lg
+ overflow-hidden"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"w-full flex items-center justif
+y-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"[39m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-bold text-gray-800"[39m
+              [36m>[39m
+                [0m蝓ｺ譛ｬ諠・ｱ[0m
+              [36m</span>[39m
+              [36m<svg[39m
+                [33mclass[39m=[32m"lucide lucide-chevron-up w-5 
+h-5"[39m
+                [33mfill[39m=[32m"none"[39m
+                [33mheight[39m=[32m"24"[39m
+                [33mstroke[39m=[32m"currentColor"[39m
+                [33mstroke-linecap[39m=[32m"round"[39m
+                [33mstroke-linejoin[39m=[32m"round"[39m
+                [33mstroke-width[39m=[32m"2"[39m
+                [33mviewBox[39m=[32m"0 0 24 24"[39m
+                [33mwidth[39m=[32m"24"[39m
+                [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[
+39m
+              [36m>[39m
+                [36m<path[39m
+                  [33md[39m=[32m"m18 15-6-6-6 6"[39m
+                [36m/>[39m
+              [36m</svg>[39m
+            [36m</button>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"p-4"[39m
+            [36m>[39m
+              [36m<div[39m
+                [33mclass[39m=[32m"space-y-4"[39m
+              [36m>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium
+ text-gray-700 mb-1"[39m
+                  [36m>[39m
+                    [0m蟾･莠句・螳ｹ[0m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-red-500"[39m
+                    [36m>[39m
+                      [0m *[0m
+                    [36m</span>[39m
+                  [36m</label>[39m
+                  [36m<select[39m
+                    [33mclass[39m=[32m"w-full px-3 py-2 border b
+order-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"[39m
+                  [36m>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m""[39m
+                    [36m>[39m
+                      [0m驕ｸ謚槭＠縺ｦ縺上□縺輔＞[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"new_construction"[39m
+                    [36m>[39m
+                      [0m譁ｰ遽・[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"renovation"[39m
+                    [36m>[39m
+                      [0m謾ｹ菫ｮ[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"large_scale"[39m
+                    [36m>[39m
+                      [0m螟ｧ隕乗ｨ｡[0m
+                    [36m</option>[39m
+                    [36m<option[39m
+                      [33mvalue[39m=[32m"other"[39m
+                    [36m>[39m
+                      [0m縺昴・莉・[0m
+                    [36m</option>[39m
+                  [36m</select>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium
+ text-gray-700 mb-1"[39m
+                  [36m>[39m
+                    [0m譯井ｻｶ雋ｬ莉ｻ閠・[0m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-red-500"[39m
+                    [36m>[39m
+                      [0m *[0m
+                    [36m</span>[39m
+                  [36m</label>[39m
+                  [36m<div[39m
+                    [33mclass[39m=[32m"flex flex-wrap gap-2 min-
+h-[42px] p-2 border border-gray-300 rounded-lg bg-white"[39m
+                  [36m>[39m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-sm text-gray-500"
+[39m
+                    [36m>[39m
+                      [0m諡・ｽ楢・′隕九▽縺九ｊ縺ｾ縺帙ｓ[0m
+                    [36m</span>[39m
+                  [36m</div>[39m
+                [36m</div>[39m
+                [36m<div>[39m
+                  [36m<label[39m
+                    [33mclass[39m=[32m"block text-sm font-medium
+ text-gray-700 mb-1"[39m
+                  [36m>[39m
+                    [0m迴ｾ蝣ｴ蜷・[0m
+                    [36m<span[39m
+                      [33mclass[39m=[32m"text-red-500"[39m
+                    [36m>[39m
+                      [0m *[0m
+                    [36m</span>[39m
+                  [36m</label>[39m
+                  [36m<input[39m
+                    [33mclass[39m=[32m"w-full px-3 py-2 border b
+order-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"[39m
+                    [33mplaceholder[39m=[32m"萓・ 譚ｾ譛ｬ讒倬ず"[39m
+                    [33mtype[39m=[32m"text"[39m
+                    [33mvalue[39m=[32m""[39m
+                  [36m/>[39m
+                [36m</div>[39m
+                [36m<div[39m
+                  [33mclass[39m=[32m"relative"[39m
+                [36m>[39m
+                  [36m<div>[39m
+                    [36m<label[39m
+                      [33mclass[39m=[32m"block text-sm font-medi
+um text-gray-700 mb-1"[39m
+                    [36m>[39m
+                      [0m蜈・ｫ九￠[0m
+                      [36m<span[39m
+                        [33mclass[39m=[32m"text-red-500"[39m
+                      [36m>[39m
+                        [0m *[0m
+                      [36m</span>[39m
+                    [36m</label>[39m
+                    [36m<div[39m
+                      [33mclass[39m=[32m"relative"[39m
+                    [36m>[39m
+                      [36m<svg[39m
+                        [33mclass[39m=[32m"lucide lucide-search 
+absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"[39
+m
+                        [33mfill[39m=[32m"none"[39m
+                        [33mheight[39m=[32m"24"[39m
+                        [33mstroke[39m=[32m"currentColor"[39m
+                        [33mstroke-linecap[39m=[32m"round"[39m
+                        [33mstroke-linejoin[39m=[32m"round"[39m
+                        [33mstroke-width[39m=[32m"2"[39m
+                        [33mviewBox[39m=[32m"0 0 24 24"[39m
+                        [33mwidth[39m=[32m"24"[39m
+                        [33mxmlns[39m=[32m"http://www.w3.org/200
+0/svg"[39m
+                      [36m>[39m
+                        [36m<circle[39m
+                          [33mcx[39m=[32m"11"[39m
+                          [33mcy[39m=[32m"11"[39m
+                          [33mr[39m=[32m"8"[39m
+                        [36m/>[39m
+                        [36m<path[39m
+                          [33md[39m=[32m"m21 21-4.3-4.3"[39m
+                        [36m/>[39m
+                      [36m</svg>[39m
+                      [36m<input[39m
+                        [33mclass[39m=[32m"w-full pl-10 pr-3 py-
+2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-50
+0"[39m
+                        [33mplaceholder[39m=[32m"鬘ｧ螳｢繧呈､懃ｴ｢..."
+[39m
+                        [33mtype[39m=[32m"text"[39m
+                        [33mvalue[39m=[32m""[39m
+                      [36m/>[39m
+                    [36m</div>[39m
+                  [36m</div>[39m
+                [36m<...
+
+    [0m [90m  96 |[39m         })[33m;[39m
+     [90m  97 |[39m
+    [31m[1m>[22m[39m[90m  98 |[39m         [36mconst[39m ti
+tleInput [33m=[39m screen[33m.[39mgetByPlaceholderText([32m'蟾･
+莠句錐遘ｰ'[39m)[33m;[39m
+     [90m     |[39m                                   [31m[1m^
+[22m[39m
+     [90m  99 |[39m         fireEvent[33m.[39mchange(titleInput
+[33m,[39m { target[33m:[39m { value[33m:[39m [32m'New Projec
+t'[39m } })[33m;[39m
+     [90m 100 |[39m
+     [90m 101 |[39m         expect(mockSetFormData)[33m.[39mtoH
+aveBeenCalled()[33m;[39m[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/
+dist/config.js:37:19)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:76
+:38
+      at node_modules/@testing-library/dom/dist/query-helpers.js:52
+:17
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95
+:19
+      at Object.getByPlaceholderText (__tests__/components/ProjectM
+asters/ProjectMasterForm.test.tsx:98:35)
+
+Test Suites: 3 failed, 3 total
+Tests:       8 failed, 6 passed, 14 total
+Snapshots:   0 total
+Time:        1.878 s
+Ran all test suites matching __tests__/components/Settings/UserMana
+gement.test.tsx|__tests__/components/ProjectMasters/ProjectMasterFo
+rm.test.tsx|__tests__/components/Calendar/ForemanSelector.test.tsx.

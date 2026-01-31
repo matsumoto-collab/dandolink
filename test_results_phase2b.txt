@@ -1,0 +1,559 @@
+﻿
+> yusystem@0.1.0 test
+> jest __tests__/hooks/useCalendarModals.test.ts __tests__/components/Invoices/InvoiceForm.test.tsx __tests__/components/Calendar/DroppableCell.test.tsx
+
+node.exe : PASS __tests__/hooks/useCalendarModals.test.ts
+発生場所 行:1 文字:1
++ & "C:\Program Files\nodejs/node.exe" "C:\Program Files\nodejs/nod
+e_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~
+    + CategoryInfo          : NotSpecified: (PASS __tests__/...rMo 
+   dals.test.ts:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAIL __tests__/components/Calendar/DroppableCell.test.tsx
+  笳・DroppableCell 窶ｺ does not call onClick when event card is click
+ed
+
+    expect(jest.fn()).not.toHaveBeenCalled()
+
+    Expected number of calls: 0
+    Received number of calls: 1
+
+    1: called with 0 arguments
+
+    [0m [90m 79 |[39m         fireEvent[33m.[39mclick(eventCar
+d)[33m;[39m
+     [90m 80 |[39m
+    [31m[1m>[22m[39m[90m 81 |[39m         expect(defaultProps
+[33m.[39monClick)[33m.[39mnot[33m.[39mtoHaveBeenCalled()[33m
+;[39m
+     [90m    |[39m                                          [31m
+[1m^[22m[39m
+     [90m 82 |[39m     })[33m;[39m
+     [90m 83 |[39m })[33m;[39m
+     [90m 84 |[39m[0m
+
+      at Object.toHaveBeenCalled (__tests__/components/Calendar/Dro
+ppableCell.test.tsx:81:42)
+
+FAIL __tests__/components/Invoices/InvoiceForm.test.tsx
+  笳・InvoiceForm 窶ｺ validates required fields
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: "譯井ｻｶ縺ｨ繧ｿ繧､繝医Ν縺ｯ蠢・医〒縺・
+
+    Number of calls: 0
+
+    [0m [90m 56 |[39m         fireEvent[33m.[39mclick(submitBt
+n)[33m;[39m
+     [90m 57 |[39m
+    [31m[1m>[22m[39m[90m 58 |[39m         expect(toast[33m.
+[39merror)[33m.[39mtoHaveBeenCalledWith([32m'譯井ｻｶ縺ｨ繧ｿ繧､繝医Ν縺ｯ蠢・医
+〒縺・[39m)[33m;[39m
+     [90m    |[39m                             [31m[1m^[22m[3
+9m
+     [90m 59 |[39m         expect(mockOnSubmit)[33m.[39mnot[33
+m.[39mtoHaveBeenCalled()[33m;[39m
+     [90m 60 |[39m     })[33m;[39m
+     [90m 61 |[39m[0m
+
+      at Object.toHaveBeenCalledWith (__tests__/components/Invoices
+/InvoiceForm.test.tsx:58:29)
+
+  笳・InvoiceForm 窶ｺ loads data from estimate
+
+    TestingLibraryElementError: Found multiple elements with the ro
+le "combobox" and name ""
+
+    Here are the matching elements:
+
+    Ignored nodes: comments, script, style
+    [36m<select[39m
+      [33mclass[39m=[32m"w-full px-3 py-2 border border-gray-300
+ rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"[3
+9m
+    [36m>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m""[39m
+      [36m>[39m
+        [0m隕狗ｩ肴嶌繧帝∈謚橸ｼ井ｻｻ諢擾ｼ・[0m
+      [36m</option>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m"e1"[39m
+      [36m>[39m
+        [0mEST-1[0m
+        [0m - [0m
+        [0mEstimate A[0m
+      [36m</option>[39m
+    [36m</select>[39m
+
+    Ignored nodes: comments, script, style
+    [36m<select[39m
+      [33mclass[39m=[32m"w-full px-3 py-2 border border-gray-300
+ rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"[3
+9m
+      [33mrequired[39m=[32m""[39m
+    [36m>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m""[39m
+      [36m>[39m
+        [0m譯井ｻｶ繧帝∈謚・[0m
+      [36m</option>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m"p1"[39m
+      [36m>[39m
+        [0mProject A[0m
+      [36m</option>[39m
+    [36m</select>[39m
+
+    Ignored nodes: comments, script, style
+    [36m<select[39m
+      [33mclass[39m=[32m"w-full px-3 py-2 border border-gray-300
+ rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"[3
+9m
+    [36m>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m"draft"[39m
+      [36m>[39m
+        [0m荳区嶌縺・[0m
+      [36m</option>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m"sent"[39m
+      [36m>[39m
+        [0m騾∽ｻ俶ｸ医∩[0m
+      [36m</option>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m"paid"[39m
+      [36m>[39m
+        [0m謾ｯ謇墓ｸ医∩[0m
+      [36m</option>[39m
+      [36m<option[39m
+        [33mvalue[39m=[32m"overdue"[39m
+      [36m>[39m
+        [0m譛滄剞雜・℃[0m
+      [36m</option>[39m
+    [36m</select>[39m
+
+    (If this is intentional, then use the `*AllBy*` variant of the 
+query (like `queryAllByText`, `getAllByText`, or `findAllByText`)).
+
+    Ignored nodes: comments, script, style
+    [36m<body>[39m
+      [36m<div>[39m
+        [36m<form[39m
+          [33mclass[39m=[32m"space-y-6"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"grid grid-cols-2 gap-4"[39m
+          [36m>[39m
+            [36m<div>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700 mb-2"[39m
+              [36m>[39m
+                [0m隕狗ｩ肴嶌縺九ｉ隱ｭ縺ｿ霎ｼ縺ｿ[0m
+              [36m</label>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"w-full px-3 py-2 border borde
+r-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bl
+ue-500"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m>[39m
+                  [0m隕狗ｩ肴嶌繧帝∈謚橸ｼ井ｻｻ諢擾ｼ・[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"e1"[39m
+                [36m>[39m
+                  [0mEST-1[0m
+                  [0m - [0m
+                  [0mEstimate A[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+            [36m<div>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700 mb-2"[39m
+              [36m>[39m
+                [0m隲区ｱら分蜿ｷ[0m
+              [36m</label>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"w-full px-3 py-2 border borde
+r-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bl
+ue-500"[39m
+                [33mtype[39m=[32m"text"[39m
+                [33mvalue[39m=[32m"INV-1769824104075"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700 mb-2"[39m
+              [36m>[39m
+                [0m譯井ｻｶ [0m
+                [36m<span[39m
+                  [33mclass[39m=[32m"text-red-500"[39m
+                [36m>[39m
+                  [0m*[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"w-full px-3 py-2 border borde
+r-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bl
+ue-500"[39m
+                [33mrequired[39m=[32m""[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m""[39m
+                [36m>[39m
+                  [0m譯井ｻｶ繧帝∈謚・[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"p1"[39m
+                [36m>[39m
+                  [0mProject A[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+            [36m<div>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700 mb-2"[39m
+              [36m>[39m
+                [0m繧ｿ繧､繝医Ν [0m
+                [36m<span[39m
+                  [33mclass[39m=[32m"text-red-500"[39m
+                [36m>[39m
+                  [0m*[0m
+                [36m</span>[39m
+              [36m</label>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"w-full px-3 py-2 border borde
+r-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bl
+ue-500"[39m
+                [33mrequired[39m=[32m""[39m
+                [33mtype[39m=[32m"text"[39m
+                [33mvalue[39m=[32m""[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700 mb-2"[39m
+              [36m>[39m
+                [0m謾ｯ謇墓悄髯・[0m
+              [36m</label>[39m
+              [36m<input[39m
+                [33mclass[39m=[32m"w-full px-3 py-2 border borde
+r-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bl
+ue-500"[39m
+                [33mtype[39m=[32m"date"[39m
+                [33mvalue[39m=[32m"2026-03-02"[39m
+              [36m/>[39m
+            [36m</div>[39m
+            [36m<div>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700 mb-2"[39m
+              [36m>[39m
+                [0m繧ｹ繝・・繧ｿ繧ｹ[0m
+              [36m</label>[39m
+              [36m<select[39m
+                [33mclass[39m=[32m"w-full px-3 py-2 border borde
+r-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-bl
+ue-500"[39m
+              [36m>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"draft"[39m
+                [36m>[39m
+                  [0m荳区嶌縺・[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"sent"[39m
+                [36m>[39m
+                  [0m騾∽ｻ俶ｸ医∩[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"paid"[39m
+                [36m>[39m
+                  [0m謾ｯ謇墓ｸ医∩[0m
+                [36m</option>[39m
+                [36m<option[39m
+                  [33mvalue[39m=[32m"overdue"[39m
+                [36m>[39m
+                  [0m譛滄剞雜・℃[0m
+                [36m</option>[39m
+              [36m</select>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex items-center justify-betwe
+en mb-3"[39m
+            [36m>[39m
+              [36m<label[39m
+                [33mclass[39m=[32m"block text-sm font-semibold t
+ext-gray-700"[39m
+              [36m>[39m
+                [0m譏守ｴｰ[0m
+              [36m</label>[39m
+              [36m<button[39m
+                [33mclass[39m=[32m"flex items-center gap-1 px-3 
+py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 
+transition-colors"[39m
+                [33mtype[39m=[32m"button"[39m
+              [36m>[39m
+                [36m<span[39m
+                  [33mdata-testid[39m=[32m"plus-icon"[39m
+                [36m/>[39m
+                [0m陦瑚ｿｽ蜉[0m
+              [36m</button>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"border border-gray-300 rounded-
+lg overflow-hidden"[39m
+            [36m>[39m
+              [36m<table[39m
+                [33mclass[39m=[32m"min-w-full divide-y divide-gr
+ay-200"[39m
+              [36m>[39m
+                [36m<thead[39m
+                  [33mclass[39m=[32m"bg-gray-50"[39m
+                [36m>[39m
+                  [36m<tr>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-4 py-3 text-left tex
+t-xs font-semibold text-gray-700"[39m
+                    [36m>[39m
+                      [0m蜩∫岼繝ｻ蜀・ｮｹ[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-4 py-3 text-left tex
+t-xs font-semibold text-gray-700 w-24"[39m
+                    [36m>[39m
+                      [0m謨ｰ驥・[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-4 py-3 text-left tex
+t-xs font-semibold text-gray-700 w-32"[39m
+                    [36m>[39m
+                      [0m蜊倅ｾ｡[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-4 py-3 text-left tex
+t-xs font-semibold text-gray-700 w-32"[39m
+                    [36m>[39m
+                      [0m驥鷹｡・[0m
+                    [36m</th>[39m
+                    [36m<th[39m
+                      [33mclass[39m=[32m"px-4 py-3 w-12"[39m
+                    [36m/>[39m
+                  [36m</tr>[39m
+                [36m</thead>[39m
+                [36m<tbody[39m
+                  [33mclass[39m=[32m"bg-white divide-y divide-gr
+ay-200"[39m
+                [36m>[39m
+                  [36m<tr>[39m
+                    [36m<td[39m
+                      [33mclass[39m=[32m"px-4 py-2"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mclass[39m=[32m"w-full px-2 py-1 bord
+er border-gray-300 rounded focus:outline-none focus:ring-1 focus:ri
+ng-blue-500"[39m
+                        [33mplaceholder[39m=[32m"蜩∫岼繝ｻ蜀・ｮｹ"[39m
+                        [33mtype[39m=[32m"text"[39m
+                        [33mvalue[39m=[32m""[39m
+                      [36m/>[39m
+                    [36m</td>[39m
+                    [36m<td[39m
+                      [33mclass[39m=[32m"px-4 py-2"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mclass[39m=[32m"w-full px-2 py-1 bord
+er border-gray-300 rounded focus:outline-none focus:ring-1 focus:ri
+ng-blue-500"[39m
+                        [33mmin[39m=[32m"0"[39m
+                        [33mstep[39m=[32m"0.1"[39m
+                        [33mtype[39m=[32m"number"[39m
+                        [33mvalue[39m=[32m"1"[39m
+                      [36m/>[39m
+                    [36m</td>[39m
+                    [36m<td[39m
+                      [33mclass[39m=[32m"px-4 py-2"[39m
+                    [36m>[39m
+                      [36m<input[39m
+                        [33mclass[39m=[32m"w-full px-2 py-1 bord
+er border-gray-300 rounded focus:outline-none focus:ring-1 focus:ri
+ng-blue-500"[39m
+                        [33mmin[39m=[32m"0"[39m
+                        [33mtype[39m=[32m"number"[39m
+                        [33mvalue[39m=[32m"0"[39m
+                      [36m/>[39m
+                    [36m</td>[39m
+                    [36m<td[39m
+                      [33mclass[39m=[32m"px-4 py-2 text-right fo
+nt-semibold"[39m
+                    [36m>[39m
+                      [0mﾂ･[0m
+                      [0m0[0m
+                    [36m</td>[39m
+                    [36m<td[39m
+                      [33mclass[39m=[32m"px-4 py-2 text-center"
+[39m
+                    [36m>[39m
+                      [36m<button[39m
+                        [33mclass[39m=[32m"text-red-600 hover:te
+xt-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"[39m
+                        [33mdisabled[39m=[32m""[39m
+                        [33mtype[39m=[32m"button"[39m
+                      [36m>[39m
+                        [36m<span[39m
+                          [33mdata-testid[39m=[32m"trash-icon"[
+39m
+                        [36m/>[39m
+                      [36m</button>[39m
+                    [36m</td>[39m
+                  [36m</tr>[39m
+                [36m</tbody>[39m
+              [36m</table>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"bg-gray-50 rounded-lg p-4 space-y
+-2"[39m
+          [36m>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex justify-between text-sm"[
+39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"text-gray-700"[39m
+              [36m>[39m
+                [0m蟆剰ｨ・[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-semibold"[39m
+              [36m>[39m
+                [0mﾂ･[0m
+                [0m0[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex justify-between text-sm"[
+39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"text-gray-700"[39m
+              [36m>[39m
+                [0m豸郁ｲｻ遞・10%):[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-semibold"[39m
+              [36m>[39m
+                [0mﾂ･[0m
+                [0m0[0m
+              [36m</span>[39m
+            [36m</div>[39m
+            [36m<div[39m
+              [33mclass[39m=[32m"flex justify-between text-lg bo
+rder-t border-gray-300 pt-2"[39m
+            [36m>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-bold text-gray-900"[39m
+              [36m>[39m
+                [0m蜷郁ｨ・[0m
+              [36m</span>[39m
+              [36m<span[39m
+                [33mclass[39m=[32m"font-bold text-blue-600"[39m
+              [36m>[39m
+                [0mﾂ･[0m
+                [0m0[0m
+              [36m</span>[39m
+            [36m</div>[39m
+          [36m</div>[39m
+          [36m<div>[39m
+            [36m<label[39m
+              [33mclass[39m=[32m"block text-sm font-semibold tex
+t-gray-700 mb-2"[39m
+            [36m>[39m
+              [0m蛯呵・[0m
+            [36m</label>[39m
+            [36m<textarea[39m
+              [33mclass[39m=[32m"w-full px-3 py-2 border border-
+gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue
+-500"[39m
+              [33mplaceholder[39m=[32m"蛯呵・ｒ蜈･蜉・.."[39m
+              [33mrows[39m=[32m"3"[39m
+            [36m/>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"flex justify-end gap-3 pt-4 borde
+r-t border-gray-200"[39m
+          [36m>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"px-6 py-2.5 border border-gray-
+300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"[3
+9m
+              [33mtype[39m=[32m"button"[39m
+            [36m>[39m
+              [0m繧ｭ繝｣繝ｳ繧ｻ繝ｫ[0m
+            [36m</button>[39m
+            [36m<button[39m
+              [33mclass[39m=[32m"px-6 py-2.5 bg-gradient-to-r fr
+om-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 h
+over:to-blue-800 transition-all shadow-md hover:shadow-lg"[39m
+              [33mtype[39m=[32m"submit"[39m
+            [36m>[39m
+              [0m菫晏ｭ・[0m
+            [36m</button>[39m
+          [36m</div>[39m
+        [36m</form>[39m
+      [36m</div>[39m
+    [36m</body>[39m
+
+    [0m [90m  95 |[39m         render([33m<[39m[33mInvoiceFor
+m[39m onSubmit[33m=[39m{mockOnSubmit} onCancel[33m=[39m{mockOn
+Cancel} [33m/[39m[33m>[39m)[33m;[39m
+     [90m  96 |[39m
+    [31m[1m>[22m[39m[90m  97 |[39m         [36mconst[39m es
+timateSelect [33m=[39m screen[33m.[39mgetByRole([32m'combobox'
+[39m[33m,[39m { name[33m:[39m [32m''[39m })[33m;[39m [90m
+// Select by implicit label might be tricky if not associated corre
+ctly[39m
+     [90m     |[39m                                       [31m[
+1m^[22m[39m
+     [90m  98 |[39m         [90m// Let's find by select element
+[39m
+     [90m  99 |[39m         [36mconst[39m selects [33m=[39m s
+creen[33m.[39mgetAllByRole([32m'combobox'[39m)[33m;[39m
+     [90m 100 |[39m         [36mconst[39m estimateSelector [33
+m=[39m selects[[35m0[39m][33m;[39m [90m// Assuming order base
+d on layout[39m[0m
+
+      at Object.getElementError (node_modules/@testing-library/dom/
+dist/config.js:37:19)
+      at getElementError (node_modules/@testing-library/dom/dist/qu
+ery-helpers.js:20:35)
+      at getMultipleElementsFoundError (node_modules/@testing-libra
+ry/dom/dist/query-helpers.js:23:10)
+      at node_modules/@testing-library/dom/dist/query-helpers.js:55
+:13
+      at node_modules/@testing-library/dom/dist/query-helpers.js:95
+:19
+      at Object.getByRole (__tests__/components/Invoices/InvoiceFor
+m.test.tsx:97:39)
+
+Test Suites: 2 failed, 1 passed, 3 total
+Tests:       3 failed, 15 passed, 18 total
+Snapshots:   0 total
+Time:        1.684 s, estimated 2 s
+Ran all test suites matching __tests__/hooks/useCalendarModals.test
+.ts|__tests__/components/Invoices/InvoiceForm.test.tsx|__tests__/co
+mponents/Calendar/DroppableCell.test.tsx.

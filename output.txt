@@ -1,0 +1,35 @@
+FAIL __tests__/api/project-masters/id.route.test.ts
+  /api/project-masters/[id]
+    GET
+      √ should return project master (6 ms)
+      × should return 404 if not found (2 ms)
+      √ should return 401 if not authenticated
+    PATCH
+      √ should update project master (1 ms)
+      √ should return 403 if user cannot dispatch (1 ms)
+    DELETE
+      √ should delete project master (1 ms)
+      √ should return 403 if user is not manager
+
+  ● /api/project-masters/[id] › GET › should return 404 if not found
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 404
+    Received: 500
+
+    [0m [90m 42 |[39m             [36mconst[39m res [33m=[39m [36mawait[39m [33mGET[39m(req[33m,[39m mockContext)[33m;[39m
+     [90m 43 |[39m
+    [31m[1m>[22m[39m[90m 44 |[39m             expect(res[33m.[39mstatus)[33m.[39mtoBe([35m404[39m)[33m;[39m
+     [90m    |[39m                                [31m[1m^[22m[39m
+     [90m 45 |[39m         })[33m;[39m
+     [90m 46 |[39m
+     [90m 47 |[39m         it([32m'should return 401 if not authenticated'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.toBe (__tests__/api/project-masters/id.route.test.ts:44:32)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 6 passed, 7 total
+Snapshots:   0 total
+Time:        0.279 s, estimated 1 s
+Ran all test suites matching __tests__/api/project-masters/id.route.test.ts.

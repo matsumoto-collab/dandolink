@@ -23,16 +23,16 @@ export default function CustomerModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[60]">
+            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 {/* ヘッダー */}
-                <div className="sticky top-0 bg-gradient-to-r from-slate-700 to-slate-800 text-white px-6 py-4 flex items-center justify-between rounded-t-xl">
-                    <h2 className="text-xl font-bold">{title}</h2>
+                <div className="sticky top-0 bg-slate-800 text-white px-6 py-4 flex items-center justify-between rounded-t-lg">
+                    <h2 className="text-xl font-semibold">{title}</h2>
                     <button
                         onClick={onClose}
-                        className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-white/10 rounded-md transition-colors duration-150"
                     >
-                        <X className="w-6 h-6" />
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
