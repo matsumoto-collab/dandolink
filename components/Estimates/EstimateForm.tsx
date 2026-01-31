@@ -414,7 +414,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         <button
                             type="button"
                             onClick={addItem}
-                            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="flex items-center gap-1 px-3 py-1.5 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
                         >
                             <Plus className="w-4 h-4" />
                             行追加

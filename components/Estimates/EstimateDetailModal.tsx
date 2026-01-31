@@ -122,7 +122,7 @@ export default function EstimateDetailModal({
                             <div className="flex items-center gap-2">
                                 <button
                                     onClick={handleEdit}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
                                 >
                                     <Edit size={18} />
                                     編集

@@ -582,7 +582,7 @@ export default function ProjectForm({
                     <button
                         type="button"
                         onClick={() => setIsVehicleModalOpen(true)}
-                        className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         追加
@@ -675,7 +675,7 @@ export default function ProjectForm({
                 </button>
                 <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors"
                 >
                     保存
                 </button>
