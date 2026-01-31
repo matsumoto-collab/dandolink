@@ -62,10 +62,10 @@ body {
 /* Mobile calendar zoom-out view */
 @media (max-width: 768px) {
   .calendar-container {
-    transform: scale(0.6);
+    transform: scale(0.5);
     transform-origin: top left;
-    width: 166.67%;
-    /* 100% / 0.6 to compensate for scale */
+    width: 200%;
+    /* 100% / 0.5 to compensate for scale */
     min-height: auto;
   }
 
@@ -77,11 +77,11 @@ body {
   }
 }
 
-/* Even smaller for very small screens */
+/* iPhone SE and smaller (375px width) - fit full week */
 @media (max-width: 480px) {
   .calendar-container {
-    transform: scale(0.5);
-    width: 200%;
-    /* 100% / 0.5 */
+    transform: scale(0.34);
+    width: 294%;
+    /* 100% / 0.34 = 294% */
   }
 }
