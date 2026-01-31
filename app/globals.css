@@ -65,6 +65,7 @@ body {
     transform: scale(0.5);
     transform-origin: top left;
     width: 200%;
+    height: 200%;
     /* 100% / 0.5 to compensate for scale */
     min-height: auto;
   }
@@ -73,7 +74,6 @@ body {
   .mobile-schedule-wrapper {
     overflow: auto;
     -webkit-overflow-scrolling: touch;
-    max-height: calc(100dvh - 60px);
   }
 }
 
@@ -82,6 +82,7 @@ body {
   .calendar-container {
     transform: scale(0.34);
     width: 294%;
+    height: 294%;
     /* 100% / 0.34 = 294% */
   }
 }
