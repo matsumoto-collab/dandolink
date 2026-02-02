@@ -75,6 +75,7 @@ export function useCalendarModals(
             constructionContent: projectMaster.constructionContent,
             status: 'pending',
             remarks: projectMaster.remarks,
+            createdBy: projectMaster.createdBy, // 案件担当者
             workers: [],
             vehicles: [],
             trucks: [],
