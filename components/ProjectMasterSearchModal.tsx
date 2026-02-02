@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import Loading from '@/components/ui/Loading';
-import { ProjectMaster, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
+import { ProjectMaster } from '@/types/calendar';
 
 interface ProjectMasterSearchModalProps {
     isOpen: boolean;
@@ -20,7 +20,6 @@ export default function ProjectMasterSearchModal({
 }: ProjectMasterSearchModalProps) {
     const { projectMasters, isLoading, fetchProjectMasters } = useProjectMasters();
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedType, setSelectedType] = useState<string>('all');
 
     // モーダルが開いたときにデータを再取得
     useEffect(() => {
@@ -47,29 +46,22 @@ export default function ProjectMasterSearchModal({
             );
         }
 
-        // 工事種別でフィルタリング
-        if (selectedType !== 'all') {
-            results = results.filter((pm) => pm.constructionType === selectedType);
-        }
-
         // 更新日でソート（新しい順）
         return results.sort((a, b) =>
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
-    }, [searchQuery, selectedType, projectMasters]);
+    }, [searchQuery, projectMasters]);
 
     const handleSelect = (projectMaster: ProjectMaster) => {
         onSelect(projectMaster);
         onClose();
         setSearchQuery('');
-        setSelectedType('all');
     };
 
     const handleCreateNew = () => {
         onCreateNew();
         onClose();
         setSearchQuery('');
-        setSelectedType('all');
     };
 
     if (!isOpen) return null;
@@ -102,7 +94,7 @@ export default function ProjectMasterSearchModal({
                     </div>
 
                     {/* 検索フィールド */}
-                    <div className="mt-4 space-y-3">
+                    <div className="mt-4">
                         <input
                             type="text"
                             value={searchQuery}
@@ -110,46 +102,6 @@ export default function ProjectMasterSearchModal({
                             placeholder="現場名、顧客名、場所で検索..."
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
-
-                        {/* 工事種別フィルター */}
-                        <div className="flex gap-2 flex-wrap">
-                            <button
-                                onClick={() => setSelectedType('all')}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'all'
-                                    ? 'bg-slate-700 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                            >
-                                すべて
-                            </button>
-                            <button
-                                onClick={() => setSelectedType('assembly')}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'assembly'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                            >
-                                組立
-                            </button>
-                            <button
-                                onClick={() => setSelectedType('demolition')}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'demolition'
-                                    ? 'bg-red-500 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                            >
-                                解体
-                            </button>
-                            <button
-                                onClick={() => setSelectedType('other')}
-                                className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'other'
-                                    ? 'bg-yellow-500 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                    }`}
-                            >
-                                その他
-                            </button>
-                        </div>
                     </div>
                 </div>
 
@@ -196,23 +148,6 @@ export default function ProjectMasterSearchModal({
                                                 )}
                                                 {pm.location && (
                                                     <span>場所: {pm.location}</span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2 mt-2">
-                                                <span
-                                                    className={`px-3 py-1 rounded-full text-xs font-medium ${pm.constructionType === 'assembly'
-                                                        ? 'bg-blue-100 text-blue-700'
-                                                        : pm.constructionType === 'demolition'
-                                                            ? 'bg-red-100 text-red-700'
-                                                            : 'bg-yellow-100 text-yellow-700'
-                                                        }`}
-                                                >
-                                                    {pm.constructionType ? (CONSTRUCTION_TYPE_LABELS[pm.constructionType as keyof typeof CONSTRUCTION_TYPE_LABELS] || pm.constructionType) : '未設定'}
-                                                </span>
-                                                {pm.assignments && pm.assignments.length > 0 && (
-                                                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
-                                                        {pm.assignments.length}件の配置
-                                                    </span>
                                                 )}
                                             </div>
                                         </div>
