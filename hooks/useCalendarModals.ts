@@ -59,11 +59,12 @@ export function useCalendarModals(
         setCellContext(null);
     }, []);
 
-    // 案件マスターを選択したら配置を作成
+    // 案件マスターを選択したら編集画面を表示
     const handleSelectProjectMaster = useCallback((projectMaster: ProjectMaster) => {
         if (!cellContext) return;
 
-        const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+        // 案件マスターの情報を初期値として編集モーダルを開く
+        setModalInitialData({
             title: projectMaster.title,
             customer: projectMaster.customerName,
             location: projectMaster.location,
@@ -80,12 +81,10 @@ export function useCalendarModals(
             category: 'construction',
             color: '',
             projectMasterId: projectMaster.id,
-        };
-
-        addProject(newProject as Project);
+        });
         setIsSearchModalOpen(false);
-        setCellContext(null);
-    }, [cellContext, addProject]);
+        setIsModalOpen(true);
+    }, [cellContext]);
 
     // イベントクリック時に編集モーダルを開く
     const handleEventClick = useCallback((eventId: string) => {
