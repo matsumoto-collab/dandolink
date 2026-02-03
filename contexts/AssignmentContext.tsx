@@ -238,7 +238,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
                 color,
                 description: a.projectMaster?.description,
                 location: a.projectMaster?.location,
-                customer: a.projectMaster?.customerName,
+                customer: a.projectMaster?.customerShortName || a.projectMaster?.customerName,
                 workers: a.workers,
                 trucks: a.vehicles,
                 remarks: a.remarks || a.projectMaster?.remarks,

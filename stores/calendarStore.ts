@@ -43,7 +43,7 @@ function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: P
         color,
         description: assignment.projectMaster?.description,
         location: assignment.projectMaster?.location,
-        customer: assignment.projectMaster?.customerName,
+        customer: assignment.projectMaster?.customerShortName || assignment.projectMaster?.customerName,
         workers: assignment.workers,
         trucks: assignment.vehicles,
         remarks: assignment.remarks || assignment.projectMaster?.remarks,

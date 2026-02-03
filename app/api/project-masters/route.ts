@@ -79,11 +79,11 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, customerId, customerName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
+        const { title, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
 
         const projectMaster = await prisma.projectMaster.create({
             data: {
-                title, customerId: customerId || null, customerName: customerName || null,
+                title, customerId: customerId || null, customerName: customerName || null, customerShortName: customerShortName || null,
                 constructionType: constructionType || 'other', constructionContent: constructionContent || null,
                 status: status || 'active', location: location || null, postalCode: postalCode || null,
                 prefecture: prefecture || null, city: city || null, plusCode: plusCode || null,

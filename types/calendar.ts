@@ -132,6 +132,7 @@ export interface ProjectMaster {
     title: string;                   // 現場名
     customerId?: string;             // 顧客ID
     customerName?: string;           // 顧客名（表示用）
+    customerShortName?: string;      // 顧客略称（表示用）
     constructionType: ConstructionType; // 工事種別（カレンダー登録時に設定）
     constructionContent?: ConstructionContentType; // 工事内容
     status: 'active' | 'completed' | 'cancelled';

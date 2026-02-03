@@ -47,6 +47,7 @@ model ProjectMaster {
   contractAmount             Int?
   customerId                 String?
   customerName               String?
+  customerShortName          String?
   demolitionDate             DateTime?
   estimatedAssemblyWorkers   Int?
   estimatedDemolitionWorkers Int?
