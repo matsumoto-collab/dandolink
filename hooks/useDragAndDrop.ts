@@ -37,12 +37,27 @@ export function useDragAndDrop(
     ) => {
         // 最新のeventsを使用
         const currentEvents = eventsRef.current;
+        const newDateKey = formatDateKey(newDate);
+
+        // 移動先セルの既存案件のsortOrderの最大値を取得
+        const targetCellEvents = currentEvents.filter(e =>
+            e.id !== eventId &&
+            e.assignedEmployeeId === newEmployeeId &&
+            formatDateKey(e.startDate) === newDateKey
+        );
+        const maxSortOrder = targetCellEvents.reduce(
+            (max, e) => Math.max(max, e.sortOrder ?? 0),
+            -1
+        );
+        const newSortOrder = maxSortOrder + 1;
+
         const updatedEvents = currentEvents.map(event => {
             if (event.id === eventId) {
                 return {
                     ...event,
                     assignedEmployeeId: newEmployeeId,
                     startDate: newDate,
+                    sortOrder: newSortOrder,
                 };
             }
             return event;

@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Project, CalendarEvent, ProjectMaster } from '@/types/calendar';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 interface CellContext {
     employeeId: string;
@@ -149,6 +150,19 @@ export function useCalendarModals(
 
         const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
+            const dateKey = formatDateKey(currentDate);
+
+            // コピー先セルの既存案件のsortOrderの最大値を取得
+            const targetCellEvents = events.filter(e =>
+                e.assignedEmployeeId === employeeId &&
+                formatDateKey(e.startDate) === dateKey
+            );
+            const maxSortOrder = targetCellEvents.reduce(
+                (max, e) => Math.max(max, e.sortOrder ?? 0),
+                -1
+            );
+            const newSortOrder = maxSortOrder + 1;
+
             const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
                 title: sourceProject.title,
                 customer: sourceProject.customer,
@@ -165,12 +179,13 @@ export function useCalendarModals(
                 category: sourceProject.category || 'construction',
                 color: sourceProject.color || '',
                 projectMasterId: sourceProject.projectMasterId,
+                sortOrder: newSortOrder,
             };
 
             await addProject(newProject as Project);
             currentDate.setDate(currentDate.getDate() + 1);
         }
-    }, [copyEvent, projects, addProject]);
+    }, [copyEvent, projects, events, addProject]);
 
     return {
         // プロジェクトモーダル
