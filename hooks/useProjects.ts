@@ -180,6 +180,7 @@ export function useProjects() {
             trucks: a.vehicles,
             remarks: a.remarks || a.projectMaster?.remarks,
             constructionType: constructionType as 'assembly' | 'demolition' | 'other',
+            constructionContent: a.projectMaster?.constructionContent,
             assignedEmployeeId: a.assignedEmployeeId,
             sortOrder: a.sortOrder,
             vehicles: a.vehicles,

@@ -49,6 +49,7 @@ function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: P
         trucks: assignment.vehicles,
         remarks: assignment.remarks || assignment.projectMaster?.remarks,
         constructionType: constructionType as 'assembly' | 'demolition' | 'other',
+        constructionContent: assignment.projectMaster?.constructionContent,
         assignedEmployeeId: assignment.assignedEmployeeId,
         sortOrder: assignment.sortOrder,
         vehicles: assignment.vehicles,
@@ -538,10 +539,11 @@ export const useCalendarStore = create<CalendarStore>()(
             }));
 
             try {
-                // ProjectMasterの更新が必要な場合（createdByのみ - constructionTypeは配置ごとに管理）
-                if (assignment?.projectMasterId && updates.createdBy) {
+                // ProjectMasterの更新が必要な場合（createdBy, constructionContent）
+                if (assignment?.projectMasterId && (updates.createdBy || updates.constructionContent)) {
                     const projectMasterUpdates: Record<string, unknown> = {};
                     if (updates.createdBy) projectMasterUpdates.createdBy = updates.createdBy;
+                    if (updates.constructionContent) projectMasterUpdates.constructionContent = updates.constructionContent;
 
                     await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
                         method: 'PATCH',
