@@ -81,9 +81,25 @@ export async function POST(req: NextRequest) {
 
         const { title, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
 
+        // customerShortNameが未指定の場合、Customerテーブルから自動取得
+        let resolvedCustomerShortName = customerShortName || null;
+        let resolvedCustomerId = customerId || null;
+        if (!resolvedCustomerShortName && customerName) {
+            const customer = await prisma.customer.findFirst({
+                where: { name: customerName },
+                select: { id: true, shortName: true },
+            });
+            if (customer) {
+                resolvedCustomerShortName = customer.shortName || null;
+                if (!resolvedCustomerId) {
+                    resolvedCustomerId = customer.id;
+                }
+            }
+        }
+
         const projectMaster = await prisma.projectMaster.create({
             data: {
-                title, customerId: customerId || null, customerName: customerName || null, customerShortName: customerShortName || null,
+                title, customerId: resolvedCustomerId, customerName: customerName || null, customerShortName: resolvedCustomerShortName,
                 constructionType: constructionType || 'other', constructionContent: constructionContent || null,
                 status: status || 'active', location: location || null, postalCode: postalCode || null,
                 prefecture: prefecture || null, city: city || null, plusCode: plusCode || null,
