@@ -25,13 +25,19 @@ export function useDragAndDrop(
     // ドラッグ中の一時的なイベント状態を保持
     const pendingEventsRef = useRef<CalendarEvent[] | null>(null);
 
+    // 最新のeventsを常に参照できるようにする
+    const eventsRef = useRef(events);
+    eventsRef.current = events;
+
     // イベントを移動（handleDragEndより前に定義）
     const moveEvent = useCallback((
         eventId: string,
         newEmployeeId: string,
         newDate: Date
     ) => {
-        const updatedEvents = events.map(event => {
+        // 最新のeventsを使用
+        const currentEvents = eventsRef.current;
+        const updatedEvents = currentEvents.map(event => {
             if (event.id === eventId) {
                 return {
                     ...event,
@@ -43,7 +49,7 @@ export function useDragAndDrop(
         });
 
         onEventsChange(updatedEvents);
-    }, [events, onEventsChange]);
+    }, [onEventsChange]);
 
     // ドラッグ開始
     const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -60,7 +66,7 @@ export function useDragAndDrop(
         }
 
         // 現在の状態を取得（ペンディング状態があればそれを使用）
-        const currentEvents = pendingEventsRef.current || events;
+        const currentEvents = pendingEventsRef.current || eventsRef.current;
 
         // 同じセル内でのソートかどうかを判定
         const activeEvent = currentEvents.find(e => e.id === active.id);
@@ -110,7 +116,7 @@ export function useDragAndDrop(
                 onEventsChange(updatedEvents);
             }
         }
-    }, [events, onEventsChange]);
+    }, [onEventsChange]);
 
     // ドラッグ終了（ドロップ）
     const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -124,7 +130,7 @@ export function useDragAndDrop(
         }
 
         // over.idがイベントIDの場合（セル内ソート）とセルIDの場合（セル間移動）を区別
-        const overEvent = events.find(e => e.id === over.id);
+        const overEvent = eventsRef.current.find(e => e.id === over.id);
 
         if (overEvent) {
             // セル内ソートの場合: ペンディング状態があれば確定済み
@@ -151,7 +157,7 @@ export function useDragAndDrop(
         // イベントを移動
         moveEvent(eventId, newEmployeeId, newDate);
         pendingEventsRef.current = null;
-    }, [events, moveEvent]);
+    }, [moveEvent]);
 
     // ドラッグキャンセル
     const handleDragCancel = useCallback(() => {
