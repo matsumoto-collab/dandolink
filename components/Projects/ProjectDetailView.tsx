@@ -19,6 +19,7 @@ interface ProjectDetailViewProps {
 export default function ProjectDetailView({ project, onEdit, onClose, onDelete, readOnly = false }: ProjectDetailViewProps) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
+    const [isLoadingManagers, setIsLoadingManagers] = useState(true);
 
     // 案件担当者を配列として扱う
     const managers = Array.isArray(project.createdBy)
@@ -42,10 +43,14 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                 }
             } catch {
                 // エラー時は何もしない（IDのまま表示）
+            } finally {
+                setIsLoadingManagers(false);
             }
         };
         if (managers.length > 0) {
             fetchManagers();
+        } else {
+            setIsLoadingManagers(false);
         }
     }, [managers.length]);
 
@@ -102,14 +107,18 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             案件担当者
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            {managers.map((manager, index) => (
-                                <span
-                                    key={index}
-                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
-                                >
-                                    {managerMap[manager] || manager}
-                                </span>
-                            ))}
+                            {isLoadingManagers ? (
+                                <span className="text-sm text-gray-500">読み込み中...</span>
+                            ) : (
+                                managers.map((manager, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                                    >
+                                        {managerMap[manager] || manager}
+                                    </span>
+                                ))
+                            )}
                         </div>
                     </div>
                 )}
