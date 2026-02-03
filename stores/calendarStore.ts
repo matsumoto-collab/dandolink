@@ -524,11 +524,16 @@ export const useCalendarStore = create<CalendarStore>()(
             }));
 
             try {
-                if (updates.constructionType && assignment?.projectMasterId) {
+                // ProjectMasterの更新が必要な場合
+                if (assignment?.projectMasterId && (updates.constructionType || updates.createdBy)) {
+                    const projectMasterUpdates: Record<string, unknown> = {};
+                    if (updates.constructionType) projectMasterUpdates.constructionType = updates.constructionType;
+                    if (updates.createdBy) projectMasterUpdates.createdBy = updates.createdBy;
+
                     await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ constructionType: updates.constructionType }),
+                        body: JSON.stringify(projectMasterUpdates),
                     });
                 }
 
