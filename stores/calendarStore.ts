@@ -453,10 +453,11 @@ export const useCalendarStore = create<CalendarStore>()(
 
             if (project.projectMasterId) {
                 projectMasterId = project.projectMasterId;
-                if (project.constructionType || project.createdBy) {
+                if (project.constructionType || project.createdBy || project.constructionContent) {
                     const updateData: Record<string, unknown> = {};
                     if (project.constructionType) updateData.constructionType = project.constructionType;
                     if (project.createdBy) updateData.createdBy = project.createdBy;
+                    if (project.constructionContent) updateData.constructionContent = project.constructionContent;
                     await fetch(`/api/project-masters/${project.projectMasterId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
@@ -470,12 +471,13 @@ export const useCalendarStore = create<CalendarStore>()(
 
                 if (existing) {
                     projectMasterId = existing.id;
-                    if ((project.constructionType && existing.constructionType !== project.constructionType) || project.createdBy) {
+                    if ((project.constructionType && existing.constructionType !== project.constructionType) || project.createdBy || project.constructionContent) {
                         const updateData: Record<string, unknown> = {};
                         if (project.constructionType && existing.constructionType !== project.constructionType) {
                             updateData.constructionType = project.constructionType;
                         }
                         if (project.createdBy) updateData.createdBy = project.createdBy;
+                        if (project.constructionContent) updateData.constructionContent = project.constructionContent;
                         await fetch(`/api/project-masters/${existing.id}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
@@ -490,6 +492,7 @@ export const useCalendarStore = create<CalendarStore>()(
                             title: project.title,
                             customerName: project.customer,
                             constructionType: project.constructionType || 'other',
+                            constructionContent: project.constructionContent,
                             location: project.location,
                             description: project.description,
                             remarks: project.remarks,

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule, ProjectStatus } from '@/types/calendar';
+import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule, ProjectStatus } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
@@ -51,6 +51,8 @@ export default function ProjectForm({
         selectedVehicles: initialData?.trucks || [],
         // 工事種別（単一選択）
         constructionType: initialData?.constructionType || 'assembly' as 'assembly' | 'demolition' | 'other',
+        // 工事内容
+        constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
         status: initialData?.status || 'pending' as const,
         category: initialData?.category || 'construction' as EventCategory,
         remarks: initialData?.remarks || '',
@@ -203,6 +205,8 @@ export default function ProjectForm({
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
             // 工事種別
             constructionType: formData.constructionType,
+            // 工事内容
+            constructionContent: formData.constructionContent || undefined,
             // 複数日スケジュール
             workSchedules: workSchedules,
             status: formData.status,
@@ -348,6 +352,27 @@ export default function ProjectForm({
                             その他
                         </span>
                     </label>
+                </div>
+            </div>
+
+            {/* 工事内容 */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    工事内容
+                </label>
+                <div className="flex flex-wrap gap-2 border border-gray-200 rounded-md p-3">
+                    {(Object.entries(CONSTRUCTION_CONTENT_LABELS) as [ConstructionContentType, string][]).map(([value, label]) => (
+                        <label key={value} className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                                type="radio"
+                                name="constructionContent"
+                                checked={formData.constructionContent === value}
+                                onChange={() => setFormData({ ...formData, constructionContent: value })}
+                                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{label}</span>
+                        </label>
+                    ))}
                 </div>
             </div>
 
