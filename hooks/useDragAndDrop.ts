@@ -71,17 +71,31 @@ export function useDragAndDrop(
             activeEvent.assignedEmployeeId === overEvent.assignedEmployeeId &&
             activeDateKey === overDateKey
         ) {
-            // セル内でのソート
-            const oldIndex = events.findIndex(e => e.id === active.id);
-            const newIndex = events.findIndex(e => e.id === over.id);
+            // このセル内のイベントのみを取得
+            const cellEvents = events.filter(e =>
+                e.assignedEmployeeId === activeEvent.assignedEmployeeId &&
+                formatDateKey(e.startDate) === activeDateKey
+            ).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
-            if (oldIndex !== newIndex) {
-                const newEvents = arrayMove(events, oldIndex, newIndex);
-                // sortOrderを更新
-                const updatedEvents = newEvents.map((event, index) => ({
-                    ...event,
-                    sortOrder: index,
-                }));
+            const oldIndex = cellEvents.findIndex(e => e.id === active.id);
+            const newIndex = cellEvents.findIndex(e => e.id === over.id);
+
+            if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+                // セル内のイベントを並び替え
+                const reorderedCellEvents = arrayMove(cellEvents, oldIndex, newIndex);
+
+                // 並び替えたセル内イベントのsortOrderを更新
+                const cellEventIds = new Set(reorderedCellEvents.map(e => e.id));
+                const updatedEvents = events.map(event => {
+                    if (cellEventIds.has(event.id)) {
+                        const newSortOrder = reorderedCellEvents.findIndex(e => e.id === event.id);
+                        return {
+                            ...event,
+                            sortOrder: newSortOrder,
+                        };
+                    }
+                    return event;
+                });
                 onEventsChange(updatedEvents);
             }
         }
