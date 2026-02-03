@@ -114,20 +114,30 @@ export function useProjects() {
     }, [addProjectStore, fetchAssignmentsStore]);
 
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+        // リアルタイム購読がfetchを呼ばないよう、先にrefを更新
+        isUpdatingRef.current = true;
         setIsUpdating(true);
         try {
             await updateProjectStore(id, updates);
         } finally {
-            setTimeout(() => setIsUpdating(false), 500);
+            setTimeout(() => {
+                isUpdatingRef.current = false;
+                setIsUpdating(false);
+            }, 500);
         }
     }, [updateProjectStore]);
 
     const updateProjects = useCallback(async (updates: Array<{ id: string; data: Partial<Project> }>) => {
+        // リアルタイム購読がfetchを呼ばないよう、先にrefを更新
+        isUpdatingRef.current = true;
         setIsUpdating(true);
         try {
             await updateProjectsStore(updates);
         } finally {
-            setTimeout(() => setIsUpdating(false), 500);
+            setTimeout(() => {
+                isUpdatingRef.current = false;
+                setIsUpdating(false);
+            }, 500);
         }
     }, [updateProjectsStore]);
 
