@@ -66,6 +66,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.isDispatchConfirmed !== undefined) updateData.isDispatchConfirmed = body.isDispatchConfirmed;
         if (body.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = stringifyJsonField(body.confirmedWorkerIds);
         if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);
+        if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;
 
         const assignment = await prisma.projectAssignment.update({
             where: { id },

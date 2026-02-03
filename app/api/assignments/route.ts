@@ -68,6 +68,7 @@ export async function POST(req: NextRequest) {
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
         const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds } = validation.data;
+        const constructionType = body.constructionType; // バリデーションスキーマ外で取得
 
         const existing = await prisma.projectAssignment.findUnique({
             where: { projectMasterId_assignedEmployeeId_date: { projectMasterId, assignedEmployeeId, date: new Date(date) } },
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
                 meetingTime: meetingTime || null, sortOrder: sortOrder || 0, remarks: remarks || null,
                 isDispatchConfirmed: isDispatchConfirmed || false,
                 confirmedWorkerIds: stringifyJsonField(confirmedWorkerIds), confirmedVehicleIds: stringifyJsonField(confirmedVehicleIds),
+                constructionType: constructionType || null,
 
                 assignmentWorkers: {
                     create: Array.isArray(workers) ? workers.map((w: string) => ({ workerName: w })) : [],

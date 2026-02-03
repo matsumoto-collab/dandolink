@@ -84,6 +84,7 @@ model ProjectAssignment {
   confirmedWorkerIds   String?
   confirmedVehicleIds  String?
   isDispatchConfirmed  Boolean               @default(false)
+  constructionType     String?               // 配置ごとの工事種別（nullの場合はProjectMasterから継承）
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   dailyReportWorkItems DailyReportWorkItem[]

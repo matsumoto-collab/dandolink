@@ -31,8 +31,9 @@ function parseDailyReportDates(report: DailyReport & { date: string; createdAt: 
     };
 }
 
-function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: ProjectMaster }): Project {
-    const constructionType = assignment.projectMaster?.constructionType || 'other';
+function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: ProjectMaster; constructionType?: string }): Project {
+    // 配置ごとのconstructionTypeを優先、なければProjectMasterから取得
+    const constructionType = assignment.constructionType || assignment.projectMaster?.constructionType || 'other';
     const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
 
     return {
@@ -513,6 +514,7 @@ export const useCalendarStore = create<CalendarStore>()(
                     meetingTime: project.meetingTime,
                     sortOrder: project.sortOrder || 0,
                     remarks: project.remarks,
+                    constructionType: project.constructionType,
                 }),
             });
 
@@ -533,10 +535,9 @@ export const useCalendarStore = create<CalendarStore>()(
             }));
 
             try {
-                // ProjectMasterの更新が必要な場合
-                if (assignment?.projectMasterId && (updates.constructionType || updates.createdBy)) {
+                // ProjectMasterの更新が必要な場合（createdByのみ - constructionTypeは配置ごとに管理）
+                if (assignment?.projectMasterId && updates.createdBy) {
                     const projectMasterUpdates: Record<string, unknown> = {};
-                    if (updates.constructionType) projectMasterUpdates.constructionType = updates.constructionType;
                     if (updates.createdBy) projectMasterUpdates.createdBy = updates.createdBy;
 
                     await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
@@ -561,6 +562,7 @@ export const useCalendarStore = create<CalendarStore>()(
                         isDispatchConfirmed: updates.isDispatchConfirmed,
                         confirmedWorkerIds: updates.confirmedWorkerIds,
                         confirmedVehicleIds: updates.confirmedVehicleIds,
+                        constructionType: updates.constructionType,
                     }),
                 });
 
