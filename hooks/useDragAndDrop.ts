@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { DragStartEvent, DragEndEvent, DragOverEvent } from '@dnd-kit/core';
 import { CalendarEvent } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
@@ -21,6 +21,9 @@ export function useDragAndDrop(
     onEventsChange: (events: CalendarEvent[]) => void
 ): UseDragAndDropReturn {
     const [activeId, setActiveId] = useState<string | null>(null);
+
+    // ドラッグ中の一時的なイベント状態を保持
+    const pendingEventsRef = useRef<CalendarEvent[] | null>(null);
 
     // イベントを移動（handleDragEndより前に定義）
     const moveEvent = useCallback((
@@ -45,9 +48,10 @@ export function useDragAndDrop(
     // ドラッグ開始
     const handleDragStart = useCallback((event: DragStartEvent) => {
         setActiveId(event.active.id as string);
+        pendingEventsRef.current = null;
     }, []);
 
-    // ドラッグオーバー（セル内ソート用）
+    // ドラッグオーバー（セル内ソート用 - 状態を蓄積）
     const handleDragOver = useCallback((event: DragOverEvent) => {
         const { active, over } = event;
 
@@ -55,9 +59,12 @@ export function useDragAndDrop(
             return;
         }
 
+        // 現在の状態を取得（ペンディング状態があればそれを使用）
+        const currentEvents = pendingEventsRef.current || events;
+
         // 同じセル内でのソートかどうかを判定
-        const activeEvent = events.find(e => e.id === active.id);
-        const overEvent = events.find(e => e.id === over.id);
+        const activeEvent = currentEvents.find(e => e.id === active.id);
+        const overEvent = currentEvents.find(e => e.id === over.id);
 
         if (!activeEvent || !overEvent) {
             return;
@@ -72,7 +79,7 @@ export function useDragAndDrop(
             activeDateKey === overDateKey
         ) {
             // このセル内のイベントのみを取得
-            const cellEvents = events.filter(e =>
+            const cellEvents = currentEvents.filter(e =>
                 e.assignedEmployeeId === activeEvent.assignedEmployeeId &&
                 formatDateKey(e.startDate) === activeDateKey
             ).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
@@ -86,16 +93,20 @@ export function useDragAndDrop(
 
                 // 並び替えたセル内イベントのsortOrderを更新
                 const cellEventIds = new Set(reorderedCellEvents.map(e => e.id));
-                const updatedEvents = events.map(event => {
-                    if (cellEventIds.has(event.id)) {
-                        const newSortOrder = reorderedCellEvents.findIndex(e => e.id === event.id);
+                const updatedEvents = currentEvents.map(evt => {
+                    if (cellEventIds.has(evt.id)) {
+                        const newSortOrder = reorderedCellEvents.findIndex(e => e.id === evt.id);
                         return {
-                            ...event,
+                            ...evt,
                             sortOrder: newSortOrder,
                         };
                     }
-                    return event;
+                    return evt;
                 });
+
+                // ペンディング状態を更新（UIは更新されるがサーバーにはまだ保存しない）
+                pendingEventsRef.current = updatedEvents;
+                // UIを更新
                 onEventsChange(updatedEvents);
             }
         }
@@ -108,6 +119,7 @@ export function useDragAndDrop(
         setActiveId(null);
 
         if (!over) {
+            pendingEventsRef.current = null;
             return;
         }
 
@@ -115,7 +127,9 @@ export function useDragAndDrop(
         const overEvent = events.find(e => e.id === over.id);
 
         if (overEvent) {
-            // セル内ソートは handleDragOver で処理済み
+            // セル内ソートの場合: ペンディング状態があれば確定済み
+            // handleDragOverですでにonEventsChangeが呼ばれている
+            pendingEventsRef.current = null;
             return;
         }
 
@@ -136,11 +150,13 @@ export function useDragAndDrop(
 
         // イベントを移動
         moveEvent(eventId, newEmployeeId, newDate);
+        pendingEventsRef.current = null;
     }, [events, moveEvent]);
 
     // ドラッグキャンセル
     const handleDragCancel = useCallback(() => {
         setActiveId(null);
+        pendingEventsRef.current = null;
     }, []);
 
     return {
