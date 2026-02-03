@@ -452,11 +452,14 @@ export const useCalendarStore = create<CalendarStore>()(
 
             if (project.projectMasterId) {
                 projectMasterId = project.projectMasterId;
-                if (project.constructionType) {
+                if (project.constructionType || project.createdBy) {
+                    const updateData: Record<string, unknown> = {};
+                    if (project.constructionType) updateData.constructionType = project.constructionType;
+                    if (project.createdBy) updateData.createdBy = project.createdBy;
                     await fetch(`/api/project-masters/${project.projectMasterId}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ constructionType: project.constructionType }),
+                        body: JSON.stringify(updateData),
                     });
                 }
             } else {
@@ -466,11 +469,16 @@ export const useCalendarStore = create<CalendarStore>()(
 
                 if (existing) {
                     projectMasterId = existing.id;
-                    if (project.constructionType && existing.constructionType !== project.constructionType) {
+                    if ((project.constructionType && existing.constructionType !== project.constructionType) || project.createdBy) {
+                        const updateData: Record<string, unknown> = {};
+                        if (project.constructionType && existing.constructionType !== project.constructionType) {
+                            updateData.constructionType = project.constructionType;
+                        }
+                        if (project.createdBy) updateData.createdBy = project.createdBy;
                         await fetch(`/api/project-masters/${existing.id}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ constructionType: project.constructionType }),
+                            body: JSON.stringify(updateData),
                         });
                     }
                 } else {
@@ -484,6 +492,7 @@ export const useCalendarStore = create<CalendarStore>()(
                             location: project.location,
                             description: project.description,
                             remarks: project.remarks,
+                            createdBy: project.createdBy,
                         }),
                     });
                     const newMaster = await createMasterRes.json();
