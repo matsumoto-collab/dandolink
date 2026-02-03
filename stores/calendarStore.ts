@@ -57,6 +57,7 @@ function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: P
         confirmedWorkerIds: assignment.confirmedWorkerIds,
         confirmedVehicleIds: assignment.confirmedVehicleIds,
         isDispatchConfirmed: assignment.isDispatchConfirmed,
+        createdBy: assignment.projectMaster?.createdBy,
         createdAt: assignment.createdAt,
         updatedAt: assignment.updatedAt,
     };

@@ -178,6 +178,7 @@ export function useProjects() {
             confirmedWorkerIds: a.confirmedWorkerIds,
             confirmedVehicleIds: a.confirmedVehicleIds,
             isDispatchConfirmed: a.isDispatchConfirmed,
+            createdBy: a.projectMaster?.createdBy,
             createdAt: a.createdAt,
             updatedAt: a.updatedAt,
         };
