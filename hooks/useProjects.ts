@@ -163,7 +163,8 @@ export function useProjects() {
 
     // Get projects from store (now reactive because we subscribe to assignments)
     const projects = assignments.map((a) => {
-        const constructionType = a.projectMaster?.constructionType || 'other';
+        // 配置ごとのconstructionTypeを優先、なければProjectMasterから取得
+        const constructionType = a.constructionType || a.projectMaster?.constructionType || 'other';
         const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
 
         return {
