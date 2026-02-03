@@ -1,7 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Project, CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
+
+interface ManagerUser {
+    id: string;
+    displayName: string;
+}
 
 interface ProjectDetailViewProps {
     project: Project;
@@ -13,12 +18,36 @@ interface ProjectDetailViewProps {
 
 export default function ProjectDetailView({ project, onEdit, onClose, onDelete, readOnly = false }: ProjectDetailViewProps) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [managerMap, setManagerMap] = useState<Record<string, string>>({});
+
     // 案件担当者を配列として扱う
     const managers = Array.isArray(project.createdBy)
         ? project.createdBy
         : project.createdBy
             ? [project.createdBy]
             : [];
+
+    // マネージャー名を取得
+    useEffect(() => {
+        const fetchManagers = async () => {
+            try {
+                const res = await fetch('/api/users?role=manager,admin');
+                if (res.ok) {
+                    const data = await res.json();
+                    const map: Record<string, string> = {};
+                    data.forEach((user: ManagerUser) => {
+                        map[user.id] = user.displayName;
+                    });
+                    setManagerMap(map);
+                }
+            } catch {
+                // エラー時は何もしない（IDのまま表示）
+            }
+        };
+        if (managers.length > 0) {
+            fetchManagers();
+        }
+    }, [managers.length]);
 
     // ステータスの表示設定
     const statusConfig = {
@@ -78,7 +107,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                                     key={index}
                                     className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
                                 >
-                                    {manager}
+                                    {managerMap[manager] || manager}
                                 </span>
                             ))}
                         </div>
