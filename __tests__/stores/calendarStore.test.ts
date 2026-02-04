@@ -138,14 +138,25 @@ describe('calendarStore', () => {
             expect(state.assignments[0].date).toBeInstanceOf(Date);
         });
 
-        it('addProject: should create assignment and refresh list', async () => {
-            // Mock for project search
+        it('addProject: should create assignment and add to local state', async () => {
+            const mockNewAssignment = {
+                id: 'new-a1',
+                date: '2023-01-01T00:00:00.000Z',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-01-01T00:00:00.000Z',
+                projectMasterId: 'pm1',
+                projectMaster: {
+                    id: 'pm1',
+                    title: 'Existing Project',
+                    createdAt: '2023-01-01T00:00:00.000Z',
+                    updatedAt: '2023-01-01T00:00:00.000Z',
+                }
+            };
+
+            // Mock for project search and assignment creation
             (global.fetch as jest.Mock)
                 .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 'pm1', title: 'Existing Project' }] }) // search
-                .mockResolvedValueOnce({ ok: true }); // post assignment
-
-            // Mock fetchAssignments called internally
-            const spyFetchAssignments = jest.spyOn(useCalendarStore.getState(), 'fetchAssignments').mockImplementation(async () => { });
+                .mockResolvedValueOnce({ ok: true, json: async () => mockNewAssignment }); // post assignment
 
             await act(async () => {
                 await useCalendarStore.getState().addProject({
@@ -155,7 +166,11 @@ describe('calendarStore', () => {
             });
 
             expect(global.fetch).toHaveBeenCalledWith('/api/assignments', expect.any(Object));
-            expect(spyFetchAssignments).toHaveBeenCalled();
+            // Verify assignment was added directly to local state
+            const state = useCalendarStore.getState();
+            expect(state.assignments).toHaveLength(1);
+            expect(state.assignments[0].id).toBe('new-a1');
+            expect(state.assignments[0].date).toBeInstanceOf(Date);
         });
 
         it('updateProject: should verify optimistic update and API call', async () => {

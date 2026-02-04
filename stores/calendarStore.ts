@@ -505,7 +505,7 @@ export const useCalendarStore = create<CalendarStore>()(
                 }
             }
 
-            await fetch('/api/assignments', {
+            const response = await fetch('/api/assignments', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -522,8 +522,28 @@ export const useCalendarStore = create<CalendarStore>()(
                 }),
             });
 
-            // Refresh assignments
-            await get().fetchAssignments();
+            if (!response.ok) {
+                throw new Error('Failed to create assignment');
+            }
+
+            // サーバーからのレスポンスを直接ローカル状態に追加
+            // fetchAssignments()を呼び出すと、進行中のドラッグ操作と競合する可能性がある
+            const newAssignment = await response.json();
+            const parsedAssignment = {
+                ...newAssignment,
+                date: new Date(newAssignment.date),
+                createdAt: new Date(newAssignment.createdAt),
+                updatedAt: new Date(newAssignment.updatedAt),
+                projectMaster: newAssignment.projectMaster ? {
+                    ...newAssignment.projectMaster,
+                    createdAt: new Date(newAssignment.projectMaster.createdAt),
+                    updatedAt: new Date(newAssignment.projectMaster.updatedAt),
+                } : undefined,
+            };
+
+            set((state) => ({
+                assignments: [...state.assignments, parsedAssignment],
+            }));
         },
 
         updateProject: async (id, updates) => {
