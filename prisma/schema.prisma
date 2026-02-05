@@ -92,7 +92,7 @@ model ProjectAssignment {
   assignmentWorkers    AssignmentWorker[]
   assignmentVehicles   AssignmentVehicle[]
 
-  @@unique([projectMasterId, assignedEmployeeId, date])
+  // 一意制約を削除: 同じ案件を同じ日・同じ職長に複数配置可能に（午前組立、夕方解体など）
   @@index([projectMasterId])
   @@index([assignedEmployeeId])
   @@index([date])
