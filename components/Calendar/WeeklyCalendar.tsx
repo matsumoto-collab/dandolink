@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import { useCalendarModals } from '@/hooks/useCalendarModals';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjects, ConflictUpdateError } from '@/hooks/useProjects';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
@@ -19,9 +19,11 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
+import ConflictResolutionModal from './ConflictResolutionModal';
 import { formatDate, getDayOfWeekString, addDays } from '@/utils/dateUtils';
-import { CalendarEvent, Project, Employee } from '@/types/calendar';
+import { CalendarEvent, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
+import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
@@ -47,13 +49,24 @@ interface WeeklyCalendarProps {
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized } = useProjects();
+    const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
 
     const [isMounted, setIsMounted] = useState(false);
     const isReadOnly = partnerMode;
+
+    // Presence機能: 編集中ユーザーの追跡
+    const { getEditingUsers } = useAssignmentPresence();
+
+    // 競合解決モーダル用の状態
+    const [conflictModalOpen, setConflictModalOpen] = useState(false);
+    const [conflictData, setConflictData] = useState<{
+        latestData?: ProjectAssignment;
+        message: string;
+        pendingUpdate?: { id: string; updates: Partial<Project> };
+    } | null>(null);
 
     // 案件をカレンダーイベントに展開 (projectsが変わると再計算)
     const events: CalendarEvent[] = useMemo(() => projects as CalendarEvent[], [projects]);
@@ -71,6 +84,70 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     const canDispatch = useMemo(() => canDispatchCheck(session?.user), [session?.user]);
 
     useEffect(() => { setIsMounted(true); }, []);
+
+    // 競合解決ハンドラー
+    const handleConflictResolution = useCallback(async (action: ConflictResolutionAction) => {
+        if (!conflictData) return;
+
+        switch (action) {
+            case 'reload':
+                // 最新データを読み込む
+                await refreshProjects();
+                break;
+            case 'overwrite':
+                // 自分の変更で上書き（expectedUpdatedAtなしで再送信）
+                if (conflictData.pendingUpdate) {
+                    try {
+                        // 強制上書き: expectedUpdatedAtを送信しない
+                        const response = await fetch(`/api/assignments/${conflictData.pendingUpdate.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                assignedEmployeeId: conflictData.pendingUpdate.updates.assignedEmployeeId,
+                                date: conflictData.pendingUpdate.updates.startDate instanceof Date
+                                    ? conflictData.pendingUpdate.updates.startDate.toISOString()
+                                    : conflictData.pendingUpdate.updates.startDate,
+                                sortOrder: conflictData.pendingUpdate.updates.sortOrder,
+                                workers: conflictData.pendingUpdate.updates.workers,
+                                vehicles: conflictData.pendingUpdate.updates.vehicles,
+                                meetingTime: conflictData.pendingUpdate.updates.meetingTime,
+                                remarks: conflictData.pendingUpdate.updates.remarks,
+                            }),
+                        });
+                        if (response.ok) {
+                            await refreshProjects();
+                        }
+                    } catch (err) {
+                        console.error('Failed to overwrite:', err);
+                    }
+                }
+                break;
+            case 'cancel':
+                // キャンセル: 何もせずモーダルを閉じる（既にrollback済み）
+                break;
+        }
+
+        setConflictModalOpen(false);
+        setConflictData(null);
+    }, [conflictData, refreshProjects]);
+
+    // 競合を処理するupdateProject wrapper
+    const updateProjectWithConflictHandling = useCallback(async (id: string, updates: Partial<Project>) => {
+        try {
+            await updateProject(id, updates);
+        } catch (error) {
+            if (error instanceof ConflictUpdateError) {
+                setConflictData({
+                    latestData: error.latestData,
+                    message: error.message,
+                    pendingUpdate: { id, updates },
+                });
+                setConflictModalOpen(true);
+            } else {
+                throw error;
+            }
+        }
+    }, [updateProject]);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday } = useCalendar(events);
 
@@ -117,11 +194,12 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                         updates.startDate = updatedEvent.startDate;
                     }
 
-                    updateProject(projectId, updates);
+                    // 競合ハンドリング付きで更新
+                    updateProjectWithConflictHandling(projectId, updates);
                 }
             }
         });
-    }, [updateProject]));
+    }, [updateProjectWithConflictHandling]));
 
     // 職長別の行データを生成
     const employeeRows = useMemo(() => {
@@ -168,14 +246,14 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         updateProjects(updates);
     }, [projects, updateProjects]);
 
-    // モーダルから案件を保存
+    // モーダルから案件を保存（競合ハンドリング付き）
     const handleSaveProject = useCallback((projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
         if (modalInitialData.id) {
-            updateProject(modalInitialData.id, projectData);
+            updateProjectWithConflictHandling(modalInitialData.id, projectData);
         } else {
             addProject(projectData);
         }
-    }, [modalInitialData.id, updateProject, addProject]);
+    }, [modalInitialData.id, updateProjectWithConflictHandling, addProject]);
 
     if (!isMounted || isCalendarLoading || !isInitialized) {
         return (
@@ -269,6 +347,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                                     projects={projects}
                                     isReadOnly={isReadOnly}
                                     onCopyEvent={isReadOnly ? undefined : handleCopyEvent}
+                                    getEditingUsers={getEditingUsers}
                                 />
                             ))}
                         </div>
@@ -323,6 +402,17 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                 onClose={handleSelectionCancel}
                 onSelectExisting={handleSelectExisting}
                 onCreateNew={handleCreateNew}
+            />
+
+            <ConflictResolutionModal
+                isOpen={conflictModalOpen}
+                onClose={() => {
+                    setConflictModalOpen(false);
+                    setConflictData(null);
+                }}
+                onResolve={handleConflictResolution}
+                latestData={conflictData?.latestData}
+                conflictMessage={conflictData?.message}
             />
         </DndContext>
     );

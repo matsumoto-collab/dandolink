@@ -93,6 +93,21 @@ export function validationErrorResponse(message: string, details?: unknown) {
 }
 
 /**
+ * 競合エラーレスポンス（楽観的ロック用）
+ * 他のユーザーによる更新が先に行われた場合に返却
+ */
+export function conflictResponse<T>(message: string, latestData: T) {
+    return NextResponse.json(
+        {
+            error: message,
+            code: 'CONFLICT',
+            latestData,
+        },
+        { status: 409 }
+    );
+}
+
+/**
  * Prismaエラーの種類を判定
  */
 function getPrismaErrorInfo(error: unknown): { status: number; message: string; code?: string } | null {

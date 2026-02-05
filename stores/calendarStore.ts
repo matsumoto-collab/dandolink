@@ -1,8 +1,20 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { ProjectMaster, Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS, ProjectAssignment } from '@/types/calendar';
+import { ProjectMaster, Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS, ProjectAssignment, ConflictError } from '@/types/calendar';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 import { VacationRecord } from '@/types/vacation';
+
+// カスタムエラークラス: 競合エラー
+export class ConflictUpdateError extends Error {
+    code = 'CONFLICT' as const;
+    latestData: ProjectAssignment;
+
+    constructor(message: string, latestData: ProjectAssignment) {
+        super(message);
+        this.name = 'ConflictUpdateError';
+        this.latestData = latestData;
+    }
+}
 
 // Types
 interface ForemanUser {
@@ -576,6 +588,7 @@ export const useCalendarStore = create<CalendarStore>()(
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
+                        expectedUpdatedAt: assignment?.updatedAt?.toISOString(), // 楽観的ロック用
                         assignedEmployeeId: updates.assignedEmployeeId,
                         date: updates.startDate instanceof Date ? updates.startDate.toISOString() : updates.startDate,
                         memberCount: updates.workers?.length,
@@ -591,12 +604,36 @@ export const useCalendarStore = create<CalendarStore>()(
                     }),
                 });
 
+                if (response.status === 409) {
+                    // 競合エラー: 他のユーザーが先に更新している
+                    const errorData = await response.json() as ConflictError;
+                    // ロールバック
+                    set({ assignments: previousAssignments });
+                    throw new ConflictUpdateError(errorData.error, errorData.latestData);
+                }
+
                 if (!response.ok) {
                     throw new Error('Failed to update assignment');
                 }
+
+                // 成功時: サーバーから返された最新データでローカル状態を更新
+                const updatedAssignment = await response.json();
+                set((state) => ({
+                    assignments: state.assignments.map((a) =>
+                        a.id === id ? {
+                            ...a,
+                            ...updatedAssignment,
+                            date: new Date(updatedAssignment.date),
+                            createdAt: new Date(updatedAssignment.createdAt),
+                            updatedAt: new Date(updatedAssignment.updatedAt),
+                        } : a
+                    ),
+                }));
             } catch (error) {
-                // Rollback on error
-                set({ assignments: previousAssignments });
+                // ConflictUpdateError以外のエラーの場合のみロールバック
+                if (!(error instanceof ConflictUpdateError)) {
+                    set({ assignments: previousAssignments });
+                }
                 throw error;
             }
         },
@@ -622,27 +659,45 @@ export const useCalendarStore = create<CalendarStore>()(
             });
 
             try {
-                await fetch('/api/assignments/batch', {
+                const response = await fetch('/api/assignments/batch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        updates: updates.map((u) => ({
-                            id: u.id,
-                            data: {
-                                assignedEmployeeId: u.data.assignedEmployeeId,
-                                date: u.data.startDate instanceof Date ? u.data.startDate.toISOString() : u.data.startDate,
-                                sortOrder: u.data.sortOrder,
-                                workers: u.data.workers,
-                                vehicles: u.data.vehicles,
-                                meetingTime: u.data.meetingTime,
-                                remarks: u.data.remarks,
-                            },
-                        })),
+                        updates: updates.map((u) => {
+                            const assignment = assignments.find((a) => a.id === u.id);
+                            return {
+                                id: u.id,
+                                expectedUpdatedAt: assignment?.updatedAt?.toISOString(), // 楽観的ロック用
+                                data: {
+                                    assignedEmployeeId: u.data.assignedEmployeeId,
+                                    date: u.data.startDate instanceof Date ? u.data.startDate.toISOString() : u.data.startDate,
+                                    sortOrder: u.data.sortOrder,
+                                    workers: u.data.workers,
+                                    vehicles: u.data.vehicles,
+                                    meetingTime: u.data.meetingTime,
+                                    remarks: u.data.remarks,
+                                },
+                            };
+                        }),
                     }),
                 });
+
+                if (response.status === 409) {
+                    // 競合エラー: 他のユーザーが先に更新している
+                    const errorData = await response.json() as ConflictError;
+                    // ロールバック
+                    set({ assignments: previousAssignments });
+                    throw new ConflictUpdateError(errorData.error, errorData.latestData);
+                }
+
+                if (!response.ok) {
+                    throw new Error('Failed to update assignments');
+                }
             } catch (error) {
-                // Rollback on error
-                set({ assignments: previousAssignments });
+                // ConflictUpdateError以外のエラーの場合のみロールバック
+                if (!(error instanceof ConflictUpdateError)) {
+                    set({ assignments: previousAssignments });
+                }
                 throw error;
             }
         },

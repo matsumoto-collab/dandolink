@@ -1,5 +1,5 @@
 import React from 'react';
-import { EmployeeRow, Project } from '@/types/calendar';
+import { EmployeeRow, Project, EditingUser } from '@/types/calendar';
 import { WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import DraggableEventCard from './DraggableEventCard';
@@ -22,6 +22,7 @@ interface EmployeeRowComponentProps {
     isLast?: boolean;
     isReadOnly?: boolean;
     onCopyEvent?: (eventId: string) => void;
+    getEditingUsers?: (assignmentId: string) => EditingUser[];
 }
 
 export default function EmployeeRowComponent({
@@ -40,6 +41,7 @@ export default function EmployeeRowComponent({
     isLast = false,
     isReadOnly = false,
     onCopyEvent,
+    getEditingUsers,
 }: EmployeeRowComponentProps) {
 
     const handleDelete = () => {
@@ -145,6 +147,7 @@ export default function EmployeeRowComponent({
                                     canDispatch={canDispatch}
                                     disabled={isReadOnly}
                                     onCopy={onCopyEvent ? () => onCopyEvent(event.id) : undefined}
+                                    editingUsers={getEditingUsers?.(projectId)}
                                 />
                             );
                         })}

@@ -6,6 +6,7 @@ import {
     errorResponse,
     notFoundResponse,
     serverErrorResponse,
+    conflictResponse,
 } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
@@ -41,6 +42,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
 /**
  * PATCH /api/assignments/[id] - 配置更新
+ * 楽観的ロック対応: expectedUpdatedAtパラメータで競合を検出
  */
 export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
@@ -53,6 +55,29 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
         const body = await req.json();
+
+        // 楽観的ロック: expectedUpdatedAtが指定されている場合、競合をチェック
+        if (body.expectedUpdatedAt) {
+            const current = await prisma.projectAssignment.findUnique({
+                where: { id },
+                include: { projectMaster: true },
+            });
+
+            if (!current) {
+                return notFoundResponse('配置');
+            }
+
+            const expectedTime = new Date(body.expectedUpdatedAt).getTime();
+            const actualTime = current.updatedAt.getTime();
+
+            if (expectedTime !== actualTime) {
+                // 競合検出: 他のユーザーが先に更新している
+                return conflictResponse(
+                    '他のユーザーによって更新されています。最新のデータを確認してください。',
+                    formatAssignment(current)
+                );
+            }
+        }
 
         const updateData: Record<string, unknown> = {};
         if (body.assignedEmployeeId !== undefined) updateData.assignedEmployeeId = body.assignedEmployeeId;

@@ -9,6 +9,9 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 // Re-export types for backward compatibility
 export type { Project, CalendarEvent, ProjectAssignment, ProjectMaster } from '@/types/calendar';
 
+// Re-export ConflictUpdateError for use in components
+export { ConflictUpdateError } from '@/stores/calendarStore';
+
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useProjects() {
     const { status } = useSession();

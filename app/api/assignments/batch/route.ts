@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, validationErrorResponse, conflictResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
+import { formatAssignment } from '@/lib/formatters';
 
 interface BatchUpdate {
     id: string;
+    expectedUpdatedAt?: string; // 楽観的ロック用
     data: {
         assignedEmployeeId?: string;
         date?: string;
@@ -22,6 +24,7 @@ interface BatchUpdate {
 
 /**
  * POST /api/assignments/batch - 配置の一括更新
+ * 楽観的ロック対応: 1件でも競合があれば全体をロールバック
  */
 export async function POST(req: NextRequest) {
     try {
@@ -36,6 +39,36 @@ export async function POST(req: NextRequest) {
 
         if (!updates || !Array.isArray(updates)) {
             return validationErrorResponse('updates配列が必要です');
+        }
+
+        // 楽観的ロック: expectedUpdatedAtが指定されている更新がある場合、先に競合チェック
+        const updatesWithLock = updates.filter(u => u.expectedUpdatedAt);
+        if (updatesWithLock.length > 0) {
+            const ids = updatesWithLock.map(u => u.id);
+            const currentRecords = await prisma.projectAssignment.findMany({
+                where: { id: { in: ids } },
+                include: { projectMaster: true },
+            });
+
+            const currentMap = new Map(currentRecords.map(r => [r.id, r]));
+
+            for (const update of updatesWithLock) {
+                const current = currentMap.get(update.id);
+                if (!current) {
+                    return validationErrorResponse(`配置 ${update.id} が見つかりません`);
+                }
+
+                const expectedTime = new Date(update.expectedUpdatedAt!).getTime();
+                const actualTime = current.updatedAt.getTime();
+
+                if (expectedTime !== actualTime) {
+                    // 競合検出: 他のユーザーが先に更新している
+                    return conflictResponse(
+                        `配置「${current.projectMaster?.title || update.id}」が他のユーザーによって更新されています。`,
+                        formatAssignment(current)
+                    );
+                }
+            }
         }
 
         const results = await prisma.$transaction(

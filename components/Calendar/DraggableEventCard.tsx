@@ -1,8 +1,8 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { CalendarEvent } from '@/types/calendar';
-import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy } from 'lucide-react';
+import { CalendarEvent, EditingUser } from '@/types/calendar';
+import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -13,6 +13,7 @@ interface DraggableEventCardProps {
     canMoveDown?: boolean;
     onDispatch?: () => void;
     isDispatchConfirmed?: boolean;
+    editingUsers?: EditingUser[];
     canDispatch?: boolean;
     disabled?: boolean;
     onCopy?: () => void;
@@ -30,7 +31,9 @@ export default function DraggableEventCard({
     canDispatch = false,
     disabled = false,
     onCopy,
+    editingUsers = [],
 }: DraggableEventCardProps) {
+    const hasOtherEditors = editingUsers.length > 0;
     const {
         attributes,
         listeners,
@@ -68,6 +71,15 @@ export default function DraggableEventCard({
                 className="relative rounded-lg"
                 style={{ backgroundColor: event.color }}
             >
+                {/* 編集中インジケーター */}
+                {hasOtherEditors && (
+                    <div
+                        className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 rounded text-[10px] text-amber-800"
+                        title={`${editingUsers.map(u => u.name).join(', ')}が編集中`}
+                    >
+                        <Edit3 className="w-2.5 h-2.5 animate-pulse" />
+                    </div>
+                )}
                 <div className="pl-2">
                     {/* ドラッグハンドルと矢印ボタン */}
                     <div className="flex items-start gap-2">

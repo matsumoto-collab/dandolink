@@ -4,6 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Project } from '@/types/calendar';
 import ProjectForm from './ProjectForm';
 import ProjectDetailView from './ProjectDetailView';
+import EditingIndicator from '../Calendar/EditingIndicator';
+import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 
 interface ProjectModalProps {
     isOpen: boolean;
@@ -32,12 +34,30 @@ export default function ProjectModal({
     // 既存案件の場合は閲覧モード、新規作成の場合は編集モード
     const [isEditMode, setIsEditMode] = useState(!initialData?.id);
 
+    // Presence機能: 編集中ユーザーの追跡
+    const { startEditing, stopEditing, getEditingUsers } = useAssignmentPresence();
+    const assignmentId = initialData?.assignmentId || initialData?.id;
+    const otherEditingUsers = assignmentId ? getEditingUsers(assignmentId) : [];
+
     // モーダルが開くたびに初期状態をリセット
     useEffect(() => {
         if (isOpen) {
             setIsEditMode(!initialData?.id);
         }
     }, [isOpen, initialData?.id]);
+
+    // 編集開始/終了をPresenceに通知
+    useEffect(() => {
+        if (isOpen && assignmentId && isEditMode) {
+            startEditing(assignmentId);
+        }
+
+        return () => {
+            if (assignmentId) {
+                stopEditing();
+            }
+        };
+    }, [isOpen, assignmentId, isEditMode, startEditing, stopEditing]);
 
     // ESCキーでモーダルを閉じる
     useEffect(() => {
@@ -84,7 +104,12 @@ export default function ProjectModal({
             <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 {/* ヘッダー */}
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
-                    <h2 className="text-xl font-semibold text-gray-900">{modalTitle}</h2>
+                    <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-semibold text-gray-900">{modalTitle}</h2>
+                        {otherEditingUsers.length > 0 && (
+                            <EditingIndicator users={otherEditingUsers} />
+                        )}
+                    </div>
                     <button
                         onClick={onClose}
                         className="text-gray-400 hover:text-gray-600 transition-colors"

@@ -1,0 +1,100 @@
+'use client';
+
+import React from 'react';
+import { ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
+import { AlertTriangle, RefreshCw, Upload, X } from 'lucide-react';
+
+interface ConflictResolutionModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onResolve: (action: ConflictResolutionAction) => void;
+    latestData?: ProjectAssignment;
+    conflictMessage?: string;
+}
+
+export default function ConflictResolutionModal({
+    isOpen,
+    onClose,
+    onResolve,
+    latestData,
+    conflictMessage = '他のユーザーによってデータが更新されました',
+}: ConflictResolutionModalProps) {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 lg:left-64 z-[70] flex items-center justify-center">
+            {/* オーバーレイ */}
+            <div
+                className="absolute inset-0 bg-black bg-opacity-50"
+                onClick={onClose}
+            />
+
+            {/* モーダルコンテンツ */}
+            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+                {/* ヘッダー */}
+                <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-center gap-3 rounded-t-lg">
+                    <AlertTriangle className="w-6 h-6 text-amber-600" />
+                    <h2 className="text-lg font-semibold text-amber-800">編集の競合</h2>
+                </div>
+
+                {/* コンテンツ */}
+                <div className="px-6 py-4">
+                    <p className="text-gray-700 mb-4">
+                        {conflictMessage}
+                    </p>
+
+                    {latestData && (
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h3 className="text-sm font-medium text-gray-700 mb-2">最新のデータ:</h3>
+                            <div className="text-sm text-gray-600 space-y-1">
+                                <p>
+                                    <span className="font-medium">現場名:</span>{' '}
+                                    {latestData.projectMaster?.title || '不明'}
+                                </p>
+                                <p>
+                                    <span className="font-medium">日付:</span>{' '}
+                                    {new Date(latestData.date).toLocaleDateString('ja-JP')}
+                                </p>
+                                <p>
+                                    <span className="font-medium">更新日時:</span>{' '}
+                                    {new Date(latestData.updatedAt).toLocaleString('ja-JP')}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    <p className="text-sm text-gray-500 mb-6">
+                        どのように処理しますか？
+                    </p>
+
+                    {/* アクションボタン */}
+                    <div className="space-y-3">
+                        <button
+                            onClick={() => onResolve('reload')}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            <RefreshCw className="w-5 h-5" />
+                            <span>最新のデータを読み込む</span>
+                        </button>
+
+                        <button
+                            onClick={() => onResolve('overwrite')}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                        >
+                            <Upload className="w-5 h-5" />
+                            <span>自分の変更で上書き</span>
+                        </button>
+
+                        <button
+                            onClick={() => onResolve('cancel')}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                        >
+                            <X className="w-5 h-5" />
+                            <span>キャンセル</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}

@@ -298,3 +298,30 @@ export const CONSTRUCTION_TYPE_LABELS: Record<ConstructionType, string> = {
     demolition: '解体',
     other: 'その他',
 };
+
+// ===== 競合解決関連 =====
+
+// 競合エラーレスポンスの型
+export interface ConflictError {
+    error: string;
+    code: 'CONFLICT';
+    latestData: ProjectAssignment;
+}
+
+// 競合解決の選択肢
+export type ConflictResolutionAction = 'reload' | 'overwrite' | 'cancel';
+
+// 編集中ユーザー情報
+export interface EditingUser {
+    id: string;
+    name: string;
+    startedAt: Date;
+}
+
+// Presenceで追跡する編集状態
+export interface AssignmentEditingState {
+    assignmentId: string;
+    userId: string;
+    userName: string;
+    startedAt: string;
+}
