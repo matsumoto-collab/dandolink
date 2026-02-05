@@ -114,8 +114,8 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
             </FormField>
 
             {/* 元請け（顧客選択） */}
-            <div className="relative">
-                <FormField label="元請け" required>
+            <FormField label="元請け" required>
+                <div className="relative">
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
@@ -130,57 +130,57 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                             placeholder="顧客を検索..."
                         />
                     </div>
-                </FormField>
-                {showCustomerDropdown && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                        {filteredCustomers.map(customer => (
+                    {showCustomerDropdown && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {filteredCustomers.map(customer => (
+                                <button
+                                    key={customer.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setFormData({
+                                            ...formData,
+                                            customerId: customer.id,
+                                            customerName: customer.name,
+                                        });
+                                        setCustomerSearchTerm('');
+                                        setShowCustomerDropdown(false);
+                                    }}
+                                    className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                                >
+                                    <span>{customer.name}</span>
+                                    {customer.shortName && (
+                                        <span className="text-sm text-gray-500">({customer.shortName})</span>
+                                    )}
+                                </button>
+                            ))}
                             <button
-                                key={customer.id}
                                 type="button"
                                 onClick={() => {
-                                    setFormData({
-                                        ...formData,
-                                        customerId: customer.id,
-                                        customerName: customer.name,
-                                    });
-                                    setCustomerSearchTerm('');
-                                    setShowCustomerDropdown(false);
+                                    window.open('/customers', '_blank');
                                 }}
-                                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                                className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2 border-t"
                             >
-                                <span>{customer.name}</span>
-                                {customer.shortName && (
-                                    <span className="text-sm text-gray-500">({customer.shortName})</span>
-                                )}
+                                <Plus className="w-4 h-4" />
+                                新しい顧客/外注などを作成
                             </button>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => {
-                                window.open('/customers', '_blank');
-                            }}
-                            className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2 border-t"
-                        >
-                            <Plus className="w-4 h-4" />
-                            新しい顧客/外注などを作成
-                        </button>
-                    </div>
-                )}
-                {formData.customerName && (
-                    <div className="mt-2 flex items-center gap-2">
-                        <span className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
-                            {formData.customerName}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setFormData({ ...formData, customerId: '', customerName: '' })}
-                            className="text-gray-400 hover:text-red-500"
-                        >
-                            ×
-                        </button>
-                    </div>
-                )}
-            </div>
+                        </div>
+                    )}
+                    {formData.customerName && (
+                        <div className="mt-2 flex items-center gap-2">
+                            <span className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                                {formData.customerName}
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setFormData({ ...formData, customerId: '', customerName: '' })}
+                                className="text-gray-400 hover:text-red-500"
+                            >
+                                ×
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </FormField>
         </div>
     );
 }
