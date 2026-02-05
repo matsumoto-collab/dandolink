@@ -2,8 +2,9 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { useSession } from 'next-auth/react';
-import { ProjectAssignment, AssignmentCalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { ProjectAssignment, AssignmentCalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 import { supabase } from '@/lib/supabase';
+import { useMasterStore } from '@/stores/masterStore';
 
 interface AssignmentContextType {
     assignments: ProjectAssignment[];
@@ -225,9 +226,14 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
 
     // カレンダー表示用に変換
     const getCalendarEvents = useCallback((): AssignmentCalendarEvent[] => {
+        // マスターデータから工事種別を取得
+        const constructionTypes = useMasterStore.getState().constructionTypes;
+
         return assignments.map(a => {
-            const constructionType = a.projectMaster?.constructionType || 'other';
-            const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
+            const constructionType = a.constructionType || a.projectMaster?.constructionType || 'other';
+            // マスターデータから色を取得（IDまたはレガシーコードで検索）
+            const masterType = constructionTypes.find(ct => ct.id === constructionType || ct.name === constructionType);
+            const color = masterType?.color || DEFAULT_CONSTRUCTION_TYPE_COLORS[constructionType] || DEFAULT_CONSTRUCTION_TYPE_COLORS.other;
 
             return {
                 id: a.id,
@@ -242,7 +248,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
                 workers: a.workers,
                 trucks: a.vehicles,
                 remarks: a.remarks || a.projectMaster?.remarks,
-                constructionType: constructionType as 'assembly' | 'demolition' | 'other',
+                constructionType,
                 assignedEmployeeId: a.assignedEmployeeId,
                 sortOrder: a.sortOrder,
                 projectMasterId: a.projectMasterId,

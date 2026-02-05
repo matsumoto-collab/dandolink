@@ -1,15 +1,14 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule } from '@/types/calendar';
+import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { isManagerOrAbove } from '@/utils/permissions';
-import VehicleModal from '../VehicleModal';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
-import { Plus, User, Search } from 'lucide-react';
+import { User, Search } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -36,7 +35,7 @@ export default function ProjectForm({
     defaultEmployeeId,
 }: ProjectFormProps) {
     const { projects } = useProjects();
-    const { vehicles: mockVehicles, totalMembers: TOTAL_MEMBERS } = useMasterData();
+    const { vehicles: mockVehicles, constructionTypes, totalMembers: TOTAL_MEMBERS } = useMasterData();
 
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
@@ -49,8 +48,8 @@ export default function ProjectForm({
                 : [], // 案件担当者(複数選択)
         memberCount: initialData?.workers?.length || 0, // メンバー数
         selectedVehicles: initialData?.trucks || [],
-        // 工事種別（単一選択）
-        constructionType: initialData?.constructionType || 'assembly' as 'assembly' | 'demolition' | 'other',
+        // 工事種別（単一選択 - IDまたはレガシーコードで保存）
+        constructionType: initialData?.constructionType || '',
         // 工事内容
         constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
         remarks: initialData?.remarks || '',
@@ -60,8 +59,6 @@ export default function ProjectForm({
     const [useMultiDaySchedule, setUseMultiDaySchedule] = useState(false);
     const [assemblySchedules, setAssemblySchedules] = useState<DailySchedule[]>([]);
     const [demolitionSchedules, setDemolitionSchedules] = useState<DailySchedule[]>([]);
-
-    const [isVehicleModalOpen, setIsVehicleModalOpen] = useState(false);
 
     // 顧客選択用のstate
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -170,8 +167,9 @@ export default function ProjectForm({
         // 日程はカレンダーの日付を使用
         const startDate = initialData?.startDate || defaultDate || new Date();
 
-        // 色の決定: 組立なら青、解体なら赤、その他なら黄色
-        const color = CONSTRUCTION_TYPE_COLORS[formData.constructionType];
+        // 色の決定: マスターデータから取得、なければデフォルト
+        const selectedType = constructionTypes.find(ct => ct.id === formData.constructionType);
+        const color = selectedType?.color || DEFAULT_CONSTRUCTION_TYPE_COLORS[formData.constructionType] || '#a8c8e8';
 
         // 複数日スケジュールを使用する場合
         let workSchedules: WorkSchedule[] | undefined = undefined;
@@ -286,68 +284,40 @@ export default function ProjectForm({
                     工事種別 <span className="text-red-500">*</span>
                 </label>
                 <div className="flex flex-wrap gap-3 border border-gray-200 rounded-md p-4">
-                    {/* 組立 */}
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                            type="radio"
-                            name="constructionType"
-                            checked={formData.constructionType === 'assembly'}
-                            onChange={() => setFormData({ ...formData, constructionType: 'assembly' })}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span
-                            className="text-sm font-medium px-3 py-1 rounded-full"
-                            style={{
-                                backgroundColor: `${CONSTRUCTION_TYPE_COLORS.assembly}20`,
-                                color: CONSTRUCTION_TYPE_COLORS.assembly,
-                                border: `2px solid ${CONSTRUCTION_TYPE_COLORS.assembly}`
-                            }}
-                        >
-                            組立
-                        </span>
-                    </label>
+                    {constructionTypes.length > 0 ? (
+                        constructionTypes.map((type) => {
+                            // 明るい背景色を生成（色に透明度を追加）
+                            const bgColor = `${type.color}30`;
+                            // テキスト色（暗めの色を生成）
+                            const textColor = type.color;
 
-                    {/* 解体 */}
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                            type="radio"
-                            name="constructionType"
-                            checked={formData.constructionType === 'demolition'}
-                            onChange={() => setFormData({ ...formData, constructionType: 'demolition' })}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span
-                            className="text-sm font-medium px-3 py-1 rounded-full"
-                            style={{
-                                backgroundColor: `${CONSTRUCTION_TYPE_COLORS.demolition}20`,
-                                color: CONSTRUCTION_TYPE_COLORS.demolition,
-                                border: `2px solid ${CONSTRUCTION_TYPE_COLORS.demolition}`
-                            }}
-                        >
-                            解体
-                        </span>
-                    </label>
-
-                    {/* その他 */}
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                            type="radio"
-                            name="constructionType"
-                            checked={formData.constructionType === 'other'}
-                            onChange={() => setFormData({ ...formData, constructionType: 'other' })}
-                            className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                        />
-                        <span
-                            className="text-sm font-medium px-3 py-1 rounded-full"
-                            style={{
-                                backgroundColor: `${CONSTRUCTION_TYPE_COLORS.other}40`,
-                                color: '#854d0e',
-                                border: `2px solid ${CONSTRUCTION_TYPE_COLORS.other}`
-                            }}
-                        >
-                            その他
-                        </span>
-                    </label>
+                            return (
+                                <label key={type.id} className="flex items-center space-x-2 cursor-pointer">
+                                    <input
+                                        type="radio"
+                                        name="constructionType"
+                                        checked={formData.constructionType === type.id}
+                                        onChange={() => setFormData({ ...formData, constructionType: type.id })}
+                                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <span
+                                        className="text-sm font-medium px-3 py-1 rounded-full"
+                                        style={{
+                                            backgroundColor: bgColor,
+                                            color: textColor,
+                                            border: `2px solid ${type.color}`
+                                        }}
+                                    >
+                                        {type.name}
+                                    </span>
+                                </label>
+                            );
+                        })
+                    ) : (
+                        <p className="text-sm text-gray-500">
+                            設定の「工事種別」から種別を追加してください
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -485,29 +455,19 @@ export default function ProjectForm({
 
             {/* 車両（チェックボックス） */}
             <div>
-                <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                        車両
-                    </label>
-                    <button
-                        type="button"
-                        onClick={() => setIsVehicleModalOpen(true)}
-                        className="flex items-center gap-1 px-3 py-1 text-sm bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors"
-                    >
-                        <Plus className="w-4 h-4" />
-                        追加
-                    </button>
-                </div>
-                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    車両
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto border border-gray-200 rounded-md p-3">
                     {mockVehicles.map(vehicle => (
-                        <label key={vehicle.id} className="flex items-center space-x-2 cursor-pointer hover:bg-gray-50 p-1 rounded">
+                        <label key={vehicle.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-1.5 rounded text-sm">
                             <input
                                 type="checkbox"
                                 checked={formData.selectedVehicles.includes(vehicle.name)}
                                 onChange={() => handleVehicleToggle(vehicle.name)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                className="w-4 h-4 shrink-0 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                             />
-                            <span className="text-sm text-gray-700">{vehicle.name}</span>
+                            <span className="text-gray-700 truncate">{vehicle.name}</span>
                         </label>
                     ))}
                 </div>
@@ -517,12 +477,6 @@ export default function ProjectForm({
                     </p>
                 )}
             </div>
-
-            {/* VehicleModal */}
-            <VehicleModal
-                isOpen={isVehicleModalOpen}
-                onClose={() => setIsVehicleModalOpen(false)}
-            />
 
             {/* 備考 */}
             <div>

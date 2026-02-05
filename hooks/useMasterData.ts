@@ -15,6 +15,7 @@ export function useMasterData() {
     const vehicles = useMasterStore((state) => state.vehicles);
     const workers = useMasterStore((state) => state.workers);
     const managers = useMasterStore((state) => state.managers);
+    const constructionTypes = useMasterStore((state) => state.constructionTypes);
     const totalMembers = useMasterStore((state) => state.totalMembers);
     const isLoading = useMasterStore((state) => state.isLoading);
     const isInitialized = useMasterStore((state) => state.isInitialized);
@@ -57,6 +58,7 @@ export function useMasterData() {
         vehicles,
         workers,
         managers,
+        constructionTypes,
         totalMembers,
         isLoading,
 

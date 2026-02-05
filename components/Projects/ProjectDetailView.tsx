@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Project, CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
+import { useMasterData } from '@/hooks/useMasterData';
 
 interface ManagerUser {
     id: string;
@@ -20,6 +21,25 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
+    const { constructionTypes } = useMasterData();
+
+    // 工事種別の色と名前を取得
+    const constructionTypeInfo = useMemo(() => {
+        const ct = project.constructionType;
+        if (!ct) {
+            return { color: '#a8c8e8', label: '未設定' };
+        }
+        // マスターデータから検索（IDまたはレガシーコード）
+        const masterType = constructionTypes.find(t => t.id === ct || t.name === ct);
+        if (masterType) {
+            return { color: masterType.color, label: masterType.name };
+        }
+        // デフォルト値（後方互換性）
+        return {
+            color: DEFAULT_CONSTRUCTION_TYPE_COLORS[ct] || '#a8c8e8',
+            label: DEFAULT_CONSTRUCTION_TYPE_LABELS[ct] || ct,
+        };
+    }, [project.constructionType, constructionTypes]);
 
     // 案件担当者を配列として扱う
     const managers = Array.isArray(project.createdBy)
@@ -132,12 +152,12 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                         <span
                             className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium"
                             style={{
-                                backgroundColor: `${CONSTRUCTION_TYPE_COLORS[project.constructionType]}20`,
-                                color: CONSTRUCTION_TYPE_COLORS[project.constructionType],
-                                border: `2px solid ${CONSTRUCTION_TYPE_COLORS[project.constructionType]}`
+                                backgroundColor: `${constructionTypeInfo.color}30`,
+                                color: constructionTypeInfo.color,
+                                border: `2px solid ${constructionTypeInfo.color}`
                             }}
                         >
-                            {CONSTRUCTION_TYPE_LABELS[project.constructionType]}
+                            {constructionTypeInfo.label}
                         </span>
                     </div>
                 )}

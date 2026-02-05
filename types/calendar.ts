@@ -37,11 +37,20 @@ export type EventCategory =
     | 'inspection'    // 検査
     | 'other';        // その他
 
-// 工事種別
-export type ConstructionType =
-    | 'assembly'      // 組立
-    | 'demolition'    // 解体
-    | 'other';        // その他
+// 工事種別（IDベース - マスターから動的に取得）
+// 既存のコードとの互換性のため、文字列型も許容
+export type ConstructionType = string;
+
+// 工事種別マスター
+export interface ConstructionTypeMaster {
+    id: string;
+    name: string;
+    color: string;
+    sortOrder: number;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
 
 // 各日のスケジュール
 export interface DailySchedule {
@@ -285,19 +294,46 @@ export const CATEGORY_COLORS: Record<EventCategory, string> = {
     other: CALENDAR_COLORS.light,
 };
 
-// 工事種別別のカラー（プレミアム版）
-export const CONSTRUCTION_TYPE_COLORS: Record<ConstructionType, string> = {
+// 工事種別別のデフォルトカラー（初期データ用・フォールバック用）
+// 実際の色はConstructionTypeMasterから取得してください
+export const DEFAULT_CONSTRUCTION_TYPE_COLORS: Record<string, string> = {
     assembly: '#a8c8e8',    // 薄い青（Light Blue）
     demolition: '#f0a8a8',  // 薄い赤（Light Red/Pink）
     other: '#fef08a',       // 薄い黄色（Light Yellow）
 };
 
-// 工事種別のラベル
-export const CONSTRUCTION_TYPE_LABELS: Record<ConstructionType, string> = {
+// 工事種別のデフォルトラベル（初期データ用・フォールバック用）
+// 実際のラベルはConstructionTypeMasterから取得してください
+export const DEFAULT_CONSTRUCTION_TYPE_LABELS: Record<string, string> = {
     assembly: '組立',
     demolition: '解体',
     other: 'その他',
 };
+
+// 後方互換性のためのエイリアス
+/** @deprecated DEFAULT_CONSTRUCTION_TYPE_COLORSを使用してください */
+export const CONSTRUCTION_TYPE_COLORS = DEFAULT_CONSTRUCTION_TYPE_COLORS;
+/** @deprecated DEFAULT_CONSTRUCTION_TYPE_LABELSを使用してください */
+export const CONSTRUCTION_TYPE_LABELS = DEFAULT_CONSTRUCTION_TYPE_LABELS;
+
+// 色選択用のパレット（15色）
+export const COLOR_PALETTE = [
+    '#a8c8e8',  // ライトブルー
+    '#f0a8a8',  // ライトレッド
+    '#fef08a',  // ライトイエロー
+    '#a8e8c8',  // ライトグリーン
+    '#d8a8e8',  // ライトパープル
+    '#e8c8a8',  // ライトオレンジ
+    '#a8e8e8',  // ライトシアン
+    '#e8a8d8',  // ライトピンク
+    '#c8e8a8',  // ライトライム
+    '#b8b8e8',  // ライトインディゴ
+    '#e8d8a8',  // ライトゴールド
+    '#a8b8c8',  // ライトスレート
+    '#e8b8b8',  // ライトコーラル
+    '#b8e8d8',  // ライトティール
+    '#d8d8d8',  // ライトグレー
+] as const;
 
 // ===== 競合解決関連 =====
 

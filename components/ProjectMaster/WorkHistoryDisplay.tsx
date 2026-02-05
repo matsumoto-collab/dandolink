@@ -1,14 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Calendar, User, Users, Truck, Wrench } from 'lucide-react';
+import { useMasterData } from '@/hooks/useMasterData';
+import { DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 
 interface WorkHistoryItem {
     id: string;
     date: string;
     foremanId: string;
     foremanName: string;
-    constructionType: 'assembly' | 'demolition' | 'other';
+    constructionType: string;
     constructionContent?: string;
     workerIds: string[];
     workerNames: string[];
@@ -22,19 +24,22 @@ interface WorkHistoryDisplayProps {
     projectMasterId: string;
 }
 
-const CONSTRUCTION_TYPE_LABELS: Record<string, string> = {
-    assembly: '組立',
-    demolition: '解体',
-    other: 'その他',
-};
-
-const CONSTRUCTION_TYPE_COLORS: Record<string, string> = {
-    assembly: 'bg-blue-100 text-blue-700',
-    demolition: 'bg-red-100 text-red-700',
-    other: 'bg-yellow-100 text-yellow-700',
-};
-
 export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDisplayProps) {
+    const { constructionTypes } = useMasterData();
+
+    // 工事種別の情報を取得するヘルパー関数
+    const getConstructionTypeInfo = useMemo(() => {
+        return (ct: string) => {
+            const masterType = constructionTypes.find(t => t.id === ct || t.name === ct);
+            if (masterType) {
+                return { color: masterType.color, label: masterType.name };
+            }
+            return {
+                color: DEFAULT_CONSTRUCTION_TYPE_COLORS[ct] || '#a8c8e8',
+                label: DEFAULT_CONSTRUCTION_TYPE_LABELS[ct] || ct || '未設定',
+            };
+        };
+    }, [constructionTypes]);
     const [history, setHistory] = useState<WorkHistoryItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -103,8 +108,14 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                             <span className="font-medium text-gray-800">
                                 {formatDate(item.date)}
                             </span>
-                            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${CONSTRUCTION_TYPE_COLORS[item.constructionType] || 'bg-gray-100 text-gray-700'}`}>
-                                {CONSTRUCTION_TYPE_LABELS[item.constructionType] || item.constructionType}
+                            <span
+                                className="px-2 py-0.5 text-xs font-medium rounded-full"
+                                style={{
+                                    backgroundColor: `${getConstructionTypeInfo(item.constructionType).color}30`,
+                                    color: getConstructionTypeInfo(item.constructionType).color,
+                                }}
+                            >
+                                {getConstructionTypeInfo(item.constructionType).label}
                             </span>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-gray-600">

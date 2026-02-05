@@ -7,6 +7,7 @@ import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import UnitPriceMasterSettings from '@/components/Settings/UnitPriceMasterSettings';
 import UserManagement from '@/components/Settings/UserManagement';
 import CompanyInfoSettings from '@/components/Settings/CompanyInfoSettings';
+import ConstructionTypeSettings from '@/components/Settings/ConstructionTypeSettings';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
@@ -28,7 +29,7 @@ export default function SettingsPage() {
         updateTotalMembers,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'workers' | 'managers' | 'members' | 'unitprices' | 'company' | 'users'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'workers' | 'managers' | 'members' | 'constructionTypes' | 'unitprices' | 'company' | 'users'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [newItemName, setNewItemName] = useState('');
@@ -40,11 +41,12 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'workers' | 'managers' | 'members' | 'unitprices' | 'company' | 'users'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'workers' | 'managers' | 'members' | 'constructionTypes' | 'unitprices' | 'company' | 'users'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: vehicles.length },
             { id: 'workers' as const, label: '職人管理', count: workers.length },
             { id: 'managers' as const, label: '案件担当者管理', count: managers.length },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
+            { id: 'constructionTypes' as const, label: '工事種別', count: null },
             { id: 'unitprices' as const, label: '単価マスター', count: null },
             { id: 'company' as const, label: '会社情報', count: null },
         ];
@@ -223,6 +225,9 @@ export default function SettingsPage() {
                                     </button>
                                 </div>
                             </div>
+                        ) : activeTab === 'constructionTypes' ? (
+                            // 工事種別マスター
+                            <ConstructionTypeSettings />
                         ) : activeTab === 'unitprices' ? (
                             // 単価マスター
                             <UnitPriceMasterSettings />

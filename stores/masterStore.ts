@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { ConstructionTypeMaster } from '@/types/calendar';
 
 // Types
 export interface Vehicle {
@@ -22,6 +23,7 @@ export interface MasterData {
     vehicles: Vehicle[];
     workers: Worker[];
     managers: Manager[];
+    constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
 }
 
@@ -30,6 +32,7 @@ interface MasterState {
     vehicles: Vehicle[];
     workers: Worker[];
     managers: Manager[];
+    constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
 
     // Status
@@ -77,6 +80,7 @@ const initialState: MasterState = {
     vehicles: [],
     workers: [],
     managers: [],
+    constructionTypes: [],
     totalMembers: 20,
     isLoading: false,
     isInitialized: false,
@@ -92,13 +96,24 @@ export const useMasterStore = create<MasterStore>()(
 
             set({ isLoading: true });
             try {
-                const response = await fetch('/api/master-data');
-                if (response.ok) {
-                    const data = await response.json();
+                // Fetch master data and construction types in parallel
+                const [masterResponse, constructionTypesResponse] = await Promise.all([
+                    fetch('/api/master-data'),
+                    fetch('/api/master-data/construction-types'),
+                ]);
+
+                let constructionTypes: ConstructionTypeMaster[] = [];
+                if (constructionTypesResponse.ok) {
+                    constructionTypes = await constructionTypesResponse.json();
+                }
+
+                if (masterResponse.ok) {
+                    const data = await masterResponse.json();
                     set({
                         vehicles: data.vehicles || [],
                         workers: data.workers || [],
                         managers: data.managers || [],
+                        constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         isInitialized: true,
                     });
@@ -113,13 +128,23 @@ export const useMasterStore = create<MasterStore>()(
         refreshMasterData: async () => {
             // Force refresh without checking isLoading
             try {
-                const response = await fetch('/api/master-data');
-                if (response.ok) {
-                    const data = await response.json();
+                const [masterResponse, constructionTypesResponse] = await Promise.all([
+                    fetch('/api/master-data'),
+                    fetch('/api/master-data/construction-types'),
+                ]);
+
+                let constructionTypes: ConstructionTypeMaster[] = [];
+                if (constructionTypesResponse.ok) {
+                    constructionTypes = await constructionTypesResponse.json();
+                }
+
+                if (masterResponse.ok) {
+                    const data = await masterResponse.json();
                     set({
                         vehicles: data.vehicles || [],
                         workers: data.workers || [],
                         managers: data.managers || [],
+                        constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         isInitialized: true,
                     });
@@ -260,7 +285,7 @@ export const useMasterStore = create<MasterStore>()(
             try {
                 const { supabase } = await import('@/lib/supabase');
                 const channels: RealtimeChannel[] = [];
-                const tables = ['Vehicle', 'Worker', 'Manager', 'SystemSettings'];
+                const tables = ['Vehicle', 'Worker', 'Manager', 'SystemSettings', 'ConstructionType'];
 
                 tables.forEach(table => {
                     const channel = supabase
@@ -311,6 +336,7 @@ export const useMasterStore = create<MasterStore>()(
 export const selectVehicles = (state: MasterStore) => state.vehicles;
 export const selectWorkers = (state: MasterStore) => state.workers;
 export const selectManagers = (state: MasterStore) => state.managers;
+export const selectConstructionTypes = (state: MasterStore) => state.constructionTypes;
 export const selectTotalMembers = (state: MasterStore) => state.totalMembers;
 export const selectIsLoading = (state: MasterStore) => state.isLoading;
 export const selectIsInitialized = (state: MasterStore) => state.isInitialized;

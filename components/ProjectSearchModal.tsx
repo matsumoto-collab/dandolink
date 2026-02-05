@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useProjects } from '@/hooks/useProjects';
-import { Project, CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
+import { useMasterData } from '@/hooks/useMasterData';
+import { Project, DEFAULT_CONSTRUCTION_TYPE_LABELS, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 
 interface ProjectSearchModalProps {
     isOpen: boolean;
@@ -16,6 +17,20 @@ export default function ProjectSearchModal({
     onSelect,
 }: ProjectSearchModalProps) {
     const { projects } = useProjects();
+    const { constructionTypes } = useMasterData();
+
+    // 工事種別の情報を取得するヘルパー
+    const getConstructionTypeInfo = useCallback((ct: string | undefined) => {
+        if (!ct) return { color: '#a8c8e8', label: '未設定' };
+        const masterType = constructionTypes.find(t => t.id === ct || t.name === ct);
+        if (masterType) {
+            return { color: masterType.color, label: masterType.name };
+        }
+        return {
+            color: DEFAULT_CONSTRUCTION_TYPE_COLORS[ct] || '#a8c8e8',
+            label: DEFAULT_CONSTRUCTION_TYPE_LABELS[ct] || ct,
+        };
+    }, [constructionTypes]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedType, setSelectedType] = useState<string>('all');
 
@@ -183,14 +198,13 @@ export default function ProjectSearchModal({
                                             )}
                                             <div className="flex gap-2 mt-2">
                                                 <span
-                                                    className={`px-3 py-1 rounded-full text-xs font-medium ${project.constructionType === 'assembly'
-                                                        ? 'bg-blue-100 text-blue-700'
-                                                        : project.constructionType === 'demolition'
-                                                            ? 'bg-red-100 text-red-700'
-                                                            : 'bg-yellow-100 text-yellow-700'
-                                                        }`}
+                                                    className="px-3 py-1 rounded-full text-xs font-medium"
+                                                    style={{
+                                                        backgroundColor: `${getConstructionTypeInfo(project.constructionType).color}30`,
+                                                        color: getConstructionTypeInfo(project.constructionType).color,
+                                                    }}
                                                 >
-                                                    {project.constructionType ? (CONSTRUCTION_TYPE_LABELS[project.constructionType] || project.constructionType) : '未設定'}
+                                                    {getConstructionTypeInfo(project.constructionType).label}
                                                 </span>
                                             </div>
                                         </div>
