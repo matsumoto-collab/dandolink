@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useSession } from 'next-auth/react';
@@ -85,10 +85,16 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         }
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
+    // projectsの参照をrefで保持（クロージャの古い値問題を回避）
+    const projectsRef = useRef(projects);
+    projectsRef.current = projects;
+
     const { activeId, handleDragStart, handleDragEnd, handleDragOver, handleDragCancel } = useDragAndDrop(events, useCallback((updatedEvents: CalendarEvent[]) => {
         updatedEvents.forEach(updatedEvent => {
             const projectId = updatedEvent.id.replace(/-assembly$|-demolition$/, '');
-            const originalProject = projects.find(p => p.id === projectId);
+            // refを使用して最新のprojectsを取得（古いクロージャ問題を回避）
+            const currentProjects = projectsRef.current;
+            const originalProject = currentProjects.find((p: Project) => p.id === projectId);
             if (originalProject) {
                 const hasChanges =
                     originalProject.assignedEmployeeId !== updatedEvent.assignedEmployeeId ||
@@ -115,7 +121,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                 }
             }
         });
-    }, [projects, updateProject]));
+    }, [updateProject]));
 
     // 職長別の行データを生成
     const employeeRows = useMemo(() => {
