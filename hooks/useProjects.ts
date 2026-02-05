@@ -107,11 +107,20 @@ export function useProjects() {
 
     // Wrapper functions for backward compatibility
     const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-        await addProjectStore(project);
-        // Clear cache and refresh
-        currentDateRangeRef.current = null;
-        await fetchAssignmentsStore();
-    }, [addProjectStore, fetchAssignmentsStore]);
+        // リアルタイム購読がfetchを呼ばないよう保護
+        isUpdatingRef.current = true;
+        setIsUpdating(true);
+        try {
+            await addProjectStore(project);
+            // addProjectStoreで既にサーバーレスポンスをローカル状態に追加しているため、
+            // fetchAssignmentsStoreは不要（呼び出すとドラッグ操作と競合する）
+        } finally {
+            setTimeout(() => {
+                isUpdatingRef.current = false;
+                setIsUpdating(false);
+            }, 1000); // 追加後のリアルタイム通知を確実にブロックするため少し長めに
+        }
+    }, [addProjectStore]);
 
     const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
         // リアルタイム購読がfetchを呼ばないよう、先にrefを更新
