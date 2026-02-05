@@ -70,10 +70,7 @@ export async function POST(req: NextRequest) {
         const { projectMasterId, assignedEmployeeId, date, memberCount, workers, vehicles, meetingTime, sortOrder, remarks, isDispatchConfirmed, confirmedWorkerIds, confirmedVehicleIds } = validation.data;
         const constructionType = body.constructionType; // バリデーションスキーマ外で取得
 
-        const existing = await prisma.projectAssignment.findUnique({
-            where: { projectMasterId_assignedEmployeeId_date: { projectMasterId, assignedEmployeeId, date: new Date(date) } },
-        });
-        if (existing) return errorResponse('同一案件・同一職長・同一日付の配置は既に存在します', 400);
+        // 一意制約を削除したため、重複チェックは不要（同一案件・同一職長・同一日付で複数配置可能）
 
         const assignment = await prisma.projectAssignment.create({
             data: {
