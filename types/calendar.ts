@@ -7,7 +7,7 @@ export interface CalendarEvent {
     title: string;
     startDate: Date;
     endDate?: Date;
-    category: EventCategory;
+    category?: EventCategory;
     color: string;
     description?: string;
     location?: string;

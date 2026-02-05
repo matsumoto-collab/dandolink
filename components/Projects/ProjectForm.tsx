@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Project, EventCategory, CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule, ProjectStatus } from '@/types/calendar';
+import { Project, CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
@@ -53,8 +53,6 @@ export default function ProjectForm({
         constructionType: initialData?.constructionType || 'assembly' as 'assembly' | 'demolition' | 'other',
         // 工事内容
         constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
-        status: initialData?.status || 'pending' as const,
-        category: initialData?.category || 'construction' as EventCategory,
         remarks: initialData?.remarks || '',
     });
 
@@ -209,8 +207,6 @@ export default function ProjectForm({
             constructionContent: formData.constructionContent || undefined,
             // 複数日スケジュール
             workSchedules: workSchedules,
-            status: formData.status,
-            category: formData.category,
             color: color,
             remarks: formData.remarks || undefined,
         };
@@ -527,42 +523,6 @@ export default function ProjectForm({
                 isOpen={isVehicleModalOpen}
                 onClose={() => setIsVehicleModalOpen(false)}
             />
-
-            {/* ステータス */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ステータス
-                </label>
-                <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as ProjectStatus })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    <option value="pending">保留</option>
-                    <option value="confirmed">確定</option>
-                    <option value="completed">完了</option>
-                    <option value="cancelled">中止</option>
-                </select>
-            </div>
-
-            {/* カテゴリー */}
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    カテゴリー
-                </label>
-                <select
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as EventCategory })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                    <option value="construction">建設</option>
-                    <option value="maintenance">メンテナンス</option>
-                    <option value="meeting">会議</option>
-                    <option value="delivery">配送</option>
-                    <option value="inspection">検査</option>
-                    <option value="other">その他</option>
-                </select>
-            </div>
 
             {/* 備考 */}
             <div>
