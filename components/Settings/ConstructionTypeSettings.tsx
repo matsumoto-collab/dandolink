@@ -3,9 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X, GripVertical } from 'lucide-react';
 import { COLOR_PALETTE, COLOR_PALETTE_NAMES, ConstructionTypeMaster } from '@/types/calendar';
+import { useMasterStore } from '@/stores/masterStore';
 import toast from 'react-hot-toast';
 
 export default function ConstructionTypeSettings() {
+    const refreshMasterData = useMasterStore((state) => state.refreshMasterData);
     const [constructionTypes, setConstructionTypes] = useState<ConstructionTypeMaster[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -52,6 +54,7 @@ export default function ConstructionTypeSettings() {
                 setNewName('');
                 setNewColor(COLOR_PALETTE[0]);
                 fetchData();
+                refreshMasterData();
             } else {
                 toast.error('追加に失敗しました');
             }
@@ -85,6 +88,7 @@ export default function ConstructionTypeSettings() {
                 setEditingName('');
                 setEditingColor('');
                 fetchData();
+                refreshMasterData();
             } else {
                 toast.error('更新に失敗しました');
             }
@@ -112,6 +116,7 @@ export default function ConstructionTypeSettings() {
                 toast.success('工事種別を削除しました');
                 setDeleteConfirm(null);
                 fetchData();
+                refreshMasterData();
             } else {
                 toast.error('削除に失敗しました');
             }
