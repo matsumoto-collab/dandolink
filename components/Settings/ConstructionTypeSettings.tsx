@@ -145,7 +145,7 @@ export default function ConstructionTypeSettings() {
                         className="fixed inset-0 z-40"
                         onClick={() => setShowColorPicker(null)}
                     />
-                    <div className="absolute z-50 top-10 left-0 p-3 bg-white rounded-xl shadow-xl border border-gray-200 grid grid-cols-5 gap-2 w-[280px]">
+                    <div className="absolute z-50 top-10 left-0 p-2 bg-white rounded-xl shadow-xl border border-gray-200 grid grid-cols-2 gap-1 w-[320px]">
                         {COLOR_PALETTE.map((color) => (
                             <button
                                 key={color}
@@ -154,19 +154,18 @@ export default function ConstructionTypeSettings() {
                                     onSelect(color);
                                     setShowColorPicker(null);
                                 }}
-                                className={`group flex flex-col items-center gap-1 p-1.5 rounded-lg transition-all hover:bg-gray-50 ${
-                                    selectedColor === color ? 'bg-gray-100 ring-2 ring-slate-400' : ''
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all hover:bg-gray-100 ${
+                                    selectedColor === color ? 'bg-slate-100 ring-1 ring-slate-400' : ''
                                 }`}
-                                title={COLOR_PALETTE_NAMES[color]}
                             >
                                 <div
-                                    className={`w-10 h-10 rounded-lg border-2 transition-transform group-hover:scale-110 ${
-                                        selectedColor === color ? 'border-slate-700 shadow-md' : 'border-gray-200'
+                                    className={`w-7 h-7 rounded-md border-2 flex-shrink-0 ${
+                                        selectedColor === color ? 'border-slate-700 shadow-sm' : 'border-gray-200'
                                     }`}
                                     style={{ backgroundColor: color }}
                                 />
-                                <span className="text-[9px] text-slate-500 leading-tight text-center whitespace-nowrap">
-                                    {COLOR_PALETTE_NAMES[color]?.replace(/([a-zA-Z])/, '\n$1') || ''}
+                                <span className="text-xs text-slate-600 truncate">
+                                    {COLOR_PALETTE_NAMES[color] || ''}
                                 </span>
                             </button>
                         ))}
