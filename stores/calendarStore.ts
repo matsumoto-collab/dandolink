@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { ProjectMaster, Project, CalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS, ProjectAssignment, ConflictError } from '@/types/calendar';
-import { useMasterStore } from '@/stores/masterStore';
+import { ProjectMaster, Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS, ProjectAssignment, ConflictError } from '@/types/calendar';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 import { VacationRecord } from '@/types/vacation';
 
@@ -47,10 +46,7 @@ function parseDailyReportDates(report: DailyReport & { date: string; createdAt: 
 function assignmentToProject(assignment: ProjectAssignment & { projectMaster?: ProjectMaster; constructionType?: string }): Project {
     // 配置ごとのconstructionTypeを優先、なければProjectMasterから取得
     const constructionType = assignment.constructionType || assignment.projectMaster?.constructionType || 'other';
-    // マスターデータから工事種別の色を取得
-    const constructionTypes = useMasterStore.getState().constructionTypes;
-    const masterType = constructionTypes.find(ct => ct.id === constructionType || ct.name === constructionType);
-    const color = masterType?.color || DEFAULT_CONSTRUCTION_TYPE_COLORS[constructionType] || DEFAULT_CONSTRUCTION_TYPE_COLORS.other;
+    const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
 
     return {
         id: assignment.id,
