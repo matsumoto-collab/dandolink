@@ -232,6 +232,7 @@ export default function ProjectForm({
             assignedEmployeeId: initialData?.assignedEmployeeId || defaultEmployeeId || 'unassigned',
             workers: workers,
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
+            vehicles: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
             // 工事種別
             constructionType: formData.constructionType,
             // 工事内容
