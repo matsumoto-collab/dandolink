@@ -87,7 +87,8 @@ export const updateCustomerSchema = createCustomerSchema.partial();
 // Project Master Schemas
 // ============================================
 
-export const constructionTypeSchema = z.enum(['assembly', 'demolition', 'other']);
+// マスターデータで動的に管理されるため、任意の文字列を許可（レガシー値: assembly, demolition, other）
+export const constructionTypeSchema = z.string().min(1);
 
 export const createProjectMasterSchema = z.object({
     title: z
