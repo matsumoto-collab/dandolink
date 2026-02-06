@@ -3,7 +3,8 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { Project, CalendarEvent, CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { Project, CalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { useMasterStore } from '@/stores/masterStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // Re-export types for backward compatibility
@@ -173,11 +174,16 @@ export function useProjects() {
     // Subscribe to assignments changes to trigger re-renders
     const assignments = useCalendarStore((state) => state.assignments);
 
+    // マスターデータから工事種別を取得
+    const constructionTypes = useMasterStore((state) => state.constructionTypes);
+
     // Get projects from store (now reactive because we subscribe to assignments)
     const projects = assignments.map((a) => {
         // 配置ごとのconstructionTypeを優先、なければProjectMasterから取得
         const constructionType = a.constructionType || a.projectMaster?.constructionType || 'other';
-        const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
+        // マスターデータから色を取得
+        const masterType = constructionTypes.find(ct => ct.id === constructionType || ct.name === constructionType);
+        const color = masterType?.color || DEFAULT_CONSTRUCTION_TYPE_COLORS[constructionType] || DEFAULT_CONSTRUCTION_TYPE_COLORS.other;
 
         return {
             id: a.id,
