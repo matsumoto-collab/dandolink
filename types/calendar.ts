@@ -316,24 +316,33 @@ export const CONSTRUCTION_TYPE_COLORS = DEFAULT_CONSTRUCTION_TYPE_COLORS;
 /** @deprecated DEFAULT_CONSTRUCTION_TYPE_LABELSを使用してください */
 export const CONSTRUCTION_TYPE_LABELS = DEFAULT_CONSTRUCTION_TYPE_LABELS;
 
-// 色選択用のパレット（15色）
+// 色選択用のパレット（10色）
 export const COLOR_PALETTE = [
-    '#a8c8e8',  // ライトブルー
-    '#f0a8a8',  // ライトレッド
-    '#fef08a',  // ライトイエロー
-    '#a8e8c8',  // ライトグリーン
-    '#d8a8e8',  // ライトパープル
-    '#e8c8a8',  // ライトオレンジ
-    '#a8e8e8',  // ライトシアン
-    '#e8a8d8',  // ライトピンク
-    '#c8e8a8',  // ライトライム
-    '#b8b8e8',  // ライトインディゴ
-    '#e8d8a8',  // ライトゴールド
-    '#a8b8c8',  // ライトスレート
-    '#e8b8b8',  // ライトコーラル
-    '#b8e8d8',  // ライトティール
-    '#d8d8d8',  // ライトグレー
+    '#FFAB91',  // サーモンピンク
+    '#FFB74D',  // マンダリンオレンジ
+    '#FFF176',  // マスタードイエロー
+    '#AED581',  // ライムグリーン
+    '#4DB6AC',  // ティールグリーン
+    '#4DD0E1',  // シアンブルー
+    '#7986CB',  // スレートブルー
+    '#BA68C8',  // アメジストパープル
+    '#A1887F',  // モカブラウン
+    '#90A4AE',  // ミディアムグレー
 ] as const;
+
+// カラーパレットの日本語名
+export const COLOR_PALETTE_NAMES: Record<string, string> = {
+    '#FFAB91': 'サーモンピンク',
+    '#FFB74D': 'マンダリンオレンジ',
+    '#FFF176': 'マスタードイエロー',
+    '#AED581': 'ライムグリーン',
+    '#4DB6AC': 'ティールグリーン',
+    '#4DD0E1': 'シアンブルー',
+    '#7986CB': 'スレートブルー',
+    '#BA68C8': 'アメジストパープル',
+    '#A1887F': 'モカブラウン',
+    '#90A4AE': 'ミディアムグレー',
+};
 
 // ===== 競合解決関連 =====
 
