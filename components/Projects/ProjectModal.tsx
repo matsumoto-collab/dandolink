@@ -6,6 +6,7 @@ import ProjectForm from './ProjectForm';
 import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
+import toast from 'react-hot-toast';
 
 interface ProjectModalProps {
     isOpen: boolean;
@@ -144,7 +145,8 @@ export default function ProjectModal({
                                 try {
                                     await onSubmit(data);
                                     onClose();
-                                } catch {
+                                } catch (error) {
+                                    toast.error(`保存に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
                                     setIsSaving(false);
                                 }
                             }}

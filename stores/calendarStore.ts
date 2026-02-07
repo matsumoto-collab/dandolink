@@ -517,45 +517,75 @@ export const useCalendarStore = create<CalendarStore>()(
                 }
             }
 
-            const response = await fetch('/api/assignments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    projectMasterId,
-                    assignedEmployeeId: project.assignedEmployeeId,
-                    date: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
-                    memberCount: project.workers?.length || 0,
-                    workers: project.workers,
-                    vehicles: project.vehicles,
-                    meetingTime: project.meetingTime,
-                    sortOrder: project.sortOrder || 0,
-                    remarks: project.remarks,
-                    constructionType: project.constructionType,
-                }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const parseAssignmentResponse = (a: any): ProjectAssignment & { projectMaster?: ProjectMaster } => ({
+                ...a,
+                date: new Date(a.date),
+                createdAt: new Date(a.createdAt),
+                updatedAt: new Date(a.updatedAt),
+                projectMaster: a.projectMaster ? {
+                    ...a.projectMaster,
+                    createdAt: new Date(a.projectMaster.createdAt),
+                    updatedAt: new Date(a.projectMaster.updatedAt),
+                } : undefined,
             });
 
-            if (!response.ok) {
-                throw new Error('Failed to create assignment');
+            // workSchedulesがある場合は各日ごとにassignment作成
+            if (project.workSchedules && project.workSchedules.length > 0) {
+                const dailySchedules = project.workSchedules.flatMap(ws => ws.dailySchedules);
+                const newAssignments = [];
+
+                for (const schedule of dailySchedules) {
+                    const response = await fetch('/api/assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectMasterId,
+                            assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
+                            date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
+                            memberCount: schedule.memberCount || 0,
+                            workers: schedule.workers?.length ? schedule.workers : project.workers,
+                            vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
+                            meetingTime: project.meetingTime,
+                            sortOrder: schedule.sortOrder || 0,
+                            remarks: schedule.remarks || project.remarks,
+                            constructionType: project.constructionType,
+                        }),
+                    });
+
+                    if (!response.ok) throw new Error('Failed to create assignment');
+                    newAssignments.push(await response.json());
+                }
+
+                const parsed = newAssignments.map(a => parseAssignmentResponse(a));
+                set((state) => ({ assignments: [...state.assignments, ...parsed] }));
+            } else {
+                const response = await fetch('/api/assignments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectMasterId,
+                        assignedEmployeeId: project.assignedEmployeeId,
+                        date: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
+                        memberCount: project.workers?.length || 0,
+                        workers: project.workers,
+                        vehicles: project.vehicles,
+                        meetingTime: project.meetingTime,
+                        sortOrder: project.sortOrder || 0,
+                        remarks: project.remarks,
+                        constructionType: project.constructionType,
+                    }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create assignment');
+                }
+
+                const newAssignment = await response.json();
+                set((state) => ({
+                    assignments: [...state.assignments, parseAssignmentResponse(newAssignment)],
+                }));
             }
-
-            // サーバーからのレスポンスを直接ローカル状態に追加
-            // fetchAssignments()を呼び出すと、進行中のドラッグ操作と競合する可能性がある
-            const newAssignment = await response.json();
-            const parsedAssignment = {
-                ...newAssignment,
-                date: new Date(newAssignment.date),
-                createdAt: new Date(newAssignment.createdAt),
-                updatedAt: new Date(newAssignment.updatedAt),
-                projectMaster: newAssignment.projectMaster ? {
-                    ...newAssignment.projectMaster,
-                    createdAt: new Date(newAssignment.projectMaster.createdAt),
-                    updatedAt: new Date(newAssignment.projectMaster.updatedAt),
-                } : undefined,
-            };
-
-            set((state) => ({
-                assignments: [...state.assignments, parsedAssignment],
-            }));
         },
 
         updateProject: async (id, updates) => {

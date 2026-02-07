@@ -242,20 +242,14 @@ export default function ProjectForm({
         // 複数日スケジュールを使用する場合
         let workSchedules: WorkSchedule[] | undefined = undefined;
         if (useMultiDaySchedule) {
-            workSchedules = [];
-            if ((selectedConstructionTypeName === '組立' || formData.constructionType === 'assembly') && assemblySchedules.length > 0) {
-                workSchedules.push({
+            // 存在するスケジュールを全て含める（工事種別名の条件に依存しない）
+            const allDailySchedules = [...assemblySchedules, ...demolitionSchedules];
+            if (allDailySchedules.length > 0) {
+                workSchedules = [{
                     id: uuidv4(),
-                    type: 'assembly',
-                    dailySchedules: assemblySchedules,
-                });
-            }
-            if ((selectedConstructionTypeName === '解体' || formData.constructionType === 'demolition') && demolitionSchedules.length > 0) {
-                workSchedules.push({
-                    id: uuidv4(),
-                    type: 'demolition',
-                    dailySchedules: demolitionSchedules,
-                });
+                    type: selectedConstructionTypeName === '解体' ? 'demolition' : 'assembly',
+                    dailySchedules: allDailySchedules,
+                }];
             }
         }
 
