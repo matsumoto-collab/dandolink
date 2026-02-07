@@ -531,6 +531,9 @@ export const useCalendarStore = create<CalendarStore>()(
             });
 
             // workSchedulesがある場合は各日ごとにassignment作成
+            const wsLen = project.workSchedules?.length ?? 0;
+            const dsLen = wsLen > 0 ? project.workSchedules!.flatMap(ws => ws.dailySchedules).length : 0;
+            alert(`[DEBUG] workSchedules: ${wsLen}件, dailySchedules合計: ${dsLen}件`);
             if (project.workSchedules && project.workSchedules.length > 0) {
                 const dailySchedules = project.workSchedules.flatMap(ws => ws.dailySchedules);
                 const newAssignments = [];
