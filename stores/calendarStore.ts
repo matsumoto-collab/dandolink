@@ -572,9 +572,13 @@ export const useCalendarStore = create<CalendarStore>()(
                     }
                 }
 
-                alert(`[DEBUG] 全${newAssignments.length}件作成成功`);
+                alert(`[DEBUG] 全${newAssignments.length}件作成成功。日付: ${newAssignments.map((a: Record<string, string>) => a.date).join(', ')}`);
                 const parsed = newAssignments.map(a => parseAssignmentResponse(a));
-                set((state) => ({ assignments: [...state.assignments, ...parsed] }));
+                set((state) => {
+                    const updated = [...state.assignments, ...parsed];
+                    alert(`[DEBUG] ストア更新: 既存${state.assignments.length}件 + 新規${parsed.length}件 = ${updated.length}件`);
+                    return { assignments: updated };
+                });
             } else {
                 const response = await fetch('/api/assignments', {
                     method: 'POST',
