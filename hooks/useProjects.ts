@@ -122,7 +122,7 @@ export function useProjects() {
             setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
-            }, 1000); // 追加後のリアルタイム通知を確実にブロックするため少し長めに
+            }, 5000); // 複数日一括作成時のリアルタイム通知を確実にブロックするため長めに
         }
     }, [addProjectStore]);
 

@@ -360,7 +360,12 @@ export default function ProjectForm({
                                         type="radio"
                                         name="constructionType"
                                         checked={formData.constructionType === type.id}
-                                        onChange={() => setFormData({ ...formData, constructionType: type.id })}
+                                        onChange={() => {
+                                            setFormData({ ...formData, constructionType: type.id });
+                                            // 工事種別変更時にスケジュールをクリア
+                                            setAssemblySchedules([]);
+                                            setDemolitionSchedules([]);
+                                        }}
                                         className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                                     />
                                     <span

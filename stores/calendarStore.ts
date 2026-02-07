@@ -559,7 +559,11 @@ export const useCalendarStore = create<CalendarStore>()(
                 }
 
                 const parsed = newAssignments.map(a => parseAssignmentResponse(a));
-                set((state) => ({ assignments: [...state.assignments, ...parsed] }));
+                set((state) => {
+                    const newIds = new Set(parsed.map(a => a.id));
+                    const filtered = state.assignments.filter(a => !newIds.has(a.id));
+                    return { assignments: [...filtered, ...parsed] };
+                });
             } else {
                 const response = await fetch('/api/assignments', {
                     method: 'POST',
@@ -568,7 +572,7 @@ export const useCalendarStore = create<CalendarStore>()(
                         projectMasterId,
                         assignedEmployeeId: project.assignedEmployeeId,
                         date: project.startDate instanceof Date ? project.startDate.toISOString() : project.startDate,
-                        memberCount: project.workers?.length || 0,
+                        memberCount: project.memberCount || project.workers?.length || 0,
                         workers: project.workers,
                         vehicles: project.vehicles,
                         meetingTime: project.meetingTime,
