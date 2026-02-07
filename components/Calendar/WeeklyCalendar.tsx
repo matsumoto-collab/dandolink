@@ -60,6 +60,9 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     // Presence機能: 編集中ユーザーの追跡
     const { getEditingUsers } = useAssignmentPresence();
 
+    // 保存中の状態管理
+    const [isSaving, setIsSaving] = useState(false);
+
     // 競合解決モーダル用の状態
     const [conflictModalOpen, setConflictModalOpen] = useState(false);
     const [conflictData, setConflictData] = useState<{
@@ -247,11 +250,16 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     }, [projects, updateProjects]);
 
     // モーダルから案件を保存（競合ハンドリング付き）
-    const handleSaveProject = useCallback((projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-        if (modalInitialData.id) {
-            updateProjectWithConflictHandling(modalInitialData.id, projectData);
-        } else {
-            addProject(projectData);
+    const handleSaveProject = useCallback(async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+        setIsSaving(true);
+        try {
+            if (modalInitialData.id) {
+                await updateProjectWithConflictHandling(modalInitialData.id, projectData);
+            } else {
+                await addProject(projectData);
+            }
+        } finally {
+            setIsSaving(false);
         }
     }, [modalInitialData.id, updateProjectWithConflictHandling, addProject]);
 
@@ -414,6 +422,16 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                 latestData={conflictData?.latestData}
                 conflictMessage={conflictData?.message}
             />
+
+            {/* 保存中オーバーレイ */}
+            {isSaving && (
+                <div className="fixed inset-0 lg:left-64 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
+                    <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3 pointer-events-auto">
+                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-sm font-medium text-gray-700">案件を保存中...</span>
+                    </div>
+                </div>
+            )}
         </DndContext>
     );
 }

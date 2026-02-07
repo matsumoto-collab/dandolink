@@ -26,6 +26,7 @@ interface ProjectFormProps {
     onCancel: () => void;
     defaultDate?: Date;
     defaultEmployeeId?: string;
+    isSaving?: boolean;
 }
 
 export default function ProjectForm({
@@ -34,6 +35,7 @@ export default function ProjectForm({
     onCancel,
     defaultDate,
     defaultEmployeeId,
+    isSaving = false,
 }: ProjectFormProps) {
     const { projects } = useProjects();
     const { vehicles: mockVehicles, constructionTypes, totalMembers: TOTAL_MEMBERS } = useMasterData();
@@ -549,15 +551,24 @@ export default function ProjectForm({
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                     キャンセル
                 </button>
                 <button
                     type="submit"
-                    className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors"
+                    disabled={isSaving}
+                    className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                    保存
+                    {isSaving ? (
+                        <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            保存中...
+                        </>
+                    ) : (
+                        '保存'
+                    )}
                 </button>
             </div>
         </form>

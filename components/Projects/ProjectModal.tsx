@@ -10,7 +10,7 @@ import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 interface ProjectModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void;
+    onSubmit: (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => void | Promise<void>;
     onDelete?: (id: string) => void;
     initialData?: Partial<Project>;
     title?: string;
@@ -33,6 +33,7 @@ export default function ProjectModal({
     // 編集モードの状態管理
     // 既存案件の場合は閲覧モード、新規作成の場合は編集モード
     const [isEditMode, setIsEditMode] = useState(!initialData?.id);
+    const [isSaving, setIsSaving] = useState(false);
 
     // Presence機能: 編集中ユーザーの追跡
     const { startEditing, stopEditing, getEditingUsers } = useAssignmentPresence();
@@ -43,6 +44,7 @@ export default function ProjectModal({
     useEffect(() => {
         if (isOpen) {
             setIsEditMode(!initialData?.id);
+            setIsSaving(false);
         }
     }, [isOpen, initialData?.id]);
 
@@ -137,11 +139,17 @@ export default function ProjectModal({
                             initialData={initialData}
                             defaultDate={defaultDate}
                             defaultEmployeeId={defaultEmployeeId}
-                            onSubmit={(data) => {
-                                onSubmit(data);
-                                onClose();
+                            onSubmit={async (data) => {
+                                setIsSaving(true);
+                                try {
+                                    await onSubmit(data);
+                                    onClose();
+                                } catch {
+                                    setIsSaving(false);
+                                }
                             }}
                             onCancel={onClose}
+                            isSaving={isSaving}
                         />
                     )}
                 </div>
