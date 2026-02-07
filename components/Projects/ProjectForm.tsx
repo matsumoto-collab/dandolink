@@ -173,6 +173,30 @@ export default function ProjectForm({
         return usageMap;
     }, [projects, initialData, defaultDate, getForemanName]);
 
+    // 手配確定済み車両IDセットを計算（同日の確定済み案件から）
+    const confirmedVehicleIdSet = useMemo(() => {
+        const targetDate = initialData?.startDate || defaultDate || new Date();
+        const dateKey = formatDateKey(targetDate);
+
+        const confirmed = new Set<string>();
+        projects.forEach(p => {
+            const pDateKey = formatDateKey(p.startDate);
+            if (pDateKey === dateKey && p.id !== initialData?.id && p.isDispatchConfirmed) {
+                p.confirmedVehicleIds?.forEach(id => confirmed.add(id));
+            }
+        });
+        return confirmed;
+    }, [projects, initialData, defaultDate]);
+
+    // 車両リストをソート: 手配確定済み → その他
+    const sortedVehicles = useMemo(() => {
+        return [...mockVehicles].sort((a, b) => {
+            const aConfirmed = confirmedVehicleIdSet.has(a.id) ? 0 : 1;
+            const bConfirmed = confirmedVehicleIdSet.has(b.id) ? 0 : 1;
+            return aConfirmed - bConfirmed;
+        });
+    }, [mockVehicles, confirmedVehicleIdSet]);
+
     const handleVehicleToggle = (vehicleName: string) => {
         setFormData(prev => ({
             ...prev,
@@ -495,12 +519,13 @@ export default function ProjectForm({
                     車両
                 </label>
                 <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
-                    {mockVehicles.map(vehicle => {
+                    {sortedVehicles.map(vehicle => {
                         const usages = vehicleUsageMap.get(vehicle.name);
                         const isInUse = usages && usages.length > 0;
+                        const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
 
                         return (
-                            <label key={vehicle.id} className={`flex items-center gap-2 cursor-pointer p-2 rounded text-sm ${isInUse ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+                            <label key={vehicle.id} className={`flex items-center gap-2 cursor-pointer p-2 rounded text-sm ${isConfirmed ? 'bg-orange-50 hover:bg-orange-100' : isInUse ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
                                 <input
                                     type="checkbox"
                                     checked={formData.selectedVehicles.includes(vehicle.name)}
@@ -508,9 +533,13 @@ export default function ProjectForm({
                                     className="w-4 h-4 shrink-0 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                                 />
                                 <span className="text-gray-700 whitespace-nowrap">{vehicle.name}</span>
-                                {isInUse ? (
+                                {isConfirmed ? (
+                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 ml-auto whitespace-nowrap">
+                                        手配確定済
+                                    </span>
+                                ) : isInUse ? (
                                     <div className="flex flex-wrap gap-1 ml-auto">
-                                        {usages.map((u, i) => (
+                                        {usages!.map((u, i) => (
                                             <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 whitespace-nowrap">
                                                 {u.foremanName}班 ({u.projectTitle})
                                             </span>
