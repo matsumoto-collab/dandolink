@@ -538,28 +538,41 @@ export const useCalendarStore = create<CalendarStore>()(
                 const dailySchedules = project.workSchedules.flatMap(ws => ws.dailySchedules);
                 const newAssignments = [];
 
-                for (const schedule of dailySchedules) {
-                    const response = await fetch('/api/assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectMasterId,
-                            assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
-                            date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
-                            memberCount: schedule.memberCount || 0,
-                            workers: schedule.workers?.length ? schedule.workers : project.workers,
-                            vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
-                            meetingTime: project.meetingTime,
-                            sortOrder: schedule.sortOrder || 0,
-                            remarks: schedule.remarks || project.remarks,
-                            constructionType: project.constructionType,
-                        }),
-                    });
+                for (let i = 0; i < dailySchedules.length; i++) {
+                    const schedule = dailySchedules[i];
+                    const bodyData = {
+                        projectMasterId,
+                        assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
+                        date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
+                        memberCount: schedule.memberCount || 0,
+                        workers: schedule.workers?.length ? schedule.workers : project.workers,
+                        vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
+                        meetingTime: project.meetingTime,
+                        sortOrder: schedule.sortOrder || 0,
+                        remarks: schedule.remarks || project.remarks,
+                        constructionType: project.constructionType,
+                    };
 
-                    if (!response.ok) throw new Error('Failed to create assignment');
-                    newAssignments.push(await response.json());
+                    try {
+                        const response = await fetch('/api/assignments', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(bodyData),
+                        });
+
+                        if (!response.ok) {
+                            const errorBody = await response.text();
+                            alert(`[DEBUG] ${i + 1}件目 エラー: ${response.status} ${errorBody}`);
+                            throw new Error(`Failed to create assignment ${i + 1}: ${errorBody}`);
+                        }
+                        newAssignments.push(await response.json());
+                    } catch (err) {
+                        alert(`[DEBUG] ${i + 1}件目 例外: ${err instanceof Error ? err.message : err}\ndate: ${bodyData.date}\nassignedEmployeeId: ${bodyData.assignedEmployeeId}`);
+                        throw err;
+                    }
                 }
 
+                alert(`[DEBUG] 全${newAssignments.length}件作成成功`);
                 const parsed = newAssignments.map(a => parseAssignmentResponse(a));
                 set((state) => ({ assignments: [...state.assignments, ...parsed] }));
             } else {
