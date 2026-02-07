@@ -144,6 +144,13 @@ export default function ProjectForm({
         return TOTAL_MEMBERS - usedMembers;
     }, [projects, initialData, defaultDate, TOTAL_MEMBERS]);
 
+    // 選択中の工事種別名を取得（マスターデータのIDからnameを解決）
+    const selectedConstructionTypeName = useMemo(() => {
+        const ct = constructionTypes.find(t => t.id === formData.constructionType);
+        // マスターデータにあればname、なければレガシーコード（assembly/demolition/other）をそのまま使用
+        return ct?.name || formData.constructionType;
+    }, [constructionTypes, formData.constructionType]);
+
     // 車両使用状況を計算（同日の他案件で使用中の車両を取得）
     const vehicleUsageMap = useMemo(() => {
         const targetDate = initialData?.startDate || defaultDate || new Date();
@@ -236,14 +243,14 @@ export default function ProjectForm({
         let workSchedules: WorkSchedule[] | undefined = undefined;
         if (useMultiDaySchedule) {
             workSchedules = [];
-            if (formData.constructionType === 'assembly' && assemblySchedules.length > 0) {
+            if ((selectedConstructionTypeName === '組立' || formData.constructionType === 'assembly') && assemblySchedules.length > 0) {
                 workSchedules.push({
                     id: uuidv4(),
                     type: 'assembly',
                     dailySchedules: assemblySchedules,
                 });
             }
-            if (formData.constructionType === 'demolition' && demolitionSchedules.length > 0) {
+            if ((selectedConstructionTypeName === '解体' || formData.constructionType === 'demolition') && demolitionSchedules.length > 0) {
                 workSchedules.push({
                     id: uuidv4(),
                     type: 'demolition',
@@ -424,7 +431,7 @@ export default function ProjectForm({
                 {useMultiDaySchedule && (
                     <div className="space-y-4 border border-gray-200 rounded-md p-4 bg-gray-50">
                         {/* 組立スケジュール */}
-                        {formData.constructionType === 'assembly' && (
+                        {(selectedConstructionTypeName === '組立' || formData.constructionType === 'assembly') && (
                             <div className="bg-white p-4 rounded-lg border border-blue-200">
                                 <h3 className="text-lg font-semibold text-blue-700 mb-3">組立スケジュール</h3>
                                 <MultiDayScheduleEditor
@@ -436,7 +443,7 @@ export default function ProjectForm({
                         )}
 
                         {/* 解体スケジュール */}
-                        {formData.constructionType === 'demolition' && (
+                        {(selectedConstructionTypeName === '解体' || formData.constructionType === 'demolition') && (
                             <div className="bg-white p-4 rounded-lg border border-red-200">
                                 <h3 className="text-lg font-semibold text-red-700 mb-3">解体スケジュール</h3>
                                 <MultiDayScheduleEditor
@@ -447,7 +454,7 @@ export default function ProjectForm({
                             </div>
                         )}
 
-                        {formData.constructionType === 'other' && (
+                        {(selectedConstructionTypeName === 'その他' || formData.constructionType === 'other') && (
                             <p className="text-sm text-gray-500 text-center py-4">
                                 「その他」は複数日スケジュールに対応していません
                             </p>
