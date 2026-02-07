@@ -531,36 +531,37 @@ export const useCalendarStore = create<CalendarStore>()(
                 } : undefined,
             });
 
-            // workSchedulesがある場合は各日ごとにassignment作成
+            // workSchedulesがある場合は一括作成APIで全日程を一度に作成
             if (project.workSchedules && project.workSchedules.length > 0) {
                 const dailySchedules = project.workSchedules.flatMap(ws => ws.dailySchedules);
-                const newAssignments = [];
 
-                for (const schedule of dailySchedules) {
-                    const response = await fetch('/api/assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectMasterId,
-                            assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
-                            date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
-                            memberCount: schedule.memberCount || 0,
-                            workers: schedule.workers?.length ? schedule.workers : project.workers,
-                            vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
-                            meetingTime: project.meetingTime,
-                            sortOrder: schedule.sortOrder || 0,
-                            remarks: schedule.remarks || project.remarks,
-                            constructionType: project.constructionType,
-                        }),
-                    });
+                // 一括作成用のデータを準備
+                const assignmentData = dailySchedules.map(schedule => ({
+                    projectMasterId,
+                    assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
+                    date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
+                    memberCount: schedule.memberCount || 0,
+                    workers: schedule.workers?.length ? schedule.workers : project.workers,
+                    vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
+                    meetingTime: project.meetingTime,
+                    sortOrder: schedule.sortOrder || 0,
+                    remarks: schedule.remarks || project.remarks,
+                    constructionType: project.constructionType,
+                }));
 
-                    if (!response.ok) throw new Error('Failed to create assignment');
-                    newAssignments.push(await response.json());
-                }
+                // 一括作成API呼び出し（1回のリクエストで全日程を作成）
+                const response = await fetch('/api/assignments/batch-create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ assignments: assignmentData }),
+                });
 
-                const parsed = newAssignments.map(a => parseAssignmentResponse(a));
+                if (!response.ok) throw new Error('Failed to create assignments');
+                const newAssignments = await response.json();
+
+                const parsed = newAssignments.map((a: Parameters<typeof parseAssignmentResponse>[0]) => parseAssignmentResponse(a));
                 set((state) => {
-                    const newIds = new Set(parsed.map(a => a.id));
+                    const newIds = new Set(parsed.map((a: { id: string }) => a.id));
                     const filtered = state.assignments.filter(a => !newIds.has(a.id));
                     return { assignments: [...filtered, ...parsed] };
                 });
