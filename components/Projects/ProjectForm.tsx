@@ -39,7 +39,7 @@ export default function ProjectForm({
 }: ProjectFormProps) {
     const { projects } = useProjects();
     const { vehicles: mockVehicles, constructionTypes, totalMembers: TOTAL_MEMBERS } = useMasterData();
-    const { getForemanName } = useCalendarDisplay();
+    const { getForemanName, allForemen } = useCalendarDisplay();
 
     const [formData, setFormData] = useState({
         title: initialData?.title || '',
@@ -432,6 +432,7 @@ export default function ProjectForm({
                                     type="assembly"
                                     dailySchedules={assemblySchedules}
                                     onChange={setAssemblySchedules}
+                                    foremen={allForemen}
                                 />
                             </div>
                         )}
@@ -444,6 +445,7 @@ export default function ProjectForm({
                                     type="demolition"
                                     dailySchedules={demolitionSchedules}
                                     onChange={setDemolitionSchedules}
+                                    foremen={allForemen}
                                 />
                             </div>
                         )}

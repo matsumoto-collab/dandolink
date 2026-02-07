@@ -531,60 +531,34 @@ export const useCalendarStore = create<CalendarStore>()(
             });
 
             // workSchedulesがある場合は各日ごとにassignment作成
-            const wsLen = project.workSchedules?.length ?? 0;
-            const dsLen = wsLen > 0 ? project.workSchedules!.flatMap(ws => ws.dailySchedules).length : 0;
-            alert(`[DEBUG] workSchedules: ${wsLen}件, dailySchedules合計: ${dsLen}件`);
             if (project.workSchedules && project.workSchedules.length > 0) {
                 const dailySchedules = project.workSchedules.flatMap(ws => ws.dailySchedules);
                 const newAssignments = [];
 
-                for (let i = 0; i < dailySchedules.length; i++) {
-                    const schedule = dailySchedules[i];
-                    const bodyData = {
-                        projectMasterId,
-                        assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
-                        date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
-                        memberCount: schedule.memberCount || 0,
-                        workers: schedule.workers?.length ? schedule.workers : project.workers,
-                        vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
-                        meetingTime: project.meetingTime,
-                        sortOrder: schedule.sortOrder || 0,
-                        remarks: schedule.remarks || project.remarks,
-                        constructionType: project.constructionType,
-                    };
-
-                    try {
-                        const response = await fetch('/api/assignments', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(bodyData),
-                        });
-
-                        if (!response.ok) {
-                            const errorBody = await response.text();
-                            alert(`[DEBUG] ${i + 1}件目 エラー: ${response.status} ${errorBody}`);
-                            throw new Error(`Failed to create assignment ${i + 1}: ${errorBody}`);
-                        }
-                        newAssignments.push(await response.json());
-                    } catch (err) {
-                        alert(`[DEBUG] ${i + 1}件目 例外: ${err instanceof Error ? err.message : err}\ndate: ${bodyData.date}\nassignedEmployeeId: ${bodyData.assignedEmployeeId}`);
-                        throw err;
-                    }
-                }
-
-                alert(`[DEBUG] 全${newAssignments.length}件作成成功。日付: ${newAssignments.map((a: Record<string, string>) => a.date).join(', ')}`);
-                try {
-                    const parsed = newAssignments.map(a => parseAssignmentResponse(a));
-                    alert(`[DEBUG] パース成功: ${parsed.length}件。最初の日付: ${parsed[0]?.date}`);
-                    set((state) => {
-                        const updated = [...state.assignments, ...parsed];
-                        return { assignments: updated };
+                for (const schedule of dailySchedules) {
+                    const response = await fetch('/api/assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectMasterId,
+                            assignedEmployeeId: schedule.assignedEmployeeId || project.assignedEmployeeId,
+                            date: schedule.date instanceof Date ? schedule.date.toISOString() : schedule.date,
+                            memberCount: schedule.memberCount || 0,
+                            workers: schedule.workers?.length ? schedule.workers : project.workers,
+                            vehicles: schedule.trucks?.length ? schedule.trucks : project.vehicles,
+                            meetingTime: project.meetingTime,
+                            sortOrder: schedule.sortOrder || 0,
+                            remarks: schedule.remarks || project.remarks,
+                            constructionType: project.constructionType,
+                        }),
                     });
-                    alert(`[DEBUG] ストア更新完了。現在の件数: ${get().assignments.length}`);
-                } catch (parseErr) {
-                    alert(`[DEBUG] パース/ストア更新エラー: ${parseErr instanceof Error ? parseErr.message : parseErr}`);
-                    throw parseErr;
+
+                    if (!response.ok) throw new Error('Failed to create assignment');
+                    newAssignments.push(await response.json());
                 }
+
+                const parsed = newAssignments.map(a => parseAssignmentResponse(a));
+                set((state) => ({ assignments: [...state.assignments, ...parsed] }));
             } else {
                 const response = await fetch('/api/assignments', {
                     method: 'POST',

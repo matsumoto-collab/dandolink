@@ -3,19 +3,25 @@
 import React, { useState } from 'react';
 import { DailySchedule, ConstructionType } from '@/types/calendar';
 import { Plus, X } from 'lucide-react';
-import { mockEmployees } from '@/data/mockEmployees';
 import toast from 'react-hot-toast';
+
+interface ForemanOption {
+    id: string;
+    displayName: string;
+}
 
 interface MultiDayScheduleEditorProps {
     type: ConstructionType;
     dailySchedules: DailySchedule[];
     onChange: (schedules: DailySchedule[]) => void;
+    foremen?: ForemanOption[];
 }
 
 export default function MultiDayScheduleEditor({
     type: _type,
     dailySchedules,
     onChange,
+    foremen = [],
 }: MultiDayScheduleEditorProps) {
     const [mode, setMode] = useState<'range' | 'individual'>('range');
 
@@ -189,9 +195,9 @@ export default function MultiDayScheduleEditor({
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             >
                                 <option value="">選択なし</option>
-                                {mockEmployees.map((emp) => (
-                                    <option key={emp.id} value={emp.id}>
-                                        {emp.name}
+                                {foremen.map((f) => (
+                                    <option key={f.id} value={f.id}>
+                                        {f.displayName}
                                     </option>
                                 ))}
                             </select>
@@ -285,9 +291,9 @@ export default function MultiDayScheduleEditor({
                                             className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         >
                                             <option value="">選択なし</option>
-                                            {mockEmployees.map((emp) => (
-                                                <option key={emp.id} value={emp.id}>
-                                                    {emp.name}
+                                            {foremen.map((f) => (
+                                                <option key={f.id} value={f.id}>
+                                                    {f.displayName}
                                                 </option>
                                             ))}
                                         </select>
