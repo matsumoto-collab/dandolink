@@ -51,7 +51,9 @@ export default function ProjectForm({
                 ? [initialData.createdBy]
                 : [], // 案件担当者(複数選択)
         memberCount: initialData?.workers?.length || 0, // メンバー数
-        selectedVehicles: initialData?.trucks || [],
+        selectedVehicles: initialData?.isDispatchConfirmed && initialData?.confirmedVehicleIds?.length
+            ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
+            : initialData?.trucks || [],
         // 工事種別（単一選択 - IDまたはレガシーコードで保存）
         constructionType: initialData?.constructionType || '',
         // 工事内容
