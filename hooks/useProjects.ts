@@ -19,6 +19,7 @@ export function useProjects() {
     const [isUpdating, setIsUpdating] = useState(false);
     const isUpdatingRef = useRef(isUpdating);
     isUpdatingRef.current = isUpdating;
+    const timeoutRefs = useRef<NodeJS.Timeout[]>([]);
 
     // Get state from Zustand store
     const isLoading = useCalendarStore((state) => state.projectsLoading);
@@ -35,6 +36,14 @@ export function useProjects() {
 
     // Use ref for date range to avoid callback recreation
     const currentDateRangeRef = useRef<{ start: string; end: string } | null>(null);
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+        return () => {
+            timeoutRefs.current.forEach(clearTimeout);
+            timeoutRefs.current = [];
+        };
+    }, []);
 
     // Reset state when unauthenticated
     useEffect(() => {
@@ -119,10 +128,11 @@ export function useProjects() {
             // addProjectStoreで既にサーバーレスポンスをローカル状態に追加しているため、
             // fetchAssignmentsStoreは不要（呼び出すとドラッグ操作と競合する）
         } finally {
-            setTimeout(() => {
+            const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
             }, 5000); // 複数日一括作成時のリアルタイム通知を確実にブロックするため長めに
+            timeoutRefs.current.push(tid);
         }
     }, [addProjectStore]);
 
@@ -133,10 +143,11 @@ export function useProjects() {
         try {
             await updateProjectStore(id, updates);
         } finally {
-            setTimeout(() => {
+            const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
             }, 500);
+            timeoutRefs.current.push(tid);
         }
     }, [updateProjectStore]);
 
@@ -147,10 +158,11 @@ export function useProjects() {
         try {
             await updateProjectsStore(updates);
         } finally {
-            setTimeout(() => {
+            const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
             }, 500);
+            timeoutRefs.current.push(tid);
         }
     }, [updateProjectsStore]);
 

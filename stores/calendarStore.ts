@@ -558,6 +558,9 @@ export const useCalendarStore = create<CalendarStore>()(
 
                 if (!response.ok) throw new Error('Failed to create assignments');
                 const newAssignments = await response.json();
+                if (!Array.isArray(newAssignments)) {
+                    throw new Error('Invalid response: expected array of assignments');
+                }
 
                 const parsed = newAssignments.map((a: Parameters<typeof parseAssignmentResponse>[0]) => parseAssignmentResponse(a));
                 set((state) => {
@@ -627,7 +630,7 @@ export const useCalendarStore = create<CalendarStore>()(
                         expectedUpdatedAt: assignment?.updatedAt?.toISOString(), // 楽観的ロック用
                         assignedEmployeeId: updates.assignedEmployeeId,
                         date: updates.startDate instanceof Date ? updates.startDate.toISOString() : updates.startDate,
-                        memberCount: updates.workers?.length,
+                        memberCount: updates.workers?.length ?? updates.memberCount ?? assignment?.memberCount,
                         workers: updates.workers,
                         vehicles: updates.vehicles,
                         meetingTime: updates.meetingTime,

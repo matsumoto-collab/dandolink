@@ -147,6 +147,7 @@ export default function ProjectModal({
                                     onClose();
                                 } catch (error) {
                                     toast.error(`保存に失敗しました: ${error instanceof Error ? error.message : '不明なエラー'}`);
+                                } finally {
                                     setIsSaving(false);
                                 }
                             }}
