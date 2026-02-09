@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, errorResponse, validateStringField } from '@/lib/api/utils';
+import { isManagerOrAbove } from '@/utils/permissions';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
+        if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
         const { name } = await request.json();
-        if (!name || typeof name !== 'string') return validationErrorResponse('名前は必須です');
+        const validatedName = validateStringField(name, '名前', 100);
+        if (validatedName instanceof NextResponse) return validatedName;
 
-        const vehicle = await prisma.vehicle.update({ where: { id }, data: { name: name.trim() } });
+        const vehicle = await prisma.vehicle.update({ where: { id }, data: { name: validatedName } });
         return NextResponse.json(vehicle);
     } catch (error) {
         return serverErrorResponse('車両更新', error);
@@ -22,8 +25,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
+        if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
         await prisma.vehicle.update({ where: { id }, data: { isActive: false } });

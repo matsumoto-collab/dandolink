@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, stringifyJsonField, errorResponse, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, stringifyJsonField, errorResponse, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { canDispatch, isManagerOrAbove } from '@/utils/permissions';
 import { formatProjectMaster } from '@/lib/formatters';
 
@@ -32,13 +32,18 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const body = await req.json();
 
+        const VALID_STATUSES = ['active', 'completed', 'cancelled'];
+
         const updateData: Record<string, unknown> = {};
         if (body.title !== undefined) updateData.title = body.title;
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.customerName !== undefined) updateData.customerName = body.customerName;
         if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;
         if (body.constructionContent !== undefined) updateData.constructionContent = body.constructionContent;
-        if (body.status !== undefined) updateData.status = body.status;
+        if (body.status !== undefined) {
+            if (!VALID_STATUSES.includes(body.status)) return validationErrorResponse(`statusは${VALID_STATUSES.join(', ')}のいずれかを指定してください`);
+            updateData.status = body.status;
+        }
         if (body.location !== undefined) updateData.location = body.location;
         if (body.postalCode !== undefined) updateData.postalCode = body.postalCode;
         if (body.prefecture !== undefined) updateData.prefecture = body.prefecture;
@@ -50,7 +55,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.demolitionDate !== undefined) updateData.demolitionDate = body.demolitionDate ? new Date(body.demolitionDate) : null;
         if (body.estimatedAssemblyWorkers !== undefined) updateData.estimatedAssemblyWorkers = body.estimatedAssemblyWorkers;
         if (body.estimatedDemolitionWorkers !== undefined) updateData.estimatedDemolitionWorkers = body.estimatedDemolitionWorkers;
-        if (body.contractAmount !== undefined) updateData.contractAmount = body.contractAmount;
+        if (body.contractAmount !== undefined) {
+            if (typeof body.contractAmount === 'number' && body.contractAmount < 0) return validationErrorResponse('契約金額は0以上で指定してください');
+            updateData.contractAmount = body.contractAmount;
+        }
         if (body.scaffoldingSpec !== undefined) updateData.scaffoldingSpec = body.scaffoldingSpec;
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks;

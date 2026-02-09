@@ -57,9 +57,9 @@ model ProjectMaster {
   postalCode                 String?
   prefecture                 String?
   scaffoldingSpec            Json?
-  materialCost               Float?
-  otherExpenses              Float?
-  subcontractorCost          Float?
+  materialCost               Decimal? @db.Decimal(12, 2)
+  otherExpenses              Decimal? @db.Decimal(12, 2)
+  subcontractorCost          Decimal? @db.Decimal(12, 2)
   assignments                ProjectAssignment[]
 
   @@index([title])
@@ -155,9 +155,9 @@ model Estimate {
   estimateNumber  String   @unique
   title           String
   items           String
-  subtotal        Float
-  tax             Float
-  total           Float
+  subtotal        Decimal  @db.Decimal(12, 2)
+  tax             Decimal  @db.Decimal(12, 2)
+  total           Decimal  @db.Decimal(12, 2)
   validUntil      DateTime
   status          String   @default("draft")
   notes           String?
@@ -181,9 +181,9 @@ model Invoice {
   invoiceNumber   String    @unique
   title           String
   items           String
-  subtotal        Float
-  tax             Float
-  total           Float
+  subtotal        Decimal   @db.Decimal(12, 2)
+  tax             Decimal   @db.Decimal(12, 2)
+  total           Decimal   @db.Decimal(12, 2)
   dueDate         DateTime
   status          String    @default("draft")
   paidDate        DateTime?
@@ -207,7 +207,7 @@ model Vehicle {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  dailyRate Float?
+  dailyRate Decimal? @db.Decimal(10, 2)
 
   @@index([name])
   @@schema("public")
@@ -254,7 +254,7 @@ model SystemSettings {
   totalMembers        Int      @default(20)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
-  laborDailyRate      Float    @default(15000)
+  laborDailyRate      Decimal  @default(15000) @db.Decimal(10, 2)
   standardWorkMinutes Int      @default(480)
 
   @@schema("public")
@@ -264,7 +264,7 @@ model UnitPriceMaster {
   id          String   @id @default(uuid())
   description String
   unit        String
-  unitPrice   Float
+  unitPrice   Decimal  @db.Decimal(12, 2)
   templates   String
   notes       String?
   isActive    Boolean  @default(true)

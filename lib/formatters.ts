@@ -55,9 +55,9 @@ export interface RawEstimate {
     validUntil: Date;
     createdAt: Date;
     updatedAt: Date;
-    subtotal?: number;
-    tax?: number;
-    total?: number;
+    subtotal?: unknown;
+    tax?: unknown;
+    total?: unknown;
     [key: string]: unknown;
 }
 
@@ -146,6 +146,9 @@ export function formatProjectMaster(pm: RawProjectMaster) {
 export function formatEstimate(estimate: RawEstimate) {
     return {
         ...estimate,
+        subtotal: Number(estimate.subtotal || 0),
+        tax: Number(estimate.tax || 0),
+        total: Number(estimate.total || 0),
         items: parseJsonField<unknown[]>(estimate.items, []),
         validUntil: estimate.validUntil.toISOString(),
         createdAt: estimate.createdAt.toISOString(),
@@ -161,6 +164,9 @@ export function formatEstimate(estimate: RawEstimate) {
 export function formatInvoice(invoice: RawInvoice) {
     return {
         ...invoice,
+        subtotal: Number((invoice as Record<string, unknown>).subtotal || 0),
+        tax: Number((invoice as Record<string, unknown>).tax || 0),
+        total: Number((invoice as Record<string, unknown>).total || 0),
         items: parseJsonField<unknown[]>(invoice.items, []),
         dueDate: invoice.dueDate.toISOString(),
         paidDate: invoice.paidDate?.toISOString() || null,

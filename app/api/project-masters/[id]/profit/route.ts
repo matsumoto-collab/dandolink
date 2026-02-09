@@ -23,13 +23,13 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
         ]);
 
-        const laborDailyRate = settings?.laborDailyRate ?? 15000;
+        const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
         const standardWorkMinutes = settings?.standardWorkMinutes ?? 480;
         const minuteRate = laborDailyRate / standardWorkMinutes;
-        const vehicleRateMap = new Map(allVehicles.map(v => [v.id, v.dailyRate || 0]));
+        const vehicleRateMap = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
 
-        const estimateAmount = estimates.reduce((sum, e) => sum + e.total, 0);
-        const revenue = invoices.reduce((sum, i) => sum + i.total, 0);
+        const estimateAmount = estimates.reduce((sum, e) => sum + Number(e.total), 0);
+        const revenue = invoices.reduce((sum, i) => sum + Number(i.total), 0);
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
 
@@ -73,9 +73,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             }
         }
 
-        const materialCost = projectMaster.materialCost || 0;
-        const subcontractorCost = projectMaster.subcontractorCost || 0;
-        const otherExpenses = projectMaster.otherExpenses || 0;
+        const materialCost = Number(projectMaster.materialCost || 0);
+        const subcontractorCost = Number(projectMaster.subcontractorCost || 0);
+        const otherExpenses = Number(projectMaster.otherExpenses || 0);
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
         const grossProfit = revenue - totalCost;
         const profitMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;

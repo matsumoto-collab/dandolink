@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, validationErrorResponse, serverErrorResponse, errorResponse, validateHexColor } from '@/lib/api/utils';
+import { isManagerOrAbove } from '@/utils/permissions';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
+        if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
         const body = await request.json();
@@ -19,11 +21,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             if (typeof name !== 'string' || !name.trim()) {
                 return validationErrorResponse('名前は必須です');
             }
+            if (name.trim().length > 100) {
+                return validationErrorResponse('名前は100文字以内で入力してください');
+            }
             updateData.name = name.trim();
         }
 
         if (color !== undefined) {
-            updateData.color = color;
+            updateData.color = validateHexColor(color);
         }
 
         if (sortOrder !== undefined) {
@@ -42,8 +47,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
+        if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
         await prisma.constructionType.update({

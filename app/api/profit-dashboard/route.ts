@@ -32,21 +32,21 @@ export async function GET(request: NextRequest) {
             ]);
 
             const estimateByProject = new Map<string, number>();
-            estimates.forEach(e => { if (e.projectMasterId) estimateByProject.set(e.projectMasterId, (estimateByProject.get(e.projectMasterId) || 0) + e.total); });
+            estimates.forEach(e => { if (e.projectMasterId) estimateByProject.set(e.projectMasterId, (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)); });
 
             const revenueByProject = new Map<string, number>();
-            invoices.forEach(i => revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + i.total));
+            invoices.forEach(i => revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)));
 
             const profitSummaries = projectMasters.map(pm => {
                 const estimateAmount = estimateByProject.get(pm.id) || 0;
                 const revenue = revenueByProject.get(pm.id) || 0;
-                const totalCost = (pm.materialCost || 0) + (pm.subcontractorCost || 0) + (pm.otherExpenses || 0);
+                const totalCost = Number(pm.materialCost || 0) + Number(pm.subcontractorCost || 0) + Number(pm.otherExpenses || 0);
                 const grossProfit = revenue - totalCost;
                 return {
                     id: pm.id, title: pm.title, customerName: pm.customerName, status: pm.status,
                     assignmentCount: pm._count.assignments, estimateAmount, revenue,
                     laborCost: 0, loadingCost: 0, vehicleCost: 0,
-                    materialCost: pm.materialCost || 0, subcontractorCost: pm.subcontractorCost || 0, otherExpenses: pm.otherExpenses || 0,
+                    materialCost: Number(pm.materialCost || 0), subcontractorCost: Number(pm.subcontractorCost || 0), otherExpenses: Number(pm.otherExpenses || 0),
                     totalCost, grossProfit, profitMargin: revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0,
                     updatedAt: pm.updatedAt, _costLoaded: false,
                 };
@@ -77,12 +77,12 @@ export async function GET(request: NextRequest) {
         ]);
 
         const estimateByProject = new Map<string, number>();
-        estimates.forEach(e => { if (e.projectMasterId) estimateByProject.set(e.projectMasterId, (estimateByProject.get(e.projectMasterId) || 0) + e.total); });
+        estimates.forEach(e => { if (e.projectMasterId) estimateByProject.set(e.projectMasterId, (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)); });
 
         const revenueByProject = new Map<string, number>();
-        invoices.forEach(i => revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + i.total));
+        invoices.forEach(i => revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)));
 
-        const minuteRate = (settings?.laborDailyRate ?? 15000) / (settings?.standardWorkMinutes ?? 480);
+        const minuteRate = Number(settings?.laborDailyRate ?? 15000) / (settings?.standardWorkMinutes ?? 480);
         const laborCostByProject = new Map<string, number>();
         const loadingCostByProject = new Map<string, number>();
 
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        const vehicleRates = new Map(vehicles.map(v => [v.id, v.dailyRate || 0]));
+        const vehicleRates = new Map(vehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
         const vehicleCostByProject = new Map<string, number>();
         assignments.forEach(a => {
             const cost = parseJsonField<string[]>(a.vehicles, []).reduce((sum, vid) => sum + (vehicleRates.get(vid) || 0), 0);
@@ -109,12 +109,12 @@ export async function GET(request: NextRequest) {
             const laborCost = laborCostByProject.get(pm.id) || 0;
             const loadingCost = loadingCostByProject.get(pm.id) || 0;
             const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
-            const totalCost = laborCost + loadingCost + vehicleCost + (pm.materialCost || 0) + (pm.subcontractorCost || 0) + (pm.otherExpenses || 0);
+            const totalCost = laborCost + loadingCost + vehicleCost + Number(pm.materialCost || 0) + Number(pm.subcontractorCost || 0) + Number(pm.otherExpenses || 0);
             const grossProfit = revenue - totalCost;
             return {
                 id: pm.id, title: pm.title, customerName: pm.customerName, status: pm.status,
                 assignmentCount: pm._count.assignments, estimateAmount, revenue, laborCost, loadingCost, vehicleCost,
-                materialCost: pm.materialCost || 0, subcontractorCost: pm.subcontractorCost || 0, otherExpenses: pm.otherExpenses || 0,
+                materialCost: Number(pm.materialCost || 0), subcontractorCost: Number(pm.subcontractorCost || 0), otherExpenses: Number(pm.otherExpenses || 0),
                 totalCost, grossProfit, profitMargin: revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0,
                 updatedAt: pm.updatedAt, _costLoaded: true,
             };

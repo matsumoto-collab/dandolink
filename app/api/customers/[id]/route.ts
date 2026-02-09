@@ -90,6 +90,12 @@ export async function DELETE(
             return notFoundResponse('顧客');
         }
 
+        // 参照チェック: この顧客を使用している案件があれば削除を拒否
+        const referencingProjects = await prisma.projectMaster.count({ where: { customerId: id } });
+        if (referencingProjects > 0) {
+            return validationErrorResponse(`この顧客は${referencingProjects}件の案件で使用されているため削除できません`);
+        }
+
         await prisma.customer.delete({ where: { id } });
 
         return deleteSuccessResponse('顧客');

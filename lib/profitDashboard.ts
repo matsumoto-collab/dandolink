@@ -119,7 +119,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         if (e.projectMasterId) {
             estimateByProject.set(
                 e.projectMasterId,
-                (estimateByProject.get(e.projectMasterId) || 0) + e.total
+                (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)
             );
         }
     }
@@ -129,12 +129,12 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     for (const i of invoices) {
         revenueByProject.set(
             i.projectMasterId,
-            (revenueByProject.get(i.projectMasterId) || 0) + i.total
+            (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)
         );
     }
 
     // システム設定から単価計算
-    const laborDailyRate = settings?.laborDailyRate ?? 15000;
+    const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
     const standardWorkMinutes = settings?.standardWorkMinutes ?? 480;
     const minuteRate = laborDailyRate / standardWorkMinutes;
 
@@ -168,7 +168,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     // 車両費を計算
     const vehicleRates = new Map<string, number>();
     for (const v of vehicles) {
-        vehicleRates.set(v.id, v.dailyRate || 0);
+        vehicleRates.set(v.id, Number(v.dailyRate || 0));
     }
 
     const vehicleCostByProject = new Map<string, number>();
@@ -193,9 +193,9 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         const laborCost = laborCostByProject.get(pm.id) || 0;
         const loadingCost = loadingCostByProject.get(pm.id) || 0;
         const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
-        const materialCost = pm.materialCost || 0;
-        const subcontractorCost = pm.subcontractorCost || 0;
-        const otherExpenses = pm.otherExpenses || 0;
+        const materialCost = Number(pm.materialCost || 0);
+        const subcontractorCost = Number(pm.subcontractorCost || 0);
+        const otherExpenses = Number(pm.otherExpenses || 0);
 
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
         const grossProfit = revenue - totalCost;

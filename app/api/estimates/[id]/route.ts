@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
-import { requireAuth, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, notFoundResponse, serverErrorResponse, validationErrorResponse, deleteSuccessResponse } from '@/lib/api/utils';
 import { formatEstimate } from '@/lib/formatters';
 
 interface RouteContext { params: Promise<{ id: string }>; }
@@ -26,7 +26,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.tax !== undefined) updateData.tax = body.tax;
         if (body.total !== undefined) updateData.total = body.total;
         if (body.validUntil !== undefined) updateData.validUntil = new Date(body.validUntil);
-        if (body.status !== undefined) updateData.status = body.status;
+        if (body.status !== undefined) {
+            const VALID_STATUSES = ['draft', 'sent', 'accepted', 'rejected'];
+            if (!VALID_STATUSES.includes(body.status)) return validationErrorResponse(`statusは${VALID_STATUSES.join(', ')}のいずれかを指定してください`);
+            updateData.status = body.status;
+        }
         if (body.notes !== undefined) updateData.notes = body.notes || null;
 
         const updatedEstimate = await prisma.estimate.update({ where: { id }, data: updateData });
@@ -46,7 +50,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         if (!existingEstimate) return notFoundResponse('見積');
 
         await prisma.estimate.delete({ where: { id } });
-        return NextResponse.json({ message: '見積を削除しました' });
+        return deleteSuccessResponse('見積');
     } catch (error) {
         return serverErrorResponse('見積の削除', error);
     }

@@ -93,10 +93,24 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);
         if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;
 
+        // workers/vehiclesが更新される場合、リレーションテーブルも同期
+        if (body.workers !== undefined) {
+            updateData.assignmentWorkers = {
+                deleteMany: {},
+                create: Array.isArray(body.workers) ? body.workers.map((w: string) => ({ workerName: w })) : [],
+            };
+        }
+        if (body.vehicles !== undefined) {
+            updateData.assignmentVehicles = {
+                deleteMany: {},
+                create: Array.isArray(body.vehicles) ? body.vehicles.map((v: string) => ({ vehicleName: v })) : [],
+            };
+        }
+
         const assignment = await prisma.projectAssignment.update({
             where: { id },
             data: updateData,
-            include: { projectMaster: true },
+            include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
         });
 
         return NextResponse.json(formatAssignment(assignment));
