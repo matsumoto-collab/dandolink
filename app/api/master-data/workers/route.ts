@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, validateStringField } from '@/lib/api/utils';
 
 export async function GET() {
     try {
@@ -20,9 +20,10 @@ export async function POST(request: NextRequest) {
         if (error) return error;
 
         const { name } = await request.json();
-        if (!name || typeof name !== 'string') return validationErrorResponse('名前は必須です');
+        const validatedName = validateStringField(name, '名前', 100);
+        if (validatedName instanceof NextResponse) return validatedName;
 
-        const worker = await prisma.worker.create({ data: { name: name.trim() } });
+        const worker = await prisma.worker.create({ data: { name: validatedName } });
         return NextResponse.json(worker, { status: 201 });
     } catch (error) {
         return serverErrorResponse('職方作成', error);

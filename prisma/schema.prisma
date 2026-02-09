@@ -25,6 +25,8 @@ model User {
 
   @@index([username])
   @@index([email])
+  @@index([teamId])
+  @@index([role])
   @@schema("public")
 }
 
@@ -97,6 +99,7 @@ model ProjectAssignment {
   @@index([assignedEmployeeId])
   @@index([date])
   @@index([isDispatchConfirmed])
+  @@index([constructionType])
   @@index([date], map: "idx_assignment_date")
   @@index([assignedEmployeeId, date], map: "idx_assignment_employee_date")
   @@index([projectMasterId], map: "idx_assignment_project_master")

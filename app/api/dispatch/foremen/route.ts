@@ -13,7 +13,7 @@ export async function GET() {
         }
 
         const foremen = await prisma.user.findMany({
-            where: { isActive: true, role: { in: ['foreman1', 'FOREMAN1', 'foreman2', 'FOREMAN2', 'admin', 'ADMIN', 'manager', 'MANAGER', 'partner', 'PARTNER'] } },
+            where: { isActive: true, role: { in: ['foreman1', 'foreman2', 'admin', 'manager', 'partner'], mode: 'insensitive' } },
             select: { id: true, displayName: true, role: true },
             orderBy: { displayName: 'asc' },
         });

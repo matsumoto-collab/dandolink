@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, validateStringField, validateHexColor } from '@/lib/api/utils';
 
 // デフォルトの工事種別データ
 const DEFAULT_CONSTRUCTION_TYPES = [
@@ -19,10 +19,11 @@ export async function GET() {
             orderBy: { sortOrder: 'asc' },
         });
 
-        // データが空の場合はデフォルトデータをシード
+        // データが空の場合はデフォルトデータをシード（skipDuplicatesで同時リクエスト時の重複を防止）
         if (constructionTypes.length === 0) {
             await prisma.constructionType.createMany({
                 data: DEFAULT_CONSTRUCTION_TYPES,
+                skipDuplicates: true,
             });
             constructionTypes = await prisma.constructionType.findMany({
                 where: { isActive: true },
@@ -42,9 +43,9 @@ export async function POST(request: NextRequest) {
         if (error) return error;
 
         const { name, color } = await request.json();
-        if (!name || typeof name !== 'string') {
-            return validationErrorResponse('名前は必須です');
-        }
+        const validatedName = validateStringField(name, '名前', 100);
+        if (validatedName instanceof NextResponse) return validatedName;
+        const validatedColor = validateHexColor(color);
 
         // 最大のsortOrderを取得して+1
         const maxSortOrder = await prisma.constructionType.aggregate({
@@ -54,8 +55,8 @@ export async function POST(request: NextRequest) {
 
         const constructionType = await prisma.constructionType.create({
             data: {
-                name: name.trim(),
-                color: color || '#a8c8e8',
+                name: validatedName,
+                color: validatedColor,
                 sortOrder: nextSortOrder,
             },
         });

@@ -33,6 +33,27 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
 
+        // N+1回避: 関連する全dailyReportの作業時間合計を一括取得
+        const allDailyReportIds = new Set<string>();
+        for (const assignment of projectMaster.assignments) {
+            for (const workItem of assignment.dailyReportWorkItems) {
+                if (workItem.dailyReport) {
+                    allDailyReportIds.add(workItem.dailyReport.id);
+                }
+            }
+        }
+        const reportTotalsMap = new Map<string, number>();
+        if (allDailyReportIds.size > 0) {
+            const reportTotals = await prisma.dailyReportWorkItem.groupBy({
+                by: ['dailyReportId'],
+                where: { dailyReportId: { in: Array.from(allDailyReportIds) } },
+                _sum: { workMinutes: true },
+            });
+            for (const rt of reportTotals) {
+                reportTotalsMap.set(rt.dailyReportId, rt._sum.workMinutes || 0);
+            }
+        }
+
         for (const assignment of projectMaster.assignments) {
             const workers = parseJsonField<string[]>(assignment.workers, []);
             const workerCount = workers.length || 1;
@@ -42,7 +63,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             for (const workItem of assignment.dailyReportWorkItems) {
                 laborCost += Math.round(workItem.workMinutes * workerCount * minuteRate);
                 if (workItem.dailyReport) {
-                    const totalWorkMinutes = await getTotalWorkMinutesForReport(workItem.dailyReport.id);
+                    const totalWorkMinutes = reportTotalsMap.get(workItem.dailyReport.id) || 0;
                     if (totalWorkMinutes > 0) {
                         const ratio = workItem.workMinutes / totalWorkMinutes;
                         const loadingMinutes = (workItem.dailyReport.morningLoadingMinutes + workItem.dailyReport.eveningLoadingMinutes) * ratio;
@@ -69,7 +90,3 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     }
 }
 
-async function getTotalWorkMinutesForReport(dailyReportId: string): Promise<number> {
-    const workItems = await prisma.dailyReportWorkItem.findMany({ where: { dailyReportId } });
-    return workItems.reduce((sum, item) => sum + item.workMinutes, 0);
-}

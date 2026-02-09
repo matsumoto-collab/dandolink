@@ -188,6 +188,48 @@ export function serverErrorResponse(
 // JSON処理関数は @/lib/json-utils から再エクスポート済み
 
 // ============================================
+// バリデーションヘルパー
+// ============================================
+
+/**
+ * 文字列フィールドのバリデーション（trim + 長さチェック）
+ */
+export function validateStringField(value: unknown, fieldName: string, maxLength = 200): string | NextResponse {
+    if (!value || typeof value !== 'string' || !value.trim()) {
+        return validationErrorResponse(`${fieldName}は必須です`);
+    }
+    const trimmed = value.trim();
+    if (trimmed.length > maxLength) {
+        return validationErrorResponse(`${fieldName}は${maxLength}文字以内で入力してください`);
+    }
+    return trimmed;
+}
+
+/**
+ * 日付文字列のバリデーション
+ */
+export function validateDateString(value: unknown, fieldName: string): Date | NextResponse {
+    if (!value || typeof value !== 'string') {
+        return validationErrorResponse(`${fieldName}は必須です`);
+    }
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {
+        return validationErrorResponse(`${fieldName}の日付形式が不正です`);
+    }
+    return date;
+}
+
+/**
+ * 16進カラーコードのバリデーション
+ */
+export function validateHexColor(value: unknown): string {
+    if (typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value)) {
+        return value;
+    }
+    return '#a8c8e8'; // デフォルト色
+}
+
+// ============================================
 // レスポンスヘルパー
 // ============================================
 
