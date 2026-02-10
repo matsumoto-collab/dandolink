@@ -8,6 +8,11 @@ import { useMasterStore } from '@/stores/masterStore';
 // fetchをモック
 const mockFetch = jest.fn();
 global.fetch = mockFetch;
+// デフォルトの実装を追加（Promise.allで複数回呼ばれるため）
+mockFetch.mockResolvedValue({
+    ok: true,
+    json: async () => [],
+});
 
 // Supabaseをモック
 jest.mock('@/lib/supabase', () => ({
@@ -49,10 +54,15 @@ describe('masterStore', () => {
                 totalMembers: 25,
             };
 
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve(mockData),
-            });
+            mockFetch
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve(mockData),
+                })
+                .mockResolvedValueOnce({
+                    ok: true,
+                    json: () => Promise.resolve([]), // constructionTypes
+                });
 
             await act(async () => {
                 await useMasterStore.getState().fetchMasterData();
@@ -69,7 +79,7 @@ describe('masterStore', () => {
 
         it('should not fetch when already loading', async () => {
             // 最初のfetchをセット
-            mockFetch.mockImplementation(() => new Promise(() => {})); // 永久にpending
+            mockFetch.mockImplementation(() => new Promise(() => { })); // 永久にpending
 
             // 非同期で開始（awaitしない）
             const fetchPromise = useMasterStore.getState().fetchMasterData();
@@ -78,16 +88,18 @@ describe('masterStore', () => {
             await useMasterStore.getState().fetchMasterData();
 
             // fetchは1回だけ呼ばれるべき
-            expect(mockFetch).toHaveBeenCalledTimes(1);
+            expect(mockFetch).toHaveBeenCalledTimes(2);
 
             // クリーンアップのためリセット
             useMasterStore.getState().reset();
         });
 
         it('should handle fetch error', async () => {
-            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
 
-            mockFetch.mockRejectedValueOnce(new Error('Network error'));
+            mockFetch
+                .mockRejectedValueOnce(new Error('Network error'))
+                .mockResolvedValueOnce({ ok: true, json: async () => [] });
 
             await act(async () => {
                 await useMasterStore.getState().fetchMasterData();

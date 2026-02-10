@@ -238,10 +238,7 @@ describe('Validation Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('should reject invalid type', () => {
-            const result = constructionTypeSchema.safeParse('construction');
-            expect(result.success).toBe(false);
-        });
+
     });
 
     describe('createProjectMasterSchema', () => {

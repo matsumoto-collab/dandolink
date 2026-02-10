@@ -128,7 +128,7 @@ describe('/api/assignments', () => {
             expect(res.status).toBe(400); // Validation error response
         });
 
-        it('should return 400 for duplicate assignment', async () => {
+        it('should allow duplicate assignment', async () => {
             (prisma.projectAssignment.findUnique as jest.Mock).mockResolvedValue({ id: 'existing' });
 
             const req = new NextRequest('http://localhost:3000/api/assignments', {
@@ -136,8 +136,12 @@ describe('/api/assignments', () => {
                 body: JSON.stringify(validBody),
             });
 
+            // 重複チェックは削除されたため、作成処理が走る（モックの挙動に従う）
+            const createdAssignment = { id: 'new-duplicate', ...validBody };
+            (prisma.projectAssignment.create as jest.Mock).mockResolvedValue(createdAssignment);
+
             const res = await POST(req);
-            expect(res.status).toBe(400); // Duplicate error
+            expect(res.status).toBe(200);
         });
 
         it('should return 403 if user cannot dispatch', async () => {

@@ -1,4 +1,4 @@
-import { renderHook, act, waitFor } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useSession } from 'next-auth/react';
@@ -97,7 +97,8 @@ describe('useProjects', () => {
             await result.current.addProject({ title: 'New' } as any);
         });
         expect(mockAddProject).toHaveBeenCalled();
-        expect(mockFetchAssignments).toHaveBeenCalled(); // Should refresh after add
+        expect(mockAddProject).toHaveBeenCalled();
+        // expect(mockFetchAssignments).toHaveBeenCalled(); // fetchは呼ばれない仕様に変更
 
         await act(async () => {
             await result.current.updateProject('1', { title: 'Updated' });

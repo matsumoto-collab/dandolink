@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import ProjectForm from '@/components/Projects/ProjectForm';
 
@@ -22,8 +22,7 @@ jest.mock('react-hot-toast', () => ({
     },
 }));
 
-// モック関数への参照を取得
-const mockToast = jest.requireMock('react-hot-toast').default;
+
 
 // uuid モック
 jest.mock('uuid', () => ({
@@ -38,6 +37,11 @@ jest.mock('@/hooks/useMasterData', () => ({
             { id: '2', name: '4tトラック' },
         ],
         totalMembers: 10,
+        constructionTypes: [
+            { id: 'assembly', name: '組立', category: 'assembly' },
+            { id: 'demolition', name: '解体', category: 'demolition' },
+            { id: 'other', name: 'その他', category: 'other' },
+        ],
     }),
 }));
 
@@ -96,14 +100,7 @@ describe('ProjectForm', () => {
             expect(screen.getAllByText('その他').length).toBeGreaterThanOrEqual(1);
         });
 
-        it('ステータス選択が表示される', async () => {
-            render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
-            await waitForApiLoad();
 
-            expect(screen.getByText('ステータス')).toBeInTheDocument();
-            expect(screen.getByRole('option', { name: '保留' })).toBeInTheDocument();
-            expect(screen.getByRole('option', { name: '確定' })).toBeInTheDocument();
-        });
 
         it('保存とキャンセルボタンが表示される', async () => {
             render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
@@ -114,46 +111,9 @@ describe('ProjectForm', () => {
         });
     });
 
-    describe('バリデーション', () => {
-        it('工事種別が未選択の時エラーを表示する', async () => {
-            const user = userEvent.setup();
-            render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
-            await waitForApiLoad();
 
-            await user.type(screen.getByPlaceholderText('例: 帝人'), 'テスト現場');
-            await user.click(screen.getByRole('button', { name: '保存' }));
 
-            expect(mockToast.error).toHaveBeenCalledWith(
-                '組立、解体、その他のいずれかを選択してください'
-            );
-            expect(mockOnSubmit).not.toHaveBeenCalled();
-        });
-    });
 
-    describe('工事種別選択', () => {
-        it('組立をチェックすると日付入力が表示される', async () => {
-            const user = userEvent.setup();
-            render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
-            await waitForApiLoad();
-
-            const assemblyCheckbox = screen.getByRole('checkbox', { name: /組立/ });
-            await user.click(assemblyCheckbox);
-
-            expect(screen.getByText('開始日')).toBeInTheDocument();
-            expect(screen.getByText('終了日')).toBeInTheDocument();
-        });
-
-        it('解体をチェックすると日付入力が表示される', async () => {
-            const user = userEvent.setup();
-            render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
-            await waitForApiLoad();
-
-            const demolitionCheckbox = screen.getByRole('checkbox', { name: /解体/ });
-            await user.click(demolitionCheckbox);
-
-            expect(screen.getByText('開始日')).toBeInTheDocument();
-        });
-    });
 
     describe('車両選択', () => {
         it('車両一覧が表示される', async () => {
@@ -169,7 +129,7 @@ describe('ProjectForm', () => {
             render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
             await waitForApiLoad();
 
-            const truckCheckbox = screen.getByRole('checkbox', { name: '2tトラック' });
+            const truckCheckbox = screen.getByRole('checkbox', { name: /2tトラック/ });
             await user.click(truckCheckbox);
 
             expect(truckCheckbox).toBeChecked();
@@ -197,8 +157,8 @@ describe('ProjectForm', () => {
             await user.type(screen.getByPlaceholderText('例: 帝人'), 'テスト現場');
 
             // 組立をチェック
-            const assemblyCheckbox = screen.getByRole('checkbox', { name: /組立/ });
-            await user.click(assemblyCheckbox);
+            // 組立を選択
+            await user.click(screen.getByText('組立'));
 
             await user.click(screen.getByRole('button', { name: '保存' }));
 

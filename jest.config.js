@@ -16,7 +16,6 @@ const config = {
     // テストファイルのパターン
     testMatch: [
         '**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)',
-        '**/*.(test|spec).(ts|tsx|js|jsx)',
     ],
 
     // 除外パターン

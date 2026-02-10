@@ -183,7 +183,17 @@ describe('calendarStore', () => {
                 }]
             } as any);
 
-            (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+            const updatedAssignment = {
+                ...mockAssignment,
+                date: '2023-02-01T00:00:00.000Z',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-02-01T00:00:00.000Z',
+            };
+
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: true,
+                json: async () => updatedAssignment, // 成功時のレスポンスを追加
+            });
 
             const newDate = new Date('2023-02-01T00:00:00.000Z');
 
