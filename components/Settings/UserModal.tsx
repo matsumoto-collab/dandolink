@@ -112,10 +112,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Username */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
                                 ユーザー名 <span className="text-red-500">*</span>
                             </label>
                             <input
+                                id="username"
                                 type="text"
                                 value={formData.username}
                                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
@@ -130,10 +131,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
 
                         {/* Email */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                                 メールアドレス <span className="text-red-500">*</span>
                             </label>
                             <input
+                                id="email"
                                 type="email"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -144,10 +146,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
 
                         {/* Display Name */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
                                 表示名 <span className="text-red-500">*</span>
                             </label>
                             <input
+                                id="displayName"
                                 type="text"
                                 value={formData.displayName}
                                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
@@ -158,10 +161,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
 
                         {/* Password */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                                 パスワード {mode === 'create' && <span className="text-red-500">*</span>}
                             </label>
                             <input
+                                id="password"
                                 type="password"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -173,10 +177,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
 
                         {/* Role */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
                                 ロール <span className="text-red-500">*</span>
                             </label>
                             <select
+                                id="role"
                                 value={formData.role}
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -195,6 +200,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                         <div className="flex items-center">
                             <label className="flex items-center cursor-pointer">
                                 <input
+                                    id="isActive"
                                     type="checkbox"
                                     checked={formData.isActive}
                                     onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}

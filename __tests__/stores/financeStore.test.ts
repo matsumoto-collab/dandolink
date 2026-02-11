@@ -351,4 +351,75 @@ describe('financeStore', () => {
             expect(results).toHaveLength(1);
         });
     });
+
+    describe('Getters', () => {
+        it('getEstimate: should return correct estimate', () => {
+            useFinanceStore.setState({ estimates: [{ id: 'e1', estimateNumber: '1' } as any] });
+            expect(useFinanceStore.getState().getEstimate('e1')?.estimateNumber).toBe('1');
+            expect(useFinanceStore.getState().getEstimate('non-existent')).toBeUndefined();
+        });
+
+        it('getInvoice: should return correct invoice', () => {
+            useFinanceStore.setState({ invoices: [{ id: 'i1', invoiceNumber: '1' } as any] });
+            expect(useFinanceStore.getState().getInvoice('i1')?.invoiceNumber).toBe('1');
+            expect(useFinanceStore.getState().getInvoice('non-existent')).toBeUndefined();
+        });
+
+        it('getUnitPriceById: should return correct unit price', () => {
+            useFinanceStore.setState({ unitPrices: [{ id: 'u1', description: 'desc' } as any] });
+            expect(useFinanceStore.getState().getUnitPriceById('u1')?.description).toBe('desc');
+            expect(useFinanceStore.getState().getUnitPriceById('non-existent')).toBeUndefined();
+        });
+    });
+
+    describe('Selectors', () => {
+        it('should select various state slices', async () => {
+            const state = {
+                companyInfo: { name: 'Comp' },
+                companyLoading: true,
+                companyInitialized: true,
+                customers: [{ id: 'c1' }],
+                customersLoading: false,
+                customersInitialized: true,
+                estimates: [{ id: 'e1' }],
+                estimatesLoading: true,
+                estimatesInitialized: false,
+                invoices: [{ id: 'i1' }],
+                invoicesLoading: false,
+                invoicesInitialized: true,
+                unitPrices: [{ id: 'u1' }],
+                unitPricesLoading: true,
+                unitPricesInitialized: false
+            } as any;
+
+            // Import selectors dynamically or mock
+            const {
+                selectCompanyInfo, selectCompanyLoading, selectCompanyInitialized,
+                selectCustomers, selectCustomersLoading, selectCustomersInitialized,
+                selectEstimates, selectEstimatesLoading, selectEstimatesInitialized,
+                selectInvoices, selectInvoicesLoading, selectInvoicesInitialized,
+                selectUnitPrices, selectUnitPricesLoading, selectUnitPricesInitialized
+            } = await import('@/stores/financeStore');
+
+            expect(selectCompanyInfo({ ...useFinanceStore.getState(), ...state })).toEqual({ name: 'Comp' });
+            expect(selectCompanyLoading({ ...useFinanceStore.getState(), ...state })).toBe(true);
+            expect(selectCompanyInitialized({ ...useFinanceStore.getState(), ...state })).toBe(true);
+
+            expect(selectCustomers({ ...useFinanceStore.getState(), ...state })).toHaveLength(1);
+            expect(selectCustomersLoading({ ...useFinanceStore.getState(), ...state })).toBe(false);
+            expect(selectCustomersInitialized({ ...useFinanceStore.getState(), ...state })).toBe(true);
+
+            expect(selectEstimates({ ...useFinanceStore.getState(), ...state })).toHaveLength(1);
+            expect(selectEstimatesLoading({ ...useFinanceStore.getState(), ...state })).toBe(true);
+            expect(selectEstimatesInitialized({ ...useFinanceStore.getState(), ...state })).toBe(false);
+
+            expect(selectInvoices({ ...useFinanceStore.getState(), ...state })).toHaveLength(1);
+            expect(selectInvoicesLoading({ ...useFinanceStore.getState(), ...state })).toBe(false);
+            expect(selectInvoicesInitialized({ ...useFinanceStore.getState(), ...state })).toBe(true);
+
+            expect(selectUnitPrices({ ...useFinanceStore.getState(), ...state })).toHaveLength(1);
+            expect(selectUnitPricesLoading({ ...useFinanceStore.getState(), ...state })).toBe(true);
+            expect(selectUnitPricesInitialized({ ...useFinanceStore.getState(), ...state })).toBe(false);
+        });
+    });
 });

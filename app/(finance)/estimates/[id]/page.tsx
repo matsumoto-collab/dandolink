@@ -43,6 +43,8 @@ export default function EstimateDetailPage() {
                     setPdfUrl(url);
                 } catch (error) {
                     console.error('PDF生成エラー:', error);
+                    toast.error('PDF生成に失敗しました');
+                    setPdfUrl('error');
                 }
             };
 
@@ -196,12 +198,24 @@ export default function EstimateDetailPage() {
             {/* PDFプレビュー */}
             <div className="flex-1 overflow-hidden">
                 {activeTab === 'estimate' ? (
-                    pdfUrl ? (
+                    pdfUrl && pdfUrl !== 'error' ? (
                         <iframe
                             src={pdfUrl}
                             className="w-full h-full border-0"
                             title="見積書プレビュー"
                         />
+                    ) : pdfUrl === 'error' ? (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-center text-red-500">
+                                <p className="text-lg">PDF生成に失敗しました</p>
+                                <button
+                                    onClick={() => { setPdfUrl(''); }}
+                                    className="mt-4 text-blue-600 hover:text-blue-700"
+                                >
+                                    再試行
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         <div className="flex items-center justify-center h-full">
                             <div className="text-center">

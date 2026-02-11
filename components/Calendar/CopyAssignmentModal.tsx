@@ -118,10 +118,11 @@ export default function CopyAssignmentModal({
 
                         {/* 職長選択 */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700 mb-1">
                                 職長
                             </label>
                             <select
+                                id="employeeId"
                                 value={employeeId}
                                 onChange={(e) => setEmployeeId(e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -139,11 +140,12 @@ export default function CopyAssignmentModal({
                         {/* 日付範囲 */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
                                     <Calendar className="w-4 h-4 inline mr-1" />
                                     開始日
                                 </label>
                                 <input
+                                    id="startDate"
                                     type="date"
                                     value={startDate}
                                     onChange={(e) => {
@@ -157,11 +159,12 @@ export default function CopyAssignmentModal({
                                 />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
                                     <Calendar className="w-4 h-4 inline mr-1" />
                                     終了日
                                 </label>
                                 <input
+                                    id="endDate"
                                     type="date"
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}

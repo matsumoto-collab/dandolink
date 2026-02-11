@@ -352,4 +352,181 @@ describe('calendarStore', () => {
             }));
         });
     });
+
+    describe('Foreman Utils', () => {
+        it('moveForeman: should move foreman order', async () => {
+            useCalendarStore.setState({ displayedForemanIds: ['1', '2', '3'] } as any);
+            (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+
+            await act(async () => {
+                await useCalendarStore.getState().moveForeman('2', 'up');
+            });
+            expect(useCalendarStore.getState().displayedForemanIds).toEqual(['2', '1', '3']);
+
+            await act(async () => {
+                await useCalendarStore.getState().moveForeman('2', 'down');
+            });
+            expect(useCalendarStore.getState().displayedForemanIds).toEqual(['1', '2', '3']);
+
+            // Boundary checks
+            await act(async () => {
+                await useCalendarStore.getState().moveForeman('1', 'up'); // Can't move up
+            });
+            expect(useCalendarStore.getState().displayedForemanIds).toEqual(['1', '2', '3']);
+        });
+
+        it('getAvailableForemen: should return foremen not displayed', () => {
+            useCalendarStore.setState({
+                allForemen: [
+                    { id: '1', displayName: 'F1', role: 'foreman' },
+                    { id: '2', displayName: 'F2', role: 'foreman' }
+                ],
+                displayedForemanIds: ['1']
+            } as any);
+
+            const available = useCalendarStore.getState().getAvailableForemen();
+            expect(available).toHaveLength(1);
+            expect(available[0].id).toBe('2');
+        });
+
+        it('getForemanName: should return name or default', () => {
+            useCalendarStore.setState({
+                allForemen: [{ id: '1', displayName: 'F1', role: 'foreman' }]
+            } as any);
+
+            expect(useCalendarStore.getState().getForemanName('1')).toBe('F1');
+            expect(useCalendarStore.getState().getForemanName('999')).toBe('不明');
+        });
+    });
+
+    describe('Vacations', () => {
+        it('fetchVacations: should fetch and set vacations', async () => {
+            const mockVacations = { '2023-01-01': { employeeIds: ['1'], remarks: 'Rest' } };
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: true,
+                json: async () => mockVacations
+            });
+
+            await act(async () => {
+                await useCalendarStore.getState().fetchVacations();
+            });
+
+            const state = useCalendarStore.getState();
+            expect(state.vacations).toEqual(mockVacations);
+            expect(state.vacationsInitialized).toBe(true);
+        });
+
+        it('setVacationEmployees: should update state and call API', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+
+            await act(async () => {
+                await useCalendarStore.getState().setVacationEmployees('2023-01-01', ['1', '2']);
+            });
+
+            const state = useCalendarStore.getState();
+            expect(state.vacations['2023-01-01'].employeeIds).toEqual(['1', '2']);
+            expect(global.fetch).toHaveBeenCalledWith('/api/calendar/vacations', expect.objectContaining({
+                method: 'POST',
+                body: expect.stringContaining('"employeeIds":["1","2"]')
+            }));
+        });
+
+        it('getVacationEmployees: should return empty array if undefined', () => {
+            const result = useCalendarStore.getState().getVacationEmployees('2099-01-01');
+            expect(result).toEqual([]);
+        });
+    });
+
+    describe('Advanced Project Operations', () => {
+        const mockNewAssignment = {
+            id: 'new-a1',
+            date: '2023-01-01T00:00:00.000Z',
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z',
+            projectMasterId: 'pm1',
+        };
+
+        it('addProject: should use existing projectMasterId if provided', async () => {
+            (global.fetch as jest.Mock)
+                .mockResolvedValueOnce({ ok: true }) // PATCH project master
+                .mockResolvedValueOnce({ ok: true, json: async () => mockNewAssignment }); // POST assignment
+
+            await act(async () => {
+                await useCalendarStore.getState().addProject({
+                    projectMasterId: 'pm1',
+                    title: 'Title',
+                    startDate: new Date('2023-01-01'),
+                    constructionType: 'assembly' // Trigger patch
+                } as any);
+            });
+
+            expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/pm1', expect.objectContaining({ method: 'PATCH' }));
+        });
+
+        it('addProject: should create new project master if not found', async () => {
+            (global.fetch as jest.Mock)
+                .mockResolvedValueOnce({ ok: true, json: async () => [] }) // Search returns empty
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'new-pm' }) }) // Create Master
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ ...mockNewAssignment, projectMasterId: 'new-pm' }) }); // Create Assignment
+
+            await act(async () => {
+                await useCalendarStore.getState().addProject({
+                    title: 'New Title',
+                    startDate: new Date('2023-01-01'),
+                } as any);
+            });
+
+            expect(global.fetch).toHaveBeenCalledWith('/api/project-masters', expect.objectContaining({ method: 'POST' }));
+        });
+
+        it('addProject: should handle batch creation (workSchedules)', async () => {
+            const workSchedules = [
+                { dailySchedules: [{ date: '2023-01-01', workers: ['w1'] }, { date: '2023-01-02', workers: ['w1'] }] }
+            ];
+
+            (global.fetch as jest.Mock)
+                .mockResolvedValueOnce({ ok: true, json: async () => [] }) // Search
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'pm1' }) }) // Create Master
+                .mockResolvedValueOnce({
+                    ok: true, json: async () => [
+                        { id: 'a1', date: '2023-01-01T00:00:00.000Z', projectMasterId: 'pm1', createdAt: '2023-01-01', updatedAt: '2023-01-01' },
+                        { id: 'a2', date: '2023-01-02T00:00:00.000Z', projectMasterId: 'pm1', createdAt: '2023-01-01', updatedAt: '2023-01-01' }
+                    ]
+                }); // Batch create response
+
+            await act(async () => {
+                await useCalendarStore.getState().addProject({
+                    title: 'Batch Project',
+                    workSchedules: workSchedules
+                } as any);
+            });
+
+            expect(global.fetch).toHaveBeenCalledWith('/api/assignments/batch-create', expect.objectContaining({ method: 'POST' }));
+            expect(useCalendarStore.getState().assignments).toHaveLength(2);
+        });
+
+        it('updateProjects: should handle batch update', async () => {
+            // Setup initial state
+            useCalendarStore.setState({
+                assignments: [
+                    { id: 'a1', date: new Date('2023-01-01') } as any,
+                    { id: 'a2', date: new Date('2023-01-02') } as any
+                ]
+            });
+
+            (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+
+            await act(async () => {
+                await useCalendarStore.getState().updateProjects([
+                    { id: 'a1', data: { sortOrder: 1 } },
+                    { id: 'a2', data: { sortOrder: 2 } }
+                ]);
+            });
+
+            expect(global.fetch).toHaveBeenCalledWith('/api/assignments/batch', expect.objectContaining({ method: 'POST' }));
+            // Verify optimistic/local update
+            const state = useCalendarStore.getState();
+            expect(state.assignments.find(a => a.id === 'a1')?.sortOrder).toBe(1);
+        });
+    });
 });

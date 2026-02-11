@@ -62,7 +62,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                     setManagerMap(map);
                 }
             } catch {
-                // エラー時は何もしない（IDのまま表示）
+                console.error('担当者名の取得に失敗しました');
             } finally {
                 setIsLoadingManagers(false);
             }

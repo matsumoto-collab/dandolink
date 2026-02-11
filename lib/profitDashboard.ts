@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { parseJsonField } from '@/lib/json-utils';
 
 export interface ProjectProfit {
     id: string;
@@ -98,6 +99,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
                     select: {
                         projectMasterId: true,
                         workers: true,
+                        memberCount: true,
                     },
                 },
             },
@@ -144,8 +146,8 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
 
     for (const item of workItems) {
         const projectId = item.assignment.projectMasterId;
-        const workers = item.assignment.workers ? JSON.parse(item.assignment.workers) : [];
-        const workerCount = workers.length || 1;
+        const workers = parseJsonField<string[]>(item.assignment.workers, []);
+        const workerCount = item.assignment.memberCount || workers.length || 1;
 
         // 人件費
         const laborCost = Math.round(item.workMinutes * workerCount * minuteRate);
@@ -173,7 +175,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
 
     const vehicleCostByProject = new Map<string, number>();
     for (const a of assignments) {
-        const vehicleIds: string[] = a.vehicles ? JSON.parse(a.vehicles) : [];
+        const vehicleIds: string[] = parseJsonField<string[]>(a.vehicles, []);
         let cost = 0;
         for (const vid of vehicleIds) {
             cost += vehicleRates.get(vid) || 0;

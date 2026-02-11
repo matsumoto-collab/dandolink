@@ -97,8 +97,9 @@ export default function CompanyInfoSettings() {
             {/* 基本情報 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">会社名</label>
+                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">会社名</label>
                     <input
+                        id="name"
                         type="text"
                         value={formData.name}
                         onChange={(e) => handleChange('name', e.target.value)}
@@ -106,8 +107,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">代表者肩書</label>
+                    <label htmlFor="representativeTitle" className="block text-sm font-medium text-gray-700 mb-1">代表者肩書</label>
                     <input
+                        id="representativeTitle"
                         type="text"
                         value={formData.representativeTitle}
                         onChange={(e) => handleChange('representativeTitle', e.target.value)}
@@ -116,8 +118,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">代表者氏名</label>
+                    <label htmlFor="representative" className="block text-sm font-medium text-gray-700 mb-1">代表者氏名</label>
                     <input
+                        id="representative"
                         type="text"
                         value={formData.representative}
                         onChange={(e) => handleChange('representative', e.target.value)}
@@ -125,8 +128,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
+                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
                     <input
+                        id="postalCode"
                         type="text"
                         value={formData.postalCode}
                         onChange={(e) => handleChange('postalCode', e.target.value)}
@@ -135,8 +139,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">住所</label>
+                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">住所</label>
                     <input
+                        id="address"
                         type="text"
                         value={formData.address}
                         onChange={(e) => handleChange('address', e.target.value)}
@@ -144,8 +149,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
+                    <label htmlFor="tel" className="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
                     <input
+                        id="tel"
                         type="text"
                         value={formData.tel}
                         onChange={(e) => handleChange('tel', e.target.value)}
@@ -153,8 +159,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">FAX番号</label>
+                    <label htmlFor="fax" className="block text-sm font-medium text-gray-700 mb-1">FAX番号</label>
                     <input
+                        id="fax"
                         type="text"
                         value={formData.fax}
                         onChange={(e) => handleChange('fax', e.target.value)}
@@ -162,8 +169,9 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
                     <input
+                        id="email"
                         type="email"
                         value={formData.email}
                         onChange={(e) => handleChange('email', e.target.value)}
@@ -177,8 +185,9 @@ export default function CompanyInfoSettings() {
                 <h4 className="text-md font-medium text-slate-800 mb-3">許可・登録情報</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">建設業許可番号</label>
+                        <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700 mb-1">建設業許可番号</label>
                         <input
+                            id="licenseNumber"
                             type="text"
                             value={formData.licenseNumber}
                             onChange={(e) => handleChange('licenseNumber', e.target.value)}
@@ -187,8 +196,9 @@ export default function CompanyInfoSettings() {
                         />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">インボイス登録番号</label>
+                        <label htmlFor="registrationNumber" className="block text-sm font-medium text-gray-700 mb-1">インボイス登録番号</label>
                         <input
+                            id="registrationNumber"
                             type="text"
                             value={formData.registrationNumber}
                             onChange={(e) => handleChange('registrationNumber', e.target.value)}
@@ -209,7 +219,9 @@ export default function CompanyInfoSettings() {
                         </div>
                     )}
                     <div className="flex-1">
+                        <label htmlFor="sealImage" className="sr-only">会社印</label>
                         <input
+                            id="sealImage"
                             type="file"
                             accept="image/*"
                             onChange={(e) => {

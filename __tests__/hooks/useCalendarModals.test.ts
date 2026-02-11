@@ -1,3 +1,6 @@
+/**
+ * @jest-environment jsdom
+ */
 import { renderHook, act } from '@testing-library/react';
 import { useCalendarModals } from '@/hooks/useCalendarModals';
 import { Project, CalendarEvent, ProjectMaster } from '@/types/calendar';
@@ -19,7 +22,7 @@ describe('useCalendarModals', () => {
             createdAt: new Date(),
             updatedAt: new Date(),
             color: '#000000',
-        }
+        } as Project
     ];
 
     const mockEvents: CalendarEvent[] = [
@@ -30,19 +33,20 @@ describe('useCalendarModals', () => {
             endDate: new Date('2023-01-01'),
             assignedEmployeeId: 'emp1',
             color: '#000000',
-
-
-        }
+            sortOrder: 0,
+        } as CalendarEvent
     ];
 
-    const mockAddProject = jest.fn().mockResolvedValue(undefined);
+    const mockAddProject = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
     });
 
-    it('should initialize with closed modals', () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
+    it('should initialize with all modals closed', () => {
+        const { result } = renderHook(() =>
+            useCalendarModals(mockProjects, mockEvents, mockAddProject)
+        );
 
         expect(result.current.isModalOpen).toBe(false);
         expect(result.current.isSearchModalOpen).toBe(false);
@@ -52,116 +56,350 @@ describe('useCalendarModals', () => {
         expect(result.current.modalInitialData).toEqual({});
     });
 
-    it('handleCellClick should open selection modal and set context', () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
-        const date = new Date('2023-01-01');
+    describe('Project Modal', () => {
+        it('should open modal with project data on event click', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
 
-        act(() => {
-            result.current.handleCellClick('emp1', date);
+            act(() => {
+                result.current.handleEventClick('p1-assembly');
+            });
+
+            expect(result.current.isModalOpen).toBe(true);
+            expect(result.current.modalInitialData).toEqual(mockProjects[0]);
         });
 
-        expect(result.current.isSelectionModalOpen).toBe(true);
-        expect(result.current.cellContext).toEqual({ employeeId: 'emp1', date });
-    });
+        it('should close modal and reset data', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
 
-    it('handleSelectExisting should open search modal', () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
+            act(() => {
+                result.current.setIsModalOpen(true);
+                result.current.setModalInitialData({ title: 'Test' });
+            });
 
-        act(() => {
-            result.current.handleCellClick('emp1', new Date());
-            result.current.handleSelectExisting();
-        });
+            act(() => {
+                result.current.handleCloseModal();
+            });
 
-        expect(result.current.isSelectionModalOpen).toBe(false);
-        expect(result.current.isSearchModalOpen).toBe(true);
-    });
-
-    it('handleCreateNew should open project modal with initial data', () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
-        const date = new Date('2023-01-01');
-
-        act(() => {
-            result.current.handleCellClick('emp1', date);
-        });
-
-        act(() => {
-            result.current.handleCreateNew();
-        });
-
-        expect(result.current.isSelectionModalOpen).toBe(false);
-        expect(result.current.isModalOpen).toBe(true);
-        expect(result.current.modalInitialData).toEqual({
-            startDate: date,
-            assignedEmployeeId: 'emp1',
+            expect(result.current.isModalOpen).toBe(false);
+            expect(result.current.modalInitialData).toEqual({});
         });
     });
 
-    it('handleSelectProjectMaster should add project and close modal', async () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
-        const date = new Date('2023-01-01');
-        const mockProjectMaster: ProjectMaster = {
-            id: 'pm1',
-            title: 'Master Project',
-            customerName: 'Customer A',
-            location: 'Tokyo',
-            constructionType: 'assembly',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            status: 'active',
-        };
+    describe('Selection Modal & Search Modal', () => {
+        it('should open selection modal on cell click', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+            const date = new Date('2023-01-01');
 
-        act(() => {
-            result.current.handleCellClick('emp1', date);
+            act(() => {
+                result.current.handleCellClick('user1', date);
+            });
+
+            expect(result.current.isSelectionModalOpen).toBe(true);
+            expect(result.current.cellContext).toEqual({ employeeId: 'user1', date });
         });
 
-        await act(async () => {
-            result.current.handleSelectProjectMaster(mockProjectMaster);
+        it('should switch to search modal when selecting existing', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleSelectExisting();
+            });
+
+            expect(result.current.isSelectionModalOpen).toBe(false);
+            expect(result.current.isSearchModalOpen).toBe(true);
         });
 
-        expect(result.current.isModalOpen).toBe(true);
-        expect(result.current.modalInitialData).toEqual(expect.objectContaining({
-            title: 'Master Project',
-            customer: 'Customer A',
-            assignedEmployeeId: 'emp1',
-        }));
-        expect(result.current.isSearchModalOpen).toBe(false);
-        // cellContextはクリアされないかもしれない（実装依存）が、一応そのままにしておくか、削除するか。
-        // 実装を見ると setCellContext(null) は handleCloseSearchModal などで呼ばれるが、handleSelectProjectMaster では呼ばれていない。
-        // よって expect(result.current.cellContext).toBeNull(); は失敗する可能性がある。
-        // 安全のため削除するか、実装を確認する。実装には setCellContext(null) がない。
+        it('should open create modal directly when selecting new', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+            const date = new Date('2023-01-01');
 
+            act(() => {
+                result.current.handleCellClick('user1', date);
+            });
+
+            act(() => {
+                result.current.handleCreateNew();
+            });
+
+            expect(result.current.isSelectionModalOpen).toBe(false);
+            expect(result.current.isModalOpen).toBe(true);
+            expect(result.current.modalInitialData.startDate).toEqual(date);
+            expect(result.current.modalInitialData.assignedEmployeeId).toBe('user1');
+        });
+
+        it('should populate modal with project master data on selection', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+            const date = new Date('2023-01-01');
+            const mockMaster: ProjectMaster = {
+                id: 'pm1',
+                title: 'Master Project',
+                customerName: 'Customer A',
+                location: 'Location A',
+                constructionType: 'assembly',
+                constructionContent: 'Content A',
+                remarks: 'Remarks A',
+                createdBy: 'User A',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            act(() => {
+                result.current.handleCellClick('user1', date);
+            });
+
+            act(() => {
+                result.current.handleSelectProjectMaster(mockMaster);
+            });
+
+            expect(result.current.isSearchModalOpen).toBe(false);
+            expect(result.current.isModalOpen).toBe(true);
+            expect(result.current.modalInitialData).toMatchObject({
+                title: 'Master Project',
+                customer: 'Customer A',
+                projectMasterId: 'pm1',
+                startDate: date,
+                assignedEmployeeId: 'user1'
+            });
+        });
     });
 
-    it('handleEventClick should open project modal with project data', () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
+    describe('Dispatch Modal', () => {
+        it('should open dispatch modal with project data', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
 
-        act(() => {
-            result.current.handleEventClick('p1-assembly');
+            act(() => {
+                result.current.handleOpenDispatchModal('p1');
+            });
+
+            expect(result.current.isDispatchModalOpen).toBe(true);
+            expect(result.current.dispatchProject).toEqual(mockProjects[0]);
         });
 
-        expect(result.current.isModalOpen).toBe(true);
-        expect(result.current.modalInitialData).toEqual(mockProjects[0]);
+        it('should close dispatch modal and reset data', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleOpenDispatchModal('p1');
+            });
+
+            act(() => {
+                result.current.handleCloseDispatchModal();
+            });
+
+            expect(result.current.isDispatchModalOpen).toBe(false);
+            expect(result.current.dispatchProject).toBeNull();
+        });
     });
 
-    it('handleCopyAssignment should create multiple projects', async () => {
-        const { result } = renderHook(() => useCalendarModals(mockProjects, mockEvents, mockAddProject));
+    describe('Copy Modal', () => {
+        it('should open copy modal with event data', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
 
-        act(() => {
-            result.current.handleCopyEvent('p1-assembly');
+            act(() => {
+                result.current.handleCopyEvent('p1-assembly');
+            });
+
+            expect(result.current.isCopyModalOpen).toBe(true);
+            expect(result.current.copyEvent).toEqual(mockEvents[0]);
         });
 
-        const startDate = new Date('2023-01-02');
-        const endDate = new Date('2023-01-03'); // 2 days
+        it('should execute copy assignment logic', async () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
 
-        await act(async () => {
-            await result.current.handleCopyAssignment(startDate, endDate, 'emp2');
+            act(() => {
+                result.current.handleCopyEvent('p1-assembly');
+            });
+
+            const startDate = new Date('2023-01-02');
+            const endDate = new Date('2023-01-03');
+
+            await act(async () => {
+                await result.current.handleCopyAssignment(startDate, endDate, 'user2');
+            });
+
+            expect(mockAddProject).toHaveBeenCalledTimes(2);
+            // Verify first call
+            expect(mockAddProject).toHaveBeenCalledWith(expect.objectContaining({
+                title: 'Project 1',
+                startDate: new Date('2023-01-02'),
+                assignedEmployeeId: 'user2',
+                sortOrder: 0
+            }));
+            // Verify second call
+            expect(mockAddProject).toHaveBeenCalledWith(expect.objectContaining({
+                title: 'Project 1',
+                startDate: new Date('2023-01-03'),
+                assignedEmployeeId: 'user2',
+                sortOrder: 0
+            }));
+        });
+    });
+
+    describe('Edge Cases (Branch Coverage)', () => {
+        it('handleEventClick: 存在しないイベントIDでモーダルが開かない', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleEventClick('nonexistent-id');
+            });
+
+            expect(result.current.isModalOpen).toBe(false);
         });
 
-        expect(mockAddProject).toHaveBeenCalledTimes(2);
-        expect(mockAddProject).toHaveBeenCalledWith(expect.objectContaining({
-            title: 'Project 1',
-            startDate: expect.any(Date),
-            assignedEmployeeId: 'emp2',
-        }));
+        it('handleOpenDispatchModal: 存在しないIDで手配モーダルが開かない', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleOpenDispatchModal('nonexistent-id');
+            });
+
+            expect(result.current.isDispatchModalOpen).toBe(false);
+        });
+
+        it('handleCopyEvent: 存在しないIDでコピーモーダルが開かない', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleCopyEvent('nonexistent-id');
+            });
+
+            expect(result.current.isCopyModalOpen).toBe(false);
+        });
+
+        it('handleCreateNew: cellContext が null の場合は何もしない', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleCreateNew();
+            });
+
+            expect(result.current.isModalOpen).toBe(false);
+        });
+
+        it('handleSelectProjectMaster: cellContext が null の場合は何もしない', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            const mockMaster = {
+                id: 'pm1',
+                title: 'Master',
+                customerName: 'Customer',
+                location: 'Location',
+                constructionType: 'assembly',
+                constructionContent: undefined,
+                remarks: '',
+                createdBy: 'User',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            } as ProjectMaster;
+
+            act(() => {
+                result.current.handleSelectProjectMaster(mockMaster);
+            });
+
+            expect(result.current.isModalOpen).toBe(false);
+        });
+
+        it('handleCopyAssignment: copyEvent が null の場合は何もしない', async () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            await act(async () => {
+                await result.current.handleCopyAssignment(
+                    new Date('2023-01-02'),
+                    new Date('2023-01-03'),
+                    'user2'
+                );
+            });
+
+            expect(mockAddProject).not.toHaveBeenCalled();
+        });
+
+        it('handleCloseSearchModal: 検索モーダルを閉じて cellContext をリセット', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleCellClick('user1', new Date('2023-01-01'));
+            });
+            act(() => {
+                result.current.handleSelectExisting();
+            });
+            expect(result.current.isSearchModalOpen).toBe(true);
+
+            act(() => {
+                result.current.handleCloseSearchModal();
+            });
+
+            expect(result.current.isSearchModalOpen).toBe(false);
+            expect(result.current.cellContext).toBeNull();
+        });
+
+        it('handleSelectionCancel: 選択モーダルを閉じて cellContext をリセット', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleCellClick('user1', new Date('2023-01-01'));
+            });
+            expect(result.current.isSelectionModalOpen).toBe(true);
+
+            act(() => {
+                result.current.handleSelectionCancel();
+            });
+
+            expect(result.current.isSelectionModalOpen).toBe(false);
+            expect(result.current.cellContext).toBeNull();
+        });
+
+        it('handleCloseCopyModal: コピーモーダルを閉じて copyEvent をリセット', () => {
+            const { result } = renderHook(() =>
+                useCalendarModals(mockProjects, mockEvents, mockAddProject)
+            );
+
+            act(() => {
+                result.current.handleCopyEvent('p1-assembly');
+            });
+            expect(result.current.isCopyModalOpen).toBe(true);
+
+            act(() => {
+                result.current.handleCloseCopyModal();
+            });
+
+            expect(result.current.isCopyModalOpen).toBe(false);
+            expect(result.current.copyEvent).toBeNull();
+        });
     });
 });

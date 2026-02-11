@@ -1,24 +1,18 @@
-import { renderHook, act } from '@testing-library/react';
+/**
+ * @jest-environment jsdom
+ */
+import { renderHook, waitFor } from '@testing-library/react';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useSession } from 'next-auth/react';
+import { useMasterStore } from '@/stores/masterStore';
 
 // Mock dependencies
 jest.mock('next-auth/react');
 jest.mock('@/stores/calendarStore');
-jest.mock('@/lib/supabase', () => ({
-    supabase: {
-        channel: jest.fn(() => ({
-            on: jest.fn().mockReturnThis(),
-            subscribe: jest.fn(),
-            unsubscribe: jest.fn(),
-        })),
-        removeChannel: jest.fn(),
-    },
-}));
+jest.mock('@/stores/masterStore');
 
 describe('useProjects', () => {
-    // Store mock functions
     const mockFetchAssignments = jest.fn();
     const mockAddProject = jest.fn();
     const mockUpdateProject = jest.fn();
@@ -27,117 +21,144 @@ describe('useProjects', () => {
     const mockGetProjectById = jest.fn();
     const mockGetCalendarEvents = jest.fn();
 
-    // Default store state
-    const defaultStoreState = {
-        projectsLoading: false,
-        projectsInitialized: true,
-        assignments: [],
-        fetchAssignments: mockFetchAssignments,
-        addProject: mockAddProject,
-        updateProject: mockUpdateProject,
-        updateProjects: mockUpdateProjects,
-        deleteProject: mockDeleteProject,
-        getProjectById: mockGetProjectById,
-        getCalendarEvents: mockGetCalendarEvents,
-    };
+    const mockAssignments = [
+        {
+            id: 'a1',
+            date: new Date('2023-01-01'),
+            assignedEmployeeId: 'emp1',
+            projectMasterId: 'pm1',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            projectMaster: {
+                id: 'pm1',
+                title: 'Project 1',
+                constructionType: 'assembly',
+                customerName: 'Customer 1',
+            },
+            workers: ['w1'],
+            vehicles: ['v1'],
+        }
+    ];
+
+    const mockConstructionTypes = [
+        { id: 'assembly', name: 'Assembly', color: '#ff0000' }
+    ];
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        // Setup useSession mock
-        (useSession as jest.Mock).mockReturnValue({ status: 'authenticated', data: { user: { id: 'test-user' } } });
+        (useSession as jest.Mock).mockReturnValue({ status: 'authenticated' });
 
-        // Setup useCalendarStore mock
-        (useCalendarStore as unknown as jest.Mock).mockImplementation((selector: any) => {
-            return selector(defaultStoreState);
+        (useCalendarStore as unknown as jest.Mock).mockImplementation((selector) => {
+            const state = {
+                projectsLoading: false,
+                projectsInitialized: true,
+                assignments: mockAssignments,
+                fetchAssignments: mockFetchAssignments,
+                addProject: mockAddProject,
+                updateProject: mockUpdateProject,
+                updateProjects: mockUpdateProjects,
+                deleteProject: mockDeleteProject,
+                getProjectById: mockGetProjectById,
+                getCalendarEvents: mockGetCalendarEvents,
+            };
+            return selector(state);
+        });
+
+        (useMasterStore as unknown as jest.Mock).mockImplementation((selector) => {
+            const state = {
+                constructionTypes: mockConstructionTypes
+            };
+            return selector(state);
         });
     });
 
-    it('should initialize and return state from store', () => {
+    it('should return transformed projects with correct color and properties', () => {
         const { result } = renderHook(() => useProjects());
 
-        expect(result.current.isLoading).toBe(false);
-        expect(result.current.isInitialized).toBe(true);
-        expect(result.current.projects).toEqual([]);
+        expect(result.current.projects).toHaveLength(1);
+        expect(result.current.projects[0]).toEqual(expect.objectContaining({
+            id: 'a1',
+            title: 'Project 1',
+            startDate: expect.any(Date),
+            color: '#ff0000', // From mockConstructionTypes
+            constructionType: 'assembly',
+            workers: ['w1'],
+            vehicles: ['v1'],
+        }));
     });
 
-    it('should call fetchAssignments when fetchForDateRange is called', async () => {
+    it('should expose store actions and state', () => {
         const { result } = renderHook(() => useProjects());
-        const start = new Date('2024-01-01');
-        const end = new Date('2024-01-07');
 
-        await act(async () => {
+        expect(result.current.addProject).toBeDefined();
+        expect(result.current.updateProject).toBeDefined();
+        expect(result.current.deleteProject).toBeDefined();
+        expect(result.current.isLoading).toBe(false);
+        expect(result.current.isInitialized).toBe(true);
+    });
+
+    it('should fetch assignments for date range', async () => {
+        const { result } = renderHook(() => useProjects());
+        const start = new Date('2023-01-01');
+        const end = new Date('2023-01-07');
+
+        await waitFor(async () => {
             await result.current.fetchForDateRange(start, end);
         });
 
-        expect(mockFetchAssignments).toHaveBeenCalledWith('2024-01-01', '2024-01-07');
+        expect(mockFetchAssignments).toHaveBeenCalledWith(
+            '2023-01-01',
+            '2023-01-07'
+        );
     });
 
-    it('should not recall fetchAssignments for the same date range', async () => {
+    it('should skip fetching if same range is requested', async () => {
         const { result } = renderHook(() => useProjects());
-        const start = new Date('2024-01-01');
-        const end = new Date('2024-01-07');
+        const start = new Date('2023-01-01');
+        const end = new Date('2023-01-07');
 
-        await act(async () => {
+        await waitFor(async () => {
             await result.current.fetchForDateRange(start, end);
         });
 
         // Call again with same range
-        await act(async () => {
+        await waitFor(async () => {
             await result.current.fetchForDateRange(start, end);
         });
 
         expect(mockFetchAssignments).toHaveBeenCalledTimes(1);
     });
 
-    it('should call store actions', async () => {
+    it('should call store addProject', async () => {
         const { result } = renderHook(() => useProjects());
+        const newProject = { title: 'New Project' };
 
-        await act(async () => {
-            await result.current.addProject({ title: 'New' } as any);
+        await waitFor(async () => {
+            await result.current.addProject(newProject as any);
         });
-        expect(mockAddProject).toHaveBeenCalled();
-        expect(mockAddProject).toHaveBeenCalled();
-        // expect(mockFetchAssignments).toHaveBeenCalled(); // fetchは呼ばれない仕様に変更
 
-        await act(async () => {
-            await result.current.updateProject('1', { title: 'Updated' });
-        });
-        expect(mockUpdateProject).toHaveBeenCalledWith('1', { title: 'Updated' });
-
-        await act(async () => {
-            await result.current.deleteProject('1');
-        });
-        expect(mockDeleteProject).toHaveBeenCalledWith('1');
+        expect(mockAddProject).toHaveBeenCalledWith(newProject);
     });
 
-    it('should transform assignments to projects correctly', () => {
-        const mockAssignments = [
-            {
-                id: '1',
-                date: new Date('2024-01-01'),
-                projectMaster: {
-                    title: 'Test Project',
-                    constructionType: 'assembly',
-                },
-                workers: ['w1'],
-                vehicles: ['v1'],
-            }
-        ];
+    it('should call store updateProject', async () => {
+        const { result } = renderHook(() => useProjects());
+        const updates = { title: 'Updated' };
 
-        // Update store mock to return assignments
-        (useCalendarStore as unknown as jest.Mock).mockImplementation((selector: any) => {
-            return selector({
-                ...defaultStoreState,
-                assignments: mockAssignments,
-            });
+        await waitFor(async () => {
+            await result.current.updateProject('a1', updates);
         });
 
+        expect(mockUpdateProject).toHaveBeenCalledWith('a1', updates);
+    });
+
+    it('should call store deleteProject', async () => {
         const { result } = renderHook(() => useProjects());
 
-        expect(result.current.projects).toHaveLength(1);
-        expect(result.current.projects[0].title).toBe('Test Project');
-        expect(result.current.projects[0].constructionType).toBe('assembly');
-        expect(result.current.projects[0].workers).toEqual(['w1']);
+        await waitFor(async () => {
+            await result.current.deleteProject('a1');
+        });
+
+        expect(mockDeleteProject).toHaveBeenCalledWith('a1');
     });
 });

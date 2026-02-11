@@ -131,6 +131,7 @@ export function useProjects() {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
+                timeoutRefs.current = timeoutRefs.current.filter(t => t !== tid);
             }, 5000); // 複数日一括作成時のリアルタイム通知を確実にブロックするため長めに
             timeoutRefs.current.push(tid);
         }
@@ -146,6 +147,7 @@ export function useProjects() {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
+                timeoutRefs.current = timeoutRefs.current.filter(t => t !== tid);
             }, 500);
             timeoutRefs.current.push(tid);
         }
@@ -161,6 +163,7 @@ export function useProjects() {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
                 setIsUpdating(false);
+                timeoutRefs.current = timeoutRefs.current.filter(t => t !== tid);
             }, 500);
             timeoutRefs.current.push(tid);
         }

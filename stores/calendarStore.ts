@@ -648,6 +648,7 @@ export const useCalendarStore = create<CalendarStore>()(
                     const errorData = await response.json() as ConflictError;
                     // ロールバック
                     set({ assignments: previousAssignments });
+
                     throw new ConflictUpdateError(errorData.error, errorData.latestData);
                 }
 

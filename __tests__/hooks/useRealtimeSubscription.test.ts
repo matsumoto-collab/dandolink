@@ -170,4 +170,122 @@ describe('useRealtimeSubscription', () => {
         // Let's testing simply that it returns the function required
         expect(typeof result.current.reset).toBe('function');
     });
+
+    it('should remove channel when enabled changes from true to false', async () => {
+        const mockChannel = {
+            on: jest.fn().mockReturnThis(),
+            subscribe: jest.fn().mockReturnThis(),
+            unsubscribe: jest.fn(),
+        };
+        (supabase.channel as jest.Mock).mockReturnValue(mockChannel);
+
+        const { rerender } = renderHook(
+            ({ enabled }) => useRealtimeSubscription({ ...defaultProps, enabled }),
+            { initialProps: { enabled: true } }
+        );
+
+        // Switch enabled to false
+        await act(async () => {
+            rerender({ enabled: false });
+        });
+
+        expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel);
+    });
+
+    it('should log error when channel setup throws', async () => {
+        const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
+        (supabase.channel as jest.Mock).mockImplementation(() => {
+            throw new Error('Channel setup failed');
+        });
+
+        await act(async () => {
+            renderHook(() => useRealtimeSubscription(defaultProps));
+        });
+
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Failed to setup'),
+            expect.any(Error)
+        );
+        consoleSpy.mockRestore();
+
+        // Restore the default channel mock to prevent leaking into other tests
+        (supabase.channel as jest.Mock).mockImplementation(() => ({
+            on: jest.fn().mockReturnThis(),
+            subscribe: jest.fn().mockReturnThis(),
+            unsubscribe: jest.fn(),
+        }));
+    });
+});
+
+describe('useMultipleRealtimeSubscriptions', () => {
+    let useMultipleRealtimeSubscriptions: any;
+
+    beforeAll(async () => {
+        const mod = await import('@/hooks/useRealtimeSubscription');
+        useMultipleRealtimeSubscriptions = mod.useMultipleRealtimeSubscriptions;
+    });
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useRealTimers();
+    });
+
+    it('should setup subscriptions for multiple tables', async () => {
+        const config = [
+            { table: 'Table1', channelName: 'ch1', onDataChange: jest.fn() },
+            { table: 'Table2', channelName: 'ch2', onDataChange: jest.fn() },
+        ];
+
+        await act(async () => {
+            renderHook(() => useMultipleRealtimeSubscriptions(config, true));
+        });
+
+        expect(supabase.channel).toHaveBeenCalledTimes(2);
+        expect(supabase.channel).toHaveBeenCalledWith('ch1');
+        expect(supabase.channel).toHaveBeenCalledWith('ch2');
+    });
+
+    it('should not setup subscriptions when disabled', async () => {
+        const config = [
+            { table: 'Table1', channelName: 'ch1', onDataChange: jest.fn() },
+        ];
+
+        await act(async () => {
+            renderHook(() => useMultipleRealtimeSubscriptions(config, false));
+        });
+
+        expect(supabase.channel).not.toHaveBeenCalled();
+    });
+
+    it('should cleanup channels on unmount', async () => {
+        const mockChannel1 = {
+            on: jest.fn().mockReturnThis(),
+            subscribe: jest.fn().mockReturnThis(),
+        };
+        const mockChannel2 = {
+            on: jest.fn().mockReturnThis(),
+            subscribe: jest.fn().mockReturnThis(),
+        };
+        (supabase.channel as jest.Mock)
+            .mockReturnValueOnce(mockChannel1)
+            .mockReturnValueOnce(mockChannel2);
+
+        const config = [
+            { table: 'Table1', channelName: 'ch1', onDataChange: jest.fn() },
+            { table: 'Table2', channelName: 'ch2', onDataChange: jest.fn() },
+        ];
+
+        let unmountFn: () => void;
+        await act(async () => {
+            const { unmount } = renderHook(() => useMultipleRealtimeSubscriptions(config, true));
+            unmountFn = unmount;
+        });
+
+        act(() => {
+            unmountFn!();
+        });
+
+        expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel1);
+        expect(supabase.removeChannel).toHaveBeenCalledWith(mockChannel2);
+    });
 });

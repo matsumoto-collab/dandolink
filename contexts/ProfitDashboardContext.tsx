@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
+import toast from 'react-hot-toast';
 
 interface ProjectProfit {
     id: string;
@@ -59,6 +60,7 @@ export function ProfitDashboardProvider({ children }: { children: React.ReactNod
             }
         } catch (error) {
             console.error('Failed to fetch profit dashboard data:', error);
+            toast.error('収益データの取得に失敗しました');
         } finally {
             setIsLoading(false);
         }

@@ -142,3 +142,33 @@ dist
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Test output files
+test_result*.txt
+test_output*.txt
+test_error*.txt
+test_debug*.txt
+test_failures*.txt
+coverage_report*.txt
+result_*.txt
+output.txt
+*_debug.txt
+*_fail.txt
+*_error.txt
+*_error_*.txt
+error_log*.txt
+final_*.txt
+combined_fail*.txt
+copy_fail.txt
+dc_*.txt
+cam_debug.txt
+pm_error.txt
+project_error*.txt
+rr_debug.txt
+vs_*.txt
+
+# SWC cache
+.swc/
+
+# Misc
+nul

@@ -347,4 +347,38 @@ describe('masterStore', () => {
             expect(workers).toEqual([{ id: 'w1', name: '作業員' }]);
         });
     });
+
+    describe('Realtime & Refresh', () => {
+        it('refreshMasterData: should force fetch', async () => {
+            mockFetch.mockResolvedValue({ ok: true, json: async () => ({}) });
+            await act(async () => {
+                await useMasterStore.getState().refreshMasterData();
+            });
+            // Should be called 2 times (master-data, construction-types)
+            expect(mockFetch).toHaveBeenCalledTimes(2);
+        });
+
+        it('setupRealtimeSubscription: should create channels', async () => {
+            await act(async () => {
+                await useMasterStore.getState().setupRealtimeSubscription();
+            });
+
+            const state = useMasterStore.getState();
+            expect(state._realtimeChannels).toHaveLength(5); // 5 tables
+        });
+
+        it('cleanupRealtimeSubscription: should remove channels', async () => {
+            // First setup
+            await act(async () => {
+                await useMasterStore.getState().setupRealtimeSubscription();
+            });
+
+            await act(async () => {
+                useMasterStore.getState().cleanupRealtimeSubscription();
+            });
+
+            const state = useMasterStore.getState();
+            expect(state._realtimeChannels).toHaveLength(0);
+        });
+    });
 });

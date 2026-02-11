@@ -170,10 +170,11 @@ export default function UnitPriceMasterSettings() {
                             <form onSubmit={handleSubmit} className="space-y-4">
                                 {/* 品目・内容 */}
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
                                         品目・内容 <span className="text-red-500">*</span>
                                     </label>
                                     <input
+                                        id="description"
                                         type="text"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -186,10 +187,11 @@ export default function UnitPriceMasterSettings() {
                                 {/* 単位と単価 */}
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        <label htmlFor="unit" className="block text-sm font-semibold text-gray-700 mb-2">
                                             単位 <span className="text-red-500">*</span>
                                         </label>
                                         <input
+                                            id="unit"
                                             type="text"
                                             value={formData.unit}
                                             onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
@@ -199,10 +201,11 @@ export default function UnitPriceMasterSettings() {
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                        <label htmlFor="unitPrice" className="block text-sm font-semibold text-gray-700 mb-2">
                                             単価 <span className="text-red-500">*</span>
                                         </label>
                                         <input
+                                            id="unitPrice"
                                             type="number"
                                             value={formData.unitPrice}
                                             onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
@@ -236,10 +239,11 @@ export default function UnitPriceMasterSettings() {
 
                                 {/* 備考 */}
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                    <label htmlFor="notes" className="block text-sm font-semibold text-gray-700 mb-2">
                                         備考
                                     </label>
                                     <textarea
+                                        id="notes"
                                         value={formData.notes}
                                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                         rows={3}
