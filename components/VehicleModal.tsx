@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface VehicleModalProps {
     isOpen: boolean;
@@ -12,6 +13,7 @@ interface VehicleModalProps {
 export default function VehicleModal({ isOpen, onClose }: VehicleModalProps) {
     const { addVehicle } = useMasterData();
     const [vehicleName, setVehicleName] = useState('');
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -41,7 +43,7 @@ export default function VehicleModal({ isOpen, onClose }: VehicleModalProps) {
             />
 
             {/* Modal */}
-            <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-gray-200">
                     <h2 className="text-lg font-semibold text-gray-900">車両を追加</h2>

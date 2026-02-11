@@ -4,7 +4,7 @@
 import { GET } from '@/app/api/master-data/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/api/utils';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Mock dependencies
 jest.mock('@/lib/prisma', () => ({

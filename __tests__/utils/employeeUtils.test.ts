@@ -81,7 +81,7 @@ describe('employeeUtils', () => {
         const createEmployee = (id: string, name: string): Employee => ({
             id,
             name,
-            nickname: null,
+            nickname: undefined,
         });
 
         const createEvent = (id: string, assignedEmployeeId: string, startDate: Date, sortOrder = 0): CalendarEvent => ({
@@ -121,7 +121,7 @@ describe('employeeUtils', () => {
 
         it('should use name if nickname is null', () => {
             const employees: Employee[] = [
-                { id: 'emp-1', name: 'Full Name', nickname: null },
+                { id: 'emp-1', name: 'Full Name', nickname: undefined },
             ];
             const rows = generateEmployeeRows(employees, [], []);
 

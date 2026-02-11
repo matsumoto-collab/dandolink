@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CustomerForm from '@/components/Customers/CustomerForm';
 
@@ -19,7 +19,7 @@ jest.mock('react-hot-toast', () => ({
 }));
 
 // モック関数への参照を取得
-const mockToast = jest.requireMock('react-hot-toast').default;
+void jest.requireMock('react-hot-toast').default;
 
 describe('CustomerForm', () => {
     const mockOnSubmit = jest.fn();

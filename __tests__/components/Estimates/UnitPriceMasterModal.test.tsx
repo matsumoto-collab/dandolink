@@ -11,7 +11,7 @@ jest.mock('@/hooks/useUnitPriceMaster');
 
 // Mock lucide-react
 jest.mock('lucide-react', () => ({
-    X: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-x" {...props} />,
+    X: () => <span data-testid="icon-x" />,
 }));
 
 const mockItems = [
@@ -53,7 +53,7 @@ describe('UnitPriceMasterModal', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         mockGetUnitPricesByTemplate.mockImplementation((template: string) => {
-            return mockItems.filter(item => item.templates.includes(template as 'frequent' | 'large'));
+            return mockItems.filter(item => (item.templates as unknown as string[]).includes(template));
         });
         (useUnitPriceMaster as jest.Mock).mockReturnValue({
             getUnitPricesByTemplate: mockGetUnitPricesByTemplate,

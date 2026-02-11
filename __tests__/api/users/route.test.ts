@@ -5,7 +5,7 @@ import { GET, POST } from '@/app/api/users/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/api/utils';
 import { canManageUsers } from '@/utils/permissions';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 
 jest.mock('bcryptjs', () => ({

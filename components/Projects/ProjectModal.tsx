@@ -6,6 +6,7 @@ import ProjectForm from './ProjectForm';
 import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import toast from 'react-hot-toast';
 
 interface ProjectModalProps {
@@ -35,6 +36,7 @@ export default function ProjectModal({
     // 既存案件の場合は閲覧モード、新規作成の場合は編集モード
     const [isEditMode, setIsEditMode] = useState(!initialData?.id);
     const [isSaving, setIsSaving] = useState(false);
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // Presence機能: 編集中ユーザーの追跡
     const { startEditing, stopEditing, getEditingUsers } = useAssignmentPresence();
@@ -62,25 +64,6 @@ export default function ProjectModal({
         };
     }, [isOpen, assignmentId, isEditMode, startEditing, stopEditing]);
 
-    // ESCキーでモーダルを閉じる
-    useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onClose();
-            }
-        };
-
-        if (isOpen) {
-            document.addEventListener('keydown', handleEscape);
-            document.body.style.overflow = 'hidden';
-        }
-
-        return () => {
-            document.removeEventListener('keydown', handleEscape);
-            document.body.style.overflow = 'unset';
-        };
-    }, [isOpen, onClose]);
-
     if (!isOpen) return null;
 
     // モーダルのタイトルを動的に設定
@@ -104,7 +87,7 @@ export default function ProjectModal({
             />
 
             {/* モーダルコンテンツ */}
-            <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 {/* ヘッダー */}
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">

@@ -12,9 +12,9 @@ jest.mock('lucide-react', () => ({
 // CustomerForm モック
 jest.mock('@/components/Customers/CustomerForm', () => ({
     __esModule: true,
-    default: ({ onSubmit, onCancel }: { onSubmit: () => void; onCancel: () => void }) => (
+    default: ({ onSubmit, onCancel }: { onSubmit: (data: any) => void; onCancel: () => void }) => (
         <div data-testid="customer-form">
-            <button onClick={() => onSubmit({ name: 'Test' } as never)}>保存</button>
+            <button onClick={() => onSubmit({ name: 'Test' })}>保存</button>
             <button onClick={onCancel}>キャンセル</button>
         </div>
     ),

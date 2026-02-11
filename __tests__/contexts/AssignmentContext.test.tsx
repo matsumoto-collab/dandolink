@@ -192,9 +192,8 @@ describe('AssignmentContext', () => {
                 expect(result.current.isLoading).toBe(false);
             });
 
-            let createdAssignment;
             await act(async () => {
-                createdAssignment = await result.current.createAssignment({
+                await result.current.createAssignment({
                     projectMasterId: 'pm2',
                     date: new Date('2024-01-20'),
                     assignedEmployeeId: 'e2',

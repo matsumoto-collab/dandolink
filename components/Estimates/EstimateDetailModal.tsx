@@ -7,6 +7,7 @@ import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface EstimateDetailModalProps {
     isOpen: boolean;
@@ -30,6 +31,7 @@ export default function EstimateDetailModal({
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
     const [includeCoverPage, setIncludeCoverPage] = useState(true);
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // projectがnullの場合はestimateからダミーのProjectを作成（useMemoでメモ化）
     const effectiveProject: Project = useMemo(() => project || {
@@ -107,7 +109,7 @@ export default function EstimateDetailModal({
 
             {/* モーダル */}
             <div className="fixed inset-0 lg:left-64 z-[60] flex items-center justify-center p-4">
-                <div className="bg-white rounded-lg shadow-lg w-full max-w-6xl h-[90vh] flex flex-col">
+                <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-6xl h-[90vh] flex flex-col">
                     {/* ヘッダー */}
                     <div className="bg-white border-b border-gray-200 px-6 py-4 rounded-t-lg">
                         <div className="flex items-center justify-between">

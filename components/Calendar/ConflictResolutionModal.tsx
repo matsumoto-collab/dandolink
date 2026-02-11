@@ -3,6 +3,7 @@
 import React from 'react';
 import { ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import { AlertTriangle, RefreshCw, Upload, X } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface ConflictResolutionModalProps {
     isOpen: boolean;
@@ -19,6 +20,8 @@ export default function ConflictResolutionModal({
     latestData,
     conflictMessage = '他のユーザーによってデータが更新されました',
 }: ConflictResolutionModalProps) {
+    const modalRef = useModalKeyboard(isOpen, onClose);
+
     if (!isOpen) return null;
 
     return (
@@ -30,7 +33,7 @@ export default function ConflictResolutionModal({
             />
 
             {/* モーダルコンテンツ */}
-            <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
                 {/* ヘッダー */}
                 <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-center gap-3 rounded-t-lg">
                     <AlertTriangle className="w-6 h-6 text-amber-600" />

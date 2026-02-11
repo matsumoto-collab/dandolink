@@ -7,7 +7,7 @@ describe('EventCard', () => {
     const baseEvent: CalendarEvent = {
         id: 'event-1',
         title: 'テスト現場',
-        date: new Date('2026-01-15'),
+        startDate: new Date('2026-01-15'),
         color: '#3B82F6',
     };
 

@@ -5,9 +5,9 @@ import ProjectModal from '@/components/Projects/ProjectModal';
 // ProjectForm モック
 jest.mock('@/components/Projects/ProjectForm', () => ({
     __esModule: true,
-    default: ({ onSubmit, onCancel }: { onSubmit: () => void; onCancel: () => void }) => (
+    default: ({ onSubmit, onCancel }: { onSubmit: (data: any) => void; onCancel: () => void }) => (
         <div data-testid="project-form">
-            <button onClick={() => onSubmit({ title: 'Test' } as never)}>保存</button>
+            <button onClick={() => onSubmit({ title: 'Test' })}>保存</button>
             <button onClick={onCancel}>キャンセル</button>
         </div>
     ),

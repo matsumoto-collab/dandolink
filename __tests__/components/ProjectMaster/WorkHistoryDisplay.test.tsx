@@ -11,11 +11,11 @@ jest.mock('@/hooks/useMasterData');
 
 // Mock lucide-react
 jest.mock('lucide-react', () => ({
-    Calendar: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-calendar" {...props} />,
-    User: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-user" {...props} />,
-    Users: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-users" {...props} />,
-    Truck: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-truck" {...props} />,
-    Wrench: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-wrench" {...props} />,
+    Calendar: () => <span data-testid="icon-calendar" />,
+    User: () => <span data-testid="icon-user" />,
+    Users: () => <span data-testid="icon-users" />,
+    Truck: () => <span data-testid="icon-truck" />,
+    Wrench: () => <span data-testid="icon-wrench" />,
 }));
 
 const mockHistoryItems = [

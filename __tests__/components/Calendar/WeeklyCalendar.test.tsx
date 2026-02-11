@@ -1,7 +1,7 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import WeeklyCalendar from '@/components/Calendar/WeeklyCalendar';
-import { CalendarEvent } from '@/types/calendar';
+// CalendarEvent type import removed - unused in this test file
 
 // --- Mocks ---
 
@@ -123,7 +123,7 @@ jest.mock('@/utils/employeeUtils', () => ({
 jest.mock('@/utils/dateUtils', () => ({
     formatDate: () => '1/1',
     getDayOfWeekString: () => 'Mon',
-    addDays: (d: Date, n: number) => d, // simplified
+    addDays: (d: Date, _n: number) => d, // simplified
 }));
 
 describe('WeeklyCalendar', () => {

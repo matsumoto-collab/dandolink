@@ -7,14 +7,14 @@ import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDispla
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
-    TrendingUp: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-trending-up" {...props} />,
-    TrendingDown: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-trending-down" {...props} />,
-    DollarSign: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-dollar" {...props} />,
-    Truck: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-truck" {...props} />,
-    Users: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-users" {...props} />,
-    Wrench: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-wrench" {...props} />,
-    Package: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-package" {...props} />,
-    MoreHorizontal: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-more" {...props} />,
+    TrendingUp: () => <span data-testid="icon-trending-up" />,
+    TrendingDown: () => <span data-testid="icon-trending-down" />,
+    DollarSign: () => <span data-testid="icon-dollar" />,
+    Truck: () => <span data-testid="icon-truck" />,
+    Users: () => <span data-testid="icon-users" />,
+    Wrench: () => <span data-testid="icon-wrench" />,
+    Package: () => <span data-testid="icon-package" />,
+    MoreHorizontal: () => <span data-testid="icon-more" />,
 }));
 
 // Mock Loading component

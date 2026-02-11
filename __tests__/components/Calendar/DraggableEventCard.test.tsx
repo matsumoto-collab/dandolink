@@ -29,11 +29,10 @@ describe('DraggableEventCard', () => {
         id: 'evt1',
         title: 'Test Project',
         customer: 'Test Customer',
-        date: new Date('2024-01-01'),
+        startDate: new Date('2024-01-01'),
         color: '#ff0000',
         workers: ['w1', 'w2'],
         remarks: 'Sample remark',
-        projectMasterId: 'pm1',
     };
 
     const mockOnClick = jest.fn();

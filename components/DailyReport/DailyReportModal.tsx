@@ -7,6 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { DailyReportInput } from '@/types/dailyReport';
 import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface DailyReportModalProps {
     isOpen: boolean;
@@ -45,6 +46,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [workItems, setWorkItems] = useState<{ assignmentId: string; workMinutes: number }[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // 初期値の設定（モーダルが開いたとき）
     useEffect(() => {
@@ -195,7 +197,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
 
                 {/* Modal */}
-                <div className="relative inline-block w-full max-w-2xl bg-white rounded-lg shadow-lg transform transition-all text-left overflow-hidden">
+                <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative inline-block w-full max-w-2xl bg-white rounded-lg shadow-lg transform transition-all text-left overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                         <h2 className="text-xl font-semibold text-gray-800">日報入力</h2>

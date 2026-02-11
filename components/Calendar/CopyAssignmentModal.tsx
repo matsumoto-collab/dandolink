@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { CalendarEvent, Employee } from '@/types/calendar';
 import { X, Copy, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface CopyAssignmentModalProps {
     isOpen: boolean;
@@ -25,6 +26,7 @@ export default function CopyAssignmentModal({
     const [employeeId, setEmployeeId] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [dateCount, setDateCount] = useState(0);
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // 初期値設定
     useEffect(() => {
@@ -90,7 +92,7 @@ export default function CopyAssignmentModal({
 
             {/* モーダル */}
             <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div className="bg-white rounded-lg shadow-lg w-full max-w-md" onClick={e => e.stopPropagation()}>
+                <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-md" onClick={e => e.stopPropagation()}>
                     {/* ヘッダー */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
                         <div className="flex items-center gap-2">

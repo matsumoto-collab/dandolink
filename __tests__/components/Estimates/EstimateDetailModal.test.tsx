@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import EstimateDetailModal from '@/components/Estimates/EstimateDetailModal';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
@@ -10,11 +10,11 @@ import { CompanyInfo } from '@/types/company';
 
 // Mock lucide-react icons
 jest.mock('lucide-react', () => ({
-    X: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-x" {...props} />,
-    FileDown: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-filedown" {...props} />,
-    Printer: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-printer" {...props} />,
-    Trash2: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-trash" {...props} />,
-    Edit: (props: React.SVGAttributes<SVGElement>) => <span data-testid="icon-edit" {...props} />,
+    X: () => <span data-testid="icon-x" />,
+    FileDown: () => <span data-testid="icon-filedown" />,
+    Printer: () => <span data-testid="icon-printer" />,
+    Trash2: () => <span data-testid="icon-trash" />,
+    Edit: () => <span data-testid="icon-edit" />,
 }));
 
 // Mock the PDF generator (dynamic import)

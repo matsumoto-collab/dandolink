@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import SettingsPage from '@/app/(master)/settings/page';
 import { useSession } from 'next-auth/react';
 import { useMasterData } from '@/hooks/useMasterData';

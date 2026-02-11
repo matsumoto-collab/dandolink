@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import Loading from '@/components/ui/Loading';
 import { ProjectMaster } from '@/types/calendar';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface ProjectMasterSearchModalProps {
     isOpen: boolean;
@@ -20,6 +21,7 @@ export default function ProjectMasterSearchModal({
 }: ProjectMasterSearchModalProps) {
     const { projectMasters, isLoading, fetchProjectMasters } = useProjectMasters();
     const [searchQuery, setSearchQuery] = useState('');
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // モーダルが開いたときにデータを再取得
     useEffect(() => {
@@ -68,7 +70,7 @@ export default function ProjectMasterSearchModal({
 
     return (
         <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
                 {/* ヘッダー */}
                 <div className="px-6 py-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">

@@ -79,11 +79,9 @@ describe('EmployeeRowComponent', () => {
     const mockOnCellClick = jest.fn();
     const mockOnMoveForeman = jest.fn();
     const mockOnRemoveForeman = jest.fn();
-    const mockOnDispatch = jest.fn();
-
     beforeEach(() => {
         jest.clearAllMocks();
-        (getEventsForDate as jest.Mock).mockImplementation((row, date) => {
+        (getEventsForDate as jest.Mock).mockImplementation((_row: unknown, date: Date) => {
             if (date.toISOString().startsWith('2024-01-01')) return mockEvents;
             return [];
         });

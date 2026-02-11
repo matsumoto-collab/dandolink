@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 
 interface DispatchUser {
@@ -42,6 +43,7 @@ export default function DispatchConfirmModal({
         project.confirmedVehicleIds || []
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // ユーザーデータの取得
     useEffect(() => {
@@ -144,7 +146,7 @@ export default function DispatchConfirmModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
                 {/* ヘッダー */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-800">
                     <div>

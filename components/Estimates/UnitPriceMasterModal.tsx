@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
 import { UnitPriceMaster, TemplateType, TEMPLATE_LABELS } from '@/types/unitPrice';
 import { X } from 'lucide-react';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface UnitPriceMasterModalProps {
     isOpen: boolean;
@@ -15,6 +16,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
     const { getUnitPricesByTemplate } = useUnitPriceMaster();
     const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('frequent');
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // テンプレートで絞り込んだ項目を取得
     const templateItems = useMemo(() => {
@@ -50,7 +52,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
 
     return (
         <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* ヘッダー */}
                 <div className="p-6 border-b border-gray-200">
                     <div className="flex items-center justify-between">

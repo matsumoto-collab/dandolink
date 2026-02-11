@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useProjects } from '@/hooks/useProjects';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_LABELS, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface ProjectSearchModalProps {
     isOpen: boolean;
@@ -33,6 +34,7 @@ export default function ProjectSearchModal({
     }, [constructionTypes]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedType, setSelectedType] = useState<string>('all');
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     // 検索とフィルタリング
     const filteredProjects = useMemo(() => {
@@ -75,7 +77,7 @@ export default function ProjectSearchModal({
 
     return (
         <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col">
                 {/* ヘッダー */}
                 <div className="px-6 py-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">

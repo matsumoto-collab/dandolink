@@ -6,7 +6,6 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import DispatchConfirmModal from '@/components/Calendar/DispatchConfirmModal';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
-import toast from 'react-hot-toast';
 import { Project } from '@/types/calendar';
 
 // Mock Loading component (uses Loader2 from lucide-react internally)

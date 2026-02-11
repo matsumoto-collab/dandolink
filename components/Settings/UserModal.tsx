@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { User, UserRole } from '@/types/user';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface UserModalProps {
     isOpen: boolean;
@@ -25,6 +26,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+    const modalRef = useModalKeyboard(isOpen, onClose);
 
     useEffect(() => {
         if (user && mode === 'edit') {
@@ -86,7 +88,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
 
     return (
         <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">
                     <h2 className="text-xl font-semibold text-gray-800">

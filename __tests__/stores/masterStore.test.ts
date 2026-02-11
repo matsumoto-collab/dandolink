@@ -82,7 +82,7 @@ describe('masterStore', () => {
             mockFetch.mockImplementation(() => new Promise(() => { })); // 永久にpending
 
             // 非同期で開始（awaitしない）
-            const fetchPromise = useMasterStore.getState().fetchMasterData();
+            void useMasterStore.getState().fetchMasterData();
 
             // もう一度呼び出し
             await useMasterStore.getState().fetchMasterData();

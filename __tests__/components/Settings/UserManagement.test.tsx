@@ -4,7 +4,7 @@ import UserManagement from '@/components/Settings/UserManagement';
 
 // Mock UserModal to simplify testing (integration test style)
 jest.mock('@/components/Settings/UserModal', () => {
-    return function MockUserModal({ isOpen, onSave, onClose, mode, user }: any) {
+    return function MockUserModal({ isOpen, onSave, onClose, mode }: any) {
         if (!isOpen) return null;
         return (
             <div data-testid="user-modal">
@@ -34,7 +34,7 @@ const mockUsers = [
     { id: 'u2', username: 'user2', displayName: 'User 2', email: 'u2@example.com', role: 'worker', isActive: true },
 ];
 
-const mockFetch = jest.fn((url, options) => {
+const mockFetch = jest.fn((url: string, options?: any): Promise<any> => {
     if (url === '/api/users' && (!options || options.method === 'GET')) {
         return Promise.resolve({
             ok: true,

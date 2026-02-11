@@ -100,11 +100,6 @@ describe('useCalendar', () => {
                 category: 'construction',
                 workers: [],
                 trucks: [],
-                vehicles: [],
-                confirmedWorkerIds: [],
-                confirmedVehicleIds: [],
-                createdAt: new Date(),
-                updatedAt: new Date()
             },
             {
                 id: '2',
@@ -114,11 +109,6 @@ describe('useCalendar', () => {
                 category: 'construction',
                 workers: [],
                 trucks: [],
-                vehicles: [],
-                confirmedWorkerIds: [],
-                confirmedVehicleIds: [],
-                createdAt: new Date(),
-                updatedAt: new Date()
             }
         ];
 
@@ -148,11 +138,6 @@ describe('useCalendar', () => {
                 category: 'construction',
                 workers: [],
                 trucks: [],
-                vehicles: [],
-                confirmedWorkerIds: [],
-                confirmedVehicleIds: [],
-                createdAt: new Date(),
-                updatedAt: new Date()
             }
         ];
 

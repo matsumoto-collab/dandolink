@@ -148,9 +148,10 @@ describe('useCalendarModals', () => {
                 customerName: 'Customer A',
                 location: 'Location A',
                 constructionType: 'assembly',
-                constructionContent: 'Content A',
+                constructionContent: 'other' as const,
                 remarks: 'Remarks A',
                 createdBy: 'User A',
+                status: 'active',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };

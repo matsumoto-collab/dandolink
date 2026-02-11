@@ -28,7 +28,7 @@ jest.mock('lucide-react', () => ({
 
 // Mock Loading
 jest.mock('@/components/ui/Loading', () => ({
-    ButtonLoading: ({ size }: { size?: string }) => <span data-testid="button-loading" />,
+    ButtonLoading: ({ size: _size }: { size?: string }) => <span data-testid="button-loading" />,
 }));
 
 import { signIn } from 'next-auth/react';

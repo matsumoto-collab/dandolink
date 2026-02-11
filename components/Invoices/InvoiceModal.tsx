@@ -3,6 +3,7 @@
 import React from 'react';
 import InvoiceForm from './InvoiceForm';
 import { InvoiceInput } from '@/types/invoice';
+import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface InvoiceModalProps {
     isOpen: boolean;
@@ -12,6 +13,8 @@ interface InvoiceModalProps {
 }
 
 export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }: InvoiceModalProps) {
+    const modalRef = useModalKeyboard(isOpen, onClose);
+
     if (!isOpen) return null;
 
     const handleSubmit = (data: InvoiceInput) => {
@@ -28,7 +31,7 @@ export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }:
             />
 
             {/* モーダルコンテンツ */}
-            <div className="relative bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
                 {/* ヘッダー */}
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-lg">
                     <h2 className="text-xl font-semibold text-gray-900">

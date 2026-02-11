@@ -3,7 +3,7 @@
  */
 import { PATCH, DELETE } from '@/app/api/master-data/workers/[id]/route';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validateStringField, errorResponse } from '@/lib/api/utils';
+import { requireAuth, validateStringField } from '@/lib/api/utils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { NextRequest, NextResponse } from 'next/server';
 

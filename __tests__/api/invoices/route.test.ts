@@ -4,7 +4,7 @@
 import { GET, POST } from '@/app/api/invoices/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/api/utils';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 
 describe('/api/invoices', () => {
     const mockSession = {

@@ -42,8 +42,6 @@ describe('/api/master-data/managers', () => {
     });
 
     describe('GET', () => {
-        const createReq = () => new NextRequest('http://localhost:3000/api/master-data/managers');
-
         it('should fetch active managers', async () => {
             (prisma.manager.findMany as jest.Mock).mockResolvedValue([mockManager]);
 
@@ -97,7 +95,7 @@ describe('/api/master-data/managers/[id]', () => {
             method: 'PATCH',
             body: JSON.stringify(body),
         });
-        const context = { params: { id: mockId } }; // Object, not Promise, based on previous findings
+        const context = { params: Promise.resolve({ id: mockId }) };
 
         it('should update manager successfully', async () => {
             (prisma.manager.update as jest.Mock).mockResolvedValue({ ...mockManager, name: 'Updated' });
@@ -118,7 +116,7 @@ describe('/api/master-data/managers/[id]', () => {
 
     describe('DELETE', () => {
         const createReq = () => new NextRequest(`http://localhost:3000/api/master-data/managers/${mockId}`, { method: 'DELETE' });
-        const context = { params: { id: mockId } };
+        const context = { params: Promise.resolve({ id: mockId }) };
 
         it('should soft delete manager successfully', async () => {
             (prisma.manager.update as jest.Mock).mockResolvedValue({ ...mockManager, isActive: false });

@@ -82,7 +82,7 @@ describe('CopyAssignmentModal', () => {
         expect(screen.getByRole('combobox')).toHaveValue('emp1');
 
         // Date inputs should be populated (tomorrow)
-        const inputs = screen.getAllByLabelText(/日/); // matches start date and end date labels roughly?
+        screen.getAllByLabelText(/日/); // matches start date and end date labels roughly?
         // Better identifiers:
         // labels are '開始日', '終了日' with icons.
         // But icons mock might interfere with text content matching if not careful?
