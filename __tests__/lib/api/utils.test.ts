@@ -47,6 +47,9 @@ import {
     applyRateLimit,
     parseJsonField,
     stringifyJsonField,
+    validateStringField,
+    validateDateString,
+    validateHexColor,
 } from '@/lib/api/utils';
 
 describe('API Utils', () => {
@@ -356,6 +359,44 @@ describe('API Utils', () => {
             it('should return null for undefined input', () => {
                 const result = stringifyJsonField(undefined);
                 expect(result).toBeNull();
+            });
+        });
+    });
+
+    // Added Logic
+    describe('バリデーションヘルパー', () => {
+        describe('validateStringField', () => {
+            it('should return trimmed string if valid', () => {
+                const result = validateStringField('  test  ', 'field');
+                expect(result).toBe('test');
+            });
+            it('should return error if empty', () => {
+                validateStringField('', 'field');
+                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'fieldは必須です' }, { status: 400 });
+            });
+            it('should return error if too long', () => {
+                validateStringField('a'.repeat(201), 'field', 200);
+                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'fieldは200文字以内で入力してください' }, { status: 400 });
+            });
+        });
+
+        describe('validateDateString', () => {
+            it('should return Date object if valid', () => {
+                const result = validateDateString('2023-01-01', 'date');
+                expect(result).toBeInstanceOf(Date);
+            });
+            it('should return error if invalid date', () => {
+                validateDateString('invalid-date', 'date');
+                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'dateの日付形式が不正です' }, { status: 400 });
+            });
+        });
+
+        describe('validateHexColor', () => {
+            it('should return color if valid', () => {
+                expect(validateHexColor('#ffffff')).toBe('#ffffff');
+            });
+            it('should return default color if invalid', () => {
+                expect(validateHexColor('invalid')).toBe('#a8c8e8');
             });
         });
     });
