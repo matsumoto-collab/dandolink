@@ -1,3 +1,7 @@
+// Set dummy Supabase env vars for CI (where .env is not available)
+process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
+
 import '@testing-library/jest-dom';
 import React from 'react';
 import { TextEncoder, TextDecoder } from 'util';
