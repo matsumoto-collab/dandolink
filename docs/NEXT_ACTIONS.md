@@ -1,7 +1,7 @@
 # YuSystem 改善・修正アクションリスト
 
-> **最終更新**: 2026-02-11
-> **現状**: 76.73% Lines Coverage / 1,158テスト / 125スイート / CI設定済み
+> **最終更新**: 2026-02-12
+> **現状**: 76.73% Lines Coverage / 1,188テスト / 125スイート / CI設定済み
 > **対象**: AIまたはエンジニアが本ドキュメントを読んで作業を引き継げることを目的とする
 
 ---
@@ -47,145 +47,112 @@ npm run test:coverage # カバレッジ付きテスト
 | `docs/TEST_COVERAGE_FINAL_PHASE.md` | Batch別テスト作業指示書 |
 | `docs/BUG_FIX_PLAN.md` | バグ修正計画と完了状況 |
 | `docs/TEST_FIX_GUIDE.md` | テスト失敗時のトラブルシューティング |
-| `docs/PRODUCT_ROADMAP.md` | 製品ロードマップ |
+| `docs/PRODUCT_ROADMAP.md` | 製品ロードマップ（サブスク販売計画） |
+| `docs/PROJECT_EVALUATION.md` | プロジェクト辛口評価レポート |
+| `docs/MOBILE_IMPROVEMENT.md` | **モバイル改善の設計・進捗** ← NEW |
 
 ---
 
-## アクション一覧
+## 🔥 進行中: モバイルスケジュールビュー改善
 
-### 優先度: ★★★（すぐやるべき）
+### 背景
+現場管理者（マネージャー）がスマホで以下を行えるようにする:
+- 今日・明日のスケジュール確認
+- 案件の編集・移動・コピー
+- 見積書の現場作成（将来）
 
-#### A-1. CI の lint/typecheck エラーを解消する
-- **背景**: GitHub Actions を設定したが、lint や typecheck でエラーが出る可能性がある
-- **確認方法**: https://github.com/matsumoto-collab/yusystem/actions を確認
-- **作業内容**: エラーが出ている場合、該当ファイルを修正する
-- **完了条件**: GitHub Actions が全てグリーン（✓）になる
+### 完了: Step 1（基本表示）— 2026-02-12
 
-#### A-2. calendarStore.ts の分割（898行 → 機能別に分割）
-- **ファイル**: `stores/calendarStore.ts`（898行）
-- **問題**: 1ファイルに assignments, projectMasters, dailyReports, vacations, remarks の全CRUDが詰まっている。変更時の影響範囲が大きく、テストも書きにくい
-- **修正方針**:
+| コンポーネント | ファイル | 内容 |
+|--------------|---------|------|
+| useMediaQuery | `hooks/useMediaQuery.ts` | lg未満(1024px)でモバイル判定 |
+| WeeklyCalendar | `components/Calendar/WeeklyCalendar.tsx` | 状態管理+PC/モバイル分岐のみに整理 |
+| DesktopCalendarView | `components/Calendar/DesktopCalendarView.tsx` | 既存PC表示をそのまま抽出（変更なし） |
+| WeekOverviewBar | `components/Calendar/WeekOverviewBar.tsx` | 週俯瞰バー（曜日・件数・充足率バー） |
+| MobileCalendarView | `components/Calendar/MobileCalendarView.tsx` | モバイル専用ビュー本体 |
+| globals.css | `app/globals.css` | scale()ハック削除、アニメーション追加 |
+
+**現在のモバイルビュー機能**:
+- ✅ 週俯瞰バー（7曜日 + 件数 + 人員充足率バー）
+- ✅ 曜日タップで日切替
+- ✅ 日別の職長カード形式表示（現場名・元請・人数・備考が読める）
+- ✅ アクションシート（カードタップ → 編集・コピー・手配確定）
+- ✅ 下部フローティング日付ナビ（前日/翌日）
+- ✅ FAB追加ボタン（右下＋）
+- ✅ iPhone safe area対応
+
+### 次にやること: Step 2（操作性強化）— 約2日
+
+#### S2-1. アクションシートをVaulライブラリに置き換え
+- **現状**: 自作のdiv+アニメーション。ネストスクロール・iOS Safariバウンスの問題あり
+- **方針**: `vaul`パッケージ（3KB）を導入してボトムシートを置き換え
+  ```bash
+  npm install vaul
   ```
-  stores/
-  ├── calendarStore.ts        → 共通型定義とstore統合のみ（50行程度）
-  ├── assignmentStore.ts      → assignments のCRUD・楽観的更新
-  ├── projectMasterStore.ts   → projectMasters のCRUD
-  ├── dailyReportStore.ts     → dailyReports のCRUD
-  └── calendarSubStore.ts     → vacations, remarks
+- **対象ファイル**: `components/Calendar/MobileCalendarView.tsx` のアクションシート部分
+
+#### S2-2. モバイル用案件移動UI
+- **現状**: アクションシートに「移動」ボタンがない（編集モーダルからのみ可能）
+- **方針**: ミニカレンダーグリッド式の移動UI
   ```
-- **注意**: 分割後に以下を確認すること
-  - `useProjects.ts` が `useCalendarStore` を参照している
-  - `useCalendarDisplay.ts` が store のセレクタを使っている
-  - 既存テスト `__tests__/stores/calendarStore.test.ts` を分割後のファイルに合わせて修正
-- **完了条件**: `npm run build` と `npm test` が全パス
-
-#### A-3. モーダルのキーボード操作対応
-- **問題**: モーダルを開いたときにフォーカスが移動しない、Escキーで閉じない、タブキーでフォーカスが外に逃げる
-- **対象ファイル**（主要モーダル）:
-  - `components/Projects/ProjectModal.tsx`
-  - `components/Calendar/DispatchConfirmModal.tsx`
-  - `components/Calendar/CopyAssignmentModal.tsx`
-  - `components/Settings/UserModal.tsx`
-  - `components/Estimates/EstimateModal.tsx`
-  - `components/Invoices/InvoiceModal.tsx`
-  - `components/Customers/CustomerModal.tsx`
-- **修正内容**: 各モーダルに以下を追加
-  ```tsx
-  // 1. Escキーで閉じる
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
-
-  // 2. 開いたときにフォーカスを移動
-  const modalRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    modalRef.current?.focus();
-  }, []);
-
-  // 3. モーダルのルート要素に role="dialog" と aria-modal="true" を追加
-  <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1}>
+  移動先を選択:
+       月  火  水  木  金
+  田中  □  □  ■  □  □    ← ■は現在位置
+  佐藤  □  □  □  □  □    ← □をタップで移動
   ```
-- **完了条件**: 各モーダルでEscキー閉じ・フォーカス移動が動作する
+- **新規ファイル**: `components/Calendar/MobileMoveGrid.tsx`
+- **接続先**: 既存の `updateProject` で日付・職長を変更
+
+#### S2-3. モーダルのモバイル最適化
+- **対象**: ProjectModal, EstimateModal 等
+- **問題**: PCサイズ前提のモーダルがスマホでは画面からはみ出す
+- **方針**: lg未満では `max-h-[90vh] overflow-auto` + フルスクリーンに近い表示
+
+### 将来: Step 3（快適さ向上）— 約2日
+
+#### S3-1. フローティング日付ナビの改善
+- 週俯瞰バーをstickyにして、どこまでスクロールしても曜日タップ可能にする（現在は実装済み）
+- 追加: スワイプは採用しない（手袋操作を考慮）
+
+#### S3-2. MobileCalendarView のテスト追加
+- `__tests__/components/Calendar/MobileCalendarView.test.tsx`
+- WeekOverviewBar, アクションシートの動作テスト
+
+#### S3-3. 見積書のモバイル対応
+- 見積フォームの入力項目をモバイル向けに簡略化（「簡易見積」モード）
+- 見積プレビューのモバイル最適化（PDF縮小ではなくHTMLリフロー表示）
 
 ---
+
+## 残りのアクション一覧
+
+### 優先度: ★★★（すぐやるべき）— すべて完了 ✅
+
+| ID | 内容 | 状態 |
+|----|------|------|
+| A-1 | CI lint/typecheck エラー解消 | ✅ |
+| A-2 | calendarStore.ts 分割 | ✅ |
+| A-3 | モーダルキーボード操作対応 | ✅ |
 
 ### 優先度: ★★☆（早めにやるべき）
 
-#### B-1. ~~見積編集機能の実装 or ボタン非表示~~ ✅ 完了（2026-02-12）
-- **対応**: 編集機能を実装。`EstimateModal` を動的インポートし、既存の `updateEstimate` APIで更新
-- **変更ファイル**: `app/(finance)/estimates/[id]/page.tsx`
-
-#### B-2. パスワードリセット機能
-- **現状**: ユーザーがパスワードを忘れた場合、管理者がDBを直接操作するしかない
-- **修正方針**: 既存の PATCH `/api/users/[id]` がパスワード更新に対応済み（`password` フィールドをオプショナルで受け付ける）。新規APIルートは不要
-  1. `components/Settings/UserManagement.tsx` にパスワードリセットボタンを追加
-  2. パスワードリセット確認ダイアログを表示（ランダム仮パスワードを生成して表示）
-  3. 既存の PATCH API で `{ password: 仮パスワード }` を送信
-  4. メール送信は不要（社内ツールのため、画面に仮パスワードを表示して管理者が口頭で伝える）
-- **既存コード参考**:
-  - API: `app/api/users/[id]/route.ts` 47-55行（bcryptハッシュ化済み）
-  - バリデーション: `lib/validations/index.ts` passwordSchema（8文字以上、英字+数字）
-  - 権限: `utils/permissions.ts` `canManageUsers()` → admin のみ
-  - UI: `components/Settings/UserManagement.tsx`（ユーザー一覧 + 編集/削除ボタン）
-
-#### B-3. ~~PDF コンポーネントの共通化~~ ✅ 完了（2026-02-12）
-- **対応**: 既存の `styles.ts` を活用し、フォント登録(3→1箇所)と `toReiwa`(3→1箇所)を集約
-- **変更ファイル**: `styles.ts`, `EstimatePDF.tsx`(656→634行), `InvoicePDF.tsx`(552→530行)
-- テーブルJSXのコンポーネント化はカラム構成の差異が大きく見送り
-
-#### B-4. レート制限の改善
-- **ファイル**: `lib/rate-limit.ts`
-- **問題**: インメモリ実装のため、Vercelのサーバーレス環境ではリクエストごとにリセットされる
-- **修正方針**: Upstash Redis を使った分散レート制限に置き換え
-  ```bash
-  npm install @upstash/ratelimit @upstash/redis
-  ```
-  ```typescript
-  import { Ratelimit } from '@upstash/ratelimit';
-  import { Redis } from '@upstash/redis';
-
-  const ratelimit = new Ratelimit({
-    redis: Redis.fromEnv(),
-    limiter: Ratelimit.slidingWindow(100, '1 m'),
-  });
-  ```
-- **必要な環境変数**: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
-- **注意**: Upstash の無料プランで十分（10,000リクエスト/日）
-
-#### B-5. ~~API未テストルートのテスト追加~~ ✅ 完了（確認済み 2026-02-12）
-- **結果**: 5ルート全てにテストが既に存在。正常系・バリデーション・認証・404をカバー済み
-  - `__tests__/api/customers/[id]/route.test.ts` (119行)
-  - `__tests__/api/estimates/[id]/route.test.ts` (118行)
-  - `__tests__/api/invoices/[id]/route.test.ts` (118行)
-  - `__tests__/api/users/[id]/route.test.ts` (150行)
-  - `__tests__/api/daily-reports/[id]/route.test.ts` (106行)
-
----
+| ID | 内容 | 状態 |
+|----|------|------|
+| B-1 | 見積編集機能 | ✅ |
+| B-2 | パスワードリセット機能 | ✅ |
+| B-3 | PDF共通化 | ✅ |
+| B-4 | レート制限の改善（Upstash Redis） | 未着手 |
+| B-5 | APIテスト確認 | ✅ |
 
 ### 優先度: ★☆☆（余裕があればやる）
 
-#### C-1. ~~コンポーネントへの aria 属性追加~~ ✅ 完了（2026-02-12）
-- **対応**: 8コンポーネントのアイコンのみボタンに `aria-label` を追加（24箇所）
-- **変更ファイル**: CalendarHeader, EmployeeRowComponent, DraggableEventCard, VacationSelector, ForemanSelector, EstimateForm, EstimateDetailModal, UserManagement
-
-#### C-2. ~~next/Image コンポーネントの利用~~ ⏭️ スキップ
-- **理由**: 対象の `<img>` はBase64 Data URL（ファイルアップロードのプレビュー）であり、`next/Image` は動的なData URLに不向き（width/height固定が必要、最適化の恩恵もない）
-
-#### C-3. ~~大きなコンポーネントの動的インポート~~ ✅ 完了（2026-02-12）
-- **対応**: `MainContent.tsx` の9コンポーネントを `next/dynamic` に変更、LoadingSpinner追加
-
-#### C-4. ~~financeStore.ts の Branch カバレッジ強化~~ ✅ 完了（2026-02-12）
-- **結果**: Branch 31% → 78.75%（63/80ブランチカバー）、テスト数 25 → 55
-
-#### C-5. 予算書機能の実装
-- **ファイル**: `app/(finance)/estimates/[id]/page.tsx` 214-218行
-- **現状**: 「予算書」タブが存在するが「今後実装予定です」と表示
-- **要件**: プロジェクトオーナーに仕様を確認してから着手
-- **参考**: 見積書の明細データから原価・粗利を計算して表示する機能と推測
+| ID | 内容 | 状態 |
+|----|------|------|
+| C-1 | aria属性追加 | ✅ |
+| C-2 | next/Image | ⏭️ スキップ |
+| C-3 | 動的インポート | ✅ |
+| C-4 | financeStoreテスト強化 | ✅ |
+| C-5 | 予算書機能 | 未着手（仕様確認待ち） |
 
 ---
 
@@ -209,6 +176,13 @@ npm run test:coverage # カバレッジ付きテスト
 - Prisma スキーマを変更したら `npx prisma generate` を忘れない
 - `.env` ファイルをコミットしない
 
+### モバイルビュー開発時の注意
+- **PC表示に影響しないこと**: DesktopCalendarView.tsx は変更しない
+- **WeeklyCalendar.tsx は分岐のみ**: 状態管理ロジックの追加はOK、JSXの追加はNG（Mobile/Desktopに分ける）
+- **useMediaQuery はnullを返す可能性あり**: SSR時はnull → Loadingで吸収済み
+- **タッチ操作を前提に設計**: タップターゲット44px以上、スワイプは不採用（手袋操作考慮）
+- **スマホ検証**: ブラウザのDevToolsでiPhone SE（375px）/iPhone 14（390px）で確認
+
 ### アーキテクチャ概要
 ```
 ブラウザ
@@ -224,26 +198,26 @@ Prisma ORM
 Supabase PostgreSQL
 ```
 
-- **Zustand Store** が中央のデータ管理。hooks がそれをラップしてコンポーネントに提供
-- **楽観的更新**: Store でローカル state を即更新 → API呼出 → 失敗時ロールバック
-- **リアルタイム同期**: `useProjects.ts` が Supabase Realtime を購読。`isUpdatingRef` で自分の更新による再fetchを防止
-- **カレンダー表示**: `displayedForemanIds` で表示する職長行をフィルタ。このIDに一致しない `assignedEmployeeId` の配置は表示されない
-
----
-
-## 本日の作業予定（2026-02-12）
-
-### ~~1. B-1: 見積編集機能の実装~~ ✅ 完了
-- EstimateModal を詳細ページに追加、既存API活用
-
-### ~~2. B-2: パスワードリセット機能~~ ✅ 完了
-- UserManagement.tsx に鍵アイコンボタン + 確認/結果ダイアログを追加、既存PATCH API活用
-
-### ~~3. B-5: API未テストルートのテスト追加~~ ✅ 既に完了済み
-- 5ルート全てにテスト存在を確認
-
-### ~~4. B-3: PDF コンポーネントの共通化~~ ✅ 完了
-- フォント登録・toReiwa を styles.ts に集約
+### カレンダーコンポーネント構成（2026-02-12時点）
+```
+WeeklyCalendar.tsx          ← 状態管理 + PC/モバイル分岐
+  ├─ DesktopCalendarView.tsx  ← PC表示（DndContext + グリッド）
+  │    ├─ CalendarHeader.tsx
+  │    ├─ EmployeeRowComponent.tsx
+  │    ├─ DraggableEventCard.tsx
+  │    ├─ DroppableCell.tsx
+  │    ├─ RemarksRow.tsx
+  │    └─ ForemanSelector.tsx
+  ├─ MobileCalendarView.tsx   ← モバイル表示（カード形式）
+  │    └─ WeekOverviewBar.tsx  ← 週俯瞰バー
+  └─ [共通モーダル群]
+       ├─ ProjectModal.tsx
+       ├─ ProjectMasterSearchModal.tsx
+       ├─ DispatchConfirmModal.tsx
+       ├─ CopyAssignmentModal.tsx
+       ├─ ProjectSelectionModal.tsx
+       └─ ConflictResolutionModal.tsx
+```
 
 ---
 
@@ -265,3 +239,4 @@ Supabase PostgreSQL
 | 2026-02-12 | C-3: 動的インポート | MainContent.tsx の9コンポーネントを next/dynamic に変更 |
 | 2026-02-12 | C-4: financeStoreテスト強化 | Branch 31% → 78.75%、テスト数 25 → 55 |
 | 2026-02-12 | C-1: aria属性追加 | 8コンポーネント・24箇所にaria-label追加 |
+| 2026-02-12 | モバイルビュー Step 1 | 週俯瞰バー+日別詳細+アクションシート+FAB+下部ナビ実装 |
