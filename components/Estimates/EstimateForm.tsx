@@ -242,7 +242,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* 基本情報 */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                         案件（オプション）
@@ -315,7 +315,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             </div>
 
             {/* 現場情報 */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                         現場名

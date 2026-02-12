@@ -143,21 +143,21 @@ export default function DraggableEventCard({
                         </div>
 
                         {/* 上下矢印ボタン */}
-                        <div className="flex flex-col gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
+                        <div className="flex flex-col gap-1 sm:gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onMoveUp?.();
                                 }}
                                 disabled={!canMoveUp}
-                                className={`p-0.5 rounded transition-colors ${canMoveUp
+                                className={`p-1 sm:p-0.5 rounded transition-colors ${canMoveUp
                                     ? 'hover:bg-gray-500 hover:bg-opacity-20 text-gray-700 cursor-pointer'
                                     : 'text-gray-400 opacity-50 cursor-not-allowed'
                                     }`}
                                 title="上に移動"
                                 aria-label="上に移動"
                             >
-                                <ChevronUp className="w-3 h-3" />
+                                <ChevronUp className="w-4 h-4 sm:w-3 sm:h-3" />
                             </button>
                             <button
                                 onClick={(e) => {
@@ -165,14 +165,14 @@ export default function DraggableEventCard({
                                     onMoveDown?.();
                                 }}
                                 disabled={!canMoveDown}
-                                className={`p-0.5 rounded transition-colors ${canMoveDown
+                                className={`p-1 sm:p-0.5 rounded transition-colors ${canMoveDown
                                     ? 'hover:bg-gray-500 hover:bg-opacity-20 text-gray-700 cursor-pointer'
                                     : 'text-gray-400 opacity-50 cursor-not-allowed'
                                     }`}
                                 title="下に移動"
                                 aria-label="下に移動"
                             >
-                                <ChevronDown className="w-3 h-3" />
+                                <ChevronDown className="w-4 h-4 sm:w-3 sm:h-3" />
                             </button>
 
                             {/* コピーボタン */}
@@ -182,11 +182,11 @@ export default function DraggableEventCard({
                                         e.stopPropagation();
                                         onCopy();
                                     }}
-                                    className="p-0.5 rounded transition-colors hover:bg-gray-500 hover:bg-opacity-20 text-gray-700"
+                                    className="p-1 sm:p-0.5 rounded transition-colors hover:bg-gray-500 hover:bg-opacity-20 text-gray-700"
                                     title="コピー"
                                     aria-label="コピー"
                                 >
-                                    <Copy className="w-3 h-3" />
+                                    <Copy className="w-4 h-4 sm:w-3 sm:h-3" />
                                 </button>
                             )}
 
@@ -197,7 +197,7 @@ export default function DraggableEventCard({
                                         e.stopPropagation();
                                         onDispatch?.();
                                     }}
-                                    className={`p-0.5 rounded transition-colors ${isDispatchConfirmed
+                                    className={`p-1 sm:p-0.5 rounded transition-colors ${isDispatchConfirmed
                                         ? 'text-green-600 hover:bg-green-100'
                                         : 'text-gray-700 hover:bg-gray-500 hover:bg-opacity-20'
                                         }`}
@@ -205,9 +205,9 @@ export default function DraggableEventCard({
                                     aria-label={isDispatchConfirmed ? '手配確定済み' : '手配確定'}
                                 >
                                     {isDispatchConfirmed ? (
-                                        <CheckCircle className="w-3 h-3" />
+                                        <CheckCircle className="w-4 h-4 sm:w-3 sm:h-3" />
                                     ) : (
-                                        <ClipboardCheck className="w-3 h-3" />
+                                        <ClipboardCheck className="w-4 h-4 sm:w-3 sm:h-3" />
                                     )}
                                 </button>
                             )}
