@@ -12,6 +12,100 @@ describe('financeStore', () => {
         });
     });
 
+    describe('Company', () => {
+        const mockCompany = {
+            name: 'Test Company',
+            createdAt: '2023-01-01T00:00:00.000Z',
+            updatedAt: '2023-01-01T00:00:00.000Z',
+        };
+
+        it('fetchCompanyInfo: 正常に取得できる', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: true,
+                json: async () => mockCompany,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCompanyInfo();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.companyInfo).not.toBeNull();
+            expect(state.companyInfo?.name).toBe('Test Company');
+            expect(state.companyInitialized).toBe(true);
+        });
+
+        it('fetchCompanyInfo: fetchがエラーの場合、companyInfoはnullのまま', async () => {
+            (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCompanyInfo();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.companyInfo).toBeNull();
+            expect(state.companyLoading).toBe(false);
+        });
+
+        it('fetchCompanyInfo: レスポンスが失敗の場合、companyInfoはnullのまま', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                status: 500,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCompanyInfo();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.companyInfo).toBeNull();
+            expect(state.companyLoading).toBe(false);
+        });
+
+        it('fetchCompanyInfo: ローディング中は二重呼び出しされない', async () => {
+            useFinanceStore.setState({ companyLoading: true } as any);
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCompanyInfo();
+            });
+
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
+        it('updateCompanyInfo: 正常に更新できる', async () => {
+            const updatedCompany = {
+                name: 'Updated Company',
+                createdAt: '2023-01-01T00:00:00.000Z',
+                updatedAt: '2023-06-01T00:00:00.000Z',
+            };
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: true,
+                json: async () => updatedCompany,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().updateCompanyInfo({ name: 'Updated Company' } as any);
+            });
+
+            expect(useFinanceStore.getState().companyInfo?.name).toBe('Updated Company');
+        });
+
+        it('updateCompanyInfo: APIエラー時は更新されない', async () => {
+            useFinanceStore.setState({ companyInfo: { name: 'Original' } } as any);
+
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: 'Error' }),
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().updateCompanyInfo({ name: 'New' } as any);
+            });
+
+            expect(useFinanceStore.getState().companyInfo?.name).toBe('Original');
+        });
+    });
+
     describe('Customers', () => {
         const mockCustomer = {
             id: 'c1',
@@ -36,6 +130,43 @@ describe('financeStore', () => {
             expect(state.customers[0].createdAt).toBeInstanceOf(Date);
         });
 
+        it('fetchCustomers: fetchがエラーの場合、customersは空のまま', async () => {
+            (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCustomers();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.customers).toHaveLength(0);
+            expect(state.customersLoading).toBe(false);
+        });
+
+        it('fetchCustomers: レスポンスが失敗の場合、customersは空のまま', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                status: 500,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCustomers();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.customers).toHaveLength(0);
+            expect(state.customersLoading).toBe(false);
+        });
+
+        it('fetchCustomers: ローディング中は二重呼び出しされない', async () => {
+            useFinanceStore.setState({ customersLoading: true } as any);
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchCustomers();
+            });
+
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
         it('addCustomer: should add customer', async () => {
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: true,
@@ -51,6 +182,19 @@ describe('financeStore', () => {
             expect(global.fetch).toHaveBeenCalledWith('/api/customers', expect.objectContaining({
                 method: 'POST'
             }));
+        });
+
+        it('addCustomer: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '追加に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().addCustomer({ name: 'Test' } as any);
+                })
+            ).rejects.toThrow();
         });
 
         it('updateCustomer: should update customer', async () => {
@@ -75,6 +219,19 @@ describe('financeStore', () => {
             }));
         });
 
+        it('updateCustomer: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '更新に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().updateCustomer('c1', { name: 'Updated' });
+                })
+            ).rejects.toThrow();
+        });
+
         it('deleteCustomer: should remove customer', async () => {
             useFinanceStore.setState({
                 customers: [{ ...mockCustomer, createdAt: new Date(mockCustomer.createdAt), updatedAt: new Date(mockCustomer.updatedAt) }]
@@ -88,6 +245,28 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.customers).toHaveLength(0);
+        });
+
+        it('deleteCustomer: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '削除に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().deleteCustomer('c1');
+                })
+            ).rejects.toThrow();
+        });
+
+        it('getCustomerById: 存在するIDを返す', () => {
+            useFinanceStore.setState({ customers: [{ id: 'c1', name: 'Cust' } as any] });
+            expect(useFinanceStore.getState().getCustomerById('c1')?.name).toBe('Cust');
+        });
+
+        it('getCustomerById: 存在しないIDはundefined', () => {
+            expect(useFinanceStore.getState().getCustomerById('non-existent')).toBeUndefined();
         });
     });
 
@@ -116,6 +295,43 @@ describe('financeStore', () => {
             expect(state.estimates[0].validUntil).toBeInstanceOf(Date);
         });
 
+        it('fetchEstimates: fetchがエラーの場合、estimatesは空のまま', async () => {
+            (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchEstimates();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.estimates).toHaveLength(0);
+            expect(state.estimatesLoading).toBe(false);
+        });
+
+        it('fetchEstimates: レスポンスが失敗の場合、estimatesは空のまま', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                status: 500,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchEstimates();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.estimates).toHaveLength(0);
+            expect(state.estimatesLoading).toBe(false);
+        });
+
+        it('fetchEstimates: ローディング中は二重呼び出しされない', async () => {
+            useFinanceStore.setState({ estimatesLoading: true } as any);
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchEstimates();
+            });
+
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
         it('addEstimate: should add estimate', async () => {
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: true,
@@ -128,6 +344,19 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.estimates).toHaveLength(1);
+        });
+
+        it('addEstimate: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '追加に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().addEstimate({} as any);
+                })
+            ).rejects.toThrow();
         });
 
         it('updateEstimate: should update estimate', async () => {
@@ -149,6 +378,19 @@ describe('financeStore', () => {
             expect(state.estimates[0].estimateNumber).toBe('EST-UPDATED');
         });
 
+        it('updateEstimate: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '更新に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().updateEstimate('e1', {});
+                })
+            ).rejects.toThrow();
+        });
+
         it('deleteEstimate: should remove estimate', async () => {
             useFinanceStore.setState({
                 estimates: [{ ...mockEstimate, validUntil: new Date(mockEstimate.validUntil), createdAt: new Date(mockEstimate.createdAt), updatedAt: new Date(mockEstimate.updatedAt) }]
@@ -162,6 +404,19 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.estimates).toHaveLength(0);
+        });
+
+        it('deleteEstimate: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '削除に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().deleteEstimate('e1');
+                })
+            ).rejects.toThrow();
         });
 
         it('getEstimatesByProject: should filter estimates', () => {
@@ -204,6 +459,43 @@ describe('financeStore', () => {
             expect(state.invoices[0].dueDate).toBeInstanceOf(Date);
         });
 
+        it('fetchInvoices: fetchがエラーの場合、invoicesは空のまま', async () => {
+            (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchInvoices();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.invoices).toHaveLength(0);
+            expect(state.invoicesLoading).toBe(false);
+        });
+
+        it('fetchInvoices: レスポンスが失敗の場合、invoicesは空のまま', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                status: 500,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchInvoices();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.invoices).toHaveLength(0);
+            expect(state.invoicesLoading).toBe(false);
+        });
+
+        it('fetchInvoices: ローディング中は二重呼び出しされない', async () => {
+            useFinanceStore.setState({ invoicesLoading: true } as any);
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchInvoices();
+            });
+
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
         it('addInvoice: should add invoice', async () => {
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: true,
@@ -216,6 +508,19 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.invoices).toHaveLength(1);
+        });
+
+        it('addInvoice: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '追加に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().addInvoice({} as any);
+                })
+            ).rejects.toThrow();
         });
 
         it('updateInvoice: should update invoice', async () => {
@@ -237,6 +542,19 @@ describe('financeStore', () => {
             expect(state.invoices[0].status).toBe('sent');
         });
 
+        it('updateInvoice: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '更新に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().updateInvoice('inv1', {});
+                })
+            ).rejects.toThrow();
+        });
+
         it('deleteInvoice: should remove invoice', async () => {
             useFinanceStore.setState({
                 invoices: [{ ...mockInvoice, dueDate: new Date(mockInvoice.dueDate), createdAt: new Date(mockInvoice.createdAt), updatedAt: new Date(mockInvoice.updatedAt) }]
@@ -250,6 +568,19 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.invoices).toHaveLength(0);
+        });
+
+        it('deleteInvoice: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '削除に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().deleteInvoice('inv1');
+                })
+            ).rejects.toThrow();
         });
 
         it('getInvoicesByProject: should filter invoices', () => {
@@ -291,6 +622,43 @@ describe('financeStore', () => {
             expect(state.unitPrices).toHaveLength(1);
         });
 
+        it('fetchUnitPrices: fetchがエラーの場合、unitPricesは空のまま', async () => {
+            (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchUnitPrices();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.unitPrices).toHaveLength(0);
+            expect(state.unitPricesLoading).toBe(false);
+        });
+
+        it('fetchUnitPrices: レスポンスが失敗の場合、unitPricesは空のまま', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                status: 500,
+            });
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchUnitPrices();
+            });
+
+            const state = useFinanceStore.getState();
+            expect(state.unitPrices).toHaveLength(0);
+            expect(state.unitPricesLoading).toBe(false);
+        });
+
+        it('fetchUnitPrices: ローディング中は二重呼び出しされない', async () => {
+            useFinanceStore.setState({ unitPricesLoading: true } as any);
+
+            await act(async () => {
+                await useFinanceStore.getState().fetchUnitPrices();
+            });
+
+            expect(global.fetch).not.toHaveBeenCalled();
+        });
+
         it('addUnitPrice: should add unit price', async () => {
             (global.fetch as jest.Mock).mockResolvedValue({
                 ok: true,
@@ -303,6 +671,19 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.unitPrices).toHaveLength(1);
+        });
+
+        it('addUnitPrice: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '追加に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().addUnitPrice({} as any);
+                })
+            ).rejects.toThrow();
         });
 
         it('updateUnitPrice: should update unit price', async () => {
@@ -324,6 +705,19 @@ describe('financeStore', () => {
             expect(state.unitPrices[0].unitPrice).toBe(2000);
         });
 
+        it('updateUnitPrice: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '更新に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().updateUnitPrice('up1', {});
+                })
+            ).rejects.toThrow();
+        });
+
         it('deleteUnitPrice: should remove unit price', async () => {
             useFinanceStore.setState({
                 unitPrices: [{ ...mockUnitPrice, createdAt: new Date(mockUnitPrice.createdAt), updatedAt: new Date(mockUnitPrice.updatedAt) }]
@@ -337,6 +731,19 @@ describe('financeStore', () => {
 
             const state = useFinanceStore.getState();
             expect(state.unitPrices).toHaveLength(0);
+        });
+
+        it('deleteUnitPrice: APIエラー時にthrowする', async () => {
+            (global.fetch as jest.Mock).mockResolvedValue({
+                ok: false,
+                json: async () => ({ error: '削除に失敗' }),
+            });
+
+            await expect(
+                act(async () => {
+                    await useFinanceStore.getState().deleteUnitPrice('up1');
+                })
+            ).rejects.toThrow();
         });
 
         it('getUnitPricesByTemplate: should filter unit prices', () => {

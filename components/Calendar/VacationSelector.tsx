@@ -66,6 +66,7 @@ export default function VacationSelector({
                                     onClick={() => onRemoveEmployee(workerId)}
                                     className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
                                     title="削除"
+                                    aria-label="削除"
                                 >
                                     <X className="w-3 h-3" />
                                 </button>

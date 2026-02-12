@@ -155,6 +155,7 @@ export default function DraggableEventCard({
                                     : 'text-gray-400 opacity-50 cursor-not-allowed'
                                     }`}
                                 title="上に移動"
+                                aria-label="上に移動"
                             >
                                 <ChevronUp className="w-3 h-3" />
                             </button>
@@ -169,6 +170,7 @@ export default function DraggableEventCard({
                                     : 'text-gray-400 opacity-50 cursor-not-allowed'
                                     }`}
                                 title="下に移動"
+                                aria-label="下に移動"
                             >
                                 <ChevronDown className="w-3 h-3" />
                             </button>
@@ -182,6 +184,7 @@ export default function DraggableEventCard({
                                     }}
                                     className="p-0.5 rounded transition-colors hover:bg-gray-500 hover:bg-opacity-20 text-gray-700"
                                     title="コピー"
+                                    aria-label="コピー"
                                 >
                                     <Copy className="w-3 h-3" />
                                 </button>
@@ -199,6 +202,7 @@ export default function DraggableEventCard({
                                         : 'text-gray-700 hover:bg-gray-500 hover:bg-opacity-20'
                                         }`}
                                     title={isDispatchConfirmed ? '手配確定済み' : '手配確定'}
+                                    aria-label={isDispatchConfirmed ? '手配確定済み' : '手配確定'}
                                 >
                                     {isDispatchConfirmed ? (
                                         <CheckCircle className="w-3 h-3" />

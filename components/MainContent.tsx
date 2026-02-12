@@ -1,18 +1,48 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useSession } from 'next-auth/react';
-import WeeklyCalendar from './Calendar/WeeklyCalendar';
 import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
-import AssignmentTable from './Schedule/AssignmentTable';
-import SettingsPage from '@/app/(master)/settings/page';
-import ProjectMasterListPage from '@/app/(master)/project-masters/page';
-import EstimateListPage from '@/app/(finance)/estimates/page';
-import InvoiceListPage from '@/app/(finance)/invoices/page';
-import CustomersPage from '@/app/(master)/customers/page';
-import DailyReportPage from '@/app/(calendar)/daily-reports/page';
-import ProfitDashboardWrapper from '@/app/(standalone)/profit-dashboard/components/ProfitDashboardWrapper';
+
+// 簡易ローディングコンポーネント
+function LoadingSpinner() {
+    return (
+        <div className="flex items-center justify-center h-full">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+    );
+}
+
+// Dynamic Imports
+const WeeklyCalendar = dynamic(() => import('./Calendar/WeeklyCalendar'), {
+    loading: () => <LoadingSpinner />,
+});
+const AssignmentTable = dynamic(() => import('./Schedule/AssignmentTable'), {
+    loading: () => <LoadingSpinner />,
+});
+const SettingsPage = dynamic(() => import('@/app/(master)/settings/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const ProjectMasterListPage = dynamic(() => import('@/app/(master)/project-masters/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const EstimateListPage = dynamic(() => import('@/app/(finance)/estimates/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const InvoiceListPage = dynamic(() => import('@/app/(finance)/invoices/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const CustomersPage = dynamic(() => import('@/app/(master)/customers/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const DailyReportPage = dynamic(() => import('@/app/(calendar)/daily-reports/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const ProfitDashboardWrapper = dynamic(() => import('@/app/(standalone)/profit-dashboard/components/ProfitDashboardWrapper'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {

@@ -115,37 +115,27 @@ npm run test:coverage # カバレッジ付きテスト
 
 ### 優先度: ★★☆（早めにやるべき）
 
-#### B-1. 見積編集機能の実装 or ボタン非表示
-- **ファイル**: `app/(finance)/estimates/[id]/page.tsx` 77-80行
-- **現状**: 「編集」ボタンが表示されているが、押すと「編集機能は今後実装予定です」のトーストが出るだけ
-- **選択肢**:
-  - **(A) ボタンを非表示にする**（5分で完了）: `handleEdit` と該当JSXを削除
-  - **(B) 編集機能を実装する**（数時間）: 見積書の編集モーダルを作成し、既存の `EstimateForm` コンポーネントを再利用
-- **判断**: プロジェクトオーナーに確認してから着手
+#### B-1. ~~見積編集機能の実装 or ボタン非表示~~ ✅ 完了（2026-02-12）
+- **対応**: 編集機能を実装。`EstimateModal` を動的インポートし、既存の `updateEstimate` APIで更新
+- **変更ファイル**: `app/(finance)/estimates/[id]/page.tsx`
 
 #### B-2. パスワードリセット機能
 - **現状**: ユーザーがパスワードを忘れた場合、管理者がDBを直接操作するしかない
-- **修正方針**:
-  1. `app/api/users/[id]/reset-password/route.ts` を作成（admin権限でリセット）
-  2. Settings の UserManagement 画面に「パスワードリセット」ボタンを追加
-  3. 仮パスワードを発行してユーザーに伝える方式（メール送信は不要 — 社内ツールのため）
-- **参考**: 既存の `app/api/users/[id]/route.ts` の PUT メソッドにパスワード更新ロジックがある
+- **修正方針**: 既存の PATCH `/api/users/[id]` がパスワード更新に対応済み（`password` フィールドをオプショナルで受け付ける）。新規APIルートは不要
+  1. `components/Settings/UserManagement.tsx` にパスワードリセットボタンを追加
+  2. パスワードリセット確認ダイアログを表示（ランダム仮パスワードを生成して表示）
+  3. 既存の PATCH API で `{ password: 仮パスワード }` を送信
+  4. メール送信は不要（社内ツールのため、画面に仮パスワードを表示して管理者が口頭で伝える）
+- **既存コード参考**:
+  - API: `app/api/users/[id]/route.ts` 47-55行（bcryptハッシュ化済み）
+  - バリデーション: `lib/validations/index.ts` passwordSchema（8文字以上、英字+数字）
+  - 権限: `utils/permissions.ts` `canManageUsers()` → admin のみ
+  - UI: `components/Settings/UserManagement.tsx`（ユーザー一覧 + 編集/削除ボタン）
 
-#### B-3. PDF コンポーネントの共通化
-- **ファイル**: `components/pdf/EstimatePDF.tsx`（655行）、`components/pdf/InvoicePDF.tsx`（551行）
-- **問題**: ヘッダー、フッター、テーブルスタイル、会社情報表示が両ファイルで重複
-- **修正方針**:
-  ```
-  components/pdf/
-  ├── shared/
-  │   ├── PdfHeader.tsx        → 会社ロゴ・住所・文書番号
-  │   ├── PdfFooter.tsx        → 振込先・備考
-  │   ├── PdfItemTable.tsx     → 明細テーブル（行データを受け取る）
-  │   └── pdfStyles.ts         → 共通スタイル定義
-  ├── EstimatePDF.tsx           → 見積固有のロジックのみ
-  └── InvoicePDF.tsx            → 請求固有のロジックのみ
-  ```
-- **完了条件**: PDF出力が以前と同じ見た目であること（目視確認）
+#### B-3. ~~PDF コンポーネントの共通化~~ ✅ 完了（2026-02-12）
+- **対応**: 既存の `styles.ts` を活用し、フォント登録(3→1箇所)と `toReiwa`(3→1箇所)を集約
+- **変更ファイル**: `styles.ts`, `EstimatePDF.tsx`(656→634行), `InvoicePDF.tsx`(552→530行)
+- テーブルJSXのコンポーネント化はカラム構成の差異が大きく見送り
 
 #### B-4. レート制限の改善
 - **ファイル**: `lib/rate-limit.ts`
@@ -166,54 +156,30 @@ npm run test:coverage # カバレッジ付きテスト
 - **必要な環境変数**: `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN`
 - **注意**: Upstash の無料プランで十分（10,000リクエスト/日）
 
-#### B-5. API未テストルートのテスト追加
-- **対象**: 以下のAPIルートにはテストが存在しない
-  | ルート | 行数 | 重要度 |
-  |--------|------|--------|
-  | `app/api/customers/[id]/route.ts` | 105 | 高 |
-  | `app/api/estimates/[id]/route.ts` | 57 | 高 |
-  | `app/api/invoices/[id]/route.ts` | 59 | 高 |
-  | `app/api/daily-reports/[id]/route.ts` | 45 | 中 |
-  | `app/api/users/[id]/route.ts` | 78 | 高 |
-  | `app/api/init-db/route.ts` | 37 | 低 |
-- **テストパターン**: `__tests__/api/assignments/route.test.ts` を参考にする
-- **最低限のテストケース**: 正常系(200)、バリデーションエラー(400)、認証エラー(401)、404、500
+#### B-5. ~~API未テストルートのテスト追加~~ ✅ 完了（確認済み 2026-02-12）
+- **結果**: 5ルート全てにテストが既に存在。正常系・バリデーション・認証・404をカバー済み
+  - `__tests__/api/customers/[id]/route.test.ts` (119行)
+  - `__tests__/api/estimates/[id]/route.test.ts` (118行)
+  - `__tests__/api/invoices/[id]/route.test.ts` (118行)
+  - `__tests__/api/users/[id]/route.test.ts` (150行)
+  - `__tests__/api/daily-reports/[id]/route.test.ts` (106行)
 
 ---
 
 ### 優先度: ★☆☆（余裕があればやる）
 
-#### C-1. コンポーネントへの aria 属性追加
-- **問題**: ARIA属性がゼロ。スクリーンリーダーで使えない
-- **対象**: 全コンポーネントだが、まず以下から
-  - ボタンに `aria-label`（アイコンのみのボタンは特に）
-  - フォーム入力に `aria-required`, `aria-invalid`
-  - ステータスバッジに `role="status"`
-  - テーブルに適切な `<thead>`, `<th scope>`
-- **参考**: 既存の `<button title="削除">` のパターンに `aria-label` を追加するだけでも改善
+#### C-1. ~~コンポーネントへの aria 属性追加~~ ✅ 完了（2026-02-12）
+- **対応**: 8コンポーネントのアイコンのみボタンに `aria-label` を追加（24箇所）
+- **変更ファイル**: CalendarHeader, EmployeeRowComponent, DraggableEventCard, VacationSelector, ForemanSelector, EstimateForm, EstimateDetailModal, UserManagement
 
-#### C-2. next/Image コンポーネントの利用
-- **問題**: `<img>` タグを直接使用している箇所がある
-- **対象ファイル**: `components/Settings/CompanyInfoSettings.tsx` 218行付近
-- **修正**: `import Image from 'next/image'` に置き換え
+#### C-2. ~~next/Image コンポーネントの利用~~ ⏭️ スキップ
+- **理由**: 対象の `<img>` はBase64 Data URL（ファイルアップロードのプレビュー）であり、`next/Image` は動的なData URLに不向き（width/height固定が必要、最適化の恩恵もない）
 
-#### C-3. 大きなコンポーネントの動的インポート
-- **問題**: WeeklyCalendar（437行）、EstimateForm（621行）等が即座にロードされる
-- **修正**: `next/dynamic` で遅延ロード
-  ```tsx
-  const WeeklyCalendar = dynamic(() => import('./WeeklyCalendar'), {
-    loading: () => <Loading />,
-  });
-  ```
+#### C-3. ~~大きなコンポーネントの動的インポート~~ ✅ 完了（2026-02-12）
+- **対応**: `MainContent.tsx` の9コンポーネントを `next/dynamic` に変更、LoadingSpinner追加
 
-#### C-4. financeStore.ts の Branch カバレッジ強化
-- **ファイル**: `stores/financeStore.ts`（503行）
-- **現状**: Lines 72% だが Branch 31%
-- **作業**: `__tests__/stores/financeStore.test.ts` に以下を追加
-  - 各 CRUD 操作のエラーハンドリング（catch ブロック）
-  - 楽観的更新のロールバック
-  - null/undefined フォールバック
-- **参考**: `docs/TESTING_HANDOFF.md` のストアテストパターン
+#### C-4. ~~financeStore.ts の Branch カバレッジ強化~~ ✅ 完了（2026-02-12）
+- **結果**: Branch 31% → 78.75%（63/80ブランチカバー）、テスト数 25 → 55
 
 #### C-5. 予算書機能の実装
 - **ファイル**: `app/(finance)/estimates/[id]/page.tsx` 214-218行
@@ -265,11 +231,37 @@ Supabase PostgreSQL
 
 ---
 
+## 本日の作業予定（2026-02-12）
+
+### ~~1. B-1: 見積編集機能の実装~~ ✅ 完了
+- EstimateModal を詳細ページに追加、既存API活用
+
+### ~~2. B-2: パスワードリセット機能~~ ✅ 完了
+- UserManagement.tsx に鍵アイコンボタン + 確認/結果ダイアログを追加、既存PATCH API活用
+
+### ~~3. B-5: API未テストルートのテスト追加~~ ✅ 既に完了済み
+- 5ルート全てにテスト存在を確認
+
+### ~~4. B-3: PDF コンポーネントの共通化~~ ✅ 完了
+- フォント登録・toReiwa を styles.ts に集約
+
+---
+
 ## 完了済み作業の履歴
 
 | 日付 | 作業 | 結果 |
 |------|------|------|
+| 2026-02-11 | A-1: CI lint/typecheck エラー解消 | GitHub Actions 全グリーン |
+| 2026-02-11 | A-2: calendarStore.ts 分割 | 898行 → 6スライス（68行の統合ファイル + 6スライスファイル） |
+| 2026-02-11 | A-3: モーダルキーボード操作対応 | 全14モーダルに useModalKeyboard フック適用 |
 | 2026-02-11 | テストカバレッジ Batch 1-10 | 44.86% → 76.73% |
 | 2026-02-11 | バグ修正 #1-#8 | メモリリーク、収益計算、PDF無限ローディング等 |
 | 2026-02-11 | GitHub Actions CI 設定 | Lint→TypeCheck→Test→Build 自動実行 |
 | 2026-02-11 | 不要ログファイル削除 + .gitignore 強化 | 37,000行以上のゴミファイル削除 |
+| 2026-02-12 | B-1: 見積編集機能の実装 | 詳細ページに EstimateModal 追加、既存 updateEstimate API 活用 |
+| 2026-02-12 | B-2: パスワードリセット機能 | UserManagement.tsx に鍵ボタン + 確認/結果ダイアログ追加 |
+| 2026-02-12 | B-5: APIテスト確認 | 5ルート全て既にテスト済みであることを確認 |
+| 2026-02-12 | B-3: PDF共通化 | フォント登録・toReiwa を styles.ts に集約（44行削減） |
+| 2026-02-12 | C-3: 動的インポート | MainContent.tsx の9コンポーネントを next/dynamic に変更 |
+| 2026-02-12 | C-4: financeStoreテスト強化 | Branch 31% → 78.75%、テスト数 25 → 55 |
+| 2026-02-12 | C-1: aria属性追加 | 8コンポーネント・24箇所にaria-label追加 |

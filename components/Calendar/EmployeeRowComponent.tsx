@@ -86,6 +86,7 @@ export default function EmployeeRowComponent({
                                         onClick={handleMoveUp}
                                         className="p-0.5 hover:bg-blue-100 rounded transition-colors"
                                         title="上へ移動"
+                                        aria-label="上へ移動"
                                     >
                                         <ChevronUp className="w-3 h-3 text-blue-600" />
                                     </button>
@@ -95,6 +96,7 @@ export default function EmployeeRowComponent({
                                         onClick={handleMoveDown}
                                         className="p-0.5 hover:bg-blue-100 rounded transition-colors"
                                         title="下へ移動"
+                                        aria-label="下へ移動"
                                     >
                                         <ChevronDown className="w-3 h-3 text-blue-600" />
                                     </button>
@@ -105,6 +107,7 @@ export default function EmployeeRowComponent({
                                     onClick={handleDelete}
                                     className="absolute right-1 bottom-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-100 rounded-full"
                                     title="職長を削除"
+                                    aria-label="職長を削除"
                                 >
                                     <X className="w-3 h-3 text-red-600" />
                                 </button>

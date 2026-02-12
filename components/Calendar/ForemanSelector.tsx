@@ -38,12 +38,13 @@ export default function ForemanSelector() {
             <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors border ${hasAvailableForemen
-                        ? 'text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300'
-                        : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
+                    ? 'text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300'
+                    : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
                     }`}
                 type="button"
                 disabled={!hasAvailableForemen}
                 title={hasAvailableForemen ? '職長を追加' : '全ての職長が表示されています'}
+                aria-label={hasAvailableForemen ? '職長を追加' : '全ての職長が表示されています'}
             >
                 <Plus className="w-4 h-4" />
                 職長を追加

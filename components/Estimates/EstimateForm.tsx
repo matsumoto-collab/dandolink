@@ -522,6 +522,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                                 disabled={index === 0}
                                                 className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                                 title="上に移動"
+                                                aria-label="上に移動"
                                             >
                                                 <ChevronUp className="w-4 h-4" />
                                             </button>
@@ -531,6 +532,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                                 disabled={index === items.length - 1}
                                                 className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                                 title="下に移動"
+                                                aria-label="下に移動"
                                             >
                                                 <ChevronDown className="w-4 h-4" />
                                             </button>
@@ -539,6 +541,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                                 onClick={() => removeItem(item.id)}
                                                 className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
                                                 title="削除"
+                                                aria-label="削除"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>

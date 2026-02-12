@@ -1,11 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Users, Plus, Edit, Trash2, Shield } from 'lucide-react';
+import { Users, Plus, Edit, Trash2, Shield, KeyRound, Copy } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { User } from '@/types/user';
 import UserModal from './UserModal';
 import toast from 'react-hot-toast';
+
+
+// ランダムパスワード生成（英字[大文字・小文字]と数字を含む12文字）
+const generateRandomPassword = () => {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let password = "";
+    // 必ず数字、大文字、小文字を1つずつ含める
+    password += "0123456789".charAt(Math.floor(Math.random() * 10));
+    password += "ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(Math.floor(Math.random() * 26));
+    password += "abcdefghijklmnopqrstuvwxyz".charAt(Math.floor(Math.random() * 26));
+
+    // 残りの文字をランダムに生成
+    for (let i = 3; i < length; ++i) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+
+    // シャッフル
+    return password.split('').sort(() => 0.5 - Math.random()).join('');
+};
 
 export default function UserManagement() {
     const [users, setUsers] = useState<User[]>([]);
@@ -13,6 +33,11 @@ export default function UserManagement() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [selectedUser, setSelectedUser] = useState<User | null>(null);
+    // パスワードリセット用state
+    const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+    const [generatedPassword, setGeneratedPassword] = useState('');
+    const [isResetting, setIsResetting] = useState(false);
+    const [showResetResult, setShowResetResult] = useState(false);
 
     useEffect(() => {
         fetchUsers();
@@ -88,6 +113,56 @@ export default function UserManagement() {
         } catch (error) {
             throw error;
         }
+    };
+
+    // パスワードリセット確認ダイアログを開く
+    const handleResetPassword = (user: User) => {
+        const password = generateRandomPassword();
+        setGeneratedPassword(password);
+        setResetPasswordUser(user);
+        setShowResetResult(false);
+    };
+
+    // パスワードリセット実行
+    const confirmResetPassword = async () => {
+        if (!resetPasswordUser || !generatedPassword) return;
+
+        try {
+            setIsResetting(true);
+            const response = await fetch(`/api/users/${resetPasswordUser.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ password: generatedPassword }),
+            });
+
+            if (response.ok) {
+                setShowResetResult(true);
+                toast.success('パスワードをリセットしました');
+            } else {
+                const data = await response.json();
+                toast.error(data.error || 'パスワードリセットに失敗しました');
+            }
+        } catch (error) {
+            console.error('Failed to reset password:', error);
+            toast.error('パスワードリセットに失敗しました');
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
+    // パスワードをクリップボードにコピー
+    const copyPassword = () => {
+        navigator.clipboard.writeText(generatedPassword);
+        toast.success('パスワードをコピーしました');
+    };
+
+    // リセットダイアログを閉じる
+    const closeResetDialog = () => {
+        setResetPasswordUser(null);
+        setGeneratedPassword('');
+        setShowResetResult(false);
     };
 
     const getRoleBadgeColor = (role: string) => {
@@ -214,9 +289,18 @@ export default function UserManagement() {
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button
+                                                onClick={() => handleResetPassword(user)}
+                                                className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                title="パスワードリセット"
+                                                aria-label="パスワードリセット"
+                                            >
+                                                <KeyRound className="w-4 h-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEditUser(user)}
                                                 className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 title="編集"
+                                                aria-label="編集"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
@@ -224,6 +308,7 @@ export default function UserManagement() {
                                                 onClick={() => handleDeleteUser(user.id)}
                                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                                 title="削除"
+                                                aria-label="削除"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
@@ -251,6 +336,71 @@ export default function UserManagement() {
                 user={selectedUser}
                 mode={modalMode}
             />
+            {/* パスワードリセット確認/結果ダイアログ */}
+            {resetPasswordUser && (
+                <div className="fixed inset-0 lg:left-64 z-[70] flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black bg-opacity-50" onClick={isResetting ? undefined : closeResetDialog} />
+                    <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 z-10">
+                        <h3 className="text-xl font-bold text-gray-900 mb-4">
+                            パスワードリセット
+                        </h3>
+
+                        {!showResetResult ? (
+                            <>
+                                <p className="text-gray-600 mb-6">
+                                    <span className="font-semibold">{resetPasswordUser.displayName}</span> さんのパスワードをリセットしますか？<br />
+                                    新しいランダムなパスワードが生成されます。
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        onClick={closeResetDialog}
+                                        disabled={isResetting}
+                                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        onClick={confirmResetPassword}
+                                        disabled={isResetting}
+                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                                    >
+                                        {isResetting && <Loading size="sm" />}
+                                        リセット
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <p className="text-gray-600 mb-4">
+                                    パスワードをリセットしました。<br />
+                                    以下の仮パスワードをユーザーにお伝えください。
+                                </p>
+                                <div className="bg-gray-100 p-4 rounded-lg mb-6 flex items-center justify-between border border-gray-300">
+                                    <code className="text-lg font-mono font-bold text-gray-800 tracking-wider">
+                                        {generatedPassword}
+                                    </code>
+                                    <button
+                                        onClick={copyPassword}
+                                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors"
+                                        title="コピー"
+                                        aria-label="コピー"
+                                    >
+                                        <Copy className="w-5 h-5" />
+                                    </button>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={closeResetDialog}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                    >
+                                        閉じる
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

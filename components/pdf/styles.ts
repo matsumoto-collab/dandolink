@@ -101,12 +101,13 @@ export const commonStyles = StyleSheet.create({
 });
 
 // Helper function to convert date to Reiwa format
-export function toReiwa(date: Date): string {
+export function toReiwa(date: Date, options?: { space?: boolean }): string {
     const year = date.getFullYear();
     const reiwaYear = year - 2018;
     const month = date.getMonth() + 1;
     const day = date.getDate();
-    return `令和${reiwaYear}年${month}月${day}日`;
+    const sep = options?.space ? ' ' : '';
+    return `令和${reiwaYear}年${sep}${month}月${day}日`;
 }
 
 // Helper function to format currency

@@ -7,36 +7,12 @@ import {
     Text,
     View,
     StyleSheet,
-    Font,
     Image,
 } from '@react-pdf/renderer';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
-
-// Register Japanese font
-Font.register({
-    family: 'NotoSansJP',
-    fonts: [
-        {
-            src: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-400-normal.woff',
-            fontWeight: 'normal',
-        },
-        {
-            src: 'https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-jp@4.5.12/files/noto-sans-jp-japanese-700-normal.woff',
-            fontWeight: 'bold',
-        },
-    ],
-});
-
-// Helper function to convert date to Reiwa format
-function toReiwa(date: Date): string {
-    const year = date.getFullYear();
-    const reiwaYear = year - 2018;
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `令和${reiwaYear}年${month}月${day}日`;
-}
+import { toReiwa } from './styles';
 
 // Styles
 const styles = StyleSheet.create({

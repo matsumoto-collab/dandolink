@@ -44,7 +44,7 @@ export default function CalendarHeader({
                 hover:bg-slate-100
                 transition-colors duration-150
               "
-                        aria-label="前の週"
+                        aria-label="1週間前"
                         title="1週間前"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -61,7 +61,7 @@ export default function CalendarHeader({
                 hover:bg-slate-100
                 transition-colors duration-150
               "
-                        aria-label="次の週"
+                        aria-label="1週間後"
                         title="1週間後"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +79,7 @@ export default function CalendarHeader({
                 hover:bg-slate-100
                 transition-colors duration-150
               "
-                        aria-label="前の日"
+                        aria-label="1日前"
                         title="1日前"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,7 +96,7 @@ export default function CalendarHeader({
                 hover:bg-slate-100
                 transition-colors duration-150
               "
-                        aria-label="次の日"
+                        aria-label="1日後"
                         title="1日後"
                     >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

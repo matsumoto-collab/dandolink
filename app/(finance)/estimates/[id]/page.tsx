@@ -11,16 +11,24 @@ import { ArrowLeft, FileDown, Printer, Trash2, Edit, ExternalLink } from 'lucide
 import toast from 'react-hot-toast';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
+import { EstimateInput } from '@/types/estimate';
+import dynamic from 'next/dynamic';
+
+const EstimateModal = dynamic(
+    () => import('@/components/Estimates/EstimateModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"></div> }
+);
 
 export default function EstimateDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const { estimates, ensureDataLoaded: ensureEstimatesLoaded, deleteEstimate } = useEstimates();
+    const { estimates, ensureDataLoaded: ensureEstimatesLoaded, updateEstimate, deleteEstimate } = useEstimates();
     const { projects } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
 
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     const estimateId = params.id as string;
     const estimate = estimates.find((e: Estimate) => e.id === estimateId);
@@ -77,8 +85,19 @@ export default function EstimateDetailPage() {
     };
 
     const handleEdit = () => {
-        // TODO: 編集モーダルを開く
-        toast('編集機能は今後実装予定です');
+        setIsEditModalOpen(true);
+    };
+
+    const handleEditSubmit = async (data: EstimateInput) => {
+        try {
+            await updateEstimate(estimateId, data);
+            setIsEditModalOpen(false);
+            toast.success('見積書を更新しました');
+            // PDF will be regenerated automatically by useEffect
+        } catch (error) {
+            console.error('Failed to update estimate:', error);
+            toast.error('見積書の更新に失敗しました');
+        }
     };
 
     const handleGoToProject = () => {
@@ -251,6 +270,14 @@ export default function EstimateDetailPage() {
                     }
                 }
             `}</style>
+
+            {/* 編集モーダル */}
+            <EstimateModal
+                isOpen={isEditModalOpen}
+                onClose={() => setIsEditModalOpen(false)}
+                onSubmit={handleEditSubmit}
+                initialData={estimate}
+            />
         </div>
     );
 }

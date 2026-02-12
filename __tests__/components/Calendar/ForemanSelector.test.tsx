@@ -83,6 +83,6 @@ describe('ForemanSelector', () => {
             render(<ForemanSelector />);
         });
 
-        expect(screen.getByRole('button', { name: /職長を追加/ })).toBeDisabled();
+        expect(screen.getByRole('button', { name: '全ての職長が表示されています' })).toBeDisabled();
     });
 });

@@ -148,6 +148,7 @@ export default function EstimateDetailModal({
                                     onClick={handleDownload}
                                     className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                                     title="PDF出力"
+                                    aria-label="PDF出力"
                                 >
                                     <FileDown size={18} />
                                     <span className="hidden sm:inline">PDF出力</span>
@@ -156,6 +157,7 @@ export default function EstimateDetailModal({
                                     onClick={handlePrint}
                                     className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                                     title="印刷"
+                                    aria-label="印刷"
                                 >
                                     <Printer size={18} />
                                     <span className="hidden sm:inline">印刷</span>
@@ -164,6 +166,7 @@ export default function EstimateDetailModal({
                                     onClick={handleDelete}
                                     className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                                     title="削除"
+                                    aria-label="削除"
                                 >
                                     <Trash2 size={18} />
                                     <span className="hidden sm:inline">削除</span>
