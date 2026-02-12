@@ -59,30 +59,23 @@ body {
       rgb(71, 85, 105) 100%);
 }
 
-/* Mobile calendar zoom-out view */
-@media (max-width: 768px) {
-  .calendar-container {
-    transform: scale(0.5);
-    transform-origin: top left;
-    width: 200%;
-    height: 200%;
-    /* 100% / 0.5 to compensate for scale */
-    min-height: auto;
-  }
+/* Mobile: calendar-container はモバイルビューに切り替えるため scale 不要 */
 
-  /* スケジュールページのメインコンテナ */
-  .mobile-schedule-wrapper {
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+/* アクションシートのスライドアップアニメーション */
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 
-/* iPhone SE and smaller (375px width) - fit full week */
-@media (max-width: 480px) {
-  .calendar-container {
-    transform: scale(0.34);
-    width: 294%;
-    height: 294%;
-    /* 100% / 0.34 = 294% */
-  }
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+/* iPhone safe area対応 */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
