@@ -87,6 +87,7 @@ model ProjectAssignment {
   confirmedVehicleIds  String?
   isDispatchConfirmed  Boolean               @default(false)
   constructionType     String?               // 配置ごとの工事種別（nullの場合はProjectMasterから継承）
+  estimatedHours       Float                 @default(8.0) // 予定作業時間（時間単位）
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   dailyReportWorkItems DailyReportWorkItem[]

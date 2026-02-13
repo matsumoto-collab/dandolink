@@ -125,13 +125,18 @@ export default function DesktopCalendarView({
                                 const dateKey = formatDateKey(day.date);
                                 const isSaturday = day.dayOfWeek === 6;
                                 const isSunday = day.dayOfWeek === 0;
-                                const assignedCount = events.filter(event => formatDateKey(event.startDate) === dateKey && event.assignedEmployeeId !== 'unassigned').reduce((sum, event) => sum + (event.workers?.length || 0), 0);
+                                const dayEvents = events.filter(event => formatDateKey(event.startDate) === dateKey && event.assignedEmployeeId !== 'unassigned');
+                                const assignedCount = dayEvents.reduce((sum, event) => sum + (event.workers?.length || 0), 0);
+                                const totalHours = dayEvents.reduce((sum, event) => sum + (event.estimatedHours ?? 8), 0);
                                 const vacationCount = getVacationEmployees(dateKey).length;
                                 const remainingCount = totalMembers - assignedCount - vacationCount;
+                                const capacityHours = (employeeRows.length) * 8;
+                                const remainingHours = capacityHours - totalHours;
 
                                 return (
-                                    <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-gray-100 p-1 flex items-center justify-center ${isSaturday ? 'bg-blue-50/30' : isSunday ? 'bg-red-50/30' : 'bg-white'}`}>
+                                    <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-gray-100 p-1 flex items-center justify-center gap-1.5 ${isSaturday ? 'bg-blue-50/30' : isSunday ? 'bg-red-50/30' : 'bg-white'}`}>
                                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingCount > 0 ? 'bg-slate-600' : remainingCount === 0 ? 'bg-slate-400' : 'bg-slate-700'}`}>{remainingCount}人</span>
+                                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingHours > 16 ? 'bg-emerald-500' : remainingHours > 0 ? 'bg-amber-500' : 'bg-red-500'}`}>残{remainingHours}h</span>
                                     </div>
                                 );
                             })}

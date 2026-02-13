@@ -15,6 +15,7 @@ interface BatchCreateAssignment {
     sortOrder?: number;
     remarks?: string;
     constructionType?: string;
+    estimatedHours?: number;
 }
 
 /**
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest) {
                         sortOrder: a.sortOrder || 0,
                         remarks: a.remarks || null,
                         constructionType: a.constructionType || null,
+                        estimatedHours: a.estimatedHours ?? 8.0,
                         assignmentWorkers: {
                             create: Array.isArray(a.workers)
                                 ? a.workers.map((w: string) => ({ workerName: w }))

@@ -124,6 +124,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 sortOrder: schedule.sortOrder || 0,
                 remarks: schedule.remarks || project.remarks,
                 constructionType: project.constructionType,
+                estimatedHours: project.estimatedHours ?? 8.0,
             }));
 
             const response = await fetch('/api/assignments/batch-create', {
@@ -159,6 +160,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     sortOrder: project.sortOrder || 0,
                     remarks: project.remarks,
                     constructionType: project.constructionType,
+                    estimatedHours: project.estimatedHours ?? 8.0,
                 }),
             });
 
@@ -216,6 +218,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     confirmedWorkerIds: updates.confirmedWorkerIds,
                     confirmedVehicleIds: updates.confirmedVehicleIds,
                     constructionType: updates.constructionType,
+                    estimatedHours: updates.estimatedHours,
                 }),
             });
 

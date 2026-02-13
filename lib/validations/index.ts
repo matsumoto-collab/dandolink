@@ -142,6 +142,7 @@ export const createAssignmentSchema = z.object({
     isDispatchConfirmed: z.boolean().optional(),
     confirmedWorkerIds: z.array(z.string()).optional(),
     confirmedVehicleIds: z.array(z.string()).optional(),
+    estimatedHours: z.number().min(0).max(24).optional(),
 });
 
 export const updateAssignmentSchema = createAssignmentSchema.partial();

@@ -19,6 +19,7 @@ interface BatchUpdate {
         isDispatchConfirmed?: boolean;
         confirmedWorkerIds?: string[];
         confirmedVehicleIds?: string[];
+        estimatedHours?: number;
     };
 }
 
@@ -85,6 +86,7 @@ export async function POST(req: NextRequest) {
                 if (update.data.isDispatchConfirmed !== undefined) updateData.isDispatchConfirmed = update.data.isDispatchConfirmed;
                 if (update.data.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = stringifyJsonField(update.data.confirmedWorkerIds);
                 if (update.data.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(update.data.confirmedVehicleIds);
+                if (update.data.estimatedHours !== undefined) updateData.estimatedHours = update.data.estimatedHours;
 
                 return prisma.projectAssignment.update({
                     where: { id: update.id },

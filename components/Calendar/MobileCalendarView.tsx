@@ -211,9 +211,14 @@ export default function MobileCalendarView({
                                         <h3 className="text-white font-bold text-sm">
                                             {row.employeeName}
                                         </h3>
-                                        <span className="text-slate-300 text-xs">
-                                            {dayEvents.length}件
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-slate-300 text-xs">
+                                                {dayEvents.reduce((sum, e) => sum + (e.estimatedHours ?? 8), 0)}h
+                                            </span>
+                                            <span className="text-slate-400 text-[10px]">
+                                                ({dayEvents.length}件)
+                                            </span>
+                                        </div>
                                     </div>
 
                                     {/* イベントリスト */}
@@ -268,12 +273,20 @@ export default function MobileCalendarView({
                                                                 </div>
                                                             )}
 
-                                                            {/* 人数 + 備考 */}
+                                                            {/* 人数 + 時間 + 備考 */}
                                                             <div className="flex items-center gap-3 mt-1.5">
                                                                 {event.workers && event.workers.length > 0 && (
                                                                     <span className="text-gray-700 text-xs flex items-center gap-1">
                                                                         <Users className="w-3 h-3" />
                                                                         {event.workers.length}人
+                                                                    </span>
+                                                                )}
+                                                                {event.estimatedHours != null && (
+                                                                    <span className="text-gray-700 text-xs flex items-center gap-1">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
+                                                                        {event.estimatedHours}h
                                                                     </span>
                                                                 )}
                                                                 {event.remarks && (
@@ -378,6 +391,14 @@ export default function MobileCalendarView({
                                             <span className="flex items-center gap-1">
                                                 <Users className="w-3 h-3" />
                                                 {actionSheet.event.workers.length}人
+                                            </span>
+                                        )}
+                                        {actionSheet.event.estimatedHours != null && (
+                                            <span className="flex items-center gap-1">
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                {actionSheet.event.estimatedHours}h
                                             </span>
                                         )}
                                         {actionSheet.event.remarks && (

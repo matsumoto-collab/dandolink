@@ -13,6 +13,7 @@ export interface CalendarEvent {
     location?: string;
     customer?: string;
     memberCount?: number;
+    estimatedHours?: number;
     workers?: string[];
     trucks?: string[];
     remarks?: string;
@@ -184,6 +185,7 @@ export interface ProjectAssignment {
     assignedEmployeeId: string; // 担当職長ID
     date: Date;              // 作業日
     memberCount: number;     // 人数
+    estimatedHours: number;  // 予定作業時間（時間単位）
     workers?: string[];      // 職方ID配列
     vehicles?: string[];     // 車両ID配列
     meetingTime?: string;    // 集合時間（例: "08:00"）

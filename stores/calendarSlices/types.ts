@@ -56,6 +56,7 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         location: assignment.projectMaster?.location,
         customer: assignment.projectMaster?.customerShortName || assignment.projectMaster?.customerName,
         memberCount: assignment.memberCount,
+        estimatedHours: assignment.estimatedHours ?? 8.0,
         workers: assignment.workers,
         trucks: assignment.vehicles,
         remarks: assignment.remarks || assignment.projectMaster?.remarks,

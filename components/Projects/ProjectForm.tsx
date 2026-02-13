@@ -51,6 +51,7 @@ export default function ProjectForm({
                 ? [initialData.createdBy]
                 : [], // 案件担当者(複数選択)
         memberCount: initialData?.workers?.length || 0, // メンバー数
+        estimatedHours: initialData?.estimatedHours ?? 8, // 予定作業時間（デフォルト8h）
         selectedVehicles: initialData?.isDispatchConfirmed && initialData?.confirmedVehicleIds?.length
             ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
             : initialData?.trucks || [],
@@ -270,6 +271,7 @@ export default function ProjectForm({
             workSchedules: workSchedules,
             color: color,
             remarks: formData.remarks || undefined,
+            estimatedHours: formData.estimatedHours,
         };
 
         onSubmit(projectData);
@@ -521,6 +523,51 @@ export default function ProjectForm({
                 <p className="text-xs text-gray-500 mt-1">
                     残り: {availableMembers}人
                 </p>
+            </div>
+
+            {/* 予定作業時間 */}
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                    予定作業時間
+                </label>
+                <div className="flex flex-wrap gap-2">
+                    {[2, 4, 8].map(hours => (
+                        <button
+                            key={hours}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, estimatedHours: hours })}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                                formData.estimatedHours === hours
+                                    ? 'bg-slate-700 text-white border-slate-700'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                            }`}
+                        >
+                            {hours}h
+                        </button>
+                    ))}
+                    <div className="flex items-center gap-1">
+                        <input
+                            type="number"
+                            min="0.5"
+                            max="24"
+                            step="0.5"
+                            value={![2, 4, 8].includes(formData.estimatedHours) ? formData.estimatedHours : ''}
+                            onChange={(e) => {
+                                const val = parseFloat(e.target.value);
+                                if (!isNaN(val) && val >= 0.5 && val <= 24) {
+                                    setFormData({ ...formData, estimatedHours: val });
+                                }
+                            }}
+                            placeholder="その他"
+                            className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                ![2, 4, 8].includes(formData.estimatedHours)
+                                    ? 'border-slate-700 bg-slate-50'
+                                    : 'border-gray-300'
+                            }`}
+                        />
+                        <span className="text-sm text-gray-500">h</span>
+                    </div>
+                </div>
             </div>
 
             {/* 車両（チェックボックス） */}

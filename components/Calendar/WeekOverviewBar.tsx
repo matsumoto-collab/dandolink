@@ -30,28 +30,33 @@ export default function WeekOverviewBar({
             const assignedWorkers = dayEvents
                 .filter(e => e.assignedEmployeeId !== 'unassigned')
                 .reduce((sum, e) => sum + (e.workers?.length || 0), 0);
+            const totalHours = dayEvents
+                .filter(e => e.assignedEmployeeId !== 'unassigned')
+                .reduce((sum, e) => sum + (e.estimatedHours ?? 8), 0);
             const vacationCount = getVacationEmployees(dateKey).length;
             const remaining = totalMembers - assignedWorkers - vacationCount;
-            // 充足率: 0 = 全員空き, 1 = 全員配置済み
-            const fillRate = totalMembers > 0
-                ? Math.min(1, (assignedWorkers + vacationCount) / totalMembers)
+            const capacityHours = totalMembers * 8;
+            const remainingHours = capacityHours - totalHours;
+            // 充足率: 時間ベース
+            const fillRate = capacityHours > 0
+                ? Math.min(1, totalHours / capacityHours)
                 : 0;
 
-            return { dateKey, eventCount, remaining, fillRate, day };
+            return { dateKey, eventCount, remaining, remainingHours, fillRate, day };
         });
     }, [weekDays, events, totalMembers, getVacationEmployees]);
 
-    const getFillColor = (remaining: number) => {
-        if (remaining < 0) return 'bg-red-500';     // 超過
-        if (remaining === 0) return 'bg-amber-500';  // ちょうど
-        if (remaining <= 2) return 'bg-emerald-500'; // 余裕少
-        return 'bg-emerald-400';                     // 余裕あり
+    const getFillColor = (remainingHours: number) => {
+        if (remainingHours < 0) return 'bg-red-500';     // 超過
+        if (remainingHours === 0) return 'bg-amber-500';  // 満員
+        if (remainingHours <= 8) return 'bg-emerald-500'; // 残り少
+        return 'bg-emerald-400';                          // 余裕あり
     };
 
     return (
         <div className="bg-white border-b border-slate-200 shadow-sm">
             <div className="grid grid-cols-7 gap-0">
-                {dayStats.map(({ dateKey, eventCount, remaining, fillRate, day }) => {
+                {dayStats.map(({ dateKey, eventCount, remainingHours, fillRate, day }) => {
                     const isSelected = dateKey === selectedDateKey;
                     const isSaturday = day.dayOfWeek === 6;
                     const isSunday = day.dayOfWeek === 0;
@@ -92,22 +97,30 @@ export default function WeekOverviewBar({
                                 {dateNum}
                             </span>
 
-                            {/* 案件数 */}
-                            {eventCount > 0 && (
+                            {/* 案件数 + 残時間 */}
+                            {eventCount > 0 ? (
                                 <span className={`text-[10px] font-bold mt-0.5 ${
                                     isSelected ? 'text-slate-200' : 'text-slate-500'
                                 }`}>
                                     {eventCount}件
                                 </span>
-                            )}
+                            ) : null}
+                            <span className={`text-[10px] font-bold ${
+                                isSelected ? 'text-slate-200' :
+                                remainingHours <= 0 ? 'text-red-500' :
+                                remainingHours <= 8 ? 'text-amber-600' :
+                                'text-emerald-600'
+                            }`}>
+                                {remainingHours <= 0 ? '満員' : `残${remainingHours}h`}
+                            </span>
 
                             {/* 充足率バー */}
-                            <div className={`w-full h-1 mt-1 rounded-full ${
+                            <div className={`w-full h-1 mt-0.5 rounded-full ${
                                 isSelected ? 'bg-slate-500' : 'bg-slate-200'
                             }`}>
                                 <div
                                     className={`h-full rounded-full transition-all ${
-                                        isSelected ? 'bg-white' : getFillColor(remaining)
+                                        isSelected ? 'bg-white' : getFillColor(remainingHours)
                                     }`}
                                     style={{ width: `${Math.round(fillRate * 100)}%` }}
                                 />
