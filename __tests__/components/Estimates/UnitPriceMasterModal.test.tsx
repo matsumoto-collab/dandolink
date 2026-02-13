@@ -48,15 +48,11 @@ const mockItems = [
 describe('UnitPriceMasterModal', () => {
     const mockOnClose = jest.fn();
     const mockOnSelect = jest.fn();
-    const mockGetUnitPricesByTemplate = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockGetUnitPricesByTemplate.mockImplementation((template: string) => {
-            return mockItems.filter(item => (item.templates as unknown as string[]).includes(template));
-        });
         (useUnitPriceMaster as jest.Mock).mockReturnValue({
-            getUnitPricesByTemplate: mockGetUnitPricesByTemplate,
+            unitPrices: mockItems,
             ensureDataLoaded: jest.fn(),
         });
     });
@@ -115,12 +111,14 @@ describe('UnitPriceMasterModal', () => {
             <UnitPriceMasterModal isOpen={true} onClose={mockOnClose} onSelect={mockOnSelect} />
         );
         fireEvent.click(screen.getByText('大規模見積用'));
-        expect(mockGetUnitPricesByTemplate).toHaveBeenCalledWith('large');
         expect(screen.getByText('大規模足場')).toBeInTheDocument();
     });
 
     it('should show empty state when no items match', () => {
-        mockGetUnitPricesByTemplate.mockReturnValue([]);
+        (useUnitPriceMaster as jest.Mock).mockReturnValue({
+            unitPrices: [],
+            ensureDataLoaded: jest.fn(),
+        });
         render(
             <UnitPriceMasterModal isOpen={true} onClose={mockOnClose} onSelect={mockOnSelect} />
         );

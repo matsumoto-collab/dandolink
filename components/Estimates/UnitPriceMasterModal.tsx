@@ -13,15 +13,15 @@ interface UnitPriceMasterModalProps {
 }
 
 export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: UnitPriceMasterModalProps) {
-    const { getUnitPricesByTemplate, ensureDataLoaded } = useUnitPriceMaster();
+    const { unitPrices, ensureDataLoaded } = useUnitPriceMaster();
     const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('frequent');
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // テンプレートで絞り込んだ項目を取得
     const templateItems = useMemo(() => {
-        return getUnitPricesByTemplate(selectedTemplate);
-    }, [selectedTemplate, getUnitPricesByTemplate]);
+        return unitPrices.filter(up => up.templates.includes(selectedTemplate));
+    }, [selectedTemplate, unitPrices]);
 
     // モーダルが開いたときにデータを確実にロードする
     React.useEffect(() => {
