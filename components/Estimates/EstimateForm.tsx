@@ -162,7 +162,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             quantity: 1,
             unit: master.unit,
             unitPrice: master.unitPrice,
-            amount: master.unitPrice,
+            amount: Math.round(1 * master.unitPrice),
             taxType: 'standard' as const,
             notes: '',
         }));
@@ -190,7 +190,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 const updated = { ...item, [field]: value };
                 // 金額を自動計算
                 if (field === 'quantity' || field === 'unitPrice') {
-                    updated.amount = updated.quantity * updated.unitPrice;
+                    updated.amount = Math.round(updated.quantity * updated.unitPrice);
                 }
                 return updated;
             }
