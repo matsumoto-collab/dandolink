@@ -13,7 +13,7 @@ interface UnitPriceMasterModalProps {
 }
 
 export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: UnitPriceMasterModalProps) {
-    const { getUnitPricesByTemplate } = useUnitPriceMaster();
+    const { getUnitPricesByTemplate, ensureDataLoaded } = useUnitPriceMaster();
     const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>('frequent');
     const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
     const modalRef = useModalKeyboard(isOpen, onClose);
@@ -22,6 +22,13 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
     const templateItems = useMemo(() => {
         return getUnitPricesByTemplate(selectedTemplate);
     }, [selectedTemplate, getUnitPricesByTemplate]);
+
+    // モーダルが開いたときにデータを確実にロードする
+    React.useEffect(() => {
+        if (isOpen) {
+            ensureDataLoaded();
+        }
+    }, [isOpen, ensureDataLoaded]);
 
     // 項目の選択/選択解除
     const toggleItem = (id: string) => {

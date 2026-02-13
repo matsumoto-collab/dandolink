@@ -57,6 +57,7 @@ describe('UnitPriceMasterModal', () => {
         });
         (useUnitPriceMaster as jest.Mock).mockReturnValue({
             getUnitPricesByTemplate: mockGetUnitPricesByTemplate,
+            ensureDataLoaded: jest.fn(),
         });
     });
 
