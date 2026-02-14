@@ -79,7 +79,7 @@ export default function ProjectModal({
     };
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex items-start pt-[4.5rem] lg:items-center lg:pt-0 justify-center">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex items-start pt-[4.5rem] lg:items-center lg:pt-0 justify-center overflow-y-auto">
             {/* オーバーレイ */}
             <div
                 className="absolute inset-0 bg-black bg-opacity-50"
@@ -87,7 +87,7 @@ export default function ProjectModal({
             />
 
             {/* モーダルコンテンツ */}
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100vh-5rem)] lg:max-h-[90vh] overflow-y-auto">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-6rem)] lg:max-h-[90vh] overflow-y-auto mb-4 lg:mb-0 shrink-0">
                 {/* ヘッダー */}
                 <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
                     <div className="flex items-center gap-3">
