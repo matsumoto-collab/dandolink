@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Plus, Users, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Plus, Users, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -76,6 +76,19 @@ export default function MobileCalendarView({
     const [actionSheet, setActionSheet] = useState<ActionSheetState>({
         isOpen: false, event: null, project: null
     });
+
+    // 折りたたみ/展開管理
+    const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
+    const toggleExpand = useCallback((employeeId: string) => {
+        setExpandedEmployees(prev => {
+            const next = new Set(prev);
+            next.has(employeeId) ? next.delete(employeeId) : next.add(employeeId);
+            return next;
+        });
+    }, []);
+
+    // 週全体のイベントマップを事前構築（パフォーマンス最適化）
+    const weekDateKeys = useMemo(() => weekDays.map(d => formatDateKey(d.date)), [weekDays]);
 
     const selectedDay = useMemo(
         () => weekDays.find(d => formatDateKey(d.date) === selectedDateKey),
@@ -188,128 +201,183 @@ export default function MobileCalendarView({
                 </span>
             </div>
 
-            {/* 職長ごとの案件リスト */}
+            {/* 職長ごとの案件リスト（折りたたみ/展開） */}
             <div className="flex-1 overflow-auto pb-20">
-                <div className="p-3 space-y-3">
+                <div className="p-3 space-y-1.5">
                     {employeeRows.length === 0 ? (
                         <div className="text-center py-12 text-slate-400">
                             表示する職長がいません
                         </div>
                     ) : (
                         employeeRows.map(row => {
+                            const isExpanded = expandedEmployees.has(row.employeeId);
                             const dayEvents = selectedDay
                                 ? getEventsForDate(row, selectedDay.date)
                                 : [];
+
+                            // 週全体の集計（折りたたみ行用）
+                            const weekTotal = weekDateKeys.reduce((acc, dateKey) => {
+                                const evts = row.events.get(dateKey) || [];
+                                acc.totalEvents += evts.length;
+                                acc.totalHours += evts.reduce((s, e) => s + (e.estimatedHours ?? 8), 0);
+                                return acc;
+                            }, { totalEvents: 0, totalHours: 0 });
+
+                            // 選択日の案件サマリー
+                            const daySummary = dayEvents.length > 0
+                                ? dayEvents.map(e => e.title).join(', ')
+                                : null;
 
                             return (
                                 <div
                                     key={`${row.employeeId}-${row.rowIndex}`}
                                     className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
                                 >
-                                    {/* 職長名ヘッダー */}
-                                    <div className="bg-gradient-to-r from-slate-700 to-slate-600 px-3 py-2 flex items-center justify-between">
-                                        <h3 className="text-white font-bold text-sm">
+                                    {/* 折りたたみヘッダー（タップで展開/折りたたみ） */}
+                                    <button
+                                        onClick={() => toggleExpand(row.employeeId)}
+                                        aria-expanded={isExpanded}
+                                        className="w-full bg-gradient-to-r from-slate-700 to-slate-600 px-3 py-2.5 flex items-center gap-2 active:from-slate-800 active:to-slate-700 transition-colors"
+                                    >
+                                        <h3 className="text-white font-bold text-sm shrink-0">
                                             {row.employeeName}
                                         </h3>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-slate-300 text-xs">
-                                                {dayEvents.reduce((sum, e) => sum + (e.estimatedHours ?? 8), 0)}h
-                                            </span>
-                                            <span className="text-slate-400 text-[10px]">
-                                                ({dayEvents.length}件)
-                                            </span>
+
+                                        {/* 週間ドットインジケーター */}
+                                        <div className="flex gap-1 items-center mx-1">
+                                            {weekDateKeys.map(dateKey => {
+                                                const hasEvents = (row.events.get(dateKey)?.length ?? 0) > 0;
+                                                const isSelected = dateKey === selectedDateKey;
+                                                return (
+                                                    <div
+                                                        key={dateKey}
+                                                        className={`w-2.5 h-2.5 rounded-full transition-all ${
+                                                            hasEvents
+                                                                ? isSelected
+                                                                    ? 'bg-blue-400 ring-2 ring-blue-300'
+                                                                    : 'bg-slate-300'
+                                                                : isSelected
+                                                                    ? 'bg-slate-500 ring-2 ring-slate-400'
+                                                                    : 'bg-slate-500/30'
+                                                        }`}
+                                                    />
+                                                );
+                                            })}
                                         </div>
-                                    </div>
 
-                                    {/* イベントリスト */}
-                                    <div className="p-2">
-                                        {dayEvents.length === 0 ? (
-                                            <button
-                                                onClick={() => selectedDay && handleCellClick?.(row.employeeId, selectedDay.date)}
-                                                className="w-full text-center py-4 text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                disabled={isReadOnly}
-                                            >
-                                                {isReadOnly ? '予定なし' : '＋ タップして追加'}
-                                            </button>
-                                        ) : (
-                                            <div className="space-y-2">
-                                                {dayEvents.map((event) => {
-                                                    const projectId = event.id.replace(/-assembly$|-demolition$/, '');
-                                                    const project = projects.find(p => p.id === projectId);
-                                                    const editingUsers = getEditingUsers(projectId);
+                                        {/* 件数・時間 */}
+                                        <div className="ml-auto flex items-center gap-2 shrink-0">
+                                            {weekTotal.totalEvents > 0 ? (
+                                                <>
+                                                    <span className="text-slate-300 text-xs">{weekTotal.totalEvents}件</span>
+                                                    <span className="text-slate-400 text-[10px]">{weekTotal.totalHours}h</span>
+                                                </>
+                                            ) : (
+                                                <span className="text-emerald-400 text-xs font-medium">空き</span>
+                                            )}
+                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </button>
 
-                                                    return (
-                                                        <button
-                                                            key={event.id}
-                                                            onClick={() => handleCardTap(event)}
-                                                            className="w-full text-left p-3 rounded-lg transition-all active:scale-[0.98] relative"
-                                                            style={{ backgroundColor: event.color }}
-                                                        >
-                                                            {/* 編集中インジケーター */}
-                                                            {editingUsers.length > 0 && (
-                                                                <div className="absolute top-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 rounded text-[10px] text-amber-800">
-                                                                    <Edit3 className="w-3 h-3 animate-pulse" />
-                                                                    <span>{editingUsers.map(u => u.name).join(', ')}</span>
-                                                                </div>
-                                                            )}
+                                    {/* 折りたたみ時: 選択日の案件サマリー1行 */}
+                                    {!isExpanded && daySummary && (
+                                        <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50">
+                                            <p className="text-xs text-slate-500 truncate">
+                                                {daySummary}
+                                            </p>
+                                        </div>
+                                    )}
 
-                                                            {/* 手配確定バッジ */}
-                                                            {project?.isDispatchConfirmed && (
-                                                                <div className="absolute top-1 right-1 bg-green-100 text-green-700 rounded px-1.5 py-0.5 text-[10px] font-bold flex items-center gap-0.5">
-                                                                    <CheckCircle className="w-3 h-3" />
-                                                                    確定済
-                                                                </div>
-                                                            )}
-
-                                                            {/* 案件名 */}
-                                                            <div className="font-bold text-gray-900 text-sm pr-14">
-                                                                {event.title}
-                                                            </div>
-
-                                                            {/* 元請名 */}
-                                                            {event.customer && (
-                                                                <div className="text-gray-700 text-xs mt-1">
-                                                                    {event.customer}
-                                                                </div>
-                                                            )}
-
-                                                            {/* 人数 + 時間 + 備考 */}
-                                                            <div className="flex items-center gap-3 mt-1.5">
-                                                                {event.workers && event.workers.length > 0 && (
-                                                                    <span className="text-gray-700 text-xs flex items-center gap-1">
-                                                                        <Users className="w-3 h-3" />
-                                                                        {event.workers.length}人
-                                                                    </span>
-                                                                )}
-                                                                {event.estimatedHours != null && (
-                                                                    <span className="text-gray-700 text-xs flex items-center gap-1">
-                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                        </svg>
-                                                                        {event.estimatedHours}h
-                                                                    </span>
-                                                                )}
-                                                                {event.remarks && (
-                                                                    <span className="text-gray-600 text-xs truncate">
-                                                                        {event.remarks}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </button>
-                                                    );
-                                                })}
-
-                                                {/* 職長セルへの追加ボタン */}
-                                                {!isReadOnly && (
+                                    {/* 展開時: カードビュー（アニメーション付き） */}
+                                    <div
+                                        className="grid transition-[grid-template-rows] duration-200 ease-out"
+                                        style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
+                                    >
+                                        <div className="overflow-hidden">
+                                            <div className="p-2">
+                                                {dayEvents.length === 0 ? (
                                                     <button
                                                         onClick={() => selectedDay && handleCellClick?.(row.employeeId, selectedDay.date)}
-                                                        className="w-full text-center py-2 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-dashed border-slate-200"
+                                                        className="w-full text-center py-4 text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                        disabled={isReadOnly}
                                                     >
-                                                        ＋ 追加
+                                                        {isReadOnly ? '予定なし' : '＋ タップして追加'}
                                                     </button>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        {dayEvents.map((event) => {
+                                                            const projectId = event.id.replace(/-assembly$|-demolition$/, '');
+                                                            const project = projects.find(p => p.id === projectId);
+                                                            const editingUsers = getEditingUsers(projectId);
+
+                                                            return (
+                                                                <button
+                                                                    key={event.id}
+                                                                    onClick={() => handleCardTap(event)}
+                                                                    className="w-full text-left p-3 rounded-lg transition-all active:scale-[0.98] relative"
+                                                                    style={{ backgroundColor: event.color }}
+                                                                >
+                                                                    {editingUsers.length > 0 && (
+                                                                        <div className="absolute top-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 rounded text-[10px] text-amber-800">
+                                                                            <Edit3 className="w-3 h-3 animate-pulse" />
+                                                                            <span>{editingUsers.map(u => u.name).join(', ')}</span>
+                                                                        </div>
+                                                                    )}
+
+                                                                    {project?.isDispatchConfirmed && (
+                                                                        <div className="absolute top-1 right-1 bg-green-100 text-green-700 rounded px-1.5 py-0.5 text-[10px] font-bold flex items-center gap-0.5">
+                                                                            <CheckCircle className="w-3 h-3" />
+                                                                            確定済
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="font-bold text-gray-900 text-sm pr-14">
+                                                                        {event.title}
+                                                                    </div>
+
+                                                                    {event.customer && (
+                                                                        <div className="text-gray-700 text-xs mt-1">
+                                                                            {event.customer}
+                                                                        </div>
+                                                                    )}
+
+                                                                    <div className="flex items-center gap-3 mt-1.5">
+                                                                        {event.workers && event.workers.length > 0 && (
+                                                                            <span className="text-gray-700 text-xs flex items-center gap-1">
+                                                                                <Users className="w-3 h-3" />
+                                                                                {event.workers.length}人
+                                                                            </span>
+                                                                        )}
+                                                                        {event.estimatedHours != null && (
+                                                                            <span className="text-gray-700 text-xs flex items-center gap-1">
+                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                                </svg>
+                                                                                {event.estimatedHours}h
+                                                                            </span>
+                                                                        )}
+                                                                        {event.remarks && (
+                                                                            <span className="text-gray-600 text-xs truncate">
+                                                                                {event.remarks}
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+
+                                                        {!isReadOnly && (
+                                                            <button
+                                                                onClick={() => selectedDay && handleCellClick?.(row.employeeId, selectedDay.date)}
+                                                                className="w-full text-center py-2 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-dashed border-slate-200"
+                                                            >
+                                                                ＋ 追加
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
                             );
