@@ -2,12 +2,8 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import VacationSelector from '@/components/Calendar/VacationSelector';
-import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
-
-// Mock hooks
-jest.mock('@/hooks/useCalendarDisplay');
 
 // Mock icons
 jest.mock('lucide-react', () => ({
@@ -15,78 +11,94 @@ jest.mock('lucide-react', () => ({
     Plus: () => <span data-testid="icon-plus" />,
 }));
 
+const mockMembers = [
+    { id: 'm1', displayName: 'Member 1' },
+    { id: 'm2', displayName: 'Member 2' },
+    { id: 'm3', displayName: 'Member 3' },
+];
+
 describe('VacationSelector', () => {
     const mockOnAddEmployee = jest.fn();
     const mockOnRemoveEmployee = jest.fn();
 
-    const mockForemen = [
-        { id: 'f1', displayName: 'Foreman 1', role: 'foreman1' },
-        { id: 'f2', displayName: 'Foreman 2', role: 'foreman1' },
-        { id: 'f3', displayName: 'Foreman 3', role: 'foreman2' },
-    ];
-
     beforeEach(() => {
         jest.clearAllMocks();
-        (useCalendarDisplay as jest.Mock).mockReturnValue({ allForemen: mockForemen });
+        global.fetch = jest.fn().mockResolvedValue({
+            ok: true,
+            json: () => Promise.resolve(mockMembers),
+        });
     });
 
     const defaultProps = {
         dateKey: '2024-01-01',
-        selectedEmployeeIds: ['f1'],
+        selectedEmployeeIds: ['m1'],
         onAddEmployee: mockOnAddEmployee,
         onRemoveEmployee: mockOnRemoveEmployee,
     };
 
-    it('should render selected employees', () => {
+    it('should render selected employees', async () => {
         render(<VacationSelector {...defaultProps} />);
 
-        expect(screen.getByText('Foreman 1')).toBeInTheDocument();
-        // Check for removal button by title
+        await waitFor(() => {
+            expect(screen.getByText('Member 1')).toBeInTheDocument();
+        });
         expect(screen.getByTitle('削除')).toBeInTheDocument();
     });
 
-    it('should open dropdown and show available foremen', () => {
+    it('should open dropdown and show available members', async () => {
         render(<VacationSelector {...defaultProps} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Member 1')).toBeInTheDocument();
+        });
 
         const addButton = screen.getByText('休暇を追加');
         fireEvent.click(addButton);
 
-        // Should show Foreman 2 and Foreman 3 (Foreman 1 is already selected)
-        expect(screen.getByText('Foreman 2')).toBeInTheDocument();
-        expect(screen.getByText('Foreman 3')).toBeInTheDocument();
-        // Foreman 1 appears in the badge but should NOT appear in the dropdown
-        // So there should be exactly 1 instance of 'Foreman 1' (the badge)
-        expect(screen.getAllByText('Foreman 1')).toHaveLength(1);
+        // Should show Member 2 and Member 3 (Member 1 is already selected)
+        expect(screen.getByText('Member 2')).toBeInTheDocument();
+        expect(screen.getByText('Member 3')).toBeInTheDocument();
+        expect(screen.getAllByText('Member 1')).toHaveLength(1);
     });
 
-    it('should call onAddEmployee when selecting a foreman', () => {
+    it('should call onAddEmployee when selecting a member', async () => {
         render(<VacationSelector {...defaultProps} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Member 1')).toBeInTheDocument();
+        });
 
         fireEvent.click(screen.getByText('休暇を追加'));
-        fireEvent.click(screen.getByText('Foreman 2'));
+        fireEvent.click(screen.getByText('Member 2'));
 
-        expect(mockOnAddEmployee).toHaveBeenCalledWith('f2');
+        expect(mockOnAddEmployee).toHaveBeenCalledWith('m2');
     });
 
-    it('should call onRemoveEmployee when clicking remove icon', () => {
+    it('should call onRemoveEmployee when clicking remove icon', async () => {
         render(<VacationSelector {...defaultProps} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('Member 1')).toBeInTheDocument();
+        });
 
         const removeButton = screen.getByTitle('削除');
         fireEvent.click(removeButton);
 
-        expect(mockOnRemoveEmployee).toHaveBeenCalledWith('f1');
+        expect(mockOnRemoveEmployee).toHaveBeenCalledWith('m1');
     });
 
-    it('should close dropdown when clicking outside', () => {
+    it('should close dropdown when clicking outside', async () => {
         render(<VacationSelector {...defaultProps} />);
 
-        fireEvent.click(screen.getByText('休暇を追加'));
-        expect(screen.getByText('Foreman 2')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByText('Member 1')).toBeInTheDocument();
+        });
 
-        // Simulate click outside
+        fireEvent.click(screen.getByText('休暇を追加'));
+        expect(screen.getByText('Member 2')).toBeInTheDocument();
+
         fireEvent.mouseDown(document.body);
 
-        // Dropdown should be closed (Foreman 2 not visible)
-        expect(screen.queryByText('Foreman 2')).not.toBeInTheDocument();
+        expect(screen.queryByText('Member 2')).not.toBeInTheDocument();
     });
 });

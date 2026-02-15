@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { X, Plus } from 'lucide-react';
+
+interface Member {
+    id: string;
+    displayName: string;
+}
 
 interface VacationSelectorProps {
     dateKey: string;
@@ -17,11 +21,21 @@ export default function VacationSelector({
 }: VacationSelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const { allForemen } = useCalendarDisplay();
+    const [members, setMembers] = useState<Member[]>([]);
 
-    // 選択されていない職長のみを表示
-    const availableForemen = allForemen.filter(
-        foreman => !selectedEmployeeIds.includes(foreman.id)
+    // 全アクティブユーザーを取得
+    useEffect(() => {
+        let cancelled = false;
+        fetch('/api/calendar/members')
+            .then(res => res.ok ? res.json() : [])
+            .then(data => { if (!cancelled) setMembers(data); })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, []);
+
+    // 選択されていないメンバーのみを表示
+    const availableMembers = members.filter(
+        member => !selectedEmployeeIds.includes(member.id)
     );
 
     // ドロップダウン外クリックで閉じる
@@ -48,22 +62,22 @@ export default function VacationSelector({
 
     return (
         <div className="space-y-1">
-            {/* 選択された職長のバッジ表示 */}
+            {/* 選択されたメンバーのバッジ表示 */}
             {selectedEmployeeIds.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                    {selectedEmployeeIds.map(foremanId => {
-                        const foreman = allForemen.find(f => f.id === foremanId);
-                        if (!foreman) return null;
+                    {selectedEmployeeIds.map(memberId => {
+                        const member = members.find(m => m.id === memberId);
+                        if (!member) return null;
 
                         return (
                             <span
-                                key={foremanId}
+                                key={memberId}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-[10px] font-semibold"
                             >
                                 <span className="text-orange-600">🏖️</span>
-                                {foreman.displayName}
+                                {member.displayName}
                                 <button
-                                    onClick={() => onRemoveEmployee(foremanId)}
+                                    onClick={() => onRemoveEmployee(memberId)}
                                     className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
                                     title="削除"
                                     aria-label="削除"
@@ -76,7 +90,7 @@ export default function VacationSelector({
                 </div>
             )}
 
-            {/* 職長追加ボタン */}
+            {/* メンバー追加ボタン */}
             <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -88,16 +102,16 @@ export default function VacationSelector({
                 </button>
 
                 {/* ドロップダウンメニュー */}
-                {isDropdownOpen && availableForemen.length > 0 && (
+                {isDropdownOpen && availableMembers.length > 0 && (
                     <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
-                        {availableForemen.map(foreman => (
+                        {availableMembers.map(member => (
                             <button
-                                key={foreman.id}
-                                onClick={() => handleSelectEmployee(foreman.id)}
+                                key={member.id}
+                                onClick={() => handleSelectEmployee(member.id)}
                                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors"
                                 type="button"
                             >
-                                {foreman.displayName}
+                                {member.displayName}
                             </button>
                         ))}
                     </div>
