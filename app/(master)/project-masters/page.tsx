@@ -206,21 +206,21 @@ export default function ProjectMasterListPage() {
     }
 
     return (
-        <div className="h-full flex flex-col p-6 overflow-hidden">
+        <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-3 md:mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-800">案件マスター管理</h1>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <h1 className="text-lg md:text-2xl font-bold text-gray-800">案件マスター管理</h1>
+                    <p className="text-xs md:text-sm text-gray-500 mt-1">
                         {filteredMasters.length}件の案件マスター
                     </p>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="flex flex-wrap items-center gap-4 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4 md:mb-6">
                 {/* Search */}
-                <div className="relative flex-1 min-w-[200px] max-w-md">
+                <div className="relative w-full md:flex-1 md:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                         type="text"
@@ -231,34 +231,37 @@ export default function ProjectMasterListPage() {
                     />
                 </div>
 
-                {/* Status Filter */}
-                <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                >
-                    <option value="all">全てのステータス</option>
-                    <option value="active">進行中</option>
-                    <option value="completed">完了</option>
-                </select>
+                <div className="flex items-center gap-3">
+                    {/* Status Filter */}
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="flex-1 md:flex-none px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="all">全てのステータス</option>
+                        <option value="active">進行中</option>
+                        <option value="completed">完了</option>
+                    </select>
 
-                {/* Create Button */}
-                <button
-                    onClick={() => {
-                        setIsCreating(true);
-                        setEditingId(null);
-                        setFormData(DEFAULT_FORM_DATA);
-                    }}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
-                >
-                    <Plus className="w-5 h-5" />
-                    新規案件マスター
-                </button>
+                    {/* Create Button */}
+                    <button
+                        onClick={() => {
+                            setIsCreating(true);
+                            setEditingId(null);
+                            setFormData(DEFAULT_FORM_DATA);
+                        }}
+                        className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+                    >
+                        <Plus className="w-5 h-5" />
+                        <span className="hidden sm:inline">新規案件マスター</span>
+                        <span className="sm:hidden">新規</span>
+                    </button>
+                </div>
             </div>
 
             {/* Create Form */}
             {isCreating && (
-                <div className="mb-6 p-6 bg-white rounded-xl shadow-lg border border-gray-200 max-h-[70vh] overflow-y-auto">
+                <div className="mb-4 md:mb-6 p-3 md:p-6 bg-white rounded-xl shadow-lg border border-gray-200 max-h-[70vh] overflow-y-auto">
                     <h3 className="text-lg font-bold text-gray-800 mb-4">新規案件マスター作成</h3>
                     <ProjectMasterForm
                         formData={formData}
@@ -288,8 +291,8 @@ export default function ProjectMasterListPage() {
                         >
                             {editingId === pm.id ? (
                                 // Edit Form
-                                <div className="p-6 max-h-[70vh] overflow-y-auto">
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">案件マスター編集</h3>
+                                <div className="p-3 md:p-6 max-h-[70vh] overflow-y-auto">
+                                    <h3 className="text-base md:text-lg font-bold text-gray-800 mb-3 md:mb-4">案件マスター編集</h3>
                                     <ProjectMasterForm
                                         formData={formData}
                                         setFormData={setFormData}
@@ -304,86 +307,116 @@ export default function ProjectMasterListPage() {
                             ) : (
                                 // Normal display
                                 <>
-                                    <div className="p-4 flex items-center gap-4">
-                                        {/* Main info */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <h3 className="text-lg font-bold text-gray-800">{pm.title}</h3>
-                                                {pm.constructionContent && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                                                        {getConstructionContentLabel(pm.constructionContent)}
+                                    <div className="p-3 md:p-4">
+                                        {/* Mobile: vertical stack, PC: horizontal */}
+                                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                                            {/* Main info */}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <h3 className="text-base md:text-lg font-bold text-gray-800">{pm.title}</h3>
+                                                    {pm.constructionContent && (
+                                                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                                            {getConstructionContentLabel(pm.constructionContent)}
+                                                        </span>
+                                                    )}
+                                                    {pm.status === 'completed' && (
+                                                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                                                            完了
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-3 md:gap-4 mt-1 text-sm text-gray-600 flex-wrap">
+                                                    {pm.customerName && (
+                                                        <span className="flex items-center gap-1">
+                                                            <Building className="w-3.5 h-3.5" />
+                                                            {pm.customerName}
+                                                        </span>
+                                                    )}
+                                                    {(pm.prefecture || pm.city || pm.location) && (
+                                                        <span className="flex items-center gap-1">
+                                                            <MapPin className="w-3.5 h-3.5" />
+                                                            {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
+                                                        </span>
+                                                    )}
+                                                    {/* Assignment count - inline on mobile */}
+                                                    <span className="flex items-center gap-1 text-gray-500">
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                        <span className="text-sm">{pm.assignments?.length || 0}件の配置</span>
                                                     </span>
-                                                )}
-                                                {pm.status === 'completed' && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                                                        完了
-                                                    </span>
-                                                )}
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600 flex-wrap">
-                                                {pm.customerName && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Building className="w-3.5 h-3.5" />
-                                                        {pm.customerName}
-                                                    </span>
-                                                )}
-                                                {(pm.prefecture || pm.city || pm.location) && (
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin className="w-3.5 h-3.5" />
-                                                        {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
-                                                    </span>
-                                                )}
+
+                                            {/* PC only: expand button + actions */}
+                                            <div className="hidden md:flex items-center gap-2">
+                                                <button
+                                                    onClick={() => setExpandedId(expandedId === pm.id ? null : pm.id)}
+                                                    className="p-2.5 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                                                >
+                                                    {expandedId === pm.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleEdit(pm)}
+                                                    className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                    title="編集"
+                                                >
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleArchive(pm)}
+                                                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
+                                                        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                        }`}
+                                                >
+                                                    {pm.status === 'active' ? '完了にする' : '再開する'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(pm.id)}
+                                                    className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
                                             </div>
                                         </div>
 
-                                        {/* Assignment count */}
-                                        <div className="flex items-center gap-2 text-gray-500">
-                                            <Calendar className="w-4 h-4" />
-                                            <span className="text-sm font-medium">
-                                                {pm.assignments?.length || 0}件の配置
-                                            </span>
-                                        </div>
-
-                                        {/* Expand button */}
-                                        <button
-                                            onClick={() => setExpandedId(expandedId === pm.id ? null : pm.id)}
-                                            className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
-                                        >
-                                            {expandedId === pm.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                                        </button>
-
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-2">
+                                        {/* Mobile only: action buttons row */}
+                                        <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                                             <button
                                                 onClick={() => handleEdit(pm)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="編集"
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                             >
-                                                <Edit className="w-5 h-5" />
+                                                <Edit className="w-4 h-4" />
+                                                編集
                                             </button>
                                             <button
                                                 onClick={() => handleArchive(pm)}
-                                                className={`px-3 py-1 text-xs font-medium rounded-lg transition-colors ${pm.status === 'active'
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
+                                                    ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                                                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                                                     }`}
                                             >
                                                 {pm.status === 'active' ? '完了にする' : '再開する'}
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(pm.id)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="削除"
+                                                className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                             >
-                                                <Trash2 className="w-5 h-5" />
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => setExpandedId(expandedId === pm.id ? null : pm.id)}
+                                                className="py-2.5 px-3 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                                            >
+                                                {expandedId === pm.id ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                                             </button>
                                         </div>
                                     </div>
 
                                     {/* Expanded details */}
                                     {expandedId === pm.id && (
-                                        <div className="px-4 pb-4 border-t border-gray-100">
-                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 text-sm">
+                                        <div className="px-3 md:px-4 pb-3 md:pb-4 border-t border-gray-100">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-3 md:mt-4 text-sm">
                                                 <div>
                                                     <span className="text-gray-500">組立日</span>
                                                     <p className="font-medium">{formatDate(pm.assemblyDate)}</p>
@@ -408,7 +441,7 @@ export default function ProjectMasterListPage() {
                                                     <span className="text-gray-500">請負金額</span>
                                                     <p className="font-medium">{pm.contractAmount ? `¥${pm.contractAmount.toLocaleString()}` : '-'}</p>
                                                 </div>
-                                                <div className="col-span-2">
+                                                <div className="sm:col-span-2">
                                                     <span className="text-gray-500">備考</span>
                                                     <p className="font-medium">{pm.remarks || '-'}</p>
                                                 </div>
