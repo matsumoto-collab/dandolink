@@ -264,42 +264,46 @@ export default function CompanyInfoSettings() {
                 </div>
                 <div className="space-y-3">
                     {formData.bankAccounts.map((account, index) => (
-                        <div key={index} className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg">
-                            <input
-                                type="text"
-                                value={account.bankName}
-                                onChange={(e) => handleBankAccountChange(index, 'bankName', e.target.value)}
-                                className="w-28 px-2 py-1 border border-slate-300 rounded-md text-sm"
-                                placeholder="銀行名"
-                            />
-                            <input
-                                type="text"
-                                value={account.branchName}
-                                onChange={(e) => handleBankAccountChange(index, 'branchName', e.target.value)}
-                                className="w-24 px-2 py-1 border border-slate-300 rounded-md text-sm"
-                                placeholder="支店名"
-                            />
-                            <select
-                                value={account.accountType}
-                                onChange={(e) => handleBankAccountChange(index, 'accountType', e.target.value)}
-                                className="w-16 px-2 py-1 border border-slate-300 rounded-md text-sm"
-                            >
-                                <option value="普">普通</option>
-                                <option value="当">当座</option>
-                            </select>
-                            <input
-                                type="text"
-                                value={account.accountNumber}
-                                onChange={(e) => handleBankAccountChange(index, 'accountNumber', e.target.value)}
-                                className="w-28 px-2 py-1 border border-slate-300 rounded-md text-sm"
-                                placeholder="口座番号"
-                            />
-                            <button
-                                onClick={() => removeBankAccount(index)}
-                                className="p-1 text-red-500 hover:bg-red-50 rounded-md"
-                            >
-                                <Trash2 className="w-4 h-4" />
-                            </button>
+                        <div key={index} className="p-3 bg-slate-50 rounded-lg">
+                            <div className="grid grid-cols-2 md:flex md:items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={account.bankName}
+                                    onChange={(e) => handleBankAccountChange(index, 'bankName', e.target.value)}
+                                    className="px-2 py-1.5 border border-slate-300 rounded-md text-sm md:w-28"
+                                    placeholder="銀行名"
+                                />
+                                <input
+                                    type="text"
+                                    value={account.branchName}
+                                    onChange={(e) => handleBankAccountChange(index, 'branchName', e.target.value)}
+                                    className="px-2 py-1.5 border border-slate-300 rounded-md text-sm md:w-24"
+                                    placeholder="支店名"
+                                />
+                                <select
+                                    value={account.accountType}
+                                    onChange={(e) => handleBankAccountChange(index, 'accountType', e.target.value)}
+                                    className="px-2 py-1.5 border border-slate-300 rounded-md text-sm md:w-16"
+                                >
+                                    <option value="普">普通</option>
+                                    <option value="当">当座</option>
+                                </select>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={account.accountNumber}
+                                        onChange={(e) => handleBankAccountChange(index, 'accountNumber', e.target.value)}
+                                        className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md text-sm md:w-28"
+                                        placeholder="口座番号"
+                                    />
+                                    <button
+                                        onClick={() => removeBankAccount(index)}
+                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-md flex-shrink-0"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     ))}
                     {formData.bankAccounts.length === 0 && (

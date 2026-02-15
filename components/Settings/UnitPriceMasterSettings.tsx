@@ -93,12 +93,12 @@ export default function UnitPriceMasterSettings() {
         <div className="space-y-6">
             {/* ヘッダー */}
             <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">単価マスター管理</h2>
+                <h2 className="text-lg md:text-2xl font-bold text-gray-900">単価マスター管理</h2>
                 <button
                     onClick={() => handleOpenForm()}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg hover:from-slate-800 hover:to-slate-900 transition-all"
+                    className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 text-sm md:text-base bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg hover:from-slate-800 hover:to-slate-900 transition-all"
                 >
-                    <Plus className="w-5 h-5" />
+                    <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     新規登録
                 </button>
             </div>
@@ -160,9 +160,9 @@ export default function UnitPriceMasterSettings() {
 
             {/* 登録・編集フォームモーダル */}
             {isFormOpen && (
-                <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
+                <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
                     <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                        <div className="p-6">
+                        <div className="p-4 md:p-6">
                             <h3 className="text-xl font-bold text-gray-900 mb-4">
                                 {editingItem ? '単価マスター編集' : '単価マスター登録'}
                             </h3>

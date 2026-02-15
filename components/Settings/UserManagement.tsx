@@ -215,26 +215,27 @@ export default function UserManagement() {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
-                        <Users className="w-6 h-6 text-white" />
+                <div className="flex items-center gap-2 md:gap-3">
+                    <div className="p-2 md:p-3 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl shadow-lg">
+                        <Users className="w-5 h-5 md:w-6 md:h-6 text-white" />
                     </div>
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800">ユーザー管理</h2>
-                        <p className="text-sm text-gray-600">システムユーザーの管理</p>
+                        <h2 className="text-lg md:text-2xl font-bold text-gray-800">ユーザー管理</h2>
+                        <p className="text-xs md:text-sm text-gray-600">システムユーザーの管理</p>
                     </div>
                 </div>
                 <button
                     onClick={handleCreateUser}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+                    className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-sm md:text-base rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
                 >
-                    <Plus className="w-5 h-5" />
-                    ユーザー追加
+                    <Plus className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="hidden sm:inline">ユーザー追加</span>
+                    <span className="sm:hidden">追加</span>
                 </button>
             </div>
 
-            {/* Users Table */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            {/* Users Table - PC */}
+            <div className="hidden md:block bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -320,6 +321,65 @@ export default function UserManagement() {
                     </table>
                 </div>
 
+                {users.length === 0 && (
+                    <div className="text-center py-12">
+                        <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                        <p className="text-gray-500">ユーザーが登録されていません</p>
+                    </div>
+                )}
+            </div>
+
+            {/* Users Cards - Mobile */}
+            <div className="md:hidden space-y-3">
+                {users.map((user) => (
+                    <div key={user.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900">{user.displayName}</div>
+                                <div className="text-sm text-gray-500">@{user.username}</div>
+                                <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1 ml-2">
+                                <span
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}
+                                >
+                                    <Shield className="w-3 h-3" />
+                                    {getRoleLabel(user.role)}
+                                </span>
+                                <span
+                                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                                >
+                                    {user.isActive ? 'アクティブ' : '無効'}
+                                </span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                            <button
+                                onClick={() => handleResetPassword(user)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                aria-label="パスワードリセット"
+                            >
+                                <KeyRound className="w-4 h-4" />
+                                PW
+                            </button>
+                            <button
+                                onClick={() => handleEditUser(user)}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                aria-label="編集"
+                            >
+                                <Edit className="w-4 h-4" />
+                                編集
+                            </button>
+                            <button
+                                onClick={() => handleDeleteUser(user.id)}
+                                className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                aria-label="削除"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        </div>
+                    </div>
+                ))}
                 {users.length === 0 && (
                     <div className="text-center py-12">
                         <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />

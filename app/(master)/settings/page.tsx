@@ -155,23 +155,23 @@ export default function SettingsPage() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
-            <div className="p-4 sm:p-6 lg:p-8">
+            <div className="p-3 sm:p-6 lg:p-8">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">マスター・設定</h1>
-                    <p className="text-slate-600 mt-2">車両、職人、案件担当者などのマスターデータを管理します</p>
+                <div className="mb-4 md:mb-8">
+                    <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">マスター・設定</h1>
+                    <p className="text-sm md:text-base text-slate-600 mt-1 md:mt-2">マスターデータを管理します</p>
                 </div>
 
                 {/* Tabs */}
                 <div className="bg-white rounded-xl shadow-lg border border-slate-200">
                     <div className="border-b border-slate-200">
-                        <nav className="flex -mb-px">
+                        <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`
-                                        px-6 py-4 text-sm font-medium border-b-2 transition-all duration-300
+                                        px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-all duration-300 whitespace-nowrap flex-shrink-0
                                         ${activeTab === tab.id
                                             ? 'border-slate-700 text-slate-900 bg-gradient-to-t from-slate-100 to-transparent'
                                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -180,7 +180,7 @@ export default function SettingsPage() {
                                 >
                                     {tab.label}
                                     {tab.count !== null && (
-                                        <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
+                                        <span className="ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
                                             {tab.count}
                                         </span>
                                     )}
@@ -190,7 +190,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Tab Content */}
-                    <div className="p-6">
+                    <div className="p-3 md:p-6">
                         {activeTab === 'members' ? (
                             // Total Members Configuration
                             <div className="max-w-md">
