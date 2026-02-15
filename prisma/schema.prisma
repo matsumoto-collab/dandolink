@@ -334,6 +334,8 @@ model DailyReport {
   id                    String                @id @default(uuid())
   foremanId             String
   date                  DateTime
+  startTime             String?               // 作業開始時間 (例: "08:00")
+  endTime               String?               // 作業終了時間 (例: "17:00")
   morningLoadingMinutes Int                   @default(0)
   eveningLoadingMinutes Int                   @default(0)
   earlyStartMinutes     Int                   @default(0)

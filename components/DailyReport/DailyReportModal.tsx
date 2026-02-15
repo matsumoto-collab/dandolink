@@ -37,7 +37,15 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
 
     const dateStr = selectedDate.toISOString().split('T')[0];
 
+    // 時間セレクト用の定数
+    const hourOptions = Array.from({ length: 16 }, (_, i) => i + 6); // 6〜21
+    const minuteOptions = [0, 15, 30, 45];
+
     // フォーム状態
+    const [startHour, setStartHour] = useState(8);
+    const [startMinute, setStartMinute] = useState(0);
+    const [endHour, setEndHour] = useState(17);
+    const [endMinute, setEndMinute] = useState(0);
     const [morningLoadingMinutes, setMorningLoadingMinutes] = useState(0);
     const [eveningLoadingMinutes, setEveningLoadingMinutes] = useState(0);
     const [earlyStartMinutes, setEarlyStartMinutes] = useState(0);
@@ -65,6 +73,21 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             p.assignedEmployeeId === effectiveForemanId;
     });
 
+    // 時間文字列をパース ("HH:MM" → hour, minute)
+    const parseTimeString = (timeStr: string | null | undefined, defaultHour: number, defaultMinute: number) => {
+        if (!timeStr) return { hour: defaultHour, minute: defaultMinute };
+        const parts = timeStr.split(':');
+        if (parts.length === 2) {
+            return { hour: parseInt(parts[0]) || defaultHour, minute: parseInt(parts[1]) || defaultMinute };
+        }
+        return { hour: defaultHour, minute: defaultMinute };
+    };
+
+    // 時間をフォーマット (hour, minute → "HH:MM")
+    const formatTime = (hour: number, minute: number): string => {
+        return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    };
+
     // 既存の日報データを読み込み
     const loadExistingData = useCallback(async () => {
         if (!effectiveForemanId) return;
@@ -72,6 +95,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         await fetchDailyReports({ foremanId: effectiveForemanId, date: dateStr });
         const existing = getDailyReportByForemanAndDate(effectiveForemanId, dateStr);
         if (existing) {
+            const start = parseTimeString(existing.startTime, 8, 0);
+            const end = parseTimeString(existing.endTime, 17, 0);
+            setStartHour(start.hour);
+            setStartMinute(start.minute);
+            setEndHour(end.hour);
+            setEndMinute(end.minute);
             setMorningLoadingMinutes(existing.morningLoadingMinutes);
             setEveningLoadingMinutes(existing.eveningLoadingMinutes);
             setEarlyStartMinutes(existing.earlyStartMinutes);
@@ -82,7 +111,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 workMinutes: item.workMinutes,
             })));
         } else {
-            // 新規: 配置から作業明細を初期化（デフォルト8時間）
+            // 新規: デフォルト値にリセット
+            setStartHour(8);
+            setStartMinute(0);
+            setEndHour(17);
+            setEndMinute(0);
             setMorningLoadingMinutes(0);
             setEveningLoadingMinutes(0);
             setEarlyStartMinutes(0);
@@ -161,6 +194,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             const input: DailyReportInput = {
                 foremanId: effectiveForemanId,
                 date: dateStr,
+                startTime: formatTime(startHour, startMinute),
+                endTime: formatTime(endHour, endMinute),
                 morningLoadingMinutes,
                 eveningLoadingMinutes,
                 earlyStartMinutes,
@@ -278,6 +313,64 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                             </div>
                         ) : (
                             <>
+                                {/* 開始・終了時間 */}
+                                <div className="mb-6">
+                                    <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                                        <Clock className="w-5 h-5" />
+                                        開始・終了時間
+                                    </h3>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-600 mb-1">開始時間</label>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={startHour}
+                                                    onChange={(e) => setStartHour(Number(e.target.value))}
+                                                    className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                >
+                                                    {hourOptions.map(h => (
+                                                        <option key={h} value={h}>{h}時</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400">:</span>
+                                                <select
+                                                    value={startMinute}
+                                                    onChange={(e) => setStartMinute(Number(e.target.value))}
+                                                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                >
+                                                    {minuteOptions.map(m => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}分</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-600 mb-1">終了時間</label>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={endHour}
+                                                    onChange={(e) => setEndHour(Number(e.target.value))}
+                                                    className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                >
+                                                    {hourOptions.map(h => (
+                                                        <option key={h} value={h}>{h}時</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400">:</span>
+                                                <select
+                                                    value={endMinute}
+                                                    onChange={(e) => setEndMinute(Number(e.target.value))}
+                                                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                >
+                                                    {minuteOptions.map(m => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}分</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* 作業時間入力 */}
                                 <div className="mb-6">
                                     <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">

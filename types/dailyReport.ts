@@ -21,6 +21,8 @@ export interface DailyReport {
     id: string;
     foremanId: string;
     date: Date;
+    startTime?: string | null;      // 作業開始時間 (例: "08:00")
+    endTime?: string | null;        // 作業終了時間 (例: "17:00")
     morningLoadingMinutes: number;  // 朝積込（分）
     eveningLoadingMinutes: number;  // 夕積込（分）
     earlyStartMinutes: number;      // 早出（分）- 保留
@@ -34,6 +36,8 @@ export interface DailyReport {
 export interface DailyReportInput {
     foremanId: string;
     date: string | Date;
+    startTime?: string;
+    endTime?: string;
     morningLoadingMinutes?: number;
     eveningLoadingMinutes?: number;
     earlyStartMinutes?: number;

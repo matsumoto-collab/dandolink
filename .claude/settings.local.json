@@ -67,7 +67,8 @@
       "Bash(gh run list:*)",
       "Bash(git status:*)",
       "Bash(cd:*)",
-      "Bash(git show:*)"
+      "Bash(git show:*)",
+      "Bash(curl:*)"
     ]
   }
 }
