@@ -4,10 +4,10 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import VacationSelector from '@/components/Calendar/VacationSelector';
-import { useMasterData } from '@/hooks/useMasterData';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 
 // Mock hooks
-jest.mock('@/hooks/useMasterData');
+jest.mock('@/hooks/useCalendarDisplay');
 
 // Mock icons
 jest.mock('lucide-react', () => ({
@@ -19,20 +19,20 @@ describe('VacationSelector', () => {
     const mockOnAddEmployee = jest.fn();
     const mockOnRemoveEmployee = jest.fn();
 
-    const mockWorkers = [
-        { id: 'w1', name: 'Worker 1' },
-        { id: 'w2', name: 'Worker 2' },
-        { id: 'w3', name: 'Worker 3' },
+    const mockForemen = [
+        { id: 'f1', displayName: 'Foreman 1', role: 'foreman1' },
+        { id: 'f2', displayName: 'Foreman 2', role: 'foreman1' },
+        { id: 'f3', displayName: 'Foreman 3', role: 'foreman2' },
     ];
 
     beforeEach(() => {
         jest.clearAllMocks();
-        (useMasterData as jest.Mock).mockReturnValue({ workers: mockWorkers });
+        (useCalendarDisplay as jest.Mock).mockReturnValue({ allForemen: mockForemen });
     });
 
     const defaultProps = {
         dateKey: '2024-01-01',
-        selectedEmployeeIds: ['w1'],
+        selectedEmployeeIds: ['f1'],
         onAddEmployee: mockOnAddEmployee,
         onRemoveEmployee: mockOnRemoveEmployee,
     };
@@ -40,32 +40,32 @@ describe('VacationSelector', () => {
     it('should render selected employees', () => {
         render(<VacationSelector {...defaultProps} />);
 
-        expect(screen.getByText('Worker 1')).toBeInTheDocument();
+        expect(screen.getByText('Foreman 1')).toBeInTheDocument();
         // Check for removal button by title
         expect(screen.getByTitle('削除')).toBeInTheDocument();
     });
 
-    it('should open dropdown and show available workers', () => {
+    it('should open dropdown and show available foremen', () => {
         render(<VacationSelector {...defaultProps} />);
 
         const addButton = screen.getByText('休暇を追加');
         fireEvent.click(addButton);
 
-        // Should show Worker 2 and Worker 3 (Worker 1 is already selected)
-        expect(screen.getByText('Worker 2')).toBeInTheDocument();
-        expect(screen.getByText('Worker 3')).toBeInTheDocument();
-        // Worker 1 appears in the badge but should NOT appear in the dropdown
-        // So there should be exactly 1 instance of 'Worker 1' (the badge)
-        expect(screen.getAllByText('Worker 1')).toHaveLength(1);
+        // Should show Foreman 2 and Foreman 3 (Foreman 1 is already selected)
+        expect(screen.getByText('Foreman 2')).toBeInTheDocument();
+        expect(screen.getByText('Foreman 3')).toBeInTheDocument();
+        // Foreman 1 appears in the badge but should NOT appear in the dropdown
+        // So there should be exactly 1 instance of 'Foreman 1' (the badge)
+        expect(screen.getAllByText('Foreman 1')).toHaveLength(1);
     });
 
-    it('should call onAddEmployee when selecting a worker', () => {
+    it('should call onAddEmployee when selecting a foreman', () => {
         render(<VacationSelector {...defaultProps} />);
 
         fireEvent.click(screen.getByText('休暇を追加'));
-        fireEvent.click(screen.getByText('Worker 2'));
+        fireEvent.click(screen.getByText('Foreman 2'));
 
-        expect(mockOnAddEmployee).toHaveBeenCalledWith('w2');
+        expect(mockOnAddEmployee).toHaveBeenCalledWith('f2');
     });
 
     it('should call onRemoveEmployee when clicking remove icon', () => {
@@ -74,20 +74,19 @@ describe('VacationSelector', () => {
         const removeButton = screen.getByTitle('削除');
         fireEvent.click(removeButton);
 
-        expect(mockOnRemoveEmployee).toHaveBeenCalledWith('w1');
+        expect(mockOnRemoveEmployee).toHaveBeenCalledWith('f1');
     });
 
     it('should close dropdown when clicking outside', () => {
         render(<VacationSelector {...defaultProps} />);
 
         fireEvent.click(screen.getByText('休暇を追加'));
-        expect(screen.getByText('Worker 2')).toBeInTheDocument();
+        expect(screen.getByText('Foreman 2')).toBeInTheDocument();
 
         // Simulate click outside
         fireEvent.mouseDown(document.body);
 
-        // Dropdown should be closed (Worker 2 not visible)
-        // Note: Using queryByText might still find it if it's just hidden via CSS but here it's conditional rendering
-        expect(screen.queryByText('Worker 2')).not.toBeInTheDocument();
+        // Dropdown should be closed (Foreman 2 not visible)
+        expect(screen.queryByText('Foreman 2')).not.toBeInTheDocument();
     });
 });

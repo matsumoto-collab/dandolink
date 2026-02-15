@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useMasterData } from '@/hooks/useMasterData';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { X, Plus } from 'lucide-react';
 
 interface VacationSelectorProps {
@@ -17,11 +17,11 @@ export default function VacationSelector({
 }: VacationSelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const { workers } = useMasterData();
+    const { allForemen } = useCalendarDisplay();
 
-    // 選択されていない職人のみを表示
-    const availableWorkers = workers.filter(
-        worker => !selectedEmployeeIds.includes(worker.id)
+    // 選択されていない職長のみを表示
+    const availableForemen = allForemen.filter(
+        foreman => !selectedEmployeeIds.includes(foreman.id)
     );
 
     // ドロップダウン外クリックで閉じる
@@ -48,22 +48,22 @@ export default function VacationSelector({
 
     return (
         <div className="space-y-1">
-            {/* 選択された職人のバッジ表示 */}
+            {/* 選択された職長のバッジ表示 */}
             {selectedEmployeeIds.length > 0 && (
                 <div className="flex flex-wrap gap-1">
-                    {selectedEmployeeIds.map(workerId => {
-                        const worker = workers.find(w => w.id === workerId);
-                        if (!worker) return null;
+                    {selectedEmployeeIds.map(foremanId => {
+                        const foreman = allForemen.find(f => f.id === foremanId);
+                        if (!foreman) return null;
 
                         return (
                             <span
-                                key={workerId}
+                                key={foremanId}
                                 className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-[10px] font-semibold"
                             >
                                 <span className="text-orange-600">🏖️</span>
-                                {worker.name}
+                                {foreman.displayName}
                                 <button
-                                    onClick={() => onRemoveEmployee(workerId)}
+                                    onClick={() => onRemoveEmployee(foremanId)}
                                     className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
                                     title="削除"
                                     aria-label="削除"
@@ -76,7 +76,7 @@ export default function VacationSelector({
                 </div>
             )}
 
-            {/* 職人追加ボタン */}
+            {/* 職長追加ボタン */}
             <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -88,16 +88,16 @@ export default function VacationSelector({
                 </button>
 
                 {/* ドロップダウンメニュー */}
-                {isDropdownOpen && availableWorkers.length > 0 && (
+                {isDropdownOpen && availableForemen.length > 0 && (
                     <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
-                        {availableWorkers.map(worker => (
+                        {availableForemen.map(foreman => (
                             <button
-                                key={worker.id}
-                                onClick={() => handleSelectEmployee(worker.id)}
+                                key={foreman.id}
+                                onClick={() => handleSelectEmployee(foreman.id)}
                                 className="w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors"
                                 type="button"
                             >
-                                {worker.name}
+                                {foreman.displayName}
                             </button>
                         ))}
                     </div>
