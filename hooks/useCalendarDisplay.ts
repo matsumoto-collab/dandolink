@@ -23,11 +23,10 @@ export function useCalendarDisplay() {
     const getAvailableForemenStore = useCalendarStore((state) => state.getAvailableForemen);
     const getForemanNameStore = useCalendarStore((state) => state.getForemanName);
 
-    // Initial fetch
+    // Initial fetch (並列実行)
     useEffect(() => {
         if (status === 'authenticated' && !isInitialized) {
-            fetchForemen();
-            fetchForemanSettings();
+            Promise.all([fetchForemen(), fetchForemanSettings()]);
         }
     }, [status, isInitialized, fetchForemen, fetchForemanSettings]);
 

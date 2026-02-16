@@ -10,7 +10,9 @@ import { DailyReportInput } from '@/types/dailyReport';
 export type { DailyReport, DailyReportInput } from '@/types/dailyReport';
 
 // This hook wraps the Zustand store and handles initialization/realtime
-export function useDailyReports() {
+// autoFetch: true で過去30日分の日報を自動取得（日報一覧ページ用）
+// autoFetch: false（デフォルト）では自動取得しない（モーダル等で個別fetchする用）
+export function useDailyReports({ autoFetch = false }: { autoFetch?: boolean } = {}) {
     const { status } = useSession();
 
     // Get state from Zustand store
@@ -24,9 +26,9 @@ export function useDailyReports() {
     const saveDailyReportStore = useCalendarStore((state) => state.saveDailyReport);
     const deleteDailyReportStore = useCalendarStore((state) => state.deleteDailyReport);
 
-    // Initial fetch (past 30 days)
+    // Initial fetch (past 30 days) - only when autoFetch is enabled
     useEffect(() => {
-        if (status === 'authenticated' && !isInitialLoaded) {
+        if (autoFetch && status === 'authenticated' && !isInitialLoaded) {
             const endDate = new Date();
             const startDate = new Date();
             startDate.setDate(startDate.getDate() - 30);
@@ -36,7 +38,7 @@ export function useDailyReports() {
                 endDate: endDate.toISOString().split('T')[0],
             });
         }
-    }, [status, isInitialLoaded, fetchDailyReportsStore]);
+    }, [autoFetch, status, isInitialLoaded, fetchDailyReportsStore]);
 
     // Wrapper functions for backward compatibility
     const fetchDailyReports = useCallback(async (params?: { foremanId?: string; date?: string; startDate?: string; endDate?: string }) => {
@@ -55,12 +57,12 @@ export function useDailyReports() {
         await deleteDailyReportStore(id);
     }, [deleteDailyReportStore]);
 
-    // Supabase Realtime subscription
+    // Supabase Realtime subscription - only when autoFetch is enabled (list page)
     useRealtimeSubscription({
         table: 'DailyReport',
         channelName: 'daily-reports-changes-zustand',
         onDataChange: () => fetchDailyReportsStore(),
-        enabled: status === 'authenticated' && isInitialLoaded,
+        enabled: autoFetch && status === 'authenticated' && isInitialLoaded,
     });
 
     return {

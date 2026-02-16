@@ -55,8 +55,14 @@ describe('useDailyReports', () => {
         expect(result.current.dailyReports).toEqual([]);
     });
 
-    it('should auto-fetch daily reports when authenticated and not initialized', () => {
+    it('should not auto-fetch by default (autoFetch=false)', () => {
         renderHook(() => useDailyReports());
+
+        expect(mockFetchDailyReports).not.toHaveBeenCalled();
+    });
+
+    it('should auto-fetch daily reports when autoFetch is enabled', () => {
+        renderHook(() => useDailyReports({ autoFetch: true }));
 
         // Should fetch past 30 days automatically
         expect(mockFetchDailyReports).toHaveBeenCalledWith(
@@ -70,7 +76,7 @@ describe('useDailyReports', () => {
     it('should not auto-fetch when not authenticated', () => {
         (useSession as jest.Mock).mockReturnValue({ status: 'unauthenticated' });
 
-        renderHook(() => useDailyReports());
+        renderHook(() => useDailyReports({ autoFetch: true }));
 
         expect(mockFetchDailyReports).not.toHaveBeenCalled();
     });
@@ -80,7 +86,7 @@ describe('useDailyReports', () => {
             return selector({ ...defaultStoreState, dailyReportsInitialized: true });
         });
 
-        renderHook(() => useDailyReports());
+        renderHook(() => useDailyReports({ autoFetch: true }));
 
         expect(mockFetchDailyReports).not.toHaveBeenCalled();
     });

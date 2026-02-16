@@ -18,7 +18,7 @@ const DailyReportModal = dynamic(
 );
 
 export default function DailyReportPage() {
-    const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports();
+    const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports({ autoFetch: true });
     const { allForemen, getForemanName } = useCalendarDisplay();
 
     const [searchTerm, setSearchTerm] = useState('');
