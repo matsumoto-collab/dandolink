@@ -5,19 +5,22 @@ import { useSession } from 'next-auth/react';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
-import { DailyReportInput } from '@/types/dailyReport';
+import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import DailyReportDetailView from './DailyReportDetailView';
 
 interface DailyReportModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialDate?: Date;
     foremanId?: string;
+    selectedReport?: DailyReport | null;
     onSaved?: () => void;
+    onDelete?: (id: string) => void;
 }
 
-export default function DailyReportModal({ isOpen, onClose, initialDate, foremanId, onSaved }: DailyReportModalProps) {
+export default function DailyReportModal({ isOpen, onClose, initialDate, foremanId, selectedReport, onSaved, onDelete }: DailyReportModalProps) {
     const { data: session } = useSession();
     const { saveDailyReport, getDailyReportByForemanAndDate, fetchDailyReports } = useDailyReports();
     const { projects } = useProjects();
@@ -52,6 +55,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [existingWorkItemInfoMap, setExistingWorkItemInfoMap] = useState<Map<string, { title: string; customer?: string }>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    // 既存日報 → 詳細ビュー、新規 → 編集モード
+    const [isEditMode, setIsEditMode] = useState(!selectedReport);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // モーダルが開いたときの初期化（foremanId設定）
@@ -97,6 +102,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         if (!isOpen) return;
 
         // 1) まずフォーム状態をリセット（新規日報のデフォルト = todayAssignmentsから生成）
+        setIsEditMode(!selectedReport);
         setSelectedDate(initialDate || new Date());
         setMorningLoadingMinutes(0);
         setEveningLoadingMinutes(0);
@@ -255,7 +261,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative inline-block w-full max-w-2xl bg-white rounded-lg shadow-lg transform transition-all text-left overflow-hidden">
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                        <h2 className="text-xl font-semibold text-gray-800">日報入力</h2>
+                        <h2 className="text-xl font-semibold text-gray-800">
+                            {selectedReport && !isEditMode ? '日報詳細' : '日報入力'}
+                        </h2>
                         <button
                             onClick={onClose}
                             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
@@ -266,6 +274,21 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
 
                     {/* Content */}
                     <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    {/* 詳細ビュー（既存日報 + 非編集モード） */}
+                    {selectedReport && !isEditMode ? (
+                        <DailyReportDetailView
+                            report={selectedReport}
+                            onEdit={() => setIsEditMode(true)}
+                            onClose={onClose}
+                            onDelete={() => {
+                                if (onDelete) {
+                                    onDelete(selectedReport.id);
+                                    onClose();
+                                }
+                            }}
+                        />
+                    ) : (
+                    <>
                         {/* 日付ナビゲーション */}
                         <div className="flex items-center justify-center gap-4 bg-gray-50 rounded-lg p-4 mb-6">
                             <button
@@ -529,9 +552,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                 </div>
                             </>
                         )}
+                    </>
+                    )}
                     </div>
 
-                    {/* Footer */}
+                    {/* Footer（編集モード時のみ表示） */}
+                    {(isEditMode || !selectedReport) && (
                     <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
                         <button
                             onClick={onClose}
@@ -548,6 +574,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                             保存
                         </button>
                     </div>
+                    )}
                 </div>
             </div>
         </div>

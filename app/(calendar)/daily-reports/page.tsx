@@ -403,7 +403,9 @@ export default function DailyReportPage() {
                 onClose={handleModalClose}
                 initialDate={selectedReport?.date instanceof Date ? selectedReport.date : selectedReport ? new Date(selectedReport.date) : undefined}
                 foremanId={selectedReport?.foremanId}
+                selectedReport={selectedReport}
                 onSaved={handleSaved}
+                onDelete={handleDelete}
             />
         </div >
     );
