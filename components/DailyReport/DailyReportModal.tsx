@@ -56,6 +56,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
 
     // 初期値の設定（モーダルが開いたとき）
     useEffect(() => {
+        if (isOpen) {
+            setSelectedDate(initialDate || new Date());
+        }
+    }, [isOpen, initialDate]);
+
+    useEffect(() => {
         if (isOpen && foremanId) {
             setSelectedForemanId(foremanId);
         } else if (isOpen && !foremanId && isAdminOrManager && allForemen.length > 0) {
