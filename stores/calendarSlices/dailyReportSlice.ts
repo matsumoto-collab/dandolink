@@ -9,8 +9,11 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
     dailyReportsInitialized: false,
 
     fetchDailyReports: async (params) => {
-        set({ dailyReportsLoading: true });
         const isNarrowFetch = !!(params?.foremanId || params?.date);
+        // narrow fetch（モーダル等での個別取得）は既に初期データがあればローディング表示しない
+        if (!isNarrowFetch || !get().dailyReportsInitialized) {
+            set({ dailyReportsLoading: true });
+        }
         try {
             const searchParams = new URLSearchParams();
             if (params?.foremanId) searchParams.set('foremanId', params.foremanId);
