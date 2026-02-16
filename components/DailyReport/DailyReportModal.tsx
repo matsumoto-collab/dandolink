@@ -58,6 +58,15 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     useEffect(() => {
         if (isOpen) {
             setSelectedDate(initialDate || new Date());
+            // フォーム状態を即座にリセット（loadExistingData の前に古いデータが表示されるのを防ぐ）
+            setMorningLoadingMinutes(0);
+            setEveningLoadingMinutes(0);
+            setEarlyStartMinutes(0);
+            setOvertimeMinutes(0);
+            setNotes('');
+            setWorkItems([]);
+            setExistingWorkItemInfoMap(new Map());
+            setSaveMessage(null);
         }
     }, [isOpen, initialDate]);
 
