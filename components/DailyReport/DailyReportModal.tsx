@@ -54,22 +54,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
-    // 初期値の設定（モーダルが開いたとき）
-    useEffect(() => {
-        if (isOpen) {
-            setSelectedDate(initialDate || new Date());
-            // フォーム状態を即座にリセット（loadExistingData の前に古いデータが表示されるのを防ぐ）
-            setMorningLoadingMinutes(0);
-            setEveningLoadingMinutes(0);
-            setEarlyStartMinutes(0);
-            setOvertimeMinutes(0);
-            setNotes('');
-            setWorkItems([]);
-            setExistingWorkItemInfoMap(new Map());
-            setSaveMessage(null);
-        }
-    }, [isOpen, initialDate]);
-
+    // モーダルが開いたときの初期化（foremanId設定）
     useEffect(() => {
         if (isOpen && foremanId) {
             setSelectedForemanId(foremanId);
@@ -107,9 +92,28 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return (e.hour * 60 + e.minute) - (s.hour * 60 + s.minute);
     };
 
-    // 既存の日報データを読み込み（キャンセル機構付き）
+    // 日報データの読み込み（リセット + 既存データ取得を一連で行う）
     useEffect(() => {
-        if (!isOpen || !effectiveForemanId) return;
+        if (!isOpen) return;
+
+        // 1) まずフォーム状態をリセット（新規日報のデフォルト = todayAssignmentsから生成）
+        setSelectedDate(initialDate || new Date());
+        setMorningLoadingMinutes(0);
+        setEveningLoadingMinutes(0);
+        setEarlyStartMinutes(0);
+        setOvertimeMinutes(0);
+        setNotes('');
+        setExistingWorkItemInfoMap(new Map());
+        setSaveMessage(null);
+        // workItemsはtodayAssignmentsからデフォルト生成（即座に表示される）
+        setWorkItems(todayAssignments.map(a => ({
+            assignmentId: a.id,
+            startTime: '08:00',
+            endTime: '17:00',
+        })));
+
+        // 2) 既存の日報があれば非同期で上書き
+        if (!effectiveForemanId) return;
 
         let cancelled = false;
 
@@ -139,31 +143,14 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                     }
                 }
                 setExistingWorkItemInfoMap(infoMap);
-            } else {
-                // 新規: カレンダーの配置からworkItemsを生成
-                const assignments = projects.filter(p => {
-                    const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
-                    return projectDate.toISOString().split('T')[0] === dateStr &&
-                        p.assignedEmployeeId === effectiveForemanId;
-                });
-                setMorningLoadingMinutes(0);
-                setEveningLoadingMinutes(0);
-                setEarlyStartMinutes(0);
-                setOvertimeMinutes(0);
-                setNotes('');
-                setExistingWorkItemInfoMap(new Map());
-                setWorkItems(assignments.map(a => ({
-                    assignmentId: a.id,
-                    startTime: '08:00',
-                    endTime: '17:00',
-                })));
             }
+            // existing がない場合は上のリセットで設定済みのデフォルトがそのまま使われる
         };
 
         loadExistingData();
 
         return () => { cancelled = true; };
-    }, [isOpen, effectiveForemanId, dateStr, fetchDailyReports, getDailyReportByForemanAndDate, projects]);
+    }, [isOpen, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 日付ナビゲーション
     const goPreviousDay = () => {
