@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { Users, Plus, Edit, Trash2, Shield, KeyRound, Copy } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { User } from '@/types/user';
@@ -38,6 +39,9 @@ export default function UserManagement() {
     const [generatedPassword, setGeneratedPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
     const [showResetResult, setShowResetResult] = useState(false);
+    const { data: session } = useSession();
+    const userRole = (session?.user?.role as string)?.toLowerCase();
+    const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
 
     useEffect(() => {
         fetchUsers();
@@ -91,7 +95,7 @@ export default function UserManagement() {
         }
     };
 
-    const handleSaveUser = async (userData: Partial<User> & { password?: string }) => {
+    const handleSaveUser = async (userData: Partial<User> & { password?: string; hourlyRate?: number | null }) => {
         try {
             const url = modalMode === 'create' ? '/api/users' : `/api/users/${selectedUser?.id}`;
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
@@ -252,6 +256,11 @@ export default function UserManagement() {
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                     ステータス
                                 </th>
+                                {isAdminOrManager && (
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                        時給
+                                    </th>
+                                )}
                                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                     操作
                                 </th>
@@ -287,6 +296,13 @@ export default function UserManagement() {
                                             {user.isActive ? 'アクティブ' : '無効'}
                                         </span>
                                     </td>
+                                    {isAdminOrManager && (
+                                        <td className="px-6 py-4 text-right">
+                                            <span className="text-sm text-gray-700 font-medium">
+                                                {user.hourlyRate != null ? `¥${Number(user.hourlyRate).toLocaleString()}` : '-'}
+                                            </span>
+                                        </td>
+                                    )}
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             <button
@@ -352,6 +368,11 @@ export default function UserManagement() {
                                     {user.isActive ? 'アクティブ' : '無効'}
                                 </span>
                             </div>
+                            {isAdminOrManager && user.hourlyRate != null && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                    時給: ¥{Number(user.hourlyRate).toLocaleString()}
+                                </div>
+                            )}
                         </div>
                         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                             <button
@@ -395,6 +416,7 @@ export default function UserManagement() {
                 onSave={handleSaveUser}
                 user={selectedUser}
                 mode={modalMode}
+                isAdminOrManager={isAdminOrManager}
             />
             {/* パスワードリセット確認/結果ダイアログ */}
             {resetPasswordUser && (

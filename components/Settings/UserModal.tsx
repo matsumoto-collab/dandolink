@@ -9,12 +9,13 @@ import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 interface UserModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (user: Partial<User> & { password?: string }) => Promise<void>;
+    onSave: (user: Partial<User> & { password?: string; hourlyRate?: number | null }) => Promise<void>;
     user?: User | null;
     mode: 'create' | 'edit';
+    isAdminOrManager?: boolean;
 }
 
-export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserModalProps) {
+export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdminOrManager }: UserModalProps) {
     const [formData, setFormData] = useState({
         username: '',
         email: '',
@@ -23,6 +24,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
         role: 'worker' as UserRole,
         isActive: true,
         assignedProjects: [] as string[],
+        hourlyRate: '' as string | number,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -38,6 +40,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                 role: user.role,
                 isActive: user.isActive,
                 assignedProjects: user.assignedProjects || [],
+                hourlyRate: user.hourlyRate != null ? user.hourlyRate : '',
             });
         } else {
             setFormData({
@@ -48,6 +51,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                 role: 'worker',
                 isActive: true,
                 assignedProjects: [],
+                hourlyRate: '',
             });
         }
         setError('');
@@ -59,13 +63,17 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
         setIsLoading(true);
 
         try {
-            const dataToSave: Partial<User> & { password?: string; username?: string } = {
+            const dataToSave: Partial<User> & { password?: string; username?: string; hourlyRate?: number | null } = {
                 email: formData.email,
                 displayName: formData.displayName,
                 role: formData.role,
                 isActive: formData.isActive,
                 assignedProjects: formData.assignedProjects,
             };
+
+            if (isAdminOrManager) {
+                dataToSave.hourlyRate = formData.hourlyRate !== '' ? Number(formData.hourlyRate) : undefined;
+            }
 
             if (mode === 'create') {
                 dataToSave.username = formData.username;
@@ -211,6 +219,25 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode }: UserM
                                 <span className="ml-2 text-sm font-medium text-gray-700">アクティブ</span>
                             </label>
                         </div>
+
+                        {/* Hourly Rate - admin/manager only */}
+                        {isAdminOrManager && (
+                            <div>
+                                <label htmlFor="hourlyRate" className="block text-sm font-medium text-gray-700 mb-2">
+                                    時給（円/時間）
+                                </label>
+                                <input
+                                    id="hourlyRate"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={formData.hourlyRate}
+                                    onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    placeholder="例: 2500"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* Action Buttons */}

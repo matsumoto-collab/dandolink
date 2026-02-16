@@ -41,6 +41,7 @@ export const createUserSchema = z.object({
     password: passwordSchema,
     role: userRoleSchema,
     assignedProjects: z.array(z.string()).optional(),
+    hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
 });
 
 export const updateUserSchema = z.object({
@@ -54,6 +55,7 @@ export const updateUserSchema = z.object({
     role: userRoleSchema.optional(),
     isActive: z.boolean().optional(),
     assignedProjects: z.array(z.string()).optional(),
+    hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
 });
 
 // ============================================

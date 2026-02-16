@@ -9,8 +9,8 @@ interface RouteContext {
     params: Promise<{ id: string }>;
 }
 
-function formatUser(user: { role: string; assignedProjects: string | null; [key: string]: unknown }) {
-    return { ...user, role: user.role.toLowerCase(), assignedProjects: parseJsonField<string[]>(user.assignedProjects, []) };
+function formatUser(user: { role: string; assignedProjects: string | null; hourlyRate?: unknown;[key: string]: unknown }) {
+    return { ...user, role: user.role.toLowerCase(), assignedProjects: parseJsonField<string[]>(user.assignedProjects, []), hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null };
 }
 
 export async function GET(_req: NextRequest, context: RouteContext) {
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const user = await prisma.user.findUnique({
             where: { id },
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, createdAt: true, updatedAt: true },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, hourlyRate: true, createdAt: true, updatedAt: true },
         });
 
         if (!user) return notFoundResponse('ユーザー');
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const validation = validateRequest(updateUserSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
 
-        const { email, displayName, password, role, assignedProjects, isActive } = validation.data;
+        const { email, displayName, password, role, assignedProjects, isActive, hourlyRate } = validation.data;
 
         const updateData: Record<string, unknown> = {};
         if (email !== undefined) updateData.email = email;
@@ -52,6 +52,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (role !== undefined) updateData.role = role.toUpperCase();
         if (isActive !== undefined) updateData.isActive = isActive;
         if (assignedProjects !== undefined) updateData.assignedProjects = stringifyJsonField(assignedProjects);
+        if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate;
         if (password) updateData.passwordHash = await bcrypt.hash(password, 10);
 
         const updatedUser = await prisma.user.update({ where: { id }, data: updateData });
