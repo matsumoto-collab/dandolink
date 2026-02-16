@@ -25,17 +25,23 @@ export interface ProfitSummary {
 
 /**
  * 作業時間から人件費を計算
- * @param workMinutes 作業時間（分）
+ * @param startTime 開始時間 (例: "08:00")
+ * @param endTime 終了時間 (例: "17:00")
  * @param workerCount 作業者数
  * @param settings 日当設定
  */
 export function calculateLaborCost(
-    workMinutes: number,
+    startTime: string | null | undefined,
+    endTime: string | null | undefined,
     workerCount: number,
     settings: LaborSettings
 ): number {
+    if (!startTime || !endTime) return 0;
     const { laborDailyRate, standardWorkMinutes } = settings;
     const minuteRate = laborDailyRate / standardWorkMinutes;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
     return Math.round(workMinutes * workerCount * minuteRate);
 }
 

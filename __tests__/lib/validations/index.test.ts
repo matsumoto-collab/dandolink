@@ -341,7 +341,8 @@ describe('Validation Schemas', () => {
             const result = workItemSchema.safeParse({
                 projectId: 'proj-1',
                 projectTitle: 'テスト案件',
-                workMinutes: 480,
+                startTime: '08:00',
+                endTime: '17:00',
                 remarks: '作業メモ',
             });
             expect(result.success).toBe(true);
@@ -349,17 +350,17 @@ describe('Validation Schemas', () => {
 
         it('should require projectId', () => {
             const result = workItemSchema.safeParse({
-                workMinutes: 480,
+                startTime: '08:00',
+                endTime: '17:00',
             });
             expect(result.success).toBe(false);
         });
 
-        it('should reject negative workMinutes', () => {
+        it('should accept work item without times', () => {
             const result = workItemSchema.safeParse({
                 projectId: 'proj-1',
-                workMinutes: -30,
             });
-            expect(result.success).toBe(false);
+            expect(result.success).toBe(true);
         });
     });
 
@@ -368,7 +369,7 @@ describe('Validation Schemas', () => {
             date: '2024-01-15',
             foremanId: 'foreman-1',
             workItems: [
-                { projectId: 'proj-1', workMinutes: 480 },
+                { projectId: 'proj-1', startTime: '08:00', endTime: '17:00' },
             ],
         };
 

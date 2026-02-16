@@ -215,11 +215,12 @@ model Vehicle {
 }
 
 model Worker {
-  id        String   @id @default(uuid())
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(uuid())
+  name       String
+  hourlyRate Decimal? @db.Decimal(10, 2)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([name])
   @@schema("public")
@@ -334,8 +335,6 @@ model DailyReport {
   id                    String                @id @default(uuid())
   foremanId             String
   date                  DateTime
-  startTime             String?               // 作業開始時間 (例: "08:00")
-  endTime               String?               // 作業終了時間 (例: "17:00")
   morningLoadingMinutes Int                   @default(0)
   eveningLoadingMinutes Int                   @default(0)
   earlyStartMinutes     Int                   @default(0)
@@ -355,7 +354,8 @@ model DailyReportWorkItem {
   id            String            @id @default(uuid())
   dailyReportId String
   assignmentId  String
-  workMinutes   Int
+  startTime     String?           // 作業開始時間 (例: "08:00")
+  endTime       String?           // 作業終了時間 (例: "17:00")
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
   assignment    ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)

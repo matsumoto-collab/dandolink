@@ -12,6 +12,7 @@ export interface Vehicle {
 export interface Worker {
     id: string;
     name: string;
+    hourlyRate?: number | null;
 }
 
 export interface Manager {
@@ -55,7 +56,7 @@ interface MasterActions {
 
     // Worker operations
     addWorker: (name: string) => Promise<void>;
-    updateWorker: (id: string, name: string) => Promise<void>;
+    updateWorker: (id: string, name: string, hourlyRate?: number | null) => Promise<void>;
     deleteWorker: (id: string) => Promise<void>;
 
     // Manager operations
@@ -204,15 +205,15 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
-        updateWorker: async (id: string, name: string) => {
+        updateWorker: async (id: string, name: string, hourlyRate?: number | null) => {
             const response = await fetch(`/api/master-data/workers/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, hourlyRate }),
             });
             if (response.ok) {
                 set((state) => ({
-                    workers: state.workers.map((w) => (w.id === id ? { ...w, name } : w)),
+                    workers: state.workers.map((w) => (w.id === id ? { ...w, name, hourlyRate } : w)),
                 }));
             }
         },

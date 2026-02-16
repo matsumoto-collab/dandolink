@@ -122,7 +122,8 @@ describe('lib/profitDashboard', () => {
         it('should calculate labor and vehicle costs', async () => {
             const mockWorkItems = [
                 {
-                    workMinutes: 240,
+                    startTime: '08:00',
+                    endTime: '12:00',
                     dailyReport: { morningLoadingMinutes: 30, eveningLoadingMinutes: 30 },
                     assignment: { projectMasterId: 'proj-1', workers: '["w1", "w2"]' },
                 },

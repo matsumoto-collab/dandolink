@@ -12,16 +12,25 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
-        const { name } = await request.json();
-        const validatedName = validateStringField(name, '名前', 100);
-        if (validatedName instanceof NextResponse) return validatedName;
+        const { name, hourlyRate } = await request.json();
 
-        const worker = await prisma.worker.update({ where: { id }, data: { name: validatedName } });
+        const data: Record<string, unknown> = {};
+        if (name !== undefined) {
+            const validatedName = validateStringField(name, '名前', 100);
+            if (validatedName instanceof NextResponse) return validatedName;
+            data.name = validatedName;
+        }
+        if (hourlyRate !== undefined) {
+            data.hourlyRate = hourlyRate;
+        }
+
+        const worker = await prisma.worker.update({ where: { id }, data });
         return NextResponse.json(worker);
     } catch (error) {
         return serverErrorResponse('職方更新', error);
     }
 }
+
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
     try {

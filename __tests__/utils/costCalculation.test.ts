@@ -16,27 +16,37 @@ describe('costCalculation', () => {
 
     describe('calculateLaborCost', () => {
         it('作業時間と人数から人件費を計算する', () => {
-            // 480分 × 1人 × (15000/480) = 15000円
-            const cost = calculateLaborCost(480, 1, defaultSettings);
+            // 08:00-16:00 = 480分 × 1人 × (15000/480) = 15000円
+            const cost = calculateLaborCost('08:00', '16:00', 1, defaultSettings);
             expect(cost).toBe(15000);
         });
 
         it('複数人の場合は人数分加算される', () => {
-            // 480分 × 3人 × (15000/480) = 45000円
-            const cost = calculateLaborCost(480, 3, defaultSettings);
+            // 08:00-16:00 = 480分 × 3人 × (15000/480) = 45000円
+            const cost = calculateLaborCost('08:00', '16:00', 3, defaultSettings);
             expect(cost).toBe(45000);
         });
 
         it('半日分の計算ができる', () => {
-            // 240分 × 1人 × (15000/480) = 7500円
-            const cost = calculateLaborCost(240, 1, defaultSettings);
+            // 08:00-12:00 = 240分 × 1人 × (15000/480) = 7500円
+            const cost = calculateLaborCost('08:00', '12:00', 1, defaultSettings);
             expect(cost).toBe(7500);
         });
 
         it('端数は四捨五入される', () => {
-            // 100分 × 1人 × (15000/480) ≈ 3125円
-            const cost = calculateLaborCost(100, 1, defaultSettings);
+            // 08:00-09:40 = 100分 × 1人 × (15000/480) ≈ 3125円
+            const cost = calculateLaborCost('08:00', '09:40', 1, defaultSettings);
             expect(cost).toBe(3125);
+        });
+
+        it('startTimeがnullの場合は0', () => {
+            const cost = calculateLaborCost(null, '16:00', 1, defaultSettings);
+            expect(cost).toBe(0);
+        });
+
+        it('endTimeがnullの場合は0', () => {
+            const cost = calculateLaborCost('08:00', null, 1, defaultSettings);
+            expect(cost).toBe(0);
         });
     });
 

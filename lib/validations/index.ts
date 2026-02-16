@@ -154,7 +154,8 @@ export const updateAssignmentSchema = createAssignmentSchema.partial();
 export const workItemSchema = z.object({
     projectId: z.string().min(1, '案件IDは必須です'),
     projectTitle: z.string().optional(),
-    workMinutes: z.number().int().min(0, '作業時間は0以上で入力してください'),
+    startTime: z.string().optional().nullable(),
+    endTime: z.string().optional().nullable(),
     remarks: z.string().optional().nullable(),
 });
 

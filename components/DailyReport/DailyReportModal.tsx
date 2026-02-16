@@ -42,16 +42,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const minuteOptions = [0, 15, 30, 45];
 
     // フォーム状態
-    const [startHour, setStartHour] = useState(8);
-    const [startMinute, setStartMinute] = useState(0);
-    const [endHour, setEndHour] = useState(17);
-    const [endMinute, setEndMinute] = useState(0);
     const [morningLoadingMinutes, setMorningLoadingMinutes] = useState(0);
     const [eveningLoadingMinutes, setEveningLoadingMinutes] = useState(0);
     const [earlyStartMinutes, setEarlyStartMinutes] = useState(0);
     const [overtimeMinutes, setOvertimeMinutes] = useState(0);
     const [notes, setNotes] = useState('');
-    const [workItems, setWorkItems] = useState<{ assignmentId: string; workMinutes: number }[]>([]);
+    const [workItems, setWorkItems] = useState<{ assignmentId: string; startTime: string; endTime: string }[]>([]);
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const modalRef = useModalKeyboard(isOpen, onClose);
@@ -61,7 +57,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         if (isOpen && foremanId) {
             setSelectedForemanId(foremanId);
         } else if (isOpen && !foremanId && isAdminOrManager && allForemen.length > 0) {
-            // 新規作成で管理者/マネージャーの場合、最初の職長を選択
             setSelectedForemanId(allForemen[0].id);
         }
     }, [isOpen, foremanId, isAdminOrManager, allForemen]);
@@ -88,6 +83,13 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     };
 
+    // 時間差分を分数で計算
+    const calcMinutesDiff = (start: string, end: string): number => {
+        const s = parseTimeString(start, 0, 0);
+        const e = parseTimeString(end, 0, 0);
+        return (e.hour * 60 + e.minute) - (s.hour * 60 + s.minute);
+    };
+
     // 既存の日報データを読み込み
     const loadExistingData = useCallback(async () => {
         if (!effectiveForemanId) return;
@@ -95,12 +97,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         await fetchDailyReports({ foremanId: effectiveForemanId, date: dateStr });
         const existing = getDailyReportByForemanAndDate(effectiveForemanId, dateStr);
         if (existing) {
-            const start = parseTimeString(existing.startTime, 8, 0);
-            const end = parseTimeString(existing.endTime, 17, 0);
-            setStartHour(start.hour);
-            setStartMinute(start.minute);
-            setEndHour(end.hour);
-            setEndMinute(end.minute);
             setMorningLoadingMinutes(existing.morningLoadingMinutes);
             setEveningLoadingMinutes(existing.eveningLoadingMinutes);
             setEarlyStartMinutes(existing.earlyStartMinutes);
@@ -108,14 +104,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             setNotes(existing.notes || '');
             setWorkItems(existing.workItems.map(item => ({
                 assignmentId: item.assignmentId,
-                workMinutes: item.workMinutes,
+                startTime: item.startTime || '08:00',
+                endTime: item.endTime || '17:00',
             })));
         } else {
             // 新規: デフォルト値にリセット
-            setStartHour(8);
-            setStartMinute(0);
-            setEndHour(17);
-            setEndMinute(0);
             setMorningLoadingMinutes(0);
             setEveningLoadingMinutes(0);
             setEarlyStartMinutes(0);
@@ -123,7 +116,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             setNotes('');
             setWorkItems(todayAssignments.map(a => ({
                 assignmentId: a.id,
-                workMinutes: 480, // 8時間
+                startTime: '08:00',
+                endTime: '17:00',
             })));
         }
     }, [effectiveForemanId, dateStr, fetchDailyReports, getDailyReportByForemanAndDate, todayAssignments]);
@@ -151,14 +145,15 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         setSelectedDate(new Date());
     };
 
-    // 作業時間の更新
-    const updateWorkMinutes = (assignmentId: string, minutes: number) => {
+    // 案件ごとの時間更新
+    const updateWorkItemTime = (assignmentId: string, field: 'startTime' | 'endTime', hour: number, minute: number) => {
+        const timeStr = formatTime(hour, minute);
         setWorkItems(prev => {
             const existing = prev.find(w => w.assignmentId === assignmentId);
             if (existing) {
-                return prev.map(w => w.assignmentId === assignmentId ? { ...w, workMinutes: minutes } : w);
+                return prev.map(w => w.assignmentId === assignmentId ? { ...w, [field]: timeStr } : w);
             }
-            return [...prev, { assignmentId, workMinutes: minutes }];
+            return [...prev, { assignmentId, startTime: field === 'startTime' ? timeStr : '08:00', endTime: field === 'endTime' ? timeStr : '17:00' }];
         });
     };
 
@@ -194,14 +189,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             const input: DailyReportInput = {
                 foremanId: effectiveForemanId,
                 date: dateStr,
-                startTime: formatTime(startHour, startMinute),
-                endTime: formatTime(endHour, endMinute),
                 morningLoadingMinutes,
                 eveningLoadingMinutes,
                 earlyStartMinutes,
                 overtimeMinutes,
                 notes: notes || undefined,
-                workItems: workItems.filter(w => w.workMinutes > 0),
+                workItems: workItems.filter(w => w.startTime && w.endTime),
             };
 
             await saveDailyReport(input);
@@ -221,7 +214,10 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     };
 
     // 総作業時間
-    const totalWorkMinutes = workItems.reduce((sum, w) => sum + w.workMinutes, 0);
+    const totalWorkMinutes = workItems.reduce((sum, w) => {
+        const diff = calcMinutesDiff(w.startTime, w.endTime);
+        return sum + (diff > 0 ? diff : 0);
+    }, 0);
 
     if (!isOpen) return null;
 
@@ -313,69 +309,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                             </div>
                         ) : (
                             <>
-                                {/* 開始・終了時間 */}
+                                {/* 案件ごとの作業時間入力 */}
                                 <div className="mb-6">
                                     <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
                                         <Clock className="w-5 h-5" />
-                                        開始・終了時間
-                                    </h3>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-1">開始時間</label>
-                                            <div className="flex items-center gap-1">
-                                                <select
-                                                    value={startHour}
-                                                    onChange={(e) => setStartHour(Number(e.target.value))}
-                                                    className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                >
-                                                    {hourOptions.map(h => (
-                                                        <option key={h} value={h}>{h}時</option>
-                                                    ))}
-                                                </select>
-                                                <span className="text-gray-400">:</span>
-                                                <select
-                                                    value={startMinute}
-                                                    onChange={(e) => setStartMinute(Number(e.target.value))}
-                                                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                >
-                                                    {minuteOptions.map(m => (
-                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}分</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-600 mb-1">終了時間</label>
-                                            <div className="flex items-center gap-1">
-                                                <select
-                                                    value={endHour}
-                                                    onChange={(e) => setEndHour(Number(e.target.value))}
-                                                    className="flex-1 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                >
-                                                    {hourOptions.map(h => (
-                                                        <option key={h} value={h}>{h}時</option>
-                                                    ))}
-                                                </select>
-                                                <span className="text-gray-400">:</span>
-                                                <select
-                                                    value={endMinute}
-                                                    onChange={(e) => setEndMinute(Number(e.target.value))}
-                                                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                >
-                                                    {minuteOptions.map(m => (
-                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}分</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* 作業時間入力 */}
-                                <div className="mb-6">
-                                    <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                                        <Clock className="w-5 h-5" />
-                                        作業時間
+                                        案件ごとの作業時間
                                     </h3>
 
                                     {todayAssignments.length === 0 ? (
@@ -386,25 +324,67 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         <div className="space-y-3">
                                             {todayAssignments.map(assignment => {
                                                 const workItem = workItems.find(w => w.assignmentId === assignment.id);
-                                                const minutes = workItem?.workMinutes || 0;
+                                                const st = parseTimeString(workItem?.startTime, 8, 0);
+                                                const et = parseTimeString(workItem?.endTime, 17, 0);
+                                                const diff = workItem ? calcMinutesDiff(workItem.startTime, workItem.endTime) : 0;
 
                                                 return (
-                                                    <div key={assignment.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                                                        <div className="flex-1">
+                                                    <div key={assignment.id} className="p-3 bg-gray-50 rounded-lg">
+                                                        <div className="mb-2">
                                                             <div className="font-medium text-gray-800">{assignment.title}</div>
                                                             {assignment.customer && (
                                                                 <div className="text-sm text-gray-500">{assignment.customer}</div>
                                                             )}
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <input
-                                                                type="text"
-                                                                value={formatMinutes(minutes)}
-                                                                onChange={(e) => updateWorkMinutes(assignment.id, parseTimeToMinutes(e.target.value))}
-                                                                className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                                                placeholder="0:00"
-                                                            />
-                                                            <span className="text-sm text-gray-500">（時:分）</span>
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            {/* 開始時間 */}
+                                                            <div className="flex items-center gap-1">
+                                                                <select
+                                                                    value={st.hour}
+                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', Number(e.target.value), st.minute)}
+                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                >
+                                                                    {hourOptions.map(h => (
+                                                                        <option key={h} value={h}>{h}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <span className="text-gray-400 text-sm">:</span>
+                                                                <select
+                                                                    value={st.minute}
+                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', st.hour, Number(e.target.value))}
+                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                >
+                                                                    {minuteOptions.map(m => (
+                                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            <span className="text-gray-400">〜</span>
+                                                            {/* 終了時間 */}
+                                                            <div className="flex items-center gap-1">
+                                                                <select
+                                                                    value={et.hour}
+                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', Number(e.target.value), et.minute)}
+                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                >
+                                                                    {hourOptions.map(h => (
+                                                                        <option key={h} value={h}>{h}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <span className="text-gray-400 text-sm">:</span>
+                                                                <select
+                                                                    value={et.minute}
+                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', et.hour, Number(e.target.value))}
+                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                >
+                                                                    {minuteOptions.map(m => (
+                                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                                    ))}
+                                                                </select>
+                                                            </div>
+                                                            {diff > 0 && (
+                                                                <span className="text-sm text-gray-500 ml-2">（{formatMinutes(diff)}）</span>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 );

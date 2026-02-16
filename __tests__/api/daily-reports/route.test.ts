@@ -58,7 +58,7 @@ describe('/api/daily-reports', () => {
             morningLoadingMinutes: 30,
             eveningLoadingMinutes: 30,
             workItems: [
-                { assignmentId: 'a1', workMinutes: 480 }
+                { assignmentId: 'a1', startTime: '08:00', endTime: '16:00' }
             ]
         };
 

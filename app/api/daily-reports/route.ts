@@ -3,12 +3,12 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 const workItemSelect = {
-    id: true, dailyReportId: true, assignmentId: true, workMinutes: true,
+    id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true,
     assignment: { select: { id: true, date: true, projectMaster: { select: { id: true, title: true, customerName: true } } } },
 };
 
 const reportSelect = {
-    id: true, foremanId: true, date: true, startTime: true, endTime: true,
+    id: true, foremanId: true, date: true,
     morningLoadingMinutes: true, eveningLoadingMinutes: true,
     earlyStartMinutes: true, overtimeMinutes: true, notes: true, createdAt: true, updatedAt: true,
     workItems: { select: workItemSelect },
@@ -50,14 +50,13 @@ export async function POST(request: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { foremanId, date, startTime, endTime, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, notes, workItems } = await request.json();
+        const { foremanId, date, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, notes, workItems } = await request.json();
         if (!foremanId || !date) return validationErrorResponse('職長IDと日付は必須です');
 
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
 
         const reportData = {
-            startTime: startTime || null, endTime: endTime || null,
             morningLoadingMinutes: morningLoadingMinutes ?? 0, eveningLoadingMinutes: eveningLoadingMinutes ?? 0,
             earlyStartMinutes: earlyStartMinutes ?? 0, overtimeMinutes: overtimeMinutes ?? 0, notes,
         };
@@ -72,8 +71,9 @@ export async function POST(request: NextRequest) {
             await prisma.dailyReportWorkItem.deleteMany({ where: { dailyReportId: dailyReport.id } });
             if (workItems.length > 0) {
                 await prisma.dailyReportWorkItem.createMany({
-                    data: workItems.map((item: { assignmentId: string; workMinutes: number }) => ({
-                        dailyReportId: dailyReport.id, assignmentId: item.assignmentId, workMinutes: item.workMinutes,
+                    data: workItems.map((item: { assignmentId: string; startTime?: string; endTime?: string }) => ({
+                        dailyReportId: dailyReport.id, assignmentId: item.assignmentId,
+                        startTime: item.startTime || null, endTime: item.endTime || null,
                     })),
                 });
             }

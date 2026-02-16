@@ -113,7 +113,14 @@ export default function DailyReportPage() {
 
     // 総作業時間を計算
     const getTotalWorkMinutes = (report: DailyReport): number => {
-        return report.workItems.reduce((sum, item) => sum + item.workMinutes, 0);
+        return report.workItems.reduce((sum, item) => {
+            if (item.startTime && item.endTime) {
+                const [sh, sm] = item.startTime.split(':').map(Number);
+                const [eh, em] = item.endTime.split(':').map(Number);
+                return sum + Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+            }
+            return sum;
+        }, 0);
     };
 
     return (
@@ -253,11 +260,6 @@ export default function DailyReportPage() {
 
                                     {/* 作業時間と積込時間 */}
                                     <div className="flex flex-wrap items-center gap-3 mb-3">
-                                        {(report.startTime || report.endTime) && (
-                                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
-                                                {report.startTime || '-'} 〜 {report.endTime || '-'}
-                                            </span>
-                                        )}
                                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
                                             <Clock className="w-3 h-3" />
                                             作業 {formatMinutes(totalWork)}
@@ -302,12 +304,6 @@ export default function DailyReportPage() {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4" />
-                                        開始/終了
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
                                         作業時間
                                     </div>
                                 </th>
@@ -328,7 +324,7 @@ export default function DailyReportPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {filteredReports.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
                                         {searchTerm || foremanFilter !== 'all' || dateFilter ?
                                             '検索結果が見つかりませんでした' :
                                             '日報が登録されていません'}
@@ -351,11 +347,6 @@ export default function DailyReportPage() {
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <span className="text-sm text-gray-700">
                                                     {getForemanName(report.foremanId)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-700">
-                                                    {report.startTime || '-'} 〜 {report.endTime || '-'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
@@ -414,6 +405,6 @@ export default function DailyReportPage() {
                 foremanId={selectedReport?.foremanId}
                 onSaved={handleSaved}
             />
-        </div>
+        </div >
     );
 }

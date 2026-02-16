@@ -19,13 +19,19 @@ export async function POST(request: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { name } = await request.json();
+        const { name, hourlyRate } = await request.json();
         const validatedName = validateStringField(name, '名前', 100);
         if (validatedName instanceof NextResponse) return validatedName;
 
-        const worker = await prisma.worker.create({ data: { name: validatedName } });
+        const worker = await prisma.worker.create({
+            data: {
+                name: validatedName,
+                ...(hourlyRate !== undefined ? { hourlyRate } : {}),
+            },
+        });
         return NextResponse.json(worker, { status: 201 });
     } catch (error) {
         return serverErrorResponse('職方作成', error);
     }
 }
+

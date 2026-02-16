@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
             prisma.systemSettings.findFirst(),
             prisma.dailyReportWorkItem.findMany({
                 where: { assignment: { projectMasterId: { in: projectIds } } },
-                select: { workMinutes: true, dailyReport: { select: { morningLoadingMinutes: true, eveningLoadingMinutes: true } }, assignment: { select: { projectMasterId: true, workers: true } } },
+                select: { startTime: true, endTime: true, dailyReport: { select: { morningLoadingMinutes: true, eveningLoadingMinutes: true } }, assignment: { select: { projectMasterId: true, workers: true } } },
             }),
             prisma.projectAssignment.findMany({ where: { projectMasterId: { in: projectIds } }, select: { projectMasterId: true, vehicles: true } }),
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
@@ -89,7 +89,14 @@ export async function GET(request: NextRequest) {
         workItems.forEach(item => {
             const projectId = item.assignment.projectMasterId;
             const workerCount = parseJsonField<string[]>(item.assignment.workers, []).length || 1;
-            laborCostByProject.set(projectId, (laborCostByProject.get(projectId) || 0) + Math.round(item.workMinutes * workerCount * minuteRate));
+            // startTime/endTimeから作業分数を計算
+            let workMinutes = 0;
+            if (item.startTime && item.endTime) {
+                const [sh, sm] = item.startTime.split(':').map(Number);
+                const [eh, em] = item.endTime.split(':').map(Number);
+                workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+            }
+            laborCostByProject.set(projectId, (laborCostByProject.get(projectId) || 0) + Math.round(workMinutes * workerCount * minuteRate));
             if (item.dailyReport) {
                 const loadingMinutes = item.dailyReport.morningLoadingMinutes + item.dailyReport.eveningLoadingMinutes;
                 loadingCostByProject.set(projectId, (loadingCostByProject.get(projectId) || 0) + Math.round(loadingMinutes * 0.5 * workerCount * minuteRate));

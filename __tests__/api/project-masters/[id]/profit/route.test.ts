@@ -84,13 +84,14 @@ describe('/api/project-masters/[id]/profit', () => {
         });
 
         it('should calculate labor and vehicle costs from assignments', async () => {
-            // 1 assignment, 2 workers, 1 vehicle, 240 mins work (half day)
+            // 1 assignment, 2 workers, 1 vehicle, 08:00-12:00 (240 mins work)
             const mockAssignment = {
                 workers: '["w1", "w2"]',
                 vehicles: '["veh-1"]',
                 dailyReportWorkItems: [
                     {
-                        workMinutes: 240,
+                        startTime: '08:00',
+                        endTime: '12:00',
                         dailyReport: {
                             id: 'rep-1',
                             morningLoadingMinutes: 30,
@@ -107,13 +108,6 @@ describe('/api/project-masters/[id]/profit', () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
             (prisma.vehicle.findMany as jest.Mock).mockResolvedValue(mockVehicles);
 
-            // Mock groupBy for loading calculation ratio
-            // Total work for report is 480 mins (assuming full day report elsewhere, but here logic uses summary)
-            // If workItem is 240, and report total is 480, ratio is 0.5.
-            (prisma.dailyReportWorkItem.groupBy as jest.Mock).mockResolvedValue([
-                { dailyReportId: 'rep-1', _sum: { workMinutes: 480 } },
-            ]);
-
             const res = await GET(createReq(), context);
             const json = await res.json();
 
@@ -123,9 +117,9 @@ describe('/api/project-masters/[id]/profit', () => {
             // Labor Cost: 240 min * 2 workers * 30 JPY/min = 14400
             expect(json.costBreakdown.laborCost).toBe(14400);
 
-            // Loading Cost: (30+30) * (240/480) * 2 workers * 30 JPY/min 
-            // = 60 * 0.5 * 2 * 30 = 30 * 2 * 30 = 1800
-            expect(json.costBreakdown.loadingCost).toBe(1800);
+            // Loading Cost: reportTotal = 240 (only 1 work item in report), ratio = 240/240 = 1.0
+            // (30+30) * 1.0 * 2 workers * 30 JPY/min = 3600
+            expect(json.costBreakdown.loadingCost).toBe(3600);
         });
 
         it('should handle missing settings (fallback defaults)', async () => {

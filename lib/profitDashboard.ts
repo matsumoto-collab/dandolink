@@ -88,7 +88,8 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
                 },
             },
             select: {
-                workMinutes: true,
+                startTime: true,
+                endTime: true,
                 dailyReport: {
                     select: {
                         morningLoadingMinutes: true,
@@ -149,8 +150,16 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         const workers = parseJsonField<string[]>(item.assignment.workers, []);
         const workerCount = item.assignment.memberCount || workers.length || 1;
 
+        // startTime/endTimeから作業分数を計算
+        let workMinutes = 0;
+        if (item.startTime && item.endTime) {
+            const [sh, sm] = item.startTime.split(':').map(Number);
+            const [eh, em] = item.endTime.split(':').map(Number);
+            workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+        }
+
         // 人件費
-        const laborCost = Math.round(item.workMinutes * workerCount * minuteRate);
+        const laborCost = Math.round(workMinutes * workerCount * minuteRate);
         laborCostByProject.set(
             projectId,
             (laborCostByProject.get(projectId) || 0) + laborCost

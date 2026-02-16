@@ -32,12 +32,14 @@ export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<'vehicles' | 'workers' | 'managers' | 'members' | 'constructionTypes' | 'unitprices' | 'company' | 'users'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
+    const [editingHourlyRate, setEditingHourlyRate] = useState('');
     const [newItemName, setNewItemName] = useState('');
     const [newTotalMembers, setNewTotalMembers] = useState(totalMembers.toString());
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    // Check if user is admin
+    // Check if user is admin or manager
     const isUserAdmin = session?.user?.role === 'admin';
+    const isManagerOrAdmin = session?.user?.role === 'admin' || session?.user?.role === 'manager';
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
@@ -79,6 +81,11 @@ export default function SettingsPage() {
     const handleEdit = (id: string, currentName: string) => {
         setEditingId(id);
         setEditingValue(currentName);
+        // workers タブの場合、hourlyRate も設定
+        if (activeTab === 'workers') {
+            const worker = workers.find(w => w.id === id);
+            setEditingHourlyRate(worker?.hourlyRate?.toString() || '');
+        }
     };
 
     const handleSaveEdit = () => {
@@ -88,15 +95,18 @@ export default function SettingsPage() {
             case 'vehicles':
                 updateVehicle(editingId, editingValue.trim());
                 break;
-            case 'workers':
-                updateWorker(editingId, editingValue.trim());
+            case 'workers': {
+                const hourlyRate = editingHourlyRate ? parseFloat(editingHourlyRate) : undefined;
+                updateWorker(editingId, editingValue.trim(), hourlyRate);
                 break;
+            }
             case 'managers':
                 updateManager(editingId, editingValue.trim());
                 break;
         }
         setEditingId(null);
         setEditingValue('');
+        setEditingHourlyRate('');
     };
 
     const handleCancelEdit = () => {
@@ -282,6 +292,20 @@ export default function SettingsPage() {
                                                         className="flex-1 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                         autoFocus
                                                     />
+                                                    {activeTab === 'workers' && isManagerOrAdmin && (
+                                                        <div className="flex items-center gap-1">
+                                                            <input
+                                                                type="number"
+                                                                value={editingHourlyRate}
+                                                                onChange={(e) => setEditingHourlyRate(e.target.value)}
+                                                                className="w-24 px-2 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                                                placeholder="時給"
+                                                                min="0"
+                                                                step="100"
+                                                            />
+                                                            <span className="text-xs text-slate-500">円/h</span>
+                                                        </div>
+                                                    )}
                                                     <button
                                                         onClick={handleSaveEdit}
                                                         className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
@@ -299,7 +323,14 @@ export default function SettingsPage() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span className="flex-1 text-slate-900">{item.name}</span>
+                                                    <span className="flex-1 text-slate-900">
+                                                        {item.name}
+                                                        {activeTab === 'workers' && isManagerOrAdmin && (item as { hourlyRate?: number }).hourlyRate != null && (
+                                                            <span className="ml-2 text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                                                ¥{Number((item as { hourlyRate?: number }).hourlyRate).toLocaleString()}/h
+                                                            </span>
+                                                        )}
+                                                    </span>
                                                     <button
                                                         onClick={() => handleEdit(item.id, item.name)}
                                                         className="p-2 text-slate-700 hover:bg-slate-100 rounded-md transition-colors"

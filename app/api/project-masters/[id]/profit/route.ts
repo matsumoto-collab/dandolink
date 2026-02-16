@@ -33,24 +33,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
 
-        // N+1回避: 関連する全dailyReportの作業時間合計を一括取得
-        const allDailyReportIds = new Set<string>();
+        // N+1回避: 各workItemの作業分数を事前計算
+        const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null): number => {
+            if (!startTime || !endTime) return 0;
+            const [sh, sm] = startTime.split(':').map(Number);
+            const [eh, em] = endTime.split(':').map(Number);
+            return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+        };
+
+        // 各dailyReport配下の全workItemの合計作業分数を計算
+        const reportTotalsMap = new Map<string, number>();
         for (const assignment of projectMaster.assignments) {
             for (const workItem of assignment.dailyReportWorkItems) {
                 if (workItem.dailyReport) {
-                    allDailyReportIds.add(workItem.dailyReport.id);
+                    const reportId = workItem.dailyReport.id;
+                    const mins = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime);
+                    reportTotalsMap.set(reportId, (reportTotalsMap.get(reportId) || 0) + mins);
                 }
-            }
-        }
-        const reportTotalsMap = new Map<string, number>();
-        if (allDailyReportIds.size > 0) {
-            const reportTotals = await prisma.dailyReportWorkItem.groupBy({
-                by: ['dailyReportId'],
-                where: { dailyReportId: { in: Array.from(allDailyReportIds) } },
-                _sum: { workMinutes: true },
-            });
-            for (const rt of reportTotals) {
-                reportTotalsMap.set(rt.dailyReportId, rt._sum.workMinutes || 0);
             }
         }
 
@@ -61,11 +60,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             vehicles.forEach(vid => { vehicleCost += vehicleRateMap.get(vid) || 0; });
 
             for (const workItem of assignment.dailyReportWorkItems) {
-                laborCost += Math.round(workItem.workMinutes * workerCount * minuteRate);
+                const workMinutes = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime);
+                laborCost += Math.round(workMinutes * workerCount * minuteRate);
                 if (workItem.dailyReport) {
                     const totalWorkMinutes = reportTotalsMap.get(workItem.dailyReport.id) || 0;
                     if (totalWorkMinutes > 0) {
-                        const ratio = workItem.workMinutes / totalWorkMinutes;
+                        const ratio = workMinutes / totalWorkMinutes;
                         const loadingMinutes = (workItem.dailyReport.morningLoadingMinutes + workItem.dailyReport.eveningLoadingMinutes) * ratio;
                         loadingCost += Math.round(loadingMinutes * workerCount * minuteRate);
                     }

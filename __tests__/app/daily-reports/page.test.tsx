@@ -60,7 +60,7 @@ const mockDailyReports = [
         eveningLoadingMinutes: 20,
         notes: 'Report 1 notes',
         workItems: [
-            { id: 'wi1', workMinutes: 120, projectMasterId: 'pm1', constructionType: 'assembly', workerCount: 3 },
+            { id: 'wi1', startTime: '08:00', endTime: '10:00', projectMasterId: 'pm1', constructionType: 'assembly', workerCount: 3 },
         ],
     },
     {
@@ -71,7 +71,7 @@ const mockDailyReports = [
         eveningLoadingMinutes: 25,
         notes: 'Report 2 notes',
         workItems: [
-            { id: 'wi2', workMinutes: 180, projectMasterId: 'pm2', constructionType: 'demolition', workerCount: 2 },
+            { id: 'wi2', startTime: '08:00', endTime: '11:00', projectMasterId: 'pm2', constructionType: 'demolition', workerCount: 2 },
         ],
     },
 ];
