@@ -10,6 +10,7 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
 
     fetchDailyReports: async (params) => {
         set({ dailyReportsLoading: true });
+        const isNarrowFetch = !!(params?.foremanId || params?.date);
         try {
             const searchParams = new URLSearchParams();
             if (params?.foremanId) searchParams.set('foremanId', params.foremanId);
@@ -20,10 +21,29 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
             const response = await fetch(`/api/daily-reports?${searchParams.toString()}`);
             if (response.ok) {
                 const data = await response.json();
-                set({
-                    dailyReports: data.map(parseDailyReportDates),
-                    dailyReportsInitialized: true,
-                });
+                const parsed = data.map(parseDailyReportDates);
+
+                if (isNarrowFetch && get().dailyReportsInitialized) {
+                    // Merge: update existing or add new, don't replace all
+                    set((state) => {
+                        const merged = [...state.dailyReports];
+                        for (const report of parsed) {
+                            const idx = merged.findIndex((r) => r.id === report.id);
+                            if (idx >= 0) {
+                                merged[idx] = report;
+                            } else {
+                                merged.push(report);
+                            }
+                        }
+                        return { dailyReports: merged };
+                    });
+                } else {
+                    // Full replace for initial/broad fetches
+                    set({
+                        dailyReports: parsed,
+                        dailyReportsInitialized: true,
+                    });
+                }
             }
         } catch (error) {
             console.error('Failed to fetch daily reports:', error);

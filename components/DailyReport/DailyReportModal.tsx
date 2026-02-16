@@ -48,6 +48,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [overtimeMinutes, setOvertimeMinutes] = useState(0);
     const [notes, setNotes] = useState('');
     const [workItems, setWorkItems] = useState<{ assignmentId: string; startTime: string; endTime: string }[]>([]);
+    // 既存の日報から読み込んだ案件情報（todayAssignmentsに含まれない場合のフォールバック用）
+    const [existingWorkItemInfoMap, setExistingWorkItemInfoMap] = useState<Map<string, { title: string; customer?: string }>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const modalRef = useModalKeyboard(isOpen, onClose);
@@ -107,6 +109,17 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 startTime: item.startTime || '08:00',
                 endTime: item.endTime || '17:00',
             })));
+            // 既存のworkItemからassignment情報を保存（todayAssignmentsに含まれない場合のフォールバック）
+            const infoMap = new Map<string, { title: string; customer?: string }>();
+            for (const item of existing.workItems) {
+                if (item.assignment?.projectMaster) {
+                    infoMap.set(item.assignmentId, {
+                        title: item.assignment.projectMaster.title,
+                        customer: item.assignment.projectMaster.customerName || undefined,
+                    });
+                }
+            }
+            setExistingWorkItemInfoMap(infoMap);
         } else {
             // 新規: デフォルト値にリセット
             setMorningLoadingMinutes(0);
@@ -114,6 +127,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             setEarlyStartMinutes(0);
             setOvertimeMinutes(0);
             setNotes('');
+            setExistingWorkItemInfoMap(new Map());
             setWorkItems(todayAssignments.map(a => ({
                 assignmentId: a.id,
                 startTime: '08:00',
@@ -316,84 +330,108 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         案件ごとの作業時間
                                     </h3>
 
-                                    {todayAssignments.length === 0 ? (
-                                        <div className="p-4 bg-gray-50 rounded-lg text-gray-500 text-center">
-                                            この日の配置はありません
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {todayAssignments.map(assignment => {
-                                                const workItem = workItems.find(w => w.assignmentId === assignment.id);
-                                                const st = parseTimeString(workItem?.startTime, 8, 0);
-                                                const et = parseTimeString(workItem?.endTime, 17, 0);
-                                                const diff = workItem ? calcMinutesDiff(workItem.startTime, workItem.endTime) : 0;
+                                    {(() => {
+                                        // todayAssignmentsと既存workItemsをマージして表示用リストを構築
+                                        const assignmentIds = new Set(todayAssignments.map(a => a.id));
+                                        const displayItems: { id: string; title: string; customer?: string }[] = [
+                                            ...todayAssignments.map(a => ({ id: a.id, title: a.title, customer: a.customer })),
+                                        ];
+                                        // 既存workItemsにあるがtodayAssignmentsにないassignmentを追加
+                                        for (const wi of workItems) {
+                                            if (!assignmentIds.has(wi.assignmentId)) {
+                                                const info = existingWorkItemInfoMap.get(wi.assignmentId);
+                                                displayItems.push({
+                                                    id: wi.assignmentId,
+                                                    title: info?.title || '(案件名不明)',
+                                                    customer: info?.customer,
+                                                });
+                                                assignmentIds.add(wi.assignmentId);
+                                            }
+                                        }
 
-                                                return (
-                                                    <div key={assignment.id} className="p-3 bg-gray-50 rounded-lg">
-                                                        <div className="mb-2">
-                                                            <div className="font-medium text-gray-800">{assignment.title}</div>
-                                                            {assignment.customer && (
-                                                                <div className="text-sm text-gray-500">{assignment.customer}</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="flex flex-wrap items-center gap-2">
-                                                            {/* 開始時間 */}
-                                                            <div className="flex items-center gap-1">
-                                                                <select
-                                                                    value={st.hour}
-                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', Number(e.target.value), st.minute)}
-                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                                >
-                                                                    {hourOptions.map(h => (
-                                                                        <option key={h} value={h}>{h}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <span className="text-gray-400 text-sm">:</span>
-                                                                <select
-                                                                    value={st.minute}
-                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', st.hour, Number(e.target.value))}
-                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                                >
-                                                                    {minuteOptions.map(m => (
-                                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
-                                                                    ))}
-                                                                </select>
+                                        if (displayItems.length === 0) {
+                                            return (
+                                                <div className="p-4 bg-gray-50 rounded-lg text-gray-500 text-center">
+                                                    この日の配置はありません
+                                                </div>
+                                            );
+                                        }
+
+                                        return (
+                                            <div className="space-y-3">
+                                                {displayItems.map(assignment => {
+                                                    const workItem = workItems.find(w => w.assignmentId === assignment.id);
+                                                    const st = parseTimeString(workItem?.startTime, 8, 0);
+                                                    const et = parseTimeString(workItem?.endTime, 17, 0);
+                                                    const diff = workItem ? calcMinutesDiff(workItem.startTime, workItem.endTime) : 0;
+
+                                                    return (
+                                                        <div key={assignment.id} className="p-3 bg-gray-50 rounded-lg">
+                                                            <div className="mb-2">
+                                                                <div className="font-medium text-gray-800">{assignment.title}</div>
+                                                                {assignment.customer && (
+                                                                    <div className="text-sm text-gray-500">{assignment.customer}</div>
+                                                                )}
                                                             </div>
-                                                            <span className="text-gray-400">〜</span>
-                                                            {/* 終了時間 */}
-                                                            <div className="flex items-center gap-1">
-                                                                <select
-                                                                    value={et.hour}
-                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', Number(e.target.value), et.minute)}
-                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                                >
-                                                                    {hourOptions.map(h => (
-                                                                        <option key={h} value={h}>{h}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <span className="text-gray-400 text-sm">:</span>
-                                                                <select
-                                                                    value={et.minute}
-                                                                    onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', et.hour, Number(e.target.value))}
-                                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                                                                >
-                                                                    {minuteOptions.map(m => (
-                                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
-                                                                    ))}
-                                                                </select>
+                                                            <div className="flex flex-wrap items-center gap-2">
+                                                                {/* 開始時間 */}
+                                                                <div className="flex items-center gap-1">
+                                                                    <select
+                                                                        value={st.hour}
+                                                                        onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', Number(e.target.value), st.minute)}
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                    >
+                                                                        {hourOptions.map(h => (
+                                                                            <option key={h} value={h}>{h}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <span className="text-gray-400 text-sm">:</span>
+                                                                    <select
+                                                                        value={st.minute}
+                                                                        onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', st.hour, Number(e.target.value))}
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                    >
+                                                                        {minuteOptions.map(m => (
+                                                                            <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                <span className="text-gray-400">〜</span>
+                                                                {/* 終了時間 */}
+                                                                <div className="flex items-center gap-1">
+                                                                    <select
+                                                                        value={et.hour}
+                                                                        onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', Number(e.target.value), et.minute)}
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                    >
+                                                                        {hourOptions.map(h => (
+                                                                            <option key={h} value={h}>{h}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <span className="text-gray-400 text-sm">:</span>
+                                                                    <select
+                                                                        value={et.minute}
+                                                                        onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', et.hour, Number(e.target.value))}
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                    >
+                                                                        {minuteOptions.map(m => (
+                                                                            <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                </div>
+                                                                {diff > 0 && (
+                                                                    <span className="text-sm text-gray-500 ml-2">（{formatMinutes(diff)}）</span>
+                                                                )}
                                                             </div>
-                                                            {diff > 0 && (
-                                                                <span className="text-sm text-gray-500 ml-2">（{formatMinutes(diff)}）</span>
-                                                            )}
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
-                                            <div className="flex justify-end text-sm text-gray-600">
-                                                合計: <span className="font-bold ml-1">{formatMinutes(totalWorkMinutes)}</span>
+                                                    );
+                                                })}
+                                                <div className="flex justify-end text-sm text-gray-600">
+                                                    合計: <span className="font-bold ml-1">{formatMinutes(totalWorkMinutes)}</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    )}
+                                        );
+                                    })()}
                                 </div>
 
                                 {/* 積込時間 */}
