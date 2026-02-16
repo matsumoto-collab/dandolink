@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
@@ -107,55 +107,63 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return (e.hour * 60 + e.minute) - (s.hour * 60 + s.minute);
     };
 
-    // 既存の日報データを読み込み
-    const loadExistingData = useCallback(async () => {
-        if (!effectiveForemanId) return;
-
-        await fetchDailyReports({ foremanId: effectiveForemanId, date: dateStr });
-        const existing = getDailyReportByForemanAndDate(effectiveForemanId, dateStr);
-        if (existing) {
-            setMorningLoadingMinutes(existing.morningLoadingMinutes);
-            setEveningLoadingMinutes(existing.eveningLoadingMinutes);
-            setEarlyStartMinutes(existing.earlyStartMinutes);
-            setOvertimeMinutes(existing.overtimeMinutes);
-            setNotes(existing.notes || '');
-            setWorkItems(existing.workItems.map(item => ({
-                assignmentId: item.assignmentId,
-                startTime: item.startTime || '08:00',
-                endTime: item.endTime || '17:00',
-            })));
-            // 既存のworkItemからassignment情報を保存（todayAssignmentsに含まれない場合のフォールバック）
-            const infoMap = new Map<string, { title: string; customer?: string }>();
-            for (const item of existing.workItems) {
-                if (item.assignment?.projectMaster) {
-                    infoMap.set(item.assignmentId, {
-                        title: item.assignment.projectMaster.title,
-                        customer: item.assignment.projectMaster.customerName || undefined,
-                    });
-                }
-            }
-            setExistingWorkItemInfoMap(infoMap);
-        } else {
-            // 新規: デフォルト値にリセット
-            setMorningLoadingMinutes(0);
-            setEveningLoadingMinutes(0);
-            setEarlyStartMinutes(0);
-            setOvertimeMinutes(0);
-            setNotes('');
-            setExistingWorkItemInfoMap(new Map());
-            setWorkItems(todayAssignments.map(a => ({
-                assignmentId: a.id,
-                startTime: '08:00',
-                endTime: '17:00',
-            })));
-        }
-    }, [effectiveForemanId, dateStr, fetchDailyReports, getDailyReportByForemanAndDate, todayAssignments]);
-
+    // 既存の日報データを読み込み（キャンセル機構付き）
     useEffect(() => {
-        if (isOpen && effectiveForemanId) {
-            loadExistingData();
-        }
-    }, [isOpen, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
+        if (!isOpen || !effectiveForemanId) return;
+
+        let cancelled = false;
+
+        const loadExistingData = async () => {
+            await fetchDailyReports({ foremanId: effectiveForemanId, date: dateStr });
+            if (cancelled) return;
+
+            const existing = getDailyReportByForemanAndDate(effectiveForemanId, dateStr);
+            if (existing) {
+                setMorningLoadingMinutes(existing.morningLoadingMinutes);
+                setEveningLoadingMinutes(existing.eveningLoadingMinutes);
+                setEarlyStartMinutes(existing.earlyStartMinutes);
+                setOvertimeMinutes(existing.overtimeMinutes);
+                setNotes(existing.notes || '');
+                setWorkItems(existing.workItems.map(item => ({
+                    assignmentId: item.assignmentId,
+                    startTime: item.startTime || '08:00',
+                    endTime: item.endTime || '17:00',
+                })));
+                const infoMap = new Map<string, { title: string; customer?: string }>();
+                for (const item of existing.workItems) {
+                    if (item.assignment?.projectMaster) {
+                        infoMap.set(item.assignmentId, {
+                            title: item.assignment.projectMaster.title,
+                            customer: item.assignment.projectMaster.customerName || undefined,
+                        });
+                    }
+                }
+                setExistingWorkItemInfoMap(infoMap);
+            } else {
+                // 新規: カレンダーの配置からworkItemsを生成
+                const assignments = projects.filter(p => {
+                    const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
+                    return projectDate.toISOString().split('T')[0] === dateStr &&
+                        p.assignedEmployeeId === effectiveForemanId;
+                });
+                setMorningLoadingMinutes(0);
+                setEveningLoadingMinutes(0);
+                setEarlyStartMinutes(0);
+                setOvertimeMinutes(0);
+                setNotes('');
+                setExistingWorkItemInfoMap(new Map());
+                setWorkItems(assignments.map(a => ({
+                    assignmentId: a.id,
+                    startTime: '08:00',
+                    endTime: '17:00',
+                })));
+            }
+        };
+
+        loadExistingData();
+
+        return () => { cancelled = true; };
+    }, [isOpen, effectiveForemanId, dateStr, fetchDailyReports, getDailyReportByForemanAndDate, projects]);
 
     // 日付ナビゲーション
     const goPreviousDay = () => {
