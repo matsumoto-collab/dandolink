@@ -9,7 +9,9 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
-import { User, Search } from 'lucide-react';
+import { User, Search, Plus } from 'lucide-react';
+import CustomerModal from '@/components/Customers/CustomerModal';
+import { CustomerInput } from '@/types/customer';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -71,6 +73,7 @@ export default function ProjectForm({
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [customerSearchTerm, setCustomerSearchTerm] = useState('');
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+    const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
 
     // Admin/Manager users for project manager selection (from API)
     const [apiManagers, setApiManagers] = useState<ManagerUser[]>([]);
@@ -225,6 +228,29 @@ export default function ProjectForm({
         }));
     };
 
+    const handleNewCustomerSubmit = async (data: CustomerInput) => {
+        try {
+            const res = await fetch('/api/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            if (res.ok) {
+                const newCustomer = await res.json();
+                setCustomers(prev => [...prev, newCustomer]);
+                setFormData(prev => ({
+                    ...prev,
+                    customerId: newCustomer.id,
+                    customer: newCustomer.name,
+                }));
+                setCustomerSearchTerm('');
+                setShowNewCustomerModal(false);
+            }
+        } catch (error) {
+            console.error('Failed to create customer:', error);
+        }
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -299,21 +325,30 @@ export default function ProjectForm({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     元請名
                 </label>
-                <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        value={customerSearchTerm || formData.customer}
-                        onChange={(e) => {
-                            setCustomerSearchTerm(e.target.value);
-                            setShowCustomerDropdown(true);
-                            // 入力値をそのままcustomerにもセット（新規入力の場合など）
-                            setFormData({ ...formData, customer: e.target.value });
-                        }}
-                        onFocus={() => setShowCustomerDropdown(true)}
-                        className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="顧客を検索または入力..."
-                    />
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                            type="text"
+                            value={customerSearchTerm || formData.customer}
+                            onChange={(e) => {
+                                setCustomerSearchTerm(e.target.value);
+                                setShowCustomerDropdown(true);
+                                setFormData({ ...formData, customer: e.target.value });
+                            }}
+                            onFocus={() => setShowCustomerDropdown(true)}
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            placeholder="顧客を検索または入力..."
+                        />
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setShowNewCustomerModal(true)}
+                        className="flex items-center gap-1 px-3 py-2 bg-slate-700 text-white text-sm rounded-md hover:bg-slate-600 transition-colors whitespace-nowrap"
+                    >
+                        <Plus className="w-4 h-4" />
+                        新規登録
+                    </button>
                 </div>
 
                 {showCustomerDropdown && filteredCustomers.length > 0 && customerSearchTerm && (
@@ -325,10 +360,10 @@ export default function ProjectForm({
                                 onClick={() => {
                                     setFormData({
                                         ...formData,
-                                        customerId: customer.id, // IDを保存
-                                        customer: customer.name, // 名前を表示用に保存
+                                        customerId: customer.id,
+                                        customer: customer.name,
                                     });
-                                    setCustomerSearchTerm(''); // 検索語をクリア（表示はformData.customer優先）
+                                    setCustomerSearchTerm('');
                                     setShowCustomerDropdown(false);
                                 }}
                                 className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
@@ -341,6 +376,14 @@ export default function ProjectForm({
                         ))}
                     </div>
                 )}
+
+                {/* 新規顧客登録モーダル */}
+                <CustomerModal
+                    isOpen={showNewCustomerModal}
+                    onClose={() => setShowNewCustomerModal(false)}
+                    onSubmit={handleNewCustomerSubmit}
+                    title="新規顧客登録"
+                />
             </div>
 
             {/* 工事種別（ラジオボタン） */}
