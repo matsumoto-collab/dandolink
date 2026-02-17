@@ -217,6 +217,7 @@ export function useProjects() {
             location: a.projectMaster?.location,
             customer: a.projectMaster?.customerShortName || a.projectMaster?.customerName,
             workers: a.workers,
+            memberCount: a.memberCount,
             estimatedHours: a.estimatedHours ?? 8.0,
             trucks: a.vehicles,
             remarks: a.remarks || a.projectMaster?.remarks,

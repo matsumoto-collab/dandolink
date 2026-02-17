@@ -123,17 +123,17 @@ export default function DraggableEventCard({
 
                             {/* 3段目: 人数 + 時間 */}
                             <div className="flex items-center gap-1 mt-0.5 text-gray-700">
-                                {((event.memberCount && event.memberCount > 0) || (event.workers && event.workers.length > 0)) && (
+                                {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && (
                                     <>
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                         </svg>
-                                        <span>{event.memberCount || event.workers?.length || 0}人</span>
+                                        <span>{event.memberCount ?? event.workers?.length ?? 0}人</span>
                                     </>
                                 )}
                                 {event.estimatedHours != null && (
                                     <>
-                                        {((event.memberCount && event.memberCount > 0) || (event.workers && event.workers.length > 0)) && <span className="text-gray-500">|</span>}
+                                        {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && <span className="text-gray-500">|</span>}
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
