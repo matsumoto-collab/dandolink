@@ -208,7 +208,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     expectedUpdatedAt: assignment?.updatedAt?.toISOString(),
                     assignedEmployeeId: updates.assignedEmployeeId,
                     date: updates.startDate instanceof Date ? updates.startDate.toISOString() : updates.startDate,
-                    memberCount: updates.workers?.length ?? updates.memberCount ?? assignment?.memberCount,
+                    memberCount: updates.memberCount ?? updates.workers?.length ?? assignment?.memberCount,
                     workers: updates.workers,
                     vehicles: updates.vehicles,
                     meetingTime: updates.meetingTime,

@@ -257,7 +257,7 @@ export default function ProjectForm({
         // メンバー数分のダミー配列を作成
         const workers = formData.memberCount > 0
             ? Array.from({ length: formData.memberCount }, (_, i) => `メンバー${i + 1}`)
-            : undefined;
+            : [];
 
         // 日程はカレンダーの日付を使用
         const startDate = initialData?.startDate || defaultDate || new Date();
@@ -286,6 +286,7 @@ export default function ProjectForm({
             createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : undefined,
             startDate: startDate,
             assignedEmployeeId: initialData?.assignedEmployeeId || defaultEmployeeId || 'unassigned',
+            memberCount: formData.memberCount,
             workers: workers,
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
             vehicles: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
