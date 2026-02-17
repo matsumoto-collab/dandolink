@@ -126,7 +126,15 @@ export default function DesktopCalendarView({
                                 const isSaturday = day.dayOfWeek === 6;
                                 const isSunday = day.dayOfWeek === 0;
                                 const dayEvents = events.filter(event => formatDateKey(event.startDate) === dateKey && event.assignedEmployeeId !== 'unassigned');
-                                const assignedCount = dayEvents.reduce((sum, event) => sum + (event.workers?.length || 0), 0);
+                                // 職長ごとに最大人数のみ計上
+                                const byForeman = new Map<string, number[]>();
+                                dayEvents.forEach(event => {
+                                    const key = event.assignedEmployeeId!;
+                                    if (!byForeman.has(key)) byForeman.set(key, []);
+                                    byForeman.get(key)!.push(event.workers?.length || event.memberCount || 0);
+                                });
+                                let assignedCount = 0;
+                                byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                                 const totalHours = dayEvents.reduce((sum, event) => sum + (event.estimatedHours ?? 8), 0);
                                 const vacationCount = getVacationEmployees(dateKey).length;
                                 const remainingCount = totalMembers - assignedCount - vacationCount;

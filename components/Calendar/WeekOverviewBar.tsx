@@ -27,9 +27,17 @@ export default function WeekOverviewBar({
             const dateKey = formatDateKey(day.date);
             const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey);
             const eventCount = dayEvents.length;
-            const assignedWorkers = dayEvents
+            // 職長ごとにグルーピングし、各職長の最大人数のみ計上（同一チームの移動を二重カウントしない）
+            const byForeman = new Map<string, number[]>();
+            dayEvents
                 .filter(e => e.assignedEmployeeId !== 'unassigned')
-                .reduce((sum, e) => sum + (e.workers?.length || 0), 0);
+                .forEach(e => {
+                    const key = e.assignedEmployeeId!;
+                    if (!byForeman.has(key)) byForeman.set(key, []);
+                    byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
+                });
+            let assignedWorkers = 0;
+            byForeman.forEach(counts => { assignedWorkers += Math.max(...counts); });
             const totalHours = dayEvents
                 .filter(e => e.assignedEmployeeId !== 'unassigned')
                 .reduce((sum, e) => sum + (e.estimatedHours ?? 8), 0);
