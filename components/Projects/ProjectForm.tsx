@@ -133,16 +133,29 @@ export default function ProjectForm({
         const targetDate = initialData?.startDate || defaultDate || new Date();
         const dateKey = formatDateKey(targetDate);
 
-        // 同じ日付の全案件を取得
+        // 同じ日付の全案件を取得（編集中の案件は除外）
         const sameDateProjects = projects.filter(p => {
             const pDateKey = formatDateKey(p.startDate);
             return pDateKey === dateKey && p.id !== initialData?.id;
         });
 
-        // 使用中のメンバー数を合計
-        const usedMembers = sameDateProjects.reduce((sum, p) => {
-            return sum + (p.workers?.length || 0);
-        }, 0);
+        // 職長ごとにグルーピングし、最大人数のみ計上（WeekOverviewBarと同じロジック）
+        const byForeman = new Map<string, number[]>();
+        sameDateProjects
+            .filter(p => p.assignedEmployeeId && p.assignedEmployeeId !== 'unassigned')
+            .forEach(p => {
+                const key = p.assignedEmployeeId!;
+                if (!byForeman.has(key)) byForeman.set(key, []);
+                byForeman.get(key)!.push(p.workers?.length || 0);
+            });
+        let usedMembers = 0;
+        byForeman.forEach(counts => { usedMembers += Math.max(...counts); });
+
+        // 未割り当て案件の人数も加算
+        const unassignedUsed = sameDateProjects
+            .filter(p => !p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned')
+            .reduce((sum, p) => sum + (p.workers?.length || 0), 0);
+        usedMembers += unassignedUsed;
 
         // 総メンバー数（マスターデータから取得）
         return TOTAL_MEMBERS - usedMembers;
