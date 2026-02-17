@@ -66,7 +66,7 @@ export const contactPersonSchema = z.object({
     name: z.string().min(1, '担当者名は必須です'),
     position: z.string().optional(),
     phone: phoneSchema,
-    email: z.string().email('有効なメールアドレスを入力してください').optional().nullable(),
+    email: z.string().email('有効なメールアドレスを入力してください').or(z.literal('')).optional().nullable(),
 });
 
 export const createCustomerSchema = z.object({
@@ -76,7 +76,7 @@ export const createCustomerSchema = z.object({
         .max(200, '会社名は200文字以内で入力してください'),
     shortName: z.string().max(50, '略称は50文字以内で入力してください').optional().nullable(),
     contactPersons: z.array(contactPersonSchema).optional().nullable(),
-    email: z.string().email('有効なメールアドレスを入力してください').optional().nullable(),
+    email: z.string().email('有効なメールアドレスを入力してください').or(z.literal('')).optional().nullable(),
     phone: phoneSchema,
     fax: phoneSchema,
     address: z.string().max(500, '住所は500文字以内で入力してください').optional().nullable(),
