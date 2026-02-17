@@ -304,6 +304,7 @@ export default function ProjectForm({
     };
 
     return (
+        <>
         <form onSubmit={handleSubmit} className="space-y-4">
             {/* 現場名 */}
             <div>
@@ -377,13 +378,6 @@ export default function ProjectForm({
                     </div>
                 )}
 
-                {/* 新規顧客登録モーダル */}
-                <CustomerModal
-                    isOpen={showNewCustomerModal}
-                    onClose={() => setShowNewCustomerModal(false)}
-                    onSubmit={handleNewCustomerSubmit}
-                    title="新規顧客登録"
-                />
             </div>
 
             {/* 工事種別（ラジオボタン） */}
@@ -701,5 +695,14 @@ export default function ProjectForm({
                 </button>
             </div>
         </form>
+
+        {/* 新規顧客登録モーダル（formの外に配置してネスト回避） */}
+        <CustomerModal
+            isOpen={showNewCustomerModal}
+            onClose={() => setShowNewCustomerModal(false)}
+            onSubmit={handleNewCustomerSubmit}
+            title="新規顧客登録"
+        />
+        </>
     );
 }

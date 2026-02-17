@@ -26,7 +26,7 @@ export default function CustomerModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[60]">
+        <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[70]">
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 {/* ヘッダー */}
                 <div className="sticky top-0 bg-slate-800 text-white px-6 py-4 flex items-center justify-between rounded-t-lg">
