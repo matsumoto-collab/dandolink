@@ -33,6 +33,7 @@ export function useProjects() {
     const deleteProjectStore = useCalendarStore((state) => state.deleteProject);
     const getProjectByIdStore = useCalendarStore((state) => state.getProjectById);
     const getCalendarEventsStore = useCalendarStore((state) => state.getCalendarEvents);
+    const fetchCellRemarksStore = useCalendarStore((state) => state.fetchCellRemarks);
 
     // Use ref for date range to avoid callback recreation
     const currentDateRangeRef = useRef<{ start: string; end: string } | null>(null);
@@ -65,7 +66,13 @@ export function useProjects() {
 
         currentDateRangeRef.current = { start: startStr, end: endStr };
         await fetchAssignmentsStore(startStr, endStr);
-    }, [fetchAssignmentsStore]);
+
+        // Fetch cell remarks if not initialized
+        // Note: Currently fetching all remarks. In the future, this should be filtered by date range.
+        if (!useCalendarStore.getState().cellRemarksInitialized) {
+            fetchCellRemarksStore();
+        }
+    }, [fetchAssignmentsStore, fetchCellRemarksStore]);
 
     // Supabase Realtime subscription
     useEffect(() => {

@@ -4,6 +4,7 @@ import { WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import DraggableEventCard from './DraggableEventCard';
 import DroppableCell from './DroppableCell';
+import CellRemarkInput from './CellRemarkInput';
 import { X, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface EmployeeRowComponentProps {
@@ -154,6 +155,11 @@ export default function EmployeeRowComponent({
                                 />
                             );
                         })}
+                        <CellRemarkInput
+                            foremanId={row.employeeId}
+                            dateKey={dateKey}
+                            isReadOnly={isReadOnly}
+                        />
                     </DroppableCell>
                 );
             })}

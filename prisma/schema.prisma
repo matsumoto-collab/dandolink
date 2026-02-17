@@ -309,6 +309,20 @@ model CalendarRemark {
   @@schema("public")
 }
 
+model CellRemark {
+  id        String   @id @default(uuid())
+  foremanId String
+  dateKey   String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([foremanId, dateKey])
+  @@index([foremanId])
+  @@index([dateKey])
+  @@schema("public")
+}
+
 model VacationRecord {
   id          String   @id @default(uuid())
   dateKey     String   @unique

@@ -109,6 +109,11 @@ export interface CalendarState {
     remarks: { [dateKey: string]: string };
     remarksLoading: boolean;
     remarksInitialized: boolean;
+
+    // Cell Remarks (Foreman x Date remarks)
+    cellRemarks: { [key: string]: string };
+    cellRemarksLoading: boolean;
+    cellRemarksInitialized: boolean;
 }
 
 export interface CalendarActions {
@@ -157,6 +162,11 @@ export interface CalendarActions {
     fetchRemarks: () => Promise<void>;
     getRemark: (dateKey: string) => string;
     setRemark: (dateKey: string, text: string) => Promise<void>;
+
+    // Cell Remarks (Foreman x Date remarks)
+    fetchCellRemarks: () => Promise<void>;
+    getCellRemark: (foremanId: string, dateKey: string) => string;
+    setCellRemark: (foremanId: string, dateKey: string, text: string) => Promise<void>;
 
     // Reset
     reset: () => void;

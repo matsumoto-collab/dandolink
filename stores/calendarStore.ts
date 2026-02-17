@@ -8,6 +8,7 @@ import { createDailyReportSlice } from './calendarSlices/dailyReportSlice';
 import { createAssignmentSlice } from './calendarSlices/assignmentSlice';
 import { createVacationSlice } from './calendarSlices/vacationSlice';
 import { createRemarkSlice } from './calendarSlices/remarkSlice';
+import { createCellRemarkSlice } from './calendarSlices/cellRemarkSlice';
 
 const initialState: CalendarState = {
     projectMasters: [],
@@ -30,6 +31,9 @@ const initialState: CalendarState = {
     remarks: {},
     remarksLoading: false,
     remarksInitialized: false,
+    cellRemarks: {},
+    cellRemarksLoading: false,
+    cellRemarksInitialized: false,
 };
 
 export const useCalendarStore = create<CalendarStore>()(
@@ -40,6 +44,7 @@ export const useCalendarStore = create<CalendarStore>()(
         ...createAssignmentSlice(...a),
         ...createVacationSlice(...a),
         ...createRemarkSlice(...a),
+        ...createCellRemarkSlice(...a),
         reset: () => a[0](initialState),
     }))
 );
@@ -66,3 +71,7 @@ export const selectVacationsInitialized = (state: CalendarStore) => state.vacati
 export const selectRemarks = (state: CalendarStore) => state.remarks;
 export const selectRemarksLoading = (state: CalendarStore) => state.remarksLoading;
 export const selectRemarksInitialized = (state: CalendarStore) => state.remarksInitialized;
+
+export const selectCellRemarks = (state: CalendarStore) => state.cellRemarks;
+export const selectCellRemarksLoading = (state: CalendarStore) => state.cellRemarksLoading;
+export const selectCellRemarksInitialized = (state: CalendarStore) => state.cellRemarksInitialized;
