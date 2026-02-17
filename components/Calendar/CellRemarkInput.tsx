@@ -24,11 +24,6 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
         }
     }, [savedRemark, isEditing]);
 
-    const handleFocus = () => {
-        if (isReadOnly) return;
-        setIsEditing(true);
-    };
-
     const handleBlur = () => {
         setIsEditing(false);
         if (value !== savedRemark) {
@@ -39,7 +34,10 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
     const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            textareaRef.current?.blur();
+            setIsEditing(false); // Blur will handle save
+            if (value !== savedRemark) {
+                setCellRemark(foremanId, dateKey, value);
+            }
         } else if (e.key === 'Escape') {
             setValue(savedRemark); // キャンセルして直前の保存値に戻す
             setIsEditing(false);
@@ -56,29 +54,36 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
         <div
             className="mt-auto px-1 pb-1 w-full"
             data-cell-remark // DroppableCellのクリック伝播防止用
-            onClick={(e) => e.stopPropagation()}
+            onClick={(e) => {
+                e.stopPropagation();
+                if (!isEditing && !isReadOnly) {
+                    setIsEditing(true);
+                }
+            }}
         >
-            <textarea
-                ref={textareaRef}
-                value={value}
-                onChange={handleChange}
-                onFocus={handleFocus}
-                onBlur={handleBlur}
-                onKeyDown={handleKeyDown}
-                readOnly={isReadOnly}
-                placeholder={isReadOnly ? '' : 'メモ...'}
-                rows={1}
-                className={`
-                    w-full text-[10px] leading-tight bg-transparent resize-none overflow-hidden
-                    placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-300 rounded
-                    ${isEditing ? 'bg-white shadow-sm min-h-[40px] z-10 relative' : 'hover:bg-gray-100/50 min-h-[20px] truncate'}
-                    ${value ? 'text-gray-700' : 'text-gray-400'}
-                `}
-                style={{
-                    height: isEditing ? 'auto' : '20px',
-                    minHeight: isEditing ? '40px' : '20px'
-                }}
-            />
+            {isEditing ? (
+                <textarea
+                    ref={textareaRef}
+                    autoFocus
+                    value={value}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    onKeyDown={handleKeyDown}
+                    rows={2}
+                    className="w-full p-1 text-xs resize-none border border-blue-400 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white shadow-sm"
+                    placeholder="メモ..."
+                    style={{ minHeight: '40px' }}
+                />
+            ) : (
+                <div
+                    className={`
+                        w-full text-xs whitespace-pre-wrap break-words rounded px-1
+                        ${value ? 'text-gray-700 hover:bg-gray-100/50 cursor-text' : 'text-gray-400 h-[20px]'}
+                    `}
+                >
+                    {value || (isReadOnly ? null : <span className="opacity-50 text-[10px]">メモ...</span>)}
+                </div>
+            )}
         </div>
     );
 }
