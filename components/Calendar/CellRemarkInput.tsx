@@ -62,14 +62,10 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
         <>
             <div
                 ref={triggerRef}
-                className="mt-auto w-full flex justify-end"
+                className="mt-auto w-full"
                 data-cell-remark
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* 
-                  1. メモがある場合: プレビューバーを表示
-                  2. メモがない場合: group-hover で鉛筆アイコンを表示
-                */}
                 {savedRemark ? (
                     <>
                         <div
@@ -82,14 +78,16 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                         <div className="h-2 w-full" />
                     </>
                 ) : !isReadOnly && (
-                    <button
-                        onClick={handleStartEdit}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
-                        title="メモを追加"
-                        aria-label="メモを追加"
-                    >
-                        <Pencil className="w-3 h-3" />
-                    </button>
+                    <div className="flex justify-end">
+                        <button
+                            onClick={handleStartEdit}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                            title="メモを追加"
+                            aria-label="メモを追加"
+                        >
+                            <Pencil className="w-3 h-3" />
+                        </button>
+                    </div>
                 )}
             </div>
 
