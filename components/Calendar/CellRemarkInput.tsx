@@ -60,6 +60,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
 
     return (
         <>
+            {/* data-cell-remark 内は stopPropagation → メモ操作のみ */}
             <div
                 ref={triggerRef}
                 className="mt-auto w-full"
@@ -67,16 +68,12 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                 onClick={(e) => e.stopPropagation()}
             >
                 {savedRemark ? (
-                    <>
-                        <div
-                            onClick={handleStartEdit}
-                            className="w-full text-[10px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-yellow-50 text-gray-700 border border-yellow-200 hover:bg-yellow-100 transition-colors whitespace-pre-wrap break-words"
-                        >
-                            {savedRemark}
-                        </div>
-                        {/* クリック領域確保用スペース */}
-                        <div className="h-6 w-full" />
-                    </>
+                    <div
+                        onClick={handleStartEdit}
+                        className="w-full text-[10px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-yellow-50 text-gray-700 border border-yellow-200 hover:bg-yellow-100 transition-colors whitespace-pre-wrap break-words"
+                    >
+                        {savedRemark}
+                    </div>
                 ) : !isReadOnly && (
                     <div className="flex justify-end">
                         <button
@@ -90,6 +87,8 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                     </div>
                 )}
             </div>
+            {/* data-cell-remark の外 → クリックが DroppableCell に伝わり新規案件モーダルが開く */}
+            {savedRemark && <div className="h-6 w-full" />}
 
             {/* Portal Popover */}
             {isEditing && createPortal(
