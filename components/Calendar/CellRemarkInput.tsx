@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { Pencil, X, Check } from 'lucide-react';
