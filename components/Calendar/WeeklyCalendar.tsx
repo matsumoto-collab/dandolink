@@ -247,6 +247,23 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
             if (modalInitialData.id) {
                 await updateProjectWithConflictHandling(modalInitialData.id, projectData);
             } else {
+                // 新規作成時: 対象セルの既存案件の最大sortOrder+1をセット（重複を防ぐ）
+                if (!projectData.workSchedules?.length) {
+                    const targetEmployeeId = projectData.assignedEmployeeId;
+                    const targetDate = projectData.startDate instanceof Date ? projectData.startDate : new Date(projectData.startDate!);
+                    if (targetEmployeeId && targetDate) {
+                        const targetDateKey = formatDateKey(targetDate);
+                        const targetCellProjects = projectsRef.current.filter(p =>
+                            p.assignedEmployeeId === targetEmployeeId &&
+                            formatDateKey(p.startDate) === targetDateKey
+                        );
+                        const maxSortOrder = targetCellProjects.reduce(
+                            (max, p) => Math.max(max, p.sortOrder ?? 0),
+                            -1
+                        );
+                        projectData = { ...projectData, sortOrder: maxSortOrder + 1 };
+                    }
+                }
                 await addProject(projectData);
             }
         } finally {

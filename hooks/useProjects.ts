@@ -90,7 +90,8 @@ export function useProjects() {
                         { event: '*', schema: 'public', table: 'ProjectAssignment' },
                         () => {
                             if (!isUpdatingRef.current) {
-                                fetchAssignmentsStore();
+                                const range = currentDateRangeRef.current;
+                                fetchAssignmentsStore(range?.start, range?.end);
                             }
                         }
                     )
@@ -99,7 +100,8 @@ export function useProjects() {
                         { event: '*', schema: 'public', table: 'ProjectMaster' },
                         () => {
                             if (!isUpdatingRef.current) {
-                                fetchAssignmentsStore();
+                                const range = currentDateRangeRef.current;
+                                fetchAssignmentsStore(range?.start, range?.end);
                             }
                         }
                     )
