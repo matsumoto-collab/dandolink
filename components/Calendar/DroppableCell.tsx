@@ -44,6 +44,7 @@ export default function DroppableCell({ id, children, dayOfWeek, events, onClick
             data-testid="calendar-cell"
             onClick={handleClick}
             className={`
+        relative group
         flex-1 min-w-[100px] sm:min-w-[140px] min-h-[80px] sm:min-h-[120px] border-r border-gray-200 p-1
         transition-all duration-200
         ${isSaturday ? 'bg-blue-50/40' : isSunday ? 'bg-red-50/40' : 'bg-white'}
