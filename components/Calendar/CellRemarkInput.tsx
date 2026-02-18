@@ -71,17 +71,16 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                   2. メモがない場合: group-hover で鉛筆アイコンを表示
                 */}
                 {savedRemark ? (
-                    <div
-                        onClick={handleStartEdit}
-                        className={`
-                            w-full text-[10px] px-1 py-0.5 rounded truncate cursor-pointer mt-1
-                            bg-yellow-50 text-gray-700 border border-yellow-200 hover:bg-yellow-100
-                            transition-colors
-                        `}
-                        title={savedRemark}
-                    >
-                        {savedRemark}
-                    </div>
+                    <>
+                        <div
+                            onClick={handleStartEdit}
+                            className="w-full text-[10px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-yellow-50 text-gray-700 border border-yellow-200 hover:bg-yellow-100 transition-colors whitespace-pre-wrap break-words"
+                        >
+                            {savedRemark}
+                        </div>
+                        {/* クリック領域確保用スペース */}
+                        <div className="h-2 w-full" />
+                    </>
                 ) : !isReadOnly && (
                     <button
                         onClick={handleStartEdit}
