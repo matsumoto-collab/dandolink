@@ -75,7 +75,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                             {savedRemark}
                         </div>
                         {/* クリック領域確保用スペース */}
-                        <div className="h-2 w-full" />
+                        <div className="h-6 w-full" />
                     </>
                 ) : !isReadOnly && (
                     <div className="flex justify-end">
