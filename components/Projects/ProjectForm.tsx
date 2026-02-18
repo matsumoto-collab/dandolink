@@ -52,7 +52,7 @@ export default function ProjectForm({
             : initialData?.createdBy
                 ? [initialData.createdBy]
                 : [], // 案件担当者(複数選択)
-        memberCount: initialData?.workers?.length || 0, // メンバー数
+        memberCount: initialData?.memberCount ?? initialData?.workers?.length ?? 0, // メンバー数
         estimatedHours: initialData?.estimatedHours ?? 8, // 予定作業時間（デフォルト8h）
         selectedVehicles: initialData?.isDispatchConfirmed && initialData?.confirmedVehicleIds?.length
             ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
