@@ -88,7 +88,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                 )}
             </div>
             {/* data-cell-remark の外 → クリックが DroppableCell に伝わり新規案件モーダルが開く */}
-            {savedRemark && <div className="h-6 w-full" />}
+            <div className="h-6 w-full" />
 
             {/* Portal Popover */}
             {isEditing && createPortal(
