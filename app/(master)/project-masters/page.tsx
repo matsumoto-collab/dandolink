@@ -5,9 +5,7 @@ import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { Plus, Edit, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, Building } from 'lucide-react';
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
-import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
-import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
-import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
+import ProjectMasterDetailPanel from '@/components/ProjectMaster/ProjectMasterDetailPanel';
 import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
@@ -180,12 +178,6 @@ export default function ProjectMasterListPage() {
         } catch (error) {
             console.error('Failed to update status:', error);
         }
-    };
-
-    const formatDate = (date: Date | string | undefined) => {
-        if (!date) return '-';
-        const d = new Date(date);
-        return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
     };
 
     const getConstructionContentLabel = (content: string | undefined) => {
@@ -417,67 +409,8 @@ export default function ProjectMasterListPage() {
 
                                     {/* Expanded details */}
                                     {expandedId === pm.id && (
-                                        <div className="px-3 md:px-4 pb-3 md:pb-4 border-t border-gray-100">
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-3 md:mt-4 text-sm">
-                                                <div>
-                                                    <span className="text-gray-500">組立日</span>
-                                                    <p className="font-medium">{formatDate(pm.assemblyDate)}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">解体日</span>
-                                                    <p className="font-medium">{formatDate(pm.demolitionDate)}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">予定組立人工</span>
-                                                    <p className="font-medium">{pm.estimatedAssemblyWorkers || '-'}名</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">予定解体人工</span>
-                                                    <p className="font-medium">{pm.estimatedDemolitionWorkers || '-'}名</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">面積</span>
-                                                    <p className="font-medium">{pm.area ? `${pm.area}m²` : '-'}</p>
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">請負金額</span>
-                                                    <p className="font-medium">{pm.contractAmount ? `¥${pm.contractAmount.toLocaleString()}` : '-'}</p>
-                                                </div>
-                                                <div className="sm:col-span-2">
-                                                    <span className="text-gray-500">備考</span>
-                                                    <p className="font-medium">{pm.remarks || '-'}</p>
-                                                </div>
-                                            </div>
-                                            {pm.assignments && pm.assignments.length > 0 && (
-                                                <div className="mt-4">
-                                                    <span className="text-sm text-gray-500">最近の配置:</span>
-                                                    <div className="flex flex-wrap gap-2 mt-2">
-                                                        {pm.assignments.slice(0, 5).map((a) => (
-                                                            <span
-                                                                key={a.id}
-                                                                className="px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded"
-                                                            >
-                                                                {formatDate(a.date)}
-                                                            </span>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* 作業履歴 */}
-                                            <div className="mt-4">
-                                                <WorkHistoryDisplay projectMasterId={pm.id} />
-                                            </div>
-
-                                            {/* 利益サマリー */}
-                                            <div className="mt-4">
-                                                <ProjectProfitDisplay projectMasterId={pm.id} />
-                                            </div>
-
-                                            {/* 添付ファイル */}
-                                            <div className="mt-4">
-                                                <ProjectMasterFilesView projectMasterId={pm.id} />
-                                            </div>
+                                        <div className="px-3 md:px-4 pb-4 md:pb-6 border-t border-gray-100 pt-3 md:pt-4">
+                                            <ProjectMasterDetailPanel pm={pm} />
                                         </div>
                                     )}
                                 </>

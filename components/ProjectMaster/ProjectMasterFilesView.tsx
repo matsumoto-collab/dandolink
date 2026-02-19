@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { FileText, Loader2, Paperclip } from 'lucide-react';
+import { FileText, Loader2 } from 'lucide-react';
 
 const CATEGORIES = [
     { key: 'survey',      label: '現調写真' },
@@ -10,6 +10,8 @@ const CATEGORIES = [
     { key: 'other',       label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
 ] as const;
+
+type CategoryKey = typeof CATEGORIES[number]['key'];
 
 interface ProjectMasterFileData {
     id: string;
@@ -34,6 +36,7 @@ function formatFileSize(bytes: number): string {
 export default function ProjectMasterFilesView({ projectMasterId }: ProjectMasterFilesViewProps) {
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<CategoryKey>('survey');
 
     const fetchFiles = useCallback(async () => {
         try {
@@ -41,6 +44,11 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
             if (!res.ok) return;
             const data = await res.json();
             setFiles(data);
+            // ファイルがあるカテゴリの最初のタブを自動選択
+            if (data.length > 0) {
+                const firstCat = CATEGORIES.find(c => data.some((f: ProjectMasterFileData) => f.category === c.key));
+                if (firstCat) setActiveTab(firstCat.key);
+            }
         } catch {
             // サイレントフェイル
         } finally {
@@ -56,35 +64,55 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
         return (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>ファイル読み込み中...</span>
+                <span>読み込み中...</span>
             </div>
         );
     }
 
-    if (files.length === 0) return null;
+    if (files.length === 0) {
+        return <p className="text-sm text-gray-400 py-1">ファイルがありません</p>;
+    }
 
-    // カテゴリごとにファイルをグループ化（ファイルがあるカテゴリのみ表示）
-    const grouped = CATEGORIES
-        .map(cat => ({ ...cat, files: files.filter(f => f.category === cat.key) }))
-        .filter(g => g.files.length > 0);
+    const tabFiles = files.filter(f => f.category === activeTab);
 
     return (
         <div className="space-y-3">
-            <div className="flex items-center gap-1.5">
-                <Paperclip className="w-3.5 h-3.5 text-gray-500" />
-                <span className="text-xs font-medium text-gray-600">
-                    添付ファイル（{files.length}件）
-                </span>
+            {/* カテゴリタブ */}
+            <div className="flex gap-1 flex-wrap">
+                {CATEGORIES.map(({ key, label }) => {
+                    const count = files.filter(f => f.category === key).length;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setActiveTab(key)}
+                            className={`
+                                px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+                                ${activeTab === key
+                                    ? 'bg-slate-700 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+                            `}
+                        >
+                            {label}
+                            {count > 0 && (
+                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === key ? 'bg-white/20' : 'bg-gray-300'}`}>
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
             </div>
 
-            {grouped.map(({ key, label, files: catFiles }) => (
-                <div key={key}>
-                    <p className="text-xs text-gray-500 font-medium mb-1.5">{label}</p>
-
-                    {/* 画像サムネイル */}
-                    {catFiles.some(f => f.fileType === 'image') && (
-                        <div className="flex flex-wrap gap-2 mb-1.5">
-                            {catFiles
+            {/* 選択中カテゴリのファイル */}
+            {tabFiles.length === 0 ? (
+                <p className="text-sm text-gray-400 py-1">このカテゴリにファイルはありません</p>
+            ) : (
+                <div className="space-y-2">
+                    {/* 画像グリッド */}
+                    {tabFiles.some(f => f.fileType === 'image') && (
+                        <div className="flex flex-wrap gap-2">
+                            {tabFiles
                                 .filter(f => f.fileType === 'image' && f.signedUrl)
                                 .map(file => (
                                     <a
@@ -98,7 +126,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                         <img
                                             src={file.signedUrl!}
                                             alt={file.fileName}
-                                            className="w-16 h-16 object-cover rounded border border-gray-200 hover:opacity-80 transition-opacity"
+                                            className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity"
                                         />
                                     </a>
                                 ))
@@ -107,21 +135,25 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                     )}
 
                     {/* PDFリスト */}
-                    {catFiles.filter(f => f.fileType === 'pdf').map(file => (
+                    {tabFiles.filter(f => f.fileType === 'pdf').map(file => (
                         <a
                             key={file.id}
                             href={file.signedUrl ?? '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 text-sm text-blue-600 hover:underline mb-1"
+                            className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
                         >
-                            <FileText className="w-4 h-4 text-red-400 shrink-0" />
-                            <span className="truncate">{file.fileName}</span>
-                            <span className="text-xs text-gray-400 shrink-0">{formatFileSize(file.fileSize)}</span>
+                            <div className="w-8 h-8 flex items-center justify-center bg-red-50 rounded border border-red-100 shrink-0">
+                                <FileText className="w-4 h-4 text-red-400" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm text-blue-600 hover:underline truncate">{file.fileName}</p>
+                                <p className="text-xs text-gray-400">{formatFileSize(file.fileSize)}</p>
+                            </div>
                         </a>
                     ))}
                 </div>
-            ))}
+            )}
         </div>
     );
 }
