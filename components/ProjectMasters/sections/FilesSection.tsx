@@ -2,9 +2,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import imageCompression from 'browser-image-compression';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+
+const IMAGE_COMPRESSION_OPTIONS = {
+    maxSizeMB: 1,
+    maxWidthOrHeight: 1600,
+    useWebWorker: true,
+    initialQuality: 0.8,
+} as const;
 
 type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction';
 
@@ -73,9 +81,20 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         setUploading(true);
         let successCount = 0;
 
-        for (const file of Array.from(fileList)) {
+        for (const rawFile of Array.from(fileList)) {
+            // 画像はアップロード前に圧縮（最大1600px・1MB・80%品質）
+            let file: File = rawFile;
+            if (rawFile.type.startsWith('image/') && rawFile.size > 500 * 1024) {
+                try {
+                    file = await imageCompression(rawFile, IMAGE_COMPRESSION_OPTIONS);
+                } catch {
+                    // 圧縮失敗時は元ファイルをそのまま使用
+                    file = rawFile;
+                }
+            }
+
             const formData = new FormData();
-            formData.append('file', file);
+            formData.append('file', file, rawFile.name); // ファイル名は元のまま維持
             formData.append('category', activeTab);
 
             try {
@@ -135,9 +154,23 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center py-6 text-gray-400">
-                <Loader2 className="w-5 h-5 animate-spin mr-2" />
-                <span className="text-sm">読み込み中...</span>
+            <div className="space-y-3">
+                {/* タブスケルトン */}
+                <div className="flex gap-1">
+                    {[80, 48, 48, 64, 72].map((w, i) => (
+                        <div key={i} className={`h-7 rounded-full bg-gray-200 animate-pulse`} style={{ width: w }} />
+                    ))}
+                </div>
+                {/* ファイル行スケルトン */}
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="w-12 h-12 rounded bg-gray-200 animate-pulse shrink-0" />
+                        <div className="flex-1 space-y-2">
+                            <div className="h-3.5 bg-gray-200 animate-pulse rounded w-2/3" />
+                            <div className="h-3 bg-gray-100 animate-pulse rounded w-1/3" />
+                        </div>
+                    </div>
+                ))}
             </div>
         );
     }

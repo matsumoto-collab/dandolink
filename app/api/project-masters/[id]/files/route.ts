@@ -36,16 +36,40 @@ export async function GET(_req: NextRequest, context: RouteContext) {
             orderBy: { createdAt: 'desc' },
         });
 
-        // 署名付きURLを生成（1時間有効）
+        // 署名付きURLをキャッシュ利用（有効期限5分超ならDB値を再利用）
+        const now = new Date();
+        const BUFFER_MS = 5 * 60 * 1000;
+        const SIGNED_URL_TTL = 3600; // 1時間
+
         const filesWithUrls = await Promise.all(
             files.map(async (file) => {
+                // キャッシュが有効な場合はそのまま返す
+                if (
+                    file.signedUrl &&
+                    file.signedUrlExpiresAt &&
+                    file.signedUrlExpiresAt.getTime() - now.getTime() > BUFFER_MS
+                ) {
+                    return { ...file };
+                }
+
+                // 期限切れ or 未生成 → Supabase で再生成してDBを更新
                 const { data } = await supabaseAdmin.storage
                     .from(STORAGE_BUCKET)
-                    .createSignedUrl(file.storagePath, 3600);
-                return {
-                    ...file,
-                    signedUrl: data?.signedUrl ?? null,
-                };
+                    .createSignedUrl(file.storagePath, SIGNED_URL_TTL);
+
+                const newSignedUrl = data?.signedUrl ?? null;
+                const newExpiresAt = newSignedUrl
+                    ? new Date(now.getTime() + SIGNED_URL_TTL * 1000)
+                    : null;
+
+                if (newSignedUrl) {
+                    await prisma.projectMasterFile.update({
+                        where: { id: file.id },
+                        data: { signedUrl: newSignedUrl, signedUrlExpiresAt: newExpiresAt },
+                    });
+                }
+
+                return { ...file, signedUrl: newSignedUrl };
             })
         );
 
@@ -105,7 +129,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
             return errorResponse('ファイルのアップロードに失敗しました', 500);
         }
 
-        // DBにメタデータを保存
+        // 署名付きURLを生成（DBにもキャッシュ保存）
+        const uploadedAt = new Date();
+        const SIGNED_URL_TTL = 3600;
+        const { data: signedData } = await supabaseAdmin.storage
+            .from(STORAGE_BUCKET)
+            .createSignedUrl(storagePath, SIGNED_URL_TTL);
+
+        const newSignedUrl = signedData?.signedUrl ?? null;
+        const newExpiresAt = newSignedUrl
+            ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
+            : null;
+
+        // DBにメタデータ＋URLキャッシュを保存
         const projectMasterFile = await prisma.projectMasterFile.create({
             data: {
                 id: fileId,
@@ -118,16 +154,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 description: description || null,
                 uploadedBy: session!.user.id,
                 category,
+                signedUrl: newSignedUrl,
+                signedUrlExpiresAt: newExpiresAt,
             },
         });
 
-        // 署名付きURLを生成
-        const { data: signedData } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .createSignedUrl(storagePath, 3600);
-
         return NextResponse.json(
-            { ...projectMasterFile, signedUrl: signedData?.signedUrl ?? null },
+            { ...projectMasterFile, signedUrl: newSignedUrl },
             { status: 201 }
         );
     } catch (error) {

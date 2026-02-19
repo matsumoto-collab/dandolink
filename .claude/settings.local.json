@@ -68,7 +68,8 @@
       "Bash(git status:*)",
       "Bash(cd:*)",
       "Bash(git show:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(dir \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\app\\\\api\\\\project-masters\" /b /s)"
     ]
   }
 }

@@ -808,9 +808,11 @@ model ProjectMasterFile {
   mimeType        String
   fileSize        Int
   description     String?
-  uploadedBy      String?
-  category        String        @default("other")
-  createdAt       DateTime      @default(now())
+  uploadedBy          String?
+  category            String        @default("other")
+  signedUrl           String?
+  signedUrlExpiresAt  DateTime?
+  createdAt           DateTime      @default(now())
 
   @@index([projectMasterId])
   @@schema("public")

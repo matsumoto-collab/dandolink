@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Loader2 } from 'lucide-react';
+import { FileText } from 'lucide-react';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 const CATEGORIES = [
@@ -66,9 +66,19 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
 
     if (isLoading) {
         return (
-            <div className="flex items-center gap-2 text-gray-400 text-sm py-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>読み込み中...</span>
+            <div className="space-y-2">
+                {/* タブスケルトン */}
+                <div className="flex gap-1">
+                    {[80, 48, 48, 64, 72].map((w, i) => (
+                        <div key={i} className="h-6 rounded-full bg-gray-200 animate-pulse" style={{ width: w }} />
+                    ))}
+                </div>
+                {/* 画像グリッドスケルトン */}
+                <div className="flex flex-wrap gap-2">
+                    {[1, 2, 3, 4].map(i => (
+                        <div key={i} className="w-20 h-20 rounded-lg bg-gray-200 animate-pulse" />
+                    ))}
+                </div>
             </div>
         );
     }
