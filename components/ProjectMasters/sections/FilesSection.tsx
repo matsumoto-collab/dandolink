@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction';
 
@@ -45,6 +46,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const [uploading, setUploading] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isDragOver, setIsDragOver] = useState(false);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchFiles = useCallback(async () => {
@@ -126,6 +129,9 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     };
 
     const tabFiles = files.filter(f => f.category === activeTab);
+    const tabImages = tabFiles
+        .filter(f => f.fileType === 'image' && f.signedUrl)
+        .map(f => ({ src: f.signedUrl!, alt: f.fileName }));
 
     if (isLoading) {
         return (
@@ -214,7 +220,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                         >
                             {/* サムネイル or PDF アイコン */}
                             {file.fileType === 'image' && file.signedUrl ? (
-                                <a href={file.signedUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const idx = tabImages.findIndex(img => img.src === file.signedUrl);
+                                        setLightboxIndex(idx >= 0 ? idx : 0);
+                                        setLightboxOpen(true);
+                                    }}
+                                    className="shrink-0 hover:opacity-80 transition-opacity"
+                                >
                                     <div className="relative w-12 h-12 overflow-hidden rounded border border-gray-200">
                                         <Image
                                             src={file.signedUrl}
@@ -224,7 +238,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                             className="object-cover"
                                         />
                                     </div>
-                                </a>
+                                </button>
                             ) : (
                                 <div className="shrink-0 w-12 h-12 flex items-center justify-center bg-red-50 rounded border border-red-100">
                                     <FileText className="w-6 h-6 text-red-400" />
@@ -269,6 +283,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                         </div>
                     ))}
                 </div>
+            )}
+
+            {/* ライトボックス */}
+            {lightboxOpen && (
+                <ImageLightbox
+                    images={tabImages}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxOpen(false)}
+                />
             )}
         </div>
     );

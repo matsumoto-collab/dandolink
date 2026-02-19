@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { FileText, Loader2 } from 'lucide-react';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 const CATEGORIES = [
     { key: 'survey',      label: '現調写真' },
@@ -38,6 +39,8 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<CategoryKey>('survey');
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
 
     const fetchFiles = useCallback(async () => {
         try {
@@ -75,6 +78,9 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     }
 
     const tabFiles = files.filter(f => f.category === activeTab);
+    const tabImages = tabFiles
+        .filter(f => f.fileType === 'image' && f.signedUrl)
+        .map(f => ({ src: f.signedUrl!, alt: f.fileName }));
 
     return (
         <div className="space-y-3">
@@ -116,12 +122,15 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                             {tabFiles
                                 .filter(f => f.fileType === 'image' && f.signedUrl)
                                 .map(file => (
-                                    <a
+                                    <button
                                         key={file.id}
-                                        href={file.signedUrl!}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                        type="button"
                                         title={file.fileName}
+                                        onClick={() => {
+                                            const idx = tabImages.findIndex(img => img.src === file.signedUrl);
+                                            setLightboxIndex(idx >= 0 ? idx : 0);
+                                            setLightboxOpen(true);
+                                        }}
                                     >
                                         <div className="relative w-20 h-20 overflow-hidden rounded-lg border border-gray-200 hover:opacity-80 transition-opacity">
                                             <Image
@@ -132,7 +141,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                                 className="object-cover"
                                             />
                                         </div>
-                                    </a>
+                                    </button>
                                 ))
                             }
                         </div>
@@ -157,6 +166,15 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                         </a>
                     ))}
                 </div>
+            )}
+
+            {/* ライトボックス */}
+            {lightboxOpen && (
+                <ImageLightbox
+                    images={tabImages}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxOpen(false)}
+                />
             )}
         </div>
     );
