@@ -67,9 +67,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const projectMaster = await prisma.projectMaster.findUnique({ where: { id } });
         if (!projectMaster) return notFoundResponse('案件マスター');
 
+        const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction'];
+
         const formData = await req.formData();
         const file = formData.get('file') as File | null;
         const description = formData.get('description') as string | null;
+        const categoryRaw = formData.get('category') as string | null;
+        const category = categoryRaw && VALID_CATEGORIES.includes(categoryRaw) ? categoryRaw : 'other';
 
         if (!file) return errorResponse('ファイルが選択されていません', 400);
         if (!ALLOWED_MIME_TYPES.includes(file.type)) {
@@ -113,6 +117,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 fileSize: file.size,
                 description: description || null,
                 uploadedBy: session!.user.id,
+                category,
             },
         });
 

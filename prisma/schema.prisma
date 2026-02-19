@@ -809,6 +809,7 @@ model ProjectMasterFile {
   fileSize        Int
   description     String?
   uploadedBy      String?
+  category        String        @default("other")
   createdAt       DateTime      @default(now())
 
   @@index([projectMasterId])

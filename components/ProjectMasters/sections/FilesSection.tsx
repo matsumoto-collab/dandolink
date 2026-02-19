@@ -4,6 +4,16 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction';
+
+const CATEGORIES: { key: FileCategory; label: string }[] = [
+    { key: 'survey',      label: '現調写真' },
+    { key: 'assembly',    label: '組立' },
+    { key: 'demolition',  label: '解体' },
+    { key: 'other',       label: 'その他' },
+    { key: 'instruction', label: '指示書/図面' },
+];
+
 interface ProjectMasterFileData {
     id: string;
     fileName: string;
@@ -11,6 +21,7 @@ interface ProjectMasterFileData {
     fileType: string;
     mimeType: string;
     fileSize: number;
+    category: string;
     description: string | null;
     createdAt: string;
     signedUrl: string | null;
@@ -29,6 +40,7 @@ function formatFileSize(bytes: number): string {
 export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<FileCategory>('survey');
     const [uploading, setUploading] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [isDragOver, setIsDragOver] = useState(false);
@@ -56,11 +68,11 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
         setUploading(true);
         let successCount = 0;
-        let errorCount = 0;
 
         for (const file of Array.from(fileList)) {
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('category', activeTab);
 
             try {
                 const res = await fetch(`/api/project-masters/${projectMasterId}/files`, {
@@ -70,13 +82,11 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 if (!res.ok) {
                     const err = await res.json();
                     toast.error(`${file.name}: ${err.error || 'アップロード失敗'}`);
-                    errorCount++;
                 } else {
                     successCount++;
                 }
             } catch {
                 toast.error(`${file.name}: アップロードに失敗しました`);
-                errorCount++;
             }
         }
 
@@ -84,6 +94,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
             toast.success(`${successCount}件のファイルをアップロードしました`);
             await fetchFiles();
         }
+        // input をリセット（同じファイルを再アップロードできるよう）
+        if (fileInputRef.current) fileInputRef.current.value = '';
         setUploading(false);
     };
 
@@ -112,6 +124,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         handleUpload(e.dataTransfer.files);
     };
 
+    const tabFiles = files.filter(f => f.category === activeTab);
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center py-6 text-gray-400">
@@ -123,6 +137,33 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
     return (
         <div className="space-y-3">
+            {/* カテゴリタブ */}
+            <div className="flex gap-1 flex-wrap">
+                {CATEGORIES.map(({ key, label }) => {
+                    const count = files.filter(f => f.category === key).length;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setActiveTab(key)}
+                            className={`
+                                px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+                                ${activeTab === key
+                                    ? 'bg-slate-700 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+                            `}
+                        >
+                            {label}
+                            {count > 0 && (
+                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === key ? 'bg-white/20' : 'bg-gray-300'}`}>
+                                    {count}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
             {/* アップロードエリア */}
             <div
                 onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
@@ -152,23 +193,25 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 ) : (
                     <div className="flex items-center justify-center gap-2 text-gray-500">
                         <Upload className="w-4 h-4" />
-                        <span className="text-sm">クリックまたはドラッグ&ドロップでアップロード</span>
+                        <span className="text-sm">
+                            「{CATEGORIES.find(c => c.key === activeTab)?.label}」にアップロード
+                        </span>
                     </div>
                 )}
                 <p className="text-xs text-gray-400 mt-1">画像（JPG・PNG等）・PDF対応 / 最大20MB</p>
             </div>
 
             {/* ファイル一覧 */}
-            {files.length === 0 ? (
+            {tabFiles.length === 0 ? (
                 <p className="text-sm text-gray-400 text-center py-2">ファイルがありません</p>
             ) : (
                 <div className="space-y-2">
-                    {files.map((file) => (
+                    {tabFiles.map((file) => (
                         <div
                             key={file.id}
                             className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
                         >
-                            {/* ファイルタイプアイコン or サムネイル */}
+                            {/* サムネイル or PDF アイコン */}
                             {file.fileType === 'image' && file.signedUrl ? (
                                 <a href={file.signedUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
                                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -201,12 +244,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     </span>
                                 )}
                                 <p className="text-xs text-gray-400">
-                                    {formatFileSize(file.fileSize)} ·{' '}
-                                    {new Date(file.createdAt).toLocaleDateString('ja-JP')}
+                                    {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString('ja-JP')}
                                 </p>
-                                {file.description && (
-                                    <p className="text-xs text-gray-500 mt-0.5 truncate">{file.description}</p>
-                                )}
                             </div>
 
                             {/* 削除ボタン */}
