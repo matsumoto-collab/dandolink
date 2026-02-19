@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { FileText, Folder } from 'lucide-react';
+import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 const CATEGORIES = [
     { key: 'survey',      label: '現調写真' },
@@ -10,6 +11,8 @@ const CATEGORIES = [
     { key: 'other',       label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
 ] as const;
+
+type CategoryKey = typeof CATEGORIES[number]['key'];
 
 interface ProjectMasterFileData {
     id: string;
@@ -34,6 +37,8 @@ function formatFileSize(bytes: number): string {
 export default function ProjectMasterFilesView({ projectMasterId }: ProjectMasterFilesViewProps) {
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [lightboxImages, setLightboxImages] = useState<{ src: string; alt: string }[]>([]);
+    const [lightboxOpen, setLightboxOpen] = useState(false);
 
     const fetchFiles = useCallback(async () => {
         try {
@@ -52,46 +57,56 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
         fetchFiles();
     }, [fetchFiles]);
 
+    const openLightbox = (categoryKey: CategoryKey) => {
+        const images = files
+            .filter(f => f.category === categoryKey && f.fileType === 'image' && f.signedUrl)
+            .map(f => ({ src: f.signedUrl!, alt: f.fileName }));
+        if (images.length === 0) return;
+        setLightboxImages(images);
+        setLightboxOpen(true);
+    };
+
     if (isLoading) {
         return (
             <div className="grid grid-cols-2 gap-2">
-                {[1, 2, 3].map(i => (
+                {[1, 2, 3, 4, 5].map(i => (
                     <div key={i} className="h-10 rounded-lg bg-gray-200 animate-pulse" />
                 ))}
             </div>
         );
     }
 
-    if (files.length === 0) {
-        return <p className="text-sm text-gray-400 py-1">ファイルがありません</p>;
-    }
-
     const pdfFiles = files.filter(f => f.fileType === 'pdf');
-    const hasImages = files.some(f => f.fileType === 'image');
 
     return (
         <div className="space-y-3">
-            {/* フォルダ枚数サマリー */}
-            {hasImages && (
-                <div className="grid grid-cols-2 gap-2">
-                    {CATEGORIES.map(({ key, label }) => {
-                        const count = files.filter(f => f.category === key && f.fileType === 'image').length;
-                        if (count === 0) return null;
-                        return (
-                            <div
-                                key={key}
-                                className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200"
-                            >
-                                <Folder className="w-4 h-4 text-slate-400 shrink-0" />
-                                <span className="text-sm text-gray-700 flex-1 truncate">{label}</span>
-                                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
-                                    {count}枚
-                                </span>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+            {/* フォルダ一覧（全カテゴリ常時表示） */}
+            <div className="grid grid-cols-2 gap-2">
+                {CATEGORIES.map(({ key, label }) => {
+                    const count = files.filter(f => f.category === key && f.fileType === 'image').length;
+                    const hasImages = count > 0;
+                    return (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => openLightbox(key)}
+                            disabled={!hasImages}
+                            className={`
+                                flex items-center gap-2 px-3 py-2 rounded-lg border text-left transition-colors
+                                ${hasImages
+                                    ? 'bg-gray-50 border-gray-200 hover:bg-slate-100 hover:border-slate-300 cursor-pointer'
+                                    : 'bg-gray-50 border-gray-100 opacity-50 cursor-default'}
+                            `}
+                        >
+                            <Folder className={`w-4 h-4 shrink-0 ${hasImages ? 'text-slate-500' : 'text-gray-300'}`} />
+                            <span className="text-sm text-gray-700 flex-1 truncate">{label}</span>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${hasImages ? 'bg-slate-100 text-slate-600' : 'bg-gray-100 text-gray-400'}`}>
+                                {count}枚
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
 
             {/* PDFリスト */}
             {pdfFiles.length > 0 && (
@@ -114,6 +129,15 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                         </a>
                     ))}
                 </div>
+            )}
+
+            {/* ライトボックス */}
+            {lightboxOpen && (
+                <ImageLightbox
+                    images={lightboxImages}
+                    initialIndex={0}
+                    onClose={() => setLightboxOpen(false)}
+                />
             )}
         </div>
     );
