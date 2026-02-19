@@ -177,8 +177,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
     return (
         <div className="space-y-3">
-            {/* カテゴリタブ */}
-            <div className="flex gap-1 flex-wrap">
+            {/* カテゴリタブ（モバイルで横スクロール） */}
+            <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-hide">
                 {CATEGORIES.map(({ key, label }) => {
                     const count = files.filter(f => f.category === key).length;
                     return (
@@ -187,10 +187,10 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                             type="button"
                             onClick={() => setActiveTab(key)}
                             className={`
-                                px-3 py-1.5 rounded-full text-xs font-medium transition-colors
+                                shrink-0 px-3 py-2 rounded-full text-xs font-medium transition-colors min-h-[36px]
                                 ${activeTab === key
                                     ? 'bg-slate-700 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'}
                             `}
                         >
                             {label}
