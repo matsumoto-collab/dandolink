@@ -126,7 +126,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         if (uploadError) {
             console.error('Storage upload error:', uploadError);
-            return errorResponse('ファイルのアップロードに失敗しました', 500);
+            return errorResponse(`ファイルのアップロードに失敗しました: ${uploadError.message}`, 500);
         }
 
         // 署名付きURLを生成（DBにもキャッシュ保存）
