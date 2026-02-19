@@ -107,10 +107,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
             return errorResponse('ファイルサイズが20MBを超えています', 400);
         }
 
-        // ファイル名をサニタイズ
-        const sanitizedName = file.name.replace(/[^a-zA-Z0-9._\-\u3000-\u9fff\u30a0-\u30ff\u3040-\u309f]/g, '_');
+        // ストレージパスはUUID+拡張子のみ（日本語等のUnicodeはSupabase Storageで無効なキーになるため）
+        // 元のファイル名はDBのfileNameフィールドに保存する
         const fileId = randomUUID();
-        const storagePath = `${id}/${fileId}_${sanitizedName}`;
+        const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+        const storagePath = `${id}/${fileId}.${ext}`;
         const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
 
         // Supabase Storage へアップロード
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         if (uploadError) {
             console.error('Storage upload error:', uploadError);
-            return errorResponse(`ファイルのアップロードに失敗しました: ${uploadError.message}`, 500);
+            return errorResponse('ファイルのアップロードに失敗しました', 500);
         }
 
         // 署名付きURLを生成（DBにもキャッシュ保存）
