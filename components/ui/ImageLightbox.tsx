@@ -60,11 +60,13 @@ export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxPr
                         </span>
                     )}
                     <button
+                        type="button"
                         onClick={onClose}
-                        className="p-2 hover:bg-white/10 rounded-full transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] hover:bg-white/10 rounded-lg transition-colors"
                         aria-label="閉じる"
                     >
-                        <X className="w-5 h-5 text-white" />
+                        <X className="w-6 h-6 text-white" />
+                        <span className="text-white text-sm sm:hidden">閉じる</span>
                     </button>
                 </div>
             </div>
@@ -74,8 +76,9 @@ export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxPr
                 {/* 前へ */}
                 {hasMultiple && (
                     <button
+                        type="button"
                         onClick={goPrev}
-                        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
+                        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-3 min-w-[44px] min-h-[44px] bg-black/50 hover:bg-black/70 rounded-full transition-colors"
                         aria-label="前の画像"
                     >
                         <ChevronLeft className="w-6 h-6 text-white" />
@@ -113,8 +116,9 @@ export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxPr
                 {/* 次へ */}
                 {hasMultiple && (
                     <button
+                        type="button"
                         onClick={goNext}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 bg-black/50 hover:bg-black/70 rounded-full transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-3 min-w-[44px] min-h-[44px] bg-black/50 hover:bg-black/70 rounded-full transition-colors"
                         aria-label="次の画像"
                     >
                         <ChevronRight className="w-6 h-6 text-white" />
@@ -125,22 +129,25 @@ export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxPr
             {/* ズームコントロール */}
             <div className="flex items-center justify-center gap-3 py-3 shrink-0">
                 <button
+                    type="button"
                     onClick={() => transformRef.current?.zoomOut()}
-                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                    className="p-3 min-w-[44px] min-h-[44px] bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                     aria-label="縮小"
                 >
                     <ZoomOut className="w-5 h-5 text-white" />
                 </button>
                 <button
+                    type="button"
                     onClick={() => transformRef.current?.resetTransform()}
-                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                    className="p-3 min-w-[44px] min-h-[44px] bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                     aria-label="リセット"
                 >
                     <Maximize className="w-5 h-5 text-white" />
                 </button>
                 <button
+                    type="button"
                     onClick={() => transformRef.current?.zoomIn()}
-                    className="p-2 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                    className="p-3 min-w-[44px] min-h-[44px] bg-white/10 hover:bg-white/20 rounded-full transition-colors"
                     aria-label="拡大"
                 >
                     <ZoomIn className="w-5 h-5 text-white" />
