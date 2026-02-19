@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
 import { FileText, Loader2 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -122,12 +123,15 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                         rel="noopener noreferrer"
                                         title={file.fileName}
                                     >
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                            src={file.signedUrl!}
-                                            alt={file.fileName}
-                                            className="w-20 h-20 object-cover rounded-lg border border-gray-200 hover:opacity-80 transition-opacity"
-                                        />
+                                        <div className="relative w-20 h-20 overflow-hidden rounded-lg border border-gray-200 hover:opacity-80 transition-opacity">
+                                            <Image
+                                                src={file.signedUrl!}
+                                                alt={file.fileName}
+                                                fill
+                                                sizes="80px"
+                                                className="object-cover"
+                                            />
+                                        </div>
                                     </a>
                                 ))
                             }

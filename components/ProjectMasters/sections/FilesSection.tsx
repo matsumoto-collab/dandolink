@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -214,12 +215,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                             {/* サムネイル or PDF アイコン */}
                             {file.fileType === 'image' && file.signedUrl ? (
                                 <a href={file.signedUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={file.signedUrl}
-                                        alt={file.fileName}
-                                        className="w-12 h-12 object-cover rounded border border-gray-200"
-                                    />
+                                    <div className="relative w-12 h-12 overflow-hidden rounded border border-gray-200">
+                                        <Image
+                                            src={file.signedUrl}
+                                            alt={file.fileName}
+                                            fill
+                                            sizes="48px"
+                                            className="object-cover"
+                                        />
+                                    </div>
                                 </a>
                             ) : (
                                 <div className="shrink-0 w-12 h-12 flex items-center justify-center bg-red-50 rounded border border-red-100">
