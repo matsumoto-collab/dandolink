@@ -62,6 +62,7 @@ model ProjectMaster {
   otherExpenses              Decimal? @db.Decimal(12, 2)
   subcontractorCost          Decimal? @db.Decimal(12, 2)
   assignments                ProjectAssignment[]
+  files                      ProjectMasterFile[]
 
   @@index([title])
   @@index([customerId])
@@ -794,6 +795,23 @@ model profiles {
   email        String?
   users        users     @relation(fields: [id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
+  @@schema("public")
+}
+
+model ProjectMasterFile {
+  id              String        @id @default(uuid())
+  projectMasterId String
+  projectMaster   ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  fileName        String
+  storagePath     String
+  fileType        String
+  mimeType        String
+  fileSize        Int
+  description     String?
+  uploadedBy      String?
+  createdAt       DateTime      @default(now())
+
+  @@index([projectMasterId])
   @@schema("public")
 }
 

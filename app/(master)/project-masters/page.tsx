@@ -7,6 +7,7 @@ import { Plus, Edit, Trash2, Search, Calendar, ChevronDown, ChevronUp, MapPin, B
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
+import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
@@ -302,6 +303,7 @@ export default function ProjectMasterListPage() {
                                             setFormData(DEFAULT_FORM_DATA);
                                         }}
                                         isEdit={true}
+                                        projectMasterId={pm.id}
                                     />
                                 </div>
                             ) : (
@@ -470,6 +472,11 @@ export default function ProjectMasterListPage() {
                                             {/* 利益サマリー */}
                                             <div className="mt-4">
                                                 <ProjectProfitDisplay projectMasterId={pm.id} />
+                                            </div>
+
+                                            {/* 添付ファイル */}
+                                            <div className="mt-4">
+                                                <ProjectMasterFilesView projectMasterId={pm.id} />
                                             </div>
                                         </div>
                                     )}

@@ -12,6 +12,7 @@ import { AddressSection } from './sections/AddressSection';
 import { ConstructionSection } from './sections/ConstructionSection';
 import { ScaffoldingSection } from './sections/ScaffoldingSection';
 import { RemarksSection } from './sections/RemarksSection';
+import { FilesSection } from './sections/FilesSection';
 
 export interface ProjectMasterFormData {
     title: string;
@@ -67,15 +68,17 @@ interface ProjectMasterFormProps {
     onSubmit: () => void;
     onCancel: () => void;
     isEdit?: boolean;
+    projectMasterId?: string;
 }
 
-export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, isEdit = false }: ProjectMasterFormProps) {
+export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, isEdit = false, projectMasterId }: ProjectMasterFormProps) {
     const [expandedSections, setExpandedSections] = useState({
         basic: true,
         address: true,
         construction: true,
         scaffolding: false,
         remarks: true,
+        files: true,
     });
 
     const toggleSection = (section: keyof typeof expandedSections) => {
@@ -128,6 +131,17 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
             >
                 <RemarksSection formData={formData} setFormData={setFormData} />
             </CollapsibleSection>
+
+            {/* ファイル添付セクション（編集モードのみ） */}
+            {isEdit && projectMasterId && (
+                <CollapsibleSection
+                    title="ファイル・写真"
+                    isExpanded={expandedSections.files}
+                    onToggle={() => toggleSection('files')}
+                >
+                    <FilesSection projectMasterId={projectMasterId} />
+                </CollapsibleSection>
+            )}
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-2 pt-4 border-t">
