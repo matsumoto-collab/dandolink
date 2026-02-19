@@ -1,9 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
-import { FileText } from 'lucide-react';
-import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { FileText, Folder } from 'lucide-react';
 
 const CATEGORIES = [
     { key: 'survey',      label: '現調写真' },
@@ -12,8 +10,6 @@ const CATEGORIES = [
     { key: 'other',       label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
 ] as const;
-
-type CategoryKey = typeof CATEGORIES[number]['key'];
 
 interface ProjectMasterFileData {
     id: string;
@@ -38,9 +34,6 @@ function formatFileSize(bytes: number): string {
 export default function ProjectMasterFilesView({ projectMasterId }: ProjectMasterFilesViewProps) {
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<CategoryKey>('survey');
-    const [lightboxOpen, setLightboxOpen] = useState(false);
-    const [lightboxIndex, setLightboxIndex] = useState(0);
 
     const fetchFiles = useCallback(async () => {
         try {
@@ -48,11 +41,6 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
             if (!res.ok) return;
             const data = await res.json();
             setFiles(data);
-            // ファイルがあるカテゴリの最初のタブを自動選択
-            if (data.length > 0) {
-                const firstCat = CATEGORIES.find(c => data.some((f: ProjectMasterFileData) => f.category === c.key));
-                if (firstCat) setActiveTab(firstCat.key);
-            }
         } catch {
             // サイレントフェイル
         } finally {
@@ -66,19 +54,10 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
 
     if (isLoading) {
         return (
-            <div className="space-y-2">
-                {/* タブスケルトン */}
-                <div className="flex gap-1">
-                    {[80, 48, 48, 64, 72].map((w, i) => (
-                        <div key={i} className="h-6 rounded-full bg-gray-200 animate-pulse" style={{ width: w }} />
-                    ))}
-                </div>
-                {/* 画像グリッドスケルトン */}
-                <div className="flex flex-wrap gap-2">
-                    {[1, 2, 3, 4].map(i => (
-                        <div key={i} className="w-20 h-20 rounded-lg bg-gray-200 animate-pulse" />
-                    ))}
-                </div>
+            <div className="grid grid-cols-2 gap-2">
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="h-10 rounded-lg bg-gray-200 animate-pulse" />
+                ))}
             </div>
         );
     }
@@ -87,78 +66,37 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
         return <p className="text-sm text-gray-400 py-1">ファイルがありません</p>;
     }
 
-    const tabFiles = files.filter(f => f.category === activeTab);
-    const tabImages = tabFiles
-        .filter(f => f.fileType === 'image' && f.signedUrl)
-        .map(f => ({ src: f.signedUrl!, alt: f.fileName }));
+    const pdfFiles = files.filter(f => f.fileType === 'pdf');
+    const hasImages = files.some(f => f.fileType === 'image');
 
     return (
         <div className="space-y-3">
-            {/* カテゴリタブ */}
-            <div className="flex gap-1 flex-wrap">
-                {CATEGORIES.map(({ key, label }) => {
-                    const count = files.filter(f => f.category === key).length;
-                    return (
-                        <button
-                            key={key}
-                            type="button"
-                            onClick={() => setActiveTab(key)}
-                            className={`
-                                px-3 py-1.5 rounded-full text-xs font-medium transition-colors
-                                ${activeTab === key
-                                    ? 'bg-slate-700 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}
-                            `}
-                        >
-                            {label}
-                            {count > 0 && (
-                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === key ? 'bg-white/20' : 'bg-gray-300'}`}>
-                                    {count}
+            {/* フォルダ枚数サマリー */}
+            {hasImages && (
+                <div className="grid grid-cols-2 gap-2">
+                    {CATEGORIES.map(({ key, label }) => {
+                        const count = files.filter(f => f.category === key && f.fileType === 'image').length;
+                        if (count === 0) return null;
+                        return (
+                            <div
+                                key={key}
+                                className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200"
+                            >
+                                <Folder className="w-4 h-4 text-slate-400 shrink-0" />
+                                <span className="text-sm text-gray-700 flex-1 truncate">{label}</span>
+                                <span className="text-xs font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full shrink-0">
+                                    {count}枚
                                 </span>
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
 
-            {/* 選択中カテゴリのファイル */}
-            {tabFiles.length === 0 ? (
-                <p className="text-sm text-gray-400 py-1">このカテゴリにファイルはありません</p>
-            ) : (
-                <div className="space-y-2">
-                    {/* 画像グリッド */}
-                    {tabFiles.some(f => f.fileType === 'image') && (
-                        <div className="flex flex-wrap gap-2">
-                            {tabFiles
-                                .filter(f => f.fileType === 'image' && f.signedUrl)
-                                .map(file => (
-                                    <button
-                                        key={file.id}
-                                        type="button"
-                                        title={file.fileName}
-                                        onClick={() => {
-                                            const idx = tabImages.findIndex(img => img.src === file.signedUrl);
-                                            setLightboxIndex(idx >= 0 ? idx : 0);
-                                            setLightboxOpen(true);
-                                        }}
-                                    >
-                                        <div className="relative w-20 h-20 overflow-hidden rounded-lg border border-gray-200 hover:opacity-80 transition-opacity">
-                                            <Image
-                                                src={file.signedUrl!}
-                                                alt={file.fileName}
-                                                fill
-                                                sizes="80px"
-                                                className="object-cover"
-                                            />
-                                        </div>
-                                    </button>
-                                ))
-                            }
-                        </div>
-                    )}
-
-                    {/* PDFリスト */}
-                    {tabFiles.filter(f => f.fileType === 'pdf').map(file => (
+            {/* PDFリスト */}
+            {pdfFiles.length > 0 && (
+                <div className="space-y-1.5">
+                    {pdfFiles.map(file => (
                         <a
                             key={file.id}
                             href={file.signedUrl ?? '#'}
@@ -176,15 +114,6 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                         </a>
                     ))}
                 </div>
-            )}
-
-            {/* ライトボックス */}
-            {lightboxOpen && (
-                <ImageLightbox
-                    images={tabImages}
-                    initialIndex={lightboxIndex}
-                    onClose={() => setLightboxOpen(false)}
-                />
             )}
         </div>
     );
