@@ -158,8 +158,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         }
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
-    // ポーリング: 20秒ごとに最新データを再取得（Supabase Realtime の補完）
-    // 別デバイス間の同期（モバイル→PC など）を確実にするため
+    // ポーリング: 5秒ごとに最新データを再取得（Supabase Realtime broadcast の補完）
+    // broadcast が届かなかった場合のフォールバック
     useEffect(() => {
         if (status !== 'authenticated' || !isMounted) return;
         const intervalId = setInterval(() => {
@@ -168,7 +168,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
             const rangeStart = addDays(weekStart, -7);
             const rangeEnd = addDays(weekEnd, 7);
             forceRefreshRange(rangeStart, rangeEnd);
-        }, 20000);
+        }, 5000);
         return () => clearInterval(intervalId);
     }, [status, isMounted, currentDate, forceRefreshRange]);
 

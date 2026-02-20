@@ -53,6 +53,9 @@ export function useProjects() {
     // Supabase Realtime が同一ブラウザ内でブロックされる問題を補完する
     const broadcastRef = useRef<BroadcastChannel | null>(null);
 
+    // Supabase Realtime broadcast channel: 別デバイスへの即時通知用
+    const syncChannelRef = useRef<RealtimeChannel | null>(null);
+
     // Reset state when unauthenticated
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -176,7 +179,37 @@ export function useProjects() {
                             }
                         }
                     )
+                    // Broadcast: 別デバイスからの即時通知を受け取る（WAL処理をバイパス）
+                    .on(
+                        'broadcast',
+                        { event: 'assignment_updated' },
+                        ({ payload }) => {
+                            if (!isUpdatingRef.current && payload?.id) {
+                                fetchAndUpsertAssignment(payload.id as string);
+                            }
+                        }
+                    )
+                    .on(
+                        'broadcast',
+                        { event: 'assignments_batch_updated' },
+                        ({ payload }) => {
+                            if (!isUpdatingRef.current && Array.isArray(payload?.ids)) {
+                                (payload.ids as string[]).forEach((assignmentId: string) => fetchAndUpsertAssignment(assignmentId));
+                            }
+                        }
+                    )
+                    .on(
+                        'broadcast',
+                        { event: 'assignment_deleted' },
+                        ({ payload }) => {
+                            if (!isUpdatingRef.current && payload?.id) {
+                                removeAssignmentByIdStore(payload.id as string);
+                            }
+                        }
+                    )
                     .subscribe();
+
+                syncChannelRef.current = channel;
             } catch (error) {
                 console.error('Failed to setup realtime:', error);
             }
@@ -185,6 +218,7 @@ export function useProjects() {
         setupRealtime();
 
         return () => {
+            syncChannelRef.current = null;
             const channelToRemove = channel;
             if (channelToRemove) {
                 import('@/lib/supabase')
@@ -249,6 +283,12 @@ export function useProjects() {
             await updateProjectStore(id, updates);
             // 同一デバイスの別タブへ即時通知（PC↔モバイル連携）
             broadcastRef.current?.postMessage({ type: 'assignment_updated', id });
+            // 別デバイスへ即時通知（Supabase Realtime broadcast - WALより高速）
+            syncChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'assignment_updated',
+                payload: { id },
+            });
         } finally {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
@@ -265,8 +305,15 @@ export function useProjects() {
         setIsUpdating(true);
         try {
             await updateProjectsStore(updates);
+            const ids = updates.map(u => u.id);
             // 同一デバイスの別タブへ即時通知
-            broadcastRef.current?.postMessage({ type: 'assignments_batch_updated', ids: updates.map(u => u.id) });
+            broadcastRef.current?.postMessage({ type: 'assignments_batch_updated', ids });
+            // 別デバイスへ即時通知（Supabase Realtime broadcast）
+            syncChannelRef.current?.send({
+                type: 'broadcast',
+                event: 'assignments_batch_updated',
+                payload: { ids },
+            });
         } finally {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
@@ -281,6 +328,12 @@ export function useProjects() {
         await deleteProjectStore(id);
         // 同一デバイスの別タブへ即時通知
         broadcastRef.current?.postMessage({ type: 'assignment_deleted', id });
+        // 別デバイスへ即時通知（Supabase Realtime broadcast）
+        syncChannelRef.current?.send({
+            type: 'broadcast',
+            event: 'assignment_deleted',
+            payload: { id },
+        });
     }, [deleteProjectStore]);
 
     const getProjectById = useCallback((id: string) => {
