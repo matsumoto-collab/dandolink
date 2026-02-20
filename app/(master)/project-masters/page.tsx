@@ -4,8 +4,10 @@ import React, { useState, useMemo } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building } from 'lucide-react';
-import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
+
+import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
+import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
@@ -15,9 +17,6 @@ export default function ProjectMasterListPage() {
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
     const [openModalInEditMode, setOpenModalInEditMode] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-
-    // 新規作成用フォームデータ
-    const [createFormData, setCreateFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
 
     // Filter and sort
     const filteredMasters = useMemo(() => {
@@ -45,54 +44,31 @@ export default function ProjectMasterListPage() {
         );
     }, [projectMasters, searchTerm, filterStatus]);
 
-    const handleCreate = async () => {
-        if (!createFormData.title.trim()) {
-            toast.error('現場名は必須です');
-            return;
-        }
-        if (!createFormData.constructionContent) {
-            toast.error('工事内容は必須です');
-            return;
-        }
-        if (createFormData.createdBy.length === 0) {
-            toast.error('案件責任者は必須です');
-            return;
-        }
-        if (!createFormData.customerName) {
-            toast.error('元請けは必須です');
-            return;
-        }
-
-        try {
-            await createProjectMaster({
-                title: createFormData.title,
-                customerId: createFormData.customerId || undefined,
-                customerName: createFormData.customerName || undefined,
-                constructionType: 'other',
-                constructionContent: createFormData.constructionContent as ConstructionContentType,
-                status: 'active',
-                postalCode: createFormData.postalCode || undefined,
-                prefecture: createFormData.prefecture || undefined,
-                city: createFormData.city || undefined,
-                location: createFormData.location || undefined,
-                plusCode: createFormData.plusCode || undefined,
-                area: createFormData.area ? parseFloat(createFormData.area) : undefined,
-                areaRemarks: createFormData.areaRemarks || undefined,
-                assemblyDate: createFormData.assemblyDate ? new Date(createFormData.assemblyDate) : undefined,
-                demolitionDate: createFormData.demolitionDate ? new Date(createFormData.demolitionDate) : undefined,
-                estimatedAssemblyWorkers: createFormData.estimatedAssemblyWorkers ? parseInt(createFormData.estimatedAssemblyWorkers) : undefined,
-                estimatedDemolitionWorkers: createFormData.estimatedDemolitionWorkers ? parseInt(createFormData.estimatedDemolitionWorkers) : undefined,
-                contractAmount: createFormData.contractAmount ? parseInt(createFormData.contractAmount) : undefined,
-                scaffoldingSpec: createFormData.scaffoldingSpec,
-                remarks: createFormData.remarks || undefined,
-                createdBy: createFormData.createdBy.length > 0 ? createFormData.createdBy : undefined,
-            });
-            setIsCreating(false);
-            setCreateFormData(DEFAULT_FORM_DATA);
-        } catch (error) {
-            console.error('Failed to create project master:', error);
-            toast.error('案件マスターの作成に失敗しました');
-        }
+    const handleCreate = async (data: ProjectMasterFormData) => {
+        await createProjectMaster({
+            title: data.title,
+            customerId: data.customerId || undefined,
+            customerName: data.customerName || undefined,
+            constructionType: 'other',
+            constructionContent: data.constructionContent as ConstructionContentType,
+            status: 'active',
+            postalCode: data.postalCode || undefined,
+            prefecture: data.prefecture || undefined,
+            city: data.city || undefined,
+            location: data.location || undefined,
+            plusCode: data.plusCode || undefined,
+            area: data.area ? parseFloat(data.area) : undefined,
+            areaRemarks: data.areaRemarks || undefined,
+            assemblyDate: data.assemblyDate ? new Date(data.assemblyDate) : undefined,
+            demolitionDate: data.demolitionDate ? new Date(data.demolitionDate) : undefined,
+            estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
+            estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
+            contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
+            scaffoldingSpec: data.scaffoldingSpec,
+            remarks: data.remarks || undefined,
+            createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
+        });
+        toast.success('案件マスターを作成しました');
     };
 
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
@@ -175,6 +151,11 @@ export default function ProjectMasterListPage() {
 
     return (
         <>
+        <ProjectMasterCreateModal
+            isOpen={isCreating}
+            onClose={() => setIsCreating(false)}
+            onCreate={handleCreate}
+        />
         <ProjectMasterDetailModal
             pm={detailPm}
             onClose={closeModal}
@@ -220,10 +201,7 @@ export default function ProjectMasterListPage() {
 
                     {/* Create Button */}
                     <button
-                        onClick={() => {
-                            setIsCreating(true);
-                            setCreateFormData(DEFAULT_FORM_DATA);
-                        }}
+                        onClick={() => setIsCreating(true)}
                         className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
                     >
                         <Plus className="w-5 h-5" />
@@ -232,23 +210,6 @@ export default function ProjectMasterListPage() {
                     </button>
                 </div>
             </div>
-
-            {/* Create Form */}
-            {isCreating && (
-                <div className="mb-4 md:mb-6 p-3 md:p-6 bg-white rounded-xl shadow-lg border border-gray-200 max-h-[70vh] overflow-y-auto">
-                    <h3 className="text-lg font-bold text-gray-800 mb-4">新規案件マスター作成</h3>
-                    <ProjectMasterForm
-                        formData={createFormData}
-                        setFormData={setCreateFormData}
-                        onSubmit={handleCreate}
-                        onCancel={() => {
-                            setIsCreating(false);
-                            setCreateFormData(DEFAULT_FORM_DATA);
-                        }}
-                        isEdit={false}
-                    />
-                </div>
-            )}
 
             {/* List */}
             <div className="flex-1 overflow-y-auto space-y-3">
