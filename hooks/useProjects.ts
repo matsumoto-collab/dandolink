@@ -296,6 +296,16 @@ export function useProjects() {
         await fetchAssignmentsStore();
     }, [fetchAssignmentsStore]);
 
+    // ポーリング用: 指定範囲を強制再フェッチ（Realtime補完）
+    const forceRefreshRange = useCallback(async (startDate: Date, endDate: Date) => {
+        if (isUpdatingRef.current) return; // 自分が更新中なら跳ばす
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
+        currentDateRangeRef.current = null; // キャッシュをクリアして強制再フェッチ
+        await fetchAssignmentsStore(startStr, endStr);
+        currentDateRangeRef.current = { start: startStr, end: endStr };
+    }, [fetchAssignmentsStore]);
+
     // Subscribe to assignments changes to trigger re-renders
     const assignments = useCalendarStore((state) => state.assignments);
 
@@ -353,5 +363,6 @@ export function useProjects() {
         getCalendarEvents,
         refreshProjects,
         fetchForDateRange,
+        forceRefreshRange,
     };
 }

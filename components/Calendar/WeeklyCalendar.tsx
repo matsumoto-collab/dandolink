@@ -45,7 +45,7 @@ interface WeeklyCalendarProps {
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects } = useProjects();
+    const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
@@ -157,6 +157,20 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
             fetchForDateRange(rangeStart, rangeEnd);
         }
     }, [currentDate, status, isMounted, fetchForDateRange]);
+
+    // ポーリング: 20秒ごとに最新データを再取得（Supabase Realtime の補完）
+    // 別デバイス間の同期（モバイル→PC など）を確実にするため
+    useEffect(() => {
+        if (status !== 'authenticated' || !isMounted) return;
+        const intervalId = setInterval(() => {
+            const weekStart = new Date(currentDate);
+            const weekEnd = addDays(weekStart, 6);
+            const rangeStart = addDays(weekStart, -7);
+            const rangeEnd = addDays(weekEnd, 7);
+            forceRefreshRange(rangeStart, rangeEnd);
+        }, 20000);
+        return () => clearInterval(intervalId);
+    }, [status, isMounted, currentDate, forceRefreshRange]);
 
     // projectsの参照をrefで保持（クロージャの古い値問題を回避）
     const projectsRef = useRef(projects);
