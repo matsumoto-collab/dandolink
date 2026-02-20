@@ -254,12 +254,13 @@ model Manager {
 }
 
 model SystemSettings {
-  id                  String   @id @default("default")
-  totalMembers        Int      @default(20)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  laborDailyRate      Decimal  @default(15000) @db.Decimal(10, 2)
-  standardWorkMinutes Int      @default(480)
+  id                   String   @id @default("default")
+  totalMembers         Int      @default(20)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  laborDailyRate       Decimal  @default(15000) @db.Decimal(10, 2)
+  standardWorkMinutes  Int      @default(480)
+  displayedForemanIds  String   @default("[]")
 
   @@schema("public")
 }

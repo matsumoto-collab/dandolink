@@ -1,4 +1,5 @@
 import { CalendarSlice, CalendarActions, CalendarState, ForemanUser } from './types';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized'> &
     Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
@@ -24,7 +25,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     fetchForemanSettings: async () => {
         set({ foremanSettingsLoading: true });
         try {
-            const response = await fetch('/api/user-settings');
+            const response = await fetch('/api/system-settings/foremen');
             if (response.ok) {
                 const data = await response.json();
                 if (data.displayedForemanIds && data.displayedForemanIds.length > 0) {
@@ -43,22 +44,24 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         if (!displayedForemanIds.includes(employeeId)) {
             const newIds = [...displayedForemanIds, employeeId];
             set({ displayedForemanIds: newIds });
-            await fetch('/api/user-settings', {
+            await fetch('/api/system-settings/foremen', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ displayedForemanIds: newIds }),
             });
+            sendBroadcast('foreman_settings_updated', {});
         }
     },
 
     removeForeman: async (employeeId) => {
         const newIds = get().displayedForemanIds.filter((id) => id !== employeeId);
         set({ displayedForemanIds: newIds });
-        await fetch('/api/user-settings', {
+        await fetch('/api/system-settings/foremen', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ displayedForemanIds: newIds }),
         });
+        sendBroadcast('foreman_settings_updated', {});
     },
 
     moveForeman: async (employeeId, direction) => {
@@ -72,11 +75,12 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         const newIds = [...displayedForemanIds];
         [newIds[currentIndex], newIds[newIndex]] = [newIds[newIndex], newIds[currentIndex]];
         set({ displayedForemanIds: newIds });
-        await fetch('/api/user-settings', {
+        await fetch('/api/system-settings/foremen', {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ displayedForemanIds: newIds }),
         });
+        sendBroadcast('foreman_settings_updated', {});
     },
 
     getAvailableForemen: () => {

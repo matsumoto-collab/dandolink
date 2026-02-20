@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { onBroadcast } from '@/lib/broadcastChannel';
 
 // This hook wraps the Zustand store and handles initialization
 export function useCalendarDisplay() {
@@ -31,12 +32,19 @@ export function useCalendarDisplay() {
         }
     }, [status, isInitialized, fetchForemen, fetchForemanSettings]);
 
-    // 設定未登録ユーザーは全職長をデフォルト表示
+    // グローバル設定が空の場合は全職長をデフォルト表示
     useEffect(() => {
         if (isInitialized && displayedForemanIds.length === 0 && allForemen.length > 0) {
             initializeForemenFromAll();
         }
     }, [isInitialized, displayedForemanIds.length, allForemen.length, initializeForemenFromAll]);
+
+    // 他ユーザーが職長設定を変更したら即時反映
+    useEffect(() => {
+        return onBroadcast('foreman_settings_updated', () => {
+            fetchForemanSettings();
+        });
+    }, [fetchForemanSettings]);
 
     // Wrapper functions for backward compatibility
     const addForeman = useCallback(async (employeeId: string) => {
