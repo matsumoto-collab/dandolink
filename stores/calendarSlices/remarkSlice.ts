@@ -1,4 +1,5 @@
 import { CalendarSlice, CalendarActions, CalendarState } from './types';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 type RemarkSlice = Pick<CalendarState, 'remarks' | 'remarksLoading' | 'remarksInitialized'> &
     Pick<CalendarActions, 'fetchRemarks' | 'getRemark' | 'setRemark'>;
@@ -41,6 +42,7 @@ export const createRemarkSlice: CalendarSlice<RemarkSlice> = (set, get) => ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dateKey, text }),
             });
+            sendBroadcast('remark_updated', { dateKey });
         } catch (error) {
             console.error('Failed to set remark:', error);
             get().fetchRemarks();

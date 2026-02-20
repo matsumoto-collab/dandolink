@@ -6,6 +6,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { Project, CalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 import { useMasterStore } from '@/stores/masterStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 
 // Re-export types for backward compatibility
 export type { Project, CalendarEvent, ProjectAssignment, ProjectMaster } from '@/types/calendar';
@@ -52,9 +53,6 @@ export function useProjects() {
     // BroadcastChannel: 同一デバイスの別タブ（PC↔モバイル）へ変更を通知
     // Supabase Realtime が同一ブラウザ内でブロックされる問題を補完する
     const broadcastRef = useRef<BroadcastChannel | null>(null);
-
-    // Supabase Realtime broadcast channel: 別デバイスへの即時通知用
-    const syncChannelRef = useRef<RealtimeChannel | null>(null);
 
     // Reset state when unauthenticated
     useEffect(() => {
@@ -201,67 +199,34 @@ export function useProjects() {
         };
     }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
 
-    // Supabase Realtime broadcast専用チャンネル（postgres_changesと分離することで干渉を防ぐ）
-    // syncChannelRefはSUBSCRIBED後にセットすることで未接続時の送信失敗を防ぐ
+    // Supabase broadcast シングルトンを初期化し、案件配置・セル備考の受信リスナーを登録
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        let broadcastCh: RealtimeChannel | null = null;
+        initBroadcastChannel();
 
-        const setupBroadcast = async () => {
-            try {
-                const { supabase } = await import('@/lib/supabase');
-                broadcastCh = supabase
-                    .channel('yusystem_broadcast_v1')
-                    .on(
-                        'broadcast',
-                        { event: 'assignment_updated' },
-                        ({ payload }) => {
-                            if (!isUpdatingRef.current && payload?.id) {
-                                fetchAndUpsertAssignment(payload.id as string);
-                            }
-                        }
-                    )
-                    .on(
-                        'broadcast',
-                        { event: 'assignments_batch_updated' },
-                        ({ payload }) => {
-                            if (!isUpdatingRef.current && Array.isArray(payload?.ids)) {
-                                (payload.ids as string[]).forEach((assignmentId: string) => fetchAndUpsertAssignment(assignmentId));
-                            }
-                        }
-                    )
-                    .on(
-                        'broadcast',
-                        { event: 'assignment_deleted' },
-                        ({ payload }) => {
-                            if (!isUpdatingRef.current && payload?.id) {
-                                removeAssignmentByIdStore(payload.id as string);
-                            }
-                        }
-                    )
-                    .subscribe((status) => {
-                        if (status === 'SUBSCRIBED') {
-                            // SUBSCRIBED確認後にrefをセット（これ以降sendが有効になる）
-                            syncChannelRef.current = broadcastCh;
-                        }
-                    });
-            } catch (error) {
-                console.error('Failed to setup broadcast channel:', error);
-            }
-        };
+        const cleanups = [
+            onBroadcast('assignment_updated', (payload) => {
+                if (!isUpdatingRef.current && payload?.id) {
+                    fetchAndUpsertAssignment(payload.id as string);
+                }
+            }),
+            onBroadcast('assignments_batch_updated', (payload) => {
+                if (!isUpdatingRef.current && Array.isArray(payload?.ids)) {
+                    (payload.ids as string[]).forEach((id: string) => fetchAndUpsertAssignment(id));
+                }
+            }),
+            onBroadcast('assignment_deleted', (payload) => {
+                if (!isUpdatingRef.current && payload?.id) {
+                    removeAssignmentByIdStore(payload.id as string);
+                }
+            }),
+            onBroadcast('cell_remark_updated', () => {
+                useCalendarStore.getState().fetchCellRemarks();
+            }),
+        ];
 
-        setupBroadcast();
-
-        return () => {
-            syncChannelRef.current = null;
-            const ch = broadcastCh;
-            if (ch) {
-                import('@/lib/supabase')
-                    .then(({ supabase }) => { supabase.removeChannel(ch); })
-                    .catch(() => {});
-            }
-        };
+        return () => cleanups.forEach(cleanup => cleanup());
     }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore]);
 
     // BroadcastChannel セットアップ（同一デバイスの別タブへ通知）
@@ -316,11 +281,7 @@ export function useProjects() {
             // 同一デバイスの別タブへ即時通知（PC↔モバイル連携）
             broadcastRef.current?.postMessage({ type: 'assignment_updated', id });
             // 別デバイスへ即時通知（Supabase Realtime broadcast - WALより高速）
-            syncChannelRef.current?.send({
-                type: 'broadcast',
-                event: 'assignment_updated',
-                payload: { id },
-            });
+            sendBroadcast('assignment_updated', { id });
         } finally {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
@@ -341,11 +302,7 @@ export function useProjects() {
             // 同一デバイスの別タブへ即時通知
             broadcastRef.current?.postMessage({ type: 'assignments_batch_updated', ids });
             // 別デバイスへ即時通知（Supabase Realtime broadcast）
-            syncChannelRef.current?.send({
-                type: 'broadcast',
-                event: 'assignments_batch_updated',
-                payload: { ids },
-            });
+            sendBroadcast('assignments_batch_updated', { ids });
         } finally {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
@@ -361,11 +318,7 @@ export function useProjects() {
         // 同一デバイスの別タブへ即時通知
         broadcastRef.current?.postMessage({ type: 'assignment_deleted', id });
         // 別デバイスへ即時通知（Supabase Realtime broadcast）
-        syncChannelRef.current?.send({
-            type: 'broadcast',
-            event: 'assignment_deleted',
-            payload: { id },
-        });
+        sendBroadcast('assignment_deleted', { id });
     }, [deleteProjectStore]);
 
     const getProjectById = useCallback((id: string) => {

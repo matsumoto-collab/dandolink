@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ProjectMaster } from '@/types/calendar';
+import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
 
 // Re-export types for backward compatibility
 export type { ProjectMaster } from '@/types/calendar';
@@ -50,7 +51,7 @@ export function useProjectMasters() {
         await deleteProjectMasterStore(id);
     }, [deleteProjectMasterStore]);
 
-    // Supabase Realtime subscription
+    // Supabase Realtime subscription (WAL fallback)
     useRealtimeSubscription({
         table: 'ProjectMaster',
         channelName: 'project-masters-changes-zustand',
@@ -69,6 +70,17 @@ export function useProjectMasters() {
             window.removeEventListener('projectMasterCreated', handleProjectMasterCreated);
         };
     }, [fetchProjectMastersStore]);
+
+    // Broadcast受信: 別デバイスからの即時通知
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+        initBroadcastChannel();
+        const cleanups = [
+            onBroadcast('project_master_updated', () => fetchProjectMastersStore()),
+            onBroadcast('project_master_deleted', () => fetchProjectMastersStore()),
+        ];
+        return () => cleanups.forEach(c => c());
+    }, [status, fetchProjectMastersStore]);
 
     return {
         projectMasters,

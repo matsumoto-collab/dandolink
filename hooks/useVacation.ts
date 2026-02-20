@@ -4,6 +4,7 @@ import { useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
 
 // Re-export types for backward compatibility
 export type { VacationRecord, VacationData } from '@/types/vacation';
@@ -64,7 +65,7 @@ export function useVacation() {
         await setVacationRemarksStore(dateKey, remarks);
     }, [setVacationRemarksStore]);
 
-    // Supabase Realtime subscription
+    // Supabase Realtime subscription (WAL fallback)
     useRealtimeSubscription({
         table: 'VacationRecord',
         channelName: 'vacations-changes-zustand',
@@ -72,6 +73,13 @@ export function useVacation() {
         enabled: status === 'authenticated' && isInitialized,
         debounceMs: 300,
     });
+
+    // Broadcast受信: 別デバイスからの即時通知
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+        initBroadcastChannel();
+        return onBroadcast('vacation_updated', () => fetchVacations());
+    }, [status, fetchVacations]);
 
     return {
         vacations,

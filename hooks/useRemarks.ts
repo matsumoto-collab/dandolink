@@ -4,6 +4,7 @@ import { useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useRemarks() {
@@ -40,13 +41,20 @@ export function useRemarks() {
         await setRemarkStore(dateKey, text);
     }, [setRemarkStore]);
 
-    // Supabase Realtime subscription
+    // Supabase Realtime subscription (WAL fallback)
     useRealtimeSubscription({
         table: 'CalendarRemark',
         channelName: 'remarks-changes-zustand',
         onDataChange: refreshRemarks,
         enabled: status === 'authenticated' && isInitialized,
     });
+
+    // Broadcast受信: 別デバイスからの即時通知
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+        initBroadcastChannel();
+        return onBroadcast('remark_updated', () => fetchRemarks());
+    }, [status, fetchRemarks]);
 
     return {
         remarks,

@@ -1,4 +1,5 @@
 import { CalendarSlice, CalendarActions, CalendarState, parseProjectMasterDates } from './types';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 type ProjectMasterSlice = Pick<CalendarState, 'projectMasters' | 'projectMastersLoading' | 'projectMastersError' | 'projectMastersInitialized'> &
     Pick<CalendarActions, 'fetchProjectMasters' | 'createProjectMaster' | 'updateProjectMaster' | 'deleteProjectMaster' | 'getProjectMasterById'>;
@@ -53,6 +54,7 @@ export const createProjectMasterSlice: CalendarSlice<ProjectMasterSlice> = (set,
         set((state) => ({
             projectMasters: [formatted, ...state.projectMasters],
         }));
+        sendBroadcast('project_master_updated', { id: formatted.id });
         return formatted;
     },
 
@@ -73,6 +75,7 @@ export const createProjectMasterSlice: CalendarSlice<ProjectMasterSlice> = (set,
         set((state) => ({
             projectMasters: state.projectMasters.map((pm) => (pm.id === id ? formatted : pm)),
         }));
+        sendBroadcast('project_master_updated', { id: formatted.id });
         return formatted;
     },
 
@@ -87,6 +90,7 @@ export const createProjectMasterSlice: CalendarSlice<ProjectMasterSlice> = (set,
         set((state) => ({
             projectMasters: state.projectMasters.filter((pm) => pm.id !== id),
         }));
+        sendBroadcast('project_master_deleted', { id });
     },
 
     getProjectMasterById: (id) => get().projectMasters.find((pm) => pm.id === id),

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { DailyReportInput } from '@/types/dailyReport';
+import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
 
 // Re-export types for backward compatibility
 export type { DailyReport, DailyReportInput } from '@/types/dailyReport';
@@ -57,13 +58,33 @@ export function useDailyReports({ autoFetch = false }: { autoFetch?: boolean } =
         await deleteDailyReportStore(id);
     }, [deleteDailyReportStore]);
 
-    // Supabase Realtime subscription - only when autoFetch is enabled (list page)
+    // Supabase Realtime subscription (WAL fallback) - only when autoFetch is enabled (list page)
     useRealtimeSubscription({
         table: 'DailyReport',
         channelName: 'daily-reports-changes-zustand',
         onDataChange: () => fetchDailyReportsStore(),
         enabled: autoFetch && status === 'authenticated' && isInitialLoaded,
     });
+
+    // Broadcast受信: 別デバイスからの即時通知
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+        initBroadcastChannel();
+        const cleanups = [
+            onBroadcast('daily_report_updated', (payload) => {
+                // narrow fetchで差分取得（foremanIdがあれば絞り込み、なければ全件再取得）
+                if (payload?.foremanId) {
+                    fetchDailyReportsStore({ foremanId: payload.foremanId as string });
+                } else {
+                    fetchDailyReportsStore();
+                }
+            }),
+            onBroadcast('daily_report_deleted', () => {
+                fetchDailyReportsStore();
+            }),
+        ];
+        return () => cleanups.forEach(c => c());
+    }, [status, fetchDailyReportsStore]);
 
     return {
         dailyReports,

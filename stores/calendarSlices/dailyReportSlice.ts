@@ -1,4 +1,5 @@
 import { CalendarSlice, CalendarActions, CalendarState, parseDailyReportDates } from './types';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 type DailyReportSlice = Pick<CalendarState, 'dailyReports' | 'dailyReportsLoading' | 'dailyReportsInitialized'> &
     Pick<CalendarActions, 'fetchDailyReports' | 'getDailyReportByForemanAndDate' | 'saveDailyReport' | 'deleteDailyReport'>;
@@ -87,6 +88,7 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
             return { dailyReports: [...state.dailyReports, parsed] };
         });
 
+        sendBroadcast('daily_report_updated', { id: parsed.id, foremanId: parsed.foremanId });
         return parsed;
     },
 
@@ -100,5 +102,6 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
         set((state) => ({
             dailyReports: state.dailyReports.filter((r) => r.id !== id),
         }));
+        sendBroadcast('daily_report_deleted', { id });
     },
 });

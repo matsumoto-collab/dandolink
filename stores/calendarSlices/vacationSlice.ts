@@ -1,4 +1,5 @@
 import { CalendarSlice, CalendarActions, CalendarState } from './types';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 type VacationSlice = Pick<CalendarState, 'vacations' | 'vacationsLoading' | 'vacationsInitialized'> &
     Pick<CalendarActions, 'fetchVacations' | 'getVacationEmployees' | 'setVacationEmployees' | 'addVacationEmployee' | 'removeVacationEmployee' | 'getVacationRemarks' | 'setVacationRemarks'>;
@@ -41,6 +42,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dateKey, employeeIds, remarks: currentRemarks }),
             });
+            sendBroadcast('vacation_updated', { dateKey });
         } catch (error) {
             console.error('Failed to save vacation:', error);
             get().fetchVacations();
@@ -77,6 +79,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dateKey, employeeIds: currentEmployees, remarks }),
             });
+            sendBroadcast('vacation_updated', { dateKey });
         } catch (error) {
             console.error('Failed to save vacation remarks:', error);
             get().fetchVacations();
