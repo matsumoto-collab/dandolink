@@ -72,7 +72,7 @@ export default function VacationSelector({
                         return (
                             <span
                                 key={memberId}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-semibold"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[12px] font-semibold"
                             >
                                 {member.displayName}
                                 <button
@@ -93,7 +93,7 @@ export default function VacationSelector({
             <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50 rounded transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[12px] text-slate-600 hover:bg-slate-50 rounded transition-colors"
                     type="button"
                 >
                     <Plus className="w-3 h-3" />
