@@ -7,7 +7,7 @@ import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CompanyInfoSettings() {
-    const { companyInfo, updateCompanyInfo, isLoading } = useCompany();
+    const { companyInfo, updateCompanyInfo, isLoading, ensureDataLoaded } = useCompany();
     const [formData, setFormData] = useState({
         name: '',
         postalCode: '',
@@ -23,6 +23,10 @@ export default function CompanyInfoSettings() {
         bankAccounts: [] as BankAccount[],
     });
     const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        ensureDataLoaded();
+    }, [ensureDataLoaded]);
 
     useEffect(() => {
         if (companyInfo) {
