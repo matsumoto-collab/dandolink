@@ -49,6 +49,10 @@ export function useProjects() {
         };
     }, []);
 
+    // BroadcastChannel: 同一デバイスの別タブ（PC↔モバイル）へ変更を通知
+    // Supabase Realtime が同一ブラウザ内でブロックされる問題を補完する
+    const broadcastRef = useRef<BroadcastChannel | null>(null);
+
     // Reset state when unauthenticated
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -194,6 +198,30 @@ export function useProjects() {
         };
     }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
 
+    // BroadcastChannel セットアップ（同一デバイスの別タブへ通知）
+    useEffect(() => {
+        if (typeof BroadcastChannel === 'undefined') return;
+        const ch = new BroadcastChannel('yusystem_assignments_v1');
+        broadcastRef.current = ch;
+
+        ch.addEventListener('message', (event) => {
+            if (isUpdatingRef.current) return; // 自分が更新中なら無視
+            const { type, id, ids } = event.data ?? {};
+            if (type === 'assignment_updated' && id) {
+                fetchAndUpsertAssignment(id);
+            } else if (type === 'assignments_batch_updated' && Array.isArray(ids)) {
+                ids.forEach((assignmentId: string) => fetchAndUpsertAssignment(assignmentId));
+            } else if (type === 'assignment_deleted' && id) {
+                removeAssignmentByIdStore(id);
+            }
+        });
+
+        return () => {
+            ch.close();
+            broadcastRef.current = null;
+        };
+    }, [fetchAndUpsertAssignment, removeAssignmentByIdStore]);
+
     // Wrapper functions for backward compatibility
     const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
         // リアルタイム購読がfetchを呼ばないよう保護
@@ -219,6 +247,8 @@ export function useProjects() {
         setIsUpdating(true);
         try {
             await updateProjectStore(id, updates);
+            // 同一デバイスの別タブへ即時通知（PC↔モバイル連携）
+            broadcastRef.current?.postMessage({ type: 'assignment_updated', id });
         } finally {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
@@ -235,6 +265,8 @@ export function useProjects() {
         setIsUpdating(true);
         try {
             await updateProjectsStore(updates);
+            // 同一デバイスの別タブへ即時通知
+            broadcastRef.current?.postMessage({ type: 'assignments_batch_updated', ids: updates.map(u => u.id) });
         } finally {
             const tid = setTimeout(() => {
                 isUpdatingRef.current = false;
@@ -247,6 +279,8 @@ export function useProjects() {
 
     const deleteProject = useCallback(async (id: string) => {
         await deleteProjectStore(id);
+        // 同一デバイスの別タブへ即時通知
+        broadcastRef.current?.postMessage({ type: 'assignment_deleted', id });
     }, [deleteProjectStore]);
 
     const getProjectById = useCallback((id: string) => {
