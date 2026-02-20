@@ -113,15 +113,6 @@ export default function WeekOverviewBar({
                                     {eventCount}件
                                 </span>
                             ) : null}
-                            <span className={`text-[10px] font-bold ${
-                                isSelected ? 'text-slate-200' :
-                                remainingHours <= 0 ? 'text-red-500' :
-                                remainingHours <= 8 ? 'text-amber-600' :
-                                'text-emerald-600'
-                            }`}>
-                                {remainingHours <= 0 ? '満員' : `残${remainingHours}h`}
-                            </span>
-
                             {/* 充足率バー */}
                             <div className={`w-full h-1 mt-0.5 rounded-full ${
                                 isSelected ? 'bg-slate-500' : 'bg-slate-200'
