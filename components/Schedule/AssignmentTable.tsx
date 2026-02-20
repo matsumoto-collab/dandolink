@@ -12,15 +12,6 @@ interface AssignmentTableProps {
     userTeamId?: string;
 }
 
-// 職長インデックスに対応するアクセントカラー
-const ACCENT_COLORS = [
-    { border: 'border-blue-500',   bg: 'bg-blue-50',   text: 'text-blue-700',   badge: 'bg-blue-500' },
-    { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-500' },
-    { border: 'border-violet-500', bg: 'bg-violet-50', text: 'text-violet-700',  badge: 'bg-violet-500' },
-    { border: 'border-amber-500',  bg: 'bg-amber-50',  text: 'text-amber-700',  badge: 'bg-amber-500' },
-    { border: 'border-rose-500',   bg: 'bg-rose-50',   text: 'text-rose-700',   badge: 'bg-rose-500' },
-    { border: 'border-cyan-500',   bg: 'bg-cyan-50',   text: 'text-cyan-700',   badge: 'bg-cyan-500' },
-];
 
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
     const { projects } = useProjects();
@@ -163,7 +154,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     ({dateInfo.weekDay})
                                 </span>
                                 {dateInfo.label && (
-                                    <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                                    <span className="ml-1 px-2 py-0.5 bg-slate-800 text-white text-xs font-bold rounded-full">
                                         {dateInfo.label}
                                     </span>
                                 )}
@@ -194,10 +185,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             <div className="flex-1 overflow-auto">
                 <div className="space-y-4">
                     {userRole === 'worker' ? (
-                        /* ワーカービュー */
                         <ForemanSection
                             foremanName="あなたの担当現場"
-                            accentColor={ACCENT_COLORS[0]}
                             assignments={Object.values(assignmentsByEmployee).flat()}
                             emptyMessage="担当現場なし"
                             canEdit={false}
@@ -209,14 +198,12 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                             allForemen={allForemen}
                         />
                     ) : (
-                        foremen.map((foreman, index) => {
+                        foremen.map((foreman) => {
                             const assignments = assignmentsByEmployee[foreman.id] || [];
-                            const color = ACCENT_COLORS[index % ACCENT_COLORS.length];
                             return (
                                 <ForemanSection
                                     key={foreman.id}
                                     foremanName={foreman.name}
-                                    accentColor={color}
                                     assignments={assignments}
                                     emptyMessage="予定なし"
                                     canEdit={canEdit(foreman.id)}
@@ -238,7 +225,6 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
 // ── 職長セクション ──────────────────────────────────────────
 interface ForemanSectionProps {
     foremanName: string;
-    accentColor: typeof ACCENT_COLORS[0];
     assignments: ReturnType<typeof useProjects>['projects'];
     emptyMessage: string;
     canEdit: boolean;
@@ -252,7 +238,6 @@ interface ForemanSectionProps {
 
 function ForemanSection({
     foremanName,
-    accentColor,
     assignments,
     emptyMessage,
     canEdit,
@@ -266,29 +251,25 @@ function ForemanSection({
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
             {/* 職長ヘッダー */}
-            <div className={`flex items-center gap-3 px-5 py-3 border-l-4 ${accentColor.border} ${accentColor.bg}`}>
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                        <span className={`text-sm font-bold ${accentColor.text}`}>
-                            {foremanName} 班
-                        </span>
-                        <span className="text-xs text-slate-400">
-                            {assignments.length}件
-                        </span>
-                    </div>
+            <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-200">
+                <div className="flex items-center gap-2.5">
+                    <span className="text-sm font-semibold text-slate-800">{foremanName} 班</span>
+                    {assignments.length > 0 && (
+                        <span className="text-xs text-slate-400">{assignments.length}件</span>
+                    )}
                 </div>
                 {confirmedCount > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                        <CheckCircle className="w-3 h-3" />
-                        {confirmedCount}件確定
+                    <span className="flex items-center gap-1 text-xs font-medium text-slate-500">
+                        <CheckCircle className="w-3.5 h-3.5 text-slate-400" />
+                        {confirmedCount}/{assignments.length} 確定
                     </span>
                 )}
             </div>
 
             {/* 案件リスト */}
-            <div className="divide-y divide-slate-50">
+            <div className="divide-y divide-slate-100">
                 {assignments.length === 0 ? (
                     <div className="py-8 text-center text-slate-300 text-sm">{emptyMessage}</div>
                 ) : (
@@ -303,7 +284,6 @@ function ForemanSection({
                             foremanId={foremanId}
                             showForemanBadge={showForemanBadge}
                             allForemen={allForemen}
-                            accentColor={accentColor}
                         />
                     ))
                 )}
@@ -322,7 +302,6 @@ interface ProjectCardProps {
     foremanId: string;
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
-    accentColor: typeof ACCENT_COLORS[0];
 }
 
 function ProjectCard({
@@ -334,7 +313,6 @@ function ProjectCard({
     foremanId,
     showForemanBadge,
     allForemen,
-    accentColor,
 }: ProjectCardProps) {
     const workerCount = project.workers?.length || 0;
     const vehicleCount = project.trucks?.length || project.vehicles?.length || 0;
@@ -353,78 +331,82 @@ function ProjectCard({
         : [];
 
     return (
-        <div className="px-5 py-4 hover:bg-slate-50/60 transition-colors">
-            <div className="flex items-start gap-3">
+        <div className="px-5 py-4 hover:bg-slate-50 transition-colors">
+            <div className="flex items-start gap-4">
                 <div className="flex-1 min-w-0">
-                    {/* 上段: 手配確定 + 職長バッジ */}
-                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                        {project.isDispatchConfirmed && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                                <CheckCircle className="w-3 h-3" />
-                                手配確定
-                            </span>
-                        )}
-                        {foremanName && (
-                            <span className={`inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full text-white ${accentColor.badge}`}>
-                                {foremanName}班
-                            </span>
-                        )}
-                    </div>
+                    {/* 手配確定バッジ + 職長バッジ */}
+                    {(project.isDispatchConfirmed || foremanName) && (
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            {project.isDispatchConfirmed && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    <CheckCircle className="w-3 h-3" />
+                                    手配確定
+                                </span>
+                            )}
+                            {foremanName && (
+                                <span className="inline-flex text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                                    {foremanName}班
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     {/* 現場名 */}
-                    <h4 className="font-bold text-slate-800 text-base leading-snug">
+                    <h4 className="font-semibold text-slate-900 text-[15px] leading-snug">
                         {project.title}
                     </h4>
 
                     {/* 顧客名 */}
                     {project.customer && (
-                        <p className="text-sm text-slate-500 mt-0.5">{project.customer}</p>
+                        <p className="text-sm text-slate-400 mt-0.5">{project.customer}</p>
                     )}
 
                     {/* 集合時間 + 場所 */}
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
-                        <span className={`flex items-center gap-1.5 text-sm font-semibold ${
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2.5">
+                        <span className={`flex items-center gap-1.5 text-sm font-medium ${
                             project.meetingTime ? 'text-slate-700' : 'text-slate-300'
                         }`}>
-                            <Clock className="w-4 h-4 flex-shrink-0" />
+                            <Clock className="w-3.5 h-3.5 flex-shrink-0" />
                             {project.meetingTime || '時間未設定'}
                         </span>
                         {project.location && (
-                            <span className="flex items-center gap-1.5 text-sm text-slate-500">
-                                <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                            <span className="flex items-center gap-1.5 text-sm text-slate-400">
+                                <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
                                 <span className="truncate max-w-[180px]">{project.location}</span>
                             </span>
                         )}
                     </div>
 
-                    {/* メンバー + 車両 chips */}
-                    <div className="flex flex-wrap gap-2 mt-2.5">
-                        {workerCount > 0 && (
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-                                <Users className="w-3.5 h-3.5" />
-                                {workerCount}名
-                            </span>
-                        )}
-                        {vehicleCount > 0 && (
-                            <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
-                                <Truck className="w-3.5 h-3.5" />
-                                {vehicleCount}台
-                            </span>
-                        )}
-                    </div>
+                    {/* メンバー + 車両 */}
+                    {(workerCount > 0 || vehicleCount > 0) && (
+                        <div className="flex items-center gap-3 mt-2">
+                            {workerCount > 0 && (
+                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                    <Users className="w-3.5 h-3.5" />
+                                    {workerCount}名
+                                </span>
+                            )}
+                            {vehicleCount > 0 && (
+                                <span className="flex items-center gap-1 text-xs text-slate-400">
+                                    <Truck className="w-3.5 h-3.5" />
+                                    {vehicleCount}台
+                                </span>
+                            )}
+                        </div>
+                    )}
 
                     {/* 確定済み詳細（職方・車両名） */}
                     {project.isDispatchConfirmed && isNamesLoaded && (confirmedWorkers.length > 0 || confirmedVehicles.length > 0) && (
-                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1.5">
+                        <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5">
                             {confirmedWorkers.length > 0 && (
-                                <div className="flex items-start gap-2 text-sm text-emerald-800">
-                                    <Users className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                <div className="flex items-start gap-2 text-sm text-slate-600">
+                                    <Users className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-400" />
                                     <span>{confirmedWorkers.join('、')}</span>
                                 </div>
                             )}
                             {confirmedVehicles.length > 0 && (
-                                <div className="flex items-start gap-2 text-sm text-emerald-800">
-                                    <Truck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                <div className="flex items-start gap-2 text-sm text-slate-600">
+                                    <Truck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-slate-400" />
                                     <span>{confirmedVehicles.join('、')}</span>
                                 </div>
                             )}
@@ -433,7 +415,7 @@ function ProjectCard({
 
                     {/* 備考 */}
                     {project.remarks && (
-                        <p className="mt-2 text-sm text-slate-500 bg-slate-50 border border-slate-100 px-3 py-2 rounded-lg">
+                        <p className="mt-2 text-sm text-slate-400 border-l-2 border-slate-200 pl-3">
                             {project.remarks}
                         </p>
                     )}
@@ -441,7 +423,7 @@ function ProjectCard({
 
                 {/* 編集ボタン */}
                 {canEdit && (
-                    <button className="flex-shrink-0 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-xl transition-colors min-h-[44px]">
+                    <button className="flex-shrink-0 px-4 py-2 text-sm font-medium text-slate-500 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 rounded-xl transition-colors min-h-[44px]">
                         編集
                     </button>
                 )}
