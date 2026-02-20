@@ -271,6 +271,36 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         }
     }, [modalInitialData.id, updateProjectWithConflictHandling, addProject]);
 
+    // モバイル: 長押しで別セルに移動
+    const handleMoveToCell = useCallback(async (eventId: string, targetEmployeeId: string, targetDate: Date) => {
+        const projectId = eventId.replace(/-assembly$|-demolition$/, '');
+        const targetDateKey = formatDateKey(targetDate);
+        const currentProjects = projectsRef.current;
+
+        // 移動先セルの末尾に配置
+        const targetCellProjects = currentProjects.filter(p =>
+            p.assignedEmployeeId === targetEmployeeId &&
+            formatDateKey(p.startDate) === targetDateKey
+        );
+        const maxSortOrder = targetCellProjects.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1);
+
+        const updates: Partial<Project> = {
+            assignedEmployeeId: targetEmployeeId,
+            sortOrder: maxSortOrder + 1,
+        };
+        if (eventId.endsWith('-assembly')) {
+            updates.assemblyStartDate = targetDate;
+            updates.startDate = targetDate;
+        } else if (eventId.endsWith('-demolition')) {
+            updates.demolitionStartDate = targetDate;
+            updates.startDate = targetDate;
+        } else {
+            updates.startDate = targetDate;
+        }
+
+        await updateProjectWithConflictHandling(projectId, updates);
+    }, [updateProjectWithConflictHandling, projectsRef]);
+
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
         return (
@@ -303,6 +333,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     handleMoveEvent={isReadOnly ? undefined : handleMoveEvent}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
+                    handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
                 />
             ) : (
                 <DesktopCalendarView

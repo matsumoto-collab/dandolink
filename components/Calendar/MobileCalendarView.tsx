@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -27,6 +27,7 @@ interface MobileCalendarViewProps {
     handleMoveEvent?: (eventId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
+    handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
 }
 
 interface ActionSheetState {
@@ -35,9 +36,9 @@ interface ActionSheetState {
     project: Project | null;
 }
 
-// グリッド列幅（px）
-const LABEL_W = 64;  // 職長名列（左固定）
-const COL_W = 90;   // 日付列
+const LABEL_W = 64;   // 職長名列の幅（px）
+const COL_W = 90;     // 日付列の幅（px）
+const LONG_PRESS_MS = 500; // 長押し判定時間（ms）
 
 export default function MobileCalendarView({
     weekDays,
@@ -58,14 +59,16 @@ export default function MobileCalendarView({
     handleMoveEvent: _handleMoveEvent,
     handleOpenDispatchModal,
     handleCopyEvent,
+    handleMoveToCell,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
 
+    // ── アクションシート ──
     const [actionSheet, setActionSheet] = useState<ActionSheetState>({
         isOpen: false, event: null, project: null,
     });
 
-    const handleCardTap = useCallback((event: CalendarEvent) => {
+    const openActionSheet = useCallback((event: CalendarEvent) => {
         const projectId = event.id.replace(/-assembly$|-demolition$/, '');
         const project = projects.find(p => p.id === projectId) || null;
         setActionSheet({ isOpen: true, event, project });
@@ -75,20 +78,60 @@ export default function MobileCalendarView({
         setActionSheet({ isOpen: false, event: null, project: null });
     }, []);
 
-    // スクロールと誤タップを区別するための ref
-    // onTouchMove でスクロール検知し、onClick でキャンセル判定
+    // ── 移動モード ──
+    const [movingEvent, setMovingEvent] = useState<CalendarEvent | null>(null);
+
+    const cancelMoving = useCallback(() => setMovingEvent(null), []);
+
+    const commitMove = useCallback((employeeId: string, date: Date) => {
+        if (!movingEvent || !handleMoveToCell) return;
+        handleMoveToCell(movingEvent.id, employeeId, date);
+        setMovingEvent(null);
+    }, [movingEvent, handleMoveToCell]);
+
+    // ── スクロール vs タップ判定 ──
     const touchMoved = useRef(false);
     const touchStart = useRef({ x: 0, y: 0 });
-    const handleScrollTouchStart = useCallback((e: React.TouchEvent) => {
+
+    // ── 長押しタイマー ──
+    const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const onScrollAreaTouchStart = useCallback((e: React.TouchEvent) => {
         touchMoved.current = false;
         touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }, []);
-    const handleScrollTouchMove = useCallback((e: React.TouchEvent) => {
+
+    const onScrollAreaTouchMove = useCallback((e: React.TouchEvent) => {
         const dx = Math.abs(e.touches[0].clientX - touchStart.current.x);
         const dy = Math.abs(e.touches[0].clientY - touchStart.current.y);
-        if (dx > 6 || dy > 6) touchMoved.current = true;
+        if (dx > 6 || dy > 6) {
+            touchMoved.current = true;
+            if (longPressTimer.current) {
+                clearTimeout(longPressTimer.current);
+                longPressTimer.current = null;
+            }
+        }
     }, []);
 
+    const onCardTouchStart = useCallback((event: CalendarEvent) => {
+        if (isReadOnly || !handleMoveToCell) return;
+        longPressTimer.current = setTimeout(() => {
+            longPressTimer.current = null;
+            if (touchMoved.current) return; // スクロール中なら無視
+            navigator.vibrate?.(60);
+            touchMoved.current = true; // 長押し確定後はタップ判定させない
+            setMovingEvent(event);
+        }, LONG_PRESS_MS);
+    }, [isReadOnly, handleMoveToCell]);
+
+    const onCardTouchEnd = useCallback(() => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    }, []);
+
+    // ── ラベル ──
     const weekLabel = weekDays.length > 0
         ? `${formatDate(weekDays[0].date, 'short')}〜${formatDate(weekDays[weekDays.length - 1].date, 'short')}`
         : '';
@@ -122,28 +165,40 @@ export default function MobileCalendarView({
                 </div>
             </div>
 
+            {/* ── 移動モードバナー ── */}
+            {movingEvent && (
+                <div className="flex-shrink-0 bg-blue-600 text-white px-3 py-2 flex items-center gap-2">
+                    <MoveRight className="w-4 h-4 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <span className="text-xs font-bold truncate block">「{movingEvent.title}」を移動中</span>
+                        <span className="text-[10px] text-blue-200">移動先のセルをタップ</span>
+                    </div>
+                    <button
+                        onClick={cancelMoving}
+                        className="flex items-center gap-1 bg-blue-500 hover:bg-blue-400 active:bg-blue-700 rounded-lg px-2.5 py-1.5 flex-shrink-0 transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                        <span className="text-xs font-medium">キャンセル</span>
+                    </button>
+                </div>
+            )}
+
             {/* ── グリッド本体（縦横スクロール） ── */}
             <div
                 className="flex-1 overflow-auto"
-                onTouchStart={handleScrollTouchStart}
-                onTouchMove={handleScrollTouchMove}
+                onTouchStart={onScrollAreaTouchStart}
+                onTouchMove={onScrollAreaTouchMove}
             >
                 <div style={{ minWidth: totalGridWidth }}>
 
                     {/* 日付ヘッダー行（sticky top） */}
-                    <div
-                        className="flex sticky top-0 z-20 border-b-2 border-slate-300 shadow-sm"
-                        style={{ height: 40 }}
-                    >
-                        {/* 左上コーナー */}
+                    <div className="flex sticky top-0 z-20 border-b-2 border-slate-300 shadow-sm" style={{ height: 40 }}>
                         <div
                             className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
                             style={{ width: LABEL_W }}
                         >
                             <span className="text-[10px] font-bold text-slate-600 tracking-wide">職長</span>
                         </div>
-
-                        {/* 日付列ヘッダー */}
                         {weekDays.map((day) => {
                             const dateKey = formatDateKey(day.date);
                             const isToday = dateKey === todayKey;
@@ -153,13 +208,10 @@ export default function MobileCalendarView({
                                 <div
                                     key={dateKey}
                                     className={`flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
-                                        isToday
-                                            ? 'bg-gradient-to-b from-slate-700 to-slate-600'
-                                            : isSat
-                                            ? 'bg-gradient-to-b from-blue-100 to-blue-50'
-                                            : isSun
-                                            ? 'bg-gradient-to-b from-rose-100 to-rose-50'
-                                            : 'bg-gradient-to-b from-slate-100 to-slate-50'
+                                        isToday ? 'bg-gradient-to-b from-slate-700 to-slate-600'
+                                        : isSat ? 'bg-gradient-to-b from-blue-100 to-blue-50'
+                                        : isSun ? 'bg-gradient-to-b from-rose-100 to-rose-50'
+                                        : 'bg-gradient-to-b from-slate-100 to-slate-50'
                                     }`}
                                     style={{ width: COL_W }}
                                 >
@@ -168,9 +220,7 @@ export default function MobileCalendarView({
                                     }`}>
                                         {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
                                     </span>
-                                    {isToday && (
-                                        <span className="text-[8px] text-slate-300 font-medium">今日</span>
-                                    )}
+                                    {isToday && <span className="text-[8px] text-slate-300">今日</span>}
                                 </div>
                             );
                         })}
@@ -191,11 +241,11 @@ export default function MobileCalendarView({
                             const dateKey = formatDateKey(day.date);
                             const isSat = day.dayOfWeek === 6;
                             const isSun = day.dayOfWeek === 0;
-                            const dayEvents = events.filter(e =>
+                            const dayEvts = events.filter(e =>
                                 formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned'
                             );
                             const byForeman = new Map<string, number[]>();
-                            dayEvents.forEach(e => {
+                            dayEvts.forEach(e => {
                                 const key = e.assignedEmployeeId!;
                                 if (!byForeman.has(key)) byForeman.set(key, []);
                                 byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
@@ -204,7 +254,6 @@ export default function MobileCalendarView({
                             byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                             const vacationCount = getVacationEmployees(dateKey).length;
                             const remaining = totalMembers - assignedCount - vacationCount;
-
                             return (
                                 <div
                                     key={dateKey}
@@ -225,14 +274,12 @@ export default function MobileCalendarView({
 
                     {/* 職長行 */}
                     {employeeRows.length === 0 ? (
-                        <div className="py-16 text-center text-slate-400 text-sm">
-                            表示する職長がいません
-                        </div>
+                        <div className="py-16 text-center text-slate-400 text-sm">表示する職長がいません</div>
                     ) : (
                         employeeRows.map((row) => (
                             <div
                                 key={`${row.employeeId}-${row.rowIndex}`}
-                                className="flex border-b border-slate-200 hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-transparent transition-colors min-h-[80px]"
+                                className="flex border-b border-slate-200 min-h-[80px]"
                             >
                                 {/* 職長名（左固定） */}
                                 <div
@@ -252,21 +299,49 @@ export default function MobileCalendarView({
                                     const isSun = day.dayOfWeek === 0;
                                     const cellEvents = getEventsForDate(row, day.date);
                                     const isEmpty = cellEvents.length === 0;
+                                    const isMovingSource = movingEvent
+                                        ? cellEvents.some(e => e.id === movingEvent.id)
+                                        : false;
 
                                     return (
                                         <div
                                             key={dateKey}
-                                            onClick={() => !touchMoved.current && !isReadOnly && isEmpty && handleCellClick?.(row.employeeId, day.date)}
-                                            className={`flex-shrink-0 border-r border-slate-200 p-1 ${
-                                                isToday ? 'bg-blue-50/20' : isSat ? 'bg-blue-50/10' : isSun ? 'bg-rose-50/10' : ''
-                                            } ${!isReadOnly && isEmpty ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
+                                            onClick={() => {
+                                                if (touchMoved.current) return;
+                                                if (movingEvent) {
+                                                    commitMove(row.employeeId, day.date);
+                                                    return;
+                                                }
+                                                if (!isReadOnly && isEmpty) {
+                                                    handleCellClick?.(row.employeeId, day.date);
+                                                }
+                                            }}
+                                            className={`flex-shrink-0 border-r border-slate-200 p-1 transition-colors ${
+                                                isMovingSource
+                                                    ? 'bg-blue-100/60 ring-2 ring-inset ring-blue-400'
+                                                    : movingEvent
+                                                    ? 'cursor-pointer bg-blue-50/30 hover:bg-blue-100/50 active:bg-blue-200/50'
+                                                    : isToday ? 'bg-blue-50/20'
+                                                    : isSat ? 'bg-blue-50/10'
+                                                    : isSun ? 'bg-rose-50/10'
+                                                    : ''
+                                            } ${!isReadOnly && isEmpty && !movingEvent ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
                                             style={{ width: COL_W }}
                                         >
                                             {isEmpty ? (
-                                                !isReadOnly && (
-                                                    <div className="h-full min-h-[72px] flex items-center justify-center">
-                                                        <Plus className="w-4 h-4 text-slate-200" />
+                                                movingEvent ? (
+                                                    // 移動モード: 空きセルは移動先候補として点線丸を表示
+                                                    <div className="h-full min-h-[72px] flex items-center justify-center pointer-events-none">
+                                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-blue-400 flex items-center justify-center">
+                                                            <Plus className="w-4 h-4 text-blue-400" />
+                                                        </div>
                                                     </div>
+                                                ) : (
+                                                    !isReadOnly && (
+                                                        <div className="h-full min-h-[72px] flex items-center justify-center pointer-events-none">
+                                                            <Plus className="w-4 h-4 text-slate-200" />
+                                                        </div>
+                                                    )
                                                 )
                                             ) : (
                                                 <div className="space-y-1 py-0.5">
@@ -274,46 +349,72 @@ export default function MobileCalendarView({
                                                         const projectId = event.id.replace(/-assembly$|-demolition$/, '');
                                                         const editingUsers = getEditingUsers(projectId);
                                                         const project = projects.find(p => p.id === projectId);
+                                                        const isThisMoving = movingEvent?.id === event.id;
 
                                                         return (
                                                             <button
                                                                 key={event.id}
-                                                                onClick={(e) => { e.stopPropagation(); if (!touchMoved.current) handleCardTap(event); }}
-                                                                className="w-full text-left rounded p-1 active:brightness-90 transition-all relative"
+                                                                onTouchStart={() => onCardTouchStart(event)}
+                                                                onTouchEnd={onCardTouchEnd}
+                                                                onTouchCancel={onCardTouchEnd}
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (touchMoved.current) return;
+                                                                    if (movingEvent) {
+                                                                        // 移動元と同じカードをタップ → キャンセル
+                                                                        if (isThisMoving) {
+                                                                            cancelMoving();
+                                                                        } else {
+                                                                            // 別カードのあるセルをタップ → そこに移動
+                                                                            commitMove(row.employeeId, day.date);
+                                                                        }
+                                                                        return;
+                                                                    }
+                                                                    openActionSheet(event);
+                                                                }}
+                                                                className={`w-full text-left rounded p-1 transition-all relative select-none ${
+                                                                    isThisMoving
+                                                                        ? 'ring-2 ring-white ring-offset-1 ring-offset-blue-400 opacity-70 scale-95'
+                                                                        : 'active:brightness-90'
+                                                                }`}
                                                                 style={{ backgroundColor: event.color }}
                                                             >
-                                                                {/* ステータスアイコン */}
                                                                 {editingUsers.length > 0 && (
                                                                     <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-amber-200 animate-pulse" />
                                                                 )}
                                                                 {!editingUsers.length && project?.isDispatchConfirmed && (
                                                                     <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-green-200" />
                                                                 )}
-
                                                                 <div className="text-[10px] font-bold text-white leading-tight truncate pr-3">
                                                                     {event.title}
                                                                 </div>
                                                                 {event.workers && event.workers.length > 0 && (
                                                                     <div className="flex items-center gap-0.5 mt-0.5">
                                                                         <Users className="w-2.5 h-2.5 text-white/70" />
-                                                                        <span className="text-[9px] text-white/80">
-                                                                            {event.workers.length}人
-                                                                        </span>
+                                                                        <span className="text-[9px] text-white/80">{event.workers.length}人</span>
                                                                     </div>
                                                                 )}
                                                                 {event.estimatedHours != null && (
-                                                                    <div className="text-[9px] text-white/70 leading-tight">
-                                                                        {event.estimatedHours}h
-                                                                    </div>
+                                                                    <div className="text-[9px] text-white/70">{event.estimatedHours}h</div>
                                                                 )}
                                                             </button>
                                                         );
                                                     })}
 
-                                                    {/* イベントがある日の追加ボタン */}
-                                                    {!isReadOnly && (
+                                                    {/* 移動モード中: 既存イベントがあるセルにも追加できるよう点線ボタン */}
+                                                    {movingEvent && !isMovingSource && (
+                                                        <div className="pointer-events-none flex items-center justify-center py-1 border border-dashed border-blue-400 text-blue-400 rounded">
+                                                            <Plus className="w-3 h-3" />
+                                                        </div>
+                                                    )}
+
+                                                    {/* 通常モード: 追加ボタン */}
+                                                    {!isReadOnly && !movingEvent && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); if (!touchMoved.current) handleCellClick?.(row.employeeId, day.date); }}
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (!touchMoved.current) handleCellClick?.(row.employeeId, day.date);
+                                                            }}
                                                             className="w-full flex items-center justify-center py-0.5 text-slate-300 hover:text-slate-400 hover:bg-slate-50 rounded transition-colors"
                                                         >
                                                             <Plus className="w-3 h-3" />
@@ -333,17 +434,12 @@ export default function MobileCalendarView({
             {/* ── アクションシート ── */}
             {actionSheet.isOpen && actionSheet.event && (
                 <>
-                    <div
-                        className="fixed inset-0 bg-black/40 z-40"
-                        onClick={closeActionSheet}
-                    />
+                    <div className="fixed inset-0 bg-black/40 z-40" onClick={closeActionSheet} />
                     <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 animate-slide-up safe-area-bottom">
-                        {/* ハンドル */}
                         <div className="flex justify-center pt-3 pb-2">
                             <div className="w-10 h-1 bg-slate-300 rounded-full" />
                         </div>
 
-                        {/* 案件情報 */}
                         <div className="px-4 pb-3 border-b border-slate-100">
                             <div className="flex items-start gap-3">
                                 <div
@@ -351,19 +447,14 @@ export default function MobileCalendarView({
                                     style={{ backgroundColor: actionSheet.event.color }}
                                 />
                                 <div className="flex-1 min-w-0">
-                                    <div className="font-bold text-slate-800 text-base">
-                                        {actionSheet.event.title}
-                                    </div>
+                                    <div className="font-bold text-slate-800 text-base">{actionSheet.event.title}</div>
                                     {actionSheet.event.customer && (
-                                        <div className="text-slate-500 text-sm mt-0.5">
-                                            {actionSheet.event.customer}
-                                        </div>
+                                        <div className="text-slate-500 text-sm mt-0.5">{actionSheet.event.customer}</div>
                                     )}
                                     <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs">
                                         {actionSheet.event.workers && actionSheet.event.workers.length > 0 && (
                                             <span className="flex items-center gap-1">
-                                                <Users className="w-3 h-3" />
-                                                {actionSheet.event.workers.length}人
+                                                <Users className="w-3 h-3" />{actionSheet.event.workers.length}人
                                             </span>
                                         )}
                                         {actionSheet.event.estimatedHours != null && (
@@ -377,7 +468,6 @@ export default function MobileCalendarView({
                             </div>
                         </div>
 
-                        {/* アクションボタン */}
                         <div className="p-2">
                             <button
                                 onClick={() => { closeActionSheet(); handleEventClick(actionSheet.event!.id); }}
@@ -386,6 +476,20 @@ export default function MobileCalendarView({
                                 <Edit3 className="w-5 h-5 text-slate-500" />
                                 詳細を見る・編集
                             </button>
+
+                            {!isReadOnly && handleMoveToCell && (
+                                <button
+                                    onClick={() => {
+                                        const ev = actionSheet.event!;
+                                        closeActionSheet();
+                                        setMovingEvent(ev);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <MoveRight className="w-5 h-5 text-slate-500" />
+                                    別の日・職長に移動
+                                </button>
+                            )}
 
                             {!isReadOnly && handleCopyEvent && (
                                 <button
@@ -411,15 +515,9 @@ export default function MobileCalendarView({
                                     }`}
                                 >
                                     {actionSheet.project?.isDispatchConfirmed ? (
-                                        <>
-                                            <CheckCircle className="w-5 h-5 text-green-500" />
-                                            手配確定済み
-                                        </>
+                                        <><CheckCircle className="w-5 h-5 text-green-500" />手配確定済み</>
                                     ) : (
-                                        <>
-                                            <ClipboardCheck className="w-5 h-5 text-slate-500" />
-                                            手配確定する
-                                        </>
+                                        <><ClipboardCheck className="w-5 h-5 text-slate-500" />手配確定する</>
                                     )}
                                 </button>
                             )}
