@@ -179,7 +179,40 @@ export function useProjects() {
                             }
                         }
                     )
-                    // Broadcast: 別デバイスからの即時通知を受け取る（WAL処理をバイパス）
+                    .subscribe();
+            } catch (error) {
+                console.error('Failed to setup realtime:', error);
+            }
+        };
+
+        setupRealtime();
+
+        return () => {
+            const channelToRemove = channel;
+            if (channelToRemove) {
+                import('@/lib/supabase')
+                    .then(({ supabase }) => {
+                        supabase.removeChannel(channelToRemove);
+                    })
+                    .catch(() => {
+                        // クリーンアップ時のエラーは無視（コンポーネントは既にアンマウント済み）
+                    });
+            }
+        };
+    }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
+
+    // Supabase Realtime broadcast専用チャンネル（postgres_changesと分離することで干渉を防ぐ）
+    // syncChannelRefはSUBSCRIBED後にセットすることで未接続時の送信失敗を防ぐ
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+
+        let broadcastCh: RealtimeChannel | null = null;
+
+        const setupBroadcast = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                broadcastCh = supabase
+                    .channel('yusystem_broadcast_v1')
                     .on(
                         'broadcast',
                         { event: 'assignment_updated' },
@@ -207,30 +240,29 @@ export function useProjects() {
                             }
                         }
                     )
-                    .subscribe();
-
-                syncChannelRef.current = channel;
+                    .subscribe((status) => {
+                        if (status === 'SUBSCRIBED') {
+                            // SUBSCRIBED確認後にrefをセット（これ以降sendが有効になる）
+                            syncChannelRef.current = broadcastCh;
+                        }
+                    });
             } catch (error) {
-                console.error('Failed to setup realtime:', error);
+                console.error('Failed to setup broadcast channel:', error);
             }
         };
 
-        setupRealtime();
+        setupBroadcast();
 
         return () => {
             syncChannelRef.current = null;
-            const channelToRemove = channel;
-            if (channelToRemove) {
+            const ch = broadcastCh;
+            if (ch) {
                 import('@/lib/supabase')
-                    .then(({ supabase }) => {
-                        supabase.removeChannel(channelToRemove);
-                    })
-                    .catch(() => {
-                        // クリーンアップ時のエラーは無視（コンポーネントは既にアンマウント済み）
-                    });
+                    .then(({ supabase }) => { supabase.removeChannel(ch); })
+                    .catch(() => {});
             }
         };
-    }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
+    }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore]);
 
     // BroadcastChannel セットアップ（同一デバイスの別タブへ通知）
     useEffect(() => {
