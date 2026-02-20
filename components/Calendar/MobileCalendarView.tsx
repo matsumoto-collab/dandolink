@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Plus, Users, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
-import WeekOverviewBar from './WeekOverviewBar';
 
 interface MobileCalendarViewProps {
     weekDays: WeekDay[];
@@ -36,6 +35,10 @@ interface ActionSheetState {
     project: Project | null;
 }
 
+// グリッド列幅（px）
+const LABEL_W = 64;  // 職長名列（左固定）
+const COL_W = 90;   // 日付列
+
 export default function MobileCalendarView({
     weekDays,
     events,
@@ -56,65 +59,12 @@ export default function MobileCalendarView({
     handleOpenDispatchModal,
     handleCopyEvent,
 }: MobileCalendarViewProps) {
-    // 選択中の日付（初期値は今日、なければ週の最初の日）
     const todayKey = formatDateKey(new Date());
-    const initialDateKey = weekDays.find(d => formatDateKey(d.date) === todayKey)
-        ? todayKey
-        : formatDateKey(weekDays[0]?.date || new Date());
-    const [selectedDateKey, setSelectedDateKey] = useState(initialDateKey);
 
-    // 週が変わったら選択日をリセット
-    useEffect(() => {
-        const weekDateKeys = weekDays.map(d => formatDateKey(d.date));
-        if (!weekDateKeys.includes(selectedDateKey)) {
-            const today = formatDateKey(new Date());
-            setSelectedDateKey(weekDateKeys.includes(today) ? today : weekDateKeys[0] || today);
-        }
-    }, [weekDays, selectedDateKey]);
-
-    // アクションシート
     const [actionSheet, setActionSheet] = useState<ActionSheetState>({
-        isOpen: false, event: null, project: null
+        isOpen: false, event: null, project: null,
     });
 
-    // 折りたたみ/展開管理
-    const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
-    const toggleExpand = useCallback((employeeId: string) => {
-        setExpandedEmployees(prev => {
-            const next = new Set(prev);
-            next.has(employeeId) ? next.delete(employeeId) : next.add(employeeId);
-            return next;
-        });
-    }, []);
-
-    // 週全体のイベントマップを事前構築（パフォーマンス最適化）
-    const weekDateKeys = useMemo(() => weekDays.map(d => formatDateKey(d.date)), [weekDays]);
-
-    const selectedDay = useMemo(
-        () => weekDays.find(d => formatDateKey(d.date) === selectedDateKey),
-        [weekDays, selectedDateKey]
-    );
-
-    // 選択日の前日/翌日に移動
-    const goToPreviousDay = useCallback(() => {
-        const currentIndex = weekDays.findIndex(d => formatDateKey(d.date) === selectedDateKey);
-        if (currentIndex > 0) {
-            setSelectedDateKey(formatDateKey(weekDays[currentIndex - 1].date));
-        } else {
-            goToPreviousWeek();
-        }
-    }, [weekDays, selectedDateKey, goToPreviousWeek]);
-
-    const goToNextDay = useCallback(() => {
-        const currentIndex = weekDays.findIndex(d => formatDateKey(d.date) === selectedDateKey);
-        if (currentIndex < weekDays.length - 1) {
-            setSelectedDateKey(formatDateKey(weekDays[currentIndex + 1].date));
-        } else {
-            goToNextWeek();
-        }
-    }, [weekDays, selectedDateKey, goToNextWeek]);
-
-    // カードタップでアクションシート
     const handleCardTap = useCallback((event: CalendarEvent) => {
         const projectId = event.id.replace(/-assembly$|-demolition$/, '');
         const project = projects.find(p => p.id === projectId) || null;
@@ -125,20 +75,16 @@ export default function MobileCalendarView({
         setActionSheet({ isOpen: false, event: null, project: null });
     }, []);
 
-    // 選択日の表示テキスト
-    const dateLabel = selectedDay
-        ? `${formatDate(selectedDay.date, 'short')}（${getDayOfWeekString(selectedDay.date, 'short')}）`
+    const weekLabel = weekDays.length > 0
+        ? `${formatDate(weekDays[0].date, 'short')}〜${formatDate(weekDays[weekDays.length - 1].date, 'short')}`
         : '';
-    const isSelectedToday = selectedDateKey === todayKey;
-    const isSaturday = selectedDay?.dayOfWeek === 6;
-    const isSunday = selectedDay?.dayOfWeek === 0;
 
-    // 選択日の案件数
-    const selectedDayEventCount = events.filter(e => formatDateKey(e.startDate) === selectedDateKey).length;
+    const totalGridWidth = LABEL_W + COL_W * weekDays.length;
 
     return (
-        <div className="h-full flex flex-col bg-slate-50">
-            {/* ヘッダー: 週ナビゲーション */}
+        <div className="h-full flex flex-col bg-white overflow-hidden">
+
+            {/* ── 週ナビゲーション ── */}
             <div className="flex-shrink-0 bg-white border-b border-slate-200 px-3 py-2">
                 <div className="flex items-center justify-between">
                     <button
@@ -147,18 +93,12 @@ export default function MobileCalendarView({
                     >
                         <ChevronLeft className="w-5 h-5 text-slate-600" />
                     </button>
-
                     <button
                         onClick={goToToday}
                         className="text-sm font-bold text-slate-800 px-3 py-1 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors"
                     >
-                        {weekDays.length > 0 && (
-                            <>
-                                {formatDate(weekDays[0].date, 'short')}〜{formatDate(weekDays[weekDays.length - 1].date, 'short')}
-                            </>
-                        )}
+                        {weekLabel}
                     </button>
-
                     <button
                         onClick={goToNextWeek}
                         className="p-2 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors"
@@ -168,270 +108,217 @@ export default function MobileCalendarView({
                 </div>
             </div>
 
-            {/* 週俯瞰バー（sticky） */}
-            <div className="flex-shrink-0 sticky top-0 z-20">
-                <WeekOverviewBar
-                    weekDays={weekDays}
-                    events={events}
-                    selectedDateKey={selectedDateKey}
-                    totalMembers={totalMembers}
-                    getVacationEmployees={getVacationEmployees}
-                    onSelectDay={setSelectedDateKey}
-                />
-            </div>
+            {/* ── グリッド本体（縦横スクロール） ── */}
+            <div className="flex-1 overflow-auto">
+                <div style={{ minWidth: totalGridWidth }}>
 
-            {/* 選択日ヘッダー */}
-            <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    <span className={`text-base font-bold ${
-                        isSunday ? 'text-red-600' :
-                        isSaturday ? 'text-blue-600' :
-                        'text-slate-800'
-                    }`}>
-                        {dateLabel}
-                    </span>
-                    {isSelectedToday && (
-                        <span className="text-[10px] text-white bg-blue-500 px-1.5 py-0.5 rounded-full font-bold">
-                            今日
-                        </span>
-                    )}
-                </div>
-                <span className="text-xs text-slate-500 font-medium">
-                    {selectedDayEventCount}件の予定
-                </span>
-            </div>
-
-            {/* 職長ごとの案件リスト（折りたたみ/展開） */}
-            <div className="flex-1 overflow-auto pb-20">
-                <div className="p-3 space-y-1.5">
-                    {employeeRows.length === 0 ? (
-                        <div className="text-center py-12 text-slate-400">
-                            表示する職長がいません
+                    {/* 日付ヘッダー行（sticky top） */}
+                    <div
+                        className="flex sticky top-0 z-20 border-b-2 border-slate-300 shadow-sm"
+                        style={{ height: 40 }}
+                    >
+                        {/* 左上コーナー */}
+                        <div
+                            className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
+                            style={{ width: LABEL_W }}
+                        >
+                            <span className="text-[10px] font-bold text-slate-600 tracking-wide">職長</span>
                         </div>
-                    ) : (
-                        employeeRows.map(row => {
-                            const isExpanded = expandedEmployees.has(row.employeeId);
-                            const dayEvents = selectedDay
-                                ? getEventsForDate(row, selectedDay.date)
-                                : [];
 
-                            // 週全体の集計（折りたたみ行用）
-                            const weekTotal = weekDateKeys.reduce((acc, dateKey) => {
-                                const evts = row.events.get(dateKey) || [];
-                                acc.totalEvents += evts.length;
-                                acc.totalHours += evts.reduce((s, e) => s + (e.estimatedHours ?? 8), 0);
-                                return acc;
-                            }, { totalEvents: 0, totalHours: 0 });
+                        {/* 日付列ヘッダー */}
+                        {weekDays.map((day) => {
+                            const dateKey = formatDateKey(day.date);
+                            const isToday = dateKey === todayKey;
+                            const isSat = day.dayOfWeek === 6;
+                            const isSun = day.dayOfWeek === 0;
+                            return (
+                                <div
+                                    key={dateKey}
+                                    className={`flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
+                                        isToday
+                                            ? 'bg-gradient-to-b from-slate-700 to-slate-600'
+                                            : isSat
+                                            ? 'bg-gradient-to-b from-blue-100 to-blue-50'
+                                            : isSun
+                                            ? 'bg-gradient-to-b from-rose-100 to-rose-50'
+                                            : 'bg-gradient-to-b from-slate-100 to-slate-50'
+                                    }`}
+                                    style={{ width: COL_W }}
+                                >
+                                    <span className={`text-[11px] font-bold ${
+                                        isToday ? 'text-white' : isSat ? 'text-blue-700' : isSun ? 'text-rose-700' : 'text-slate-700'
+                                    }`}>
+                                        {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
+                                    </span>
+                                    {isToday && (
+                                        <span className="text-[8px] text-slate-300 font-medium">今日</span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
 
-                            // 選択日の案件サマリー
-                            const daySummary = dayEvents.length > 0
-                                ? dayEvents.map(e => e.title).join(', ')
-                                : null;
+                    {/* 空き人数行（sticky: ヘッダー直下） */}
+                    <div
+                        className="flex sticky top-[40px] z-[15] border-b-2 border-slate-300 bg-gradient-to-r from-slate-100 to-slate-50 shadow-sm"
+                        style={{ height: 28 }}
+                    >
+                        <div
+                            className="sticky left-0 z-20 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
+                            style={{ width: LABEL_W }}
+                        >
+                            <span className="text-[9px] font-bold text-slate-500">空き</span>
+                        </div>
+                        {weekDays.map((day) => {
+                            const dateKey = formatDateKey(day.date);
+                            const isSat = day.dayOfWeek === 6;
+                            const isSun = day.dayOfWeek === 0;
+                            const dayEvents = events.filter(e =>
+                                formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned'
+                            );
+                            const byForeman = new Map<string, number[]>();
+                            dayEvents.forEach(e => {
+                                const key = e.assignedEmployeeId!;
+                                if (!byForeman.has(key)) byForeman.set(key, []);
+                                byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
+                            });
+                            let assignedCount = 0;
+                            byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
+                            const vacationCount = getVacationEmployees(dateKey).length;
+                            const remaining = totalMembers - assignedCount - vacationCount;
 
                             return (
                                 <div
-                                    key={`${row.employeeId}-${row.rowIndex}`}
-                                    className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
+                                    key={dateKey}
+                                    className={`flex-shrink-0 border-r border-slate-200 flex items-center justify-center ${
+                                        isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
+                                    }`}
+                                    style={{ width: COL_W }}
                                 >
-                                    {/* 折りたたみヘッダー（タップで展開/折りたたみ） */}
-                                    <button
-                                        onClick={() => toggleExpand(row.employeeId)}
-                                        aria-expanded={isExpanded}
-                                        className="w-full bg-gradient-to-r from-slate-700 to-slate-600 px-3 py-2.5 flex items-center gap-2 active:from-slate-800 active:to-slate-700 transition-colors"
-                                    >
-                                        <h3 className="text-white font-bold text-sm shrink-0">
-                                            {row.employeeName}
-                                        </h3>
-
-                                        {/* 週間ドットインジケーター */}
-                                        <div className="flex gap-1 items-center mx-1">
-                                            {weekDateKeys.map(dateKey => {
-                                                const hasEvents = (row.events.get(dateKey)?.length ?? 0) > 0;
-                                                const isSelected = dateKey === selectedDateKey;
-                                                return (
-                                                    <div
-                                                        key={dateKey}
-                                                        className={`w-2.5 h-2.5 rounded-full transition-all ${
-                                                            hasEvents
-                                                                ? isSelected
-                                                                    ? 'bg-blue-400 ring-2 ring-blue-300'
-                                                                    : 'bg-slate-300'
-                                                                : isSelected
-                                                                    ? 'bg-slate-500 ring-2 ring-slate-400'
-                                                                    : 'bg-slate-500/30'
-                                                        }`}
-                                                    />
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* 件数・時間 */}
-                                        <div className="ml-auto flex items-center gap-2 shrink-0">
-                                            {weekTotal.totalEvents > 0 ? (
-                                                <>
-                                                    <span className="text-slate-300 text-xs">{weekTotal.totalEvents}件</span>
-                                                    <span className="text-slate-400 text-[10px]">{weekTotal.totalHours}h</span>
-                                                </>
-                                            ) : (
-                                                <span className="text-emerald-400 text-xs font-medium">空き</span>
-                                            )}
-                                            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                                        </div>
-                                    </button>
-
-                                    {/* 折りたたみ時: 選択日の案件サマリー1行 */}
-                                    {!isExpanded && daySummary && (
-                                        <div className="px-3 py-1.5 border-t border-slate-100 bg-slate-50">
-                                            <p className="text-xs text-slate-500 truncate">
-                                                {daySummary}
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {/* 展開時: カードビュー（アニメーション付き） */}
-                                    <div
-                                        className="grid transition-[grid-template-rows] duration-200 ease-out"
-                                        style={{ gridTemplateRows: isExpanded ? '1fr' : '0fr' }}
-                                    >
-                                        <div className="overflow-hidden">
-                                            <div className="p-2">
-                                                {dayEvents.length === 0 ? (
-                                                    <button
-                                                        onClick={() => selectedDay && handleCellClick?.(row.employeeId, selectedDay.date)}
-                                                        className="w-full text-center py-4 text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                        disabled={isReadOnly}
-                                                    >
-                                                        {isReadOnly ? '予定なし' : '＋ タップして追加'}
-                                                    </button>
-                                                ) : (
-                                                    <div className="space-y-2">
-                                                        {dayEvents.map((event) => {
-                                                            const projectId = event.id.replace(/-assembly$|-demolition$/, '');
-                                                            const project = projects.find(p => p.id === projectId);
-                                                            const editingUsers = getEditingUsers(projectId);
-
-                                                            return (
-                                                                <button
-                                                                    key={event.id}
-                                                                    onClick={() => handleCardTap(event)}
-                                                                    className="w-full text-left p-3 rounded-lg transition-all active:scale-[0.98] relative"
-                                                                    style={{ backgroundColor: event.color }}
-                                                                >
-                                                                    {editingUsers.length > 0 && (
-                                                                        <div className="absolute top-1 right-1 flex items-center gap-0.5 px-1.5 py-0.5 bg-amber-100 rounded text-[10px] text-amber-800">
-                                                                            <Edit3 className="w-3 h-3 animate-pulse" />
-                                                                            <span>{editingUsers.map(u => u.name).join(', ')}</span>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {project?.isDispatchConfirmed && (
-                                                                        <div className="absolute top-1 right-1 bg-green-100 text-green-700 rounded px-1.5 py-0.5 text-[10px] font-bold flex items-center gap-0.5">
-                                                                            <CheckCircle className="w-3 h-3" />
-                                                                            確定済
-                                                                        </div>
-                                                                    )}
-
-                                                                    <div className="font-bold text-gray-900 text-sm pr-14">
-                                                                        {event.title}
-                                                                    </div>
-
-                                                                    {event.customer && (
-                                                                        <div className="text-gray-700 text-xs mt-1">
-                                                                            {event.customer}
-                                                                        </div>
-                                                                    )}
-
-                                                                    <div className="flex items-center gap-3 mt-1.5">
-                                                                        {event.workers && event.workers.length > 0 && (
-                                                                            <span className="text-gray-700 text-xs flex items-center gap-1">
-                                                                                <Users className="w-3 h-3" />
-                                                                                {event.workers.length}人
-                                                                            </span>
-                                                                        )}
-                                                                        {event.estimatedHours != null && (
-                                                                            <span className="text-gray-700 text-xs flex items-center gap-1">
-                                                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                                                </svg>
-                                                                                {event.estimatedHours}h
-                                                                            </span>
-                                                                        )}
-                                                                        {event.remarks && (
-                                                                            <span className="text-gray-600 text-xs truncate">
-                                                                                {event.remarks}
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </button>
-                                                            );
-                                                        })}
-
-                                                        {!isReadOnly && (
-                                                            <button
-                                                                onClick={() => selectedDay && handleCellClick?.(row.employeeId, selectedDay.date)}
-                                                                className="w-full text-center py-2 text-xs text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-colors border border-dashed border-slate-200"
-                                                            >
-                                                                ＋ 追加
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${
+                                        remaining > 0 ? 'bg-slate-500' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-700'
+                                    }`}>
+                                        {remaining}人
+                                    </span>
                                 </div>
                             );
-                        })
+                        })}
+                    </div>
+
+                    {/* 職長行 */}
+                    {employeeRows.length === 0 ? (
+                        <div className="py-16 text-center text-slate-400 text-sm">
+                            表示する職長がいません
+                        </div>
+                    ) : (
+                        employeeRows.map((row) => (
+                            <div
+                                key={`${row.employeeId}-${row.rowIndex}`}
+                                className="flex border-b border-slate-200 hover:bg-gradient-to-r hover:from-slate-50/50 hover:to-transparent transition-colors min-h-[80px]"
+                            >
+                                {/* 職長名（左固定） */}
+                                <div
+                                    className="sticky left-0 z-10 bg-white border-r-2 border-slate-200 flex items-center justify-center px-1 flex-shrink-0 shadow-sm"
+                                    style={{ width: LABEL_W }}
+                                >
+                                    <span className="text-[10px] font-semibold text-slate-700 text-center leading-tight break-all">
+                                        {row.employeeName}
+                                    </span>
+                                </div>
+
+                                {/* 各日セル */}
+                                {weekDays.map((day) => {
+                                    const dateKey = formatDateKey(day.date);
+                                    const isToday = dateKey === todayKey;
+                                    const isSat = day.dayOfWeek === 6;
+                                    const isSun = day.dayOfWeek === 0;
+                                    const cellEvents = getEventsForDate(row, day.date);
+                                    const isEmpty = cellEvents.length === 0;
+
+                                    return (
+                                        <div
+                                            key={dateKey}
+                                            onClick={() => !isReadOnly && isEmpty && handleCellClick?.(row.employeeId, day.date)}
+                                            className={`flex-shrink-0 border-r border-slate-200 p-1 ${
+                                                isToday ? 'bg-blue-50/20' : isSat ? 'bg-blue-50/10' : isSun ? 'bg-rose-50/10' : ''
+                                            } ${!isReadOnly && isEmpty ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
+                                            style={{ width: COL_W }}
+                                        >
+                                            {isEmpty ? (
+                                                !isReadOnly && (
+                                                    <div className="h-full min-h-[72px] flex items-center justify-center">
+                                                        <Plus className="w-4 h-4 text-slate-200" />
+                                                    </div>
+                                                )
+                                            ) : (
+                                                <div className="space-y-1 py-0.5">
+                                                    {cellEvents.map((event) => {
+                                                        const projectId = event.id.replace(/-assembly$|-demolition$/, '');
+                                                        const editingUsers = getEditingUsers(projectId);
+                                                        const project = projects.find(p => p.id === projectId);
+
+                                                        return (
+                                                            <button
+                                                                key={event.id}
+                                                                onClick={(e) => { e.stopPropagation(); handleCardTap(event); }}
+                                                                className="w-full text-left rounded p-1 active:brightness-90 transition-all relative"
+                                                                style={{ backgroundColor: event.color }}
+                                                            >
+                                                                {/* ステータスアイコン */}
+                                                                {editingUsers.length > 0 && (
+                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-amber-200 animate-pulse" />
+                                                                )}
+                                                                {!editingUsers.length && project?.isDispatchConfirmed && (
+                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-green-200" />
+                                                                )}
+
+                                                                <div className="text-[10px] font-bold text-white leading-tight truncate pr-3">
+                                                                    {event.title}
+                                                                </div>
+                                                                {event.workers && event.workers.length > 0 && (
+                                                                    <div className="flex items-center gap-0.5 mt-0.5">
+                                                                        <Users className="w-2.5 h-2.5 text-white/70" />
+                                                                        <span className="text-[9px] text-white/80">
+                                                                            {event.workers.length}人
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                {event.estimatedHours != null && (
+                                                                    <div className="text-[9px] text-white/70 leading-tight">
+                                                                        {event.estimatedHours}h
+                                                                    </div>
+                                                                )}
+                                                            </button>
+                                                        );
+                                                    })}
+
+                                                    {/* イベントがある日の追加ボタン */}
+                                                    {!isReadOnly && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleCellClick?.(row.employeeId, day.date); }}
+                                                            className="w-full flex items-center justify-center py-0.5 text-slate-300 hover:text-slate-400 hover:bg-slate-50 rounded transition-colors"
+                                                        >
+                                                            <Plus className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ))
                     )}
                 </div>
             </div>
 
-            {/* 下部フローティング日付ナビ */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 shadow-lg z-30 px-4 py-2 flex items-center justify-between safe-area-bottom">
-                <button
-                    onClick={goToPreviousDay}
-                    className="flex items-center gap-1 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors"
-                >
-                    <ChevronLeft className="w-4 h-4" />
-                    前日
-                </button>
-
-                <span className={`text-sm font-bold ${
-                    isSunday ? 'text-red-600' :
-                    isSaturday ? 'text-blue-600' :
-                    'text-slate-700'
-                }`}>
-                    {dateLabel}
-                </span>
-
-                <button
-                    onClick={goToNextDay}
-                    className="flex items-center gap-1 px-3 py-2 text-sm text-slate-600 hover:bg-slate-100 active:bg-slate-200 rounded-lg transition-colors"
-                >
-                    翌日
-                    <ChevronRight className="w-4 h-4" />
-                </button>
-            </div>
-
-            {/* フローティング追加ボタン */}
-            {!isReadOnly && selectedDay && (
-                <button
-                    onClick={() => handleCellClick?.('unassigned', selectedDay.date)}
-                    className="fixed bottom-16 right-4 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg flex items-center justify-center active:scale-95 transition-all z-30"
-                >
-                    <Plus className="w-6 h-6" />
-                </button>
-            )}
-
-            {/* アクションシート */}
+            {/* ── アクションシート ── */}
             {actionSheet.isOpen && actionSheet.event && (
                 <>
-                    {/* 背景オーバーレイ */}
                     <div
                         className="fixed inset-0 bg-black/40 z-40"
                         onClick={closeActionSheet}
                     />
-                    {/* シート本体 */}
                     <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 animate-slide-up safe-area-bottom">
                         {/* ハンドル */}
                         <div className="flex justify-center pt-3 pb-2">
@@ -442,7 +329,7 @@ export default function MobileCalendarView({
                         <div className="px-4 pb-3 border-b border-slate-100">
                             <div className="flex items-start gap-3">
                                 <div
-                                    className="w-3 h-full min-h-[40px] rounded-full flex-shrink-0 mt-0.5"
+                                    className="w-3 min-h-[40px] rounded-full flex-shrink-0 mt-0.5"
                                     style={{ backgroundColor: actionSheet.event.color }}
                                 />
                                 <div className="flex-1 min-w-0">
@@ -462,12 +349,7 @@ export default function MobileCalendarView({
                                             </span>
                                         )}
                                         {actionSheet.event.estimatedHours != null && (
-                                            <span className="flex items-center gap-1">
-                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                </svg>
-                                                {actionSheet.event.estimatedHours}h
-                                            </span>
+                                            <span>{actionSheet.event.estimatedHours}h</span>
                                         )}
                                         {actionSheet.event.remarks && (
                                             <span className="truncate">{actionSheet.event.remarks}</span>
@@ -479,25 +361,17 @@ export default function MobileCalendarView({
 
                         {/* アクションボタン */}
                         <div className="p-2">
-                            {/* 編集 */}
                             <button
-                                onClick={() => {
-                                    closeActionSheet();
-                                    handleEventClick(actionSheet.event!.id);
-                                }}
+                                onClick={() => { closeActionSheet(); handleEventClick(actionSheet.event!.id); }}
                                 className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
                             >
                                 <Edit3 className="w-5 h-5 text-slate-500" />
                                 詳細を見る・編集
                             </button>
 
-                            {/* コピー */}
                             {!isReadOnly && handleCopyEvent && (
                                 <button
-                                    onClick={() => {
-                                        closeActionSheet();
-                                        handleCopyEvent(actionSheet.event!.id);
-                                    }}
+                                    onClick={() => { closeActionSheet(); handleCopyEvent(actionSheet.event!.id); }}
                                     className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
                                 >
                                     <Copy className="w-5 h-5 text-slate-500" />
@@ -505,7 +379,6 @@ export default function MobileCalendarView({
                                 </button>
                             )}
 
-                            {/* 手配確定 */}
                             {!isReadOnly && canDispatch && handleOpenDispatchModal && (
                                 <button
                                     onClick={() => {
@@ -533,7 +406,6 @@ export default function MobileCalendarView({
                                 </button>
                             )}
 
-                            {/* 閉じる */}
                             <button
                                 onClick={closeActionSheet}
                                 className="w-full mt-1 py-3 text-center text-sm text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
