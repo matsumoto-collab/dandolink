@@ -49,14 +49,14 @@ export default function LoginPage() {
                         <div className="inline-flex items-center justify-center w-14 h-14 bg-slate-800 rounded-lg mb-4">
                             <Lock className="w-7 h-7 text-white" />
                         </div>
-                        <h1 className="text-2xl font-semibold text-gray-800 mb-1">DandoLink</h1>
-                        <p className="text-gray-500 text-sm">施工管理システム</p>
+                        <h1 className="text-2xl font-semibold text-slate-800 mb-1">DandoLink</h1>
+                        <p className="text-slate-500 text-sm">施工管理システム</p>
                     </div>
 
                     {/* Error Message */}
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                            <p className="text-sm text-red-600">{error}</p>
+                        <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                            <p className="text-sm text-slate-600">{error}</p>
                         </div>
                     )}
 
@@ -64,19 +64,19 @@ export default function LoginPage() {
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {/* Username Field */}
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
                                 ユーザー名
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <User className="h-5 w-5 text-gray-400" />
+                                    <User className="h-5 w-5 text-slate-400" />
                                 </div>
                                 <input
                                     id="username"
                                     type="text"
                                     value={username}
                                     onChange={(e) => setUsername(e.target.value)}
-                                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="block w-full pl-10 pr-3 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
                                     placeholder="ユーザー名を入力"
                                     required
                                     autoComplete="username"
@@ -86,19 +86,19 @@ export default function LoginPage() {
 
                         {/* Password Field */}
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                                 パスワード
                             </label>
                             <div className="relative">
                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <Lock className="h-5 w-5 text-gray-400" />
+                                    <Lock className="h-5 w-5 text-slate-400" />
                                 </div>
                                 <input
                                     id="password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                    className="block w-full pl-10 pr-12 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent transition-all"
                                     placeholder="パスワードを入力"
                                     required
                                     autoComplete="current-password"
@@ -106,7 +106,7 @@ export default function LoginPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 transition-colors"
                                 >
                                     {showPassword ? (
                                         <EyeOff className="h-5 w-5" />
@@ -138,7 +138,7 @@ export default function LoginPage() {
 
                 {/* Additional Info */}
                 <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-slate-600">
                         ログインに問題がある場合は、管理者にお問い合わせください
                     </p>
                 </div>

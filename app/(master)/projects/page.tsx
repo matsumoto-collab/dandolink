@@ -88,13 +88,13 @@ export default function ProjectListPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-gray-50 to-white w-full max-w-[1800px] mx-auto">
+        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
                     案件一覧
                 </h1>
-                <p className="text-gray-600">登録されている全ての案件を管理できます</p>
+                <p className="text-slate-600">登録されている全ての案件を管理できます</p>
             </div>
 
             {/* ツールバー */}
@@ -103,13 +103,13 @@ export default function ProjectListPage() {
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
                     {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
                             type="text"
                             placeholder="現場名または元請会社名で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -117,7 +117,7 @@ export default function ProjectListPage() {
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as 'date' | 'title')}
-                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="date">日付順</option>
                         <option value="title">現場名順</option>
@@ -129,9 +129,9 @@ export default function ProjectListPage() {
                     onClick={handleAddNew}
                     className="
                         flex items-center justify-center gap-2 px-5 py-2.5
-                        bg-gradient-to-r from-blue-600 to-blue-700
+                        bg-gradient-to-r from-slate-700 to-slate-800
                         text-white font-semibold rounded-lg
-                        hover:from-blue-700 hover:to-blue-800
+                        hover:from-slate-800 hover:to-slate-900
                         active:scale-95
                         transition-all duration-200 shadow-md hover:shadow-lg
                     "
@@ -145,8 +145,8 @@ export default function ProjectListPage() {
             {/* モバイルカードビュー */}
             <div className="md:hidden flex-1 overflow-auto">
                 {filteredAndSortedProjects.length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg">
-                        <p className="text-gray-500">
+                    <div className="text-center py-12 bg-slate-50 rounded-lg">
+                        <p className="text-slate-500">
                             {searchTerm ? '検索結果が見つかりませんでした' : '案件が登録されていません'}
                         </p>
                     </div>
@@ -155,7 +155,7 @@ export default function ProjectListPage() {
                         {filteredAndSortedProjects.map((project) => (
                             <div
                                 key={project.id}
-                                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
                             >
                                 {/* ヘッダー: 現場名とアクション */}
                                 <div className="flex items-start justify-between mb-3">
@@ -164,21 +164,21 @@ export default function ProjectListPage() {
                                             className="w-3 h-3 rounded-full mr-2 shadow-sm flex-shrink-0"
                                             style={{ backgroundColor: project.color }}
                                         />
-                                        <span className="text-base font-semibold text-gray-900">
+                                        <span className="text-base font-semibold text-slate-900">
                                             {project.title}
                                         </span>
                                     </div>
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => handleEdit(project)}
-                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                             title="編集"
                                         >
                                             <Edit className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(project.id)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                             title="削除"
                                         >
                                             <Trash2 className="w-4 h-4" />
@@ -188,14 +188,14 @@ export default function ProjectListPage() {
 
                                 {/* 元請会社 */}
                                 {project.customer && (
-                                    <div className="text-sm text-gray-600 mb-2">
+                                    <div className="text-sm text-slate-600 mb-2">
                                         元請: {project.customer}
                                     </div>
                                 )}
 
                                 {/* 詳細情報 */}
-                                <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                                    <span className="inline-flex items-center px-2 py-1 bg-gray-100 rounded text-xs">
+                                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                                    <span className="inline-flex items-center px-2 py-1 bg-slate-100 rounded text-xs">
                                         {formatDate(project.startDate, 'short')}
                                     </span>
                                     <span>
@@ -208,7 +208,7 @@ export default function ProjectListPage() {
 
                                 {/* 備考 */}
                                 {project.remarks && (
-                                    <div className="text-sm text-gray-500 truncate border-t border-gray-100 pt-2 mt-3">
+                                    <div className="text-sm text-slate-500 truncate border-t border-slate-100 pt-2 mt-3">
                                         {project.remarks}
                                     </div>
                                 )}
@@ -219,37 +219,37 @@ export default function ProjectListPage() {
             </div>
 
             {/* デスクトップテーブルビュー */}
-            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gradient-to-r from-gray-100 to-gray-50 sticky top-0 z-10">
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-10">
                         <tr>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 現場名
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 元請会社
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 開始日
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 担当職長
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 人数
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 備考
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 操作
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-slate-200">
                         {filteredAndSortedProjects.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm ? '検索結果が見つかりませんでした' : '案件が登録されていません'}
                                 </td>
                             </tr>
@@ -257,7 +257,7 @@ export default function ProjectListPage() {
                             filteredAndSortedProjects.map((project) => (
                                 <tr
                                     key={project.id}
-                                    className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200"
+                                    className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">
@@ -265,37 +265,37 @@ export default function ProjectListPage() {
                                                 className="w-3 h-3 rounded-full mr-3 shadow-sm"
                                                 style={{ backgroundColor: project.color }}
                                             />
-                                            <span className="text-sm font-semibold text-gray-900">
+                                            <span className="text-sm font-semibold text-slate-900">
                                                 {project.title}
                                             </span>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                         {project.customer || '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                         {formatDate(project.startDate, 'full')}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                         {getEmployeeName(project.assignedEmployeeId ?? '')}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                         {project.workers?.length || 0}人
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-700 max-w-xs truncate">
+                                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate">
                                         {project.remarks || '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                         <button
                                             onClick={() => handleEdit(project)}
-                                            className="text-blue-600 hover:text-blue-800 mr-4 transition-colors"
+                                            className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
                                             title="編集"
                                         >
                                             <Edit className="w-5 h-5" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(project.id)}
-                                            className="text-red-600 hover:text-red-800 transition-colors"
+                                            className="text-slate-600 hover:text-slate-700 transition-colors"
                                             title="削除"
                                         >
                                             <Trash2 className="w-5 h-5" />
@@ -309,7 +309,7 @@ export default function ProjectListPage() {
             </div>
 
             {/* 統計情報 */}
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-4 text-sm text-slate-600">
                 全 {filteredAndSortedProjects.length} 件の案件
                 {searchTerm && ` (${projects.length}件中)`}
             </div>

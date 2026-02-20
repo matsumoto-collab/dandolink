@@ -124,13 +124,13 @@ export default function DailyReportPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-gray-50 to-white w-full max-w-[1800px] mx-auto">
+        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
                     日報一覧
                 </h1>
-                <p className="text-gray-600">登録されている日報を管理できます</p>
+                <p className="text-slate-600">登録されている日報を管理できます</p>
             </div>
 
             {/* ツールバー */}
@@ -139,13 +139,13 @@ export default function DailyReportPage() {
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
                             type="text"
                             placeholder="職長名、備考で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -154,9 +154,9 @@ export default function DailyReportPage() {
                         onClick={handleAddNew}
                         className="
                             flex items-center justify-center gap-2 px-5 py-2.5
-                            bg-gradient-to-r from-blue-600 to-blue-700
+                            bg-gradient-to-r from-slate-700 to-slate-800
                             text-white font-semibold rounded-lg
-                            hover:from-blue-700 hover:to-blue-800
+                            hover:from-slate-800 hover:to-slate-900
                             active:scale-95
                             transition-all duration-200 shadow-md hover:shadow-lg
                         "
@@ -173,7 +173,7 @@ export default function DailyReportPage() {
                     <select
                         value={foremanFilter}
                         onChange={(e) => setForemanFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全ての職長</option>
                         {allForemen.map(foreman => (
@@ -189,12 +189,12 @@ export default function DailyReportPage() {
                             type="date"
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                            className="flex-1 sm:flex-none px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                         />
                         {dateFilter && (
                             <button
                                 onClick={() => setDateFilter('')}
-                                className="px-3 py-2.5 text-sm text-gray-600 hover:text-gray-800 transition-colors whitespace-nowrap"
+                                className="px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
                             >
                                 クリア
                             </button>
@@ -210,8 +210,8 @@ export default function DailyReportPage() {
                         <Loading text="読み込み中..." />
                     </div>
                 ) : filteredReports.length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg">
-                        <p className="text-gray-500">
+                    <div className="text-center py-12 bg-slate-50 rounded-lg">
+                        <p className="text-slate-500">
                             {searchTerm || foremanFilter !== 'all' || dateFilter ?
                                 '検索結果が見つかりませんでした' :
                                 '日報が登録されていません'}
@@ -225,27 +225,27 @@ export default function DailyReportPage() {
                             return (
                                 <div
                                     key={report.id}
-                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
                                 >
                                     {/* ヘッダー: 日付とアクション */}
                                     <div className="flex items-start justify-between mb-3">
                                         <div className="flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-gray-500" />
-                                            <span className="text-base font-semibold text-gray-900">
+                                            <Calendar className="w-4 h-4 text-slate-500" />
+                                            <span className="text-base font-semibold text-slate-900">
                                                 {formatDate(report.date, 'full')}
                                             </span>
                                         </div>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => handleViewReport(report)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="詳細"
                                             >
                                                 <Eye className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(report.id)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="削除"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -254,24 +254,24 @@ export default function DailyReportPage() {
                                     </div>
 
                                     {/* 職長名 */}
-                                    <div className="text-sm text-gray-700 mb-3">
+                                    <div className="text-sm text-slate-700 mb-3">
                                         職長: {getForemanName(report.foremanId)}
                                     </div>
 
                                     {/* 作業時間と積込時間 */}
                                     <div className="flex flex-wrap items-center gap-3 mb-3">
-                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
                                             <Clock className="w-3 h-3" />
                                             作業 {formatMinutes(totalWork)}
                                         </span>
-                                        <span className="text-xs text-gray-600">
+                                        <span className="text-xs text-slate-600">
                                             積込: 朝 {formatMinutes(report.morningLoadingMinutes)} / 夕 {formatMinutes(report.eveningLoadingMinutes)}
                                         </span>
                                     </div>
 
                                     {/* 備考 */}
                                     {report.notes && (
-                                        <div className="text-sm text-gray-600 truncate border-t border-gray-100 pt-2 mt-2">
+                                        <div className="text-sm text-slate-600 truncate border-t border-slate-100 pt-2 mt-2">
                                             {report.notes}
                                         </div>
                                     )}
@@ -283,48 +283,48 @@ export default function DailyReportPage() {
             </div>
 
             {/* デスクトップテーブルビュー */}
-            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-48">
                         <Loading text="読み込み中..." />
                     </div>
                 ) : (
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gradient-to-r from-gray-100 to-gray-50 sticky top-0 z-10">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-10">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4" />
                                         日付
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     職長
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4" />
                                         作業時間
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     積込時間
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     <div className="flex items-center gap-2">
                                         <FileText className="w-4 h-4" />
                                         備考
                                     </div>
                                 </th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     操作
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white divide-y divide-slate-200">
                             {filteredReports.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
                                         {searchTerm || foremanFilter !== 'all' || dateFilter ?
                                             '検索結果が見つかりませんでした' :
                                             '日報が登録されていません'}
@@ -337,46 +337,46 @@ export default function DailyReportPage() {
                                     return (
                                         <tr
                                             key={report.id}
-                                            className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200"
+                                            className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
                                         >
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm font-semibold text-gray-900">
+                                                <span className="text-sm font-semibold text-slate-900">
                                                     {formatDate(report.date, 'full')}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-gray-700">
+                                                <span className="text-sm text-slate-700">
                                                     {getForemanName(report.foremanId)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
                                                     {formatMinutes(totalWork)}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-gray-700">
-                                                    <span className="text-gray-500">朝:</span> {formatMinutes(report.morningLoadingMinutes)}
-                                                    <span className="mx-2 text-gray-300">|</span>
-                                                    <span className="text-gray-500">夕:</span> {formatMinutes(report.eveningLoadingMinutes)}
+                                                <div className="text-sm text-slate-700">
+                                                    <span className="text-slate-500">朝:</span> {formatMinutes(report.morningLoadingMinutes)}
+                                                    <span className="mx-2 text-slate-300">|</span>
+                                                    <span className="text-slate-500">夕:</span> {formatMinutes(report.eveningLoadingMinutes)}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-sm text-gray-600 truncate max-w-xs block">
+                                                <span className="text-sm text-slate-600 truncate max-w-xs block">
                                                     {report.notes || '-'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                 <button
                                                     onClick={() => handleViewReport(report)}
-                                                    className="text-blue-600 hover:text-blue-800 mr-4 transition-colors"
+                                                    className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
                                                     title="詳細"
                                                 >
                                                     <Eye className="w-5 h-5" />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDelete(report.id)}
-                                                    className="text-red-600 hover:text-red-800 transition-colors"
+                                                    className="text-slate-600 hover:text-slate-700 transition-colors"
                                                     title="削除"
                                                 >
                                                     <Trash2 className="w-5 h-5" />
@@ -392,7 +392,7 @@ export default function DailyReportPage() {
             </div>
 
             {/* 統計情報 */}
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-4 text-sm text-slate-600">
                 全 {filteredReports.length} 件の日報
                 {(searchTerm || foremanFilter !== 'all' || dateFilter) && ` (${dailyReports.length}件中)`}
             </div>

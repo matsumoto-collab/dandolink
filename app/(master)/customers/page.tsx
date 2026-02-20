@@ -101,13 +101,13 @@ export default function CustomersPage() {
 
             {/* 検索バー */}
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="顧客名または担当者名で検索..."
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
             </div>
 
@@ -120,8 +120,8 @@ export default function CustomersPage() {
                     ))}
                 </div>
             ) : filteredCustomers.length === 0 ? (
-                <div className="text-center py-12 bg-gray-50 rounded-lg">
-                    <p className="text-gray-500">
+                <div className="text-center py-12 bg-slate-50 rounded-lg">
+                    <p className="text-slate-500">
                         {searchQuery ? '該当する顧客が見つかりません' : '顧客が登録されていません'}
                     </p>
                     {!searchQuery && (
@@ -139,11 +139,11 @@ export default function CustomersPage() {
                     {filteredCustomers.map((customer) => (
                         <div
                             key={customer.id}
-                            className="bg-white border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-shadow"
+                            className="bg-white border border-slate-200 rounded-lg p-5 hover:shadow-lg transition-shadow"
                         >
                             {/* 会社名 */}
                             <div className="flex items-start justify-between mb-3">
-                                <h3 className="text-lg font-bold text-gray-900 flex-1">
+                                <h3 className="text-lg font-bold text-slate-900 flex-1">
                                     {customer.name}
                                 </h3>
                                 <div className="flex gap-2">
@@ -158,7 +158,7 @@ export default function CustomersPage() {
                                         onClick={() => handleDeleteCustomer(customer.id, customer.name)}
                                         aria-label="削除"
                                         size="sm"
-                                        className="text-red-600 hover:bg-red-50"
+                                        className="text-slate-600 hover:bg-slate-50"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </IconButton>
@@ -168,49 +168,49 @@ export default function CustomersPage() {
                             {/* 詳細情報 */}
                             <div className="space-y-2 text-sm">
                                 {customer.shortName && (
-                                    <div className="text-gray-500">
+                                    <div className="text-slate-500">
                                         略称: {customer.shortName}
                                     </div>
                                 )}
                                 {customer.contactPersons && customer.contactPersons.length > 0 && (
-                                    <div className="flex items-start gap-2 text-gray-600">
+                                    <div className="flex items-start gap-2 text-slate-600">
                                         <User className="w-4 h-4 mt-0.5" />
                                         <div className="flex-1">
                                             {customer.contactPersons.map((cp) => (
                                                 <div key={cp.id}>
                                                     {cp.name}
-                                                    {cp.phone && <span className="text-gray-400 ml-2">({cp.phone})</span>}
+                                                    {cp.phone && <span className="text-slate-400 ml-2">({cp.phone})</span>}
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
                                 {customer.email && (
-                                    <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="flex items-center gap-2 text-slate-600">
                                         <Mail className="w-4 h-4" />
                                         <span className="truncate">{customer.email}</span>
                                     </div>
                                 )}
                                 {customer.phone && (
-                                    <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="flex items-center gap-2 text-slate-600">
                                         <Phone className="w-4 h-4" />
                                         <span>{customer.phone}</span>
                                     </div>
                                 )}
                                 {customer.fax && (
-                                    <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="flex items-center gap-2 text-slate-600">
                                         <Phone className="w-4 h-4" />
                                         <span>FAX: {customer.fax}</span>
                                     </div>
                                 )}
                                 {customer.address && (
-                                    <div className="flex items-center gap-2 text-gray-600">
+                                    <div className="flex items-center gap-2 text-slate-600">
                                         <MapPin className="w-4 h-4" />
                                         <a
                                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(customer.address)}`}
                                             target="_blank"
                                             rel="noopener noreferrer"
-                                            className="truncate hover:text-blue-600 hover:underline"
+                                            className="truncate hover:text-slate-600 hover:underline"
                                             title="Google Mapsで開く"
                                         >
                                             {customer.address}
@@ -221,8 +221,8 @@ export default function CustomersPage() {
 
                             {/* 備考 */}
                             {customer.notes && (
-                                <div className="mt-3 pt-3 border-t border-gray-200">
-                                    <p className="text-xs text-gray-500 line-clamp-2">
+                                <div className="mt-3 pt-3 border-t border-slate-200">
+                                    <p className="text-xs text-slate-500 line-clamp-2">
                                         {customer.notes}
                                     </p>
                                 </div>

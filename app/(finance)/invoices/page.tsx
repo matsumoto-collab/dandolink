@@ -44,13 +44,13 @@ export default function InvoiceListPage() {
     const getStatusInfo = (status: Invoice['status']) => {
         switch (status) {
             case 'draft':
-                return { icon: Clock, color: 'text-gray-500', bg: 'bg-gray-100', label: '下書き' };
+                return { icon: Clock, color: 'text-slate-500', bg: 'bg-slate-100', label: '下書き' };
             case 'sent':
-                return { icon: FileText, color: 'text-blue-600', bg: 'bg-blue-100', label: '送付済み' };
+                return { icon: FileText, color: 'text-slate-600', bg: 'bg-slate-100', label: '送付済み' };
             case 'paid':
-                return { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-100', label: '支払済み' };
+                return { icon: CheckCircle, color: 'text-slate-600', bg: 'bg-slate-100', label: '支払済み' };
             case 'overdue':
-                return { icon: AlertCircle, color: 'text-red-600', bg: 'bg-red-100', label: '期限超過' };
+                return { icon: AlertCircle, color: 'text-slate-600', bg: 'bg-slate-100', label: '期限超過' };
         }
     };
 
@@ -138,36 +138,36 @@ export default function InvoiceListPage() {
     }), [invoices]);
 
     return (
-        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-gray-50 to-white w-full max-w-[1800px] mx-auto">
+        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
                     請求書一覧
                 </h1>
-                <p className="text-gray-600">登録されている全ての請求書を管理できます</p>
+                <p className="text-slate-600">登録されている全ての請求書を管理できます</p>
             </div>
 
             {/* 統計カード */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                    <div className="text-xs sm:text-sm text-gray-600 mb-1">全体</div>
-                    <div className="text-xl sm:text-2xl font-bold text-gray-900">{stats.total}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                    <div className="text-xs sm:text-sm text-slate-600 mb-1">全体</div>
+                    <div className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                    <div className="text-xs sm:text-sm text-blue-600 mb-1">送付済み</div>
-                    <div className="text-xl sm:text-2xl font-bold text-blue-600">{stats.sent}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                    <div className="text-xs sm:text-sm text-slate-600 mb-1">送付済み</div>
+                    <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.sent}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                    <div className="text-xs sm:text-sm text-green-600 mb-1">支払済み</div>
-                    <div className="text-xl sm:text-2xl font-bold text-green-600">{stats.paid}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                    <div className="text-xs sm:text-sm text-slate-600 mb-1">支払済み</div>
+                    <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.paid}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200">
-                    <div className="text-xs sm:text-sm text-red-600 mb-1">期限超過</div>
-                    <div className="text-xl sm:text-2xl font-bold text-red-600">{stats.overdue}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                    <div className="text-xs sm:text-sm text-slate-600 mb-1">期限超過</div>
+                    <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.overdue}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-gray-200 col-span-2 sm:col-span-1">
-                    <div className="text-xs sm:text-sm text-orange-600 mb-1">未回収</div>
-                    <div className="text-base sm:text-lg font-bold text-orange-600">¥{stats.unpaidAmount.toLocaleString()}</div>
+                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200 col-span-2 sm:col-span-1">
+                    <div className="text-xs sm:text-sm text-slate-600 mb-1">未回収</div>
+                    <div className="text-base sm:text-lg font-bold text-slate-600">¥{stats.unpaidAmount.toLocaleString()}</div>
                 </div>
             </div>
 
@@ -177,13 +177,13 @@ export default function InvoiceListPage() {
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
                     {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
                             type="text"
                             placeholder="請求番号、案件名で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -191,7 +191,7 @@ export default function InvoiceListPage() {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全てのステータス</option>
                         <option value="draft">下書き</option>
@@ -206,9 +206,9 @@ export default function InvoiceListPage() {
                     onClick={handleAddNew}
                     className="
                         flex items-center justify-center gap-2 px-5 py-2.5
-                        bg-gradient-to-r from-blue-600 to-blue-700
+                        bg-gradient-to-r from-slate-700 to-slate-800
                         text-white font-semibold rounded-lg
-                        hover:from-blue-700 hover:to-blue-800
+                        hover:from-slate-800 hover:to-slate-900
                         active:scale-95
                         transition-all duration-200 shadow-md hover:shadow-lg
                     "
@@ -222,8 +222,8 @@ export default function InvoiceListPage() {
             {/* モバイルカードビュー */}
             <div className="md:hidden flex-1 overflow-auto">
                 {filteredInvoices.length === 0 ? (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg">
-                        <p className="text-gray-500">
+                    <div className="text-center py-12 bg-slate-50 rounded-lg">
+                        <p className="text-slate-500">
                             {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
                         </p>
                     </div>
@@ -236,31 +236,31 @@ export default function InvoiceListPage() {
                             return (
                                 <div
                                     key={invoice.id}
-                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
                                 >
                                     {/* ヘッダー: 請求番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">
-                                        <span className="text-base font-semibold text-gray-900">
+                                        <span className="text-base font-semibold text-slate-900">
                                             {invoice.invoiceNumber}
                                         </span>
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => handleDownloadPDF(invoice)}
-                                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="PDFダウンロード"
                                             >
                                                 <Download className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="編集"
                                             >
                                                 <Edit className="w-4 h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(invoice.id)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="削除"
                                             >
                                                 <Trash2 className="w-4 h-4" />
@@ -269,12 +269,12 @@ export default function InvoiceListPage() {
                                     </div>
 
                                     {/* 案件名 */}
-                                    <div className="text-sm text-gray-700 mb-3">
+                                    <div className="text-sm text-slate-700 mb-3">
                                         {getProjectName(invoice.projectId)}
                                     </div>
 
                                     {/* 金額 */}
-                                    <div className="text-lg font-bold text-gray-900 mb-3">
+                                    <div className="text-lg font-bold text-slate-900 mb-3">
                                         ¥{invoice.total.toLocaleString()}
                                     </div>
 
@@ -284,7 +284,7 @@ export default function InvoiceListPage() {
                                             <StatusIcon className="w-4 h-4" />
                                             {statusInfo.label}
                                         </span>
-                                        <span className="text-xs text-gray-500">
+                                        <span className="text-xs text-slate-500">
                                             期限: {formatDate(invoice.dueDate, 'short')}
                                         </span>
                                     </div>
@@ -296,37 +296,37 @@ export default function InvoiceListPage() {
             </div>
 
             {/* デスクトップテーブルビュー */}
-            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-gray-200">
-                <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gradient-to-r from-gray-100 to-gray-50 sticky top-0 z-10">
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-10">
                         <tr>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 請求番号
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 案件名
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 金額
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 ステータス
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 支払期限
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 作成日
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-800 uppercase tracking-wider">
+                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 操作
                             </th>
                         </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white divide-y divide-slate-200">
                         {filteredInvoices.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
                                 </td>
                             </tr>
@@ -338,17 +338,17 @@ export default function InvoiceListPage() {
                                 return (
                                     <tr
                                         key={invoice.id}
-                                        className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-transparent transition-all duration-200"
+                                        className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-semibold text-gray-900">
+                                            <span className="text-sm font-semibold text-slate-900">
                                                 {invoice.invoiceNumber}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {getProjectName(invoice.projectId)}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -357,30 +357,30 @@ export default function InvoiceListPage() {
                                                 {statusInfo.label}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {formatDate(invoice.dueDate, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {formatDate(invoice.createdAt, 'full')}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
                                                 onClick={() => handleDownloadPDF(invoice)}
-                                                className="text-green-600 hover:text-green-800 mr-4 transition-colors"
+                                                className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
                                                 title="PDFダウンロード"
                                             >
                                                 <Download className="w-5 h-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
-                                                className="text-blue-600 hover:text-blue-800 mr-4 transition-colors"
+                                                className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
                                                 title="編集"
                                             >
                                                 <Edit className="w-5 h-5" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(invoice.id)}
-                                                className="text-red-600 hover:text-red-800 transition-colors"
+                                                className="text-slate-600 hover:text-slate-700 transition-colors"
                                                 title="削除"
                                             >
                                                 <Trash2 className="w-5 h-5" />
@@ -395,7 +395,7 @@ export default function InvoiceListPage() {
             </div>
 
             {/* 統計情報 */}
-            <div className="mt-4 text-sm text-gray-600">
+            <div className="mt-4 text-sm text-slate-600">
                 全 {filteredInvoices.length} 件の請求書
                 {(searchTerm || statusFilter !== 'all') && ` (${invoices.length}件中)`}
             </div>

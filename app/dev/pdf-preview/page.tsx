@@ -168,30 +168,30 @@ export default function PDFPreviewPage() {
 
     if (!isClient) {
         return (
-            <div className="h-screen flex items-center justify-center bg-gray-100">
+            <div className="h-screen flex items-center justify-center bg-slate-100">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">読み込み中...</p>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4"></div>
+                    <p className="text-slate-600">読み込み中...</p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="h-screen flex flex-col bg-gray-100">
+        <div className="h-screen flex flex-col bg-slate-100">
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
+            <div className="bg-white border-b border-slate-200 px-6 py-4">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-gray-800">PDF開発プレビュー</h1>
-                        <p className="text-sm text-gray-500 mt-1">
+                        <h1 className="text-2xl font-bold text-slate-800">PDF開発プレビュー</h1>
+                        <p className="text-sm text-slate-500 mt-1">
                             コンポーネントを編集すると自動的に更新されます
                         </p>
                     </div>
                     <div className="flex items-center gap-4">
                         <button
                             onClick={handleRefresh}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
                         >
                             再読み込み
                         </button>
@@ -200,7 +200,7 @@ export default function PDFPreviewPage() {
             </div>
 
             {/* Controls */}
-            <div className="bg-white border-b border-gray-200 px-6 py-3">
+            <div className="bg-white border-b border-slate-200 px-6 py-3">
                 <div className="flex items-center justify-between">
                     {/* Tabs */}
                     <div className="flex gap-4">
@@ -208,8 +208,8 @@ export default function PDFPreviewPage() {
                             onClick={() => setActiveTab('estimate')}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                                 activeTab === 'estimate'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-slate-100 text-slate-700'
+                                    : 'text-slate-600 hover:bg-slate-100'
                             }`}
                         >
                             見積書
@@ -218,8 +218,8 @@ export default function PDFPreviewPage() {
                             onClick={() => setActiveTab('invoice')}
                             className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                                 activeTab === 'invoice'
-                                    ? 'bg-blue-100 text-blue-700'
-                                    : 'text-gray-600 hover:bg-gray-100'
+                                    ? 'bg-slate-100 text-slate-700'
+                                    : 'text-slate-600 hover:bg-slate-100'
                             }`}
                         >
                             請求書
@@ -233,9 +233,9 @@ export default function PDFPreviewPage() {
                                 type="checkbox"
                                 checked={includeCoverPage}
                                 onChange={(e) => setIncludeCoverPage(e.target.checked)}
-                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                             />
-                            <span className="text-sm text-gray-700">表紙を含める</span>
+                            <span className="text-sm text-slate-700">表紙を含める</span>
                         </label>
                     </div>
                 </div>
@@ -247,8 +247,8 @@ export default function PDFPreviewPage() {
                     {!PdfComponents.PDFViewer || !PdfComponents.EstimatePDF || !PdfComponents.InvoicePDF ? (
                         <div className="flex items-center justify-center h-full">
                             <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                <p className="text-gray-600">PDFコンポーネントを読み込み中...</p>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4"></div>
+                                <p className="text-slate-600">PDFコンポーネントを読み込み中...</p>
                             </div>
                         </div>
                     ) : (
@@ -286,17 +286,17 @@ export default function PDFPreviewPage() {
             </div>
 
             {/* Footer info */}
-            <div className="bg-white border-t border-gray-200 px-6 py-3">
-                <div className="flex items-center justify-between text-sm text-gray-500">
+            <div className="bg-white border-t border-slate-200 px-6 py-3">
+                <div className="flex items-center justify-between text-sm text-slate-500">
                     <div>
                         <span className="font-medium">編集対象:</span>{' '}
-                        <code className="bg-gray-100 px-2 py-1 rounded">
+                        <code className="bg-slate-100 px-2 py-1 rounded">
                             {activeTab === 'estimate' ? 'components/pdf/EstimatePDF.tsx' : 'components/pdf/InvoicePDF.tsx'}
                         </code>
                     </div>
                     <div>
                         <span className="font-medium">スタイル:</span>{' '}
-                        <code className="bg-gray-100 px-2 py-1 rounded">components/pdf/styles.ts</code>
+                        <code className="bg-slate-100 px-2 py-1 rounded">components/pdf/styles.ts</code>
                     </div>
                 </div>
             </div>

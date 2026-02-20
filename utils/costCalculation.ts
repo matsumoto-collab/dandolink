@@ -99,9 +99,9 @@ export function formatCurrency(amount: number): string {
  * 利益率に応じた色クラスを返す
  */
 export function getProfitMarginColor(margin: number): string {
-    if (margin >= 30) return 'text-green-600';
-    if (margin >= 20) return 'text-blue-600';
-    if (margin >= 10) return 'text-yellow-600';
-    if (margin >= 0) return 'text-orange-600';
-    return 'text-red-600';
+    if (margin >= 30) return 'text-slate-800';
+    if (margin >= 20) return 'text-slate-700';
+    if (margin >= 10) return 'text-slate-600';
+    if (margin >= 0) return 'text-slate-500';
+    return 'text-slate-400';
 }

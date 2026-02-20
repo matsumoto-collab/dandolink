@@ -110,10 +110,10 @@ export default function EstimateDetailPage() {
         return (
             <div className="flex items-center justify-center h-screen">
                 <div className="text-center">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-2">見積書が見つかりません</h2>
+                    <h2 className="text-2xl font-bold text-slate-800 mb-2">見積書が見つかりません</h2>
                     <button
                         onClick={() => router.push('/estimates')}
-                        className="text-blue-600 hover:text-blue-700 flex items-center gap-2 mx-auto"
+                        className="text-slate-600 hover:text-slate-700 flex items-center gap-2 mx-auto"
                     >
                         <ArrowLeft size={20} />
                         見積書一覧に戻る
@@ -124,27 +124,27 @@ export default function EstimateDetailPage() {
     }
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50 pt-16 lg:pt-0 lg:ml-64">
+        <div className="flex flex-col h-screen bg-slate-50 pt-16 lg:pt-0 lg:ml-64">
             {/* ヘッダー */}
-            <div className="bg-white border-b border-gray-200 px-6 py-4">
+            <div className="bg-white border-b border-slate-200 px-6 py-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <button
                             onClick={() => router.push('/estimates')}
-                            className="text-gray-600 hover:text-gray-800 transition-colors"
+                            className="text-slate-600 hover:text-slate-800 transition-colors"
                         >
                             <ArrowLeft size={24} />
                         </button>
                         <div>
-                            <div className="text-sm text-gray-500">見積書</div>
-                            <h1 className="text-2xl font-bold text-gray-800">
+                            <div className="text-sm text-slate-500">見積書</div>
+                            <h1 className="text-2xl font-bold text-slate-800">
                                 {project.title}
                             </h1>
                         </div>
                     </div>
                     <button
                         onClick={handleEdit}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
                     >
                         <Edit size={18} />
                         編集
@@ -153,11 +153,11 @@ export default function EstimateDetailPage() {
             </div>
 
             {/* アクションバー */}
-            <div className="bg-white border-b border-gray-200 px-6 py-3">
+            <div className="bg-white border-b border-slate-200 px-6 py-3">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={handleDownload}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                         title="PDF出力"
                     >
                         <FileDown size={18} />
@@ -165,7 +165,7 @@ export default function EstimateDetailPage() {
                     </button>
                     <button
                         onClick={handlePrint}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                         title="印刷"
                     >
                         <Printer size={18} />
@@ -173,7 +173,7 @@ export default function EstimateDetailPage() {
                     </button>
                     <button
                         onClick={handleDelete}
-                        className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         title="削除"
                     >
                         <Trash2 size={18} />
@@ -181,7 +181,7 @@ export default function EstimateDetailPage() {
                     </button>
                     <button
                         onClick={handleGoToProject}
-                        className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors ml-auto"
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors ml-auto"
                         title="案件詳細へ"
                     >
                         <ExternalLink size={18} />
@@ -191,13 +191,13 @@ export default function EstimateDetailPage() {
             </div>
 
             {/* タブ */}
-            <div className="bg-white border-b border-gray-200 px-6">
+            <div className="bg-white border-b border-slate-200 px-6">
                 <div className="flex gap-6">
                     <button
                         onClick={() => setActiveTab('estimate')}
                         className={`py-3 px-2 border-b-2 transition-colors ${activeTab === 'estimate'
-                            ? 'border-blue-500 text-blue-600 font-medium'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-slate-500 text-slate-600 font-medium'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         見積書
@@ -205,8 +205,8 @@ export default function EstimateDetailPage() {
                     <button
                         onClick={() => setActiveTab('budget')}
                         className={`py-3 px-2 border-b-2 transition-colors ${activeTab === 'budget'
-                            ? 'border-blue-500 text-blue-600 font-medium'
-                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                            ? 'border-slate-500 text-slate-600 font-medium'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
                             }`}
                     >
                         予算書
@@ -225,11 +225,11 @@ export default function EstimateDetailPage() {
                         />
                     ) : pdfUrl === 'error' ? (
                         <div className="flex items-center justify-center h-full">
-                            <div className="text-center text-red-500">
+                            <div className="text-center text-slate-500">
                                 <p className="text-lg">PDF生成に失敗しました</p>
                                 <button
                                     onClick={() => { setPdfUrl(''); }}
-                                    className="mt-4 text-blue-600 hover:text-blue-700"
+                                    className="mt-4 text-slate-600 hover:text-slate-700"
                                 >
                                     再試行
                                 </button>
@@ -238,14 +238,14 @@ export default function EstimateDetailPage() {
                     ) : (
                         <div className="flex items-center justify-center h-full">
                             <div className="text-center">
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                                <p className="text-gray-600">PDFを読み込んでいます...</p>
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4"></div>
+                                <p className="text-slate-600">PDFを読み込んでいます...</p>
                             </div>
                         </div>
                     )
                 ) : (
                     <div className="flex items-center justify-center h-full">
-                        <div className="text-center text-gray-500">
+                        <div className="text-center text-slate-500">
                             <p className="text-lg">予算書機能は今後実装予定です</p>
                         </div>
                     </div>

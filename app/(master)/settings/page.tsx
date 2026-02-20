@@ -212,7 +212,7 @@ export default function SettingsPage() {
                                 </div>
                                 <div className="space-y-4">
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
                                             新しい人数
                                         </label>
                                         <div className="flex gap-2">
@@ -308,14 +308,14 @@ export default function SettingsPage() {
                                                     )}
                                                     <button
                                                         onClick={handleSaveEdit}
-                                                        className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
                                                         title="保存"
                                                     >
                                                         <Check className="w-4 h-4" />
                                                     </button>
                                                     <button
                                                         onClick={handleCancelEdit}
-                                                        className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
                                                         title="キャンセル"
                                                     >
                                                         <X className="w-4 h-4" />
@@ -342,13 +342,13 @@ export default function SettingsPage() {
                                                         <div className="flex gap-1">
                                                             <button
                                                                 onClick={() => handleDelete(item.id)}
-                                                                className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                                                className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
                                                             >
                                                                 削除
                                                             </button>
                                                             <button
                                                                 onClick={() => setDeleteConfirm(null)}
-                                                                className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                                                                className="px-3 py-1 text-xs bg-gray-300 text-slate-700 rounded-md hover:bg-gray-400 transition-colors"
                                                             >
                                                                 キャンセル
                                                             </button>
@@ -356,7 +356,7 @@ export default function SettingsPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => setDeleteConfirm(item.id)}
-                                                            className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
                                                             title="削除"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
@@ -369,7 +369,7 @@ export default function SettingsPage() {
                                 </div>
 
                                 {getCurrentItems().length === 0 && (
-                                    <div className="text-center py-12 text-gray-500">
+                                    <div className="text-center py-12 text-slate-500">
                                         {getTabLabel()}が登録されていません
                                     </div>
                                 )}

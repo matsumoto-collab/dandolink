@@ -13,7 +13,7 @@ export default async function Home() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-slate-50">
             <Sidebar />
             <Header />
             <MainContent />
