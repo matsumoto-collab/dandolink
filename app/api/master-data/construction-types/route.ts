@@ -31,7 +31,9 @@ export async function GET() {
             });
         }
 
-        return NextResponse.json(constructionTypes);
+        return NextResponse.json(constructionTypes, {
+            headers: { 'Cache-Control': 'private, max-age=3600, stale-while-revalidate=60' },
+        });
     } catch (error) {
         return serverErrorResponse('工事種別一覧取得', error);
     }
