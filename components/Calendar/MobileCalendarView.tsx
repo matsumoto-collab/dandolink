@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
@@ -75,6 +75,20 @@ export default function MobileCalendarView({
         setActionSheet({ isOpen: false, event: null, project: null });
     }, []);
 
+    // スクロールと誤タップを区別するための ref
+    // onTouchMove でスクロール検知し、onClick でキャンセル判定
+    const touchMoved = useRef(false);
+    const touchStart = useRef({ x: 0, y: 0 });
+    const handleScrollTouchStart = useCallback((e: React.TouchEvent) => {
+        touchMoved.current = false;
+        touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    }, []);
+    const handleScrollTouchMove = useCallback((e: React.TouchEvent) => {
+        const dx = Math.abs(e.touches[0].clientX - touchStart.current.x);
+        const dy = Math.abs(e.touches[0].clientY - touchStart.current.y);
+        if (dx > 6 || dy > 6) touchMoved.current = true;
+    }, []);
+
     const weekLabel = weekDays.length > 0
         ? `${formatDate(weekDays[0].date, 'short')}〜${formatDate(weekDays[weekDays.length - 1].date, 'short')}`
         : '';
@@ -109,7 +123,11 @@ export default function MobileCalendarView({
             </div>
 
             {/* ── グリッド本体（縦横スクロール） ── */}
-            <div className="flex-1 overflow-auto">
+            <div
+                className="flex-1 overflow-auto"
+                onTouchStart={handleScrollTouchStart}
+                onTouchMove={handleScrollTouchMove}
+            >
                 <div style={{ minWidth: totalGridWidth }}>
 
                     {/* 日付ヘッダー行（sticky top） */}
@@ -238,7 +256,7 @@ export default function MobileCalendarView({
                                     return (
                                         <div
                                             key={dateKey}
-                                            onClick={() => !isReadOnly && isEmpty && handleCellClick?.(row.employeeId, day.date)}
+                                            onClick={() => !touchMoved.current && !isReadOnly && isEmpty && handleCellClick?.(row.employeeId, day.date)}
                                             className={`flex-shrink-0 border-r border-slate-200 p-1 ${
                                                 isToday ? 'bg-blue-50/20' : isSat ? 'bg-blue-50/10' : isSun ? 'bg-rose-50/10' : ''
                                             } ${!isReadOnly && isEmpty ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
@@ -260,7 +278,7 @@ export default function MobileCalendarView({
                                                         return (
                                                             <button
                                                                 key={event.id}
-                                                                onClick={(e) => { e.stopPropagation(); handleCardTap(event); }}
+                                                                onClick={(e) => { e.stopPropagation(); if (!touchMoved.current) handleCardTap(event); }}
                                                                 className="w-full text-left rounded p-1 active:brightness-90 transition-all relative"
                                                                 style={{ backgroundColor: event.color }}
                                                             >
@@ -295,7 +313,7 @@ export default function MobileCalendarView({
                                                     {/* イベントがある日の追加ボタン */}
                                                     {!isReadOnly && (
                                                         <button
-                                                            onClick={(e) => { e.stopPropagation(); handleCellClick?.(row.employeeId, day.date); }}
+                                                            onClick={(e) => { e.stopPropagation(); if (!touchMoved.current) handleCellClick?.(row.employeeId, day.date); }}
                                                             className="w-full flex items-center justify-center py-0.5 text-slate-300 hover:text-slate-400 hover:bg-slate-50 rounded transition-colors"
                                                         >
                                                             <Plus className="w-3 h-3" />
