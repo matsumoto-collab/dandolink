@@ -5,30 +5,36 @@ import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays } from 'lucide-react';
 
 interface AssignmentTableProps {
-    userRole?: string;  // admin, manager, foreman1, foreman2, worker
-    userTeamId?: string;  // 職方の場合、所属職長ID
+    userRole?: string;
+    userTeamId?: string;
 }
+
+// 職長インデックスに対応するアクセントカラー
+const ACCENT_COLORS = [
+    { border: 'border-blue-500',   bg: 'bg-blue-50',   text: 'text-blue-700',   badge: 'bg-blue-500' },
+    { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-500' },
+    { border: 'border-violet-500', bg: 'bg-violet-50', text: 'text-violet-700',  badge: 'bg-violet-500' },
+    { border: 'border-amber-500',  bg: 'bg-amber-50',  text: 'text-amber-700',  badge: 'bg-amber-500' },
+    { border: 'border-rose-500',   bg: 'bg-rose-50',   text: 'text-rose-700',   badge: 'bg-rose-500' },
+    { border: 'border-cyan-500',   bg: 'bg-cyan-50',   text: 'text-cyan-700',   badge: 'bg-cyan-500' },
+];
 
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
     const { projects } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
 
-    // ワーカー・車両名のマップ
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
 
-    // ワーカー・車両名の取得
     useEffect(() => {
         const fetchNames = async () => {
             try {
                 setNamesLoadError(null);
-
-                // ワーカー名取得
                 const workersRes = await fetch('/api/dispatch/workers');
                 if (workersRes.ok) {
                     const workersData = await workersRes.json();
@@ -38,8 +44,6 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                     });
                     setWorkerNameMap(map);
                 }
-
-                // 車両名取得
                 const vehiclesRes = await fetch('/api/master-data');
                 if (vehiclesRes.ok) {
                     const masterData = await vehiclesRes.json();
@@ -55,11 +59,9 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 setIsNamesLoaded(true);
             }
         };
-
         fetchNames();
     }, []);
 
-    // デフォルトは明日
     const [selectedDate, setSelectedDate] = useState(() => {
         const tomorrow = new Date();
         tomorrow.setDate(tomorrow.getDate() + 1);
@@ -67,7 +69,6 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         return tomorrow;
     });
 
-    // 表示する職長リスト（displayedForemanIdsの順番を維持）
     const foremen = useMemo(() => {
         return displayedForemanIds
             .map(id => allForemen.find(user => user.id === id))
@@ -75,17 +76,20 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             .map(user => ({ id: user.id, name: user.displayName }));
     }, [displayedForemanIds, allForemen]);
 
-    // 日付をフォーマット
     const formatDisplayDate = (date: Date) => {
-        const year = date.getFullYear();
         const month = date.getMonth() + 1;
         const day = date.getDate();
         const weekDays = ['日', '月', '火', '水', '木', '金', '土'];
         const weekDay = weekDays[date.getDay()];
-        return `${year}年${month}月${day}日 (${weekDay})`;
+        const isToday = formatDateKey(date) === formatDateKey(new Date());
+        const isTomorrow = (() => {
+            const t = new Date(); t.setDate(t.getDate() + 1);
+            return formatDateKey(date) === formatDateKey(t);
+        })();
+        const label = isToday ? '今日' : isTomorrow ? '明日' : null;
+        return { month, day, weekDay, label, year: date.getFullYear() };
     };
 
-    // 日付を変更
     const changeDate = (days: number) => {
         setSelectedDate(prev => {
             const newDate = new Date(prev);
@@ -94,281 +98,353 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         });
     };
 
-    // 選択した日付の案件を職長ごとにグループ化
+    const goToTomorrow = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(0, 0, 0, 0);
+        setSelectedDate(tomorrow);
+    };
+
     const assignmentsByEmployee = useMemo(() => {
         const dateStr = formatDateKey(selectedDate);
-
-        // 該当日の案件をフィルタ
         let dayProjects = projects.filter(project => {
             const projectDateStr = formatDateKey(new Date(project.startDate));
             return projectDateStr === dateStr;
         });
-
-        // workerロールの場合、自分がアサインされた案件のみに絞り込み
         if (userRole === 'worker' && userTeamId) {
             dayProjects = dayProjects.filter(project =>
                 project.confirmedWorkerIds?.includes(userTeamId)
             );
-            // workerビューでは職長グループ化せず、直接案件リストを返す
             return { '_worker': dayProjects };
         }
-
-        // 職長ごとにグループ化（sortOrderでソート）
         const grouped: Record<string, typeof dayProjects> = {};
-
         foremen.forEach(foreman => {
             grouped[foreman.id] = dayProjects
                 .filter(p => p.assignedEmployeeId === foreman.id)
                 .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
         });
-
         return grouped;
     }, [projects, foremen, selectedDate, userRole, userTeamId]);
 
-    // 編集権限のチェック
     const canEdit = (employeeId: string) => {
-        if (userRole === 'admin' || userRole === 'manager' || userRole === 'foreman1') {
-            return true;
-        }
-        if (userRole === 'foreman2' && employeeId === userTeamId) {
-            return true;
-        }
+        if (userRole === 'admin' || userRole === 'manager' || userRole === 'foreman1') return true;
+        if (userRole === 'foreman2' && employeeId === userTeamId) return true;
         return false;
     };
 
+    const dateInfo = formatDisplayDate(selectedDate);
+
     return (
-        <div className="flex flex-col h-full">
-            {/* エラー表示 */}
+        <div className="flex flex-col h-full gap-4">
             {namesLoadError && (
-                <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
                     {namesLoadError}（名前の表示に影響がある可能性があります）
                 </div>
             )}
 
-            {/* ヘッダー：日付選択 */}
-            <div className="flex items-center justify-center gap-4 mb-6 bg-white rounded-lg shadow-sm p-4">
-                <button
-                    onClick={() => changeDate(-1)}
-                    className="p-2 rounded-full hover:bg-slate-100 transition-colors"
-                >
-                    <ChevronLeft className="w-6 h-6 text-slate-600" />
-                </button>
+            {/* 日付ナビゲーション */}
+            <div className="flex-shrink-0 bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                <div className="flex items-center justify-between gap-3">
+                    <button
+                        onClick={() => changeDate(-1)}
+                        className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                    >
+                        <ChevronLeft className="w-5 h-5 text-slate-500" />
+                    </button>
 
-                <h2 className="text-2xl font-bold text-slate-800 min-w-[200px] text-center">
-                    {formatDisplayDate(selectedDate)}
-                </h2>
+                    <div className="flex-1 flex items-center justify-center gap-3">
+                        <CalendarDays className="w-5 h-5 text-slate-400 flex-shrink-0" />
+                        <div className="text-center">
+                            <div className="flex items-baseline gap-1.5 justify-center">
+                                <span className="text-2xl font-bold text-slate-800">
+                                    {dateInfo.month}/{dateInfo.day}
+                                </span>
+                                <span className="text-sm font-medium text-slate-500">
+                                    ({dateInfo.weekDay})
+                                </span>
+                                {dateInfo.label && (
+                                    <span className="ml-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">
+                                        {dateInfo.label}
+                                    </span>
+                                )}
+                            </div>
+                            <div className="text-xs text-slate-400">{dateInfo.year}年</div>
+                        </div>
+                    </div>
 
-                <button
-                    onClick={() => changeDate(1)}
-                    className="p-2 rounded-full hover:bg-slate-100 transition-colors"
-                >
-                    <ChevronRight className="w-6 h-6 text-slate-600" />
-                </button>
+                    <button
+                        onClick={() => changeDate(1)}
+                        className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                    >
+                        <ChevronRight className="w-5 h-5 text-slate-500" />
+                    </button>
+                </div>
 
-                <button
-                    onClick={() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        tomorrow.setHours(0, 0, 0, 0);
-                        setSelectedDate(tomorrow);
-                    }}
-                    className="ml-4 px-4 py-2 text-sm bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                >
-                    明日に戻る
-                </button>
+                <div className="mt-3 flex justify-center">
+                    <button
+                        onClick={goToTomorrow}
+                        className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                        明日に戻る
+                    </button>
+                </div>
             </div>
 
             {/* 手配表本体 */}
             <div className="flex-1 overflow-auto">
-                <div className="grid gap-4">
-                    {/* workerロールの場合はシンプルなリストで表示 */}
+                <div className="space-y-4">
                     {userRole === 'worker' ? (
-                        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                            <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-6 py-4">
-                                <h3 className="text-lg font-bold">あなたの担当現場</h3>
-                                <p className="text-sm text-slate-300">
-                                    {Object.values(assignmentsByEmployee).flat().length}件の現場
-                                </p>
-                            </div>
-                            <div className="divide-y divide-slate-100">
-                                {Object.values(assignmentsByEmployee).flat().length === 0 ? (
-                                    <div className="p-6 text-center text-slate-400">
-                                        担当現場なし
-                                    </div>
-                                ) : (
-                                    Object.values(assignmentsByEmployee).flat().map(project => {
-                                        // 職長名を取得
-                                        const foremanName = allForemen.find(user => user.id === project.assignedEmployeeId)?.displayName || '未設定';
-
-                                        return (
-                                            <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        {/* 班名 */}
-                                                        <span className="inline-block px-2 py-0.5 bg-slate-600 text-white text-xs font-medium rounded mb-2">
-                                                            {foremanName}班
-                                                        </span>
-                                                        <h4 className="font-bold text-slate-800 text-lg">
-                                                            {project.title}
-                                                        </h4>
-                                                        {project.customer && (
-                                                            <p className="text-sm text-slate-600 mt-1">
-                                                                {project.customer}
-                                                            </p>
-                                                        )}
-                                                        <div className="flex flex-wrap gap-4 mt-2 text-sm text-slate-500">
-                                                            <div className="flex items-center gap-1">
-                                                                <Clock className="w-4 h-4" />
-                                                                <span>未設定</span>
-                                                            </div>
-                                                            {project.location && (
-                                                                <div className="flex items-center gap-1">
-                                                                    <MapPin className="w-4 h-4" />
-                                                                    <span className="truncate max-w-[200px]">{project.location}</span>
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
+                        /* ワーカービュー */
+                        <ForemanSection
+                            foremanName="あなたの担当現場"
+                            accentColor={ACCENT_COLORS[0]}
+                            assignments={Object.values(assignmentsByEmployee).flat()}
+                            emptyMessage="担当現場なし"
+                            canEdit={false}
+                            isNamesLoaded={isNamesLoaded}
+                            workerNameMap={workerNameMap}
+                            vehicleNameMap={vehicleNameMap}
+                            foremanId=""
+                            showForemanBadge
+                            allForemen={allForemen}
+                        />
                     ) : (
-                        /* 管理者・職長用の職長ごとグループ表示 */
-                        foremen.map(foreman => {
+                        foremen.map((foreman, index) => {
                             const assignments = assignmentsByEmployee[foreman.id] || [];
-
+                            const color = ACCENT_COLORS[index % ACCENT_COLORS.length];
                             return (
-                                <div key={foreman.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                                    {/* 職長ヘッダー */}
-                                    <div className="bg-gradient-to-r from-slate-700 to-slate-600 text-white px-6 py-4">
-                                        <h3 className="text-lg font-bold">{foreman.name} 班</h3>
-                                        <p className="text-sm text-slate-300">
-                                            {assignments.length}件の現場
-                                        </p>
-                                    </div>
-
-                                    {/* 案件リスト */}
-                                    <div className="divide-y divide-slate-100">
-                                        {assignments.length === 0 ? (
-                                            <div className="p-6 text-center text-slate-400">
-                                                予定なし
-                                            </div>
-                                        ) : (
-                                            assignments.map(project => (
-                                                <div key={project.id} className="p-4 hover:bg-slate-50 transition-colors">
-                                                    <div className="flex items-start justify-between">
-                                                        <div className="flex-1">
-                                                            {/* 現場名 */}
-                                                            <h4 className="font-bold text-slate-800 text-lg">
-                                                                {project.title}
-                                                            </h4>
-
-                                                            {/* 顧客名 */}
-                                                            {project.customer && (
-                                                                <p className="text-sm text-slate-600 mt-1">
-                                                                    {project.customer}
-                                                                </p>
-                                                            )}
-
-                                                            {/* 詳細情報 */}
-                                                            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                                                                {/* 集合時間 */}
-                                                                <div className="flex items-center gap-2 text-slate-600">
-                                                                    <Clock className="w-4 h-4 text-slate-400" />
-                                                                    <span>
-                                                                        {project.meetingTime || '未設定'}
-                                                                    </span>
-                                                                </div>
-
-                                                                {/* 場所 */}
-                                                                {project.location && (
-                                                                    <div className="flex items-center gap-2 text-slate-600">
-                                                                        <MapPin className="w-4 h-4 text-slate-400" />
-                                                                        <span>{project.location}</span>
-                                                                    </div>
-                                                                )}
-
-                                                                {/* メンバー */}
-                                                                <div className="flex items-center gap-2 text-slate-600">
-                                                                    <Users className="w-4 h-4 text-slate-400" />
-                                                                    <span>
-                                                                        {project.workers?.length || 0}名
-                                                                    </span>
-                                                                </div>
-
-                                                                {/* 車両 */}
-                                                                <div className="flex items-center gap-2 text-slate-600">
-                                                                    <Truck className="w-4 h-4 text-slate-400" />
-                                                                    <span>
-                                                                        {project.trucks?.length || project.vehicles?.length || 0}台
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* 確定済み手配情報表示 */}
-                                                            {project.isDispatchConfirmed && isNamesLoaded && (
-                                                                <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
-                                                                    <div className="flex items-center gap-2 text-green-700 font-medium mb-2">
-                                                                        <CheckCircle className="w-4 h-4" />
-                                                                        <span>手配確定済み</span>
-                                                                    </div>
-
-                                                                    {/* 確定済み職方 */}
-                                                                    {project.confirmedWorkerIds && project.confirmedWorkerIds.length > 0 && (
-                                                                        <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
-                                                                            <Users className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                                                            <span>
-                                                                                {project.confirmedWorkerIds
-                                                                                    .filter(id => id !== foreman.id && workerNameMap.has(id))
-                                                                                    .map(id => workerNameMap.get(id))
-                                                                                    .join(', ')}
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-
-                                                                    {/* 確定済み車両 */}
-                                                                    {project.confirmedVehicleIds && project.confirmedVehicleIds.length > 0 && (
-                                                                        <div className="flex items-start gap-2 text-sm text-green-700 mt-1">
-                                                                            <Truck className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                                                                            <span>
-                                                                                {project.confirmedVehicleIds
-                                                                                    .map(id => vehicleNameMap.get(id) || id)
-                                                                                    .join(', ')}
-                                                                            </span>
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            {/* 備考 */}
-                                                            {project.remarks && (
-                                                                <p className="mt-2 text-sm text-slate-500 bg-slate-50 p-2 rounded">
-                                                                    {project.remarks}
-                                                                </p>
-                                                            )}
-                                                        </div>
-
-                                                        {/* 編集ボタン（権限がある場合のみ） */}
-                                                        {canEdit(foreman.id) && (
-                                                            <div className="ml-4">
-                                                                <button className="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors text-slate-600">
-                                                                    編集
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
+                                <ForemanSection
+                                    key={foreman.id}
+                                    foremanName={foreman.name}
+                                    accentColor={color}
+                                    assignments={assignments}
+                                    emptyMessage="予定なし"
+                                    canEdit={canEdit(foreman.id)}
+                                    isNamesLoaded={isNamesLoaded}
+                                    workerNameMap={workerNameMap}
+                                    vehicleNameMap={vehicleNameMap}
+                                    foremanId={foreman.id}
+                                    allForemen={allForemen}
+                                />
                             );
-                        }))}
+                        })
+                    )}
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// ── 職長セクション ──────────────────────────────────────────
+interface ForemanSectionProps {
+    foremanName: string;
+    accentColor: typeof ACCENT_COLORS[0];
+    assignments: ReturnType<typeof useProjects>['projects'];
+    emptyMessage: string;
+    canEdit: boolean;
+    isNamesLoaded: boolean;
+    workerNameMap: Map<string, string>;
+    vehicleNameMap: Map<string, string>;
+    foremanId: string;
+    showForemanBadge?: boolean;
+    allForemen: { id: string; displayName: string }[];
+}
+
+function ForemanSection({
+    foremanName,
+    accentColor,
+    assignments,
+    emptyMessage,
+    canEdit,
+    isNamesLoaded,
+    workerNameMap,
+    vehicleNameMap,
+    foremanId,
+    showForemanBadge,
+    allForemen,
+}: ForemanSectionProps) {
+    const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
+
+    return (
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            {/* 職長ヘッダー */}
+            <div className={`flex items-center gap-3 px-5 py-3 border-l-4 ${accentColor.border} ${accentColor.bg}`}>
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                        <span className={`text-sm font-bold ${accentColor.text}`}>
+                            {foremanName} 班
+                        </span>
+                        <span className="text-xs text-slate-400">
+                            {assignments.length}件
+                        </span>
+                    </div>
+                </div>
+                {confirmedCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        <CheckCircle className="w-3 h-3" />
+                        {confirmedCount}件確定
+                    </span>
+                )}
+            </div>
+
+            {/* 案件リスト */}
+            <div className="divide-y divide-slate-50">
+                {assignments.length === 0 ? (
+                    <div className="py-8 text-center text-slate-300 text-sm">{emptyMessage}</div>
+                ) : (
+                    assignments.map(project => (
+                        <ProjectCard
+                            key={project.id}
+                            project={project}
+                            canEdit={canEdit}
+                            isNamesLoaded={isNamesLoaded}
+                            workerNameMap={workerNameMap}
+                            vehicleNameMap={vehicleNameMap}
+                            foremanId={foremanId}
+                            showForemanBadge={showForemanBadge}
+                            allForemen={allForemen}
+                            accentColor={accentColor}
+                        />
+                    ))
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── 案件カード ──────────────────────────────────────────────
+interface ProjectCardProps {
+    project: ReturnType<typeof useProjects>['projects'][0];
+    canEdit: boolean;
+    isNamesLoaded: boolean;
+    workerNameMap: Map<string, string>;
+    vehicleNameMap: Map<string, string>;
+    foremanId: string;
+    showForemanBadge?: boolean;
+    allForemen: { id: string; displayName: string }[];
+    accentColor: typeof ACCENT_COLORS[0];
+}
+
+function ProjectCard({
+    project,
+    canEdit,
+    isNamesLoaded,
+    workerNameMap,
+    vehicleNameMap,
+    foremanId,
+    showForemanBadge,
+    allForemen,
+    accentColor,
+}: ProjectCardProps) {
+    const workerCount = project.workers?.length || 0;
+    const vehicleCount = project.trucks?.length || project.vehicles?.length || 0;
+    const foremanName = showForemanBadge
+        ? allForemen.find(u => u.id === project.assignedEmployeeId)?.displayName
+        : null;
+
+    const confirmedWorkers = isNamesLoaded && project.confirmedWorkerIds
+        ? project.confirmedWorkerIds
+            .filter(id => id !== foremanId && workerNameMap.has(id))
+            .map(id => workerNameMap.get(id)!)
+        : [];
+
+    const confirmedVehicles = isNamesLoaded && project.confirmedVehicleIds
+        ? project.confirmedVehicleIds.map(id => vehicleNameMap.get(id) || id)
+        : [];
+
+    return (
+        <div className="px-5 py-4 hover:bg-slate-50/60 transition-colors">
+            <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                    {/* 上段: 手配確定 + 職長バッジ */}
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                        {project.isDispatchConfirmed && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                                <CheckCircle className="w-3 h-3" />
+                                手配確定
+                            </span>
+                        )}
+                        {foremanName && (
+                            <span className={`inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full text-white ${accentColor.badge}`}>
+                                {foremanName}班
+                            </span>
+                        )}
+                    </div>
+
+                    {/* 現場名 */}
+                    <h4 className="font-bold text-slate-800 text-base leading-snug">
+                        {project.title}
+                    </h4>
+
+                    {/* 顧客名 */}
+                    {project.customer && (
+                        <p className="text-sm text-slate-500 mt-0.5">{project.customer}</p>
+                    )}
+
+                    {/* 集合時間 + 場所 */}
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2">
+                        <span className={`flex items-center gap-1.5 text-sm font-semibold ${
+                            project.meetingTime ? 'text-slate-700' : 'text-slate-300'
+                        }`}>
+                            <Clock className="w-4 h-4 flex-shrink-0" />
+                            {project.meetingTime || '時間未設定'}
+                        </span>
+                        {project.location && (
+                            <span className="flex items-center gap-1.5 text-sm text-slate-500">
+                                <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                                <span className="truncate max-w-[180px]">{project.location}</span>
+                            </span>
+                        )}
+                    </div>
+
+                    {/* メンバー + 車両 chips */}
+                    <div className="flex flex-wrap gap-2 mt-2.5">
+                        {workerCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                                <Users className="w-3.5 h-3.5" />
+                                {workerCount}名
+                            </span>
+                        )}
+                        {vehicleCount > 0 && (
+                            <span className="inline-flex items-center gap-1 text-xs text-slate-600 bg-slate-100 px-2.5 py-1 rounded-full">
+                                <Truck className="w-3.5 h-3.5" />
+                                {vehicleCount}台
+                            </span>
+                        )}
+                    </div>
+
+                    {/* 確定済み詳細（職方・車両名） */}
+                    {project.isDispatchConfirmed && isNamesLoaded && (confirmedWorkers.length > 0 || confirmedVehicles.length > 0) && (
+                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-100 rounded-xl space-y-1.5">
+                            {confirmedWorkers.length > 0 && (
+                                <div className="flex items-start gap-2 text-sm text-emerald-800">
+                                    <Users className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                    <span>{confirmedWorkers.join('、')}</span>
+                                </div>
+                            )}
+                            {confirmedVehicles.length > 0 && (
+                                <div className="flex items-start gap-2 text-sm text-emerald-800">
+                                    <Truck className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                                    <span>{confirmedVehicles.join('、')}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* 備考 */}
+                    {project.remarks && (
+                        <p className="mt-2 text-sm text-slate-500 bg-slate-50 border border-slate-100 px-3 py-2 rounded-lg">
+                            {project.remarks}
+                        </p>
+                    )}
+                </div>
+
+                {/* 編集ボタン */}
+                {canEdit && (
+                    <button className="flex-shrink-0 px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 rounded-xl transition-colors min-h-[44px]">
+                        編集
+                    </button>
+                )}
             </div>
         </div>
     );
