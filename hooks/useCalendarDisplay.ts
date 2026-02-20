@@ -22,6 +22,7 @@ export function useCalendarDisplay() {
     const moveForemanStore = useCalendarStore((state) => state.moveForeman);
     const getAvailableForemenStore = useCalendarStore((state) => state.getAvailableForemen);
     const getForemanNameStore = useCalendarStore((state) => state.getForemanName);
+    const initializeForemenFromAll = useCalendarStore((state) => state.initializeForemenFromAll);
 
     // Initial fetch (並列実行)
     useEffect(() => {
@@ -29,6 +30,13 @@ export function useCalendarDisplay() {
             Promise.all([fetchForemen(), fetchForemanSettings()]);
         }
     }, [status, isInitialized, fetchForemen, fetchForemanSettings]);
+
+    // 設定未登録ユーザーは全職長をデフォルト表示
+    useEffect(() => {
+        if (isInitialized && displayedForemanIds.length === 0 && allForemen.length > 0) {
+            initializeForemenFromAll();
+        }
+    }, [isInitialized, displayedForemanIds.length, allForemen.length, initializeForemenFromAll]);
 
     // Wrapper functions for backward compatibility
     const addForeman = useCallback(async (employeeId: string) => {

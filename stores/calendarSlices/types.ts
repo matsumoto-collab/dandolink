@@ -132,6 +132,7 @@ export interface CalendarActions {
     moveForeman: (employeeId: string, direction: 'up' | 'down') => Promise<void>;
     getAvailableForemen: () => { id: string; name: string }[];
     getForemanName: (id: string) => string;
+    initializeForemenFromAll: () => void;
 
     // Daily Reports
     fetchDailyReports: (params?: { foremanId?: string; date?: string; startDate?: string; endDate?: string }) => Promise<void>;

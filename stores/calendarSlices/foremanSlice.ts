@@ -1,7 +1,7 @@
 import { CalendarSlice, CalendarActions, CalendarState, ForemanUser } from './types';
 
 type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized'> &
-    Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName'>;
+    Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
 
 export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     displayedForemanIds: [],
@@ -89,5 +89,12 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     getForemanName: (id) => {
         const foreman = get().allForemen.find((f) => f.id === id);
         return foreman?.displayName || '不明';
+    },
+
+    initializeForemenFromAll: () => {
+        const { allForemen, displayedForemanIds } = get();
+        if (displayedForemanIds.length === 0 && allForemen.length > 0) {
+            set({ displayedForemanIds: allForemen.map((f) => f.id) });
+        }
     },
 });
