@@ -13,11 +13,11 @@ export default function ProjectMasterListPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('active');
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
+    const [openModalInEditMode, setOpenModalInEditMode] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [editingId, setEditingId] = useState<string | null>(null);
 
-    // Form state - using new extended form data
-    const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
+    // 新規作成用フォームデータ
+    const [createFormData, setCreateFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
 
     // Filter and sort
     const filteredMasters = useMemo(() => {
@@ -46,117 +46,77 @@ export default function ProjectMasterListPage() {
     }, [projectMasters, searchTerm, filterStatus]);
 
     const handleCreate = async () => {
-        if (!formData.title.trim()) {
+        if (!createFormData.title.trim()) {
             toast.error('現場名は必須です');
             return;
         }
-        if (!formData.constructionContent) {
+        if (!createFormData.constructionContent) {
             toast.error('工事内容は必須です');
             return;
         }
-        if (formData.createdBy.length === 0) {
+        if (createFormData.createdBy.length === 0) {
             toast.error('案件責任者は必須です');
             return;
         }
-        if (!formData.customerName) {
+        if (!createFormData.customerName) {
             toast.error('元請けは必須です');
             return;
         }
 
         try {
             await createProjectMaster({
-                title: formData.title,
-                customerId: formData.customerId || undefined,
-                customerName: formData.customerName || undefined,
-                constructionType: 'other', // Default, will be set when adding to calendar
-                constructionContent: formData.constructionContent as ConstructionContentType,
+                title: createFormData.title,
+                customerId: createFormData.customerId || undefined,
+                customerName: createFormData.customerName || undefined,
+                constructionType: 'other',
+                constructionContent: createFormData.constructionContent as ConstructionContentType,
                 status: 'active',
-                // 住所情報
-                postalCode: formData.postalCode || undefined,
-                prefecture: formData.prefecture || undefined,
-                city: formData.city || undefined,
-                location: formData.location || undefined,
-                plusCode: formData.plusCode || undefined,
-                // 工事情報
-                area: formData.area ? parseFloat(formData.area) : undefined,
-                areaRemarks: formData.areaRemarks || undefined,
-                assemblyDate: formData.assemblyDate ? new Date(formData.assemblyDate) : undefined,
-                demolitionDate: formData.demolitionDate ? new Date(formData.demolitionDate) : undefined,
-                estimatedAssemblyWorkers: formData.estimatedAssemblyWorkers ? parseInt(formData.estimatedAssemblyWorkers) : undefined,
-                estimatedDemolitionWorkers: formData.estimatedDemolitionWorkers ? parseInt(formData.estimatedDemolitionWorkers) : undefined,
-                contractAmount: formData.contractAmount ? parseInt(formData.contractAmount) : undefined,
-                // 足場仕様
-                scaffoldingSpec: formData.scaffoldingSpec,
-                remarks: formData.remarks || undefined,
-                createdBy: formData.createdBy.length > 0 ? formData.createdBy : undefined,
+                postalCode: createFormData.postalCode || undefined,
+                prefecture: createFormData.prefecture || undefined,
+                city: createFormData.city || undefined,
+                location: createFormData.location || undefined,
+                plusCode: createFormData.plusCode || undefined,
+                area: createFormData.area ? parseFloat(createFormData.area) : undefined,
+                areaRemarks: createFormData.areaRemarks || undefined,
+                assemblyDate: createFormData.assemblyDate ? new Date(createFormData.assemblyDate) : undefined,
+                demolitionDate: createFormData.demolitionDate ? new Date(createFormData.demolitionDate) : undefined,
+                estimatedAssemblyWorkers: createFormData.estimatedAssemblyWorkers ? parseInt(createFormData.estimatedAssemblyWorkers) : undefined,
+                estimatedDemolitionWorkers: createFormData.estimatedDemolitionWorkers ? parseInt(createFormData.estimatedDemolitionWorkers) : undefined,
+                contractAmount: createFormData.contractAmount ? parseInt(createFormData.contractAmount) : undefined,
+                scaffoldingSpec: createFormData.scaffoldingSpec,
+                remarks: createFormData.remarks || undefined,
+                createdBy: createFormData.createdBy.length > 0 ? createFormData.createdBy : undefined,
             });
             setIsCreating(false);
-            setFormData(DEFAULT_FORM_DATA);
+            setCreateFormData(DEFAULT_FORM_DATA);
         } catch (error) {
             console.error('Failed to create project master:', error);
             toast.error('案件マスターの作成に失敗しました');
         }
     };
 
-    const handleEdit = (pm: ProjectMaster) => {
-        setEditingId(pm.id);
-        setFormData({
-            title: pm.title,
-            customerId: pm.customerId || '',
-            customerName: pm.customerName || '',
-            constructionContent: pm.constructionContent || '',
-            postalCode: pm.postalCode || '',
-            prefecture: pm.prefecture || '',
-            city: pm.city || '',
-            location: pm.location || '',
-            plusCode: pm.plusCode || '',
-            area: pm.area?.toString() || '',
-            areaRemarks: pm.areaRemarks || '',
-            assemblyDate: pm.assemblyDate ? new Date(pm.assemblyDate).toISOString().split('T')[0] : '',
-            demolitionDate: pm.demolitionDate ? new Date(pm.demolitionDate).toISOString().split('T')[0] : '',
-            estimatedAssemblyWorkers: pm.estimatedAssemblyWorkers?.toString() || '',
-            estimatedDemolitionWorkers: pm.estimatedDemolitionWorkers?.toString() || '',
-            contractAmount: pm.contractAmount?.toString() || '',
-            scaffoldingSpec: pm.scaffoldingSpec || DEFAULT_FORM_DATA.scaffoldingSpec,
-            remarks: pm.remarks || '',
-            createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
+    const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
+        await updateProjectMaster(id, {
+            title: data.title,
+            customerId: data.customerId || undefined,
+            customerName: data.customerName || undefined,
+            constructionContent: data.constructionContent as ConstructionContentType || undefined,
+            postalCode: data.postalCode || undefined,
+            prefecture: data.prefecture || undefined,
+            city: data.city || undefined,
+            location: data.location || undefined,
+            plusCode: data.plusCode || undefined,
+            area: data.area ? parseFloat(data.area) : undefined,
+            areaRemarks: data.areaRemarks || undefined,
+            assemblyDate: data.assemblyDate ? new Date(data.assemblyDate) : undefined,
+            demolitionDate: data.demolitionDate ? new Date(data.demolitionDate) : undefined,
+            estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
+            estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
+            contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
+            scaffoldingSpec: data.scaffoldingSpec as ScaffoldingSpec,
+            remarks: data.remarks || undefined,
+            createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
-    };
-
-    const handleUpdate = async () => {
-        if (!editingId || !formData.title.trim()) return;
-
-        try {
-            await updateProjectMaster(editingId, {
-                title: formData.title,
-                customerId: formData.customerId || undefined,
-                customerName: formData.customerName || undefined,
-                constructionContent: formData.constructionContent as ConstructionContentType || undefined,
-                // 住所情報
-                postalCode: formData.postalCode || undefined,
-                prefecture: formData.prefecture || undefined,
-                city: formData.city || undefined,
-                location: formData.location || undefined,
-                plusCode: formData.plusCode || undefined,
-                // 工事情報
-                area: formData.area ? parseFloat(formData.area) : undefined,
-                areaRemarks: formData.areaRemarks || undefined,
-                assemblyDate: formData.assemblyDate ? new Date(formData.assemblyDate) : undefined,
-                demolitionDate: formData.demolitionDate ? new Date(formData.demolitionDate) : undefined,
-                estimatedAssemblyWorkers: formData.estimatedAssemblyWorkers ? parseInt(formData.estimatedAssemblyWorkers) : undefined,
-                estimatedDemolitionWorkers: formData.estimatedDemolitionWorkers ? parseInt(formData.estimatedDemolitionWorkers) : undefined,
-                contractAmount: formData.contractAmount ? parseInt(formData.contractAmount) : undefined,
-                // 足場仕様
-                scaffoldingSpec: formData.scaffoldingSpec as ScaffoldingSpec,
-                remarks: formData.remarks || undefined,
-                createdBy: formData.createdBy.length > 0 ? formData.createdBy : undefined,
-            });
-            setEditingId(null);
-            setFormData(DEFAULT_FORM_DATA);
-        } catch (error) {
-            console.error('Failed to update project master:', error);
-            toast.error('案件マスターの更新に失敗しました');
-        }
     };
 
     const handleDelete = async (id: string) => {
@@ -190,6 +150,21 @@ export default function ProjectMasterListPage() {
         }
     };
 
+    const openDetailModal = (pm: ProjectMaster) => {
+        setDetailPm(pm);
+        setOpenModalInEditMode(false);
+    };
+
+    const openEditModal = (pm: ProjectMaster) => {
+        setDetailPm(pm);
+        setOpenModalInEditMode(true);
+    };
+
+    const closeModal = () => {
+        setDetailPm(null);
+        setOpenModalInEditMode(false);
+    };
+
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-full">
@@ -202,8 +177,9 @@ export default function ProjectMasterListPage() {
         <>
         <ProjectMasterDetailModal
             pm={detailPm}
-            onClose={() => setDetailPm(null)}
-            onEdit={handleEdit}
+            onClose={closeModal}
+            onUpdate={handleUpdate}
+            initialEditMode={openModalInEditMode}
         />
         <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden">
             {/* Header */}
@@ -246,8 +222,7 @@ export default function ProjectMasterListPage() {
                     <button
                         onClick={() => {
                             setIsCreating(true);
-                            setEditingId(null);
-                            setFormData(DEFAULT_FORM_DATA);
+                            setCreateFormData(DEFAULT_FORM_DATA);
                         }}
                         className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-semibold rounded-lg hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
                     >
@@ -263,12 +238,12 @@ export default function ProjectMasterListPage() {
                 <div className="mb-4 md:mb-6 p-3 md:p-6 bg-white rounded-xl shadow-lg border border-gray-200 max-h-[70vh] overflow-y-auto">
                     <h3 className="text-lg font-bold text-gray-800 mb-4">新規案件マスター作成</h3>
                     <ProjectMasterForm
-                        formData={formData}
-                        setFormData={setFormData}
+                        formData={createFormData}
+                        setFormData={setCreateFormData}
                         onSubmit={handleCreate}
                         onCancel={() => {
                             setIsCreating(false);
-                            setFormData(DEFAULT_FORM_DATA);
+                            setCreateFormData(DEFAULT_FORM_DATA);
                         }}
                         isEdit={false}
                     />
@@ -288,119 +263,101 @@ export default function ProjectMasterListPage() {
                             key={pm.id}
                             className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow"
                         >
-                            {editingId === pm.id ? (
-                                // 編集フォーム
-                                <div className="p-3 md:p-6 max-h-[70vh] overflow-y-auto">
-                                    <h3 className="text-base md:text-lg font-bold text-gray-800 mb-3 md:mb-4">案件マスター編集</h3>
-                                    <ProjectMasterForm
-                                        formData={formData}
-                                        setFormData={setFormData}
-                                        onSubmit={handleUpdate}
-                                        onCancel={() => {
-                                            setEditingId(null);
-                                            setFormData(DEFAULT_FORM_DATA);
-                                        }}
-                                        isEdit={true}
-                                        projectMasterId={pm.id}
-                                    />
-                                </div>
-                            ) : (
-                                // カード表示（クリックで詳細モーダルを開く）
-                                <div
-                                    className="p-3 md:p-4 cursor-pointer"
-                                    onClick={() => setDetailPm(pm)}
-                                >
-                                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                                        {/* メイン情報 */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <h3 className="text-base md:text-lg font-bold text-gray-800">{pm.title}</h3>
-                                                {pm.constructionContent && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
-                                                        {getConstructionContentLabel(pm.constructionContent)}
-                                                    </span>
-                                                )}
-                                                {pm.status === 'completed' && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
-                                                        完了
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-3 md:gap-4 mt-1 text-sm text-gray-600 flex-wrap">
-                                                {pm.customerName && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Building className="w-3.5 h-3.5" />
-                                                        {pm.customerName}
-                                                    </span>
-                                                )}
-                                                {(pm.prefecture || pm.city || pm.location) && (
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin className="w-3.5 h-3.5" />
-                                                        {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
-                                                    </span>
-                                                )}
-                                                <span className="flex items-center gap-1 text-gray-500">
-                                                    <Calendar className="w-3.5 h-3.5" />
-                                                    <span className="text-sm">{pm.assignments?.length || 0}件の配置</span>
+                            {/* カード表示（クリックで詳細モーダルを開く） */}
+                            <div
+                                className="p-3 md:p-4 cursor-pointer"
+                                onClick={() => openDetailModal(pm)}
+                            >
+                                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
+                                    {/* メイン情報 */}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <h3 className="text-base md:text-lg font-bold text-gray-800">{pm.title}</h3>
+                                            {pm.constructionContent && (
+                                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+                                                    {getConstructionContentLabel(pm.constructionContent)}
                                                 </span>
-                                            </div>
+                                            )}
+                                            {pm.status === 'completed' && (
+                                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">
+                                                    完了
+                                                </span>
+                                            )}
                                         </div>
-
-                                        {/* PC: アクションボタン */}
-                                        <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                            <button
-                                                onClick={() => handleEdit(pm)}
-                                                className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                title="編集"
-                                            >
-                                                <Edit className="w-5 h-5" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleArchive(pm)}
-                                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
-                                                    ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                                    }`}
-                                            >
-                                                {pm.status === 'active' ? '完了にする' : '再開する'}
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(pm.id)}
-                                                className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                title="削除"
-                                            >
-                                                <Trash2 className="w-5 h-5" />
-                                            </button>
+                                        <div className="flex items-center gap-3 md:gap-4 mt-1 text-sm text-gray-600 flex-wrap">
+                                            {pm.customerName && (
+                                                <span className="flex items-center gap-1">
+                                                    <Building className="w-3.5 h-3.5" />
+                                                    {pm.customerName}
+                                                </span>
+                                            )}
+                                            {(pm.prefecture || pm.city || pm.location) && (
+                                                <span className="flex items-center gap-1">
+                                                    <MapPin className="w-3.5 h-3.5" />
+                                                    {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
+                                                </span>
+                                            )}
+                                            <span className="flex items-center gap-1 text-gray-500">
+                                                <Calendar className="w-3.5 h-3.5" />
+                                                <span className="text-sm">{pm.assignments?.length || 0}件の配置</span>
+                                            </span>
                                         </div>
                                     </div>
 
-                                    {/* モバイル: アクションボタン行 */}
-                                    <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                                    {/* PC: アクションボタン */}
+                                    <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                         <button
-                                            onClick={() => handleEdit(pm)}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            onClick={() => openEditModal(pm)}
+                                            className="p-2.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                            title="編集"
                                         >
-                                            <Edit className="w-4 h-4" />
-                                            編集
+                                            <Edit className="w-5 h-5" />
                                         </button>
                                         <button
                                             onClick={() => handleArchive(pm)}
-                                            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
-                                                ? 'bg-green-50 text-green-700 hover:bg-green-100'
-                                                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
+                                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                                 }`}
                                         >
                                             {pm.status === 'active' ? '完了にする' : '再開する'}
                                         </button>
                                         <button
                                             onClick={() => handleDelete(pm.id)}
-                                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            className="p-2.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                            title="削除"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash2 className="w-5 h-5" />
                                         </button>
                                     </div>
                                 </div>
-                            )}
+
+                                {/* モバイル: アクションボタン行 */}
+                                <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-gray-100" onClick={(e) => e.stopPropagation()}>
+                                    <button
+                                        onClick={() => openEditModal(pm)}
+                                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                        編集
+                                    </button>
+                                    <button
+                                        onClick={() => handleArchive(pm)}
+                                        className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
+                                            ? 'bg-green-50 text-green-700 hover:bg-green-100'
+                                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        {pm.status === 'active' ? '完了にする' : '再開する'}
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(pm.id)}
+                                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     ))
                 )}
