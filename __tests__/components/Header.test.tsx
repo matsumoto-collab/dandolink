@@ -22,7 +22,7 @@ describe('Header', () => {
 
     it('タイトルを表示する', () => {
         render(<Header />);
-        expect(screen.getByText('YuSystem')).toBeInTheDocument();
+        expect(screen.getByText('DandoLink')).toBeInTheDocument();
     });
 
     it('メニューボタンを表示する', () => {

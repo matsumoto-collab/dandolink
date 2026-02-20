@@ -49,7 +49,7 @@ export default function LoginPage() {
                         <div className="inline-flex items-center justify-center w-14 h-14 bg-slate-800 rounded-lg mb-4">
                             <Lock className="w-7 h-7 text-white" />
                         </div>
-                        <h1 className="text-2xl font-semibold text-gray-800 mb-1">YuSystem</h1>
+                        <h1 className="text-2xl font-semibold text-gray-800 mb-1">DandoLink</h1>
                         <p className="text-gray-500 text-sm">施工管理システム</p>
                     </div>
 

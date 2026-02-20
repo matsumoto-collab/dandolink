@@ -12,7 +12,7 @@ import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "施工管理システム - YuSystem",
+    title: "施工管理システム - DandoLink",
     description: "建設・施工管理向けの業務管理システム",
 };
 

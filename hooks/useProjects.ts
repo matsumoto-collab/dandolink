@@ -232,7 +232,7 @@ export function useProjects() {
     // BroadcastChannel セットアップ（同一デバイスの別タブへ通知）
     useEffect(() => {
         if (typeof BroadcastChannel === 'undefined') return;
-        const ch = new BroadcastChannel('yusystem_assignments_v1');
+        const ch = new BroadcastChannel('dandolink_assignments_v1');
         broadcastRef.current = ch;
 
         ch.addEventListener('message', (event) => {

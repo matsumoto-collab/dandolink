@@ -1,4 +1,4 @@
-# YuSystem - 施工管理システム
+# DandoLink - 施工管理システム
 
 建設・施工管理向けの業務管理システムのフロントエンド
 
@@ -64,7 +64,7 @@ npm start
 ## プロジェクト構成
 
 ```
-yusystem/
+dandolink/
 ├── app/
 │   ├── layout.tsx          # ルートレイアウト
 │   ├── page.tsx            # メインページ

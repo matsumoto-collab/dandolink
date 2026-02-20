@@ -49,7 +49,7 @@ export function exportEstimatePDF(
             subject: `${project.title}の見積書`,
             author: companyInfo.name,
             keywords: '見積書, estimate',
-            creator: 'YuSystem'
+            creator: 'DandoLink'
         });
 
         // 表紙を生成（オプション）

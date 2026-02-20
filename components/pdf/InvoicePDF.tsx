@@ -513,7 +513,7 @@ export function InvoicePDF({
             author={companyInfo.name}
             subject={`${project.title}の請求書`}
             keywords="請求書, invoice"
-            creator="YuSystem"
+            creator="DandoLink"
         >
             <InvoicePage
                 invoice={invoice}

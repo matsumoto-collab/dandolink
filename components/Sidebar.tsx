@@ -132,7 +132,7 @@ export default function Sidebar() {
                         <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
                             <Building className="w-5 h-5 text-slate-200" />
                         </div>
-                        <span className="text-xl font-semibold text-slate-100">YuSystem</span>
+                        <span className="text-xl font-semibold text-slate-100">DandoLink</span>
                     </div>
                     {/* Mobile Close Button */}
                     <button

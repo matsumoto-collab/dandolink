@@ -22,7 +22,7 @@ export function initBroadcastChannel(): void {
     import('./supabase')
         .then(({ supabase }) => {
             const ch = supabase
-                .channel('yusystem_broadcast_v1')
+                .channel('dandolink_broadcast_v1')
                 .on(
                     'broadcast',
                     { event: '*' },

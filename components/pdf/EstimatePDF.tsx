@@ -618,7 +618,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage =
             author={companyInfo.name}
             subject={`${project.title}の見積書`}
             keywords="見積書, estimate"
-            creator="YuSystem"
+            creator="DandoLink"
         >
             {includeCoverPage && (
                 <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />

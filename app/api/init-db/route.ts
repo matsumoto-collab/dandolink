@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         const generatedPassword = crypto.randomBytes(16).toString('hex');
         const hashedPassword = await bcrypt.hash(generatedPassword, 10);
         const adminUser = await prisma.user.create({
-            data: { username: 'admin', email: 'admin@yusystem.local', displayName: '管理者', passwordHash: hashedPassword, role: 'ADMIN', isActive: true },
+            data: { username: 'admin', email: 'admin@dandolink.local', displayName: '管理者', passwordHash: hashedPassword, role: 'ADMIN', isActive: true },
         });
 
         // パスワードはサーバーログにのみ出力（レスポンスには含めない）

@@ -21,7 +21,7 @@ export default function Header() {
             {/* Logo/Title */}
             <div className="flex-1 flex items-center justify-center">
                 <h1 className="text-lg font-semibold text-slate-100">
-                    YuSystem
+                    DandoLink
                 </h1>
             </div>
 
