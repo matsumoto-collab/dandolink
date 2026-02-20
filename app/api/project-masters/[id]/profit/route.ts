@@ -12,7 +12,32 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const projectMaster = await prisma.projectMaster.findUnique({
             where: { id },
-            include: { assignments: { include: { dailyReportWorkItems: { include: { dailyReport: true } } } } },
+            select: {
+                id: true,
+                title: true,
+                materialCost: true,
+                subcontractorCost: true,
+                otherExpenses: true,
+                assignments: {
+                    select: {
+                        workers: true,
+                        vehicles: true,
+                        dailyReportWorkItems: {
+                            select: {
+                                startTime: true,
+                                endTime: true,
+                                dailyReport: {
+                                    select: {
+                                        id: true,
+                                        morningLoadingMinutes: true,
+                                        eveningLoadingMinutes: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
         });
         if (!projectMaster) return notFoundResponse('案件');
 
