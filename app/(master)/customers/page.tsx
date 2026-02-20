@@ -93,7 +93,7 @@ export default function CustomersPage() {
                 </h1>
                 <Button
                     onClick={() => setIsModalOpen(true)}
-                    leftIcon={<Plus />}
+                    leftIcon={<Plus className="w-4 h-4" />}
                 >
                     新規登録
                 </Button>
