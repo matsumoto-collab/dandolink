@@ -20,9 +20,13 @@ export default function Header() {
 
             {/* Logo/Title */}
             <div className="flex-1 flex items-center justify-center">
-                <h1 className="text-lg font-semibold text-slate-100">
+                <button
+                    onClick={() => window.location.reload()}
+                    className="text-lg font-semibold text-slate-100 active:opacity-70 transition-opacity"
+                    aria-label="ホームに戻る（更新）"
+                >
                     DandoLink
-                </h1>
+                </button>
             </div>
 
             {/* Spacer for symmetry */}
