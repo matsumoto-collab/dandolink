@@ -2,7 +2,7 @@ import { ProjectMaster, ProjectAssignment, ConflictError } from '@/types/calenda
 import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, assignmentToProject } from './types';
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
-    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects'>;
+    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
 
 export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) => ({
     assignments: [],
@@ -328,4 +328,31 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     getCalendarEvents: () => get().assignments.map(assignmentToProject),
 
     getProjects: () => get().assignments.map(assignmentToProject),
+
+    upsertAssignment: (assignment) => {
+        set((state) => {
+            const exists = state.assignments.some((a) => a.id === assignment.id);
+            if (exists) {
+                return { assignments: state.assignments.map((a) => a.id === assignment.id ? assignment : a) };
+            } else {
+                return { assignments: [...state.assignments, assignment] };
+            }
+        });
+    },
+
+    removeAssignmentById: (id) => {
+        set((state) => ({
+            assignments: state.assignments.filter((a) => a.id !== id),
+        }));
+    },
+
+    updateProjectMasterInAssignments: (projectMaster) => {
+        set((state) => ({
+            assignments: state.assignments.map((a) =>
+                a.projectMasterId === projectMaster.id
+                    ? { ...a, projectMaster }
+                    : a
+            ),
+        }));
+    },
 });

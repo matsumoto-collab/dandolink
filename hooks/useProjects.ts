@@ -34,6 +34,9 @@ export function useProjects() {
     const getProjectByIdStore = useCalendarStore((state) => state.getProjectById);
     const getCalendarEventsStore = useCalendarStore((state) => state.getCalendarEvents);
     const fetchCellRemarksStore = useCalendarStore((state) => state.fetchCellRemarks);
+    const upsertAssignmentStore = useCalendarStore((state) => state.upsertAssignment);
+    const removeAssignmentByIdStore = useCalendarStore((state) => state.removeAssignmentById);
+    const updateProjectMasterInAssignmentsStore = useCalendarStore((state) => state.updateProjectMasterInAssignments);
 
     // Use ref for date range to avoid callback recreation
     const currentDateRangeRef = useRef<{ start: string; end: string } | null>(null);
@@ -74,6 +77,38 @@ export function useProjects() {
         }
     }, [fetchAssignmentsStore, fetchCellRemarksStore]);
 
+    // 単一配置をAPIから取得してstoreに差し込む（Realtime incremental sync用）
+    const fetchAndUpsertAssignment = useCallback(async (id: string) => {
+        try {
+            const response = await fetch(`/api/assignments/${id}`);
+            if (!response.ok) return;
+            const data = await response.json();
+            const assignment = {
+                ...data,
+                date: new Date(data.date),
+                createdAt: new Date(data.createdAt),
+                updatedAt: new Date(data.updatedAt),
+                projectMaster: data.projectMaster ? {
+                    ...data.projectMaster,
+                    createdAt: new Date(data.projectMaster.createdAt),
+                    updatedAt: new Date(data.projectMaster.updatedAt),
+                } : undefined,
+            };
+            // 現在の表示日付範囲内のみstoreに追加
+            const range = currentDateRangeRef.current;
+            if (range) {
+                const assignmentDate = assignment.date.toISOString().split('T')[0];
+                if (assignmentDate >= range.start && assignmentDate <= range.end) {
+                    upsertAssignmentStore(assignment);
+                }
+            } else {
+                upsertAssignmentStore(assignment);
+            }
+        } catch (error) {
+            console.error('Failed to fetch assignment for realtime sync:', error);
+        }
+    }, [upsertAssignmentStore]);
+
     // Supabase Realtime subscription
     useEffect(() => {
         if (status !== 'authenticated') return;
@@ -85,23 +120,55 @@ export function useProjects() {
                 const { supabase } = await import('@/lib/supabase');
                 channel = supabase
                     .channel('project_assignments_changes_zustand')
+                    // ProjectAssignment: INSERT → 1件だけ取得してupsert
                     .on(
                         'postgres_changes',
-                        { event: '*', schema: 'public', table: 'ProjectAssignment' },
-                        () => {
+                        { event: 'INSERT', schema: 'public', table: 'ProjectAssignment' },
+                        (payload) => {
                             if (!isUpdatingRef.current) {
-                                const range = currentDateRangeRef.current;
-                                fetchAssignmentsStore(range?.start, range?.end);
+                                fetchAndUpsertAssignment(payload.new.id as string);
                             }
                         }
                     )
+                    // ProjectAssignment: UPDATE → 1件だけ取得してupsert
                     .on(
                         'postgres_changes',
-                        { event: '*', schema: 'public', table: 'ProjectMaster' },
-                        () => {
+                        { event: 'UPDATE', schema: 'public', table: 'ProjectAssignment' },
+                        (payload) => {
                             if (!isUpdatingRef.current) {
-                                const range = currentDateRangeRef.current;
-                                fetchAssignmentsStore(range?.start, range?.end);
+                                fetchAndUpsertAssignment(payload.new.id as string);
+                            }
+                        }
+                    )
+                    // ProjectAssignment: DELETE → APIコールなしでstoreから削除
+                    .on(
+                        'postgres_changes',
+                        { event: 'DELETE', schema: 'public', table: 'ProjectAssignment' },
+                        (payload) => {
+                            if (!isUpdatingRef.current) {
+                                removeAssignmentByIdStore(payload.old.id as string);
+                            }
+                        }
+                    )
+                    // ProjectMaster: UPDATE → 関連する配置のprojectMasterデータを更新
+                    .on(
+                        'postgres_changes',
+                        { event: 'UPDATE', schema: 'public', table: 'ProjectMaster' },
+                        async (payload) => {
+                            if (!isUpdatingRef.current) {
+                                try {
+                                    const res = await fetch(`/api/project-masters/${payload.new.id}`);
+                                    if (res.ok) {
+                                        const pm = await res.json();
+                                        updateProjectMasterInAssignmentsStore({
+                                            ...pm,
+                                            createdAt: new Date(pm.createdAt),
+                                            updatedAt: new Date(pm.updatedAt),
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.error('Failed to sync project master:', error);
+                                }
                             }
                         }
                     )
@@ -125,7 +192,7 @@ export function useProjects() {
                     });
             }
         };
-    }, [status, fetchAssignmentsStore]);
+    }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
 
     // Wrapper functions for backward compatibility
     const addProject = useCallback(async (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {

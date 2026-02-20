@@ -148,6 +148,10 @@ export interface CalendarActions {
     getProjectById: (id: string) => Project | undefined;
     getCalendarEvents: () => CalendarEvent[];
     getProjects: () => Project[];
+    // Realtime incremental sync
+    upsertAssignment: (assignment: ProjectAssignment & { projectMaster?: ProjectMaster }) => void;
+    removeAssignmentById: (id: string) => void;
+    updateProjectMasterInAssignments: (projectMaster: ProjectMaster) => void;
 
     // Vacations
     fetchVacations: () => Promise<void>;
