@@ -55,8 +55,8 @@ export async function POST(req: NextRequest) {
             }
         }
 
-        // トランザクションで一括作成
-        const results = await prisma.$transaction(
+        // トランザクションで一括作成（includeなし - IDのみ取得）
+        const created = await prisma.$transaction(
             assignments.map((a) =>
                 prisma.projectAssignment.create({
                     data: {
@@ -82,14 +82,20 @@ export async function POST(req: NextRequest) {
                                 : [],
                         },
                     },
-                    include: {
-                        projectMaster: true,
-                        assignmentWorkers: true,
-                        assignmentVehicles: true,
-                    },
+                    select: { id: true },
                 })
             )
         );
+
+        // 作成したID一覧で1回のfindManyにまとめてinclude（N回→1回）
+        const results = await prisma.projectAssignment.findMany({
+            where: { id: { in: created.map((c) => c.id) } },
+            include: {
+                projectMaster: true,
+                assignmentWorkers: true,
+                assignmentVehicles: true,
+            },
+        });
 
         return NextResponse.json(results.map(formatAssignment));
     } catch (error) {
