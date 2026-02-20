@@ -380,22 +380,31 @@ export default function MobileCalendarView({
                                                                 style={{ backgroundColor: event.color }}
                                                             >
                                                                 {editingUsers.length > 0 && (
-                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-amber-200 animate-pulse" />
+                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-amber-700 animate-pulse" />
                                                                 )}
                                                                 {!editingUsers.length && project?.isDispatchConfirmed && (
-                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-green-200" />
+                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-green-700" />
                                                                 )}
-                                                                <div className="text-[10px] font-bold text-white leading-tight truncate pr-3">
+                                                                <div className="text-[10px] font-bold text-gray-800 leading-tight truncate pr-3">
                                                                     {event.title}
                                                                 </div>
-                                                                {event.workers && event.workers.length > 0 && (
-                                                                    <div className="flex items-center gap-0.5 mt-0.5">
-                                                                        <Users className="w-2.5 h-2.5 text-white/70" />
-                                                                        <span className="text-[9px] text-white/80">{event.workers.length}人</span>
+                                                                {event.customer && (
+                                                                    <div className="text-[9px] text-gray-600 leading-tight truncate">
+                                                                        {event.customer}
                                                                     </div>
                                                                 )}
-                                                                {event.estimatedHours != null && (
-                                                                    <div className="text-[9px] text-white/70">{event.estimatedHours}h</div>
+                                                                {(event.workers && event.workers.length > 0 || event.estimatedHours != null) && (
+                                                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                                                        {event.workers && event.workers.length > 0 && (
+                                                                            <span className="flex items-center gap-0.5">
+                                                                                <Users className="w-2.5 h-2.5 text-gray-500" />
+                                                                                <span className="text-[9px] text-gray-600">{event.workers.length}人</span>
+                                                                            </span>
+                                                                        )}
+                                                                        {event.estimatedHours != null && (
+                                                                            <span className="text-[9px] text-gray-600">{event.estimatedHours}h</span>
+                                                                        )}
+                                                                    </div>
                                                                 )}
                                                             </button>
                                                         );
