@@ -1,7 +1,3 @@
 {
-  "functions": {
-    "app/api/**": {
-      "regions": ["nrt1"]
-    }
-  }
+  "regions": ["nrt1"]
 }
