@@ -147,7 +147,7 @@ export default function UnitPriceMasterSettings() {
                                     </button>
                                     <button
                                         onClick={() => handleDelete(item.id, item.description)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -171,7 +171,7 @@ export default function UnitPriceMasterSettings() {
                                 {/* 品目・内容 */}
                                 <div>
                                     <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
-                                        品目・内容 <span className="text-red-500">*</span>
+                                        品目・内容 <span className="text-slate-500">*</span>
                                     </label>
                                     <input
                                         id="description"
@@ -188,7 +188,7 @@ export default function UnitPriceMasterSettings() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="unit" className="block text-sm font-semibold text-gray-700 mb-2">
-                                            単位 <span className="text-red-500">*</span>
+                                            単位 <span className="text-slate-500">*</span>
                                         </label>
                                         <input
                                             id="unit"
@@ -202,7 +202,7 @@ export default function UnitPriceMasterSettings() {
                                     </div>
                                     <div>
                                         <label htmlFor="unitPrice" className="block text-sm font-semibold text-gray-700 mb-2">
-                                            単価 <span className="text-red-500">*</span>
+                                            単価 <span className="text-slate-500">*</span>
                                         </label>
                                         <input
                                             id="unitPrice"

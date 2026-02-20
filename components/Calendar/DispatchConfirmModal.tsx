@@ -191,7 +191,7 @@ export default function DispatchConfirmModal({
                                                     className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
                                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                         : isSelected
-                                                            ? 'bg-blue-50 border border-blue-300'
+                                                            ? 'bg-slate-50 border border-slate-300'
                                                             : 'hover:bg-gray-50'
                                                         }`}
                                                 >
@@ -200,7 +200,7 @@ export default function DispatchConfirmModal({
                                                         checked={isSelected}
                                                         disabled={isUsed}
                                                         onChange={() => !isUsed && handleWorkerToggle(worker.id)}
-                                                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 disabled:opacity-50"
+                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 disabled:opacity-50"
                                                     />
                                                     <span className="text-sm">
                                                         {worker.displayName}
@@ -240,7 +240,7 @@ export default function DispatchConfirmModal({
                                                     className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
                                                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                                                         : isSelected
-                                                            ? 'bg-green-50 border border-green-300'
+                                                            ? 'bg-slate-50 border border-slate-300'
                                                             : 'hover:bg-gray-50'
                                                         }`}
                                                 >
@@ -249,7 +249,7 @@ export default function DispatchConfirmModal({
                                                         checked={isSelected}
                                                         disabled={isUsed}
                                                         onChange={() => !isUsed && handleVehicleToggle(vehicle.id)}
-                                                        className="w-4 h-4 text-green-600 rounded focus:ring-green-500 disabled:opacity-50"
+                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 disabled:opacity-50"
                                                     />
                                                     <span className="text-sm">
                                                         {vehicle.name}
@@ -277,7 +277,7 @@ export default function DispatchConfirmModal({
                             <button
                                 onClick={handleCancelDispatch}
                                 disabled={isSubmitting}
-                                className="px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                                className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors disabled:opacity-50"
                             >
                                 確定解除
                             </button>

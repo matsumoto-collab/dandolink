@@ -334,7 +334,7 @@ export default function MultiDayScheduleEditor({
                                 <button
                                     type="button"
                                     onClick={() => removeSchedule(index)}
-                                    className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                    className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
                                     title="削除"
                                 >
                                     <X className="w-4 h-4" />

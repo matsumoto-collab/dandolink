@@ -69,7 +69,12 @@
       "Bash(cd:*)",
       "Bash(git show:*)",
       "Bash(curl:*)",
-      "Bash(dir \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\app\\\\api\\\\project-masters\" /b /s)"
+      "Bash(dir \"C:\\\\Users\\\\yushink\\\\Desktop\\\\yusystem\\\\app\\\\api\\\\project-masters\" /b /s)",
+      "Bash(git remote set-url:*)",
+      "Bash(while read f)",
+      "Bash(do)",
+      "Bash(perl -pi -e:*)",
+      "Bash(git -C /c/Users/yushink/Desktop/yusystem diff --name-only)"
     ]
   }
 }

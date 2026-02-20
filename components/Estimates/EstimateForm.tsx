@@ -250,7 +250,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                     <select
                         value={projectId}
                         onChange={(e) => setProjectId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">案件を選択（任意）</option>
                         {projects.map(project => (
@@ -272,7 +272,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         type="text"
                         value={estimateNumber}
                         onChange={(e) => setEstimateNumber(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
 
@@ -283,7 +283,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                     <select
                         value={selectedTemplate}
                         onChange={(e) => handleTemplateChange(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         {titleTemplates.map(template => (
                             <option key={template.id} value={template.id}>
@@ -298,7 +298,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        タイトル <span className="text-red-500">*</span>
+                        タイトル <span className="text-slate-500">*</span>
                     </label>
                     <input
                         type="text"
@@ -307,7 +307,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                             setTitle(e.target.value);
                             setSelectedTemplate('custom'); // 手動編集時はカスタムに
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         required
                         placeholder="例: ○○現場 見積書"
                     />
@@ -324,7 +324,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         type="text"
                         value={siteName}
                         onChange={(e) => setSiteName(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         placeholder="案件を選択するか手動で入力"
                     />
                 </div>
@@ -337,7 +337,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         <select
                             value={customerId}
                             onChange={(e) => setCustomerId(e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         >
                             <option value="">選択してください</option>
                             {customers.map(customer => (
@@ -375,7 +375,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                 }, 0);
                             }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
 
@@ -386,7 +386,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                     <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value as EstimateInput['status'])}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="draft">下書き</option>
                         <option value="sent">送付済み</option>
@@ -445,7 +445,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             type="text"
                                             value={item.description}
                                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             placeholder="品目・内容"
                                         />
                                     </td>
@@ -454,7 +454,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             type="text"
                                             value={item.specification || ''}
                                             onChange={(e) => updateItem(item.id, 'specification', e.target.value)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             placeholder="規格"
                                         />
                                     </td>
@@ -466,7 +466,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                                 const val = parseFloat(e.target.value);
                                                 updateItem(item.id, 'quantity', isNaN(val) ? 0 : val);
                                             }}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             step="0.01"
                                         />
                                     </td>
@@ -475,7 +475,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             type="text"
                                             value={item.unit || ''}
                                             onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             placeholder="式、m、個"
                                         />
                                     </td>
@@ -487,11 +487,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                                 const val = parseFloat(e.target.value);
                                                 updateItem(item.id, 'unitPrice', isNaN(val) ? 0 : val);
                                             }}
-                                            className={`w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 ${item.unitPrice < 0 ? 'text-red-600' : ''}`}
+                                            className={`w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 ${item.unitPrice < 0 ? 'text-slate-600' : ''}`}
                                         />
                                     </td>
                                     <td className="px-3 py-2">
-                                        <div className={`text-right font-medium ${item.amount < 0 ? 'text-red-600' : ''}`}>
+                                        <div className={`text-right font-medium ${item.amount < 0 ? 'text-slate-600' : ''}`}>
                                             {item.amount < 0 ? `(${Math.abs(item.amount).toLocaleString()})` : `¥${item.amount.toLocaleString()}`}
                                         </div>
                                     </td>
@@ -499,7 +499,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                         <select
                                             value={item.taxType}
                                             onChange={(e) => updateItem(item.id, 'taxType', e.target.value as 'none' | 'standard')}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                         >
                                             <option value="standard">10%</option>
                                             <option value="none">なし</option>
@@ -510,7 +510,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             type="text"
                                             value={item.notes || ''}
                                             onChange={(e) => updateItem(item.id, 'notes', e.target.value)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             placeholder="備考"
                                         />
                                     </td>
@@ -539,7 +539,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                                             <button
                                                 type="button"
                                                 onClick={() => removeItem(item.id)}
-                                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                                className="p-1 text-slate-600 hover:bg-slate-50 rounded transition-colors"
                                                 title="削除"
                                                 aria-label="削除"
                                             >
@@ -566,7 +566,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 </div>
                 <div className="flex justify-between text-lg border-t border-gray-300 pt-2">
                     <span className="font-bold text-gray-900">合計:</span>
-                    <span className="font-bold text-blue-600">¥{total.toLocaleString()}</span>
+                    <span className="font-bold text-slate-600">¥{total.toLocaleString()}</span>
                 </div>
             </div>
 
@@ -579,7 +579,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="備考を入力..."
                 />
             </div>

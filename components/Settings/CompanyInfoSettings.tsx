@@ -241,7 +241,7 @@ export default function CompanyInfoSettings() {
                             <button
                                 type="button"
                                 onClick={() => handleChange('sealImage', '')}
-                                className="text-xs text-red-500 mt-1 hover:underline"
+                                className="text-xs text-slate-500 mt-1 hover:underline"
                             >
                                 削除
                             </button>
@@ -298,7 +298,7 @@ export default function CompanyInfoSettings() {
                                     />
                                     <button
                                         onClick={() => removeBankAccount(index)}
-                                        className="p-1.5 text-red-500 hover:bg-red-50 rounded-md flex-shrink-0"
+                                        className="p-1.5 text-slate-500 hover:bg-slate-50 rounded-md flex-shrink-0"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>

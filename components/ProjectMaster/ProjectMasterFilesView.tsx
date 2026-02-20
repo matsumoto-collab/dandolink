@@ -178,11 +178,11 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                             onClick={() => file.signedUrl && setPdfView({ url: file.signedUrl, name: file.fileName })}
                                             className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 active:bg-gray-200 transition-colors text-left min-h-[56px]"
                                         >
-                                            <div className="w-10 h-10 flex items-center justify-center bg-red-50 rounded-lg border border-red-100 shrink-0">
-                                                <FileText className="w-5 h-5 text-red-400" />
+                                            <div className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 shrink-0">
+                                                <FileText className="w-5 h-5 text-slate-400" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-blue-600 truncate">{file.fileName}</p>
+                                                <p className="text-sm font-medium text-slate-600 truncate">{file.fileName}</p>
                                                 <p className="text-xs text-gray-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
                                             </div>
                                         </button>

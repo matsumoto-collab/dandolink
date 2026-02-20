@@ -79,11 +79,11 @@ export default function Sidebar() {
     const getRoleBadgeColor = (role: string) => {
         switch (role) {
             case 'admin':
-                return 'bg-purple-500/20 text-purple-300 ring-purple-500/30';
+                return 'bg-slate-500/20 text-slate-300 ring-slate-500/30';
             case 'manager':
-                return 'bg-blue-500/20 text-blue-300 ring-blue-500/30';
+                return 'bg-slate-600/20 text-slate-300 ring-slate-500/30';
             case 'user':
-                return 'bg-green-500/20 text-green-300 ring-green-500/30';
+                return 'bg-slate-600/20 text-slate-300 ring-green-500/30';
             case 'viewer':
                 return 'bg-gray-500/20 text-gray-300 ring-gray-500/30';
             default:
@@ -222,7 +222,7 @@ export default function Sidebar() {
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-400 hover:bg-red-950/30 hover:text-red-300 transition-colors duration-150"
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-950/30 hover:text-slate-300 transition-colors duration-150"
                     >
                         <LogOut className="w-5 h-5" />
                         <span>ログアウト</span>

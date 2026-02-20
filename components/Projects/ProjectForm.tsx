@@ -323,14 +323,14 @@ export default function ProjectForm({
             {/* 現場名 */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    現場名 <span className="text-red-500">*</span>
+                    現場名 <span className="text-slate-500">*</span>
                 </label>
                 <input
                     type="text"
                     required
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 帝人"
                 />
             </div>
@@ -352,7 +352,7 @@ export default function ProjectForm({
                                 setFormData({ ...formData, customer: e.target.value });
                             }}
                             onFocus={() => setShowCustomerDropdown(true)}
-                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             placeholder="顧客を検索または入力..."
                         />
                     </div>
@@ -397,7 +397,7 @@ export default function ProjectForm({
             {/* 工事種別（ラジオボタン） */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                    工事種別 <span className="text-red-500">*</span>
+                    工事種別 <span className="text-slate-500">*</span>
                 </label>
                 <div className="flex flex-wrap gap-3 border border-gray-200 rounded-md p-4">
                     {constructionTypes.length > 0 ? (
@@ -419,7 +419,7 @@ export default function ProjectForm({
                                             setAssemblySchedules([]);
                                             setDemolitionSchedules([]);
                                         }}
-                                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                        className="w-4 h-4 text-slate-600 border-gray-300 focus:ring-slate-500"
                                     />
                                     <span
                                         className="text-sm font-medium px-3 py-1 rounded-full"
@@ -455,7 +455,7 @@ export default function ProjectForm({
                                 name="constructionContent"
                                 checked={formData.constructionContent === value}
                                 onChange={() => setFormData({ ...formData, constructionContent: value })}
-                                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                className="w-4 h-4 text-slate-600 border-gray-300 focus:ring-slate-500"
                             />
                             <span className="text-sm text-gray-700">{label}</span>
                         </label>
@@ -484,8 +484,8 @@ export default function ProjectForm({
                     <div className="space-y-4 border border-gray-200 rounded-md p-4 bg-gray-50">
                         {/* 組立スケジュール */}
                         {(selectedConstructionTypeName === '組立' || formData.constructionType === 'assembly') && (
-                            <div className="bg-white p-4 rounded-lg border border-blue-200">
-                                <h3 className="text-lg font-semibold text-blue-700 mb-3">組立スケジュール</h3>
+                            <div className="bg-white p-4 rounded-lg border border-slate-200">
+                                <h3 className="text-lg font-semibold text-slate-700 mb-3">組立スケジュール</h3>
                                 <MultiDayScheduleEditor
                                     type="assembly"
                                     dailySchedules={assemblySchedules}
@@ -497,8 +497,8 @@ export default function ProjectForm({
 
                         {/* 解体スケジュール */}
                         {(selectedConstructionTypeName === '解体' || formData.constructionType === 'demolition') && (
-                            <div className="bg-white p-4 rounded-lg border border-red-200">
-                                <h3 className="text-lg font-semibold text-red-700 mb-3">解体スケジュール</h3>
+                            <div className="bg-white p-4 rounded-lg border border-slate-200">
+                                <h3 className="text-lg font-semibold text-slate-700 mb-3">解体スケジュール</h3>
                                 <MultiDayScheduleEditor
                                     type="demolition"
                                     dailySchedules={demolitionSchedules}
@@ -536,10 +536,10 @@ export default function ProjectForm({
                                     type="checkbox"
                                     checked={formData.selectedManagers.includes(manager.id)}
                                     onChange={() => handleManagerToggle(manager.id)}
-                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    className="w-4 h-4 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
                                 />
                                 <span className="text-sm text-gray-700">{manager.displayName}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-700'}`}>
                                     {manager.role === 'admin' ? '管理者' : 'マネージャー'}
                                 </span>
                             </label>
@@ -563,7 +563,7 @@ export default function ProjectForm({
                 <select
                     value={formData.memberCount}
                     onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                 >
                     {Array.from({ length: Math.min(availableMembers + formData.memberCount, TOTAL_MEMBERS) + 1 }, (_, i) => (
                         <option key={i} value={i}>
@@ -610,7 +610,7 @@ export default function ProjectForm({
                                 }
                             }}
                             placeholder="その他"
-                            className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-500 ${
                                 ![2, 4, 8].includes(formData.estimatedHours)
                                     ? 'border-slate-700 bg-slate-50'
                                     : 'border-gray-300'
@@ -633,28 +633,28 @@ export default function ProjectForm({
                         const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
 
                         return (
-                            <label key={vehicle.id} className={`flex items-center gap-2 cursor-pointer p-2 rounded text-sm ${isConfirmed ? 'bg-orange-50 hover:bg-orange-100' : isInUse ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+                            <label key={vehicle.id} className={`flex items-center gap-2 cursor-pointer p-2 rounded text-sm ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-gray-50'}`}>
                                 <input
                                     type="checkbox"
                                     checked={formData.selectedVehicles.includes(vehicle.name)}
                                     onChange={() => handleVehicleToggle(vehicle.name)}
-                                    className="w-4 h-4 shrink-0 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    className="w-4 h-4 shrink-0 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
                                 />
                                 <span className="text-gray-700 whitespace-nowrap">{vehicle.name}</span>
                                 {isConfirmed ? (
-                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 ml-auto whitespace-nowrap">
+                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
                                         手配確定済
                                     </span>
                                 ) : isInUse ? (
                                     <div className="flex flex-wrap gap-1 ml-auto">
                                         {usages!.map((u, i) => (
-                                            <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-700 whitespace-nowrap">
+                                            <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
                                                 {u.foremanName}班 ({u.projectTitle})
                                             </span>
                                         ))}
                                     </div>
                                 ) : (
-                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-green-100 text-green-700 ml-auto">
+                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 ml-auto">
                                         空き
                                     </span>
                                 )}
@@ -678,7 +678,7 @@ export default function ProjectForm({
                     value={formData.remarks}
                     onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="備考を入力"
                 />
             </div>

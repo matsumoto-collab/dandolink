@@ -172,17 +172,17 @@ export default function UserManagement() {
     const getRoleBadgeColor = (role: string) => {
         switch (role) {
             case 'admin':
-                return 'bg-purple-100 text-purple-800';
+                return 'bg-slate-100 text-purple-800';
             case 'manager':
-                return 'bg-blue-100 text-blue-800';
+                return 'bg-slate-100 text-slate-700';
             case 'foreman1':
-                return 'bg-green-100 text-green-800';
+                return 'bg-slate-100 text-slate-700';
             case 'foreman2':
                 return 'bg-teal-100 text-teal-800';
             case 'worker':
                 return 'bg-gray-100 text-gray-800';
             case 'partner':
-                return 'bg-orange-100 text-orange-800';
+                return 'bg-slate-100 text-slate-700';
             default:
                 return 'bg-gray-100 text-gray-800';
         }
@@ -289,8 +289,8 @@ export default function UserManagement() {
                                     <td className="px-6 py-4">
                                         <span
                                             className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${user.isActive
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'
+                                                ? 'bg-slate-100 text-slate-700'
+                                                : 'bg-slate-100 text-slate-700'
                                                 }`}
                                         >
                                             {user.isActive ? 'アクティブ' : '無効'}
@@ -307,7 +307,7 @@ export default function UserManagement() {
                                         <div className="flex items-center justify-end gap-2">
                                             <button
                                                 onClick={() => handleResetPassword(user)}
-                                                className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="パスワードリセット"
                                                 aria-label="パスワードリセット"
                                             >
@@ -315,7 +315,7 @@ export default function UserManagement() {
                                             </button>
                                             <button
                                                 onClick={() => handleEditUser(user)}
-                                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="編集"
                                                 aria-label="編集"
                                             >
@@ -323,7 +323,7 @@ export default function UserManagement() {
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteUser(user.id)}
-                                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                                 title="削除"
                                                 aria-label="削除"
                                             >
@@ -363,7 +363,7 @@ export default function UserManagement() {
                                     {getRoleLabel(user.role)}
                                 </span>
                                 <span
-                                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${user.isActive ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}
+                                    className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${user.isActive ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-700'}`}
                                 >
                                     {user.isActive ? 'アクティブ' : '無効'}
                                 </span>
@@ -377,7 +377,7 @@ export default function UserManagement() {
                         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                             <button
                                 onClick={() => handleResetPassword(user)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                 aria-label="パスワードリセット"
                             >
                                 <KeyRound className="w-4 h-4" />
@@ -385,7 +385,7 @@ export default function UserManagement() {
                             </button>
                             <button
                                 onClick={() => handleEditUser(user)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                 aria-label="編集"
                             >
                                 <Edit className="w-4 h-4" />
@@ -393,7 +393,7 @@ export default function UserManagement() {
                             </button>
                             <button
                                 onClick={() => handleDeleteUser(user.id)}
-                                className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                className="flex items-center justify-center gap-1.5 py-2 px-3 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                 aria-label="削除"
                             >
                                 <Trash2 className="w-4 h-4" />
@@ -444,7 +444,7 @@ export default function UserManagement() {
                                     <button
                                         onClick={confirmResetPassword}
                                         disabled={isResetting}
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                                        className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
                                     >
                                         {isResetting && <Loading size="sm" />}
                                         リセット
@@ -473,7 +473,7 @@ export default function UserManagement() {
                                 <div className="flex justify-end">
                                     <button
                                         onClick={closeResetDialog}
-                                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                        className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800"
                                     >
                                         閉じる
                                     </button>

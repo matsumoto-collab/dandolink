@@ -112,8 +112,8 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
 
                 {/* Error Message */}
                 {error && (
-                    <div className="mx-6 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-600">{error}</p>
+                    <div className="mx-6 mt-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                        <p className="text-sm text-slate-600">{error}</p>
                     </div>
                 )}
 
@@ -123,14 +123,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                         {/* Username */}
                         <div>
                             <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                                ユーザー名 <span className="text-red-500">*</span>
+                                ユーザー名 <span className="text-slate-500">*</span>
                             </label>
                             <input
                                 id="username"
                                 type="text"
                                 value={formData.username}
                                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent disabled:bg-gray-100"
                                 required
                                 disabled={mode === 'edit'}
                             />
@@ -142,14 +142,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                         {/* Email */}
                         <div>
                             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                                メールアドレス <span className="text-red-500">*</span>
+                                メールアドレス <span className="text-slate-500">*</span>
                             </label>
                             <input
                                 id="email"
                                 type="email"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
                             />
                         </div>
@@ -157,14 +157,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                         {/* Display Name */}
                         <div>
                             <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
-                                表示名 <span className="text-red-500">*</span>
+                                表示名 <span className="text-slate-500">*</span>
                             </label>
                             <input
                                 id="displayName"
                                 type="text"
                                 value={formData.displayName}
                                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
                             />
                         </div>
@@ -172,14 +172,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                         {/* Password */}
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                                パスワード {mode === 'create' && <span className="text-red-500">*</span>}
+                                パスワード {mode === 'create' && <span className="text-slate-500">*</span>}
                             </label>
                             <input
                                 id="password"
                                 type="password"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required={mode === 'create'}
                                 placeholder={mode === 'edit' ? '変更する場合のみ入力' : ''}
                             />
@@ -188,13 +188,13 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                         {/* Role */}
                         <div>
                             <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
-                                ロール <span className="text-red-500">*</span>
+                                ロール <span className="text-slate-500">*</span>
                             </label>
                             <select
                                 id="role"
                                 value={formData.role}
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
                             >
                                 <option value="admin">管理者</option>
@@ -214,7 +214,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                     type="checkbox"
                                     checked={formData.isActive}
                                     onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    className="w-5 h-5 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
                                 />
                                 <span className="ml-2 text-sm font-medium text-gray-700">アクティブ</span>
                             </label>
@@ -233,7 +233,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                     step="1"
                                     value={formData.hourlyRate}
                                     onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                     placeholder="例: 2500"
                                 />
                             </div>

@@ -74,7 +74,7 @@ export default function DraggableEventCard({
                 {/* 編集中インジケーター */}
                 {hasOtherEditors && (
                     <div
-                        className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 px-1 py-0.5 bg-amber-100 rounded text-[10px] text-amber-800"
+                        className="absolute top-0.5 right-0.5 z-10 flex items-center gap-0.5 px-1 py-0.5 bg-slate-100 rounded text-[10px] text-slate-700"
                         title={`${editingUsers.map(u => u.name).join(', ')}が編集中`}
                     >
                         <Edit3 className="w-2.5 h-2.5 animate-pulse" />
@@ -209,7 +209,7 @@ export default function DraggableEventCard({
                                         onDispatch?.();
                                     }}
                                     className={`p-1 sm:p-0.5 rounded transition-colors ${isDispatchConfirmed
-                                        ? 'text-green-600 hover:bg-green-100'
+                                        ? 'text-slate-600 hover:bg-slate-100'
                                         : 'text-gray-700 hover:bg-gray-500 hover:bg-opacity-20'
                                         }`}
                                     title={isDispatchConfirmed ? '手配確定済み' : '手配確定'}

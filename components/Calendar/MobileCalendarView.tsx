@@ -167,15 +167,15 @@ export default function MobileCalendarView({
 
             {/* ── 移動モードバナー ── */}
             {movingEvent && (
-                <div className="flex-shrink-0 bg-blue-600 text-white px-3 py-2 flex items-center gap-2">
+                <div className="flex-shrink-0 bg-slate-700 text-white px-3 py-2 flex items-center gap-2">
                     <MoveRight className="w-4 h-4 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <span className="text-xs font-bold truncate block">「{movingEvent.title}」を移動中</span>
-                        <span className="text-[10px] text-blue-200">移動先のセルをタップ</span>
+                        <span className="text-[10px] text-slate-200">移動先のセルをタップ</span>
                     </div>
                     <button
                         onClick={cancelMoving}
-                        className="flex items-center gap-1 bg-blue-500 hover:bg-blue-400 active:bg-blue-700 rounded-lg px-2.5 py-1.5 flex-shrink-0 transition-colors"
+                        className="flex items-center gap-1 bg-slate-600 hover:bg-slate-400 active:bg-slate-800 rounded-lg px-2.5 py-1.5 flex-shrink-0 transition-colors"
                     >
                         <X className="w-3.5 h-3.5" />
                         <span className="text-xs font-medium">キャンセル</span>
@@ -216,7 +216,7 @@ export default function MobileCalendarView({
                                     style={{ width: COL_W }}
                                 >
                                     <span className={`text-[11px] font-bold ${
-                                        isToday ? 'text-white' : isSat ? 'text-blue-700' : isSun ? 'text-rose-700' : 'text-slate-700'
+                                        isToday ? 'text-white' : isSat ? 'text-slate-700' : isSun ? 'text-slate-600' : 'text-slate-700'
                                     }`}>
                                         {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
                                     </span>
@@ -258,7 +258,7 @@ export default function MobileCalendarView({
                                 <div
                                     key={dateKey}
                                     className={`flex-shrink-0 border-r border-slate-200 flex items-center justify-center ${
-                                        isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
+                                        isSat ? 'bg-slate-50/30' : isSun ? 'bg-slate-50/30' : ''
                                     }`}
                                     style={{ width: COL_W }}
                                 >
@@ -318,12 +318,12 @@ export default function MobileCalendarView({
                                             }}
                                             className={`flex-shrink-0 border-r border-slate-200 p-1 transition-colors ${
                                                 isMovingSource
-                                                    ? 'bg-blue-100/60 ring-2 ring-inset ring-blue-400'
+                                                    ? 'bg-slate-100/60 ring-2 ring-inset ring-slate-400'
                                                     : movingEvent
-                                                    ? 'cursor-pointer bg-blue-50/30 hover:bg-blue-100/50 active:bg-blue-200/50'
-                                                    : isToday ? 'bg-blue-50/20'
-                                                    : isSat ? 'bg-blue-50/10'
-                                                    : isSun ? 'bg-rose-50/10'
+                                                    ? 'cursor-pointer bg-slate-50/30 hover:bg-slate-100/50 active:bg-slate-200/50'
+                                                    : isToday ? 'bg-slate-50/20'
+                                                    : isSat ? 'bg-slate-50/10'
+                                                    : isSun ? 'bg-slate-50/10'
                                                     : ''
                                             } ${!isReadOnly && isEmpty && !movingEvent ? 'cursor-pointer hover:bg-slate-50 active:bg-slate-100' : ''}`}
                                             style={{ width: COL_W }}
@@ -332,8 +332,8 @@ export default function MobileCalendarView({
                                                 movingEvent ? (
                                                     // 移動モード: 空きセルは移動先候補として点線丸を表示
                                                     <div className="h-full min-h-[72px] flex items-center justify-center pointer-events-none">
-                                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-blue-400 flex items-center justify-center">
-                                                            <Plus className="w-4 h-4 text-blue-400" />
+                                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-400 flex items-center justify-center">
+                                                            <Plus className="w-4 h-4 text-slate-400" />
                                                         </div>
                                                     </div>
                                                 ) : (
@@ -380,10 +380,10 @@ export default function MobileCalendarView({
                                                                 style={{ backgroundColor: event.color }}
                                                             >
                                                                 {editingUsers.length > 0 && (
-                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-amber-700 animate-pulse" />
+                                                                    <Edit3 className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-600 animate-pulse" />
                                                                 )}
                                                                 {!editingUsers.length && project?.isDispatchConfirmed && (
-                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-green-700" />
+                                                                    <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-700" />
                                                                 )}
                                                                 <div className="text-[10px] font-bold text-gray-800 leading-tight truncate pr-3">
                                                                     {event.title}
@@ -412,7 +412,7 @@ export default function MobileCalendarView({
 
                                                     {/* 移動モード中: 既存イベントがあるセルにも追加できるよう点線ボタン */}
                                                     {movingEvent && !isMovingSource && (
-                                                        <div className="pointer-events-none flex items-center justify-center py-1 border border-dashed border-blue-400 text-blue-400 rounded">
+                                                        <div className="pointer-events-none flex items-center justify-center py-1 border border-dashed border-slate-400 text-slate-400 rounded">
                                                             <Plus className="w-3 h-3" />
                                                         </div>
                                                     )}
@@ -519,12 +519,12 @@ export default function MobileCalendarView({
                                     }}
                                     className={`w-full flex items-center gap-3 px-4 py-3 text-left text-sm rounded-lg transition-colors ${
                                         actionSheet.project?.isDispatchConfirmed
-                                            ? 'text-green-700 hover:bg-green-50'
+                                            ? 'text-slate-700 hover:bg-slate-50'
                                             : 'text-slate-700 hover:bg-slate-50 active:bg-slate-100'
                                     }`}
                                 >
                                     {actionSheet.project?.isDispatchConfirmed ? (
-                                        <><CheckCircle className="w-5 h-5 text-green-500" />手配確定済み</>
+                                        <><CheckCircle className="w-5 h-5 text-slate-500" />手配確定済み</>
                                     ) : (
                                         <><ClipboardCheck className="w-5 h-5 text-slate-500" />手配確定する</>
                                     )}
@@ -546,7 +546,7 @@ export default function MobileCalendarView({
             {isSaving && (
                 <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
                     <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3 pointer-events-auto">
-                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
                         <span className="text-sm font-medium text-gray-700">保存中...</span>
                     </div>
                 </div>

@@ -36,10 +36,10 @@ const variantStyles: Record<ButtonVariant, string> = {
     focus:ring-slate-400
   `,
   danger: `
-    bg-red-600
+    bg-slate-700
     text-white
-    hover:bg-red-500
-    focus:ring-red-500
+    hover:bg-slate-600
+    focus:ring-slate-500
   `,
   outline: `
     bg-transparent

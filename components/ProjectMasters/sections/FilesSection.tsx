@@ -211,7 +211,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 onDrop={handleDrop}
                 className={`
                     border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-                    ${isDragOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}
+                    ${isDragOver ? 'border-slate-400 bg-slate-50' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}
                     ${uploading ? 'pointer-events-none opacity-60' : ''}
                 `}
                 onClick={() => fileInputRef.current?.click()}
@@ -226,7 +226,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     disabled={uploading}
                 />
                 {uploading ? (
-                    <div className="flex items-center justify-center gap-2 text-blue-600">
+                    <div className="flex items-center justify-center gap-2 text-slate-600">
                         <Loader2 className="w-4 h-4 animate-spin" />
                         <span className="text-sm">アップロード中...</span>
                     </div>
@@ -273,8 +273,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     </div>
                                 </button>
                             ) : (
-                                <div className="shrink-0 w-12 h-12 flex items-center justify-center bg-red-50 rounded border border-red-100">
-                                    <FileText className="w-6 h-6 text-red-400" />
+                                <div className="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded border border-slate-200">
+                                    <FileText className="w-6 h-6 text-slate-400" />
                                 </div>
                             )}
 
@@ -285,7 +285,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                         href={file.signedUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="text-sm font-medium text-blue-600 hover:underline truncate block"
+                                        className="text-sm font-medium text-slate-600 hover:underline truncate block"
                                     >
                                         {file.fileName}
                                     </a>
@@ -304,7 +304,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                 type="button"
                                 onClick={() => handleDelete(file.id, file.fileName)}
                                 disabled={deletingId === file.id}
-                                className="shrink-0 p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                                className="shrink-0 p-1.5 text-gray-400 hover:text-slate-500 hover:bg-slate-50 rounded transition-colors"
                                 title="削除"
                             >
                                 {deletingId === file.id ? (

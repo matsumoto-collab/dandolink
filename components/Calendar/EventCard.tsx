@@ -134,10 +134,10 @@ const EventCard = memo(function EventCard({ event, onClick, compact = false }: E
                 {event.status && (
                     <span className={`
             px-2 py-0.5 text-xs rounded-full font-medium bg-white bg-opacity-90
-            ${event.status === 'confirmed' ? 'text-green-700' : ''}
-            ${event.status === 'pending' ? 'text-yellow-700' : ''}
-            ${event.status === 'completed' ? 'text-blue-700' : ''}
-            ${event.status === 'cancelled' ? 'text-red-700' : ''}
+            ${event.status === 'confirmed' ? 'text-slate-700' : ''}
+            ${event.status === 'pending' ? 'text-slate-600' : ''}
+            ${event.status === 'completed' ? 'text-slate-700' : ''}
+            ${event.status === 'cancelled' ? 'text-slate-700' : ''}
           `}>
                         {event.status === 'confirmed' && '確定'}
                         {event.status === 'pending' && '保留'}

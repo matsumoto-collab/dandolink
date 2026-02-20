@@ -128,7 +128,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     return (
         <div className="flex flex-col h-full gap-4">
             {namesLoadError && (
-                <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm">
                     {namesLoadError}（名前の表示に影響がある可能性があります）
                 </div>
             )}

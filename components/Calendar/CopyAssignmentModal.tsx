@@ -127,7 +127,7 @@ export default function CopyAssignmentModal({
                                 id="employeeId"
                                 value={employeeId}
                                 onChange={(e) => setEmployeeId(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                 required
                             >
                                 <option value="">選択してください</option>
@@ -156,7 +156,7 @@ export default function CopyAssignmentModal({
                                             setEndDate(e.target.value);
                                         }
                                     }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                     required
                                 />
                             </div>
@@ -171,7 +171,7 @@ export default function CopyAssignmentModal({
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
                                     min={startDate}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                     required
                                 />
                             </div>
@@ -180,7 +180,7 @@ export default function CopyAssignmentModal({
                         {/* 日数表示 */}
                         {dateCount > 0 && (
                             <div className="text-sm text-gray-600 text-center">
-                                <span className="font-medium text-blue-600">{dateCount}日間</span>
+                                <span className="font-medium text-slate-600">{dateCount}日間</span>
                                 の案件が作成されます
                             </div>
                         )}

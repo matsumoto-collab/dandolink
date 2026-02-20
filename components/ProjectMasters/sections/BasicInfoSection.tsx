@@ -61,7 +61,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                 <select
                     value={formData.constructionContent}
                     onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value as ConstructionContentType })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                 >
                     <option value="">選択してください</option>
                     {Object.entries(CONSTRUCTION_CONTENT_LABELS).map(([key, label]) => (
@@ -91,7 +91,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                             setFormData({ ...formData, createdBy: formData.createdBy.filter(id => id !== manager.id) });
                                         }
                                     }}
-                                    className="w-4 h-4 text-blue-600 rounded"
+                                    className="w-4 h-4 text-slate-600 rounded"
                                 />
                                 <span className="text-sm text-gray-700">{manager.displayName}</span>
                             </label>
@@ -108,7 +108,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 松本様邸"
                 />
             </FormField>
@@ -126,7 +126,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                 setShowCustomerDropdown(true);
                             }}
                             onFocus={() => setShowCustomerDropdown(true)}
-                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                             placeholder="顧客を検索..."
                         />
                     </div>
@@ -158,7 +158,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                 onClick={() => {
                                     window.open('/customers', '_blank');
                                 }}
-                                className="w-full px-4 py-2 text-left text-green-600 hover:bg-green-50 flex items-center gap-2 border-t"
+                                className="w-full px-4 py-2 text-left text-slate-600 hover:bg-slate-50 flex items-center gap-2 border-t"
                             >
                                 <Plus className="w-4 h-4" />
                                 新しい顧客/外注などを作成
@@ -167,13 +167,13 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     )}
                     {formData.customerName && (
                         <div className="mt-2 flex items-center gap-2">
-                            <span className="text-sm bg-blue-50 text-blue-700 px-3 py-1 rounded-full">
+                            <span className="text-sm bg-slate-50 text-slate-700 px-3 py-1 rounded-full">
                                 {formData.customerName}
                             </span>
                             <button
                                 type="button"
                                 onClick={() => setFormData({ ...formData, customerId: '', customerName: '' })}
-                                className="text-gray-400 hover:text-red-500"
+                                className="text-gray-400 hover:text-slate-500"
                             >
                                 ×
                             </button>

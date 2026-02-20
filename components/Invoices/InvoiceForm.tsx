@@ -137,7 +137,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 loadFromEstimate(e.target.value);
                             }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">見積書を選択（任意）</option>
                         {estimates.map(estimate => (
@@ -156,18 +156,18 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                         type="text"
                         value={invoiceNumber}
                         onChange={(e) => setInvoiceNumber(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
 
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        案件 <span className="text-red-500">*</span>
+                        案件 <span className="text-slate-500">*</span>
                     </label>
                     <select
                         value={projectId}
                         onChange={(e) => setProjectId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         required
                     >
                         <option value="">案件を選択</option>
@@ -181,13 +181,13 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
                 <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        タイトル <span className="text-red-500">*</span>
+                        タイトル <span className="text-slate-500">*</span>
                     </label>
                     <input
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         required
                     />
                 </div>
@@ -200,7 +200,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                         type="date"
                         value={dueDate}
                         onChange={(e) => setDueDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
 
@@ -211,7 +211,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                     <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value as InvoiceInput['status'])}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="draft">下書き</option>
                         <option value="sent">送付済み</option>
@@ -229,7 +229,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                             type="date"
                             value={paidDate}
                             onChange={(e) => setPaidDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         />
                     </div>
                 )}
@@ -270,7 +270,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="text"
                                             value={item.description}
                                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             placeholder="品目・内容"
                                         />
                                     </td>
@@ -279,7 +279,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="number"
                                             value={item.quantity}
                                             onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             min="0"
                                             step="0.1"
                                         />
@@ -289,7 +289,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="number"
                                             value={item.unitPrice}
                                             onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             min="0"
                                         />
                                     </td>
@@ -301,7 +301,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="button"
                                             onClick={() => removeItem(item.id)}
                                             disabled={items.length === 1}
-                                            className="text-red-600 hover:text-red-800 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                            className="text-slate-600 hover:text-slate-700 disabled:text-gray-400 disabled:cursor-not-allowed"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -325,7 +325,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 </div>
                 <div className="flex justify-between text-lg border-t border-gray-300 pt-2">
                     <span className="font-bold text-gray-900">合計:</span>
-                    <span className="font-bold text-blue-600">¥{total.toLocaleString()}</span>
+                    <span className="font-bold text-slate-600">¥{total.toLocaleString()}</span>
                 </div>
             </div>
 
@@ -338,7 +338,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="備考を入力..."
                 />
             </div>

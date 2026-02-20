@@ -72,8 +72,8 @@ export default function MobileDayView({
                     </button>
 
                     <div className="flex flex-col items-center">
-                        <span className={`text-lg font-bold ${isSaturday ? 'text-blue-600' :
-                            isSunday ? 'text-red-600' :
+                        <span className={`text-lg font-bold ${isSaturday ? 'text-slate-600' :
+                            isSunday ? 'text-slate-600' :
                                 'text-slate-800'
                             }`}>
                             {dateString}（{dayOfWeek}）

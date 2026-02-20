@@ -74,14 +74,14 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
     if (isLoading) {
         return (
             <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
-                <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                <div className="animate-spin w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full"></div>
                 <span>作業履歴を読み込み中...</span>
             </div>
         );
     }
 
     if (error) {
-        return <div className="text-sm text-red-500 py-2">{error}</div>;
+        return <div className="text-sm text-slate-500 py-2">{error}</div>;
     }
 
     if (history.length === 0) {

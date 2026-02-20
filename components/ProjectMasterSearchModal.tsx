@@ -102,7 +102,7 @@ export default function ProjectMasterSearchModal({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="現場名、顧客名、場所で検索..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                         />
                     </div>
                 </div>
@@ -137,7 +137,7 @@ export default function ProjectMasterSearchModal({
                                 <div
                                     key={pm.id}
                                     onClick={() => handleSelect(pm)}
-                                    className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+                                    className="p-4 border border-gray-200 rounded-lg hover:border-slate-500 hover:shadow-md transition-all cursor-pointer"
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">

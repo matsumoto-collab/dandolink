@@ -108,7 +108,7 @@ export default function DesktopCalendarView({
 
                                 return (
                                     <div key={index} className={`flex-1 min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center ${isSaturday ? 'bg-gradient-to-b from-blue-100 to-blue-50' : isSunday ? 'bg-gradient-to-b from-rose-100 to-rose-50' : 'bg-gradient-to-b from-slate-100 to-slate-50'} ${day.isToday ? 'bg-gradient-to-r from-slate-700 to-slate-600' : ''}`}>
-                                        <div className={`text-[11px] font-bold ${isSaturday ? 'text-blue-700' : isSunday ? 'text-rose-700' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>{combinedDate}</div>
+                                        <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>{combinedDate}</div>
                                     </div>
                                 );
                             })}
@@ -139,7 +139,7 @@ export default function DesktopCalendarView({
                                 const remainingCount = totalMembers - assignedCount - vacationCount;
 
                                 return (
-                                    <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-gray-100 p-1 flex items-center justify-center gap-1.5 ${isSaturday ? 'bg-blue-50/30' : isSunday ? 'bg-red-50/30' : 'bg-white'}`}>
+                                    <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-gray-100 p-1 flex items-center justify-center gap-1.5 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
                                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingCount > 0 ? 'bg-slate-600' : remainingCount === 0 ? 'bg-slate-400' : 'bg-slate-700'}`}>{remainingCount}人</span>
                                     </div>
                                 );
@@ -187,7 +187,7 @@ export default function DesktopCalendarView({
             {isSaving && (
                 <div className="fixed inset-0 lg:left-64 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
                     <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3 pointer-events-auto">
-                        <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
                         <span className="text-sm font-medium text-gray-700">案件を保存中...</span>
                     </div>
                 </div>

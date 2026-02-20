@@ -71,7 +71,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
             {/* 会社名 */}
             <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    会社名 <span className="text-red-500">*</span>
+                    会社名 <span className="text-slate-500">*</span>
                 </label>
                 <input
                     type="text"
@@ -128,7 +128,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                                     <button
                                         type="button"
                                         onClick={() => removeContactPerson(contact.id)}
-                                        className="text-red-600 hover:text-red-800"
+                                        className="text-slate-600 hover:text-slate-700"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>

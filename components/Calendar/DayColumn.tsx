@@ -15,13 +15,13 @@ export default function DayColumn({ day, onEventClick }: DayColumnProps) {
     return (
         <div className={`
       flex-1 min-w-0 border-r border-gray-200 last:border-r-0
-      ${day.isWeekend ? 'bg-blue-50/30' : 'bg-white'}
+      ${day.isWeekend ? 'bg-slate-50/30' : 'bg-white'}
     `}>
             {/* 日付ヘッダー */}
             <div className={`
         p-3 border-b border-gray-200 text-center
-        ${day.isToday ? 'bg-blue-500 text-white' : ''}
-        ${day.isWeekend && !day.isToday ? 'bg-blue-100' : ''}
+        ${day.isToday ? 'bg-slate-600 text-white' : ''}
+        ${day.isWeekend && !day.isToday ? 'bg-slate-100' : ''}
         ${!day.isToday && !day.isWeekend ? 'bg-gray-50' : ''}
       `}>
                 <div className={`
@@ -33,7 +33,7 @@ export default function DayColumn({ day, onEventClick }: DayColumnProps) {
                 <div className={`
           text-lg font-bold
           ${day.isToday ? 'text-white' : ''}
-          ${day.isWeekend && !day.isToday ? 'text-blue-600' : 'text-gray-900'}
+          ${day.isWeekend && !day.isToday ? 'text-slate-600' : 'text-gray-900'}
         `}>
                     {dateString}
                 </div>

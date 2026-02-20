@@ -94,10 +94,10 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                 {/* メイン指標 */}
                 <div className="grid grid-cols-3 gap-4 mb-6">
                     {/* 売上 */}
-                    <div className="bg-blue-50 rounded-lg p-4">
-                        <div className="text-sm text-blue-600 font-medium">売上（請求済）</div>
-                        <div className="text-2xl font-bold text-blue-700">{formatCurrency(revenue)}</div>
-                        <div className="text-xs text-blue-500 mt-1">見積: {formatCurrency(estimateAmount)}</div>
+                    <div className="bg-slate-50 rounded-lg p-4">
+                        <div className="text-sm text-slate-600 font-medium">売上（請求済）</div>
+                        <div className="text-2xl font-bold text-slate-700">{formatCurrency(revenue)}</div>
+                        <div className="text-xs text-slate-500 mt-1">見積: {formatCurrency(estimateAmount)}</div>
                     </div>
 
                     {/* 原価 */}
@@ -107,9 +107,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     </div>
 
                     {/* 粗利 */}
-                    <div className={`rounded-lg p-4 ${isProfit ? 'bg-green-50' : 'bg-red-50'}`}>
-                        <div className={`text-sm font-medium ${isProfit ? 'text-green-600' : 'text-red-600'}`}>粗利</div>
-                        <div className={`text-2xl font-bold flex items-center gap-1 ${isProfit ? 'text-green-700' : 'text-red-700'}`}>
+                    <div className={`rounded-lg p-4 ${isProfit ? 'bg-slate-50' : 'bg-slate-50'}`}>
+                        <div className={`text-sm font-medium ${isProfit ? 'text-slate-600' : 'text-slate-600'}`}>粗利</div>
+                        <div className={`text-2xl font-bold flex items-center gap-1 ${isProfit ? 'text-slate-700' : 'text-slate-700'}`}>
                             {isProfit ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                             {formatCurrency(grossProfit)}
                         </div>
@@ -175,11 +175,11 @@ interface CostItemProps {
 
 function CostItem({ icon: Icon, label, amount, color }: CostItemProps) {
     const colorClasses = {
-        blue: 'bg-blue-50 text-blue-600',
-        purple: 'bg-purple-50 text-purple-600',
-        indigo: 'bg-indigo-50 text-indigo-600',
-        amber: 'bg-amber-50 text-amber-600',
-        orange: 'bg-orange-50 text-orange-600',
+        blue: 'bg-slate-50 text-slate-600',
+        purple: 'bg-purple-50 text-slate-600',
+        indigo: 'bg-slate-50 text-indigo-600',
+        amber: 'bg-slate-50 text-slate-600',
+        orange: 'bg-slate-50 text-slate-600',
         gray: 'bg-gray-50 text-gray-600',
     };
 

@@ -13,7 +13,7 @@ export function RemarksSection({ formData, setFormData }: RemarksSectionProps) {
         <textarea
             value={formData.remarks}
             onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-h-[100px]"
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 min-h-[100px]"
             placeholder="備考"
         />
     );

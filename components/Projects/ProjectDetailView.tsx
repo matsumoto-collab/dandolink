@@ -76,10 +76,10 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
 
     // ステータスの表示設定
     const statusConfig = {
-        confirmed: { label: '確定', color: 'bg-green-100 text-green-700' },
-        pending: { label: '保留', color: 'bg-yellow-100 text-yellow-700' },
-        completed: { label: '完了', color: 'bg-blue-100 text-blue-700' },
-        cancelled: { label: '中止', color: 'bg-red-100 text-red-700' },
+        confirmed: { label: '確定', color: 'bg-slate-100 text-slate-700' },
+        pending: { label: '保留', color: 'bg-slate-100 text-slate-600' },
+        completed: { label: '完了', color: 'bg-slate-100 text-slate-700' },
+        cancelled: { label: '中止', color: 'bg-slate-100 text-slate-700' },
     };
 
     const status = project.status ? statusConfig[project.status] : null;
@@ -133,7 +133,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                                 managers.map((manager, index) => (
                                     <span
                                         key={index}
-                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800"
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700"
                                     >
                                         {managerMap[manager] || manager}
                                     </span>
@@ -252,7 +252,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+                                className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
                             >
                                 削除
                             </button>
@@ -267,7 +267,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                 {!readOnly && onDelete && (
                     <button
                         onClick={handleDelete}
-                        className="w-full px-4 py-2 border border-red-300 bg-red-50 rounded-md text-red-700 hover:bg-red-100 transition-colors font-medium flex items-center justify-center gap-2"
+                        className="w-full px-4 py-2 border border-slate-300 bg-slate-50 rounded-md text-slate-700 hover:bg-slate-100 transition-colors font-medium flex items-center justify-center gap-2"
                     >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

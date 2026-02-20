@@ -72,13 +72,13 @@ export default function VacationSelector({
                         return (
                             <span
                                 key={memberId}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-orange-100 text-orange-800 rounded-full text-[10px] font-semibold"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-semibold"
                             >
-                                <span className="text-orange-600">🏖️</span>
+                                <span className="text-slate-600">🏖️</span>
                                 {member.displayName}
                                 <button
                                     onClick={() => onRemoveEmployee(memberId)}
-                                    className="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+                                    className="hover:bg-slate-200 rounded-full p-0.5 transition-colors"
                                     title="削除"
                                     aria-label="削除"
                                 >
@@ -94,7 +94,7 @@ export default function VacationSelector({
             <div className="relative" ref={dropdownRef}>
                 <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50 rounded transition-colors"
                     type="button"
                 >
                     <Plus className="w-3 h-3" />
@@ -108,7 +108,7 @@ export default function VacationSelector({
                             <button
                                 key={member.id}
                                 onClick={() => handleSelectEmployee(member.id)}
-                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 transition-colors"
+                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors"
                                 type="button"
                             >
                                 {member.displayName}

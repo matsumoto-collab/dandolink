@@ -303,11 +303,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     type="date"
                                     value={dateStr}
                                     onChange={(e) => setSelectedDate(new Date(e.target.value))}
-                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                 />
                                 <button
                                     onClick={goToday}
-                                    className="px-3 py-2 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                                    className="px-3 py-2 text-sm bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
                                 >
                                     今日
                                 </button>
@@ -331,7 +331,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                 <select
                                     value={selectedForemanId}
                                     onChange={(e) => setSelectedForemanId(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                                 >
                                     {allForemen.map(foreman => (
                                         <option key={foreman.id} value={foreman.id}>
@@ -344,13 +344,13 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
 
                         {/* メッセージ */}
                         {saveMessage && (
-                            <div className={`mb-4 p-3 rounded-lg ${saveMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                            <div className={`mb-4 p-3 rounded-lg ${saveMessage.type === 'success' ? 'bg-slate-50 text-slate-700' : 'bg-slate-50 text-slate-700'}`}>
                                 {saveMessage.text}
                             </div>
                         )}
 
                         {!effectiveForemanId ? (
-                            <div className="p-4 bg-yellow-50 rounded-lg text-yellow-800">
+                            <div className="p-4 bg-slate-50 rounded-lg text-slate-700">
                                 <AlertCircle className="w-5 h-5 inline mr-2" />
                                 ログインしてください
                             </div>
@@ -412,7 +412,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                     <select
                                                                         value={st.hour}
                                                                         onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', Number(e.target.value), st.minute)}
-                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                                                                     >
                                                                         {hourOptions.map(h => (
                                                                             <option key={h} value={h}>{h}</option>
@@ -422,7 +422,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                     <select
                                                                         value={st.minute}
                                                                         onChange={(e) => updateWorkItemTime(assignment.id, 'startTime', st.hour, Number(e.target.value))}
-                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                                                                     >
                                                                         {minuteOptions.map(m => (
                                                                             <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
@@ -435,7 +435,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                     <select
                                                                         value={et.hour}
                                                                         onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', Number(e.target.value), et.minute)}
-                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                                                                     >
                                                                         {hourOptions.map(h => (
                                                                             <option key={h} value={h}>{h}</option>
@@ -445,7 +445,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                     <select
                                                                         value={et.minute}
                                                                         onChange={(e) => updateWorkItemTime(assignment.id, 'endTime', et.hour, Number(e.target.value))}
-                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                                                                        className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                                                                     >
                                                                         {minuteOptions.map(m => (
                                                                             <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
@@ -481,7 +481,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                     type="text"
                                                     value={formatMinutes(morningLoadingMinutes)}
                                                     onChange={(e) => setMorningLoadingMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                 />
                                                 <span className="text-sm text-gray-500">（時:分）</span>
                                             </div>
@@ -493,7 +493,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                     type="text"
                                                     value={formatMinutes(eveningLoadingMinutes)}
                                                     onChange={(e) => setEveningLoadingMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                 />
                                                 <span className="text-sm text-gray-500">（時:分）</span>
                                             </div>
@@ -506,7 +506,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
                                         <Clock className="w-5 h-5" />
                                         早出・残業
-                                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded">按分方法は保留</span>
+                                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded">按分方法は保留</span>
                                     </h3>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
@@ -516,7 +516,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                     type="text"
                                                     value={formatMinutes(earlyStartMinutes)}
                                                     onChange={(e) => setEarlyStartMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                 />
                                                 <span className="text-sm text-gray-500">（時:分）</span>
                                             </div>
@@ -528,7 +528,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                     type="text"
                                                     value={formatMinutes(overtimeMinutes)}
                                                     onChange={(e) => setOvertimeMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                 />
                                                 <span className="text-sm text-gray-500">（時:分）</span>
                                             </div>
@@ -546,7 +546,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
                                         rows={3}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder="備考があれば入力..."
                                     />
                                 </div>

@@ -70,7 +70,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                 {savedRemark ? (
                     <div
                         onClick={handleStartEdit}
-                        className="w-full text-[12px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-yellow-50 text-gray-700 border border-yellow-200 hover:bg-yellow-100 transition-colors whitespace-pre-wrap break-words"
+                        className="w-full text-[12px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-slate-50 text-gray-700 border border-slate-200 hover:bg-slate-100 transition-colors whitespace-pre-wrap break-words"
                     >
                         {savedRemark}
                     </div>
@@ -116,13 +116,13 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                             value={tempValue}
                             onChange={(e) => setTempValue(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            className="w-full text-xs p-2 border border-blue-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 min-h-[60px] resize-none"
+                            className="w-full text-xs p-2 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 min-h-[60px] resize-none"
                             placeholder="メモを入力..."
                         />
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={handleSave}
-                                className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 flex items-center gap-1"
+                                className="px-2 py-1 bg-slate-700 text-white rounded text-xs hover:bg-slate-800 flex items-center gap-1"
                             >
                                 <Check className="w-3 h-3" /> 保存
                             </button>

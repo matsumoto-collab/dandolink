@@ -109,7 +109,7 @@ export default function ProjectSearchModal({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="現場名、顧客名、場所で検索..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                         />
 
                         {/* 工事種別フィルター */}
@@ -126,7 +126,7 @@ export default function ProjectSearchModal({
                             <button
                                 onClick={() => setSelectedType('assembly')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'assembly'
-                                    ? 'bg-blue-500 text-white'
+                                    ? 'bg-slate-600 text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
@@ -135,7 +135,7 @@ export default function ProjectSearchModal({
                             <button
                                 onClick={() => setSelectedType('demolition')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'demolition'
-                                    ? 'bg-red-500 text-white'
+                                    ? 'bg-slate-600 text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
@@ -144,7 +144,7 @@ export default function ProjectSearchModal({
                             <button
                                 onClick={() => setSelectedType('other')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'other'
-                                    ? 'bg-yellow-500 text-white'
+                                    ? 'bg-slate-600 text-white'
                                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
@@ -180,7 +180,7 @@ export default function ProjectSearchModal({
                                 <div
                                     key={project.id}
                                     onClick={() => handleSelect(project)}
-                                    className="p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:shadow-md transition-all cursor-pointer"
+                                    className="p-4 border border-gray-200 rounded-lg hover:border-slate-500 hover:shadow-md transition-all cursor-pointer"
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">

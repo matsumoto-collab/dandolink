@@ -92,7 +92,7 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                                 <div className="text-sm text-gray-500">{customer}</div>
                                             )}
                                         </div>
-                                        <span className="text-sm font-medium text-blue-700 bg-blue-50 px-2 py-0.5 rounded">
+                                        <span className="text-sm font-medium text-slate-700 bg-slate-50 px-2 py-0.5 rounded">
                                             {formatMinutes(workMin)}
                                         </span>
                                     </div>
@@ -194,7 +194,7 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
+                                className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
                             >
                                 削除
                             </button>
@@ -207,7 +207,7 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
             <div className="space-y-3 pt-4 border-t border-gray-200">
                 <button
                     onClick={() => setShowDeleteConfirm(true)}
-                    className="w-full px-4 py-2 border border-red-300 bg-red-50 rounded-md text-red-700 hover:bg-red-100 transition-colors font-medium flex items-center justify-center gap-2"
+                    className="w-full px-4 py-2 border border-slate-300 bg-slate-50 rounded-md text-slate-700 hover:bg-slate-100 transition-colors font-medium flex items-center justify-center gap-2"
                 >
                     <Trash2 className="w-4 h-4" />
                     削除

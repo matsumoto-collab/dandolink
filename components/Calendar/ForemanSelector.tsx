@@ -38,7 +38,7 @@ export default function ForemanSelector() {
             <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors border ${hasAvailableForemen
-                    ? 'text-blue-600 hover:bg-blue-50 border-blue-200 hover:border-blue-300'
+                    ? 'text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
                     : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
                     }`}
                 type="button"
@@ -57,7 +57,7 @@ export default function ForemanSelector() {
                         <button
                             key={foreman.id}
                             onClick={() => handleSelectForeman(foreman.id)}
-                            className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 transition-colors"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-slate-50 transition-colors"
                             type="button"
                         >
                             {foreman.name}

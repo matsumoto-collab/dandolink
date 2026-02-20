@@ -57,7 +57,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                             value={formData.postalCode}
                             onChange={handlePostalCodeChange}
                             maxLength={7}
-                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                             placeholder="例: 1600023"
                         />
                         <span className="text-sm text-gray-500">市区町村が自動で入力されます</span>
@@ -68,7 +68,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     <select
                         value={formData.prefecture}
                         onChange={(e) => setFormData({ ...formData, prefecture: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">選択してください</option>
                         {PREFECTURES.map(pref => (
@@ -83,7 +83,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 新宿区西新宿"
                 />
             </FormField>
@@ -93,7 +93,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="番地、建物名など"
                 />
             </FormField>
@@ -103,7 +103,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     type="text"
                     value={formData.plusCode}
                     onChange={(e) => setFormData({ ...formData, plusCode: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 8Q7XMQ22+MC または 35.6895,139.6917"
                 />
             </FormField>

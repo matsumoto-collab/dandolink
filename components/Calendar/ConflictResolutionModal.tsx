@@ -35,9 +35,9 @@ export default function ConflictResolutionModal({
             {/* モーダルコンテンツ */}
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
                 {/* ヘッダー */}
-                <div className="bg-amber-50 border-b border-amber-200 px-6 py-4 flex items-center gap-3 rounded-t-lg">
-                    <AlertTriangle className="w-6 h-6 text-amber-600" />
-                    <h2 className="text-lg font-semibold text-amber-800">編集の競合</h2>
+                <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center gap-3 rounded-t-lg">
+                    <AlertTriangle className="w-6 h-6 text-slate-600" />
+                    <h2 className="text-lg font-semibold text-slate-700">編集の競合</h2>
                 </div>
 
                 {/* コンテンツ */}
@@ -74,7 +74,7 @@ export default function ConflictResolutionModal({
                     <div className="space-y-3">
                         <button
                             onClick={() => onResolve('reload')}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
                         >
                             <RefreshCw className="w-5 h-5" />
                             <span>最新のデータを読み込む</span>
@@ -82,7 +82,7 @@ export default function ConflictResolutionModal({
 
                         <button
                             onClick={() => onResolve('overwrite')}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
                         >
                             <Upload className="w-5 h-5" />
                             <span>自分の変更で上書き</span>

@@ -164,7 +164,7 @@ export default function EstimateDetailModal({
                                 </button>
                                 <button
                                     onClick={handleDelete}
-                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                    className="flex items-center gap-2 px-4 py-2 bg-slate-50 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                                     title="削除"
                                     aria-label="削除"
                                 >
@@ -177,7 +177,7 @@ export default function EstimateDetailModal({
                                     type="checkbox"
                                     checked={includeCoverPage}
                                     onChange={(e) => setIncludeCoverPage(e.target.checked)}
-                                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                    className="w-4 h-4 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
                                 />
                                 表紙を含める
                             </label>
@@ -190,7 +190,7 @@ export default function EstimateDetailModal({
                             <button
                                 onClick={() => setActiveTab('estimate')}
                                 className={`py-3 px-2 border-b-2 transition-colors ${activeTab === 'estimate'
-                                    ? 'border-blue-500 text-blue-600 font-medium'
+                                    ? 'border-slate-500 text-slate-600 font-medium'
                                     : 'border-transparent text-gray-500 hover:text-gray-700'
                                     }`}
                             >
@@ -199,7 +199,7 @@ export default function EstimateDetailModal({
                             <button
                                 onClick={() => setActiveTab('budget')}
                                 className={`py-3 px-2 border-b-2 transition-colors ${activeTab === 'budget'
-                                    ? 'border-blue-500 text-blue-600 font-medium'
+                                    ? 'border-slate-500 text-slate-600 font-medium'
                                     : 'border-transparent text-gray-500 hover:text-gray-700'
                                     }`}
                             >
@@ -220,7 +220,7 @@ export default function EstimateDetailModal({
                             ) : (
                                 <div className="flex items-center justify-center h-full">
                                     <div className="text-center">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4"></div>
                                         <p className="text-gray-600">PDFを読み込んでいます...</p>
                                     </div>
                                 </div>

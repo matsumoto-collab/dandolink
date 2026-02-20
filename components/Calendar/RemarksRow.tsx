@@ -46,7 +46,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
             {/* 職長セル（固定） */}
             <div className="sticky left-0 z-30 bg-gradient-to-r from-blue-50 to-indigo-50 border-r-2 border-slate-300 shadow-md">
                 <div className="w-32 h-full flex items-center justify-center py-2">
-                    <span className="text-xs font-bold text-indigo-900 tracking-wide">備考</span>
+                    <span className="text-xs font-bold text-slate-900 tracking-wide">備考</span>
                 </div>
             </div>
 
@@ -65,7 +65,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                         className={`
                             flex-1 min-w-[140px] border-r border-gray-200 p-1.5
                             transition-all duration-200
-                            ${isSaturday ? 'bg-blue-50/40' : isSunday ? 'bg-red-50/40' : 'bg-white'}
+                            ${isSaturday ? 'bg-slate-50/40' : isSunday ? 'bg-slate-50/40' : 'bg-white'}
                         `}
                     >
                         <div className="flex flex-col gap-1 h-full">
@@ -79,7 +79,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
 
                             {/* フリーテキスト備考セクション */}
                             <div
-                                className={`flex-1 ${!isEditing ? 'cursor-text hover:bg-indigo-50/30 rounded' : ''}`}
+                                className={`flex-1 ${!isEditing ? 'cursor-text hover:bg-slate-50/30 rounded' : ''}`}
                                 onClick={() => !isEditing && handleCellClick(dateKey)}
                             >
                                 {isEditing ? (
@@ -92,7 +92,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                                         }))}
                                         onBlur={() => handleBlur(dateKey)}
                                         onKeyDown={(e) => handleKeyDown(e, dateKey)}
-                                        className="w-full h-full min-h-[40px] p-1.5 text-xs resize-none border border-indigo-400 rounded focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-transparent bg-white"
+                                        className="w-full h-full min-h-[40px] p-1.5 text-xs resize-none border border-slate-400 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 focus:border-transparent bg-white"
                                         placeholder="備考を入力..."
                                     />
                                 ) : (

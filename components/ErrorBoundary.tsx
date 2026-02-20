@@ -52,7 +52,7 @@ class ErrorBoundary extends Component<Props, State> {
                     <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
                         <div className="mb-6">
                             <svg
-                                className="mx-auto h-16 w-16 text-red-500"
+                                className="mx-auto h-16 w-16 text-slate-500"
                                 fill="none"
                                 viewBox="0 0 24 24"
                                 stroke="currentColor"
@@ -79,7 +79,7 @@ class ErrorBoundary extends Component<Props, State> {
                                 <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
                                     エラー詳細（開発環境のみ）
                                 </summary>
-                                <pre className="mt-2 p-3 bg-gray-100 rounded text-xs text-red-600 overflow-auto max-h-40">
+                                <pre className="mt-2 p-3 bg-gray-100 rounded text-xs text-slate-600 overflow-auto max-h-40">
                                     {this.state.error.message}
                                     {'\n'}
                                     {this.state.error.stack}

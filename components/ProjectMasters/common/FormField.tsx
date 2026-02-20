@@ -13,7 +13,7 @@ export function FormField({ label, required = false, children }: FormFieldProps)
         <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
                 {label}
-                {required && <span className="text-red-500"> *</span>}
+                {required && <span className="text-slate-500"> *</span>}
             </label>
             {children}
         </div>
