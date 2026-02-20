@@ -147,9 +147,8 @@ export default function DesktopCalendarView({
                                     );
                                 })}
                             </div>
+                            {!isReadOnly && <RemarksRow weekDays={weekDays} />}
                         </div>
-
-                        {!isReadOnly && <RemarksRow weekDays={weekDays} />}
 
                         <div className="flex-1 flex flex-col">
                             {employeeRows.map((row, index) => (
