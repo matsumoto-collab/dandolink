@@ -161,6 +161,28 @@ export default function ProjectForm({
         return TOTAL_MEMBERS - usedMembers;
     }, [projects, initialData, defaultDate, TOTAL_MEMBERS]);
 
+    // 複数日スケジュール用：日付ごとの既存配置マップ
+    const existingDayMap = useMemo(() => {
+        const map: Record<string, { foremanId: string; foremanName: string; memberCount: number }[]> = {};
+        projects.forEach(p => {
+            if (!p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned') return;
+            const dateKey = formatDateKey(p.startDate);
+            if (!map[dateKey]) map[dateKey] = [];
+            const mc = p.workers?.length || p.memberCount || 0;
+            const existing = map[dateKey].find(e => e.foremanId === p.assignedEmployeeId);
+            if (existing) {
+                existing.memberCount = Math.max(existing.memberCount, mc);
+            } else {
+                map[dateKey].push({
+                    foremanId: p.assignedEmployeeId,
+                    foremanName: getForemanName(p.assignedEmployeeId) || '不明',
+                    memberCount: mc,
+                });
+            }
+        });
+        return map;
+    }, [projects, getForemanName]);
+
     // 選択中の工事種別名を取得（マスターデータのIDからnameを解決）
     const selectedConstructionTypeName = useMemo(() => {
         const ct = constructionTypes.find(t => t.id === formData.constructionType);
@@ -491,6 +513,9 @@ export default function ProjectForm({
                                     dailySchedules={assemblySchedules}
                                     onChange={setAssemblySchedules}
                                     foremen={allForemen}
+                                    vehicles={mockVehicles}
+                                    existingDayMap={existingDayMap}
+                                    totalMembers={TOTAL_MEMBERS}
                                 />
                             </div>
                         )}
@@ -504,6 +529,9 @@ export default function ProjectForm({
                                     dailySchedules={demolitionSchedules}
                                     onChange={setDemolitionSchedules}
                                     foremen={allForemen}
+                                    vehicles={mockVehicles}
+                                    existingDayMap={existingDayMap}
+                                    totalMembers={TOTAL_MEMBERS}
                                 />
                             </div>
                         )}

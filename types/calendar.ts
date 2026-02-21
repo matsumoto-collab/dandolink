@@ -59,6 +59,7 @@ export interface DailySchedule {
     date: Date;                    // 作業日
     assignedEmployeeId?: string;   // 担当職長
     memberCount: number;           // 人数
+    estimatedHours?: number;       // 予定作業時間（時間単位）
     workers?: string[];            // 作業員（詳細）
     trucks?: string[];             // 車両
     remarks?: string;              // 備考
