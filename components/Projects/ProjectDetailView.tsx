@@ -151,10 +151,9 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             工事種別
                         </label>
                         <span
-                            className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium"
+                            className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium text-gray-900"
                             style={{
                                 backgroundColor: `${constructionTypeInfo.color}30`,
-                                color: constructionTypeInfo.color,
                                 border: `2px solid ${constructionTypeInfo.color}`
                             }}
                         >
