@@ -34,6 +34,7 @@ export interface DayExistingInfo {
     foremanId: string;
     foremanName: string;
     memberCount: number;
+    projectTitle?: string;
 }
 
 interface MultiDayScheduleEditorProps {
@@ -285,6 +286,7 @@ export default function MultiDayScheduleEditor({
                                                         className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full"
                                                     >
                                                         {e.foremanName}
+                                                        {e.projectTitle && <span className="text-slate-500">{e.projectTitle}</span>}
                                                         <span className="font-medium">{e.memberCount}名</span>
                                                     </span>
                                                 ))}

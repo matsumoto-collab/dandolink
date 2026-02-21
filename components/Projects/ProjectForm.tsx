@@ -163,22 +163,18 @@ export default function ProjectForm({
 
     // 複数日スケジュール用：日付ごとの既存配置マップ
     const existingDayMap = useMemo(() => {
-        const map: Record<string, { foremanId: string; foremanName: string; memberCount: number }[]> = {};
+        const map: Record<string, { foremanId: string; foremanName: string; memberCount: number; projectTitle?: string }[]> = {};
         projects.forEach(p => {
             if (!p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned') return;
             const dateKey = formatDateKey(p.startDate);
             if (!map[dateKey]) map[dateKey] = [];
             const mc = p.workers?.length || p.memberCount || 0;
-            const existing = map[dateKey].find(e => e.foremanId === p.assignedEmployeeId);
-            if (existing) {
-                existing.memberCount = Math.max(existing.memberCount, mc);
-            } else {
-                map[dateKey].push({
-                    foremanId: p.assignedEmployeeId,
-                    foremanName: getForemanName(p.assignedEmployeeId) || '不明',
-                    memberCount: mc,
-                });
-            }
+            map[dateKey].push({
+                foremanId: p.assignedEmployeeId,
+                foremanName: getForemanName(p.assignedEmployeeId) || '不明',
+                memberCount: mc,
+                projectTitle: p.title,
+            });
         });
         return map;
     }, [projects, getForemanName]);
