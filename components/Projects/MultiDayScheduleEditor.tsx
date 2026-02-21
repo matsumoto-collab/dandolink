@@ -282,17 +282,17 @@ export default function MultiDayScheduleEditor({
                                                 {existing.map((e, i) => (
                                                     <span
                                                         key={i}
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full"
+                                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full"
                                                     >
                                                         {e.foremanName}
-                                                        <span className="text-amber-500 font-medium">{e.memberCount}名</span>
+                                                        <span className="font-medium">{e.memberCount}名</span>
                                                     </span>
                                                 ))}
                                             </>
                                         ) : (
                                             <span className="text-gray-300 text-xs">配置なし</span>
                                         )}
-                                        <span className={`ml-auto font-medium px-2 py-0.5 rounded-full text-xs ${remaining < 0 ? 'bg-red-100 text-red-600' : remaining === 0 ? 'bg-gray-100 text-gray-500' : 'bg-green-50 text-green-700'}`}>
+                                        <span className={`ml-auto font-bold px-2 py-0.5 rounded-full text-xs text-white shadow-sm ${remaining < 0 ? 'bg-slate-700' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-600'}`}>
                                             残り {remaining}名
                                         </span>
                                     </div>
