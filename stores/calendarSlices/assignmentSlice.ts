@@ -151,7 +151,14 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             set((state) => {
                 const newIds = new Set(parsed.map((a: { id: string }) => a.id));
                 const filtered = state.assignments.filter(a => !newIds.has(a.id));
-                return { assignments: [...filtered, ...parsed] };
+                return {
+                    assignments: [...filtered, ...parsed],
+                    projectMasters: state.projectMasters.map((pm) =>
+                        pm.id === projectMasterId
+                            ? { ...pm, assignmentCount: (pm.assignmentCount ?? 0) + parsed.length }
+                            : pm
+                    ),
+                };
             });
         } else {
             const response = await fetch('/api/assignments', {
@@ -179,6 +186,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             const newAssignment = await response.json();
             set((state) => ({
                 assignments: [...state.assignments, parseAssignmentResponse(newAssignment)],
+                projectMasters: state.projectMasters.map((pm) =>
+                    pm.id === projectMasterId
+                        ? { ...pm, assignmentCount: (pm.assignmentCount ?? 0) + 1 }
+                        : pm
+                ),
             }));
         }
 
