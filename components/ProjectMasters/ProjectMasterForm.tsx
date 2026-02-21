@@ -25,6 +25,8 @@ export interface ProjectMasterFormData {
     city: string;
     location: string;
     plusCode: string;
+    latitude?: number;
+    longitude?: number;
     // 工事情報
     area: string;
     areaRemarks: string;
@@ -50,6 +52,8 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     city: '',
     location: '',
     plusCode: '',
+    latitude: undefined,
+    longitude: undefined,
     area: '',
     areaRemarks: '',
     assemblyDate: '',

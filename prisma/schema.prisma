@@ -55,6 +55,8 @@ model ProjectMaster {
   estimatedAssemblyWorkers   Int?
   estimatedDemolitionWorkers Int?
   plusCode                   String?
+  latitude                   Float?
+  longitude                  Float?
   postalCode                 String?
   prefecture                 String?
   scaffoldingSpec            Json?

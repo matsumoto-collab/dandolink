@@ -108,6 +108,8 @@ export const createProjectMasterSchema = z.object({
     city: z.string().optional().nullable(),
     location: z.string().max(500).optional().nullable(),
     plusCode: z.string().optional().nullable(),
+    latitude: z.number().min(-90).max(90).optional().nullable(),
+    longitude: z.number().min(-180).max(180).optional().nullable(),
     // 工事情報
     area: z.number().optional().nullable(),
     areaRemarks: z.string().optional().nullable(),

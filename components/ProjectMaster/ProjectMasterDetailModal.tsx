@@ -26,6 +26,8 @@ function initFormDataFromPm(pm: ProjectMaster): ProjectMasterFormData {
         city: pm.city || '',
         location: pm.location || '',
         plusCode: pm.plusCode || '',
+        latitude: pm.latitude ?? undefined,
+        longitude: pm.longitude ?? undefined,
         area: pm.area?.toString() || '',
         areaRemarks: pm.areaRemarks || '',
         assemblyDate: pm.assemblyDate ? new Date(pm.assemblyDate).toISOString().split('T')[0] : '',

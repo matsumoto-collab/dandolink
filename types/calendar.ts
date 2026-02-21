@@ -155,6 +155,8 @@ export interface ProjectMaster {
     prefecture?: string;             // 都道府県
     city?: string;                   // 市区町村
     plusCode?: string;               // Plus Code/座標
+    latitude?: number;               // 緯度
+    longitude?: number;              // 経度
 
     // 工事情報
     area?: number;                   // 面積（m2）
