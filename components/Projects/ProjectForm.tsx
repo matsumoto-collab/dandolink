@@ -417,8 +417,6 @@ export default function ProjectForm({
                         constructionTypes.map((type) => {
                             // 明るい背景色を生成（色に透明度を追加）
                             const bgColor = `${type.color}30`;
-                            // テキスト色（暗めの色を生成）
-                            const textColor = type.color;
 
                             return (
                                 <label key={type.id} className="flex items-center space-x-2 cursor-pointer">
