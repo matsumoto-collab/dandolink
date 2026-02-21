@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ProjectMaster } from '@/types/calendar';
-import { useMasterData } from '@/hooks/useMasterData';
 import WorkHistoryDisplay from './WorkHistoryDisplay';
 import ProjectProfitDisplay from './ProjectProfitDisplay';
 import ProjectMasterFilesView from './ProjectMasterFilesView';
@@ -42,7 +41,18 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPanelProps) {
-    const { managers } = useMasterData();
+    const [userMap, setUserMap] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        fetch('/api/users')
+            .then(res => res.ok ? res.json() : [])
+            .then((users: Array<{ id: string; displayName: string }>) => {
+                const map: Record<string, string> = {};
+                users.forEach(u => { map[u.id] = u.displayName; });
+                setUserMap(map);
+            })
+            .catch(() => {});
+    }, []);
 
     // 案件責任者の名前を解決
     const createdByIds: string[] = Array.isArray(pm.createdBy)
@@ -51,7 +61,7 @@ export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPane
             ? (() => { try { return JSON.parse(pm.createdBy as string); } catch { return [pm.createdBy]; } })()
             : [];
     const managerNames = createdByIds
-        .map(id => managers.find(m => m.id === id)?.name)
+        .map(id => userMap[id])
         .filter(Boolean)
         .join('、');
 
