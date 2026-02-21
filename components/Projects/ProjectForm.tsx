@@ -434,10 +434,9 @@ export default function ProjectForm({
                                         className="w-4 h-4 text-slate-600 border-gray-300 focus:ring-slate-500"
                                     />
                                     <span
-                                        className="text-sm font-medium px-3 py-1 rounded-full"
+                                        className="text-sm font-medium px-3 py-1 rounded-full text-gray-900"
                                         style={{
                                             backgroundColor: bgColor,
-                                            color: textColor,
                                             border: `2px solid ${type.color}`
                                         }}
                                     >
