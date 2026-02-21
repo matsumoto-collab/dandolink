@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
+import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 
 interface ManagerUser {
     id: string;
@@ -228,6 +229,16 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                         <div className="bg-gray-50 rounded-md p-3 border border-gray-200">
                             <p className="text-sm text-gray-700 whitespace-pre-wrap">{project.remarks}</p>
                         </div>
+                    </div>
+                )}
+
+                {/* 画像フォルダ */}
+                {project.projectMasterId && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            画像フォルダ
+                        </label>
+                        <ProjectMasterFilesView projectMasterId={project.projectMasterId} />
                     </div>
                 )}
             </div>
