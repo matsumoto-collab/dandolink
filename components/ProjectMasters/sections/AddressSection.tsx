@@ -29,6 +29,7 @@ interface AddressSectionProps {
 export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const { fetchAddress } = usePostalCodeAutofill();
     const [isGettingLocation, setIsGettingLocation] = useState(false);
+    const [isGeocodingAddress, setIsGeocodingAddress] = useState(false);
 
     const handlePostalCodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
@@ -108,6 +109,37 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         );
     };
 
+    const handleGeocodeAddress = async () => {
+        const parts = [formData.prefecture, formData.city, formData.location].filter(Boolean);
+        if (parts.length === 0) {
+            toast.error('都道府県・市区町村・その他住所のいずれかを入力してください');
+            return;
+        }
+
+        setIsGeocodingAddress(true);
+        try {
+            const query = parts.join(' ');
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&accept-language=ja&limit=1&countrycodes=jp`,
+                { headers: { 'User-Agent': 'DandoLink/1.0' } }
+            );
+            if (!res.ok) throw new Error('API error');
+            const results = await res.json();
+            if (!results || results.length === 0) {
+                toast.error('住所から座標を特定できませんでした。より詳細な住所を入力してください');
+                return;
+            }
+            const { lat, lon } = results[0];
+            const coordStr = `${parseFloat(lat).toFixed(6)},${parseFloat(lon).toFixed(6)}`;
+            setFormData(prev => ({ ...prev, plusCode: coordStr }));
+            toast.success('住所から座標を取得しました');
+        } catch {
+            toast.error('座標の取得に失敗しました');
+        } finally {
+            setIsGeocodingAddress(false);
+        }
+    };
+
     const getMapQuery = () => {
         if (formData.plusCode && isCoordinates(formData.plusCode)) {
             return formData.plusCode;
@@ -180,7 +212,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     placeholder="番地、建物名など"
                 />
             </FormField>
-            {/* 座標（現在地取得） */}
+            {/* 座標（現在地取得 / 住所から取得） */}
             <FormField label="座標（緯度,経度）">
                 <div className="flex gap-2">
                     <input
@@ -190,28 +222,37 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                         placeholder="例: 35.689500,139.691700"
                     />
+                </div>
+                <div className="flex gap-2 mt-2">
                     <button
                         type="button"
                         onClick={handleGetCurrentLocation}
-                        disabled={isGettingLocation}
+                        disabled={isGettingLocation || isGeocodingAddress}
                         className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 rounded-lg transition-colors whitespace-nowrap"
-                        title="現在地を取得"
+                        title="現在地をGPSで取得"
                     >
                         {isGettingLocation ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                取得中...
-                            </>
+                            <><Loader2 className="w-4 h-4 animate-spin" />取得中...</>
                         ) : (
-                            <>
-                                <Crosshair className="w-4 h-4" />
-                                現在地
-                            </>
+                            <><Crosshair className="w-4 h-4" />現在地を取得</>
+                        )}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleGeocodeAddress}
+                        disabled={isGettingLocation || isGeocodingAddress}
+                        className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-50 rounded-lg transition-colors whitespace-nowrap"
+                        title="入力済みの住所から座標を取得"
+                    >
+                        {isGeocodingAddress ? (
+                            <><Loader2 className="w-4 h-4 animate-spin" />検索中...</>
+                        ) : (
+                            <><MapPin className="w-4 h-4" />住所から取得</>
                         )}
                     </button>
                 </div>
                 <p className="text-xs text-gray-400 mt-1">
-                    ボタンを押すと現在地の座標と住所を自動入力します
+                    現場で取得できなかった場合は住所を入力後「住所から取得」を押してください
                 </p>
             </FormField>
             {/* 地図プレビュー */}
