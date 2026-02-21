@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest) {
             return acc;
         }, {} as Record<string, string>);
 
-        return NextResponse.json(remarksMap);
+        return NextResponse.json(remarksMap, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('セル備考の取得', error);
     }

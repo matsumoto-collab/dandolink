@@ -12,7 +12,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
 
     fetchForemen: async () => {
         try {
-            const response = await fetch('/api/dispatch/foremen');
+            const response = await fetch('/api/dispatch/foremen', { cache: 'no-store' });
             if (response.ok) {
                 const data: ForemanUser[] = await response.json();
                 set({ allForemen: data });
@@ -25,7 +25,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     fetchForemanSettings: async () => {
         set({ foremanSettingsLoading: true });
         try {
-            const response = await fetch('/api/system-settings/foremen');
+            const response = await fetch('/api/system-settings/foremen', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 if (data.displayedForemanIds && data.displayedForemanIds.length > 0) {

@@ -12,7 +12,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
     fetchVacations: async () => {
         set({ vacationsLoading: true });
         try {
-            const response = await fetch('/api/calendar/vacations');
+            const response = await fetch('/api/calendar/vacations', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 set({ vacations: data, vacationsInitialized: true });

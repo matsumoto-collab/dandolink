@@ -13,7 +13,7 @@ export async function GET() {
             vacationsMap[v.dateKey] = { employeeIds: parseJsonField<string[]>(v.employeeIds, []), remarks: v.remarks || '' };
         });
 
-        return NextResponse.json(vacationsMap);
+        return NextResponse.json(vacationsMap, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('休暇データの取得', error);
     }

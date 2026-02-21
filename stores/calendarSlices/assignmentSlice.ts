@@ -18,7 +18,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             if (endDate) params.append('endDate', endDate);
             const url = `/api/assignments${params.toString() ? `?${params}` : ''}`;
 
-            const response = await fetch(url);
+            const response = await fetch(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({

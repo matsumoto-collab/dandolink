@@ -13,7 +13,7 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
     fetchCellRemarks: async () => {
         set({ cellRemarksLoading: true });
         try {
-            const response = await fetch('/api/calendar/cell-remarks');
+            const response = await fetch('/api/calendar/cell-remarks', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 set({ cellRemarks: data, cellRemarksInitialized: true });

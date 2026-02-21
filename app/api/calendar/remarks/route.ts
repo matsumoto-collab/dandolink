@@ -10,7 +10,7 @@ export async function GET() {
         const remarks = await prisma.calendarRemark.findMany();
         const remarksMap: Record<string, string> = {};
         remarks.forEach(r => { remarksMap[r.dateKey] = r.text; });
-        return NextResponse.json(remarksMap);
+        return NextResponse.json(remarksMap, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('備考取得', error);
     }

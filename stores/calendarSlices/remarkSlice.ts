@@ -12,7 +12,7 @@ export const createRemarkSlice: CalendarSlice<RemarkSlice> = (set, get) => ({
     fetchRemarks: async () => {
         set({ remarksLoading: true });
         try {
-            const response = await fetch('/api/calendar/remarks');
+            const response = await fetch('/api/calendar/remarks', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 set({ remarks: data, remarksInitialized: true });

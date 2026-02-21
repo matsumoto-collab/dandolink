@@ -42,7 +42,9 @@ export async function GET(req: NextRequest) {
             orderBy: [{ date: 'asc' }, { sortOrder: 'asc' }],
         });
 
-        return NextResponse.json(assignments.map(formatAssignment));
+        return NextResponse.json(assignments.map(formatAssignment), {
+            headers: { 'Cache-Control': 'no-store' },
+        });
     } catch (error) {
         return serverErrorResponse('配置一覧の取得', error);
     }
