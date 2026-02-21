@@ -50,11 +50,11 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
                 data: projectMasters.map(formatProjectMaster),
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
-            });
+            }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const projectMasters = await prisma.projectMaster.findMany({ where, include, orderBy });
-        return NextResponse.json(projectMasters.map(formatProjectMaster));
+        return NextResponse.json(projectMasters.map(formatProjectMaster), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('案件マスター一覧の取得', error);
     }

@@ -18,7 +18,7 @@ export const createProjectMasterSlice: CalendarSlice<ProjectMasterSlice> = (set,
             if (status) params.append('status', status);
 
             const url = `/api/project-masters${params.toString() ? `?${params}` : ''}`;
-            const res = await fetch(url);
+            const res = await fetch(url, { cache: 'no-store' });
 
             if (!res.ok) {
                 throw new Error('案件マスターの取得に失敗しました');

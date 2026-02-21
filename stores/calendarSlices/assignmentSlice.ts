@@ -43,6 +43,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
 
     addProject: async (project) => {
         let projectMasterId: string;
+        let broadcastMasterId: string | null = null;
 
         if (project.projectMasterId) {
             projectMasterId = project.projectMasterId;
@@ -58,7 +59,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 });
             }
         } else {
-            const mastersRes = await fetch(`/api/project-masters?search=${encodeURIComponent(project.title)}`);
+            const mastersRes = await fetch(`/api/project-masters?search=${encodeURIComponent(project.title)}`, { cache: 'no-store' });
             const masters = await mastersRes.json();
             const existing = masters.find((m: ProjectMaster) => m.title === project.title);
 
@@ -94,12 +95,12 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 });
                 const newMaster = await createMasterRes.json();
                 projectMasterId = newMaster.id;
-                // projectMasters ストアに追加し、他クライアントへ通知
+                broadcastMasterId = newMaster.id; // 配置作成後にブロードキャストするためIDを保持
+                // projectMasters ストアに追加
                 const formatted = parseProjectMasterDates(newMaster);
                 set((state) => ({
                     projectMasters: [formatted, ...state.projectMasters],
                 }));
-                sendBroadcast('project_master_updated', { id: formatted.id });
             }
         }
 
@@ -179,6 +180,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             set((state) => ({
                 assignments: [...state.assignments, parseAssignmentResponse(newAssignment)],
             }));
+        }
+
+        // 新規マスター作成時は配置作成完了後にブロードキャスト（配置数を正確に反映するため）
+        if (broadcastMasterId) {
+            sendBroadcast('project_master_updated', { id: broadcastMasterId });
         }
     },
 
