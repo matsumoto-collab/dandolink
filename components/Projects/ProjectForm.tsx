@@ -587,11 +587,13 @@ export default function ProjectForm({
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     メンバー数
+                    {useMultiDaySchedule && <span className="ml-2 text-xs text-gray-400 font-normal">（複数日スケジュールで設定）</span>}
                 </label>
                 <select
                     value={formData.memberCount}
+                    disabled={useMultiDaySchedule}
                     onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
                 >
                     {Array.from({ length: Math.min(availableMembers + formData.memberCount, TOTAL_MEMBERS) + 1 }, (_, i) => (
                         <option key={i} value={i}>
@@ -608,14 +610,16 @@ export default function ProjectForm({
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     予定作業時間
+                    {useMultiDaySchedule && <span className="ml-2 text-xs text-gray-400 font-normal">（複数日スケジュールで設定）</span>}
                 </label>
-                <div className="flex flex-wrap gap-2">
+                <div className={`flex flex-wrap gap-2 ${useMultiDaySchedule ? 'opacity-50 pointer-events-none' : ''}`}>
                     {[2, 4, 8].map(hours => (
                         <button
                             key={hours}
                             type="button"
+                            disabled={useMultiDaySchedule}
                             onClick={() => setFormData({ ...formData, estimatedHours: hours })}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border disabled:cursor-not-allowed ${
                                 formData.estimatedHours === hours
                                     ? 'bg-slate-700 text-white border-slate-700'
                                     : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
@@ -630,6 +634,7 @@ export default function ProjectForm({
                             min="0.5"
                             max="24"
                             step="0.5"
+                            disabled={useMultiDaySchedule}
                             value={![2, 4, 8].includes(formData.estimatedHours) ? formData.estimatedHours : ''}
                             onChange={(e) => {
                                 const val = parseFloat(e.target.value);
@@ -638,7 +643,7 @@ export default function ProjectForm({
                                 }
                             }}
                             placeholder="その他"
-                            className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-500 ${
+                            className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:cursor-not-allowed ${
                                 ![2, 4, 8].includes(formData.estimatedHours)
                                     ? 'border-slate-700 bg-slate-50'
                                     : 'border-gray-300'
@@ -653,20 +658,22 @@ export default function ProjectForm({
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                     車両
+                    {useMultiDaySchedule && <span className="ml-2 text-xs text-gray-400 font-normal">（複数日スケジュールで設定）</span>}
                 </label>
-                <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3">
+                <div className={`flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 ${useMultiDaySchedule ? 'opacity-50' : ''}`}>
                     {sortedVehicles.map(vehicle => {
                         const usages = vehicleUsageMap.get(vehicle.name);
                         const isInUse = usages && usages.length > 0;
                         const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
 
                         return (
-                            <label key={vehicle.id} className={`flex items-center gap-2 cursor-pointer p-2 rounded text-sm ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-gray-50'}`}>
+                            <label key={vehicle.id} className={`flex items-center gap-2 p-2 rounded text-sm ${useMultiDaySchedule ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-gray-50'}`}>
                                 <input
                                     type="checkbox"
                                     checked={formData.selectedVehicles.includes(vehicle.name)}
+                                    disabled={useMultiDaySchedule}
                                     onChange={() => handleVehicleToggle(vehicle.name)}
-                                    className="w-4 h-4 shrink-0 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
+                                    className="w-4 h-4 shrink-0 text-slate-600 border-gray-300 rounded focus:ring-slate-500 disabled:cursor-not-allowed"
                                 />
                                 <span className="text-gray-700 whitespace-nowrap">{vehicle.name}</span>
                                 {isConfirmed ? (

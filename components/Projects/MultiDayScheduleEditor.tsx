@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { DailySchedule, ConstructionType } from '@/types/calendar';
-import { Plus, X, AlertCircle } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DOW_JP = ['日', '月', '火', '水', '木', '金', '土'];
@@ -60,8 +60,6 @@ export default function MultiDayScheduleEditor({
     const [rangeEnd, setRangeEnd] = useState('');
     const [defaultLeader, setDefaultLeader] = useState('');
     const [defaultMemberCount, setDefaultMemberCount] = useState(0);
-
-    const isMultiDay = dailySchedules.length > 1;
 
     const generateFromRange = (weekdaysOnly = false) => {
         if (!rangeStart || !rangeEnd) {
@@ -234,14 +232,6 @@ export default function MultiDayScheduleEditor({
                 </div>
             )}
 
-            {/* 複数日選択時の注意 */}
-            {isMultiDay && (
-                <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    複数日が選択されているため、人数・予定作業時間・車両は個別に変更できません
-                </div>
-            )}
-
             {/* 日程リスト */}
             {dailySchedules.length > 0 && (
                 <div className="space-y-2">
@@ -325,24 +315,17 @@ export default function MultiDayScheduleEditor({
                                     {/* 人数 + 予定作業時間 */}
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label className="block text-xs text-gray-500 mb-1">
-                                                人数
-                                                {isMultiDay && <span className="ml-1 text-gray-300">（複数日固定）</span>}
-                                            </label>
+                                            <label className="block text-xs text-gray-500 mb-1">人数</label>
                                             <input
                                                 type="number"
                                                 min="0"
                                                 value={schedule.memberCount}
-                                                disabled={isMultiDay}
                                                 onChange={(e) => updateSchedule(index, { memberCount: parseInt(e.target.value) || 0 })}
-                                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs text-gray-500 mb-1">
-                                                予定作業時間
-                                                {isMultiDay && <span className="ml-1 text-gray-300">（複数日固定）</span>}
-                                            </label>
+                                            <label className="block text-xs text-gray-500 mb-1">予定作業時間</label>
                                             <div className="flex items-center gap-1">
                                                 <input
                                                     type="number"
@@ -350,9 +333,8 @@ export default function MultiDayScheduleEditor({
                                                     max="24"
                                                     step="0.5"
                                                     value={schedule.estimatedHours ?? 8}
-                                                    disabled={isMultiDay}
                                                     onChange={(e) => updateSchedule(index, { estimatedHours: parseFloat(e.target.value) || 0 })}
-                                                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                 />
                                                 <span className="text-xs text-gray-500 shrink-0">h</span>
                                             </div>
@@ -362,26 +344,22 @@ export default function MultiDayScheduleEditor({
                                     {/* 車両 */}
                                     {vehicles.length > 0 && (
                                         <div>
-                                            <label className="block text-xs text-gray-500 mb-1">
-                                                車両
-                                                {isMultiDay && <span className="ml-1 text-gray-300">（複数日固定）</span>}
-                                            </label>
-                                            <div className={`flex flex-wrap gap-1.5 ${isMultiDay ? 'opacity-40' : ''}`}>
+                                            <label className="block text-xs text-gray-500 mb-1">車両</label>
+                                            <div className="flex flex-wrap gap-1.5">
                                                 {vehicles.map((v) => {
                                                     const checked = selectedTrucks.includes(v.name);
                                                     return (
                                                         <label
                                                             key={v.id}
-                                                            className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg border transition-colors select-none ${
+                                                            className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg border transition-colors select-none cursor-pointer hover:bg-gray-100 ${
                                                                 checked
                                                                     ? 'bg-slate-100 border-slate-400 text-slate-700 font-medium'
                                                                     : 'bg-gray-50 border-gray-200 text-gray-600'
-                                                            } ${isMultiDay ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-gray-100'}`}
+                                                            }`}
                                                         >
                                                             <input
                                                                 type="checkbox"
                                                                 checked={checked}
-                                                                disabled={isMultiDay}
                                                                 onChange={() => {
                                                                     const next = checked
                                                                         ? selectedTrucks.filter(t => t !== v.name)
