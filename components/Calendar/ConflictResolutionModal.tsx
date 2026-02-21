@@ -56,11 +56,11 @@ export default function ConflictResolutionModal({
                                 </p>
                                 <p>
                                     <span className="font-medium">日付:</span>{' '}
-                                    {new Date(latestData.date).toLocaleDateString('ja-JP')}
+                                    {new Date(latestData.date).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
                                 </p>
                                 <p>
                                     <span className="font-medium">更新日時:</span>{' '}
-                                    {new Date(latestData.updatedAt).toLocaleString('ja-JP')}
+                                    {new Date(latestData.updatedAt).toLocaleString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                             </div>
                         </div>

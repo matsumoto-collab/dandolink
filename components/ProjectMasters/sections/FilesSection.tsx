@@ -295,7 +295,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     </span>
                                 )}
                                 <p className="text-xs text-gray-400">
-                                    {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString('ja-JP')}
+                                    {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
                                 </p>
                             </div>
 
