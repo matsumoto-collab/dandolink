@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useProjects } from '@/hooks/useProjects';
 import { Project } from '@/types/calendar';
@@ -16,7 +16,13 @@ const ProjectModal = dynamic(
 );
 
 export default function ProjectListPage() {
-    const { projects, addProject, updateProject, deleteProject } = useProjects();
+    const { projects, addProject, updateProject, deleteProject, refreshProjects, isLoading } = useProjects();
+
+    // ページ表示時に全件取得（カレンダーとは独立してフェッチ）
+    useEffect(() => {
+        refreshProjects();
+    }, [refreshProjects]);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Partial<Project> | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -86,6 +92,14 @@ export default function ProjectListPage() {
         setIsModalOpen(false);
         setEditingProject(null);
     };
+
+    if (isLoading && projects.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">

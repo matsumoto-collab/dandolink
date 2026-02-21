@@ -1,5 +1,6 @@
 import { ProjectMaster, ProjectAssignment, ConflictError } from '@/types/calendar';
-import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, assignmentToProject } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, assignmentToProject, parseProjectMasterDates } from './types';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
     Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
@@ -93,6 +94,12 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 });
                 const newMaster = await createMasterRes.json();
                 projectMasterId = newMaster.id;
+                // projectMasters ストアに追加し、他クライアントへ通知
+                const formatted = parseProjectMasterDates(newMaster);
+                set((state) => ({
+                    projectMasters: [formatted, ...state.projectMasters],
+                }));
+                sendBroadcast('project_master_updated', { id: formatted.id });
             }
         }
 
