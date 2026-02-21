@@ -260,7 +260,7 @@ export default function ProjectMasterListPage() {
                                             )}
                                             <span className="flex items-center gap-1 text-slate-500">
                                                 <Calendar className="w-3.5 h-3.5" />
-                                                <span className="text-sm">{pm.assignments?.length || 0}件の配置</span>
+                                                <span className="text-sm">{pm.assignmentCount ?? 0}件の配置</span>
                                             </span>
                                         </div>
                                     </div>

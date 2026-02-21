@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
             ];
         }
 
-        const include = { assignments: { orderBy: { date: 'desc' as const }, take: 5 } };
+        const include = { _count: { select: { assignments: true } } };
         const orderBy = { updatedAt: 'desc' as const };
 
         if (page && limit) {
