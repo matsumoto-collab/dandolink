@@ -66,8 +66,7 @@ export default function ProjectForm({
 
     // 複数日スケジュール管理用の状態
     const [useMultiDaySchedule, setUseMultiDaySchedule] = useState(false);
-    const [assemblySchedules, setAssemblySchedules] = useState<DailySchedule[]>([]);
-    const [demolitionSchedules, setDemolitionSchedules] = useState<DailySchedule[]>([]);
+    const [multiDaySchedules, setMultiDaySchedules] = useState<DailySchedule[]>([]);
 
     // 顧客選択用のstate
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -299,16 +298,12 @@ export default function ProjectForm({
 
         // 複数日スケジュールを使用する場合
         let workSchedules: WorkSchedule[] | undefined = undefined;
-        if (useMultiDaySchedule) {
-            // 存在するスケジュールを全て含める（工事種別名の条件に依存しない）
-            const allDailySchedules = [...assemblySchedules, ...demolitionSchedules];
-            if (allDailySchedules.length > 0) {
-                workSchedules = [{
-                    id: uuidv4(),
-                    type: selectedConstructionTypeName === '解体' ? 'demolition' : 'assembly',
-                    dailySchedules: allDailySchedules,
-                }];
-            }
+        if (useMultiDaySchedule && multiDaySchedules.length > 0) {
+            workSchedules = [{
+                id: uuidv4(),
+                type: formData.constructionType,
+                dailySchedules: multiDaySchedules,
+            }];
         }
 
         const projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
@@ -434,8 +429,7 @@ export default function ProjectForm({
                                         onChange={() => {
                                             setFormData({ ...formData, constructionType: type.id });
                                             // 工事種別変更時にスケジュールをクリア
-                                            setAssemblySchedules([]);
-                                            setDemolitionSchedules([]);
+                                            setMultiDaySchedules([]);
                                         }}
                                         className="w-4 h-4 text-slate-600 border-gray-300 focus:ring-slate-500"
                                     />
@@ -500,43 +494,20 @@ export default function ProjectForm({
 
                 {useMultiDaySchedule && (
                     <div className="space-y-4 border border-gray-200 rounded-md p-4 bg-gray-50">
-                        {/* 組立スケジュール */}
-                        {(selectedConstructionTypeName === '組立' || formData.constructionType === 'assembly') && (
-                            <div className="bg-white p-4 rounded-lg border border-slate-200">
-                                <h3 className="text-lg font-semibold text-slate-700 mb-3">組立スケジュール</h3>
-                                <MultiDayScheduleEditor
-                                    type="assembly"
-                                    dailySchedules={assemblySchedules}
-                                    onChange={setAssemblySchedules}
-                                    foremen={allForemen}
-                                    vehicles={mockVehicles}
-                                    existingDayMap={existingDayMap}
-                                    totalMembers={TOTAL_MEMBERS}
-                                />
-                            </div>
-                        )}
-
-                        {/* 解体スケジュール */}
-                        {(selectedConstructionTypeName === '解体' || formData.constructionType === 'demolition') && (
-                            <div className="bg-white p-4 rounded-lg border border-slate-200">
-                                <h3 className="text-lg font-semibold text-slate-700 mb-3">解体スケジュール</h3>
-                                <MultiDayScheduleEditor
-                                    type="demolition"
-                                    dailySchedules={demolitionSchedules}
-                                    onChange={setDemolitionSchedules}
-                                    foremen={allForemen}
-                                    vehicles={mockVehicles}
-                                    existingDayMap={existingDayMap}
-                                    totalMembers={TOTAL_MEMBERS}
-                                />
-                            </div>
-                        )}
-
-                        {(selectedConstructionTypeName === 'その他' || formData.constructionType === 'other') && (
-                            <p className="text-sm text-gray-500 text-center py-4">
-                                「その他」は複数日スケジュールに対応していません
-                            </p>
-                        )}
+                        <div className="bg-white p-4 rounded-lg border border-slate-200">
+                            <h3 className="text-lg font-semibold text-slate-700 mb-3">
+                                {selectedConstructionTypeName || '工事'}スケジュール
+                            </h3>
+                            <MultiDayScheduleEditor
+                                type={formData.constructionType}
+                                dailySchedules={multiDaySchedules}
+                                onChange={setMultiDaySchedules}
+                                foremen={allForemen}
+                                vehicles={mockVehicles}
+                                existingDayMap={existingDayMap}
+                                totalMembers={TOTAL_MEMBERS}
+                            />
+                        </div>
                     </div>
                 )}
             </div>
