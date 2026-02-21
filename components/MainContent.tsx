@@ -43,6 +43,9 @@ const DailyReportPage = dynamic(() => import('@/app/(calendar)/daily-reports/pag
 const ProfitDashboardWrapper = dynamic(() => import('@/app/(standalone)/profit-dashboard/components/ProfitDashboardWrapper'), {
     loading: () => <LoadingSpinner />,
 });
+const CompanyInfoSettings = dynamic(() => import('@/components/Settings/CompanyInfoSettings'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -129,7 +132,7 @@ export default function MainContent() {
                 return <CustomersPage />;
 
             case 'company':
-                return <PlaceholderPage title="自社情報" />;
+                return <CompanyInfoSettings />;
 
             default:
                 return <PlaceholderPage title="ページが見つかりません" />;
