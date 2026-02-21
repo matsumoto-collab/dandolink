@@ -5,6 +5,9 @@ import { ProjectMaster } from '@/types/calendar';
 import WorkHistoryDisplay from './WorkHistoryDisplay';
 import ProjectProfitDisplay from './ProjectProfitDisplay';
 import ProjectMasterFilesView from './ProjectMasterFilesView';
+import { ExternalLink } from 'lucide-react';
+
+const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
 
 interface ProjectMasterDetailPanelProps {
     pm: ProjectMaster;
@@ -68,6 +71,21 @@ export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPane
     const address = [pm.postalCode ? `〒${pm.postalCode}` : null, pm.prefecture, pm.city, pm.location]
         .filter(Boolean).join(' ');
 
+    const mapQuery = (() => {
+        if (pm.plusCode && isCoordinates(pm.plusCode)) return pm.plusCode;
+        const parts = [pm.prefecture, pm.city, pm.location].filter(Boolean);
+        return parts.join('');
+    })();
+
+    const googleMapsUrl = (() => {
+        if (!mapQuery) return null;
+        if (isCoordinates(mapQuery)) {
+            const [lat, lng] = mapQuery.split(',');
+            return `https://www.google.com/maps?q=${lat},${lng}`;
+        }
+        return `https://www.google.com/maps/search/${encodeURIComponent(mapQuery)}`;
+    })();
+
     return (
         <div className="space-y-1">
             {/* 基本情報 */}
@@ -86,13 +104,38 @@ export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPane
             </dl>
 
             {/* 住所 */}
-            {address && (
+            {(address || mapQuery) && (
                 <>
                     <SectionTitle>所在地</SectionTitle>
-                    <dl className="grid grid-cols-1 gap-y-2">
-                        <Field label="住所" value={address} />
-                        {pm.plusCode && <Field label="Plusコード" value={pm.plusCode} />}
-                    </dl>
+                    {address && (
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-gray-800">{address}</p>
+                            {googleMapsUrl && (
+                                <a
+                                    href={googleMapsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap ml-2"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Google Mapsで開く
+                                </a>
+                            )}
+                        </div>
+                    )}
+                    {mapQuery && (
+                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                            <iframe
+                                key={mapQuery}
+                                title="Map Preview"
+                                width="100%"
+                                height="220"
+                                loading="lazy"
+                                style={{ border: 0 }}
+                                src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
+                            />
+                        </div>
+                    )}
                 </>
             )}
 
