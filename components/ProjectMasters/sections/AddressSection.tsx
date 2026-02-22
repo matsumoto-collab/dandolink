@@ -25,6 +25,21 @@ const PREFECTURES = [
 
 // 東京（GPS取得もできない場合のフォールバック）
 const FALLBACK = { lat: 35.6762, lng: 139.6503 };
+const LS_KEY = 'dandolink_last_location';
+
+function loadLastLocation(): { lat: number; lng: number } | null {
+    try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return null;
+        const { lat, lng } = JSON.parse(raw);
+        if (typeof lat === 'number' && typeof lng === 'number') return { lat, lng };
+    } catch { /* ignore */ }
+    return null;
+}
+
+function saveLastLocation(lat: number, lng: number) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ lat, lng })); } catch { /* ignore */ }
+}
 
 interface AddressSectionProps {
     formData: ProjectMasterFormData;
@@ -52,14 +67,26 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         if (formData.latitude != null) return; // 保存済み座標があれば不要
         autoDetectedRef.current = true;
 
-        if (!navigator.geolocation) return;
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                setForcedCenter({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-            },
-            () => { /* 拒否されても東京のまま静かに続行 */ },
-            { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-        );
+        // 1. GPS で現在地を取得
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    setForcedCenter({ lat: latitude, lng: longitude });
+                    saveLastLocation(latitude, longitude); // 次回用に保存
+                },
+                () => {
+                    // 2. GPS 失敗 → 前回保存した位置をフォールバックとして使用
+                    const last = loadLastLocation();
+                    if (last) setForcedCenter(last);
+                },
+                { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+            );
+        } else {
+            // geolocation 非対応ブラウザ → localStorage のみ
+            const last = loadLastLocation();
+            if (last) setForcedCenter(last);
+        }
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Nominatim 逆ジオコーディング
@@ -108,8 +135,9 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 const coordStr = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
                 // formData 更新
                 setFormData(prev => ({ ...prev, latitude, longitude, plusCode: coordStr }));
-                // 地図を現在地へ移動
+                // 地図を現在地へ移動 + 次回用に保存
                 setForcedCenter({ lat: latitude, lng: longitude });
+                saveLastLocation(latitude, longitude);
                 try {
                     await reverseGeocode(latitude, longitude);
                     toast.success('現在地を取得しました');
