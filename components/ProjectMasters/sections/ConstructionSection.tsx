@@ -5,6 +5,7 @@ import { AlertCircle, Loader2, Users } from 'lucide-react';
 import { FormField } from '../common/FormField';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { ProjectAssignment } from '@/types/calendar';
 
 interface ConstructionSectionProps {
@@ -52,12 +53,14 @@ async function fetchAssignmentsForDate(date: string): Promise<ProjectAssignment[
 function DateConflictList({
     assignments,
     getForemanName,
-    totalForemanCount,
+    displayedForemanIds,
+    vacationCount,
     isLoading,
 }: {
     assignments: ProjectAssignment[];
     getForemanName: (id: string) => string;
-    totalForemanCount: number;
+    displayedForemanIds: string[];
+    vacationCount: number;
     isLoading: boolean;
 }) {
     if (isLoading) {
@@ -70,8 +73,16 @@ function DateConflictList({
     }
     if (assignments.length === 0) return null;
 
-    const busyForemanCount = new Set(assignments.map(a => a.assignedEmployeeId)).size;
-    const remaining = totalForemanCount > 0 ? totalForemanCount - busyForemanCount : null;
+    // 週間カレンダーと同じロジック: 職長ごとの最大 memberCount を合計
+    const byForeman = new Map<string, number[]>();
+    assignments.forEach(a => {
+        if (!byForeman.has(a.assignedEmployeeId)) byForeman.set(a.assignedEmployeeId, []);
+        byForeman.get(a.assignedEmployeeId)!.push(a.memberCount || 0);
+    });
+    let assignedCount = 0;
+    byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
+    const total = displayedForemanIds.length;
+    const remaining = total > 0 ? total - assignedCount - vacationCount : null;
 
     return (
         <div className="mt-2 space-y-1">
@@ -195,7 +206,8 @@ function ForemanSelector({
 }
 
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
-    const { getForemanName, allForemen } = useCalendarDisplay();
+    const { getForemanName, allForemen, displayedForemanIds } = useCalendarDisplay();
+    const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
 
     const [assemblyAssignments, setAssemblyAssignments] = useState<ProjectAssignment[]>([]);
     const [demolitionAssignments, setDemolitionAssignments] = useState<ProjectAssignment[]>([]);
@@ -286,7 +298,8 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                     <DateConflictList
                         assignments={assemblyAssignments}
                         getForemanName={getForemanName}
-                        totalForemanCount={allForemen.length}
+                        displayedForemanIds={displayedForemanIds}
+                        vacationCount={formData.assemblyDate ? getVacationEmployees(formData.assemblyDate).length : 0}
                         isLoading={isLoadingAssembly}
                     />
                     <ForemanSelector
@@ -313,7 +326,8 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                     <DateConflictList
                         assignments={demolitionAssignments}
                         getForemanName={getForemanName}
-                        totalForemanCount={allForemen.length}
+                        displayedForemanIds={displayedForemanIds}
+                        vacationCount={formData.demolitionDate ? getVacationEmployees(formData.demolitionDate).length : 0}
                         isLoading={isLoadingDemolition}
                     />
                     <ForemanSelector
