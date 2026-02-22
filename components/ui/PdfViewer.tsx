@@ -20,7 +20,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     }, [onClose]);
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/95">
+        <div className="fixed inset-0 lg:left-64 z-[100] flex flex-col bg-black/95">
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-black/60">
                 <span className="text-white/80 text-sm truncate max-w-[60vw]" title={fileName}>
