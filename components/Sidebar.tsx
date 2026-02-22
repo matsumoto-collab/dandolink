@@ -129,7 +129,7 @@ export default function Sidebar() {
                 className={`
                     fixed left-0 top-0 h-dvh bg-slate-900
                     border-r border-slate-800 flex flex-col shadow-lg z-50 transition-transform duration-300
-                    w-64
+                    w-64 pwa-sidebar-safe
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
                 `}

@@ -148,6 +148,8 @@ export default function MainContent() {
 
             /* Desktop: Offset by sidebar width, no top padding */
             lg:left-64 lg:pt-0 lg:right-0
+
+            pwa-main-safe
         ">
             <div className={`${activePage === 'schedule' ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                 {renderContent()}

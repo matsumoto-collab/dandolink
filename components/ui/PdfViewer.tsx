@@ -28,7 +28,9 @@ type PageComponent = React.ComponentType<{
 export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     const [numPages, setNumPages] = useState<number>(0);
     const [pageNumber, setPageNumber] = useState(1);
-    const [containerWidth, setContainerWidth] = useState(0);
+    const [containerWidth, setContainerWidth] = useState<number>(
+        typeof window !== 'undefined' ? window.innerWidth : 375
+    );
     const [PdfDocument, setPdfDocument] = useState<DocumentComponent | null>(null);
     const [PdfPage, setPdfPage] = useState<PageComponent | null>(null);
 
@@ -92,7 +94,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             </div>
 
             {/* PDF表示エリア */}
-            <div ref={containerRef} className="flex-1 overflow-y-auto overflow-x-hidden flex justify-center bg-gray-700">
+            <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex justify-center bg-gray-700">
                 {!PdfDocument ? (
                     <div className="flex items-center justify-center h-full text-white gap-2 pt-20">
                         <Loader2 className="w-6 h-6 animate-spin" />

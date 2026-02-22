@@ -93,8 +93,37 @@ body {
 
 /* PWA standalone mode */
 @media (display-mode: standalone) {
-  body {
-    /* ノッチ付きデバイスの safe area */
+  :root {
+    --sat: env(safe-area-inset-top, 0px);
+  }
+
+  /* ヘッダー: fixed top-0 の上に safe area 分の背景領域を追加 */
+  .pwa-header-safe {
+    top: env(safe-area-inset-top, 0px) !important;
+  }
+
+  /* ヘッダーの裏にステータスバー背景色を敷く */
+  .pwa-status-bar-bg::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background-color: rgb(15, 23, 42);
+    /* slate-900 */
+    z-index: 31;
+  }
+
+  /* メインコンテンツ: モバイルでヘッダー + safe area 分下げる（lg未満のみ） */
+  @media (max-width: 1023px) {
+    .pwa-main-safe {
+      padding-top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
+    }
+  }
+
+  /* サイドバー: 上部に safe area 分のパディング追加 */
+  .pwa-sidebar-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
 }

@@ -8,7 +8,7 @@ export default function Header() {
     const { toggleMobileMenu } = useNavigation();
 
     return (
-        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-800 flex items-center px-4 z-30 shadow-md">
+        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900 border-b border-slate-800 flex items-center px-4 z-30 shadow-md pwa-header-safe pwa-status-bar-bg">
             {/* Hamburger Menu Button */}
             <button
                 onClick={toggleMobileMenu}
