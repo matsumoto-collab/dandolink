@@ -22,9 +22,10 @@ const nextConfig = {
     transpilePackages: ['@react-pdf/renderer'],
     experimental: {
         esmExternals: 'loose',
+        // pdfjs-dist はブラウザ専用 API (DOMMatrix 等) を使うため SSR バンドルから除外
+        serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf'],
     },
     webpack: (config) => {
-        // react-pdf / pdfjs-dist はブラウザ専用 API を使うため SSR バンドルから除外
         config.resolve.alias.canvas = false;
         return config;
     },
