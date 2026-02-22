@@ -11,7 +11,7 @@ import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCr
 import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
-    const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster } = useProjectMasters();
+    const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('active');
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
@@ -97,6 +97,9 @@ export default function ProjectMasterListPage() {
             remarks: data.remarks || undefined,
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
+        // 保存後、detailPmをストアの最新データで更新（再編集時にpm.latitudeが古い値にならないよう）
+        const updated = getProjectMasterById(id);
+        if (updated) setDetailPm(updated);
     };
 
     const handleDelete = async (id: string) => {
