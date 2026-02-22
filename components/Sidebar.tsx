@@ -130,7 +130,7 @@ export default function Sidebar() {
                 <div className="h-16 flex items-center px-4 border-b border-slate-800">
                     <button
                         onClick={() => window.location.reload()}
-                        className="flex items-center flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
+                        className="flex items-center justify-center flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
                         aria-label="ホームに戻る（更新）"
                     >
                         <img src="/dandlink-logo.svg" alt="DandLink" className="h-6 w-auto" />
