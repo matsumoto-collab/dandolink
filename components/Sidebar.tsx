@@ -101,6 +101,10 @@ export default function Sidebar() {
                 return 'ユーザー';
             case 'viewer':
                 return '閲覧者';
+            case 'foreman1':
+                return '職長1';
+            case 'foreman2':
+                return '職長2';
             default:
                 return role;
         }
