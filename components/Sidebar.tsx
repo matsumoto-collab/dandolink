@@ -105,6 +105,10 @@ export default function Sidebar() {
                 return '職長1';
             case 'foreman2':
                 return '職長2';
+            case 'worker':
+                return '職方';
+            case 'partner':
+                return '協力会社';
             default:
                 return role;
         }
