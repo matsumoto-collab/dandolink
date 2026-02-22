@@ -41,7 +41,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         let cancelled = false;
         import('react-pdf').then(({ Document, Page, pdfjs }) => {
             if (cancelled) return;
-            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+            pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
             setPdfDocument(() => Document as unknown as DocumentComponent);
             setPdfPage(() => Page as unknown as PageComponent);
         });
