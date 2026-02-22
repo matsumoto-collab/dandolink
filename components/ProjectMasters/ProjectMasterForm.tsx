@@ -37,6 +37,9 @@ export interface ProjectMasterFormData {
     contractAmount: string;
     // 足場仕様
     scaffoldingSpec: ScaffoldingSpec;
+    // 職長配置（組立・解体）
+    assemblyForemen: { foremanId: string; memberCount: number }[];
+    demolitionForemen: { foremanId: string; memberCount: number }[];
     // その他
     remarks: string;
     createdBy: string[];
@@ -62,6 +65,8 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     estimatedDemolitionWorkers: '',
     contractAmount: '',
     scaffoldingSpec: DEFAULT_SCAFFOLDING_SPEC,
+    assemblyForemen: [],
+    demolitionForemen: [],
     remarks: '',
     createdBy: [],
 };

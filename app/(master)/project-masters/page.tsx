@@ -45,7 +45,7 @@ export default function ProjectMasterListPage() {
     }, [projectMasters, searchTerm, filterStatus]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
-        await createProjectMaster({
+        const pm = await createProjectMaster({
             title: data.title,
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
@@ -70,6 +70,47 @@ export default function ProjectMasterListPage() {
             remarks: data.remarks || undefined,
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
+
+        // 組立日の配置を自動生成
+        if (data.assemblyDate && data.assemblyForemen.length > 0) {
+            await Promise.all(
+                data.assemblyForemen.map((f, i) =>
+                    fetch('/api/assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectMasterId: pm.id,
+                            assignedEmployeeId: f.foremanId,
+                            date: new Date(`${data.assemblyDate}T00:00:00Z`).toISOString(),
+                            memberCount: f.memberCount,
+                            sortOrder: i,
+                            estimatedHours: 8.0,
+                        }),
+                    })
+                )
+            );
+        }
+
+        // 解体日の配置を自動生成
+        if (data.demolitionDate && data.demolitionForemen.length > 0) {
+            await Promise.all(
+                data.demolitionForemen.map((f, i) =>
+                    fetch('/api/assignments', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            projectMasterId: pm.id,
+                            assignedEmployeeId: f.foremanId,
+                            date: new Date(`${data.demolitionDate}T00:00:00Z`).toISOString(),
+                            memberCount: f.memberCount,
+                            sortOrder: i,
+                            estimatedHours: 8.0,
+                        }),
+                    })
+                )
+            );
+        }
+
         toast.success('案件マスターを作成しました');
     };
 

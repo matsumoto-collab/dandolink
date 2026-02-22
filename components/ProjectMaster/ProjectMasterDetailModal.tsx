@@ -36,6 +36,8 @@ function initFormDataFromPm(pm: ProjectMaster): ProjectMasterFormData {
         estimatedDemolitionWorkers: pm.estimatedDemolitionWorkers?.toString() || '',
         contractAmount: pm.contractAmount?.toString() || '',
         scaffoldingSpec: pm.scaffoldingSpec || DEFAULT_FORM_DATA.scaffoldingSpec,
+        assemblyForemen: [],
+        demolitionForemen: [],
         remarks: pm.remarks || '',
         createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
     };

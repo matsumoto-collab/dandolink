@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2, Users } from 'lucide-react';
 import { FormField } from '../common/FormField';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
@@ -12,17 +12,26 @@ interface ConstructionSectionProps {
     setFormData: React.Dispatch<React.SetStateAction<ProjectMasterFormData>>;
 }
 
-/** 指定日の案件一覧を取得する */
+/**
+ * 指定日の案件一覧を取得する。
+ * endDate に翌日を渡すことで lte の厳密一致問題を回避し、client 側でフィルタする。
+ */
 async function fetchAssignmentsForDate(date: string): Promise<ProjectAssignment[]> {
+    const nextDay = new Date(`${date}T00:00:00Z`);
+    nextDay.setUTCDate(nextDay.getUTCDate() + 1);
+    const nextDayStr = nextDay.toISOString().split('T')[0];
+
     const res = await fetch(
-        `/api/assignments?startDate=${date}&endDate=${date}`,
+        `/api/assignments?startDate=${date}&endDate=${nextDayStr}`,
         { cache: 'no-store' }
     );
     if (!res.ok) return [];
-    return res.json();
+    const all: ProjectAssignment[] = await res.json();
+    // 当日分のみ（日付文字列の先頭10文字で比較）
+    return all.filter(a => new Date(a.date).toISOString().slice(0, 10) === date);
 }
 
-/** 日付に紐づく既存案件の表示リスト */
+/** 日付に紐づく既存案件リスト */
 function DateConflictList({
     assignments,
     getForemanName,
@@ -70,8 +79,100 @@ function DateConflictList({
     );
 }
 
+/** 職長選択 + 人数入力 */
+function ForemanSelector({
+    phaseLabel,
+    date,
+    foremen,
+    selected,
+    existingAssignments,
+    onChange,
+}: {
+    phaseLabel: string;
+    date: string;
+    foremen: { id: string; displayName: string }[];
+    selected: { foremanId: string; memberCount: number }[];
+    existingAssignments: ProjectAssignment[];
+    onChange: (v: { foremanId: string; memberCount: number }[]) => void;
+}) {
+    if (!date || foremen.length === 0) return null;
+
+    const busyIds = new Set(existingAssignments.map(a => a.assignedEmployeeId));
+
+    const toggle = (id: string, checked: boolean) => {
+        if (checked) {
+            onChange([...selected, { foremanId: id, memberCount: 1 }]);
+        } else {
+            onChange(selected.filter(s => s.foremanId !== id));
+        }
+    };
+
+    const updateCount = (id: string, count: number) => {
+        onChange(selected.map(s => s.foremanId === id ? { ...s, memberCount: Math.max(1, count) } : s));
+    };
+
+    return (
+        <div className="mt-3">
+            <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
+                <Users className="w-3.5 h-3.5" />
+                {phaseLabel}担当職長
+            </p>
+            <div className="space-y-1.5">
+                {foremen.map(f => {
+                    const sel = selected.find(s => s.foremanId === f.id);
+                    const isSelected = !!sel;
+                    const isBusy = busyIds.has(f.id);
+                    return (
+                        <div
+                            key={f.id}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
+                                isSelected
+                                    ? 'bg-slate-50 border border-slate-200'
+                                    : 'hover:bg-gray-50'
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                id={`${phaseLabel}-${f.id}`}
+                                checked={isSelected}
+                                onChange={e => toggle(f.id, e.target.checked)}
+                                className="w-4 h-4 rounded accent-slate-700 flex-shrink-0"
+                            />
+                            <label
+                                htmlFor={`${phaseLabel}-${f.id}`}
+                                className="flex-1 flex items-center gap-1.5 text-sm cursor-pointer select-none"
+                            >
+                                <span className={isBusy ? 'text-amber-600 font-medium' : 'text-gray-700'}>
+                                    {f.displayName}
+                                </span>
+                                {isBusy && (
+                                    <span title="この日に別の案件あり">
+                                        <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
+                                    </span>
+                                )}
+                            </label>
+                            {isSelected && (
+                                <div className="flex items-center gap-1 flex-shrink-0">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        value={sel.memberCount}
+                                        onChange={e => updateCount(f.id, parseInt(e.target.value) || 1)}
+                                        className="w-14 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-slate-500 text-center"
+                                    />
+                                    <span className="text-xs text-gray-500">名</span>
+                                </div>
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+}
+
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
-    const { getForemanName, displayedForemanIds } = useCalendarDisplay();
+    const { getForemanName, allForemen } = useCalendarDisplay();
 
     const [assemblyAssignments, setAssemblyAssignments] = useState<ProjectAssignment[]>([]);
     const [demolitionAssignments, setDemolitionAssignments] = useState<ProjectAssignment[]>([]);
@@ -83,30 +184,33 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
         setIsLoadingAssembly(true);
         try {
             const data = await fetchAssignmentsForDate(date);
-            // 週間カレンダーに表示されている職長の案件のみに絞る
+            // allForemen 未ロード時は全件表示、ロード後は登録済み職長のみ
             setAssemblyAssignments(
-                data.filter(a => displayedForemanIds.includes(a.assignedEmployeeId))
+                allForemen.length === 0
+                    ? data
+                    : data.filter(a => allForemen.some(f => f.id === a.assignedEmployeeId))
             );
         } finally {
             setIsLoadingAssembly(false);
         }
-    }, [displayedForemanIds]);
+    }, [allForemen]);
 
     const loadDemolitionAssignments = useCallback(async (date: string) => {
         if (!date) { setDemolitionAssignments([]); return; }
         setIsLoadingDemolition(true);
         try {
             const data = await fetchAssignmentsForDate(date);
-            // 週間カレンダーに表示されている職長の案件のみに絞る
             setDemolitionAssignments(
-                data.filter(a => displayedForemanIds.includes(a.assignedEmployeeId))
+                allForemen.length === 0
+                    ? data
+                    : data.filter(a => allForemen.some(f => f.id === a.assignedEmployeeId))
             );
         } finally {
             setIsLoadingDemolition(false);
         }
-    }, [displayedForemanIds]);
+    }, [allForemen]);
 
-    // 初期値があればロード（編集時 & displayedForemanIds ロード後の再フィルタ）
+    // 日付または allForemen 変化で再取得・再フィルタ
     useEffect(() => {
         if (formData.assemblyDate) loadAssemblyAssignments(formData.assemblyDate);
     }, [formData.assemblyDate, loadAssemblyAssignments]);
@@ -151,8 +255,8 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         value={formData.assemblyDate}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setFormData({ ...formData, assemblyDate: val });
-                            loadAssemblyAssignments(val);
+                            // 日付が変わったら職長選択をリセット
+                            setFormData(prev => ({ ...prev, assemblyDate: val, assemblyForemen: [] }));
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     />
@@ -160,6 +264,14 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         assignments={assemblyAssignments}
                         getForemanName={getForemanName}
                         isLoading={isLoadingAssembly}
+                    />
+                    <ForemanSelector
+                        phaseLabel="組立"
+                        date={formData.assemblyDate}
+                        foremen={allForemen}
+                        selected={formData.assemblyForemen}
+                        existingAssignments={assemblyAssignments}
+                        onChange={v => setFormData(prev => ({ ...prev, assemblyForemen: v }))}
                     />
                 </FormField>
 
@@ -170,8 +282,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         value={formData.demolitionDate}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setFormData({ ...formData, demolitionDate: val });
-                            loadDemolitionAssignments(val);
+                            setFormData(prev => ({ ...prev, demolitionDate: val, demolitionForemen: [] }));
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     />
@@ -179,6 +290,14 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         assignments={demolitionAssignments}
                         getForemanName={getForemanName}
                         isLoading={isLoadingDemolition}
+                    />
+                    <ForemanSelector
+                        phaseLabel="解体"
+                        date={formData.demolitionDate}
+                        foremen={allForemen}
+                        selected={formData.demolitionForemen}
+                        existingAssignments={demolitionAssignments}
+                        onChange={v => setFormData(prev => ({ ...prev, demolitionForemen: v }))}
                     />
                 </FormField>
             </div>
