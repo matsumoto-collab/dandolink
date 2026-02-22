@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dandolink-v1';
+const CACHE_NAME = 'dandlink-v2';
 const OFFLINE_URL = '/offline.html';
 
 // インストール時にオフラインページをキャッシュ
