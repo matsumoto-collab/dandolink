@@ -6,6 +6,7 @@ import imageCompression from 'browser-image-compression';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { PdfViewer } from '@/components/ui/PdfViewer';
 
 const IMAGE_COMPRESSION_OPTIONS = {
     maxSizeMB: 1,
@@ -56,6 +57,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const [isDragOver, setIsDragOver] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchFiles = useCallback(async () => {
@@ -273,22 +275,36 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     </div>
                                 </button>
                             ) : (
-                                <div className="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded border border-slate-200">
+                                <button
+                                    type="button"
+                                    onClick={() => file.signedUrl && setPdfPreview({ url: file.signedUrl, fileName: file.fileName })}
+                                    className="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded border border-slate-200 hover:bg-slate-100 transition-colors"
+                                >
                                     <FileText className="w-6 h-6 text-slate-400" />
-                                </div>
+                                </button>
                             )}
 
                             {/* ファイル情報 */}
                             <div className="flex-1 min-w-0">
                                 {file.signedUrl ? (
-                                    <a
-                                        href={file.signedUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-sm font-medium text-slate-600 hover:underline truncate block"
-                                    >
-                                        {file.fileName}
-                                    </a>
+                                    file.fileType === 'pdf' ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => setPdfPreview({ url: file.signedUrl!, fileName: file.fileName })}
+                                            className="text-sm font-medium text-slate-600 hover:underline truncate block text-left w-full"
+                                        >
+                                            {file.fileName}
+                                        </button>
+                                    ) : (
+                                        <a
+                                            href={file.signedUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm font-medium text-slate-600 hover:underline truncate block"
+                                        >
+                                            {file.fileName}
+                                        </a>
+                                    )
                                 ) : (
                                     <span className="text-sm font-medium text-gray-700 truncate block">
                                         {file.fileName}
@@ -324,6 +340,15 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     images={tabImages}
                     initialIndex={lightboxIndex}
                     onClose={() => setLightboxOpen(false)}
+                />
+            )}
+
+            {/* PDFビューア */}
+            {pdfPreview && (
+                <PdfViewer
+                    url={pdfPreview.url}
+                    fileName={pdfPreview.fileName}
+                    onClose={() => setPdfPreview(null)}
                 />
             )}
         </div>
