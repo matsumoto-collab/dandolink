@@ -66,6 +66,7 @@ body {
   from {
     transform: translateY(100%);
   }
+
   to {
     transform: translateY(0);
   }
@@ -80,6 +81,7 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -87,4 +89,12 @@ body {
 /* iPhone safe area対応 */
 .safe-area-bottom {
   padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* PWA standalone mode */
+@media (display-mode: standalone) {
+  body {
+    /* ノッチ付きデバイスの safe area */
+    padding-top: env(safe-area-inset-top, 0px);
+  }
 }

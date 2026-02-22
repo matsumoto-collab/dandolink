@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { NavigationProvider } from "@/contexts/NavigationContext";
@@ -11,9 +11,28 @@ import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
+// viewport は metadata とは別に定義（Next.js 14+ 推奨）
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
     title: "施工管理システム - DandoLink",
     description: "建設・施工管理向けの業務管理システム",
+    manifest: "/manifest.json",
+    appleWebApp: {
+        capable: true,
+        statusBarStyle: "black-translucent",
+        title: "DandoLink",
+    },
+    icons: {
+        icon: "/icon-192.png",
+        apple: "/apple-touch-icon.png",
+    },
+    themeColor: "#0f172a",
 };
 
 export default function RootLayout({
@@ -59,6 +78,18 @@ export default function RootLayout({
                         </NavigationProvider>
                     </AuthProvider>
                 </ErrorBoundary>
+                {/* Service Worker 登録 */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            if ('serviceWorker' in navigator) {
+                                window.addEventListener('load', function() {
+                                    navigator.serviceWorker.register('/sw.js');
+                                });
+                            }
+                        `,
+                    }}
+                />
             </body>
         </html>
     );
