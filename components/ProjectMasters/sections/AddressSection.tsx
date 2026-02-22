@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { MapPin, Crosshair, Loader2 } from 'lucide-react';
 import { FormField } from '../common/FormField';
@@ -23,19 +23,8 @@ const PREFECTURES = [
     '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
 ];
 
-// 東京（GPS取得もできない場合のフォールバック）
 const FALLBACK = { lat: 35.6762, lng: 139.6503 };
 const LS_KEY = 'dandolink_last_location';
-
-function loadLastLocation(): { lat: number; lng: number } | null {
-    try {
-        const raw = localStorage.getItem(LS_KEY);
-        if (!raw) return null;
-        const { lat, lng } = JSON.parse(raw);
-        if (typeof lat === 'number' && typeof lng === 'number') return { lat, lng };
-    } catch { /* ignore */ }
-    return null;
-}
 
 function saveLastLocation(lat: number, lng: number) {
     try { localStorage.setItem(LS_KEY, JSON.stringify({ lat, lng })); } catch { /* ignore */ }
@@ -50,46 +39,19 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const { fetchAddress } = usePostalCodeAutofill();
     const [isGettingLocation, setIsGettingLocation] = useState(false);
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
+    const [showMap, setShowMap] = useState(false);
+    const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
 
-    // 地図の初期表示位置：保存済み座標 > 東京（GPS取得後に forcedCenter で上書き）
+    // 住所フィールドに何か入力があれば地図を表示
+    const hasAddress = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
+    const mapVisible = showMap || hasAddress;
+
     const defaultCenter = {
         lat: formData.latitude ?? FALLBACK.lat,
         lng: formData.longitude ?? FALLBACK.lng,
     };
 
-    // GPSボタン／マウント時自動取得で地図を強制移動させるための state
-    const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
-
-    // 保存済み座標がない場合はマウント時に現在地を自動取得して地図を移動
-    const autoDetectedRef = useRef(false);
-    useEffect(() => {
-        if (autoDetectedRef.current) return;
-        if (formData.latitude != null) return; // 保存済み座標があれば不要
-        autoDetectedRef.current = true;
-
-        // 1. GPS で現在地を取得
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    const { latitude, longitude } = pos.coords;
-                    setForcedCenter({ lat: latitude, lng: longitude });
-                    saveLastLocation(latitude, longitude); // 次回用に保存
-                },
-                () => {
-                    // 2. GPS 失敗 → 前回保存した位置をフォールバックとして使用
-                    const last = loadLastLocation();
-                    if (last) setForcedCenter(last);
-                },
-                { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-            );
-        } else {
-            // geolocation 非対応ブラウザ → localStorage のみ
-            const last = loadLastLocation();
-            if (last) setForcedCenter(last);
-        }
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Nominatim 逆ジオコーディング
+    // Nominatim 逆ジオコーディング（座標 → 住所）
     const reverseGeocode = useCallback(async (lat: number, lng: number) => {
         setIsReverseGeocoding(true);
         try {
@@ -115,6 +77,28 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData]);
 
+    // Nominatim 前方ジオコーディング（住所 → 座標）
+    const forwardGeocode = useCallback(async (query: string) => {
+        try {
+            const res = await fetch(
+                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&accept-language=ja&limit=1&countrycodes=jp`,
+                { headers: { 'User-Agent': 'DandoLink/1.0' }, cache: 'no-store' }
+            );
+            if (res.ok) {
+                const data = await res.json();
+                if (data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+                    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
+                    setForcedCenter({ lat, lng });
+                }
+            }
+        } catch {
+            // ジオコーディング失敗は無視
+        }
+    }, [setFormData]);
+
     // 地図の中心が変わったら座標をformDataへ反映
     const handleLocationChange = useCallback(async (lat: number, lng: number) => {
         const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
@@ -122,7 +106,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         await reverseGeocode(lat, lng);
     }, [setFormData, reverseGeocode]);
 
-    // GPS取得ボタン
+    // 現在地アイコンボタン
     const handleGetCurrentLocation = () => {
         if (!navigator.geolocation) {
             toast.error('この端末ではGPSが利用できません');
@@ -133,10 +117,9 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             async (position) => {
                 const { latitude, longitude } = position.coords;
                 const coordStr = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
-                // formData 更新
                 setFormData(prev => ({ ...prev, latitude, longitude, plusCode: coordStr }));
-                // 地図を現在地へ移動 + 次回用に保存
                 setForcedCenter({ lat: latitude, lng: longitude });
+                setShowMap(true);
                 saveLastLocation(latitude, longitude);
                 try {
                     await reverseGeocode(latitude, longitude);
@@ -150,10 +133,10 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             (error) => {
                 setIsGettingLocation(false);
                 switch (error.code) {
-                    case error.PERMISSION_DENIED:   toast.error('位置情報の使用が許可されていません'); break;
+                    case error.PERMISSION_DENIED:    toast.error('位置情報の使用が許可されていません'); break;
                     case error.POSITION_UNAVAILABLE: toast.error('位置情報を取得できませんでした'); break;
-                    case error.TIMEOUT:             toast.error('位置情報の取得がタイムアウトしました'); break;
-                    default:                        toast.error('位置情報の取得に失敗しました');
+                    case error.TIMEOUT:              toast.error('位置情報の取得がタイムアウトしました'); break;
+                    default:                         toast.error('位置情報の取得に失敗しました');
                 }
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
@@ -162,11 +145,13 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
 
     const handlePostalCodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
-        setFormData({ ...formData, postalCode: value });
+        setFormData(prev => ({ ...prev, postalCode: value }));
         if (value.length === 7) {
             const address = await fetchAddress(value);
             if (address) {
                 setFormData(prev => ({ ...prev, prefecture: address.prefecture, city: address.city }));
+                // 住所から座標を取得して地図を自動センタリング
+                await forwardGeocode(`${address.prefecture}${address.city}`);
             }
         }
     };
@@ -190,7 +175,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <FormField label="都道府県">
                     <select
                         value={formData.prefecture}
-                        onChange={(e) => setFormData({ ...formData, prefecture: e.target.value })}
+                        onChange={(e) => setFormData(prev => ({ ...prev, prefecture: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">選択してください</option>
@@ -205,7 +190,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <input
                     type="text"
                     value={formData.city}
-                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 新宿区西新宿"
                 />
@@ -215,7 +200,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="番地、建物名など"
                 />
@@ -236,21 +221,29 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                         type="button"
                         onClick={handleGetCurrentLocation}
                         disabled={isGettingLocation}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 rounded-lg transition-colors whitespace-nowrap"
+                        title="現在地を取得して地図を表示"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 rounded-lg transition-colors"
                     >
-                        {isGettingLocation ? (
-                            <><Loader2 className="w-4 h-4 animate-spin" />取得中...</>
-                        ) : (
-                            <><Crosshair className="w-4 h-4" />現在地を取得</>
-                        )}
+                        {isGettingLocation
+                            ? <><Loader2 className="w-4 h-4 animate-spin" />取得中...</>
+                            : <><Crosshair className="w-4 h-4" />現在地</>
+                        }
                     </button>
                 </div>
 
-                <LocationPicker
-                    defaultCenter={defaultCenter}
-                    forcedCenter={forcedCenter}
-                    onLocationChange={handleLocationChange}
-                />
+                {mapVisible ? (
+                    <LocationPicker
+                        defaultCenter={defaultCenter}
+                        forcedCenter={forcedCenter}
+                        onLocationChange={handleLocationChange}
+                    />
+                ) : (
+                    <div className="h-[200px] bg-gray-50 border border-gray-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 select-none">
+                        <MapPin className="w-8 h-8" />
+                        <p className="text-sm">住所を入力すると地図が表示されます</p>
+                        <p className="text-xs">または「現在地」ボタンで現在地から入力できます</p>
+                    </div>
+                )}
 
                 {formData.latitude != null && (
                     <p className="text-xs text-gray-500 mt-1">
