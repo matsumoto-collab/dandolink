@@ -6,6 +6,7 @@ import { FormField } from '../common/FormField';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { useMasterStore, selectTotalMembers } from '@/stores/masterStore';
 import { ProjectAssignment } from '@/types/calendar';
 
 interface ConstructionSectionProps {
@@ -54,12 +55,14 @@ function DateConflictList({
     assignments,
     getForemanName,
     displayedForemanIds,
+    totalMembers,
     vacationCount,
     isLoading,
 }: {
     assignments: ProjectAssignment[];
     getForemanName: (id: string) => string;
     displayedForemanIds: string[];
+    totalMembers: number;
     vacationCount: number;
     isLoading: boolean;
 }) {
@@ -81,8 +84,16 @@ function DateConflictList({
     });
     let assignedCount = 0;
     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
-    const total = displayedForemanIds.length;
-    const remaining = total > 0 ? total - assignedCount - vacationCount : null;
+    const remaining = totalMembers > 0 ? totalMembers - assignedCount - vacationCount : null;
+
+    // 週間カレンダーの表示順（displayedForemanIds の順）でソート
+    const sorted = [...assignments].sort((a, b) => {
+        const ai = displayedForemanIds.indexOf(a.assignedEmployeeId);
+        const bi = displayedForemanIds.indexOf(b.assignedEmployeeId);
+        const aIdx = ai === -1 ? Infinity : ai;
+        const bIdx = bi === -1 ? Infinity : bi;
+        return aIdx - bIdx;
+    });
 
     return (
         <div className="mt-2 space-y-1">
@@ -90,7 +101,7 @@ function DateConflictList({
                 この日に既に入っている案件（{assignments.length}件
                 {remaining !== null && ` / 残${remaining}人`}）
             </p>
-            {assignments.map(a => (
+            {sorted.map(a => (
                 <div
                     key={a.id}
                     className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-xs"
@@ -208,6 +219,7 @@ function ForemanSelector({
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
     const { getForemanName, allForemen, displayedForemanIds } = useCalendarDisplay();
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
+    const totalMembers = useMasterStore(selectTotalMembers);
 
     const [assemblyAssignments, setAssemblyAssignments] = useState<ProjectAssignment[]>([]);
     const [demolitionAssignments, setDemolitionAssignments] = useState<ProjectAssignment[]>([]);
@@ -299,6 +311,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         assignments={assemblyAssignments}
                         getForemanName={getForemanName}
                         displayedForemanIds={displayedForemanIds}
+                        totalMembers={totalMembers}
                         vacationCount={formData.assemblyDate ? getVacationEmployees(formData.assemblyDate).length : 0}
                         isLoading={isLoadingAssembly}
                     />
@@ -327,6 +340,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         assignments={demolitionAssignments}
                         getForemanName={getForemanName}
                         displayedForemanIds={displayedForemanIds}
+                        totalMembers={totalMembers}
                         vacationCount={formData.demolitionDate ? getVacationEmployees(formData.demolitionDate).length : 0}
                         isLoading={isLoadingDemolition}
                     />
