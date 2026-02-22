@@ -284,6 +284,8 @@ export default function ProjectForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!formData.customer.trim()) return;
+
         // メンバー数分のダミー配列を作成
         const workers = formData.memberCount > 0
             ? Array.from({ length: formData.memberCount }, (_, i) => `メンバー${i + 1}`)
@@ -351,13 +353,14 @@ export default function ProjectForm({
             {/* 元請名（顧客選択） */}
             <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                    元請名
+                    元請名 <span className="text-slate-500">*</span>
                 </label>
                 <div className="flex gap-2">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                         <input
                             type="text"
+                            required
                             value={customerSearchTerm || formData.customer}
                             onChange={(e) => {
                                 setCustomerSearchTerm(e.target.value);
