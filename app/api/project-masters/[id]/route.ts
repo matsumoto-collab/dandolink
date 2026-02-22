@@ -49,6 +49,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.prefecture !== undefined) updateData.prefecture = body.prefecture;
         if (body.city !== undefined) updateData.city = body.city;
         if (body.plusCode !== undefined) updateData.plusCode = body.plusCode;
+        if (body.latitude !== undefined) updateData.latitude = body.latitude;
+        if (body.longitude !== undefined) updateData.longitude = body.longitude;
         if (body.area !== undefined) updateData.area = body.area;
         if (body.areaRemarks !== undefined) updateData.areaRemarks = body.areaRemarks;
         if (body.assemblyDate !== undefined) updateData.assemblyDate = body.assemblyDate ? new Date(body.assemblyDate) : null;

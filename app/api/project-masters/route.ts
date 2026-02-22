@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
+        const { title, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
 
         // customerShortNameが未指定の場合、Customerテーブルから自動取得
         let resolvedCustomerShortName = customerShortName || null;
@@ -103,6 +103,7 @@ export async function POST(req: NextRequest) {
                 constructionType: constructionType || 'other', constructionContent: constructionContent || null,
                 status: status || 'active', location: location || null, postalCode: postalCode || null,
                 prefecture: prefecture || null, city: city || null, plusCode: plusCode || null,
+                latitude: latitude ?? null, longitude: longitude ?? null,
                 area: area || null, areaRemarks: areaRemarks || null,
                 assemblyDate: assemblyDate ? new Date(assemblyDate) : null,
                 demolitionDate: demolitionDate ? new Date(demolitionDate) : null,
