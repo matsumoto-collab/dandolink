@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -74,6 +74,7 @@ export default function ProjectForm({
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
     const [customerError, setCustomerError] = useState(false);
+    const customerFieldRef = useRef<HTMLDivElement>(null);
 
     // Admin/Manager users for project manager selection (from API)
     const [apiManagers, setApiManagers] = useState<ManagerUser[]>([]);
@@ -293,6 +294,7 @@ export default function ProjectForm({
         const customerChanged = formData.customer !== (initialData?.customer || '');
         if (!formData.customerId && (!initialData?.customer || customerChanged)) {
             setCustomerError(true);
+            customerFieldRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -361,7 +363,7 @@ export default function ProjectForm({
             </div>
 
             {/* 元請名（顧客選択） */}
-            <div className="relative">
+            <div className="relative" ref={customerFieldRef}>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     元請名 <span className="text-slate-500">*</span>
                 </label>
