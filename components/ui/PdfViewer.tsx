@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { X, ExternalLink, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 interface PdfViewerProps {
@@ -9,7 +9,6 @@ interface PdfViewerProps {
     onClose: () => void;
 }
 
-// react-pdf の型だけ import（バンドルには含まれない）
 type DocumentComponent = React.ComponentType<{
     file: string;
     onLoadSuccess: (pdf: { numPages: number }) => void;
@@ -22,23 +21,32 @@ type PageComponent = React.ComponentType<{
     width?: number;
     renderTextLayer?: boolean;
     renderAnnotationLayer?: boolean;
-    className?: string;
 }>;
 
+const HEADER_H = 56; // px
+const FOOTER_H = 56; // px
+
 export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
-    const [numPages, setNumPages] = useState<number>(0);
+    const [numPages, setNumPages] = useState(0);
     const [pageNumber, setPageNumber] = useState(1);
-    const [containerWidth, setContainerWidth] = useState<number>(
-        typeof window !== 'undefined' ? window.innerWidth : 375
-    );
+    const [pageWidth, setPageWidth] = useState(0);
     const [PdfDocument, setPdfDocument] = useState<DocumentComponent | null>(null);
     const [PdfPage, setPdfPage] = useState<PageComponent | null>(null);
+    const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-    const containerRef = useCallback((node: HTMLDivElement | null) => {
-        if (node) setContainerWidth(node.clientWidth);
+    // コンテナ幅を測定
+    useEffect(() => {
+        const measure = () => {
+            if (scrollAreaRef.current) {
+                setPageWidth(scrollAreaRef.current.clientWidth - 8);
+            }
+        };
+        measure();
+        window.addEventListener('resize', measure);
+        return () => window.removeEventListener('resize', measure);
     }, []);
 
-    // クライアント側でのみ react-pdf を動的ロード
+    // react-pdf をクライアント側のみで動的ロード
     useEffect(() => {
         let cancelled = false;
         import('react-pdf').then(({ Document, Page, pdfjs }) => {
@@ -50,6 +58,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         return () => { cancelled = true; };
     }, []);
 
+    // キーボード操作
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
@@ -60,11 +69,16 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         return () => document.removeEventListener('keydown', handleKey);
     }, [onClose, numPages]);
 
+    const showFooter = numPages > 1;
+
     return (
-        <div className="fixed inset-0 lg:left-64 z-[100] flex flex-col bg-black/95">
-            {/* ヘッダー */}
-            <div className="flex items-center justify-between px-4 py-3 shrink-0 bg-black/60">
-                <span className="text-white/80 text-sm truncate max-w-[50vw]" title={fileName}>
+        <div className="fixed inset-0 lg:left-64 z-[100] bg-black/95">
+            {/* ヘッダー（絶対配置・常に最前面） */}
+            <div
+                className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 bg-black/80"
+                style={{ height: HEADER_H }}
+            >
+                <span className="text-white/80 text-sm truncate max-w-[55vw]" title={fileName}>
                     {fileName}
                 </span>
                 <div className="flex items-center gap-2 shrink-0">
@@ -77,10 +91,10 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center gap-1.5 px-3 py-2 min-h-[44px] text-sm text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-3 py-2 min-h-[44px] text-sm text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
                     >
                         <ExternalLink className="w-4 h-4" />
-                        <span className="hidden sm:inline">外部で開く</span>
+                        <span className="hidden sm:inline ml-1">外部で開く</span>
                     </a>
                     <button
                         type="button"
@@ -93,10 +107,17 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 </div>
             </div>
 
-            {/* PDF表示エリア */}
-            <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex justify-center bg-gray-700">
+            {/* PDFスクロールエリア（ヘッダー・フッター分だけ内側に） */}
+            <div
+                ref={scrollAreaRef}
+                className="absolute left-0 right-0 overflow-y-auto overflow-x-hidden bg-gray-700 flex justify-center"
+                style={{
+                    top: HEADER_H,
+                    bottom: showFooter ? FOOTER_H : 0,
+                }}
+            >
                 {!PdfDocument ? (
-                    <div className="flex items-center justify-center h-full text-white gap-2 pt-20">
+                    <div className="flex items-center gap-2 text-white mt-16">
                         <Loader2 className="w-6 h-6 animate-spin" />
                         <span>読み込み中...</span>
                     </div>
@@ -105,37 +126,39 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         file={url}
                         onLoadSuccess={({ numPages }) => { setNumPages(numPages); setPageNumber(1); }}
                         loading={
-                            <div className="flex items-center justify-center h-full text-white gap-2 pt-20">
+                            <div className="flex items-center gap-2 text-white mt-16">
                                 <Loader2 className="w-6 h-6 animate-spin" />
                                 <span>読み込み中...</span>
                             </div>
                         }
                         error={
-                            <div className="flex flex-col items-center justify-center h-full text-white gap-4 pt-20 px-6 text-center">
+                            <div className="flex flex-col items-center gap-4 text-white mt-16 px-6 text-center">
                                 <p>PDFの読み込みに失敗しました</p>
                                 <a href={url} target="_blank" rel="noopener noreferrer"
-                                    className="px-4 py-2 bg-white/20 rounded-lg text-sm hover:bg-white/30 transition-colors">
+                                    className="px-4 py-2 bg-white/20 rounded-lg text-sm">
                                     外部ブラウザで開く
                                 </a>
                             </div>
                         }
                     >
-                        {PdfPage && (
+                        {PdfPage && pageWidth > 0 && (
                             <PdfPage
                                 pageNumber={pageNumber}
-                                width={containerWidth > 0 ? Math.min(containerWidth - 16, 900) : undefined}
+                                width={Math.min(pageWidth, 900)}
                                 renderTextLayer={false}
                                 renderAnnotationLayer={false}
-                                className="my-2 shadow-lg"
                             />
                         )}
                     </PdfDocument>
                 )}
             </div>
 
-            {/* ページナビゲーション */}
-            {numPages > 1 && (
-                <div className="flex items-center justify-center gap-4 py-3 shrink-0 bg-black/60">
+            {/* フッター・ページナビ（絶対配置・常に最前面） */}
+            {showFooter && (
+                <div
+                    className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-center gap-6 bg-black/80"
+                    style={{ height: FOOTER_H }}
+                >
                     <button
                         type="button"
                         onClick={() => setPageNumber(p => Math.max(p - 1, 1))}
