@@ -46,7 +46,9 @@ export default function LoginPage() {
                 <div className="bg-white rounded-lg shadow-lg p-8 border border-slate-200">
                     {/* Logo/Title */}
                     <div className="text-center mb-8">
-                        <img src="/dandlink-logo.svg" alt="DandLink" className="h-16 w-auto mx-auto mb-3" />
+                        <div className="inline-block bg-slate-800 rounded-xl px-6 py-3 mb-3">
+                            <img src="/dandlink-logo.svg" alt="DandLink" className="h-8 w-auto" />
+                        </div>
                         <p className="text-slate-500 text-sm">施工管理システム</p>
                     </div>
 

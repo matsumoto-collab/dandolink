@@ -133,9 +133,7 @@ export default function Sidebar() {
                         className="flex items-center flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
                         aria-label="ホームに戻る（更新）"
                     >
-                        <div className="bg-white rounded-lg px-2 py-1">
-                            <img src="/dandlink-logo.svg" alt="DandLink" className="h-8 w-auto" />
-                        </div>
+                        <img src="/dandlink-logo.svg" alt="DandLink" className="h-6 w-auto" />
                     </button>
                     {/* Mobile Close Button */}
                     <button

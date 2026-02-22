@@ -25,9 +25,7 @@ export default function Header() {
                     className="active:opacity-70 transition-opacity"
                     aria-label="ホームに戻る（更新）"
                 >
-                    <div className="bg-white rounded-lg px-2 py-1">
-                        <img src="/dandlink-logo.svg" alt="DandLink" className="h-7 w-auto" />
-                    </div>
+                    <img src="/dandlink-logo.svg" alt="DandLink" className="h-6 w-auto" />
                 </button>
             </div>
 
