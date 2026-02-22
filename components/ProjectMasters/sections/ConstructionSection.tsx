@@ -3,6 +3,7 @@
 import React from 'react';
 import { FormField } from '../common/FormField';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
+import { JaDateInput } from '@/components/common/JaDateInput';
 
 interface ConstructionSectionProps {
     formData: ProjectMasterFormData;
@@ -40,20 +41,16 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 組立日 */}
                 <FormField label="組立日">
-                    <input
-                        type="date"
+                    <JaDateInput
                         value={formData.assemblyDate}
-                        onChange={(e) => setFormData({ ...formData, assemblyDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        onChange={(v) => setFormData({ ...formData, assemblyDate: v })}
                     />
                 </FormField>
                 {/* 解体日 */}
                 <FormField label="解体日">
-                    <input
-                        type="date"
+                    <JaDateInput
                         value={formData.demolitionDate}
-                        onChange={(e) => setFormData({ ...formData, demolitionDate: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        onChange={(v) => setFormData({ ...formData, demolitionDate: v })}
                     />
                 </FormField>
             </div>

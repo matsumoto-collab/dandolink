@@ -10,6 +10,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import toast from 'react-hot-toast';
+import { JaDateInput } from '@/components/common/JaDateInput';
 
 // モーダルを遅延読み込み
 const DailyReportModal = dynamic(
@@ -185,11 +186,10 @@ export default function DailyReportPage() {
 
                     {/* 日付フィルター */}
                     <div className="flex items-center gap-2">
-                        <input
-                            type="date"
+                        <JaDateInput
                             value={dateFilter}
-                            onChange={(e) => setDateFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                            onChange={setDateFilter}
+                            selectClassName="px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
                         />
                         {dateFilter && (
                             <button
