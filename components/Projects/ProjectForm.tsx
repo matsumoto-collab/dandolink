@@ -73,6 +73,7 @@ export default function ProjectForm({
     const [customerSearchTerm, setCustomerSearchTerm] = useState('');
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
+    const [customerError, setCustomerError] = useState(false);
 
     // Admin/Manager users for project manager selection (from API)
     const [apiManagers, setApiManagers] = useState<ManagerUser[]>([]);
@@ -274,6 +275,7 @@ export default function ProjectForm({
                     customer: newCustomer.name,
                 }));
                 setCustomerSearchTerm('');
+                setCustomerError(false);
                 setShowNewCustomerModal(false);
             }
         } catch (error) {
@@ -285,6 +287,14 @@ export default function ProjectForm({
         e.preventDefault();
 
         if (!formData.customer.trim()) return;
+
+        // customerId未セット = ドロップダウン未選択 / 新規登録未経由
+        // 編集時で顧客名が初期値から変わっていない場合のみ許容（後方互換）
+        const customerChanged = formData.customer !== (initialData?.customer || '');
+        if (!formData.customerId && (!initialData?.customer || customerChanged)) {
+            setCustomerError(true);
+            return;
+        }
 
         // メンバー数分のダミー配列を作成
         const workers = formData.memberCount > 0
@@ -365,10 +375,11 @@ export default function ProjectForm({
                             onChange={(e) => {
                                 setCustomerSearchTerm(e.target.value);
                                 setShowCustomerDropdown(true);
-                                setFormData({ ...formData, customer: e.target.value });
+                                setFormData({ ...formData, customer: e.target.value, customerId: '' });
+                                setCustomerError(false);
                             }}
                             onFocus={() => setShowCustomerDropdown(true)}
-                            className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 ${customerError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
                             placeholder="顧客を検索または入力..."
                         />
                     </div>
@@ -382,6 +393,9 @@ export default function ProjectForm({
                     </button>
                 </div>
 
+                {customerError && (
+                    <p className="mt-1 text-xs text-red-500">リストから選択するか、「新規登録」から顧客を登録してください</p>
+                )}
                 {showCustomerDropdown && filteredCustomers.length > 0 && customerSearchTerm && (
                     <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                         {filteredCustomers.map(customer => (
@@ -396,6 +410,7 @@ export default function ProjectForm({
                                     });
                                     setCustomerSearchTerm('');
                                     setShowCustomerDropdown(false);
+                                    setCustomerError(false);
                                 }}
                                 className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
                             >
