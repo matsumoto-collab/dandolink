@@ -127,16 +127,15 @@ export default function Sidebar() {
                 `}
             >
                 {/* Logo Area */}
-                <div className="h-16 flex items-center px-6 border-b border-slate-800">
+                <div className="h-16 flex items-center px-4 border-b border-slate-800">
                     <button
                         onClick={() => window.location.reload()}
-                        className="flex items-center gap-3 flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
+                        className="flex items-center flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
                         aria-label="ホームに戻る（更新）"
                     >
-                        <div className="w-9 h-9 bg-slate-700 rounded-lg flex items-center justify-center">
-                            <Building className="w-5 h-5 text-slate-200" />
+                        <div className="bg-white rounded-lg px-2 py-1">
+                            <img src="/dandlink-logo.svg" alt="DandLink" className="h-8 w-auto" />
                         </div>
-                        <span className="text-xl font-semibold text-slate-100">DandoLink</span>
                     </button>
                     {/* Mobile Close Button */}
                     <button

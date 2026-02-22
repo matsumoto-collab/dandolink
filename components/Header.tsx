@@ -22,10 +22,12 @@ export default function Header() {
             <div className="flex-1 flex items-center justify-center">
                 <button
                     onClick={() => window.location.reload()}
-                    className="text-lg font-semibold text-slate-100 active:opacity-70 transition-opacity"
+                    className="active:opacity-70 transition-opacity"
                     aria-label="ホームに戻る（更新）"
                 >
-                    DandoLink
+                    <div className="bg-white rounded-lg px-2 py-1">
+                        <img src="/dandlink-logo.svg" alt="DandLink" className="h-7 w-auto" />
+                    </div>
                 </button>
             </div>
 
