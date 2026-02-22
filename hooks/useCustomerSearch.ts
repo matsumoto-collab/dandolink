@@ -34,6 +34,7 @@ export function useCustomerSearch() {
 
     return {
         customers,
+        setCustomers,
         filteredCustomers,
         searchTerm,
         setSearchTerm,

@@ -8,6 +8,9 @@ import { useCustomerSearch } from '@/hooks/useCustomerSearch';
 import { ConstructionContentType, CONSTRUCTION_CONTENT_LABELS } from '@/types/calendar';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
+import CustomerModal from '@/components/Customers/CustomerModal';
+import { CustomerInput } from '@/types/customer';
+import toast from 'react-hot-toast';
 
 interface ManagerUser {
     id: string;
@@ -24,14 +27,42 @@ interface BasicInfoSectionProps {
 export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProps) {
     const [managers, setManagers] = useState<ManagerUser[]>([]);
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
+    const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
 
     const {
+        setCustomers,
         filteredCustomers,
         searchTerm: customerSearchTerm,
         setSearchTerm: setCustomerSearchTerm,
         showDropdown: showCustomerDropdown,
         setShowDropdown: setShowCustomerDropdown,
     } = useCustomerSearch();
+
+    const handleNewCustomerSubmit = async (data: CustomerInput) => {
+        try {
+            const res = await fetch('/api/customers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+            if (res.ok) {
+                const newCustomer = await res.json();
+                setCustomers(prev => [...prev, newCustomer]);
+                setFormData(prev => ({
+                    ...prev,
+                    customerId: newCustomer.id,
+                    customerName: newCustomer.name,
+                }));
+                setCustomerSearchTerm('');
+                setShowNewCustomerModal(false);
+                toast.success('顧客を登録しました');
+            } else {
+                toast.error('顧客の登録に失敗しました');
+            }
+        } catch {
+            toast.error('顧客の登録に失敗しました');
+        }
+    };
 
     useEffect(() => {
         const fetchManagers = async () => {
@@ -55,6 +86,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
     }, []);
 
     return (
+        <>
         <div className="space-y-4">
             {/* 工事内容 */}
             <FormField label="工事内容" required>
@@ -156,7 +188,8 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                             <button
                                 type="button"
                                 onClick={() => {
-                                    window.open('/customers', '_blank');
+                                    setShowCustomerDropdown(false);
+                                    setShowNewCustomerModal(true);
                                 }}
                                 className="w-full px-4 py-2 text-left text-slate-600 hover:bg-slate-50 flex items-center gap-2 border-t"
                             >
@@ -182,5 +215,13 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                 </div>
             </FormField>
         </div>
+
+        <CustomerModal
+            isOpen={showNewCustomerModal}
+            onClose={() => setShowNewCustomerModal(false)}
+            onSubmit={handleNewCustomerSubmit}
+            title="新規顧客登録"
+        />
+        </>
     );
 }
