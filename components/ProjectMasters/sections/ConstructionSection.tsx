@@ -71,7 +71,7 @@ function DateConflictList({
 }
 
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
-    const { getForemanName } = useCalendarDisplay();
+    const { getForemanName, displayedForemanIds } = useCalendarDisplay();
 
     const [assemblyAssignments, setAssemblyAssignments] = useState<ProjectAssignment[]>([]);
     const [demolitionAssignments, setDemolitionAssignments] = useState<ProjectAssignment[]>([]);
@@ -83,31 +83,37 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
         setIsLoadingAssembly(true);
         try {
             const data = await fetchAssignmentsForDate(date);
-            setAssemblyAssignments(data);
+            // 週間カレンダーに表示されている職長の案件のみに絞る
+            setAssemblyAssignments(
+                data.filter(a => displayedForemanIds.includes(a.assignedEmployeeId))
+            );
         } finally {
             setIsLoadingAssembly(false);
         }
-    }, []);
+    }, [displayedForemanIds]);
 
     const loadDemolitionAssignments = useCallback(async (date: string) => {
         if (!date) { setDemolitionAssignments([]); return; }
         setIsLoadingDemolition(true);
         try {
             const data = await fetchAssignmentsForDate(date);
-            setDemolitionAssignments(data);
+            // 週間カレンダーに表示されている職長の案件のみに絞る
+            setDemolitionAssignments(
+                data.filter(a => displayedForemanIds.includes(a.assignedEmployeeId))
+            );
         } finally {
             setIsLoadingDemolition(false);
         }
-    }, []);
+    }, [displayedForemanIds]);
 
-    // 初期値があればロード（編集時）
+    // 初期値があればロード（編集時 & displayedForemanIds ロード後の再フィルタ）
     useEffect(() => {
         if (formData.assemblyDate) loadAssemblyAssignments(formData.assemblyDate);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [formData.assemblyDate, loadAssemblyAssignments]);
 
     useEffect(() => {
         if (formData.demolitionDate) loadDemolitionAssignments(formData.demolitionDate);
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [formData.demolitionDate, loadDemolitionAssignments]);
 
     return (
         <div className="space-y-4">
