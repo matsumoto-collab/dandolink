@@ -17,11 +17,15 @@ const DEFAULT_ZOOM = 15;
 /** forcedCenter の変化を検知して地図を移動させる */
 function MapController({ forcedCenter }: { forcedCenter?: { lat: number; lng: number } }) {
     const map = useMap();
-    const prevRef = useRef(forcedCenter);
+    // undefined で初期化することで、マウント時点で forcedCenter が設定済みでも必ず panTo を実行する
+    const prevRef = useRef<{ lat: number; lng: number } | undefined>(undefined);
 
     useEffect(() => {
         if (!map || !forcedCenter) return;
-        if (forcedCenter !== prevRef.current) {
+        if (
+            forcedCenter.lat !== prevRef.current?.lat ||
+            forcedCenter.lng !== prevRef.current?.lng
+        ) {
             prevRef.current = forcedCenter;
             map.panTo(forcedCenter);
         }
