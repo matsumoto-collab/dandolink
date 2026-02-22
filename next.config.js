@@ -23,6 +23,11 @@ const nextConfig = {
     experimental: {
         esmExternals: 'loose',
     },
+    webpack: (config) => {
+        // react-pdf / pdfjs-dist はブラウザ専用 API を使うため SSR バンドルから除外
+        config.resolve.alias.canvas = false;
+        return config;
+    },
     // セキュリティヘッダー
     async headers() {
         return [

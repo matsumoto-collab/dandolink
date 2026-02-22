@@ -5,8 +5,13 @@ import Image from 'next/image';
 import imageCompression from 'browser-image-compression';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import dynamic from 'next/dynamic';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
-import { PdfViewer } from '@/components/ui/PdfViewer';
+
+const PdfViewer = dynamic(
+    () => import('@/components/ui/PdfViewer').then(m => m.PdfViewer),
+    { ssr: false }
+);
 
 const IMAGE_COMPRESSION_OPTIONS = {
     maxSizeMB: 1,
