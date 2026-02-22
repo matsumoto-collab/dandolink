@@ -4,40 +4,41 @@ import React, { useCallback, useEffect, useRef } from 'react';
 import { APIProvider, Map, MapCameraChangedEvent, useMap } from '@vis.gl/react-google-maps';
 
 interface LocationPickerProps {
-    lat: number;
-    lng: number;
+    /** 初期表示位置（マウント時のみ使用・以降は地図を自由操作） */
+    defaultCenter: { lat: number; lng: number };
+    /** GPSボタン等で地図を強制移動させたい時にセット（変更を検知してpanTo） */
+    forcedCenter?: { lat: number; lng: number };
     onLocationChange: (lat: number, lng: number) => void;
 }
 
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '';
 const DEFAULT_ZOOM = 15;
 
-// GPS ボタン等で外部から座標が変わった時だけ地図を移動させる内部コンポーネント
-function MapController({ lat, lng }: { lat: number; lng: number }) {
+/** forcedCenter の変化を検知して地図を移動させる */
+function MapController({ forcedCenter }: { forcedCenter?: { lat: number; lng: number } }) {
     const map = useMap();
-    const prevRef = useRef({ lat, lng });
+    const prevRef = useRef(forcedCenter);
 
     useEffect(() => {
-        if (!map) return;
-        if (lat !== prevRef.current.lat || lng !== prevRef.current.lng) {
-            prevRef.current = { lat, lng };
-            map.panTo({ lat, lng });
+        if (!map || !forcedCenter) return;
+        if (forcedCenter !== prevRef.current) {
+            prevRef.current = forcedCenter;
+            map.panTo(forcedCenter);
         }
-    }, [map, lat, lng]);
+    }, [map, forcedCenter]);
 
     return null;
 }
 
-export function LocationPicker({ lat, lng, onLocationChange }: LocationPickerProps) {
+export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }: LocationPickerProps) {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // 地図が止まったら中心座標を親へ通知
     const handleCameraChanged = useCallback(
         (e: MapCameraChangedEvent) => {
-            const { lat: newLat, lng: newLng } = e.detail.center;
+            const { lat, lng } = e.detail.center;
             if (debounceRef.current) clearTimeout(debounceRef.current);
             debounceRef.current = setTimeout(() => {
-                onLocationChange(newLat, newLng);
+                onLocationChange(lat, lng);
             }, 300);
         },
         [onLocationChange]
@@ -47,13 +48,13 @@ export function LocationPicker({ lat, lng, onLocationChange }: LocationPickerPro
         <APIProvider apiKey={API_KEY}>
             <div className="relative border border-gray-200 rounded-lg overflow-hidden" style={{ height: 280 }}>
                 <Map
-                    defaultCenter={{ lat, lng }}
+                    defaultCenter={defaultCenter}
                     defaultZoom={DEFAULT_ZOOM}
                     gestureHandling="greedy"
                     disableDefaultUI={false}
                     onCameraChanged={handleCameraChanged}
                 >
-                    <MapController lat={lat} lng={lng} />
+                    <MapController forcedCenter={forcedCenter} />
                 </Map>
 
                 {/* 中央固定ピン */}
