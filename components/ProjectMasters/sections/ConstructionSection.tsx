@@ -13,32 +13,51 @@ interface ConstructionSectionProps {
 }
 
 /**
- * 指定日の案件一覧を取得する。
- * endDate に翌日を渡すことで lte の厳密一致問題を回避し、client 側でフィルタする。
+ * UTC の Date を日本標準時（JST = UTC+9）の日付文字列 "YYYY-MM-DD" に変換する。
+ * カレンダーで登録した配置は JST 日付で管理されるが、DB には UTC で保存されるため
+ * 比較には必ずこの変換を使う。
+ */
+function toJSTDateStr(date: Date | string): string {
+    return new Intl.DateTimeFormat('ja-JP', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(new Date(date)).replace(/\//g, '-'); // "2026/02/16" → "2026-02-16"
+}
+
+/**
+ * 指定日（JST）の案件一覧を取得する。
+ * JST midnight は UTC では前日 15:00 なので、前日〜翌日の範囲でクエリして
+ * クライアント側で JST に変換してフィルタする。
  */
 async function fetchAssignmentsForDate(date: string): Promise<ProjectAssignment[]> {
-    const nextDay = new Date(`${date}T00:00:00Z`);
+    const base = new Date(`${date}T00:00:00Z`);
+    const prevDay = new Date(base);
+    prevDay.setUTCDate(prevDay.getUTCDate() - 1);
+    const nextDay = new Date(base);
     nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-    const nextDayStr = nextDay.toISOString().split('T')[0];
 
     const res = await fetch(
-        `/api/assignments?startDate=${date}&endDate=${nextDayStr}`,
+        `/api/assignments?startDate=${prevDay.toISOString().slice(0, 10)}&endDate=${nextDay.toISOString().slice(0, 10)}`,
         { cache: 'no-store' }
     );
     if (!res.ok) return [];
     const all: ProjectAssignment[] = await res.json();
-    // 当日分のみ（日付文字列の先頭10文字で比較）
-    return all.filter(a => new Date(a.date).toISOString().slice(0, 10) === date);
+    // JST で当日分のみ残す
+    return all.filter(a => toJSTDateStr(a.date) === date);
 }
 
 /** 日付に紐づく既存案件リスト */
 function DateConflictList({
     assignments,
     getForemanName,
+    totalForemanCount,
     isLoading,
 }: {
     assignments: ProjectAssignment[];
     getForemanName: (id: string) => string;
+    totalForemanCount: number;
     isLoading: boolean;
 }) {
     if (isLoading) {
@@ -51,10 +70,14 @@ function DateConflictList({
     }
     if (assignments.length === 0) return null;
 
+    const busyForemanCount = new Set(assignments.map(a => a.assignedEmployeeId)).size;
+    const remaining = totalForemanCount > 0 ? totalForemanCount - busyForemanCount : null;
+
     return (
         <div className="mt-2 space-y-1">
             <p className="text-xs font-medium text-amber-600">
-                この日に既に入っている案件（{assignments.length}件）
+                この日に既に入っている案件（{assignments.length}件
+                {remaining !== null && ` / 残${remaining}人`}）
             </p>
             {assignments.map(a => (
                 <div
@@ -263,6 +286,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                     <DateConflictList
                         assignments={assemblyAssignments}
                         getForemanName={getForemanName}
+                        totalForemanCount={allForemen.length}
                         isLoading={isLoadingAssembly}
                     />
                     <ForemanSelector
@@ -289,6 +313,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                     <DateConflictList
                         assignments={demolitionAssignments}
                         getForemanName={getForemanName}
+                        totalForemanCount={allForemen.length}
                         isLoading={isLoadingDemolition}
                     />
                     <ForemanSelector
