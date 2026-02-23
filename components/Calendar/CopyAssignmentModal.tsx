@@ -83,18 +83,16 @@ export default function CopyAssignmentModal({
     if (!isOpen || !event) return null;
 
     return (
-        <>
-            {/* オーバーレイ */}
+        <div className="fixed inset-0 z-50 flex flex-col lg:items-center lg:justify-center lg:bg-black/50">
+            {/* オーバーレイ（デスクトップのみ） */}
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 z-50"
+                className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block"
                 onClick={onClose}
             />
 
-            {/* モーダル */}
-            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-                <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-lg lg:max-w-md lg:h-auto">
                     {/* ヘッダー */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                    <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 pwa-modal-safe">
                         <div className="flex items-center gap-2">
                             <Copy className="w-5 h-5 text-slate-600" />
                             <h2 className="text-lg font-semibold text-gray-800">案件をコピー</h2>
@@ -108,7 +106,7 @@ export default function CopyAssignmentModal({
                     </div>
 
                     {/* コンテンツ */}
-                    <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4">
                         {/* コピー元情報 */}
                         <div className="bg-gray-50 rounded-lg p-4">
                             <div className="text-sm text-gray-500 mb-1">コピー元</div>
@@ -213,8 +211,7 @@ export default function CopyAssignmentModal({
                             </button>
                         </div>
                     </form>
-                </div>
             </div>
-        </>
+        </div>
     );
 }

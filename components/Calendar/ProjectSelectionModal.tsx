@@ -18,15 +18,15 @@ export default function ProjectSelectionModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* オーバーレイ */}
+        <div className="fixed inset-0 z-50 flex flex-col lg:items-center lg:justify-center lg:bg-black/50">
+            {/* オーバーレイ（デスクトップのみ） */}
             <div
-                className="absolute inset-0 bg-black/50"
+                className="absolute inset-0 bg-black/50 hidden lg:block"
                 onClick={onClose}
             />
 
             {/* モーダル本体 */}
-            <div className="relative bg-white rounded-lg shadow-lg p-6 w-full max-w-sm mx-4">
+            <div className="relative bg-white flex flex-col items-center justify-center w-full h-full lg:rounded-lg lg:shadow-lg lg:h-auto lg:max-w-sm lg:mx-4 p-6">
                 <h3 className="text-lg font-semibold text-slate-800 mb-4 text-center">
                     案件の登録方法を選択
                 </h3>

@@ -145,10 +145,11 @@ export default function DispatchConfirmModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex flex-col lg:items-center lg:justify-center lg:bg-black/50">
+            <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={onClose} />
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-lg lg:max-w-2xl lg:h-auto lg:max-h-[90vh] lg:overflow-hidden">
                 {/* ヘッダー */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-800">
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-800 pwa-modal-safe">
                     <div>
                         <h2 className="text-lg font-semibold text-white">手配確定</h2>
                         <p className="text-sm text-slate-400">{project.title}</p>
@@ -162,7 +163,7 @@ export default function DispatchConfirmModal({
                 </div>
 
                 {/* コンテンツ */}
-                <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+                <div className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-6">
                     {isLoadingUsers ? (
                         <div className="flex items-center justify-center py-8">
                             <Loading text="ユーザーデータを読み込み中..." />
@@ -271,7 +272,7 @@ export default function DispatchConfirmModal({
                 </div>
 
                 {/* フッター */}
-                <div className="flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 safe-area-bottom">
                     <div>
                         {project.isDispatchConfirmed && (
                             <button
@@ -304,3 +305,4 @@ export default function DispatchConfirmModal({
         </div>
     );
 }
+

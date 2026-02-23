@@ -79,17 +79,17 @@ export default function ProjectModal({
     };
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex items-start pt-[4.5rem] lg:items-center lg:pt-0 justify-center overflow-y-auto pwa-modal-offset-safe">
-            {/* オーバーレイ */}
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col lg:items-center lg:justify-center lg:bg-black/50">
+            {/* オーバーレイ（デスクトップのみ） */}
             <div
-                className="absolute inset-0 bg-black bg-opacity-50"
+                className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block"
                 onClick={onClose}
             />
 
             {/* モーダルコンテンツ */}
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-6rem)] lg:max-h-[90vh] overflow-y-auto mb-4 lg:mb-0 shrink-0">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:h-auto lg:max-h-[90vh]">
                 {/* ヘッダー */}
-                <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between z-10">
+                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between pwa-modal-safe">
                     <div className="flex items-center gap-3">
                         <h2 className="text-xl font-semibold text-gray-900">{modalTitle}</h2>
                         {otherEditingUsers.length > 0 && (
@@ -107,7 +107,7 @@ export default function ProjectModal({
                 </div>
 
                 {/* コンテンツ */}
-                <div className="px-6 py-4">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4">
                     {initialData?.id && (!isEditMode || readOnly) ? (
                         // 既存案件の閲覧モード（readOnlyの場合は常に閲覧モード）
                         <ProjectDetailView
