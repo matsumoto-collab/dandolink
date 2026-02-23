@@ -37,6 +37,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     const [mounted, setMounted] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
     const lastPinchDist = useRef<number | null>(null);
+    const gestureBaseScale = useRef(1);
 
     // createPortal はクライアント側のみ
     useEffect(() => setMounted(true), []);
@@ -86,12 +87,44 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         return () => { document.body.style.overflow = original; };
     }, []);
 
-    // ピンチズーム: 非passive touchmove でブラウザのピンチズームを抑制して独自実装
+    // ピンチズーム: iOS Safari は GestureEvent API、その他は TouchEvent で対応
     // mounted を依存にすることで createPortal 後に確実に contentRef が取れる
     useEffect(() => {
         const el = contentRef.current;
         if (!el) return;
 
+        // --- iOS Safari: WebKit GestureEvent API ---
+        // touchmove ベースのピンチは iOS のコンポジター層で横取りされるが、
+        // GestureEvent は別のイベントパスなので確実に発火する
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+        if (isIOS) {
+            const onGestureStart = (e: Event) => {
+                e.preventDefault(); // ブラウザのネイティブズームを阻止
+                gestureBaseScale.current = scale;
+            };
+            const onGestureChange = (e: Event) => {
+                e.preventDefault();
+                const ge = e as unknown as { scale: number };
+                const newScale = gestureBaseScale.current * ge.scale;
+                setScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale)));
+            };
+            const onGestureEnd = (e: Event) => {
+                e.preventDefault();
+            };
+
+            el.addEventListener('gesturestart', onGestureStart, { capture: true });
+            el.addEventListener('gesturechange', onGestureChange, { capture: true });
+            el.addEventListener('gestureend', onGestureEnd, { capture: true });
+            return () => {
+                el.removeEventListener('gesturestart', onGestureStart, { capture: true });
+                el.removeEventListener('gesturechange', onGestureChange, { capture: true });
+                el.removeEventListener('gestureend', onGestureEnd, { capture: true });
+            };
+        }
+
+        // --- Android / その他: TouchEvent ベース ---
         const onTouchStart = (e: TouchEvent) => {
             if (e.touches.length === 2) {
                 lastPinchDist.current = Math.hypot(
@@ -100,10 +133,9 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 );
             }
         };
-
         const onTouchMove = (e: TouchEvent) => {
             if (e.touches.length !== 2) return;
-            e.preventDefault(); // ブラウザのピンチズームを阻止（non-passive必須）
+            e.preventDefault();
             const dist = Math.hypot(
                 e.touches[1].clientX - e.touches[0].clientX,
                 e.touches[1].clientY - e.touches[0].clientY
@@ -114,11 +146,8 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             }
             lastPinchDist.current = dist;
         };
-
         const onTouchEnd = () => { lastPinchDist.current = null; };
 
-        // capture: true でキャプチャフェーズに登録
-        // → canvas が stopPropagation しても先に発火するため PDF 上のピンチズームが効く
         el.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
         el.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
         el.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
@@ -127,7 +156,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             el.removeEventListener('touchmove', onTouchMove, { capture: true });
             el.removeEventListener('touchend', onTouchEnd, { capture: true });
         };
-    }, [mounted]);
+    }, [mounted, scale]);
 
     // scale に応じて実際の描画幅を決定（CSS transform ではなく width prop で制御）
     // → ヒットテストが常に正確、スクロール範囲も実サイズに追従
