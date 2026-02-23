@@ -65,7 +65,9 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 const data = await res.json();
                 const addr = data.address ?? {};
                 const prefecture = addr.state ?? '';
-                const city = addr.city ?? addr.town ?? addr.village ?? addr.county ?? '';
+                const baseCity = addr.city ?? addr.town ?? addr.village ?? addr.county ?? '';
+                const suburb = addr.suburb ?? addr.neighbourhood ?? addr.hamlet ?? addr.quarter ?? '';
+                const city = suburb ? `${baseCity}${suburb}` : baseCity;
                 setFormData(prev => ({
                     ...prev,
                     prefecture: prefecture || prev.prefecture,
