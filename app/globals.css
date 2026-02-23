@@ -126,4 +126,16 @@ body {
   .pwa-sidebar-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
+
+  /* フルスクリーンモーダル用: inset-0 の上部に safe area 分のパディング */
+  .pwa-modal-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+
+  /* pt-[4.5rem] 系モーダル用: PWA モードで safe area 分を加算 */
+  @media (max-width: 1023px) {
+    .pwa-modal-offset-safe {
+      padding-top: calc(4.5rem + env(safe-area-inset-top, 0px)) !important;
+    }
+  }
 }

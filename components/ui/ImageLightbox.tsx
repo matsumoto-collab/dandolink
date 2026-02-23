@@ -47,7 +47,7 @@ export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxPr
     const hasMultiple = images.length > 1;
 
     return (
-        <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 select-none">
+        <div className="fixed inset-0 z-[100] flex flex-col bg-black/95 select-none pwa-modal-safe">
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 py-3 shrink-0">
                 <span className="text-white/70 text-sm truncate max-w-xs md:max-w-md" title={current.alt}>

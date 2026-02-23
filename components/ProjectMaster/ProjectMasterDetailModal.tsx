@@ -105,7 +105,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     const isEditMode = mode === 'edit';
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex items-start pt-[4.5rem] lg:items-center lg:pt-0 justify-center overflow-y-auto">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex items-start pt-[4.5rem] lg:items-center lg:pt-0 justify-center overflow-y-auto pwa-modal-offset-safe">
             {/* オーバーレイ */}
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={handleClose} />
 
