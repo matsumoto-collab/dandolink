@@ -117,13 +117,15 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
 
         const onTouchEnd = () => { lastPinchDist.current = null; };
 
-        el.addEventListener('touchstart', onTouchStart, { passive: true });
-        el.addEventListener('touchmove', onTouchMove, { passive: false }); // non-passive
-        el.addEventListener('touchend', onTouchEnd, { passive: true });
+        // capture: true でキャプチャフェーズに登録
+        // → canvas が stopPropagation しても先に発火するため PDF 上のピンチズームが効く
+        el.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+        el.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+        el.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
         return () => {
-            el.removeEventListener('touchstart', onTouchStart);
-            el.removeEventListener('touchmove', onTouchMove);
-            el.removeEventListener('touchend', onTouchEnd);
+            el.removeEventListener('touchstart', onTouchStart, { capture: true });
+            el.removeEventListener('touchmove', onTouchMove, { capture: true });
+            el.removeEventListener('touchend', onTouchEnd, { capture: true });
         };
     }, [mounted]);
 
