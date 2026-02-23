@@ -3,7 +3,6 @@
 import React from 'react';
 import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
-import { unassignedEmployee } from '@/data/mockEmployees';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import CalendarHeader from './CalendarHeader';
@@ -120,7 +119,7 @@ export default function DesktopCalendarView({
                             <div className="flex border-b-2 border-slate-400 bg-gradient-to-r from-slate-100 to-slate-50 h-9">
                                 <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-400 shadow-md">
                                     <div className="w-32 h-full flex items-center justify-center">
-                                        <span className="text-xs font-bold text-slate-700 tracking-wide truncate">{unassignedEmployee.name}</span>
+                                        <span className="text-xs font-bold text-slate-700 tracking-wide truncate">{'残り人数'}</span>
                                     </div>
                                 </div>
                                 {weekDays.map((day, index) => {

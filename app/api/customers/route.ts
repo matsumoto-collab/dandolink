@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
                     total,
                     totalPages: Math.ceil(total / limitNum),
                 },
-            });
+            }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         // 全件取得
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
             orderBy: { name: 'asc' },
         });
 
-        return NextResponse.json(customers.map(parseCustomer));
+        return NextResponse.json(customers.map(parseCustomer), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('顧客一覧の取得', error);
     }

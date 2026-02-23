@@ -25,11 +25,11 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
                 data: estimates.map(formatEstimate),
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
-            });
+            }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const estimates = await prisma.estimate.findMany({ orderBy: { createdAt: 'desc' } });
-        return NextResponse.json(estimates.map(formatEstimate));
+        return NextResponse.json(estimates.map(formatEstimate), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('見積一覧の取得', error);
     }

@@ -6,7 +6,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
-import { mockEmployees } from '@/data/mockEmployees';
+import { useCalendarStore } from '@/stores/calendarStore';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
@@ -17,23 +17,24 @@ const ProjectModal = dynamic(
 
 export default function ProjectListPage() {
     const { projects, addProject, updateProject, deleteProject, refreshProjects, isLoading } = useProjects();
+    const getForemanName = useCalendarStore((state) => state.getForemanName);
+    const fetchForemen = useCalendarStore((state) => state.fetchForemen);
+    const foremanInitialized = useCalendarStore((state) => state.foremanSettingsInitialized);
 
     // ページ表示時に全件取得（カレンダーとは独立してフェッチ）
     useEffect(() => {
         refreshProjects();
     }, [refreshProjects]);
 
+    useEffect(() => {
+        if (!foremanInitialized) fetchForemen();
+    }, [foremanInitialized, fetchForemen]);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProject, setEditingProject] = useState<Partial<Project> | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
     const [_isSubmitting, setIsSubmitting] = useState(false);
-
-    // 職長名を取得
-    const getEmployeeName = (employeeId: string) => {
-        const employee = mockEmployees.find(emp => emp.id === employeeId);
-        return employee?.name || '未割り当て';
-    };
 
     // フィルタリングとソート
     const filteredAndSortedProjects = projects
@@ -213,7 +214,7 @@ export default function ProjectListPage() {
                                         {formatDate(project.startDate, 'short')}
                                     </span>
                                     <span>
-                                        職長: {getEmployeeName(project.assignedEmployeeId ?? '')}
+                                        職長: {getForemanName(project.assignedEmployeeId ?? '')}
                                     </span>
                                     <span>
                                         {project.workers?.length || 0}人
@@ -291,7 +292,7 @@ export default function ProjectListPage() {
                                         {formatDate(project.startDate, 'full')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                                        {getEmployeeName(project.assignedEmployeeId ?? '')}
+                                        {getForemanName(project.assignedEmployeeId ?? '')}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                         {project.workers?.length || 0}人

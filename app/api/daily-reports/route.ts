@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
         }
 
         const dailyReports = await prisma.dailyReport.findMany({ where, select: reportSelect, orderBy: [{ date: 'desc' }, { foremanId: 'asc' }] });
-        return NextResponse.json(dailyReports);
+        return NextResponse.json(dailyReports, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('日報一覧取得', error);
     }

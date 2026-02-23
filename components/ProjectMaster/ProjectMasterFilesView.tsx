@@ -3,13 +3,19 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { FileText, Folder, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
+const PdfViewer = dynamic(
+    () => import('@/components/ui/PdfViewer').then(m => m.PdfViewer),
+    { ssr: false }
+);
+
 const CATEGORIES = [
-    { key: 'survey',      label: '現調写真' },
-    { key: 'assembly',    label: '組立' },
-    { key: 'demolition',  label: '解体' },
-    { key: 'other',       label: 'その他' },
+    { key: 'survey', label: '現調写真' },
+    { key: 'assembly', label: '組立' },
+    { key: 'demolition', label: '解体' },
+    { key: 'other', label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
 ] as const;
 
@@ -194,25 +200,13 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                 </div>
             )}
 
-            {/* PDFビューアモーダル（全画面） */}
+            {/* PDFビューア（react-pdf） */}
             {pdfView && (
-                <div className="fixed inset-0 z-[60] flex flex-col bg-black/90">
-                    <div className="flex items-center justify-between px-4 bg-gray-900 shrink-0 min-h-[56px]">
-                        <span className="text-sm text-white truncate flex-1 mr-3">{pdfView.name}</span>
-                        <button
-                            type="button"
-                            onClick={() => setPdfView(null)}
-                            className="p-2 rounded-lg hover:bg-white/10 text-white transition-colors shrink-0 min-w-[44px] min-h-[44px] flex items-center justify-center"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
-                    <iframe
-                        src={pdfView.url}
-                        className="flex-1 w-full"
-                        title={pdfView.name}
-                    />
-                </div>
+                <PdfViewer
+                    url={pdfView.url}
+                    fileName={pdfView.name}
+                    onClose={() => setPdfView(null)}
+                />
             )}
 
             {/* 画像ライトボックス */}

@@ -25,11 +25,11 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({
                 data: invoices.map(formatInvoice),
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
-            });
+            }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const invoices = await prisma.invoice.findMany({ orderBy: { createdAt: 'desc' } });
-        return NextResponse.json(invoices.map(formatInvoice));
+        return NextResponse.json(invoices.map(formatInvoice), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求書一覧の取得', error);
     }
