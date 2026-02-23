@@ -26,8 +26,8 @@ export default function ProjectSelectionModal({
             />
 
             {/* モーダル本体 */}
-            <div className="relative bg-white flex flex-col items-center justify-center w-full h-full lg:rounded-lg lg:shadow-lg lg:h-auto lg:max-w-sm lg:mx-4 p-6">
-                <h3 className="text-lg font-semibold text-slate-800 mb-4 text-center">
+            <div className="relative bg-white flex flex-col justify-center w-full h-full lg:rounded-lg lg:shadow-xl lg:h-auto lg:w-[400px] lg:max-w-full lg:mx-4 p-8">
+                <h3 className="text-xl font-bold text-slate-800 mb-4 text-center">
                     案件の登録方法を選択
                 </h3>
 
