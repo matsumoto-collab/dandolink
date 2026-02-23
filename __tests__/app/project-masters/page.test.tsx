@@ -97,7 +97,7 @@ describe('ProjectMasterListPage', () => {
 
     it('should render project master list', () => {
         render(<ProjectMasterListPage />);
-        expect(screen.getByText('案件マスター管理')).toBeInTheDocument();
+        expect(screen.getByText('案件一覧')).toBeInTheDocument();
         // Default filter is 'active', so only Master Project 1 should be visible
         expect(screen.getByText('Master Project 1')).toBeInTheDocument();
         expect(screen.queryByText('Master Project 2')).not.toBeInTheDocument();
