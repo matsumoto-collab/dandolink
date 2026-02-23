@@ -42,6 +42,13 @@ const nextConfig = {
                     { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
                 ],
             },
+            // PDF workerは変更頻度が低い静的ファイルなので長期キャッシュ
+            {
+                source: '/pdf.worker.min.mjs',
+                headers: [
+                    { key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' },
+                ],
+            },
         ];
     },
 }
