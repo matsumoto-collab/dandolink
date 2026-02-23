@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { MapPin, Crosshair, Loader2 } from 'lucide-react';
 import { FormField } from '../common/FormField';
@@ -44,10 +44,23 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const [showMap, setShowMap] = useState(false);
     const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
     const [inputMode, setInputMode] = useState<InputMode>('address');
+    // 住所モード用: iframe に渡すクエリ（デバウンス済み）
+    const [iframeQuery, setIframeQuery] = useState(
+        [formData.prefecture, formData.city, formData.location].filter(Boolean).join('')
+    );
+    const iframeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const skipReverseGeocodeRef = useRef(false);
-    const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    // 住所フィールドに何か入力があれば地図を表示
+    // 住所フィールド変更時に iframe クエリをデバウンス更新（住所モードのみ）
+    useEffect(() => {
+        if (inputMode !== 'address') return;
+        const query = [formData.prefecture, formData.city, formData.location].filter(Boolean).join('');
+        if (iframeDebounceRef.current) clearTimeout(iframeDebounceRef.current);
+        iframeDebounceRef.current = setTimeout(() => setIframeQuery(query), 800);
+        return () => { if (iframeDebounceRef.current) clearTimeout(iframeDebounceRef.current); };
+    }, [formData.prefecture, formData.city, formData.location, inputMode]);
+
+    // 地図モード用
     const hasAddress = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
     const mapVisible = showMap || hasAddress;
 
@@ -56,7 +69,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         lng: formData.longitude ?? FALLBACK.lng,
     };
 
-    // Nominatim 逆ジオコーディング（座標 → 住所）
+    // Nominatim 逆ジオコーディング（座標 → 住所）※地図モードのみ使用
     const reverseGeocode = useCallback(async (lat: number, lng: number) => {
         setIsReverseGeocoding(true);
         try {
@@ -84,7 +97,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData]);
 
-    // Nominatim 前方ジオコーディング（住所 → 座標）
+    // Nominatim 前方ジオコーディング（住所 → 座標）※地図モードのみ使用
     const forwardGeocode = useCallback(async (query: string) => {
         try {
             const res = await fetch(
@@ -107,9 +120,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData]);
 
-    // 地図の中心が変わったら座標を反映
-    // 地図先行モード: 逆ジオコーディングで住所も更新
-    // 住所先行モード: 座標のみ更新（住所フィールドは触らない）
+    // 地図の中心が変わったら座標を反映（地図モード: 逆ジオコーディングも実行）
     const handleLocationChange = useCallback(async (lat: number, lng: number) => {
         const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
@@ -122,7 +133,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData, reverseGeocode, inputMode]);
 
-    // 現在地アイコンボタン
+    // 現在地ボタン（地図モードで使用）
     const handleGetCurrentLocation = () => {
         if (!navigator.geolocation) {
             toast.error('この端末ではGPSが利用できません');
@@ -167,8 +178,10 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             const address = await fetchAddress(value);
             if (address) {
                 setFormData(prev => ({ ...prev, prefecture: address.prefecture, city: address.city }));
-                // 住所から座標を取得して地図を自動センタリング
-                await forwardGeocode(`${address.prefecture}${address.city}`);
+                // 地図モードのみ座標も更新
+                if (inputMode === 'map') {
+                    await forwardGeocode(`${address.prefecture}${address.city}`);
+                }
             }
         }
     };
@@ -243,22 +256,13 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) => {
-                        const value = e.target.value;
-                        setFormData(prev => ({ ...prev, location: value }));
-                        if (inputMode !== 'address') return;
-                        if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
-                        if (value.trim() && formData.prefecture && formData.city) {
-                            locationDebounceRef.current = setTimeout(() => {
-                                forwardGeocode(`${formData.prefecture}${formData.city}${value}`);
-                            }, 800);
-                        }
-                    }}
+                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="番地、建物名など"
                 />
             </FormField>
 
+            {/* 地図エリア */}
             <div>
                 <div className="flex items-center justify-between mb-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
@@ -270,44 +274,66 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                             </span>
                         )}
                     </label>
-                    <button
-                        type="button"
-                        onClick={handleGetCurrentLocation}
-                        disabled={isGettingLocation}
-                        title="現在地を取得して地図を表示"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 rounded-lg transition-colors"
-                    >
-                        {isGettingLocation
-                            ? <><Loader2 className="w-4 h-4 animate-spin" />取得中...</>
-                            : <><Crosshair className="w-4 h-4" />現在地</>
-                        }
-                    </button>
+                    {inputMode === 'map' && (
+                        <button
+                            type="button"
+                            onClick={handleGetCurrentLocation}
+                            disabled={isGettingLocation}
+                            title="現在地を取得して地図を表示"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white bg-slate-700 hover:bg-slate-600 disabled:bg-slate-400 rounded-lg transition-colors"
+                        >
+                            {isGettingLocation
+                                ? <><Loader2 className="w-4 h-4 animate-spin" />取得中...</>
+                                : <><Crosshair className="w-4 h-4" />現在地</>
+                            }
+                        </button>
+                    )}
                 </div>
 
-                {inputMode === 'map' && (
-                    <p className="text-xs text-gray-500 mb-2">
-                        地図をドラッグすると都道府県・市区町村が自動で入力されます
-                    </p>
-                )}
-
-                {mapVisible ? (
-                    <LocationPicker
-                        defaultCenter={defaultCenter}
-                        forcedCenter={forcedCenter}
-                        onLocationChange={handleLocationChange}
-                    />
+                {inputMode === 'address' ? (
+                    /* 住所モード: Google Maps iframe プレビュー */
+                    iframeQuery ? (
+                        <div className="border border-gray-300 rounded-lg overflow-hidden">
+                            <iframe
+                                width="100%"
+                                height="280"
+                                style={{ border: 0 }}
+                                src={`https://maps.google.com/maps?q=${encodeURIComponent(iframeQuery)}&output=embed`}
+                                title="地図プレビュー"
+                                allowFullScreen
+                            />
+                        </div>
+                    ) : (
+                        <div className="h-[200px] bg-gray-50 border border-gray-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 select-none">
+                            <MapPin className="w-8 h-8" />
+                            <p className="text-sm">住所を入力すると地図が表示されます</p>
+                        </div>
+                    )
                 ) : (
-                    <div className="h-[200px] bg-gray-50 border border-gray-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 select-none">
-                        <MapPin className="w-8 h-8" />
-                        <p className="text-sm">住所を入力すると地図が表示されます</p>
-                        <p className="text-xs">または「現在地」ボタンで現在地から入力できます</p>
-                    </div>
-                )}
-
-                {formData.latitude != null && (
-                    <p className="text-xs text-gray-500 mt-1">
-                        座標: {formData.latitude.toFixed(6)}, {formData.longitude?.toFixed(6)}
-                    </p>
+                    /* 地図モード: インタラクティブ LocationPicker */
+                    <>
+                        <p className="text-xs text-gray-500 mb-2">
+                            地図をドラッグすると都道府県・市区町村が自動で入力されます
+                        </p>
+                        {mapVisible ? (
+                            <LocationPicker
+                                defaultCenter={defaultCenter}
+                                forcedCenter={forcedCenter}
+                                onLocationChange={handleLocationChange}
+                            />
+                        ) : (
+                            <div className="h-[200px] bg-gray-50 border border-gray-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 select-none">
+                                <MapPin className="w-8 h-8" />
+                                <p className="text-sm">住所を入力すると地図が表示されます</p>
+                                <p className="text-xs">または「現在地」ボタンで現在地から入力できます</p>
+                            </div>
+                        )}
+                        {formData.latitude != null && (
+                            <p className="text-xs text-gray-500 mt-1">
+                                座標: {formData.latitude.toFixed(6)}, {formData.longitude?.toFixed(6)}
+                            </p>
+                        )}
+                    </>
                 )}
             </div>
         </div>
