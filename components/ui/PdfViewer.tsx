@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, ZoomIn, ZoomOut } from 'lucide-react';
 
 interface PdfViewerProps {
@@ -33,16 +34,20 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     const [scale, setScale] = useState(1);
     const [PdfDocument, setPdfDocument] = useState<DocumentComponent | null>(null);
     const [PdfPage, setPdfPage] = useState<PageComponent | null>(null);
+    const [mounted, setMounted] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
+    const lastPinchDist = useRef<number | null>(null);
 
-    // コンテナ幅を測定
+    // createPortal はクライアント側のみ
+    useEffect(() => setMounted(true), []);
+
+    // コンテナ幅を測定（スケール計算の基準）
     useEffect(() => {
         const measure = () => {
             if (contentRef.current) {
                 setContainerWidth(contentRef.current.clientWidth);
             }
         };
-        // 少し遅延して測定（safe area 反映待ち）
         const timer = setTimeout(measure, 50);
         window.addEventListener('resize', measure);
         return () => {
@@ -74,32 +79,83 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         return () => document.removeEventListener('keydown', handleKey);
     }, [onClose, numPages]);
 
-    // body スクロール無効化（モバイルで背景がスクロールしないように）
+    // body スクロール無効化
     useEffect(() => {
         const original = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => { document.body.style.overflow = original; };
     }, []);
 
+    // ピンチズーム: 非passive touchmove でブラウザのピンチズームを抑制して独自実装
+    useEffect(() => {
+        const el = contentRef.current;
+        if (!el) return;
+
+        const onTouchStart = (e: TouchEvent) => {
+            if (e.touches.length === 2) {
+                lastPinchDist.current = Math.hypot(
+                    e.touches[1].clientX - e.touches[0].clientX,
+                    e.touches[1].clientY - e.touches[0].clientY
+                );
+            }
+        };
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (e.touches.length !== 2) return;
+            e.preventDefault(); // ブラウザのピンチズームを阻止（non-passive必須）
+            const dist = Math.hypot(
+                e.touches[1].clientX - e.touches[0].clientX,
+                e.touches[1].clientY - e.touches[0].clientY
+            );
+            if (lastPinchDist.current !== null) {
+                const ratio = dist / lastPinchDist.current;
+                setScale(s => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s * ratio)));
+            }
+            lastPinchDist.current = dist;
+        };
+
+        const onTouchEnd = () => { lastPinchDist.current = null; };
+
+        el.addEventListener('touchstart', onTouchStart, { passive: true });
+        el.addEventListener('touchmove', onTouchMove, { passive: false }); // non-passive
+        el.addEventListener('touchend', onTouchEnd, { passive: true });
+        return () => {
+            el.removeEventListener('touchstart', onTouchStart);
+            el.removeEventListener('touchmove', onTouchMove);
+            el.removeEventListener('touchend', onTouchEnd);
+        };
+    }, []);
+
+    // scale に応じて実際の描画幅を決定（CSS transform ではなく width prop で制御）
+    // → ヒットテストが常に正確、スクロール範囲も実サイズに追従
     const baseWidth = Math.min(containerWidth - 16, 900);
+    const pageRenderWidth = Math.max(0, Math.floor(baseWidth * scale));
     const showFooter = numPages > 1;
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
+        // document.body 直下にポータル描画
+        // → iOS Safari の overflow スクロールコンテナ内 fixed 配置バグを回避
         <div
-            className="fixed inset-0 lg:left-64 z-[100] bg-black flex flex-col"
+            className="fixed inset-0 z-[200] bg-black flex flex-col"
             style={{
                 paddingTop: 'env(safe-area-inset-top, 0px)',
                 paddingBottom: 'env(safe-area-inset-bottom, 0px)',
             }}
         >
             {/* ===== ヘッダー ===== */}
-            <div className="flex items-center justify-between px-2 bg-gray-900 shrink-0" style={{ minHeight: 48 }}>
+            <div
+                className="flex items-center justify-between px-2 bg-gray-900 shrink-0"
+                style={{ minHeight: 48 }}
+            >
                 {/* 左: 戻るボタン + ファイル名 */}
                 <div className="flex items-center gap-1 min-w-0 flex-1">
                     <button
                         type="button"
                         onClick={onClose}
                         className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded-full transition-colors shrink-0"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="戻る"
                     >
                         <ArrowLeft className="w-5 h-5 text-white" />
@@ -109,13 +165,14 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                     </span>
                 </div>
 
-                {/* 右: ズームボタン + 閉じるボタン */}
+                {/* 右: ズームボタン */}
                 <div className="flex items-center shrink-0">
                     <button
                         type="button"
                         onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
                         disabled={scale <= MIN_SCALE}
                         className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="縮小"
                     >
                         <ZoomOut className="w-4 h-4 text-white/70" />
@@ -124,6 +181,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         type="button"
                         onClick={() => setScale(1)}
                         className="min-w-[40px] min-h-[36px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded transition-colors"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="ズームリセット"
                     >
                         <span className="text-white/50 text-xs tabular-nums">
@@ -135,6 +193,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         onClick={() => setScale(s => Math.min(s + 0.25, MAX_SCALE))}
                         disabled={scale >= MAX_SCALE}
                         className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="拡大"
                     >
                         <ZoomIn className="w-4 h-4 text-white/70" />
@@ -146,14 +205,17 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             <div
                 ref={contentRef}
                 className="flex-1 overflow-auto bg-gray-700"
-                style={{ WebkitOverflowScrolling: 'touch' }}
+                style={{
+                    overscrollBehavior: 'contain',
+                    touchAction: 'pan-x pan-y', // 1本指スクロール許可、2本指はtouchmoveで制御
+                }}
             >
                 <div
-                    className="flex justify-center items-center"
+                    className="flex justify-center items-start"
                     style={{ minHeight: '100%', padding: '16px 8px' }}
                 >
                     {!PdfDocument ? (
-                        <div className="flex flex-col items-center gap-3">
+                        <div className="flex flex-col items-center gap-3 mt-8">
                             <Loader2 className="w-8 h-8 animate-spin text-white/60" />
                             <span className="text-sm text-white/70">PDFを読み込んでいます...</span>
                         </div>
@@ -162,33 +224,32 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                             file={url}
                             onLoadSuccess={({ numPages: n }) => { setNumPages(n); setPageNumber(1); }}
                             loading={
-                                <div className="flex flex-col items-center gap-3">
+                                <div className="flex flex-col items-center gap-3 mt-8">
                                     <Loader2 className="w-8 h-8 animate-spin text-white/60" />
                                     <span className="text-sm text-white/70">PDFを読み込んでいます...</span>
                                 </div>
                             }
                             error={
-                                <div className="flex flex-col items-center gap-4 text-white px-6 text-center">
+                                <div className="flex flex-col items-center gap-4 text-white px-6 text-center mt-8">
                                     <p>PDFの読み込みに失敗しました</p>
-                                    <a href={url} target="_blank" rel="noopener noreferrer"
-                                        className="px-4 py-2 bg-white/20 rounded-lg text-sm">
+                                    <a
+                                        href={url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="px-4 py-2 bg-white/20 rounded-lg text-sm"
+                                    >
                                         外部ブラウザで開く
                                     </a>
                                 </div>
                             }
                         >
-                            {PdfPage && baseWidth > 0 && (
-                                <div style={{
-                                    transform: scale !== 1 ? `scale(${scale})` : undefined,
-                                    transformOrigin: 'top center',
-                                }}>
-                                    <PdfPage
-                                        pageNumber={pageNumber}
-                                        width={baseWidth}
-                                        renderTextLayer={false}
-                                        renderAnnotationLayer={false}
-                                    />
-                                </div>
+                            {PdfPage && pageRenderWidth > 0 && (
+                                <PdfPage
+                                    pageNumber={pageNumber}
+                                    width={pageRenderWidth}
+                                    renderTextLayer={false}
+                                    renderAnnotationLayer={false}
+                                />
                             )}
                         </PdfDocument>
                     )}
@@ -203,6 +264,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         onClick={() => setPageNumber(p => Math.max(p - 1, 1))}
                         disabled={pageNumber <= 1}
                         className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-white/10 hover:bg-white/20 active:bg-white/30 disabled:opacity-30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="前のページ"
                     >
                         <ChevronLeft className="w-5 h-5 text-white" />
@@ -215,6 +277,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         onClick={() => setPageNumber(p => Math.min(p + 1, numPages))}
                         disabled={pageNumber >= numPages}
                         className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center bg-white/10 hover:bg-white/20 active:bg-white/30 disabled:opacity-30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="次のページ"
                     >
                         <ChevronRight className="w-5 h-5 text-white" />
@@ -222,13 +285,14 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 </div>
             )}
 
-            {/* 1ページのみの場合でも閉じるボタンを下部に表示 */}
+            {/* 1ページのみの場合も下部に閉じるボタンを表示 */}
             {!showFooter && numPages > 0 && (
                 <div className="flex items-center justify-center bg-gray-900 shrink-0" style={{ minHeight: 52 }}>
                     <button
                         type="button"
                         onClick={onClose}
                         className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
                         aria-label="閉じる"
                     >
                         <ArrowLeft className="w-4 h-4 text-white" />
@@ -236,6 +300,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                     </button>
                 </div>
             )}
-        </div>
+        </div>,
+        document.body
     );
 }
