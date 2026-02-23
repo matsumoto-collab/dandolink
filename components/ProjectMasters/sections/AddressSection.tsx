@@ -43,6 +43,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
     // プログラム的に地図を移動した場合、onCameraChanged → reverseGeocode による住所上書きをスキップするフラグ
     const skipReverseGeocodeRef = useRef(false);
+    const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // 住所フィールドに何か入力があれば地図を表示
     const hasAddress = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
@@ -104,17 +105,12 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData]);
 
-    // 地図の中心が変わったら座標をformDataへ反映
-    const handleLocationChange = useCallback(async (lat: number, lng: number) => {
+    // 地図の中心が変わったら座標のみをformDataへ反映（住所フィールドは更新しない）
+    const handleLocationChange = useCallback((lat: number, lng: number) => {
         const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
-        // プログラム的に地図を移動した場合は逆ジオコーディングをスキップ（住所上書き防止）
-        if (skipReverseGeocodeRef.current) {
-            skipReverseGeocodeRef.current = false;
-        } else {
-            await reverseGeocode(lat, lng);
-        }
-    }, [setFormData, reverseGeocode]);
+        skipReverseGeocodeRef.current = false;
+    }, [setFormData]);
 
     // 現在地アイコンボタン
     const handleGetCurrentLocation = () => {
@@ -211,7 +207,16 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData(prev => ({ ...prev, location: value }));
+                        if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
+                        if (value.trim() && formData.prefecture && formData.city) {
+                            locationDebounceRef.current = setTimeout(() => {
+                                forwardGeocode(`${formData.prefecture}${formData.city}${value}`);
+                            }, 800);
+                        }
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="番地、建物名など"
                 />
