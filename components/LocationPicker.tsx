@@ -54,7 +54,7 @@ export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }
                 <Map
                     defaultCenter={defaultCenter}
                     defaultZoom={DEFAULT_ZOOM}
-                    gestureHandling="greedy"
+                    gestureHandling="cooperative"
                     disableDefaultUI={false}
                     onCameraChanged={handleCameraChanged}
                 >
@@ -79,7 +79,7 @@ export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }
                 </div>
             </div>
             <p className="text-xs text-gray-400 mt-1">
-                地図をスクロールしてピンの位置を合わせてください
+                地図をドラッグしてピンの位置を合わせてください（ズーム: Ctrl+スクロール）
             </p>
         </APIProvider>
     );

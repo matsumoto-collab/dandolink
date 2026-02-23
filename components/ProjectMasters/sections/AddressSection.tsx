@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { MapPin, Crosshair, Loader2 } from 'lucide-react';
 import { FormField } from '../common/FormField';
@@ -41,6 +41,8 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
     const [showMap, setShowMap] = useState(false);
     const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
+    // プログラム的に地図を移動した場合、onCameraChanged → reverseGeocode による住所上書きをスキップするフラグ
+    const skipReverseGeocodeRef = useRef(false);
 
     // 住所フィールドに何か入力があれば地図を表示
     const hasAddress = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
@@ -91,6 +93,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     const lng = parseFloat(data[0].lon);
                     const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
                     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
+                    skipReverseGeocodeRef.current = true;
                     setForcedCenter({ lat, lng });
                 }
             }
@@ -103,7 +106,12 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const handleLocationChange = useCallback(async (lat: number, lng: number) => {
         const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
-        await reverseGeocode(lat, lng);
+        // プログラム的に地図を移動した場合は逆ジオコーディングをスキップ（住所上書き防止）
+        if (skipReverseGeocodeRef.current) {
+            skipReverseGeocodeRef.current = false;
+        } else {
+            await reverseGeocode(lat, lng);
+        }
     }, [setFormData, reverseGeocode]);
 
     // 現在地アイコンボタン
@@ -118,6 +126,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 const { latitude, longitude } = position.coords;
                 const coordStr = `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
                 setFormData(prev => ({ ...prev, latitude, longitude, plusCode: coordStr }));
+                skipReverseGeocodeRef.current = true;
                 setForcedCenter({ lat: latitude, lng: longitude });
                 setShowMap(true);
                 saveLastLocation(latitude, longitude);
@@ -133,10 +142,10 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             (error) => {
                 setIsGettingLocation(false);
                 switch (error.code) {
-                    case error.PERMISSION_DENIED:    toast.error('位置情報の使用が許可されていません'); break;
+                    case error.PERMISSION_DENIED: toast.error('位置情報の使用が許可されていません'); break;
                     case error.POSITION_UNAVAILABLE: toast.error('位置情報を取得できませんでした'); break;
-                    case error.TIMEOUT:              toast.error('位置情報の取得がタイムアウトしました'); break;
-                    default:                         toast.error('位置情報の取得に失敗しました');
+                    case error.TIMEOUT: toast.error('位置情報の取得がタイムアウトしました'); break;
+                    default: toast.error('位置情報の取得に失敗しました');
                 }
             },
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
