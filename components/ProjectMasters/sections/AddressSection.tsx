@@ -265,15 +265,17 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             {/* 地図エリア */}
             <div>
                 <div className="flex items-center justify-between mb-2">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <MapPin className="w-4 h-4" />
-                        位置情報
-                        {isReverseGeocoding && (
-                            <span className="flex items-center gap-1 text-xs text-gray-400">
-                                <Loader2 className="w-3 h-3 animate-spin" />住所を取得中...
-                            </span>
-                        )}
-                    </label>
+                    {inputMode === 'map' && (
+                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                            <MapPin className="w-4 h-4" />
+                            位置情報
+                            {isReverseGeocoding && (
+                                <span className="flex items-center gap-1 text-xs text-gray-400">
+                                    <Loader2 className="w-3 h-3 animate-spin" />住所を取得中...
+                                </span>
+                            )}
+                        </label>
+                    )}
                     {inputMode === 'map' && (
                         <button
                             type="button"
