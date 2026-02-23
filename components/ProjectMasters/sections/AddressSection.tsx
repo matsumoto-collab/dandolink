@@ -30,6 +30,8 @@ function saveLastLocation(lat: number, lng: number) {
     try { localStorage.setItem(LS_KEY, JSON.stringify({ lat, lng })); } catch { /* ignore */ }
 }
 
+type InputMode = 'address' | 'map';
+
 interface AddressSectionProps {
     formData: ProjectMasterFormData;
     setFormData: React.Dispatch<React.SetStateAction<ProjectMasterFormData>>;
@@ -41,7 +43,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
     const [showMap, setShowMap] = useState(false);
     const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
-    // プログラム的に地図を移動した場合、onCameraChanged → reverseGeocode による住所上書きをスキップするフラグ
+    const [inputMode, setInputMode] = useState<InputMode>('address');
     const skipReverseGeocodeRef = useRef(false);
     const locationDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -105,12 +107,20 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData]);
 
-    // 地図の中心が変わったら座標のみをformDataへ反映（住所フィールドは更新しない）
-    const handleLocationChange = useCallback((lat: number, lng: number) => {
+    // 地図の中心が変わったら座標を反映
+    // 地図先行モード: 逆ジオコーディングで住所も更新
+    // 住所先行モード: 座標のみ更新（住所フィールドは触らない）
+    const handleLocationChange = useCallback(async (lat: number, lng: number) => {
         const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
-        skipReverseGeocodeRef.current = false;
-    }, [setFormData]);
+        if (skipReverseGeocodeRef.current) {
+            skipReverseGeocodeRef.current = false;
+            return;
+        }
+        if (inputMode === 'map') {
+            await reverseGeocode(lat, lng);
+        }
+    }, [setFormData, reverseGeocode, inputMode]);
 
     // 現在地アイコンボタン
     const handleGetCurrentLocation = () => {
@@ -165,6 +175,32 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
 
     return (
         <div className="space-y-4">
+            {/* 入力モード切り替え */}
+            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+                <button
+                    type="button"
+                    onClick={() => setInputMode('address')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        inputMode === 'address'
+                            ? 'bg-white text-slate-800 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    住所から入力
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setInputMode('map')}
+                    className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        inputMode === 'map'
+                            ? 'bg-white text-slate-800 shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                >
+                    地図・現在地から入力
+                </button>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField label="郵便番号">
                     <div className="flex items-center gap-2">
@@ -210,6 +246,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     onChange={(e) => {
                         const value = e.target.value;
                         setFormData(prev => ({ ...prev, location: value }));
+                        if (inputMode !== 'address') return;
                         if (locationDebounceRef.current) clearTimeout(locationDebounceRef.current);
                         if (value.trim() && formData.prefecture && formData.city) {
                             locationDebounceRef.current = setTimeout(() => {
@@ -246,6 +283,12 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                         }
                     </button>
                 </div>
+
+                {inputMode === 'map' && (
+                    <p className="text-xs text-gray-500 mb-2">
+                        地図をドラッグすると都道府県・市区町村が自動で入力されます
+                    </p>
+                )}
 
                 {mapVisible ? (
                     <LocationPicker
