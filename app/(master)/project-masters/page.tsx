@@ -216,7 +216,7 @@ export default function ProjectMasterListPage() {
                 <div>
                     <h1 className="text-lg md:text-2xl font-bold text-slate-800">案件一覧</h1>
                     <p className="text-xs md:text-sm text-slate-500 mt-1">
-                        {filteredMasters.length}件の案件マスター
+                        {filteredMasters.length}件の案件データ
                     </p>
                 </div>
             </div>
@@ -253,7 +253,7 @@ export default function ProjectMasterListPage() {
                         className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
                     >
                         <Plus className="w-5 h-5" />
-                        <span className="hidden sm:inline">新規案件マスター</span>
+                        <span className="hidden sm:inline">新規案件登録</span>
                         <span className="sm:hidden">新規</span>
                     </button>
                 </div>
