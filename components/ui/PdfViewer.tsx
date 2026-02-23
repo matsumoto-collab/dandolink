@@ -87,6 +87,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     }, []);
 
     // ピンチズーム: 非passive touchmove でブラウザのピンチズームを抑制して独自実装
+    // mounted を依存にすることで createPortal 後に確実に contentRef が取れる
     useEffect(() => {
         const el = contentRef.current;
         if (!el) return;
@@ -124,7 +125,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             el.removeEventListener('touchmove', onTouchMove);
             el.removeEventListener('touchend', onTouchEnd);
         };
-    }, []);
+    }, [mounted]);
 
     // scale に応じて実際の描画幅を決定（CSS transform ではなく width prop で制御）
     // → ヒットテストが常に正確、スクロール範囲も実サイズに追従
@@ -207,11 +208,11 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 className="flex-1 overflow-auto bg-gray-700"
                 style={{
                     overscrollBehavior: 'contain',
-                    touchAction: 'pan-x pan-y', // 1本指スクロール許可、2本指はtouchmoveで制御
+                    touchAction: 'manipulation', // 1本指パン許可、ダブルタップ無効、2本指はtouchmoveで制御
                 }}
             >
                 <div
-                    className="flex justify-center items-start"
+                    className="flex justify-center items-center"
                     style={{ minHeight: '100%', padding: '16px 8px' }}
                 >
                     {!PdfDocument ? (
