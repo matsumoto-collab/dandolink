@@ -4,6 +4,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
+import { ExternalLink } from 'lucide-react';
+
+const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
 
 interface ManagerUser {
     id: string;
@@ -22,6 +25,12 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
+    const [locationData, setLocationData] = useState<{
+        prefecture?: string;
+        city?: string;
+        location?: string;
+        plusCode?: string;
+    } | null>(null);
     const { constructionTypes } = useMasterData();
 
     // 工事種別の色と名前を取得
@@ -74,6 +83,24 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
             setIsLoadingManagers(false);
         }
     }, [managers.length]);
+
+    // 案件マスターの住所情報を取得
+    useEffect(() => {
+        if (!project.projectMasterId) return;
+        fetch(`/api/project-masters/${project.projectMasterId}`, { cache: 'no-store' })
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+                if (data) {
+                    setLocationData({
+                        prefecture: data.prefecture,
+                        city: data.city,
+                        location: data.location,
+                        plusCode: data.plusCode,
+                    });
+                }
+            })
+            .catch(() => {});
+    }, [project.projectMasterId]);
 
     // ステータスの表示設定
     const statusConfig = {
@@ -198,6 +225,46 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                         </div>
                     </div>
                 )}
+
+                {/* 地図 */}
+                {locationData && (() => {
+                    const mapQuery = (() => {
+                        if (locationData.plusCode && isCoordinates(locationData.plusCode)) return locationData.plusCode;
+                        const parts = [locationData.prefecture, locationData.city, locationData.location].filter(Boolean);
+                        return parts.join('');
+                    })();
+                    if (!mapQuery) return null;
+                    const googleMapsUrl = isCoordinates(mapQuery)
+                        ? `https://www.google.com/maps?q=${mapQuery}`
+                        : `https://www.google.com/maps/search/${encodeURIComponent(mapQuery)}`;
+                    return (
+                        <div>
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-gray-700">所在地</label>
+                                <a
+                                    href={googleMapsUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1 text-xs text-slate-600 hover:text-slate-800 transition-colors"
+                                >
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Google Mapsで開く
+                                </a>
+                            </div>
+                            <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                <iframe
+                                    key={mapQuery}
+                                    title="Map Preview"
+                                    width="100%"
+                                    height="220"
+                                    loading="lazy"
+                                    style={{ border: 0 }}
+                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
+                                />
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* 開始日 */}
                 <div>
