@@ -14,7 +14,6 @@ export default function SettingsPage() {
     const {
         vehicles,
         workers,
-        managers,
         totalMembers,
         addVehicle,
         updateVehicle,
@@ -22,13 +21,10 @@ export default function SettingsPage() {
         addWorker,
         updateWorker,
         deleteWorker,
-        addManager,
-        updateManager,
-        deleteManager,
         updateTotalMembers,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'workers' | 'managers' | 'members' | 'constructionTypes' | 'unitprices' | 'users'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'workers' | 'members' | 'constructionTypes' | 'unitprices' | 'users'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [editingHourlyRate, setEditingHourlyRate] = useState('');
@@ -42,10 +38,9 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'workers' | 'managers' | 'members' | 'constructionTypes' | 'unitprices' | 'users'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'workers' | 'members' | 'constructionTypes' | 'unitprices' | 'users'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: vehicles.length },
             { id: 'workers' as const, label: '職人管理', count: workers.length },
-            { id: 'managers' as const, label: '案件担当者管理', count: managers.length },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
             { id: 'unitprices' as const, label: '単価マスター', count: null },
@@ -57,7 +52,7 @@ export default function SettingsPage() {
         }
 
         return baseTabs;
-    }, [isUserAdmin, vehicles.length, workers.length, managers.length]);
+    }, [isUserAdmin, vehicles.length, workers.length]);
 
     const handleAdd = () => {
         if (!newItemName.trim()) return;
@@ -68,9 +63,6 @@ export default function SettingsPage() {
                 break;
             case 'workers':
                 addWorker(newItemName.trim());
-                break;
-            case 'managers':
-                addManager(newItemName.trim());
                 break;
         }
         setNewItemName('');
@@ -98,9 +90,6 @@ export default function SettingsPage() {
                 updateWorker(editingId, editingValue.trim(), hourlyRate);
                 break;
             }
-            case 'managers':
-                updateManager(editingId, editingValue.trim());
-                break;
         }
         setEditingId(null);
         setEditingValue('');
@@ -120,9 +109,6 @@ export default function SettingsPage() {
             case 'workers':
                 deleteWorker(id);
                 break;
-            case 'managers':
-                deleteManager(id);
-                break;
         }
         setDeleteConfirm(null);
     };
@@ -141,8 +127,6 @@ export default function SettingsPage() {
                 return vehicles;
             case 'workers':
                 return workers;
-            case 'managers':
-                return managers;
             default:
                 return [];
         }
@@ -154,8 +138,6 @@ export default function SettingsPage() {
                 return '車両';
             case 'workers':
                 return '職人';
-            case 'managers':
-                return '案件担当者';
             default:
                 return '';
         }

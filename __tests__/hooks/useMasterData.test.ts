@@ -17,9 +17,6 @@ describe('useMasterData', () => {
     const mockAddWorker = jest.fn();
     const mockUpdateWorker = jest.fn();
     const mockDeleteWorker = jest.fn();
-    const mockAddManager = jest.fn();
-    const mockUpdateManager = jest.fn();
-    const mockDeleteManager = jest.fn();
     const mockUpdateTotalMembers = jest.fn();
     const mockSetupRealtimeSubscription = jest.fn();
 
@@ -27,7 +24,6 @@ describe('useMasterData', () => {
     const defaultStoreState = {
         vehicles: [],
         workers: [],
-        managers: [],
         totalMembers: 0,
         isLoading: false,
         isInitialized: false,
@@ -39,9 +35,6 @@ describe('useMasterData', () => {
         addWorker: mockAddWorker,
         updateWorker: mockUpdateWorker,
         deleteWorker: mockDeleteWorker,
-        addManager: mockAddManager,
-        updateManager: mockUpdateManager,
-        deleteManager: mockDeleteManager,
         updateTotalMembers: mockUpdateTotalMembers,
         setupRealtimeSubscription: mockSetupRealtimeSubscription,
     };
@@ -64,7 +57,6 @@ describe('useMasterData', () => {
         expect(result.current.isLoading).toBe(false);
         expect(result.current.vehicles).toEqual([]);
         expect(result.current.workers).toEqual([]);
-        expect(result.current.managers).toEqual([]);
         expect(result.current.totalMembers).toBe(0);
     });
 
@@ -114,13 +106,6 @@ describe('useMasterData', () => {
         expect(result.current.deleteWorker).toBe(mockDeleteWorker);
     });
 
-    it('should expose manager operations', () => {
-        const { result } = renderHook(() => useMasterData());
-
-        expect(result.current.addManager).toBe(mockAddManager);
-        expect(result.current.updateManager).toBe(mockUpdateManager);
-        expect(result.current.deleteManager).toBe(mockDeleteManager);
-    });
 
     it('should expose updateTotalMembers', () => {
         const { result } = renderHook(() => useMasterData());
@@ -137,14 +122,12 @@ describe('useMasterData', () => {
     it('should return data from store', () => {
         const mockVehicles = [{ id: 'v1', name: 'Truck 1' }];
         const mockWorkers = [{ id: 'w1', name: 'Worker 1' }];
-        const mockManagers = [{ id: 'm1', name: 'Manager 1' }];
 
         (useMasterStore as unknown as jest.Mock).mockImplementation((selector: any) => {
             return selector({
                 ...defaultStoreState,
                 vehicles: mockVehicles,
                 workers: mockWorkers,
-                managers: mockManagers,
                 totalMembers: 10,
             });
         });
@@ -153,7 +136,6 @@ describe('useMasterData', () => {
 
         expect(result.current.vehicles).toEqual(mockVehicles);
         expect(result.current.workers).toEqual(mockWorkers);
-        expect(result.current.managers).toEqual(mockManagers);
         expect(result.current.totalMembers).toBe(10);
     });
 });

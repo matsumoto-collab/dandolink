@@ -11,7 +11,6 @@ jest.mock('@/lib/prisma', () => ({
     prisma: {
         vehicle: { findMany: jest.fn() },
         worker: { findMany: jest.fn() },
-        manager: { findMany: jest.fn() },
         systemSettings: { findFirst: jest.fn() },
     },
 }));
@@ -32,7 +31,6 @@ describe('/api/master-data', () => {
     it('should return all master data', async () => {
         (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'v1' }]);
         (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1' }]);
-        (prisma.manager.findMany as jest.Mock).mockResolvedValue([{ id: 'm1' }]);
         (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue({ totalMembers: 5 });
 
         const res = await GET();
@@ -42,7 +40,6 @@ describe('/api/master-data', () => {
         expect(json).toEqual({
             vehicles: [{ id: 'v1' }],
             workers: [{ id: 'w1' }],
-            managers: [{ id: 'm1' }],
             totalMembers: 5,
         });
     });
@@ -50,7 +47,6 @@ describe('/api/master-data', () => {
     it('should return default totalMembers if settings not found', async () => {
         (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
-        (prisma.manager.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(null);
 
         const res = await GET();

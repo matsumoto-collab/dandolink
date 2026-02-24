@@ -244,16 +244,6 @@ model ConstructionType {
   @@schema("public")
 }
 
-model Manager {
-  id        String   @id @default(uuid())
-  name      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([name])
-  @@schema("public")
-}
 
 model SystemSettings {
   id                   String   @id @default("default")

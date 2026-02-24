@@ -32,7 +32,6 @@ interface MasterState {
     // Data
     vehicles: Vehicle[];
     workers: Worker[];
-    managers: Manager[];
     constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
 
@@ -59,11 +58,6 @@ interface MasterActions {
     updateWorker: (id: string, name: string, hourlyRate?: number | null) => Promise<void>;
     deleteWorker: (id: string) => Promise<void>;
 
-    // Manager operations
-    addManager: (name: string) => Promise<void>;
-    updateManager: (id: string, name: string) => Promise<void>;
-    deleteManager: (id: string) => Promise<void>;
-
     // Total members
     updateTotalMembers: (count: number) => Promise<void>;
 
@@ -80,7 +74,6 @@ type MasterStore = MasterState & MasterActions;
 const initialState: MasterState = {
     vehicles: [],
     workers: [],
-    managers: [],
     constructionTypes: [],
     totalMembers: 20,
     isLoading: false,
@@ -113,7 +106,6 @@ export const useMasterStore = create<MasterStore>()(
                     set({
                         vehicles: data.vehicles || [],
                         workers: data.workers || [],
-                        managers: data.managers || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         isInitialized: true,
@@ -144,7 +136,6 @@ export const useMasterStore = create<MasterStore>()(
                     set({
                         vehicles: data.vehicles || [],
                         workers: data.workers || [],
-                        managers: data.managers || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         isInitialized: true,
@@ -229,43 +220,6 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
-        // Manager operations
-        addManager: async (name: string) => {
-            const response = await fetch('/api/master-data/managers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            });
-            if (response.ok) {
-                const newManager = await response.json();
-                set((state) => ({ managers: [...state.managers, newManager] }));
-            }
-        },
-
-        updateManager: async (id: string, name: string) => {
-            const response = await fetch(`/api/master-data/managers/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            });
-            if (response.ok) {
-                set((state) => ({
-                    managers: state.managers.map((m) => (m.id === id ? { ...m, name } : m)),
-                }));
-            }
-        },
-
-        deleteManager: async (id: string) => {
-            const response = await fetch(`/api/master-data/managers/${id}`, {
-                method: 'DELETE',
-            });
-            if (response.ok) {
-                set((state) => ({
-                    managers: state.managers.filter((m) => m.id !== id),
-                }));
-            }
-        },
-
         // Total members
         updateTotalMembers: async (count: number) => {
             const response = await fetch('/api/master-data/settings', {
@@ -286,7 +240,7 @@ export const useMasterStore = create<MasterStore>()(
             try {
                 const { supabase } = await import('@/lib/supabase');
                 const channels: RealtimeChannel[] = [];
-                const tables = ['Vehicle', 'Worker', 'Manager', 'SystemSettings', 'ConstructionType'];
+                const tables = ['Vehicle', 'Worker', 'SystemSettings', 'ConstructionType'];
 
                 tables.forEach(table => {
                     const channel = supabase
@@ -336,7 +290,6 @@ export const useMasterStore = create<MasterStore>()(
 // Selectors for optimized re-renders
 export const selectVehicles = (state: MasterStore) => state.vehicles;
 export const selectWorkers = (state: MasterStore) => state.workers;
-export const selectManagers = (state: MasterStore) => state.managers;
 export const selectConstructionTypes = (state: MasterStore) => state.constructionTypes;
 export const selectTotalMembers = (state: MasterStore) => state.totalMembers;
 export const selectIsLoading = (state: MasterStore) => state.isLoading;

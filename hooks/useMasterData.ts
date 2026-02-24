@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMasterStore } from '@/stores/masterStore';
 
 // Re-export types for backward compatibility
-export type { Vehicle, Worker, Manager, MasterData } from '@/stores/masterStore';
+export type { Vehicle, Worker, MasterData } from '@/stores/masterStore';
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useMasterData() {
@@ -14,7 +14,6 @@ export function useMasterData() {
     // Get state from Zustand store
     const vehicles = useMasterStore((state) => state.vehicles);
     const workers = useMasterStore((state) => state.workers);
-    const managers = useMasterStore((state) => state.managers);
     const constructionTypes = useMasterStore((state) => state.constructionTypes);
     const totalMembers = useMasterStore((state) => state.totalMembers);
     const isLoading = useMasterStore((state) => state.isLoading);
@@ -29,9 +28,6 @@ export function useMasterData() {
     const addWorker = useMasterStore((state) => state.addWorker);
     const updateWorker = useMasterStore((state) => state.updateWorker);
     const deleteWorker = useMasterStore((state) => state.deleteWorker);
-    const addManager = useMasterStore((state) => state.addManager);
-    const updateManager = useMasterStore((state) => state.updateManager);
-    const deleteManager = useMasterStore((state) => state.deleteManager);
     const updateTotalMembers = useMasterStore((state) => state.updateTotalMembers);
     const setupRealtimeSubscription = useMasterStore((state) => state.setupRealtimeSubscription);
 
@@ -57,7 +53,6 @@ export function useMasterData() {
         // Data
         vehicles,
         workers,
-        managers,
         constructionTypes,
         totalMembers,
         isLoading,
@@ -71,11 +66,6 @@ export function useMasterData() {
         addWorker,
         updateWorker,
         deleteWorker,
-
-        // Manager operations
-        addManager,
-        updateManager,
-        deleteManager,
 
         // Total members
         updateTotalMembers,

@@ -38,7 +38,6 @@ describe('masterStore', () => {
 
             expect(state.vehicles).toEqual([]);
             expect(state.workers).toEqual([]);
-            expect(state.managers).toEqual([]);
             expect(state.totalMembers).toBe(20);
             expect(state.isLoading).toBe(false);
             expect(state.isInitialized).toBe(false);
@@ -50,7 +49,6 @@ describe('masterStore', () => {
             const mockData = {
                 vehicles: [{ id: 'v1', name: 'トラック1' }],
                 workers: [{ id: 'w1', name: '作業員1' }],
-                managers: [{ id: 'm1', name: '職長1' }],
                 totalMembers: 25,
             };
 
@@ -71,7 +69,6 @@ describe('masterStore', () => {
             const state = useMasterStore.getState();
             expect(state.vehicles).toEqual(mockData.vehicles);
             expect(state.workers).toEqual(mockData.workers);
-            expect(state.managers).toEqual(mockData.managers);
             expect(state.totalMembers).toBe(25);
             expect(state.isInitialized).toBe(true);
             expect(state.isLoading).toBe(false);
@@ -234,55 +231,6 @@ describe('masterStore', () => {
         });
     });
 
-    describe('Manager operations', () => {
-        it('should add manager', async () => {
-            const newManager = { id: 'm-new', name: '新しい職長' };
-
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve(newManager),
-            });
-
-            await act(async () => {
-                await useMasterStore.getState().addManager('新しい職長');
-            });
-
-            expect(useMasterStore.getState().managers).toContainEqual(newManager);
-        });
-
-        it('should update manager', async () => {
-            useMasterStore.setState({
-                managers: [{ id: 'm1', name: '古い名前' }],
-            });
-
-            mockFetch.mockResolvedValueOnce({ ok: true });
-
-            await act(async () => {
-                await useMasterStore.getState().updateManager('m1', '新しい名前');
-            });
-
-            expect(useMasterStore.getState().managers[0].name).toBe('新しい名前');
-        });
-
-        it('should delete manager', async () => {
-            useMasterStore.setState({
-                managers: [
-                    { id: 'm1', name: '職長1' },
-                    { id: 'm2', name: '職長2' },
-                ],
-            });
-
-            mockFetch.mockResolvedValueOnce({ ok: true });
-
-            await act(async () => {
-                await useMasterStore.getState().deleteManager('m1');
-            });
-
-            expect(useMasterStore.getState().managers).toHaveLength(1);
-            expect(useMasterStore.getState().managers[0].id).toBe('m2');
-        });
-    });
-
     describe('updateTotalMembers', () => {
         it('should update total members', async () => {
             mockFetch.mockResolvedValueOnce({ ok: true });
@@ -307,7 +255,6 @@ describe('masterStore', () => {
             useMasterStore.setState({
                 vehicles: [{ id: 'v1', name: 'test' }],
                 workers: [{ id: 'w1', name: 'test' }],
-                managers: [{ id: 'm1', name: 'test' }],
                 totalMembers: 100,
                 isInitialized: true,
             });
@@ -318,7 +265,6 @@ describe('masterStore', () => {
             const state = useMasterStore.getState();
             expect(state.vehicles).toEqual([]);
             expect(state.workers).toEqual([]);
-            expect(state.managers).toEqual([]);
             expect(state.totalMembers).toBe(20);
             expect(state.isInitialized).toBe(false);
         });
@@ -364,7 +310,7 @@ describe('masterStore', () => {
             });
 
             const state = useMasterStore.getState();
-            expect(state._realtimeChannels).toHaveLength(5); // 5 tables
+            expect(state._realtimeChannels).toHaveLength(4); // 4 tables
         });
 
         it('cleanupRealtimeSubscription: should remove channels', async () => {
