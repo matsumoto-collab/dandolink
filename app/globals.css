@@ -91,51 +91,42 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* PWA standalone mode */
-@media (display-mode: standalone) {
-  :root {
-    --sat: env(safe-area-inset-top, 0px);
-  }
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+}
 
-  /* ヘッダー: fixed top-0 の上に safe area 分の背景領域を追加 */
-  .pwa-header-safe {
-    top: env(safe-area-inset-top, 0px) !important;
-  }
+/* ヘッダー: paddingを使ってsafe area分を下げる。背景はヘッダー自体がカバーする */
+.pwa-header-safe {
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  height: calc(4rem + env(safe-area-inset-top, 0px)) !important;
+  /* 16(=4rem) + safe area */
+}
 
-  /* ヘッダーの裏にステータスバー背景色を敷く */
-  .pwa-status-bar-bg::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: env(safe-area-inset-top, 0px);
-    background-color: rgb(15, 23, 42);
-    /* slate-900 */
-    z-index: 31;
-  }
+/* ステータスバー背景用クラスはヘッダーpaddingでカバーできるようになったので不要ですが互換性のため残すか空にする */
+.pwa-status-bar-bg::before {
+  display: none;
+}
 
-  /* メインコンテンツ: モバイルでヘッダー + safe area 分下げる（lg未満のみ） */
-  @media (max-width: 1023px) {
-    .pwa-main-safe {
-      padding-top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
-    }
+/* メインコンテンツ: モバイルでヘッダー (4rem + safe area) 分下げる（lg未満のみ） */
+@media (max-width: 1023px) {
+  .pwa-main-safe {
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
   }
+}
 
-  /* サイドバー: 上部に safe area 分のパディング追加 */
-  .pwa-sidebar-safe {
-    padding-top: env(safe-area-inset-top, 0px);
-  }
+/* サイドバー: 上部に safe area 分のパディング追加 */
+.pwa-sidebar-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 
-  /* フルスクリーンモーダル用: inset-0 の上部に safe area 分のパディング */
-  .pwa-modal-safe {
-    padding-top: env(safe-area-inset-top, 0px);
-  }
+/* フルスクリーンモーダル用: inset-0 の上部に safe area 分のパディング */
+.pwa-modal-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
 
-  /* pt-[4.5rem] 系モーダル用: PWA モードで safe area 分を加算 */
-  @media (max-width: 1023px) {
-    .pwa-modal-offset-safe {
-      padding-top: calc(4.5rem + env(safe-area-inset-top, 0px)) !important;
-    }
+/* pt-[4.5rem] 系モーダル用: safe area 分を加算 */
+@media (max-width: 1023px) {
+  .pwa-modal-offset-safe {
+    padding-top: calc(4.5rem + env(safe-area-inset-top, 0px)) !important;
   }
 }
