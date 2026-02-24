@@ -105,9 +105,9 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     const isEditMode = mode === 'edit';
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex items-start pt-[4rem] lg:items-center lg:pt-0 justify-center overflow-y-auto pwa-modal-offset-safe">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             {/* オーバーレイ */}
-            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={handleClose} />
+            <div className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block" onClick={handleClose} />
 
             {/* モーダル本体 */}
             <div
@@ -115,10 +115,10 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-5.5rem-env(safe-area-inset-bottom,0px))] lg:max-h-[90vh] overflow-y-auto mb-[calc(1rem+env(safe-area-inset-bottom,0px))] lg:mb-0 shrink-0 mt-4 lg:mt-0"
+                className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]"
             >
                 {/* ヘッダー */}
-                <div className={`sticky top-0 border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between z-10 transition-colors ${isEditMode ? 'bg-slate-50' : 'bg-white'}`}>
+                <div className={`flex-shrink-0 border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between transition-colors ${isEditMode ? 'bg-slate-50' : 'bg-white'}`}>
                     <div className="flex-1 min-w-0 mr-3">
                         <div className="flex items-center gap-2 flex-wrap">
                             <h2 className="text-lg md:text-xl font-semibold text-gray-900 truncate">{pm.title}</h2>
@@ -160,7 +160,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                 </div>
 
                 {/* コンテンツ */}
-                <div className="px-4 md:px-6 py-4">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     {isEditMode ? (
                         <ProjectMasterForm
                             formData={formData}
