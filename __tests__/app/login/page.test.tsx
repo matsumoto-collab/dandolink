@@ -48,7 +48,7 @@ describe('LoginPage', () => {
 
     it('should render login form', () => {
         render(<LoginPage />);
-        expect(screen.getByText('DandoLink')).toBeInTheDocument();
+        expect(screen.getByAltText('DandLink')).toBeInTheDocument();
         expect(screen.getByText('施工管理システム')).toBeInTheDocument();
         expect(screen.getByLabelText('ユーザー名')).toBeInTheDocument();
         expect(screen.getByLabelText('パスワード')).toBeInTheDocument();

@@ -3,7 +3,7 @@
  */
 import { GET, POST } from '@/app/api/customers/route';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove } from '@/lib/api/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 describe('/api/customers', () => {
@@ -88,7 +88,7 @@ describe('/api/customers', () => {
 
         it('should return 401 if not authenticated', async () => {
             const errorRes = NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-            (requireAuth as jest.Mock).mockResolvedValue({ session: null, error: errorRes });
+            (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: null, error: errorRes });
 
             const req = new NextRequest('http://localhost:3000/api/customers', {
                 method: 'POST',

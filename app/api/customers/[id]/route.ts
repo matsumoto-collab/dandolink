@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { updateCustomerSchema, validateRequest } from '@/lib/validations';
 import {
-    requireAuth,
+    requireManagerOrAbove,
     parseJsonField,
     stringifyJsonField,
     notFoundResponse,
@@ -28,7 +28,7 @@ export async function PATCH(
     { params }: { params: { id: string } }
 ) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = params;
@@ -79,7 +79,7 @@ export async function DELETE(
     { params }: { params: { id: string } }
 ) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = params;

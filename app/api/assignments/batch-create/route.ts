@@ -23,7 +23,7 @@ interface BatchCreateAssignment {
  * 複数日スケジュール登録のパフォーマンス改善のため、1回のリクエストで複数の配置を作成
  */
 export async function POST(req: NextRequest) {
-    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
     if (rateLimitError) return rateLimitError;
 
     try {

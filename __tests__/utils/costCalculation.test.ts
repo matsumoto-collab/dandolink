@@ -123,28 +123,28 @@ describe('costCalculation', () => {
 
     describe('getProfitMarginColor', () => {
         it('30%以上は緑', () => {
-            expect(getProfitMarginColor(30)).toBe('text-green-600');
-            expect(getProfitMarginColor(50)).toBe('text-green-600');
+            expect(getProfitMarginColor(30)).toBe('text-slate-800');
+            expect(getProfitMarginColor(50)).toBe('text-slate-800');
         });
 
         it('20-30%は青', () => {
-            expect(getProfitMarginColor(20)).toBe('text-blue-600');
-            expect(getProfitMarginColor(29)).toBe('text-blue-600');
+            expect(getProfitMarginColor(20)).toBe('text-slate-700');
+            expect(getProfitMarginColor(29)).toBe('text-slate-700');
         });
 
         it('10-20%は黄', () => {
-            expect(getProfitMarginColor(10)).toBe('text-yellow-600');
-            expect(getProfitMarginColor(19)).toBe('text-yellow-600');
+            expect(getProfitMarginColor(10)).toBe('text-slate-600');
+            expect(getProfitMarginColor(19)).toBe('text-slate-600');
         });
 
         it('0-10%はオレンジ', () => {
-            expect(getProfitMarginColor(0)).toBe('text-orange-600');
-            expect(getProfitMarginColor(9)).toBe('text-orange-600');
+            expect(getProfitMarginColor(0)).toBe('text-slate-500');
+            expect(getProfitMarginColor(9)).toBe('text-slate-500');
         });
 
         it('負の値は赤', () => {
-            expect(getProfitMarginColor(-1)).toBe('text-red-600');
-            expect(getProfitMarginColor(-50)).toBe('text-red-600');
+            expect(getProfitMarginColor(-1)).toBe('text-slate-400');
+            expect(getProfitMarginColor(-50)).toBe('text-slate-400');
         });
     });
 });

@@ -162,7 +162,7 @@ describe('ProjectDetailView', () => {
         // Click the action area delete button
         const allButtons = screen.getAllByRole('button');
         const actionDeleteButton = allButtons.find(btn =>
-            btn.textContent?.includes('削除') && btn.className.includes('border-red-300')
+            btn.textContent?.includes('削除') && btn.className.includes('border-slate-300')
         );
         expect(actionDeleteButton).toBeTruthy();
         fireEvent.click(actionDeleteButton!);
@@ -174,7 +174,7 @@ describe('ProjectDetailView', () => {
         // Confirm deletion - find the red confirmation button in the dialog
         const dialogButtons = screen.getAllByRole('button');
         const confirmButton = dialogButtons.find(btn =>
-            btn.textContent === '削除' && btn.className.includes('bg-red-600')
+            btn.textContent === '削除' && btn.className.includes('bg-slate-700')
         );
         expect(confirmButton).toBeTruthy();
         fireEvent.click(confirmButton!);
@@ -197,7 +197,7 @@ describe('ProjectDetailView', () => {
         // Open dialog
         const allButtons = screen.getAllByRole('button');
         const actionDeleteButton = allButtons.find(btn =>
-            btn.textContent?.includes('削除') && btn.className.includes('border-red-300')
+            btn.textContent?.includes('削除') && btn.className.includes('border-slate-300')
         );
         fireEvent.click(actionDeleteButton!);
         expect(screen.getByText('案件を削除しますか？')).toBeInTheDocument();

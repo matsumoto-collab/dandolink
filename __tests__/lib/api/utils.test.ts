@@ -280,8 +280,8 @@ describe('API Utils', () => {
     });
 
     describe('applyRateLimit', () => {
-        it('should return null when rate limit not exceeded', () => {
-            (checkRateLimit as jest.Mock).mockReturnValue({
+        it('should return null when rate limit not exceeded', async () => {
+            (checkRateLimit as jest.Mock).mockResolvedValue({
                 success: true,
                 remaining: 99,
             });
@@ -290,13 +290,13 @@ describe('API Utils', () => {
                 headers: { get: jest.fn().mockReturnValue('127.0.0.1') },
             } as unknown as NextRequest;
 
-            const result = applyRateLimit(mockReq);
+            const result = await applyRateLimit(mockReq);
 
             expect(result).toBeNull();
         });
 
-        it('should return 429 response when rate limit exceeded', () => {
-            (checkRateLimit as jest.Mock).mockReturnValue({
+        it('should return 429 response when rate limit exceeded', async () => {
+            (checkRateLimit as jest.Mock).mockResolvedValue({
                 success: false,
                 limit: 100,
                 resetTime: Date.now() + 60000,
@@ -306,7 +306,7 @@ describe('API Utils', () => {
                 headers: { get: jest.fn().mockReturnValue('127.0.0.1') },
             } as unknown as NextRequest;
 
-            applyRateLimit(mockReq);
+            await applyRateLimit(mockReq);
 
             expect(NextResponse.json).toHaveBeenCalledWith(
                 expect.objectContaining({

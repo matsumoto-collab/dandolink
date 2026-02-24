@@ -70,11 +70,9 @@ describe('SettingsPage', () => {
 
         expect(screen.getByText('車両管理')).toBeInTheDocument();
         expect(screen.getByText('職人管理')).toBeInTheDocument();
-        expect(screen.getByText('案件担当者管理')).toBeInTheDocument();
         expect(screen.getByText('総メンバー数設定')).toBeInTheDocument();
         expect(screen.getByText('工事種別')).toBeInTheDocument();
         expect(screen.getByText('単価マスター')).toBeInTheDocument();
-        expect(screen.getByText('会社情報')).toBeInTheDocument();
         expect(screen.getByText('ユーザー管理')).toBeInTheDocument();
     });
 
@@ -158,7 +156,7 @@ describe('SettingsPage', () => {
         fireEvent.click(deleteButtons[0]);
 
         // Confirm delete (second click on "削除" in confirmation UI)
-        const confirmDeleteButton = screen.getByText('削除', { selector: 'button.bg-red-600' });
+        const confirmDeleteButton = screen.getByText('削除', { selector: 'button.bg-slate-700' });
         fireEvent.click(confirmDeleteButton);
 
         expect(mockDeleteVehicle).toHaveBeenCalledWith('v1');

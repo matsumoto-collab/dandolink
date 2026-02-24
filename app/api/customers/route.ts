@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { createCustomerSchema, validateRequest } from '@/lib/validations';
 import {
     requireAuth,
+    requireManagerOrAbove,
     parseJsonField,
     stringifyJsonField,
     serverErrorResponse,
@@ -76,7 +77,7 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const body = await req.json();

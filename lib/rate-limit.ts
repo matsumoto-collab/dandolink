@@ -1,30 +1,22 @@
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
+
 /**
- * シンプルなRate Limiter
- * サーバーレス環境では各インスタンスで独立動作
- * 本格運用時はUpstash等の外部ストレージ推奨
+ * 分散Rate Limiter (Upstash Redis利用)
+ * サーバーレス環境でも正確にグローバルなリクエスト制限を行います。
  */
 
-interface RateLimitEntry {
-    count: number;
-    resetTime: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-
-// 定期的に古いエントリを削除（メモリリーク防止）
-const CLEANUP_INTERVAL = 60000; // 1分
-let lastCleanup = Date.now();
-
-function cleanup() {
-    const now = Date.now();
-    if (now - lastCleanup < CLEANUP_INTERVAL) return;
-    
-    lastCleanup = now;
-    for (const [key, entry] of rateLimitMap.entries()) {
-        if (entry.resetTime < now) {
-            rateLimitMap.delete(key);
-        }
+// Redisインスタンスの初期化（URLとTokenが設定されていない場合はモックとして動作しないように注意）
+let redis: Redis | null = null;
+try {
+    if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        redis = new Redis({
+            url: process.env.UPSTASH_REDIS_REST_URL,
+            token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
     }
+} catch (e) {
+    console.error('Redis initialization error:', e);
 }
 
 export interface RateLimitConfig {
@@ -36,41 +28,73 @@ export interface RateLimitResult {
     success: boolean;
     limit: number;
     remaining: number;
-    resetTime: number;
+    resetTime: number; // 既存コードとの互換性のため reset ではなく resetTime とする
 }
 
-/**
- * Rate Limitチェック
- * @param identifier IPアドレスやユーザーID
- * @param config 設定
- */
-export function checkRateLimit(
-    identifier: string,
-    config: RateLimitConfig = { limit: 100, windowMs: 60000 }
-): RateLimitResult {
-    cleanup();
-    
-    const now = Date.now();
-    const key = identifier;
-    const entry = rateLimitMap.get(key);
-    
-    if (!entry || entry.resetTime < now) {
-        // 新規または期限切れ
-        rateLimitMap.set(key, { count: 1, resetTime: now + config.windowMs });
-        return { success: true, limit: config.limit, remaining: config.limit - 1, resetTime: now + config.windowMs };
-    }
-    
-    if (entry.count >= config.limit) {
-        return { success: false, limit: config.limit, remaining: 0, resetTime: entry.resetTime };
-    }
-    
-    entry.count++;
-    return { success: true, limit: config.limit, remaining: config.limit - entry.count, resetTime: entry.resetTime };
-}
-
-// プリセット設定
+// プリセット設定 (ミリ秒からUpstash用フォーマットへの変換は動的に行うか固定します)
 export const RATE_LIMITS = {
     api: { limit: 100, windowMs: 60000 },        // 通常API: 100req/分
     auth: { limit: 10, windowMs: 60000 },        // 認証: 10req/分
     heavy: { limit: 20, windowMs: 60000 },       // 重い処理: 20req/分
 } as const;
+
+// Ratelimitのインスタンスキャッシュ用
+const limiterCache = new Map<string, Ratelimit>();
+
+function getLimiter(limit: number, windowMs: number): Ratelimit | null {
+    if (!redis) return null;
+
+    // Upstashは '10 s', '1 m' などの形式を要求するため、windowMsを秒換算
+    const windowSec = Math.max(1, Math.floor(windowMs / 1000));
+    const cacheKey = `${limit}:${windowSec}s`;
+
+    if (!limiterCache.has(cacheKey)) {
+        limiterCache.set(cacheKey, new Ratelimit({
+            redis,
+            limiter: Ratelimit.slidingWindow(limit, `${windowSec} s` as any),
+            analytics: false,
+        }));
+    }
+    return limiterCache.get(cacheKey)!;
+}
+
+/**
+ * Rate Limitチェック（Upstash非同期版）
+ * @param identifier IPアドレスやユーザーID
+ * @param config 設定
+ */
+export async function checkRateLimit(
+    identifier: string,
+    config: RateLimitConfig = RATE_LIMITS.api
+): Promise<RateLimitResult> {
+    const limiter = getLimiter(config.limit, config.windowMs);
+
+    // Redis環境変数が無い場合は常に成功(フェイルオープン)として扱う
+    if (!limiter) {
+        return {
+            success: true,
+            limit: config.limit,
+            remaining: config.limit,
+            resetTime: Date.now() + config.windowMs
+        };
+    }
+
+    try {
+        const { success, limit, remaining, reset } = await limiter.limit(identifier);
+        return {
+            success,
+            limit,
+            remaining,
+            resetTime: reset, // 既存の resetTime プロパティ名にマッピング
+        };
+    } catch (error) {
+        console.error('Rate limit error:', error);
+        // DBエラー時は遮断せず通す（フェイルオープン方針）
+        return {
+            success: true,
+            limit: config.limit,
+            remaining: 1,
+            resetTime: Date.now() + config.windowMs
+        };
+    }
+}

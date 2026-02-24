@@ -3,7 +3,7 @@
  */
 import { PATCH, DELETE } from '@/app/api/customers/[id]/route';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/api/utils';
+import { requireManagerOrAbove } from '@/lib/api/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock dependencies
@@ -21,7 +21,7 @@ jest.mock('@/lib/prisma', () => ({
 }));
 
 jest.mock('@/lib/api/utils', () => ({
-    requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn(),
     parseJsonField: (val: any) => val,
     stringifyJsonField: (val: any) => JSON.stringify(val),
     validationErrorResponse: jest.fn().mockImplementation((msg, details) => NextResponse.json({ error: msg, details }, { status: 400 })),
@@ -42,7 +42,7 @@ describe('/api/customers/[id]', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
     });
 
     describe('PATCH', () => {
@@ -82,7 +82,7 @@ describe('/api/customers/[id]', () => {
         });
 
         it('should return 401 if unauthorized', async () => {
-            (requireAuth as jest.Mock).mockResolvedValue({ session: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
+            (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
             const res = await PATCH(createReq(updateBody), context);
             expect(res.status).toBe(401);
         });

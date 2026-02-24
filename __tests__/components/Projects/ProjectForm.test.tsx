@@ -151,13 +151,19 @@ describe('ProjectForm', () => {
     describe('フォーム送信', () => {
         it('有効なデータでonSubmitが呼ばれる', async () => {
             const user = userEvent.setup();
-            render(<ProjectForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
+            // Provide initialData with a customer so validation passes without customerId
+            render(
+                <ProjectForm
+                    onSubmit={mockOnSubmit}
+                    onCancel={mockOnCancel}
+                    initialData={{ title: '', customer: 'テスト顧客', constructionType: 'assembly' } as any}
+                />
+            );
             await waitForApiLoad();
 
             await user.type(screen.getByPlaceholderText('例: 帝人'), 'テスト現場');
 
-            // 組立をチェック
-            // 組立を選択
+            // 組立をチェック（initialDataで設定済みだが念のためクリック）
             await user.click(screen.getByText('組立'));
 
             await user.click(screen.getByRole('button', { name: '保存' }));

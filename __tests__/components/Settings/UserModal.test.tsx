@@ -38,7 +38,7 @@ describe('UserModal', () => {
         expect(screen.getByText('追加')).toBeInTheDocument();
         // Password required asterisk
         const passwordLabel = screen.getByText('パスワード');
-        expect(passwordLabel).toContainHTML('<span class="text-red-500">*</span>');
+        expect(passwordLabel).toContainHTML('<span class="text-slate-500">*</span>');
     });
 
     it('should fill form with user data in edit mode', () => {

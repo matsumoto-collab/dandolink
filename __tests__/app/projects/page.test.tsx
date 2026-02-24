@@ -18,6 +18,18 @@ jest.mock('react-hot-toast', () => ({
     error: jest.fn(),
 }));
 
+// Mock calendarStore
+jest.mock('@/stores/calendarStore', () => ({
+    useCalendarStore: jest.fn((selector) => {
+        const state = {
+            getForemanName: (id: string) => id === 'emp1' ? 'Foreman A' : id,
+            fetchForemen: jest.fn(),
+            foremanSettingsInitialized: true,
+        };
+        return selector(state);
+    }),
+}));
+
 // Mock dynamic imports
 jest.mock('next/dynamic', () => () => {
     const DynamicComponent = () => <div data-testid="mock-project-modal" />;
@@ -68,6 +80,7 @@ describe('ProjectListPage', () => {
     const mockAddProject = jest.fn();
     const mockUpdateProject = jest.fn();
     const mockDeleteProject = jest.fn();
+    const mockRefreshProjects = jest.fn();
 
     beforeEach(() => {
         (useProjects as jest.Mock).mockReturnValue({
@@ -76,6 +89,7 @@ describe('ProjectListPage', () => {
             addProject: mockAddProject,
             updateProject: mockUpdateProject,
             deleteProject: mockDeleteProject,
+            refreshProjects: mockRefreshProjects,
         });
         window.confirm = jest.fn(() => true);
     });
@@ -94,6 +108,7 @@ describe('ProjectListPage', () => {
             addProject: jest.fn(),
             updateProject: jest.fn(),
             deleteProject: jest.fn(),
+            refreshProjects: jest.fn(),
         });
         render(<ProjectListPage />);
         expect(screen.queryByText('Project 1')).not.toBeInTheDocument();

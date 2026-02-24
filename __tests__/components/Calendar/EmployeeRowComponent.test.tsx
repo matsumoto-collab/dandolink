@@ -36,6 +36,12 @@ jest.mock('@/components/Calendar/DroppableCell', () => {
     };
 });
 
+jest.mock('@/components/Calendar/CellRemarkInput', () => {
+    return function MockCellRemarkInput() {
+        return <div data-testid="cell-remark-input" />;
+    };
+});
+
 // Mock utils
 jest.mock('@/utils/employeeUtils', () => ({
     getEventsForDate: jest.fn(),

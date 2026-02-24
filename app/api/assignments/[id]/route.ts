@@ -48,10 +48,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-
-        if (!canDispatch(session!.user)) {
-            return errorResponse('権限がありません', 403);
-        }
+        if (!canDispatch(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
         const body = await req.json();
@@ -127,10 +124,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-
-        if (!canDispatch(session!.user)) {
-            return errorResponse('権限がありません', 403);
-        }
+        if (!canDispatch(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
 

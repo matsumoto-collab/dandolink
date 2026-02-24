@@ -40,7 +40,7 @@ describe('Button', () => {
         it('dangerバリアントが正しく適用される', () => {
             render(<Button variant="danger">削除</Button>);
             const button = screen.getByRole('button');
-            expect(button).toHaveClass('bg-red-600');
+            expect(button).toHaveClass('bg-slate-700');
         });
 
         it('outlineバリアントが正しく適用される', () => {

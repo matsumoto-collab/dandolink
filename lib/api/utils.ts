@@ -58,6 +58,28 @@ export async function requireAdmin() {
     return { session, error: null };
 }
 
+/**
+ * 管理者またはマネージャー権限を要求
+ */
+export async function requireManagerOrAbove() {
+    const { session, error } = await requireAuth();
+
+    if (error) return { session: null, error };
+
+    const role = session!.user.role;
+    if (role !== 'admin' && role !== 'manager') {
+        return {
+            session: null,
+            error: NextResponse.json(
+                { error: '管理者またはマネージャー権限が必要です' },
+                { status: 403 }
+            ),
+        };
+    }
+
+    return { session, error: null };
+}
+
 // ============================================
 // エラーレスポンス
 // ============================================
@@ -276,9 +298,9 @@ function getClientIp(req: NextRequest): string {
 /**
  * Rate Limitチェック（エラー時はレスポンスを返す）
  */
-export function applyRateLimit(req: NextRequest, config: RateLimitConfig = RATE_LIMITS.api): NextResponse | null {
+export async function applyRateLimit(req: NextRequest, config: RateLimitConfig = RATE_LIMITS.api): Promise<NextResponse | null> {
     const ip = getClientIp(req);
-    const result = checkRateLimit(ip, config);
+    const result = await checkRateLimit(ip, config);
 
     if (!result.success) {
         return NextResponse.json(

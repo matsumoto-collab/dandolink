@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'このエンドポイントは本番環境では利用できません' }, { status: 403 });
     }
 
-    const rateLimitError = applyRateLimit(req, { limit: 3, windowMs: 60000 });
+    const rateLimitError = await applyRateLimit(req, { limit: 3, windowMs: 60000 });
     if (rateLimitError) return rateLimitError;
 
     try {

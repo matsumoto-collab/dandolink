@@ -77,8 +77,8 @@ describe('UserManagement', () => {
         });
 
         expect(screen.getAllByText('ユーザー管理')[0]).toBeInTheDocument();
-        expect(screen.getByText('User 1')).toBeInTheDocument();
-        expect(screen.getByText('User 2')).toBeInTheDocument();
+        expect(screen.getAllByText('User 1')[0]).toBeInTheDocument();
+        expect(screen.getAllByText('User 2')[0]).toBeInTheDocument();
     });
 
     it('opens create modal when add button is clicked', async () => {

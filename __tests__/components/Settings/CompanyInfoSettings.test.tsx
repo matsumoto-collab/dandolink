@@ -46,6 +46,7 @@ describe('CompanyInfoSettings', () => {
             companyInfo: mockCompanyInfo,
             updateCompanyInfo: mockUpdateCompanyInfo,
             isLoading: false,
+            ensureDataLoaded: jest.fn(),
         });
     });
 
@@ -54,6 +55,7 @@ describe('CompanyInfoSettings', () => {
             companyInfo: null,
             updateCompanyInfo: mockUpdateCompanyInfo,
             isLoading: true,
+            ensureDataLoaded: jest.fn(),
         });
 
         render(<CompanyInfoSettings />);

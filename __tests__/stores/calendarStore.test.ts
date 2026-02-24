@@ -331,7 +331,7 @@ describe('calendarStore', () => {
 
             const state = useCalendarStore.getState();
             expect(state.displayedForemanIds).toEqual(['emp1', 'emp2']);
-            expect(global.fetch).toHaveBeenCalledWith('/api/user-settings', expect.objectContaining({
+            expect(global.fetch).toHaveBeenCalledWith('/api/system-settings/foremen', expect.objectContaining({
                 method: 'PATCH',
                 body: expect.stringContaining('emp2')
             }));
@@ -347,7 +347,7 @@ describe('calendarStore', () => {
 
             const state = useCalendarStore.getState();
             expect(state.displayedForemanIds).toEqual(['emp2']);
-            expect(global.fetch).toHaveBeenCalledWith('/api/user-settings', expect.objectContaining({
+            expect(global.fetch).toHaveBeenCalledWith('/api/system-settings/foremen', expect.objectContaining({
                 method: 'PATCH'
             }));
         });

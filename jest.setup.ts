@@ -2,6 +2,10 @@
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
 
+// Set dummy Upstash env vars so lib/rate-limit.ts initializes redis in tests
+process.env.UPSTASH_REDIS_REST_URL = process.env.UPSTASH_REDIS_REST_URL || 'https://mock.upstash.io';
+process.env.UPSTASH_REDIS_REST_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || 'mock-token';
+
 import '@testing-library/jest-dom';
 import React from 'react';
 import { TextEncoder, TextDecoder } from 'util';
@@ -159,6 +163,10 @@ jest.mock('@/lib/api/utils', () => {
     const { NextResponse } = require('next/server');
     return {
         requireAuth: jest.fn().mockResolvedValue({
+            session: { user: { id: 'user-1', role: 'manager', isActive: true } },
+            error: null
+        }),
+        requireManagerOrAbove: jest.fn().mockResolvedValue({
             session: { user: { id: 'user-1', role: 'manager', isActive: true } },
             error: null
         }),

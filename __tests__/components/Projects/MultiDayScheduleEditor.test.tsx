@@ -176,7 +176,7 @@ describe('MultiDayScheduleEditor', () => {
                 foremen={mockForemen}
             />
         );
-        expect(screen.getByText('登録済みの日程 (2日間)')).toBeInTheDocument();
+        expect(screen.getByText('登録済みの日程（2日間）')).toBeInTheDocument();
     });
 
     it('should remove a schedule', () => {

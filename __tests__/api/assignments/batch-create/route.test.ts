@@ -13,6 +13,7 @@ jest.mock('@/lib/prisma', () => ({
         $transaction: jest.fn(),
         projectAssignment: {
             create: jest.fn(),
+            findMany: jest.fn(),
         },
     },
 }));
@@ -58,7 +59,13 @@ describe('/api/assignments/batch-create', () => {
 
     it('should create multiple assignments successfully', async () => {
         const assignments = [validAssignment, { ...validAssignment, date: '2023-01-02' }];
-        (prisma.$transaction as jest.Mock).mockResolvedValue(assignments); // Mock return
+        const mockCreated = [{ id: 'id-1' }, { id: 'id-2' }];
+        const mockResults = [
+            { id: 'id-1', projectMasterId: 'pm1', assignedEmployeeId: 'emp1', date: new Date('2023-01-01') },
+            { id: 'id-2', projectMasterId: 'pm1', assignedEmployeeId: 'emp1', date: new Date('2023-01-02') },
+        ];
+        (prisma.$transaction as jest.Mock).mockResolvedValue(mockCreated);
+        (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue(mockResults);
 
         const res = await POST(postReq(assignments));
 

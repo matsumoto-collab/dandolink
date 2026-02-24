@@ -85,7 +85,7 @@ describe('DailyReportForm', () => {
 
     it('should render work time section for assignments', () => {
         render(<DailyReportForm date={mockDate} />);
-        expect(screen.getByText('作業時間')).toBeInTheDocument();
+        expect(screen.getByText('案件ごとの作業時間')).toBeInTheDocument();
         expect(screen.getByText('現場A')).toBeInTheDocument();
         expect(screen.getByText('現場B')).toBeInTheDocument();
     });

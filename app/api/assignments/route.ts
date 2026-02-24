@@ -9,7 +9,7 @@ import { formatAssignment } from '@/lib/formatters';
  * GET /api/assignments - 配置一覧取得
  */
 export async function GET(req: NextRequest) {
-    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
     if (rateLimitError) return rateLimitError;
 
     try {
@@ -54,16 +54,13 @@ export async function GET(req: NextRequest) {
  * POST /api/assignments - 配置作成
  */
 export async function POST(req: NextRequest) {
-    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
     if (rateLimitError) return rateLimitError;
 
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-
-        if (!canDispatch(session!.user)) {
-            return errorResponse('権限がありません', 403);
-        }
+        if (!canDispatch(session!.user)) return errorResponse('権限がありません', 403);
 
         const body = await req.json();
         const validation = validateRequest(createAssignmentSchema, body);

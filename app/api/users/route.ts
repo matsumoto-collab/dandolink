@@ -9,7 +9,7 @@ import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validat
  * GET /api/users - ユーザー一覧取得
  */
 export async function GET(req: NextRequest) {
-    const rateLimitError = applyRateLimit(req, RATE_LIMITS.api);
+    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
     if (rateLimitError) return rateLimitError;
 
     try {
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
  * POST /api/users - ユーザー作成
  */
 export async function POST(req: NextRequest) {
-    const rateLimitError = applyRateLimit(req, RATE_LIMITS.auth);
+    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.auth);
     if (rateLimitError) return rateLimitError;
 
     try {

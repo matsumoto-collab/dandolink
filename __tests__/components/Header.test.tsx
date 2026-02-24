@@ -22,7 +22,7 @@ describe('Header', () => {
 
     it('タイトルを表示する', () => {
         render(<Header />);
-        expect(screen.getByText('DandoLink')).toBeInTheDocument();
+        expect(screen.getByAltText('DandLink')).toBeInTheDocument();
     });
 
     it('メニューボタンを表示する', () => {

@@ -40,10 +40,10 @@ describe('DroppableCell', () => {
         expect(cell).toHaveClass('bg-white');
 
         rerender(<DroppableCell {...defaultProps} dayOfWeek={6} />); // Saturday
-        expect(cell).toHaveClass('bg-blue-50/40');
+        expect(cell).toHaveClass('bg-slate-50/40');
 
         rerender(<DroppableCell {...defaultProps} dayOfWeek={0} />); // Sunday
-        expect(cell).toHaveClass('bg-red-50/40');
+        expect(cell).toHaveClass('bg-slate-50/40');
     });
 
     it('applies highlight when isOver is true', () => {
@@ -55,7 +55,7 @@ describe('DroppableCell', () => {
         render(<DroppableCell {...defaultProps} />);
         const cell = screen.getByTestId('calendar-cell');
 
-        expect(cell).toHaveClass('bg-blue-100');
+        expect(cell).toHaveClass('bg-slate-100');
         expect(cell).toHaveClass('ring-2');
     });
 

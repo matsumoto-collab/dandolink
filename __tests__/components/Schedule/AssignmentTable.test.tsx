@@ -20,6 +20,7 @@ jest.mock('lucide-react', () => ({
     Users: () => <span data-testid="icon-users" />,
     Truck: () => <span data-testid="icon-truck" />,
     CheckCircle: () => <span data-testid="icon-check" />,
+    CalendarDays: () => <span data-testid="icon-calendar-days" />,
 }));
 
 // Mock employeeUtils
@@ -207,7 +208,7 @@ describe('AssignmentTable', () => {
         render(<AssignmentTable userRole="worker" userTeamId="worker1" />);
 
         await waitFor(() => {
-            expect(screen.getByText('あなたの担当現場')).toBeInTheDocument();
+            expect(screen.getByText('あなたの担当現場 班')).toBeInTheDocument();
         });
     });
 

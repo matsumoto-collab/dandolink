@@ -85,11 +85,39 @@ export const authOptions: NextAuthOptions = {
     callbacks: {
         async jwt({ token, user }) {
             if (user) {
+                // 初回ログイン時
                 token.id = user.id;
                 token.username = user.username;
                 token.role = user.role;
                 token.assignedProjects = user.assignedProjects;
                 token.isActive = user.isActive;
+                token.lastDbCheck = Date.now();
+            } else if (token?.id) {
+                // 以降のリクエスト時のDB再検証 (5分 = 300,000ms ごと)
+                const lastCheck = (token.lastDbCheck as number) || 0;
+                const now = Date.now();
+
+                if (now - lastCheck > 300000) {
+                    try {
+                        const dbUser = await prisma.user.findUnique({
+                            where: { id: token.id as string },
+                            select: { isActive: true, role: true }
+                        });
+
+                        if (!dbUser || !dbUser.isActive) {
+                            // ユーザー削除済み、または無効化された場合
+                            token.isActive = false;
+                        } else {
+                            // 状態が有効であれば更新
+                            token.isActive = dbUser.isActive;
+                            token.role = dbUser.role.toLowerCase() as UserRole;
+                            token.lastDbCheck = now;
+                        }
+                    } catch (error) {
+                        console.error('JWT DB検証エラー:', error);
+                        // DB接続エラー時等は既存のトークン状態を維持
+                    }
+                }
             }
             return token;
         },
@@ -110,7 +138,7 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: 'jwt',
-        maxAge: 7 * 24 * 60 * 60, // 7 days
+        maxAge: 24 * 60 * 60, // 24 hours
     },
     secret: process.env.NEXTAUTH_SECRET,
 };

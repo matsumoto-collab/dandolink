@@ -13,39 +13,28 @@ jest.mock('react-hot-toast', () => ({
     error: jest.fn(),
 }));
 
-// Mock child components
-jest.mock('@/components/ProjectMasters/ProjectMasterForm', () => ({
-    ProjectMasterForm: ({ onSubmit, onCancel, isEdit }: any) => (
-        <div data-testid="project-master-form">
-            <button onClick={onSubmit}>Submit</button>
-            <button onClick={onCancel}>Cancel</button>
-            <span>{isEdit ? 'Edit Mode' : 'Create Mode'}</span>
-        </div>
-    ),
-    DEFAULT_FORM_DATA: {
-        title: '',
-        customerId: '',
-        customerName: '',
-        constructionContent: '',
-        postalCode: '',
-        prefecture: '',
-        city: '',
-        location: '',
-        plusCode: '',
-        area: '',
-        areaRemarks: '',
-        assemblyDate: '',
-        demolitionDate: '',
-        estimatedAssemblyWorkers: '',
-        estimatedDemolitionWorkers: '',
-        contractAmount: '',
-        scaffoldingSpec: {},
-        remarks: '',
-        createdBy: [],
-    }
+// Mock modal components
+jest.mock('@/components/ProjectMaster/ProjectMasterCreateModal', () => ({
+    __esModule: true,
+    default: ({ isOpen, onClose }: any) =>
+        isOpen ? (
+            <div data-testid="project-master-create-modal">
+                <button onClick={onClose}>Cancel</button>
+                <span>Create Modal</span>
+            </div>
+        ) : null,
 }));
-jest.mock('@/components/ProjectMaster/ProjectProfitDisplay', () => () => <div data-testid="profit-display" />);
-jest.mock('@/components/ProjectMaster/WorkHistoryDisplay', () => () => <div data-testid="work-history-display" />);
+
+jest.mock('@/components/ProjectMaster/ProjectMasterDetailModal', () => ({
+    __esModule: true,
+    default: ({ pm, onClose }: any) =>
+        pm ? (
+            <div data-testid="project-master-detail-modal">
+                <button onClick={onClose}>Close</button>
+                <span>{pm.title}</span>
+            </div>
+        ) : null,
+}));
 
 // Mock icons
 jest.mock('lucide-react', () => ({
@@ -68,6 +57,7 @@ const mockProjectMasters = [
         customerName: 'Customer A',
         updatedAt: '2024-02-01',
         assignments: [],
+        assignmentCount: 0,
     },
     {
         id: 'pm2',
@@ -76,6 +66,7 @@ const mockProjectMasters = [
         customerName: 'Customer B',
         updatedAt: '2024-02-02',
         assignments: [],
+        assignmentCount: 0,
     },
 ];
 
@@ -83,6 +74,7 @@ describe('ProjectMasterListPage', () => {
     const mockCreate = jest.fn();
     const mockUpdate = jest.fn();
     const mockDelete = jest.fn();
+    const mockGetById = jest.fn();
 
     beforeEach(() => {
         (useProjectMasters as jest.Mock).mockReturnValue({
@@ -91,6 +83,7 @@ describe('ProjectMasterListPage', () => {
             createProjectMaster: mockCreate,
             updateProjectMaster: mockUpdate,
             deleteProjectMaster: mockDelete,
+            getProjectMasterById: mockGetById,
         });
         window.confirm = jest.fn(() => true);
     });
@@ -123,29 +116,26 @@ describe('ProjectMasterListPage', () => {
         expect(screen.getByText('Master Project 2')).toBeInTheDocument();
     });
 
-    it('should open create form', () => {
+    it('should open create modal', () => {
         render(<ProjectMasterListPage />);
-        fireEvent.click(screen.getByText('新規案件マスター'));
-        expect(screen.getByTestId('project-master-form')).toBeInTheDocument();
-        expect(screen.getByText('Create Mode')).toBeInTheDocument();
+        // The button has text split across elements (icon + text)
+        const createBtn = screen.getByTestId('icon-plus').closest('button');
+        fireEvent.click(createBtn!);
+        expect(screen.getByTestId('project-master-create-modal')).toBeInTheDocument();
+        expect(screen.getByText('Create Modal')).toBeInTheDocument();
     });
 
-    it('should open edit form', () => {
+    it('should open detail modal on card click', () => {
+        render(<ProjectMasterListPage />);
+        fireEvent.click(screen.getByText('Master Project 1'));
+        expect(screen.getByTestId('project-master-detail-modal')).toBeInTheDocument();
+    });
+
+    it('should open edit modal on edit button click', () => {
         render(<ProjectMasterListPage />);
         const editButton = screen.getAllByTitle('編集')[0];
         fireEvent.click(editButton);
-        expect(screen.getByTestId('project-master-form')).toBeInTheDocument();
-        expect(screen.getByText('Edit Mode')).toBeInTheDocument();
-    });
-
-    it('should expand item details', () => {
-        render(<ProjectMasterListPage />);
-        // Click expand button (ChevronDown)
-        const expandBtn = screen.getAllByTestId('icon-chevron-down')[0].closest('button');
-        fireEvent.click(expandBtn!);
-
-        expect(screen.getByTestId('profit-display')).toBeInTheDocument();
-        expect(screen.getByTestId('work-history-display')).toBeInTheDocument();
+        expect(screen.getByTestId('project-master-detail-modal')).toBeInTheDocument();
     });
 
     it('should handle delete', async () => {
