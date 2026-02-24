@@ -69,9 +69,9 @@ export default function ProjectMasterSearchModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col lg:items-center lg:justify-center lg:bg-black/50">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4.5rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             <div className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block" onClick={onClose} />
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-xl lg:max-w-3xl lg:h-auto lg:max-h-[80vh]">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-xl lg:max-w-3xl lg:h-auto max-h-[calc(100dvh-5rem)] lg:max-h-[80vh] mt-4 lg:mt-0">
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 pwa-modal-safe">
                     <div className="flex items-center justify-between">

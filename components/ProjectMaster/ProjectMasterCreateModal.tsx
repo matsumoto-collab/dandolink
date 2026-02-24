@@ -75,13 +75,13 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-6rem)] lg:max-h-[90vh] overflow-y-auto mb-4 lg:mb-0 shrink-0"
+                className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-6rem)] lg:max-h-[90vh] overflow-y-auto mb-4 lg:mb-0 shrink-0 mt-4 lg:mt-0"
             >
                 {/* ヘッダー */}
                 <div className="sticky top-0 bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between z-10">
                     <div className="flex-1 min-w-0 mr-3">
                         <div className="flex items-center gap-2">
-                            <h2 className="text-lg md:text-xl font-semibold text-gray-900">新規案件マスター</h2>
+                            <h2 className="text-lg md:text-xl font-semibold text-gray-900">新規案件登録</h2>
                             <span className="px-2 py-0.5 text-xs font-bold bg-slate-200 text-slate-700 rounded-full whitespace-nowrap">
                                 新規作成
                             </span>

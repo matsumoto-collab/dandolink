@@ -115,7 +115,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-6rem)] lg:max-h-[90vh] overflow-y-auto mb-4 lg:mb-0 shrink-0"
+                className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[calc(100dvh-6rem)] lg:max-h-[90vh] overflow-y-auto mb-4 lg:mb-0 shrink-0 mt-4 lg:mt-0"
             >
                 {/* ヘッダー */}
                 <div className={`sticky top-0 border-b border-gray-200 px-4 md:px-6 py-4 flex items-center justify-between z-10 transition-colors ${isEditMode ? 'bg-slate-50' : 'bg-white'}`}>
