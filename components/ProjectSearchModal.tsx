@@ -77,7 +77,7 @@ export default function ProjectSearchModal({
 
     return (
         <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-start pt-[4rem] pwa-modal-offset-safe lg:items-center lg:pt-0 justify-center z-[60]">
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white lg:rounded-lg shadow-xl w-full flex-1 h-full lg:flex-none lg:h-auto max-w-3xl lg:max-h-[80vh] flex flex-col">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white lg:rounded-lg shadow-xl w-full h-full lg:h-auto flex-1 lg:flex-none max-w-3xl lg:max-h-[80vh] flex flex-col">
                 {/* ヘッダー */}
                 <div className="px-6 py-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">
