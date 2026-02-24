@@ -39,13 +39,31 @@ describe('/api/users', () => {
             expect(json[0].role).toBe('manager'); // Lowercase conversion check
         });
 
-        it('should return 403 if not admin', async () => {
-            (canManageUsers as jest.Mock).mockReturnValue(false);
+        it('should return masked data if not admin or manager', async () => {
+            const mockSessionWorker = {
+                user: { id: 'user-2', role: 'worker', isActive: true },
+            };
+            (requireAuth as jest.Mock).mockResolvedValue({ session: mockSessionWorker, error: null });
+
+            const mockUsers = [
+                { id: '1', username: 'user1', email: 'test@example.com', displayName: 'Test User', role: 'MANAGER', assignedProjects: '[]', hourlyRate: 1500, createdAt: new Date() },
+            ];
+            (prisma.user.findMany as jest.Mock).mockResolvedValue(mockUsers);
 
             const req = new NextRequest('http://localhost:3000/api/users');
             const res = await GET(req);
 
-            expect(res.status).toBe(403);
+            expect(res.status).toBe(200);
+            const json = await res.json();
+            expect(json).toHaveLength(1);
+
+            // Masked data check
+            expect(json[0].id).toBe('1');
+            expect(json[0].displayName).toBe('Test User');
+            expect(json[0].role).toBe('manager');
+            expect(json[0].email).toBeUndefined();
+            expect(json[0].username).toBeUndefined();
+            expect(json[0].hourlyRate).toBeUndefined();
         });
     });
 

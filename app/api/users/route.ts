@@ -15,22 +15,46 @@ export async function GET(req: NextRequest) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-        if (!canManageUsers(session!.user)) return errorResponse('権限がありません', 403);
+        const userRole = (session?.user?.role as string | undefined)?.toLowerCase();
+        const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
 
-        const userRole = (session!.user.role as string).toLowerCase();
-        const canSeeHourlyRate = userRole === 'admin' || userRole === 'manager';
+        // クエリパラメータによるフィルタリング
+        const queryRole = req.nextUrl.searchParams.get('role');
+        const rolesToFetch = queryRole ? queryRole.split(',').map(r => r.trim().toUpperCase()) : undefined;
+
+        const whereClause = rolesToFetch ? { role: { in: rolesToFetch } } : undefined;
 
         const users = await prisma.user.findMany({
+            where: whereClause,
             select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, hourlyRate: true, createdAt: true, updatedAt: true },
             orderBy: { createdAt: 'desc' },
         });
 
-        return NextResponse.json(users.map(user => ({
-            ...user,
-            role: user.role.toLowerCase(),
-            assignedProjects: parseJsonField<string[]>(user.assignedProjects, []),
-            hourlyRate: canSeeHourlyRate ? (user.hourlyRate ? Number(user.hourlyRate) : null) : undefined,
-        })));
+        // 権限に応じて返却するデータを制御。管理者・マネージャー以外には機密情報を送信しない
+        return NextResponse.json(users.map(user => {
+            const baseData = {
+                id: user.id,
+                displayName: user.displayName,
+                role: user.role.toLowerCase(),
+                isActive: user.isActive,
+            };
+
+            // 管理者またはマネージャーの場合は詳細情報も含める
+            if (isAdminOrManager) {
+                return {
+                    ...baseData,
+                    username: user.username,
+                    email: user.email,
+                    assignedProjects: parseJsonField<string[]>(user.assignedProjects, []),
+                    hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null,
+                    createdAt: user.createdAt,
+                    updatedAt: user.updatedAt,
+                };
+            }
+
+            // 一般ユーザーには基本情報のみを返す
+            return baseData;
+        }));
     } catch (error) {
         return serverErrorResponse('ユーザー一覧の取得', error);
     }
