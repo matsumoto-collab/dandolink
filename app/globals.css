@@ -127,6 +127,6 @@ body {
 /* pt-[4.5rem] 系モーダル用: safe area 分を加算 */
 @media (max-width: 1023px) {
   .pwa-modal-offset-safe {
-    padding-top: calc(4.5rem + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
   }
 }

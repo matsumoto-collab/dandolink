@@ -87,9 +87,9 @@ export default function ProjectModal({
             />
 
             {/* モーダルコンテンツ */}
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:h-auto max-h-[calc(100dvh-5rem)] lg:max-h-[90vh] mt-4 lg:mt-0">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full flex-1 h-full lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:h-auto lg:max-h-[90vh]">
                 {/* ヘッダー */}
-                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between pwa-modal-safe">
+                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <h2 className="text-xl font-semibold text-gray-900">{modalTitle}</h2>
                         {otherEditingUsers.length > 0 && (
@@ -107,7 +107,7 @@ export default function ProjectModal({
                 </div>
 
                 {/* コンテンツ */}
-                <div className="flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     {initialData?.id && (!isEditMode || readOnly) ? (
                         // 既存案件の閲覧モード（readOnlyの場合は常に閲覧モード）
                         <ProjectDetailView
