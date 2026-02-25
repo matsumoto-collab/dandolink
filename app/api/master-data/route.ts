@@ -7,14 +7,13 @@ export async function GET() {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const [vehicles, workers, settings] = await Promise.all([
+        const [vehicles, settings] = await Promise.all([
             prisma.vehicle.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
-            prisma.worker.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } }),
             prisma.systemSettings.findFirst({ where: { id: 'default' } }),
         ]);
 
         return NextResponse.json(
-            { vehicles, workers, totalMembers: settings?.totalMembers || 20 },
+            { vehicles, totalMembers: settings?.totalMembers || 20 },
             { headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=60' } }
         );
     } catch (error) {

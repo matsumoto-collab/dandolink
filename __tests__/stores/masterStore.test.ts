@@ -37,7 +37,6 @@ describe('masterStore', () => {
             const state = useMasterStore.getState();
 
             expect(state.vehicles).toEqual([]);
-            expect(state.workers).toEqual([]);
             expect(state.totalMembers).toBe(20);
             expect(state.isLoading).toBe(false);
             expect(state.isInitialized).toBe(false);
@@ -48,7 +47,6 @@ describe('masterStore', () => {
         it('should fetch and set master data', async () => {
             const mockData = {
                 vehicles: [{ id: 'v1', name: 'トラック1' }],
-                workers: [{ id: 'w1', name: '作業員1' }],
                 totalMembers: 25,
             };
 
@@ -68,7 +66,6 @@ describe('masterStore', () => {
 
             const state = useMasterStore.getState();
             expect(state.vehicles).toEqual(mockData.vehicles);
-            expect(state.workers).toEqual(mockData.workers);
             expect(state.totalMembers).toBe(25);
             expect(state.isInitialized).toBe(true);
             expect(state.isLoading).toBe(false);
@@ -176,61 +173,6 @@ describe('masterStore', () => {
         });
     });
 
-    describe('Worker operations', () => {
-        it('should add worker', async () => {
-            const newWorker = { id: 'w-new', name: '新しい作業員' };
-
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                json: () => Promise.resolve(newWorker),
-            });
-
-            await act(async () => {
-                await useMasterStore.getState().addWorker('新しい作業員');
-            });
-
-            expect(mockFetch).toHaveBeenCalledWith('/api/master-data/workers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: '新しい作業員' }),
-            });
-
-            expect(useMasterStore.getState().workers).toContainEqual(newWorker);
-        });
-
-        it('should update worker', async () => {
-            useMasterStore.setState({
-                workers: [{ id: 'w1', name: '古い名前' }],
-            });
-
-            mockFetch.mockResolvedValueOnce({ ok: true });
-
-            await act(async () => {
-                await useMasterStore.getState().updateWorker('w1', '新しい名前');
-            });
-
-            expect(useMasterStore.getState().workers[0].name).toBe('新しい名前');
-        });
-
-        it('should delete worker', async () => {
-            useMasterStore.setState({
-                workers: [
-                    { id: 'w1', name: '作業員1' },
-                    { id: 'w2', name: '作業員2' },
-                ],
-            });
-
-            mockFetch.mockResolvedValueOnce({ ok: true });
-
-            await act(async () => {
-                await useMasterStore.getState().deleteWorker('w1');
-            });
-
-            expect(useMasterStore.getState().workers).toHaveLength(1);
-            expect(useMasterStore.getState().workers[0].id).toBe('w2');
-        });
-    });
-
     describe('updateTotalMembers', () => {
         it('should update total members', async () => {
             mockFetch.mockResolvedValueOnce({ ok: true });
@@ -254,7 +196,6 @@ describe('masterStore', () => {
             // 状態を変更
             useMasterStore.setState({
                 vehicles: [{ id: 'v1', name: 'test' }],
-                workers: [{ id: 'w1', name: 'test' }],
                 totalMembers: 100,
                 isInitialized: true,
             });
@@ -264,7 +205,6 @@ describe('masterStore', () => {
 
             const state = useMasterStore.getState();
             expect(state.vehicles).toEqual([]);
-            expect(state.workers).toEqual([]);
             expect(state.totalMembers).toBe(20);
             expect(state.isInitialized).toBe(false);
         });
@@ -280,17 +220,6 @@ describe('masterStore', () => {
 
             const vehicles = selectVehicles(useMasterStore.getState());
             expect(vehicles).toEqual([{ id: 'v1', name: 'トラック' }]);
-        });
-
-        it('should select workers correctly', async () => {
-            const { selectWorkers } = await import('@/stores/masterStore');
-
-            useMasterStore.setState({
-                workers: [{ id: 'w1', name: '作業員' }],
-            });
-
-            const workers = selectWorkers(useMasterStore.getState());
-            expect(workers).toEqual([{ id: 'w1', name: '作業員' }]);
         });
     });
 
@@ -310,7 +239,7 @@ describe('masterStore', () => {
             });
 
             const state = useMasterStore.getState();
-            expect(state._realtimeChannels).toHaveLength(4); // 4 tables
+            expect(state._realtimeChannels).toHaveLength(3); // 3 tables
         });
 
         it('cleanupRealtimeSubscription: should remove channels', async () => {
