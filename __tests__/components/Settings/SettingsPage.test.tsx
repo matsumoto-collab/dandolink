@@ -22,16 +22,12 @@ jest.mock('@/components/Settings/UserManagement', () => () => <div data-testid="
 describe('SettingsPage', () => {
     // Mock Data
     const mockVehicles = [{ id: 'v1', name: 'Vehicle 1' }];
-    const mockWorkers = [{ id: 'w1', name: 'Worker 1' }];
     const mockManagers = [{ id: 'm1', name: 'Manager 1' }];
 
     // Mock Actions
     const mockAddVehicle = jest.fn();
     const mockUpdateVehicle = jest.fn();
     const mockDeleteVehicle = jest.fn();
-    const mockAddWorker = jest.fn();
-    const mockUpdateWorker = jest.fn();
-    const mockDeleteWorker = jest.fn();
     const mockAddManager = jest.fn();
     const mockUpdateManager = jest.fn();
     const mockDeleteManager = jest.fn();
@@ -49,15 +45,11 @@ describe('SettingsPage', () => {
         // Default useMasterData Mock
         (useMasterData as jest.Mock).mockReturnValue({
             vehicles: mockVehicles,
-            workers: mockWorkers,
             managers: mockManagers,
             totalMembers: 10,
             addVehicle: mockAddVehicle,
             updateVehicle: mockUpdateVehicle,
             deleteVehicle: mockDeleteVehicle,
-            addWorker: mockAddWorker,
-            updateWorker: mockUpdateWorker,
-            deleteWorker: mockDeleteWorker,
             addManager: mockAddManager,
             updateManager: mockUpdateManager,
             deleteManager: mockDeleteManager,
@@ -69,7 +61,6 @@ describe('SettingsPage', () => {
         render(<SettingsPage />);
 
         expect(screen.getByText('車両管理')).toBeInTheDocument();
-        expect(screen.getByText('職人管理')).toBeInTheDocument();
         expect(screen.getByText('総メンバー数設定')).toBeInTheDocument();
         expect(screen.getByText('工事種別')).toBeInTheDocument();
         expect(screen.getByText('単価マスター')).toBeInTheDocument();
@@ -93,11 +84,6 @@ describe('SettingsPage', () => {
         // Default is Vehicles
         expect(screen.getByText('車両一覧')).toBeInTheDocument();
         expect(screen.getByText('Vehicle 1')).toBeInTheDocument();
-
-        // Switch to Workers
-        fireEvent.click(screen.getByText('職人管理'));
-        expect(screen.getByText('職人一覧')).toBeInTheDocument();
-        expect(screen.getByText('Worker 1')).toBeInTheDocument();
 
         // Switch to Sub-components
         fireEvent.click(screen.getByText('工事種別'));

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMasterStore } from '@/stores/masterStore';
 
 // Re-export types for backward compatibility
-export type { Vehicle, Worker, MasterData } from '@/stores/masterStore';
+export type { Vehicle, MasterData } from '@/stores/masterStore';
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useMasterData() {
@@ -13,7 +13,6 @@ export function useMasterData() {
 
     // Get state from Zustand store
     const vehicles = useMasterStore((state) => state.vehicles);
-    const workers = useMasterStore((state) => state.workers);
     const constructionTypes = useMasterStore((state) => state.constructionTypes);
     const totalMembers = useMasterStore((state) => state.totalMembers);
     const isLoading = useMasterStore((state) => state.isLoading);
@@ -25,9 +24,6 @@ export function useMasterData() {
     const addVehicle = useMasterStore((state) => state.addVehicle);
     const updateVehicle = useMasterStore((state) => state.updateVehicle);
     const deleteVehicle = useMasterStore((state) => state.deleteVehicle);
-    const addWorker = useMasterStore((state) => state.addWorker);
-    const updateWorker = useMasterStore((state) => state.updateWorker);
-    const deleteWorker = useMasterStore((state) => state.deleteWorker);
     const updateTotalMembers = useMasterStore((state) => state.updateTotalMembers);
     const setupRealtimeSubscription = useMasterStore((state) => state.setupRealtimeSubscription);
 
@@ -52,7 +48,6 @@ export function useMasterData() {
     return {
         // Data
         vehicles,
-        workers,
         constructionTypes,
         totalMembers,
         isLoading,
@@ -61,11 +56,6 @@ export function useMasterData() {
         addVehicle,
         updateVehicle,
         deleteVehicle,
-
-        // Worker operations
-        addWorker,
-        updateWorker,
-        deleteWorker,
 
         // Total members
         updateTotalMembers,

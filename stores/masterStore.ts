@@ -9,12 +9,6 @@ export interface Vehicle {
     name: string;
 }
 
-export interface Worker {
-    id: string;
-    name: string;
-    hourlyRate?: number | null;
-}
-
 export interface Manager {
     id: string;
     name: string;
@@ -22,7 +16,6 @@ export interface Manager {
 
 export interface MasterData {
     vehicles: Vehicle[];
-    workers: Worker[];
     managers: Manager[];
     constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
@@ -31,7 +24,6 @@ export interface MasterData {
 interface MasterState {
     // Data
     vehicles: Vehicle[];
-    workers: Worker[];
     constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
 
@@ -53,11 +45,6 @@ interface MasterActions {
     updateVehicle: (id: string, name: string) => Promise<void>;
     deleteVehicle: (id: string) => Promise<void>;
 
-    // Worker operations
-    addWorker: (name: string) => Promise<void>;
-    updateWorker: (id: string, name: string, hourlyRate?: number | null) => Promise<void>;
-    deleteWorker: (id: string) => Promise<void>;
-
     // Total members
     updateTotalMembers: (count: number) => Promise<void>;
 
@@ -73,7 +60,6 @@ type MasterStore = MasterState & MasterActions;
 
 const initialState: MasterState = {
     vehicles: [],
-    workers: [],
     constructionTypes: [],
     totalMembers: 20,
     isLoading: false,
@@ -105,7 +91,6 @@ export const useMasterStore = create<MasterStore>()(
                     const data = await masterResponse.json();
                     set({
                         vehicles: data.vehicles || [],
-                        workers: data.workers || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         isInitialized: true,
@@ -135,7 +120,6 @@ export const useMasterStore = create<MasterStore>()(
                     const data = await masterResponse.json();
                     set({
                         vehicles: data.vehicles || [],
-                        workers: data.workers || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
                         isInitialized: true,
@@ -183,43 +167,6 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
-        // Worker operations
-        addWorker: async (name: string) => {
-            const response = await fetch('/api/master-data/workers', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
-            });
-            if (response.ok) {
-                const newWorker = await response.json();
-                set((state) => ({ workers: [...state.workers, newWorker] }));
-            }
-        },
-
-        updateWorker: async (id: string, name: string, hourlyRate?: number | null) => {
-            const response = await fetch(`/api/master-data/workers/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, hourlyRate }),
-            });
-            if (response.ok) {
-                set((state) => ({
-                    workers: state.workers.map((w) => (w.id === id ? { ...w, name, hourlyRate } : w)),
-                }));
-            }
-        },
-
-        deleteWorker: async (id: string) => {
-            const response = await fetch(`/api/master-data/workers/${id}`, {
-                method: 'DELETE',
-            });
-            if (response.ok) {
-                set((state) => ({
-                    workers: state.workers.filter((w) => w.id !== id),
-                }));
-            }
-        },
-
         // Total members
         updateTotalMembers: async (count: number) => {
             const response = await fetch('/api/master-data/settings', {
@@ -240,7 +187,7 @@ export const useMasterStore = create<MasterStore>()(
             try {
                 const { supabase } = await import('@/lib/supabase');
                 const channels: RealtimeChannel[] = [];
-                const tables = ['Vehicle', 'Worker', 'SystemSettings', 'ConstructionType'];
+                const tables = ['Vehicle', 'SystemSettings', 'ConstructionType'];
 
                 tables.forEach(table => {
                     const channel = supabase
@@ -289,7 +236,6 @@ export const useMasterStore = create<MasterStore>()(
 
 // Selectors for optimized re-renders
 export const selectVehicles = (state: MasterStore) => state.vehicles;
-export const selectWorkers = (state: MasterStore) => state.workers;
 export const selectConstructionTypes = (state: MasterStore) => state.constructionTypes;
 export const selectTotalMembers = (state: MasterStore) => state.totalMembers;
 export const selectIsLoading = (state: MasterStore) => state.isLoading;
