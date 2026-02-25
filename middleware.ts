@@ -63,6 +63,7 @@ export const config = {
         // - login: ログインページ
         // - _next/static, _next/image, favicon.ico: 静的ファイル群
         // - manifest.json, 各種画像ファイル: PWAやアセット用
-        '/((?!api/auth|api/init-db|login|_next/static|_next/image|favicon.ico|manifest\\.json|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico).*)',
+        // - .*\\.mjs: PDF Worker などの静的スクリプト
+        '/((?!api/auth|api/init-db|login|_next/static|_next/image|favicon.ico|manifest\\.json|.*\\.png|.*\\.jpg|.*\\.svg|.*\\.ico|.*\\.mjs).*)',
     ],
 };
