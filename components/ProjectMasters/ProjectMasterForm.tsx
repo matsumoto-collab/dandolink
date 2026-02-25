@@ -40,6 +40,9 @@ export interface ProjectMasterFormData {
     // 職長配置（組立・解体）
     assemblyForemen: { foremanId: string; memberCount: number }[];
     demolitionForemen: { foremanId: string; memberCount: number }[];
+    // 工事種別（組立日・解体日）
+    assemblyConstructionType: string;
+    demolitionConstructionType: string;
     // その他
     remarks: string;
     createdBy: string[];
@@ -67,6 +70,8 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     scaffoldingSpec: DEFAULT_SCAFFOLDING_SPEC,
     assemblyForemen: [],
     demolitionForemen: [],
+    assemblyConstructionType: '',
+    demolitionConstructionType: '',
     remarks: '',
     createdBy: [],
 };

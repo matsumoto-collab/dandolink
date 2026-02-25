@@ -99,6 +99,7 @@ export default function ProjectMasterListPage() {
                             memberCount: f.memberCount,
                             sortOrder: i,
                             estimatedHours: 8.0,
+                            constructionType: data.assemblyConstructionType || undefined,
                         }),
                     })
                 )
@@ -119,6 +120,7 @@ export default function ProjectMasterListPage() {
                             memberCount: f.memberCount,
                             sortOrder: i,
                             estimatedHours: 8.0,
+                            constructionType: data.demolitionConstructionType || undefined,
                         }),
                     })
                 )
