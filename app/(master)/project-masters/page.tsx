@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
@@ -11,6 +12,7 @@ import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCr
 import toast from 'react-hot-toast';
 
 export default function ProjectMasterListPage() {
+    const router = useRouter();
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('active');
@@ -59,7 +61,7 @@ export default function ProjectMasterListPage() {
     }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
-        const pm = await createProjectMaster({
+        await createProjectMaster({
             title: data.title,
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
@@ -75,8 +77,6 @@ export default function ProjectMasterListPage() {
             longitude: data.longitude ?? undefined,
             area: data.area ? parseFloat(data.area) : undefined,
             areaRemarks: data.areaRemarks || undefined,
-            assemblyDate: data.assemblyDate ? new Date(data.assemblyDate) : undefined,
-            demolitionDate: data.demolitionDate ? new Date(data.demolitionDate) : undefined,
             estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
@@ -85,47 +85,23 @@ export default function ProjectMasterListPage() {
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
 
-        // 組立日の配置を自動生成
-        if (data.assemblyDate && data.assemblyForemen.length > 0) {
-            await Promise.all(
-                data.assemblyForemen.map((f, i) =>
-                    fetch('/api/assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectMasterId: pm.id,
-                            assignedEmployeeId: f.foremanId,
-                            date: new Date(`${data.assemblyDate}T00:00:00Z`).toISOString(),
-                            memberCount: f.memberCount,
-                            sortOrder: i,
-                            estimatedHours: 8.0,
-                        }),
-                    })
-                )
-            );
-        }
-
-        // 解体日の配置を自動生成
-        if (data.demolitionDate && data.demolitionForemen.length > 0) {
-            await Promise.all(
-                data.demolitionForemen.map((f, i) =>
-                    fetch('/api/assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectMasterId: pm.id,
-                            assignedEmployeeId: f.foremanId,
-                            date: new Date(`${data.demolitionDate}T00:00:00Z`).toISOString(),
-                            memberCount: f.memberCount,
-                            sortOrder: i,
-                            estimatedHours: 8.0,
-                        }),
-                    })
-                )
-            );
-        }
-
-        toast.success('案件マスターを作成しました');
+        toast(
+            (t) => (
+                <div className="flex items-center gap-3">
+                    <span>案件「{data.title}」を作成しました</span>
+                    <button
+                        onClick={() => {
+                            router.push('/');
+                            toast.dismiss(t.id);
+                        }}
+                        className="text-blue-600 underline font-bold whitespace-nowrap"
+                    >
+                        スケジュールへ →
+                    </button>
+                </div>
+            ),
+            { icon: '✅', duration: 6000 }
+        );
     };
 
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
@@ -143,8 +119,6 @@ export default function ProjectMasterListPage() {
             longitude: data.longitude ?? undefined,
             area: data.area ? parseFloat(data.area) : undefined,
             areaRemarks: data.areaRemarks || undefined,
-            assemblyDate: data.assemblyDate ? new Date(data.assemblyDate) : undefined,
-            demolitionDate: data.demolitionDate ? new Date(data.demolitionDate) : undefined,
             estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
