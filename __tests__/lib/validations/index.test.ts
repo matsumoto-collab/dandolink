@@ -42,34 +42,44 @@ describe('Validation Schemas', () => {
     });
 
     describe('passwordSchema', () => {
-        it('should accept valid password with letters and numbers', () => {
-            const result = passwordSchema.safeParse('Password123');
+        it('should accept valid password with uppercase, lowercase, number, and symbol', () => {
+            const result = passwordSchema.safeParse('Password123!');
             expect(result.success).toBe(true);
         });
 
-        it('should reject password without numbers', () => {
-            const result = passwordSchema.safeParse('OnlyLetters');
+        it('should reject password without symbols', () => {
+            const result = passwordSchema.safeParse('Password1234');
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.issues[0].message).toContain('英字と数字');
+                expect(result.error.issues[0].message).toContain('記号');
             }
         });
 
-        it('should reject password without letters', () => {
-            const result = passwordSchema.safeParse('12345678');
+        it('should reject password without uppercase letters', () => {
+            const result = passwordSchema.safeParse('password123!');
             expect(result.success).toBe(false);
         });
 
-        it('should reject password shorter than 8 characters', () => {
-            const result = passwordSchema.safeParse('Pass1');
+        it('should reject password without numbers', () => {
+            const result = passwordSchema.safeParse('OnlyLetters!');
+            expect(result.success).toBe(false);
+        });
+
+        it('should reject password without letters', () => {
+            const result = passwordSchema.safeParse('12345678!@#$');
+            expect(result.success).toBe(false);
+        });
+
+        it('should reject password shorter than 12 characters', () => {
+            const result = passwordSchema.safeParse('Pass1!');
             expect(result.success).toBe(false);
             if (!result.success) {
-                expect(result.error.issues[0].message).toContain('8文字以上');
+                expect(result.error.issues[0].message).toContain('12文字以上');
             }
         });
 
         it('should reject password longer than 100 characters', () => {
-            const result = passwordSchema.safeParse('a'.repeat(99) + '1234');
+            const result = passwordSchema.safeParse('A'.repeat(95) + '1234!');
             expect(result.success).toBe(false);
         });
     });

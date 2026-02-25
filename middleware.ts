@@ -59,7 +59,7 @@ export const config = {
     matcher: [
         // 認証不要なパスを除外
         // - api/auth: ログインAPI等
-        // - api/init-db: 初期化API等(後で固有の保護を追加)
+        // - api/init-db: DB初期化専用（ユーザーゼロ状態で使用するため除外。本番はroute.ts内でNODE_ENV===productionチェック+INIT_DB_SECRET+レートリミットで保護済み）
         // - login: ログインページ
         // - _next/static, _next/image, favicon.ico: 静的ファイル群
         // - manifest.json, 各種画像ファイル: PWAやアセット用

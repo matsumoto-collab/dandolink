@@ -29,12 +29,10 @@ export async function POST(req: NextRequest) {
             data: { username: 'admin', email: 'admin@dandolink.local', displayName: '管理者', passwordHash: hashedPassword, role: 'ADMIN', isActive: true },
         });
 
-        // パスワードはサーバーログにのみ出力（レスポンスには含めない）
-        console.log(`[init-db] 初期管理者パスワード: ${generatedPassword} ※必ず控えてください`);
-
         return NextResponse.json({
-            message: '初期管理者アカウントを作成しました。パスワードはサーバーログを確認してください。',
+            message: '初期管理者アカウントを作成しました。パスワードを必ず控えてください。',
             user: { username: adminUser.username, email: adminUser.email, displayName: adminUser.displayName, role: adminUser.role },
+            initialPassword: generatedPassword,
         });
     } catch (error) {
         return serverErrorResponse('データベース初期化', error);
