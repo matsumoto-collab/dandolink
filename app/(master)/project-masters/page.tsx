@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building } from 'lucide-react';
@@ -17,6 +17,8 @@ export default function ProjectMasterListPage() {
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
     const [openModalInEditMode, setOpenModalInEditMode] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
 
     // Filter and sort
     const filteredMasters = useMemo(() => {
@@ -43,6 +45,18 @@ export default function ProjectMasterListPage() {
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
         );
     }, [projectMasters, searchTerm, filterStatus]);
+
+    // Reset pagination when filter or search changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, filterStatus]);
+
+    const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
+
+    const paginatedMasters = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredMasters.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
         const pm = await createProjectMaster({
@@ -266,7 +280,7 @@ export default function ProjectMasterListPage() {
                             <p>案件マスターがありません</p>
                         </div>
                     ) : (
-                        filteredMasters.map((pm) => (
+                        paginatedMasters.map((pm) => (
                             <div
                                 key={pm.id}
                                 className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
@@ -370,6 +384,29 @@ export default function ProjectMasterListPage() {
                         ))
                     )}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2 mt-4 pb-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-md border border-slate-300 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            前へ
+                        </button>
+                        <span className="text-sm font-medium text-slate-600 px-4">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 rounded-md border border-slate-300 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            次へ
+                        </button>
+                    </div>
+                )}
             </div>
         </>
     );
