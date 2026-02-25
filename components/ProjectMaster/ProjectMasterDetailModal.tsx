@@ -102,7 +102,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
             setShowUnsavedConfirm(true);
         } else {
             setMode('view');
-            setFormData(initFormDataFromPm(pm));
+            setFormData(initFormDataFromPm(pm, constructionTypes));
         }
     };
 
