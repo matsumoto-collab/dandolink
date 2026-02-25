@@ -214,7 +214,7 @@ function WorkDateRow({
     allForemen: { id: string; displayName: string }[];
     displayedForemanIds: string[];
     totalMembers: number;
-    getVacationEmployees: (date: string) => { id: string }[];
+    getVacationEmployees: (date: string) => string[];
     getForemanName: (id: string) => string;
     onChange: (updated: WorkDateEntry) => void;
     onDelete: () => void;
