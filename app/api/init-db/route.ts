@@ -13,6 +13,11 @@ export async function POST(req: NextRequest) {
     const rateLimitError = await applyRateLimit(req, { limit: 3, windowMs: 60000 });
     if (rateLimitError) return rateLimitError;
 
+    const apiKey = req.headers.get('x-init-api-key');
+    if (!process.env.INIT_DB_SECRET || apiKey !== process.env.INIT_DB_SECRET) {
+        return NextResponse.json({ error: '認証に失敗しました' }, { status: 403 });
+    }
+
     try {
         const userCount = await prisma.user.count();
         if (userCount > 0) return validationErrorResponse('データベースは既に初期化されています');
