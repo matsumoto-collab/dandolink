@@ -91,21 +91,28 @@ Phase 2 が完了後、システムの堅牢性を引き上げるための以下
 ### 1. `init-db` エンドポイントの保護強化
 現在の `/api/init-db` は本番環境(`NODE_ENV === 'production'`)で無効化されていますが、これに加えて環境変数によるシークレット(`INIT_DB_SECRET`)を用いた認証を追加し、開発環境やステージング環境でも意図しない初期化を防ぐよう保護を強化します。
 #### [MODIFY] app/api/init-db/route.ts
-- `process.env.INIT_DB_SECRET` とリクエスト（クエリパラメータ等）のシークレットを比較・検証。
+- `const apiKey = req.headers.get('x-init-api-key');` のように**リクエストヘッダー**からシークレットを受け取り、`process.env.INIT_DB_SECRET` と一致するか検証します。
+  - ※クエリパラメータによる受け渡しは、サーバーログやURLバーに平文で記録されるリスクがあるため禁止します。
 
 ### 2. CSP / HSTS ヘッダーの設定
 現在 `next.config.js` に一部のセキュリティヘッダーが設定されていますが、最新のベストプラクティスである以下2つを追加します。
 #### [MODIFY] next.config.js
 - `Strict-Transport-Security` (HSTS): HTTPS通信を強制し、中間者攻撃を防止。
 - `Content-Security-Policy` (CSP): Google Maps APIや各種CDN、Supabaseへの通信を許可しつつ、XSS攻撃などを緩和するセキュアなポリシーの定義。
+  - **⚠️ リスク確認**: CSPを厳格にしすぎると以下の機能が破損する恐れがあります。CSP設定時には必ず以下のソースを許可エントリに含め、デプロイ直後に動作確認を行います。
+    - Google Maps 表示（`maps.googleapis.com`）
+    - Supabase Realtime（`wss://*.supabase.co`）
+    - PDF Worker（`/pdf.worker.min.mjs` および `blob:` ソース）
 
 ### 3. Google Maps APIキーの保護 (ユーザーアクション)
 フロントエンドで使用している Google Maps API キーの悪用を防ぐため、Google Cloud Console 側での「HTTP リファラー（ウェブサイト）制限」が適用されているか確認・設定を推奨します。
 - **対応**: Google Cloud上でAPIキーの使用元をDandoLink本番ドメインや開発用localhostに限定する。
 
 ### 4. 未保護エンドポイントへのRate Limit拡充
-現在、特定の主要APIにおいて個別に `applyRateLimit` によるUpstash Redis保護を行っていますが、他のAPI群にも保護漏れがないか確認し、全体的な負荷テスト攻撃を防ぐための整備を行います。
+現在、一部の主要API（5エンドポイント）には個別に `applyRateLimit` によるUpstash Redis保護を行っていますが、他の未保護エンドポイント（約37ルート）にも保護漏れがないよう整備します。
+- **対応方針**: 全37ファイルに個別のコードを追加するアプローチは漏れや保守性の低下を招くため、**`middleware.ts` 側でまとめて（一括して）すべてのAPIルートへRate Limitを適用するアプローチ**に変更します。これにより、将来増えるAPIルートへの設定忘れも防止します。
 
 ## Phase 3 Verification Plan (検証計画)
-1. **init-dbテスト**: シークレットキーを付与しないリクエストが401等で拒否されるか確認。
-2. **CSP/HSTSテスト**: ブラウザのネットワークタブでレスポンスヘッダに `Strict-Transport-Security` および `Content-Security-Policy` が正しく付与されていること、アプリの動作（Google Maps表示やPDF機能など）に支障が出ないか確認。
+1. **init-dbテスト**: ヘッダーに `x-init-api-key` を付与しないスクリプトからのリクエストが `403` 等で拒否されるか確認。
+2. **CSP/HSTSテスト**: ブラウザのネットワークタブでレスポンスヘッダに `Strict-Transport-Security` および `Content-Security-Policy` が正しく付与されていることを確認し、**Google Mapsの表示や、PDFのダウンロード・表示機能（PDF Worker `blob:`）に支障が出ていないか入念にテスト**します。
+3. **Rate Limitテスト**: APIのルート（例: `/api/master-data/workers` 等の中間層ルート）へ短時間に集中アクセスを行い、正しく `429 Too Many Requests` が返却されるかテスト。
