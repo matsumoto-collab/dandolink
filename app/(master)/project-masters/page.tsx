@@ -9,9 +9,11 @@ import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMaster
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import toast from 'react-hot-toast';
+import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 
 export default function ProjectMasterListPage() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
+    const constructionTypes = useMasterStore(selectConstructionTypes);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('active');
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
@@ -59,6 +61,14 @@ export default function ProjectMasterListPage() {
     }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
+        // workDates から組立日・解体日を抽出してプロジェクトマスタに保存
+        const findDateByTypeName = (typeName: string) => {
+            const typeId = constructionTypes.find(t => t.name === typeName)?.id;
+            return data.workDates.find(w => w.constructionType === typeId && w.date)?.date;
+        };
+        const assemblyDateStr = findDateByTypeName('組立');
+        const demolitionDateStr = findDateByTypeName('解体');
+
         const pm = await createProjectMaster({
             title: data.title,
             customerId: data.customerId || undefined,
@@ -75,8 +85,8 @@ export default function ProjectMasterListPage() {
             longitude: data.longitude ?? undefined,
             area: data.area ? parseFloat(data.area) : undefined,
             areaRemarks: data.areaRemarks || undefined,
-            assemblyDate: data.assemblyDate ? new Date(data.assemblyDate) : undefined,
-            demolitionDate: data.demolitionDate ? new Date(data.demolitionDate) : undefined,
+            assemblyDate: assemblyDateStr ? new Date(`${assemblyDateStr}T00:00:00Z`) : undefined,
+            demolitionDate: demolitionDateStr ? new Date(`${demolitionDateStr}T00:00:00Z`) : undefined,
             estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
@@ -85,47 +95,26 @@ export default function ProjectMasterListPage() {
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
 
-        // 組立日の配置を自動生成
-        if (data.assemblyDate && data.assemblyForemen.length > 0) {
-            await Promise.all(
-                data.assemblyForemen.map((f, i) =>
-                    fetch('/api/assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectMasterId: pm.id,
-                            assignedEmployeeId: f.foremanId,
-                            date: new Date(`${data.assemblyDate}T00:00:00Z`).toISOString(),
-                            memberCount: f.memberCount,
-                            sortOrder: i,
-                            estimatedHours: 8.0,
-                            constructionType: data.assemblyConstructionType || undefined,
-                        }),
-                    })
-                )
+        // 各作業日のアサインを自動生成
+        const assignmentPromises = data.workDates.flatMap((w, _rowIdx) => {
+            if (!w.date || w.foremen.length === 0) return [];
+            return w.foremen.map((f, i) =>
+                fetch('/api/assignments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectMasterId: pm.id,
+                        assignedEmployeeId: f.foremanId,
+                        date: new Date(`${w.date}T00:00:00Z`).toISOString(),
+                        memberCount: f.memberCount,
+                        sortOrder: i,
+                        estimatedHours: 8.0,
+                        constructionType: w.constructionType || undefined,
+                    }),
+                })
             );
-        }
-
-        // 解体日の配置を自動生成
-        if (data.demolitionDate && data.demolitionForemen.length > 0) {
-            await Promise.all(
-                data.demolitionForemen.map((f, i) =>
-                    fetch('/api/assignments', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            projectMasterId: pm.id,
-                            assignedEmployeeId: f.foremanId,
-                            date: new Date(`${data.demolitionDate}T00:00:00Z`).toISOString(),
-                            memberCount: f.memberCount,
-                            sortOrder: i,
-                            estimatedHours: 8.0,
-                            constructionType: data.demolitionConstructionType || undefined,
-                        }),
-                    })
-                )
-            );
-        }
+        });
+        await Promise.all(assignmentPromises);
 
         toast.success('案件マスターを作成しました');
     };
@@ -145,8 +134,8 @@ export default function ProjectMasterListPage() {
             longitude: data.longitude ?? undefined,
             area: data.area ? parseFloat(data.area) : undefined,
             areaRemarks: data.areaRemarks || undefined,
-            assemblyDate: data.assemblyDate ? new Date(data.assemblyDate) : undefined,
-            demolitionDate: data.demolitionDate ? new Date(data.demolitionDate) : undefined,
+            assemblyDate: (() => { const typeId = constructionTypes.find(t => t.name === '組立')?.id; const d = data.workDates.find(w => w.constructionType === typeId && w.date)?.date; return d ? new Date(`${d}T00:00:00Z`) : undefined; })(),
+            demolitionDate: (() => { const typeId = constructionTypes.find(t => t.name === '解体')?.id; const d = data.workDates.find(w => w.constructionType === typeId && w.date)?.date; return d ? new Date(`${d}T00:00:00Z`) : undefined; })(),
             estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
