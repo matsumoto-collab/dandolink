@@ -30,16 +30,12 @@ export interface ProjectMasterFormData {
     // 工事情報
     area: string;
     areaRemarks: string;
-    assemblyDate: string;
-    demolitionDate: string;
     estimatedAssemblyWorkers: string;
     estimatedDemolitionWorkers: string;
     contractAmount: string;
     // 足場仕様
     scaffoldingSpec: ScaffoldingSpec;
     // 職長配置（組立・解体）
-    assemblyForemen: { foremanId: string; memberCount: number }[];
-    demolitionForemen: { foremanId: string; memberCount: number }[];
     // その他
     remarks: string;
     createdBy: string[];
@@ -59,14 +55,10 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     longitude: undefined,
     area: '',
     areaRemarks: '',
-    assemblyDate: '',
-    demolitionDate: '',
     estimatedAssemblyWorkers: '',
     estimatedDemolitionWorkers: '',
     contractAmount: '',
     scaffoldingSpec: DEFAULT_SCAFFOLDING_SPEC,
-    assemblyForemen: [],
-    demolitionForemen: [],
     remarks: '',
     createdBy: [],
 };
