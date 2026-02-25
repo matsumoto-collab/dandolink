@@ -5,7 +5,9 @@ import { X, Edit, ArrowLeft } from 'lucide-react';
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
-import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
+import { ProjectMasterForm, ProjectMasterFormData, WorkDateEntry, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
+import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
+import { ConstructionTypeMaster } from '@/types/calendar';
 import toast from 'react-hot-toast';
 
 interface ProjectMasterDetailModalProps {
@@ -15,7 +17,25 @@ interface ProjectMasterDetailModalProps {
     initialEditMode?: boolean;
 }
 
-function initFormDataFromPm(pm: ProjectMaster): ProjectMasterFormData {
+function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTypeMaster[]): ProjectMasterFormData {
+    const assemblyTypeId = constructionTypes.find(t => t.name === '組立')?.id ?? '';
+    const demolitionTypeId = constructionTypes.find(t => t.name === '解体')?.id ?? '';
+
+    const workDates: WorkDateEntry[] = [
+        {
+            id: 'default-0',
+            constructionType: assemblyTypeId,
+            date: pm.assemblyDate ? new Date(pm.assemblyDate).toISOString().split('T')[0] : '',
+            foremen: [],
+        },
+        {
+            id: 'default-1',
+            constructionType: demolitionTypeId,
+            date: pm.demolitionDate ? new Date(pm.demolitionDate).toISOString().split('T')[0] : '',
+            foremen: [],
+        },
+    ];
+
     return {
         title: pm.title,
         customerId: pm.customerId || '',
@@ -30,16 +50,11 @@ function initFormDataFromPm(pm: ProjectMaster): ProjectMasterFormData {
         longitude: pm.longitude ?? undefined,
         area: pm.area?.toString() || '',
         areaRemarks: pm.areaRemarks || '',
-        assemblyDate: pm.assemblyDate ? new Date(pm.assemblyDate).toISOString().split('T')[0] : '',
-        demolitionDate: pm.demolitionDate ? new Date(pm.demolitionDate).toISOString().split('T')[0] : '',
+        workDates,
         estimatedAssemblyWorkers: pm.estimatedAssemblyWorkers?.toString() || '',
         estimatedDemolitionWorkers: pm.estimatedDemolitionWorkers?.toString() || '',
         contractAmount: pm.contractAmount?.toString() || '',
         scaffoldingSpec: pm.scaffoldingSpec || DEFAULT_FORM_DATA.scaffoldingSpec,
-        assemblyForemen: [],
-        demolitionForemen: [],
-        assemblyConstructionType: '',
-        demolitionConstructionType: '',
         remarks: pm.remarks || '',
         createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
     };
@@ -50,18 +65,19 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+    const constructionTypes = useMasterStore(selectConstructionTypes);
 
     useEffect(() => {
         if (pm) {
             setMode(initialEditMode ? 'edit' : 'view');
-            setFormData(initFormDataFromPm(pm));
+            setFormData(initFormDataFromPm(pm, constructionTypes));
             setShowUnsavedConfirm(false);
         }
-    }, [pm?.id, initialEditMode]);
+    }, [pm?.id, initialEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const isFormDirty = () => {
         if (!pm) return false;
-        return JSON.stringify(formData) !== JSON.stringify(initFormDataFromPm(pm));
+        return JSON.stringify(formData) !== JSON.stringify(initFormDataFromPm(pm, constructionTypes));
     };
 
     const handleClose = () => {
@@ -77,7 +93,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     if (!pm) return null;
 
     const handleStartEdit = () => {
-        setFormData(initFormDataFromPm(pm));
+        setFormData(initFormDataFromPm(pm, constructionTypes));
         setMode('edit');
     };
 

@@ -14,6 +14,13 @@ import { ScaffoldingSection } from './sections/ScaffoldingSection';
 import { RemarksSection } from './sections/RemarksSection';
 import { FilesSection } from './sections/FilesSection';
 
+export interface WorkDateEntry {
+    id: string;
+    constructionType: string; // construction type UUID
+    date: string;             // YYYY-MM-DD
+    foremen: { foremanId: string; memberCount: number }[];
+}
+
 export interface ProjectMasterFormData {
     title: string;
     customerId: string;
@@ -30,19 +37,12 @@ export interface ProjectMasterFormData {
     // 工事情報
     area: string;
     areaRemarks: string;
-    assemblyDate: string;
-    demolitionDate: string;
+    workDates: WorkDateEntry[];
     estimatedAssemblyWorkers: string;
     estimatedDemolitionWorkers: string;
     contractAmount: string;
     // 足場仕様
     scaffoldingSpec: ScaffoldingSpec;
-    // 職長配置（組立・解体）
-    assemblyForemen: { foremanId: string; memberCount: number }[];
-    demolitionForemen: { foremanId: string; memberCount: number }[];
-    // 工事種別（組立日・解体日）
-    assemblyConstructionType: string;
-    demolitionConstructionType: string;
     // その他
     remarks: string;
     createdBy: string[];
@@ -62,16 +62,14 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     longitude: undefined,
     area: '',
     areaRemarks: '',
-    assemblyDate: '',
-    demolitionDate: '',
+    workDates: [
+        { id: 'default-0', constructionType: '', date: '', foremen: [] },
+        { id: 'default-1', constructionType: '', date: '', foremen: [] },
+    ],
     estimatedAssemblyWorkers: '',
     estimatedDemolitionWorkers: '',
     contractAmount: '',
     scaffoldingSpec: DEFAULT_SCAFFOLDING_SPEC,
-    assemblyForemen: [],
-    demolitionForemen: [],
-    assemblyConstructionType: '',
-    demolitionConstructionType: '',
     remarks: '',
     createdBy: [],
 };

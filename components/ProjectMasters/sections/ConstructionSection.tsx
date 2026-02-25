@@ -1,38 +1,28 @@
 'use client';
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Loader2, Users } from 'lucide-react';
+import { AlertCircle, Loader2, Users, X, Plus } from 'lucide-react';
 import { FormField } from '../common/FormField';
-import { ProjectMasterFormData } from '../ProjectMasterForm';
+import { ProjectMasterFormData, WorkDateEntry } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMasterStore, selectTotalMembers, selectConstructionTypes } from '@/stores/masterStore';
-import { ProjectAssignment } from '@/types/calendar';
+import { ConstructionTypeMaster, ProjectAssignment } from '@/types/calendar';
 
 interface ConstructionSectionProps {
     formData: ProjectMasterFormData;
     setFormData: React.Dispatch<React.SetStateAction<ProjectMasterFormData>>;
 }
 
-/**
- * UTC の Date を日本標準時（JST = UTC+9）の日付文字列 "YYYY-MM-DD" に変換する。
- * カレンダーで登録した配置は JST 日付で管理されるが、DB には UTC で保存されるため
- * 比較には必ずこの変換を使う。
- */
 function toJSTDateStr(date: Date | string): string {
     return new Intl.DateTimeFormat('ja-JP', {
         timeZone: 'Asia/Tokyo',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
-    }).format(new Date(date)).replace(/\//g, '-'); // "2026/02/16" → "2026-02-16"
+    }).format(new Date(date)).replace(/\//g, '-');
 }
 
-/**
- * 指定日（JST）の案件一覧を取得する。
- * JST midnight は UTC では前日 15:00 なので、前日〜翌日の範囲でクエリして
- * クライアント側で JST に変換してフィルタする。
- */
 async function fetchAssignmentsForDate(date: string): Promise<ProjectAssignment[]> {
     const base = new Date(`${date}T00:00:00Z`);
     const prevDay = new Date(base);
@@ -46,11 +36,9 @@ async function fetchAssignmentsForDate(date: string): Promise<ProjectAssignment[
     );
     if (!res.ok) return [];
     const all: ProjectAssignment[] = await res.json();
-    // JST で当日分のみ残す
     return all.filter(a => toJSTDateStr(a.date) === date);
 }
 
-/** 日付に紐づく既存案件リスト */
 function DateConflictList({
     assignments,
     getForemanName,
@@ -76,7 +64,6 @@ function DateConflictList({
     }
     if (assignments.length === 0) return null;
 
-    // 週間カレンダーと同じロジック: 職長ごとの最大 memberCount を合計
     const byForeman = new Map<string, number[]>();
     assignments.forEach(a => {
         if (!byForeman.has(a.assignedEmployeeId)) byForeman.set(a.assignedEmployeeId, []);
@@ -86,13 +73,10 @@ function DateConflictList({
     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
     const remaining = totalMembers > 0 ? totalMembers - assignedCount - vacationCount : null;
 
-    // 週間カレンダーの表示順（displayedForemanIds の順）でソート
     const sorted = [...assignments].sort((a, b) => {
         const ai = displayedForemanIds.indexOf(a.assignedEmployeeId);
         const bi = displayedForemanIds.indexOf(b.assignedEmployeeId);
-        const aIdx = ai === -1 ? Infinity : ai;
-        const bIdx = bi === -1 ? Infinity : bi;
-        return aIdx - bIdx;
+        return (ai === -1 ? Infinity : ai) - (bi === -1 ? Infinity : bi);
     });
 
     return (
@@ -124,7 +108,6 @@ function DateConflictList({
     );
 }
 
-/** 職長選択 + 人数入力 */
 function ForemanSelector({
     phaseLabel,
     date,
@@ -160,7 +143,7 @@ function ForemanSelector({
         <div className="mt-3">
             <p className="text-xs font-medium text-gray-600 mb-2 flex items-center gap-1">
                 <Users className="w-3.5 h-3.5" />
-                {phaseLabel}担当職長
+                {phaseLabel ? `${phaseLabel}担当職長` : '担当職長'}
             </p>
             <div className="space-y-1.5">
                 {foremen.map(f => {
@@ -171,20 +154,18 @@ function ForemanSelector({
                         <div
                             key={f.id}
                             className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
-                                isSelected
-                                    ? 'bg-slate-50 border border-slate-200'
-                                    : 'hover:bg-gray-50'
+                                isSelected ? 'bg-slate-50 border border-slate-200' : 'hover:bg-gray-50'
                             }`}
                         >
                             <input
                                 type="checkbox"
-                                id={`${phaseLabel}-${f.id}`}
+                                id={`foreman-${f.id}-${date}`}
                                 checked={isSelected}
                                 onChange={e => toggle(f.id, e.target.checked)}
                                 className="w-4 h-4 rounded accent-slate-700 flex-shrink-0"
                             />
                             <label
-                                htmlFor={`${phaseLabel}-${f.id}`}
+                                htmlFor={`foreman-${f.id}-${date}`}
                                 className="flex-1 flex items-center gap-1.5 text-sm cursor-pointer select-none"
                             >
                                 <span className={isBusy ? 'text-amber-600 font-medium' : 'text-gray-700'}>
@@ -216,56 +197,159 @@ function ForemanSelector({
     );
 }
 
+function WorkDateRow({
+    entry,
+    constructionTypes,
+    allForemen,
+    displayedForemanIds,
+    totalMembers,
+    getVacationEmployees,
+    getForemanName,
+    onChange,
+    onDelete,
+    canDelete,
+}: {
+    entry: WorkDateEntry;
+    constructionTypes: ConstructionTypeMaster[];
+    allForemen: { id: string; displayName: string }[];
+    displayedForemanIds: string[];
+    totalMembers: number;
+    getVacationEmployees: (date: string) => { id: string }[];
+    getForemanName: (id: string) => string;
+    onChange: (updated: WorkDateEntry) => void;
+    onDelete: () => void;
+    canDelete: boolean;
+}) {
+    const [assignments, setAssignments] = useState<ProjectAssignment[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const loadAssignments = useCallback(async (date: string) => {
+        if (!date) { setAssignments([]); return; }
+        setIsLoading(true);
+        try {
+            const data = await fetchAssignmentsForDate(date);
+            setAssignments(
+                allForemen.length === 0
+                    ? data
+                    : data.filter(a => allForemen.some(f => f.id === a.assignedEmployeeId))
+            );
+        } finally {
+            setIsLoading(false);
+        }
+    }, [allForemen]);
+
+    useEffect(() => {
+        loadAssignments(entry.date);
+    }, [entry.date, loadAssignments]);
+
+    const typeName = constructionTypes.find(t => t.id === entry.constructionType)?.name ?? '';
+
+    return (
+        <div className="p-3 border border-gray-200 rounded-lg space-y-2 bg-white">
+            <div className="flex items-center gap-2">
+                {/* 工事種別（先） */}
+                <select
+                    value={entry.constructionType}
+                    onChange={e => onChange({ ...entry, constructionType: e.target.value })}
+                    className="px-2 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 min-w-[100px]"
+                >
+                    <option value="">種別を選択</option>
+                    {constructionTypes.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                </select>
+                {/* 日付（後） */}
+                <input
+                    type="date"
+                    value={entry.date}
+                    onChange={e => onChange({ ...entry, date: e.target.value, foremen: [] })}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500"
+                />
+                {/* 削除ボタン */}
+                {canDelete && (
+                    <button
+                        type="button"
+                        onClick={onDelete}
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                        title="この行を削除"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
+
+            {/* 日付入力後に展開 */}
+            {entry.date && (
+                <>
+                    <DateConflictList
+                        assignments={assignments}
+                        getForemanName={getForemanName}
+                        displayedForemanIds={displayedForemanIds}
+                        totalMembers={totalMembers}
+                        vacationCount={getVacationEmployees(entry.date).length}
+                        isLoading={isLoading}
+                    />
+                    <ForemanSelector
+                        phaseLabel={typeName}
+                        date={entry.date}
+                        foremen={allForemen}
+                        selected={entry.foremen}
+                        existingAssignments={assignments}
+                        onChange={foremen => onChange({ ...entry, foremen })}
+                    />
+                </>
+            )}
+        </div>
+    );
+}
+
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
     const { getForemanName, allForemen, displayedForemanIds } = useCalendarDisplay();
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
     const totalMembers = useMasterStore(selectTotalMembers);
     const constructionTypes = useMasterStore(selectConstructionTypes);
 
-    const [assemblyAssignments, setAssemblyAssignments] = useState<ProjectAssignment[]>([]);
-    const [demolitionAssignments, setDemolitionAssignments] = useState<ProjectAssignment[]>([]);
-    const [isLoadingAssembly, setIsLoadingAssembly] = useState(false);
-    const [isLoadingDemolition, setIsLoadingDemolition] = useState(false);
-
-    const loadAssemblyAssignments = useCallback(async (date: string) => {
-        if (!date) { setAssemblyAssignments([]); return; }
-        setIsLoadingAssembly(true);
-        try {
-            const data = await fetchAssignmentsForDate(date);
-            // allForemen 未ロード時は全件表示、ロード後は登録済み職長のみ
-            setAssemblyAssignments(
-                allForemen.length === 0
-                    ? data
-                    : data.filter(a => allForemen.some(f => f.id === a.assignedEmployeeId))
-            );
-        } finally {
-            setIsLoadingAssembly(false);
-        }
-    }, [allForemen]);
-
-    const loadDemolitionAssignments = useCallback(async (date: string) => {
-        if (!date) { setDemolitionAssignments([]); return; }
-        setIsLoadingDemolition(true);
-        try {
-            const data = await fetchAssignmentsForDate(date);
-            setDemolitionAssignments(
-                allForemen.length === 0
-                    ? data
-                    : data.filter(a => allForemen.some(f => f.id === a.assignedEmployeeId))
-            );
-        } finally {
-            setIsLoadingDemolition(false);
-        }
-    }, [allForemen]);
-
-    // 日付または allForemen 変化で再取得・再フィルタ
+    // constructionTypes ロード後にデフォルト種別を自動セット（全行が未設定の場合のみ）
     useEffect(() => {
-        if (formData.assemblyDate) loadAssemblyAssignments(formData.assemblyDate);
-    }, [formData.assemblyDate, loadAssemblyAssignments]);
+        if (constructionTypes.length === 0) return;
+        setFormData(prev => {
+            const allEmpty = prev.workDates.every(w => w.constructionType === '');
+            if (!allEmpty) return prev;
+            const assemblyId = constructionTypes.find(t => t.name === '組立')?.id ?? '';
+            const demolitionId = constructionTypes.find(t => t.name === '解体')?.id ?? '';
+            return {
+                ...prev,
+                workDates: prev.workDates.map((w, i) => ({
+                    ...w,
+                    constructionType: i === 0 ? assemblyId : i === 1 ? demolitionId : w.constructionType,
+                })),
+            };
+        });
+    }, [constructionTypes, setFormData]);
 
-    useEffect(() => {
-        if (formData.demolitionDate) loadDemolitionAssignments(formData.demolitionDate);
-    }, [formData.demolitionDate, loadDemolitionAssignments]);
+    const addWorkDate = () => {
+        const newEntry: WorkDateEntry = {
+            id: crypto.randomUUID(),
+            constructionType: '',
+            date: '',
+            foremen: [],
+        };
+        setFormData(prev => ({ ...prev, workDates: [...prev.workDates, newEntry] }));
+    };
+
+    const updateWorkDate = (id: string, updated: WorkDateEntry) => {
+        setFormData(prev => ({
+            ...prev,
+            workDates: prev.workDates.map(w => w.id === id ? updated : w),
+        }));
+    };
+
+    const deleteWorkDate = (id: string) => {
+        setFormData(prev => ({
+            ...prev,
+            workDates: prev.workDates.filter(w => w.id !== id),
+        }));
+    };
 
     return (
         <div className="space-y-4">
@@ -295,106 +379,34 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                 </FormField>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 組立日 */}
-                <FormField label="組立日">
-                    <input
-                        type="date"
-                        value={formData.assemblyDate}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            const defaultType = constructionTypes.find(t => t.name === '組立')?.id ?? '';
-                            setFormData(prev => ({
-                                ...prev,
-                                assemblyDate: val,
-                                assemblyForemen: [],
-                                assemblyConstructionType: val ? defaultType : '',
-                            }));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                    />
-                    {formData.assemblyDate && constructionTypes.length > 0 && (
-                        <div className="mt-1.5 flex items-center gap-2">
-                            <span className="text-xs text-gray-500">工事種別:</span>
-                            <select
-                                value={formData.assemblyConstructionType}
-                                onChange={e => setFormData(prev => ({ ...prev, assemblyConstructionType: e.target.value }))}
-                                className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-slate-500"
-                            >
-                                <option value="">未設定</option>
-                                {constructionTypes.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                    <DateConflictList
-                        assignments={assemblyAssignments}
-                        getForemanName={getForemanName}
-                        displayedForemanIds={displayedForemanIds}
-                        totalMembers={totalMembers}
-                        vacationCount={formData.assemblyDate ? getVacationEmployees(formData.assemblyDate).length : 0}
-                        isLoading={isLoadingAssembly}
-                    />
-                    <ForemanSelector
-                        phaseLabel="組立"
-                        date={formData.assemblyDate}
-                        foremen={allForemen}
-                        selected={formData.assemblyForemen}
-                        existingAssignments={assemblyAssignments}
-                        onChange={v => setFormData(prev => ({ ...prev, assemblyForemen: v }))}
-                    />
-                </FormField>
-
-                {/* 解体日 */}
-                <FormField label="解体日">
-                    <input
-                        type="date"
-                        value={formData.demolitionDate}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            const defaultType = constructionTypes.find(t => t.name === '解体')?.id ?? '';
-                            setFormData(prev => ({
-                                ...prev,
-                                demolitionDate: val,
-                                demolitionForemen: [],
-                                demolitionConstructionType: val ? defaultType : '',
-                            }));
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                    />
-                    {formData.demolitionDate && constructionTypes.length > 0 && (
-                        <div className="mt-1.5 flex items-center gap-2">
-                            <span className="text-xs text-gray-500">工事種別:</span>
-                            <select
-                                value={formData.demolitionConstructionType}
-                                onChange={e => setFormData(prev => ({ ...prev, demolitionConstructionType: e.target.value }))}
-                                className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-slate-500"
-                            >
-                                <option value="">未設定</option>
-                                {constructionTypes.map(t => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-                    <DateConflictList
-                        assignments={demolitionAssignments}
-                        getForemanName={getForemanName}
-                        displayedForemanIds={displayedForemanIds}
-                        totalMembers={totalMembers}
-                        vacationCount={formData.demolitionDate ? getVacationEmployees(formData.demolitionDate).length : 0}
-                        isLoading={isLoadingDemolition}
-                    />
-                    <ForemanSelector
-                        phaseLabel="解体"
-                        date={formData.demolitionDate}
-                        foremen={allForemen}
-                        selected={formData.demolitionForemen}
-                        existingAssignments={demolitionAssignments}
-                        onChange={v => setFormData(prev => ({ ...prev, demolitionForemen: v }))}
-                    />
-                </FormField>
+            {/* 作業日程 */}
+            <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">作業日程</p>
+                <div className="space-y-2">
+                    {formData.workDates.map(entry => (
+                        <WorkDateRow
+                            key={entry.id}
+                            entry={entry}
+                            constructionTypes={constructionTypes}
+                            allForemen={allForemen}
+                            displayedForemanIds={displayedForemanIds}
+                            totalMembers={totalMembers}
+                            getVacationEmployees={getVacationEmployees}
+                            getForemanName={getForemanName}
+                            onChange={updated => updateWorkDate(entry.id, updated)}
+                            onDelete={() => deleteWorkDate(entry.id)}
+                            canDelete={formData.workDates.length > 1}
+                        />
+                    ))}
+                </div>
+                <button
+                    type="button"
+                    onClick={addWorkDate}
+                    className="mt-2 flex items-center gap-1.5 text-sm text-slate-600 hover:text-slate-800 transition-colors"
+                >
+                    <Plus className="w-4 h-4" />
+                    作業日を追加
+                </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
