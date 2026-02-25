@@ -38,6 +38,8 @@ function initFormDataFromPm(pm: ProjectMaster): ProjectMasterFormData {
         scaffoldingSpec: pm.scaffoldingSpec || DEFAULT_FORM_DATA.scaffoldingSpec,
         assemblyForemen: [],
         demolitionForemen: [],
+        assemblyConstructionType: '',
+        demolitionConstructionType: '',
         remarks: pm.remarks || '',
         createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
     };
