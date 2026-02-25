@@ -114,7 +114,7 @@ export const authOptions: NextAuthOptions = {
                             token.lastDbCheck = now;
                         }
                     } catch (error) {
-                        console.error('JWT DB検証エラー:', error);
+                        console.error('JWT DB検証エラー:', (error instanceof Error) ? error.message : 'Unknown error');
                         // DB接続エラー時等は既存のトークン状態を維持
                     }
                 }

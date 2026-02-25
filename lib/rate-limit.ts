@@ -3,10 +3,10 @@ import { Redis } from '@upstash/redis';
 
 /**
  * 分散Rate Limiter (Upstash Redis利用)
- * サーバーレス環境でも正確にグローバルなリクエスト制限を行います。
+ * Redis未設定時はインメモリフォールバックで保護を維持します。
  */
 
-// Redisインスタンスの初期化（URLとTokenが設定されていない場合はモックとして動作しないように注意）
+// Redisインスタンスの初期化
 let redis: Redis | null = null;
 try {
     if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
@@ -17,6 +17,40 @@ try {
     }
 } catch (e) {
     console.error('Redis initialization error:', e);
+}
+
+// インメモリフォールバック（Redis未設定時・Redis障害時に使用）
+// サーバーレス環境ではインスタンス単位の保護となるが、無制限よりは安全
+interface MemoryRecord { count: number; resetAt: number }
+const memoryStore = new Map<string, MemoryRecord>();
+
+// 古いエントリの定期クリーンアップ（メモリリーク防止）
+function cleanupMemoryStore() {
+    const now = Date.now();
+    for (const [key, record] of memoryStore.entries()) {
+        if (record.resetAt <= now) memoryStore.delete(key);
+    }
+}
+
+function checkMemoryRateLimit(identifier: string, config: RateLimitConfig): RateLimitResult {
+    const now = Date.now();
+    const key = `${identifier}:${config.limit}:${config.windowMs}`;
+    const record = memoryStore.get(key);
+
+    if (!record || record.resetAt <= now) {
+        memoryStore.set(key, { count: 1, resetAt: now + config.windowMs });
+        if (memoryStore.size > 10000) cleanupMemoryStore();
+        return { success: true, limit: config.limit, remaining: config.limit - 1, resetTime: now + config.windowMs };
+    }
+
+    record.count++;
+    const remaining = Math.max(0, config.limit - record.count);
+    return {
+        success: record.count <= config.limit,
+        limit: config.limit,
+        remaining,
+        resetTime: record.resetAt,
+    };
 }
 
 export interface RateLimitConfig {
@@ -69,14 +103,9 @@ export async function checkRateLimit(
 ): Promise<RateLimitResult> {
     const limiter = getLimiter(config.limit, config.windowMs);
 
-    // Redis環境変数が無い場合は常に成功(フェイルオープン)として扱う
+    // Redis未設定時はインメモリフォールバックで保護
     if (!limiter) {
-        return {
-            success: true,
-            limit: config.limit,
-            remaining: config.limit,
-            resetTime: Date.now() + config.windowMs
-        };
+        return checkMemoryRateLimit(identifier, config);
     }
 
     try {
@@ -85,16 +114,11 @@ export async function checkRateLimit(
             success,
             limit,
             remaining,
-            resetTime: reset, // 既存の resetTime プロパティ名にマッピング
+            resetTime: reset,
         };
     } catch (error) {
-        console.error('Rate limit error:', error);
-        // DBエラー時は遮断せず通す（フェイルオープン方針）
-        return {
-            success: true,
-            limit: config.limit,
-            remaining: 1,
-            resetTime: Date.now() + config.windowMs
-        };
+        console.error('Rate limit error (Redis):', (error instanceof Error) ? error.message : String(error));
+        // Redis障害時はインメモリフォールバックで保護を維持
+        return checkMemoryRateLimit(identifier, config);
     }
 }

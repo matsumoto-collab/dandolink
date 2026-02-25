@@ -22,9 +22,16 @@ export async function GET(req: NextRequest) {
         const page = searchParams.get('page');
         const limit = searchParams.get('limit');
 
+        const ALLOWED_STATUSES = ['active', 'completed', 'cancelled'] as const;
         const where: Record<string, unknown> = {};
-        if (status) where.status = status;
+        if (status) {
+            if (!ALLOWED_STATUSES.includes(status as typeof ALLOWED_STATUSES[number])) {
+                return validationErrorResponse('無効なステータス値です');
+            }
+            where.status = status;
+        }
         if (search) {
+            if (search.length > 100) return validationErrorResponse('検索キーワードは100文字以内で入力してください');
             where.OR = [
                 { title: { contains: search, mode: 'insensitive' } },
                 { customerName: { contains: search, mode: 'insensitive' } },
@@ -37,10 +44,11 @@ export async function GET(req: NextRequest) {
 
         if (page && limit) {
             const pageNum = parseInt(page, 10);
-            const limitNum = parseInt(limit, 10);
+            let limitNum = parseInt(limit, 10);
             if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1) {
                 return validationErrorResponse('無効なページネーションパラメータです');
             }
+            if (limitNum > 100) limitNum = 100;
 
             const [projectMasters, total] = await Promise.all([
                 prisma.projectMaster.findMany({ where, include, orderBy, skip: (pageNum - 1) * limitNum, take: limitNum }),
