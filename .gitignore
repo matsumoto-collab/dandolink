@@ -170,5 +170,10 @@ vs_*.txt
 # SWC cache
 .swc/
 
+# Secrets and tokens
+Google Maps API.txt
+UPSTASH_REDIS_REST_URL=*.txt
+*.pem
+
 # Misc
 nul
