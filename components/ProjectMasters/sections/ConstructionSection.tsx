@@ -6,7 +6,7 @@ import { FormField } from '../common/FormField';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useMasterStore, selectTotalMembers } from '@/stores/masterStore';
+import { useMasterStore, selectTotalMembers, selectConstructionTypes } from '@/stores/masterStore';
 import { ProjectAssignment } from '@/types/calendar';
 
 interface ConstructionSectionProps {
@@ -220,6 +220,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
     const { getForemanName, allForemen, displayedForemanIds } = useCalendarDisplay();
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
     const totalMembers = useMasterStore(selectTotalMembers);
+    const constructionTypes = useMasterStore(selectConstructionTypes);
 
     const [assemblyAssignments, setAssemblyAssignments] = useState<ProjectAssignment[]>([]);
     const [demolitionAssignments, setDemolitionAssignments] = useState<ProjectAssignment[]>([]);
@@ -302,11 +303,31 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         value={formData.assemblyDate}
                         onChange={(e) => {
                             const val = e.target.value;
-                            // 日付が変わったら職長選択をリセット
-                            setFormData(prev => ({ ...prev, assemblyDate: val, assemblyForemen: [] }));
+                            const defaultType = constructionTypes.find(t => t.name === '組立')?.id ?? '';
+                            setFormData(prev => ({
+                                ...prev,
+                                assemblyDate: val,
+                                assemblyForemen: [],
+                                assemblyConstructionType: val ? defaultType : '',
+                            }));
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     />
+                    {formData.assemblyDate && constructionTypes.length > 0 && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-xs text-gray-500">工事種別:</span>
+                            <select
+                                value={formData.assemblyConstructionType}
+                                onChange={e => setFormData(prev => ({ ...prev, assemblyConstructionType: e.target.value }))}
+                                className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-slate-500"
+                            >
+                                <option value="">未設定</option>
+                                {constructionTypes.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <DateConflictList
                         assignments={assemblyAssignments}
                         getForemanName={getForemanName}
@@ -332,10 +353,31 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                         value={formData.demolitionDate}
                         onChange={(e) => {
                             const val = e.target.value;
-                            setFormData(prev => ({ ...prev, demolitionDate: val, demolitionForemen: [] }));
+                            const defaultType = constructionTypes.find(t => t.name === '解体')?.id ?? '';
+                            setFormData(prev => ({
+                                ...prev,
+                                demolitionDate: val,
+                                demolitionForemen: [],
+                                demolitionConstructionType: val ? defaultType : '',
+                            }));
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     />
+                    {formData.demolitionDate && constructionTypes.length > 0 && (
+                        <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-xs text-gray-500">工事種別:</span>
+                            <select
+                                value={formData.demolitionConstructionType}
+                                onChange={e => setFormData(prev => ({ ...prev, demolitionConstructionType: e.target.value }))}
+                                className="text-xs px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-slate-500"
+                            >
+                                <option value="">未設定</option>
+                                {constructionTypes.map(t => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <DateConflictList
                         assignments={demolitionAssignments}
                         getForemanName={getForemanName}
