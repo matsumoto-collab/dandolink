@@ -64,9 +64,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         if (isOpen && foremanId) {
             setSelectedForemanId(foremanId);
         } else if (isOpen && !foremanId && isAdminOrManager && allForemen.length > 0) {
-            setSelectedForemanId(allForemen[0].id);
+            // ログインユーザーが職長リストにいれば優先、なければ先頭
+            const myId = session?.user?.id || '';
+            const myForeman = allForemen.find(f => f.id === myId);
+            setSelectedForemanId(myForeman?.id || allForemen[0].id);
         }
-    }, [isOpen, foremanId, isAdminOrManager, allForemen]);
+    }, [isOpen, foremanId, isAdminOrManager, allForemen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // この日の配置を取得
     const todayAssignments = projects.filter(p => {
@@ -97,13 +100,17 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return (e.hour * 60 + e.minute) - (s.hour * 60 + s.minute);
     };
 
+    // モーダルオープン時のみ日付を初期化（日付ナビゲーション時はリセットしない）
+    useEffect(() => {
+        if (isOpen) setSelectedDate(initialDate || new Date());
+    }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // 日報データの読み込み（リセット + 既存データ取得を一連で行う）
     useEffect(() => {
         if (!isOpen) return;
 
         // 1) まずフォーム状態をリセット（新規日報のデフォルト = todayAssignmentsから生成）
         setIsEditMode(!selectedReport);
-        setSelectedDate(initialDate || new Date());
         setMorningLoadingMinutes(0);
         setEveningLoadingMinutes(0);
         setEarlyStartMinutes(0);
@@ -333,7 +340,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     onChange={(e) => setSelectedForemanId(e.target.value)}
                                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                                 >
-                                    {allForemen.map(foreman => (
+                                    {[...allForemen].sort((a, b) => {
+                                        const myId = session?.user?.id || '';
+                                        if (a.id === myId) return -1;
+                                        if (b.id === myId) return 1;
+                                        return 0;
+                                    }).map(foreman => (
                                         <option key={foreman.id} value={foreman.id}>
                                             {foreman.displayName}
                                         </option>
