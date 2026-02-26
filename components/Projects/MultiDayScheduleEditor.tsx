@@ -191,13 +191,11 @@ export default function MultiDayScheduleEditor({
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">人数（デフォルト）</label>
-                            <input
-                                type="number"
-                                min="0"
-                                value={defaultMemberCount}
-                                onChange={(e) => setDefaultMemberCount(parseInt(e.target.value) || 0)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                            />
+                            <div className="flex items-center gap-2">
+                                <button type="button" onClick={() => setDefaultMemberCount(v => Math.max(0, v - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded-md text-gray-600 active:bg-gray-100">−</button>
+                                <span className="w-10 text-center font-medium">{defaultMemberCount}</span>
+                                <button type="button" onClick={() => setDefaultMemberCount(v => v + 1)} className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded-md text-gray-600 active:bg-gray-100">＋</button>
+                            </div>
                         </div>
                     </div>
                     <div className="flex gap-2">
@@ -318,27 +316,18 @@ export default function MultiDayScheduleEditor({
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="block text-xs text-gray-500 mb-1">人数</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={schedule.memberCount}
-                                                onChange={(e) => updateSchedule(index, { memberCount: parseInt(e.target.value) || 0 })}
-                                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                            />
+                                            <div className="flex items-center gap-1">
+                                                <button type="button" onClick={() => updateSchedule(index, { memberCount: Math.max(0, schedule.memberCount - 1) })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">−</button>
+                                                <span className="flex-1 text-center text-sm font-medium">{schedule.memberCount}</span>
+                                                <button type="button" onClick={() => updateSchedule(index, { memberCount: schedule.memberCount + 1 })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">＋</button>
+                                            </div>
                                         </div>
                                         <div>
                                             <label className="block text-xs text-gray-500 mb-1">予定作業時間</label>
                                             <div className="flex items-center gap-1">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="24"
-                                                    step="0.5"
-                                                    value={schedule.estimatedHours ?? 8}
-                                                    onChange={(e) => updateSchedule(index, { estimatedHours: parseFloat(e.target.value) || 0 })}
-                                                    className="flex-1 px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                />
-                                                <span className="text-xs text-gray-500 shrink-0">h</span>
+                                                <button type="button" onClick={() => updateSchedule(index, { estimatedHours: Math.max(0, Math.round(((schedule.estimatedHours ?? 8) - 0.5) * 10) / 10) })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">−</button>
+                                                <span className="flex-1 text-center text-sm font-medium">{schedule.estimatedHours ?? 8}h</span>
+                                                <button type="button" onClick={() => updateSchedule(index, { estimatedHours: Math.min(24, Math.round(((schedule.estimatedHours ?? 8) + 0.5) * 10) / 10) })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">＋</button>
                                             </div>
                                         </div>
                                     </div>
