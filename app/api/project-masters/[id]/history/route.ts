@@ -41,7 +41,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
             return {
                 id: a.id, date: a.date.toISOString(), foremanId: a.assignedEmployeeId,
                 foremanName: userMap.get(a.assignedEmployeeId) || '不明',
-                constructionType: a.projectMaster.constructionType, constructionContent: a.projectMaster.constructionContent,
+                constructionType: a.constructionType ?? a.projectMaster.constructionType, constructionContent: a.projectMaster.constructionContent,
                 workerIds, workerNames: workerIds.map(wid => userMap.get(wid) || wid).filter(name => name !== userMap.get(a.assignedEmployeeId)),
                 vehicleIds: vehicleIdList, vehicleNames: vehicleIdList.map(vid => vehicleMap.get(vid) || vid),
                 isConfirmed: a.isDispatchConfirmed, remarks: a.remarks, createdAt: a.createdAt.toISOString(),
