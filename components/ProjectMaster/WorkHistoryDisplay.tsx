@@ -12,6 +12,7 @@ interface WorkHistoryItem {
     foremanName: string;
     constructionType: string;
     constructionContent?: string;
+    memberCount: number;
     workerIds: string[];
     workerNames: string[];
     vehicleIds: string[];
@@ -122,6 +123,9 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                             <div className="flex items-center gap-1">
                                 <User className="w-3.5 h-3.5 text-gray-400" />
                                 <span className="font-medium">{item.foremanName}</span>
+                                {item.memberCount > 0 && (
+                                    <span className="ml-1 text-xs text-gray-500">({item.memberCount}名)</span>
+                                )}
                             </div>
                             {item.workerNames.length > 0 && (
                                 <div className="flex items-center gap-1">
