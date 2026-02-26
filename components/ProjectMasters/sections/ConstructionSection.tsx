@@ -179,13 +179,22 @@ function ForemanSelector({
                             </label>
                             {isSelected && (
                                 <div className="flex items-center gap-1 flex-shrink-0">
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={sel.memberCount}
-                                        onChange={e => updateCount(f.id, parseInt(e.target.value) || 1)}
-                                        className="w-14 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-slate-500 text-center"
-                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => updateCount(f.id, sel.memberCount - 1)}
+                                        disabled={sel.memberCount <= 1}
+                                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 disabled:opacity-30 active:bg-gray-100"
+                                    >
+                                        −
+                                    </button>
+                                    <span className="w-8 text-center text-sm font-medium">{sel.memberCount}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => updateCount(f.id, sel.memberCount + 1)}
+                                        className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100"
+                                    >
+                                        ＋
+                                    </button>
                                     <span className="text-xs text-gray-500">名</span>
                                 </div>
                             )}
