@@ -43,6 +43,22 @@ export default function DispatchConfirmModal({
         project.confirmedVehicleIds || []
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // モーダルが開くたびに選択状態をリセット（登録時のトラックを事前選択）
+    useEffect(() => {
+        if (!isOpen) return;
+        setSelectedWorkerIds(project.confirmedWorkerIds || []);
+        if (project.confirmedVehicleIds?.length) {
+            setSelectedVehicleIds(project.confirmedVehicleIds);
+        } else {
+            const truckNames = (project.trucks || project.vehicles || []) as string[];
+            setSelectedVehicleIds(
+                truckNames.length > 0 && vehicles.length > 0
+                    ? vehicles.filter(v => truckNames.includes(v.name)).map(v => v.id)
+                    : []
+            );
+        }
+    }, [isOpen]); // eslint-disable-line react-hooks/exhaustive-deps
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // ユーザーデータの取得
