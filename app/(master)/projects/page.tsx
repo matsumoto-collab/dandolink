@@ -6,7 +6,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { Project } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Loader2, FileText } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import toast from 'react-hot-toast';
 
@@ -45,11 +45,12 @@ export default function ProjectListPage() {
     const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
     const [estimateInitialData, setEstimateInitialData] = useState<{ projectId?: string; title?: string }>({});
 
-    const handleCreateEstimateFromProject = useCallback(() => {
-        if (editingProject?.id) {
+    const handleCreateEstimateFromProject = useCallback((project?: Partial<Project>) => {
+        const p = project ?? editingProject;
+        if (p?.id) {
             setEstimateInitialData({
-                projectId: editingProject.id,
-                title: `${editingProject.title ?? ''} 見積書`,
+                projectId: p.id,
+                title: `${p.title ?? ''} 見積書`,
             });
             setIsEstimateModalOpen(true);
         }
@@ -222,6 +223,13 @@ export default function ProjectListPage() {
                                     </div>
                                     <div className="flex gap-2">
                                         <button
+                                            onClick={() => handleCreateEstimateFromProject(project)}
+                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                            title="見積書を作成"
+                                        >
+                                            <FileText className="w-4 h-4" />
+                                        </button>
+                                        <button
                                             onClick={() => handleEdit(project)}
                                             className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                             title="編集"
@@ -338,6 +346,13 @@ export default function ProjectListPage() {
                                         {project.remarks || '-'}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button
+                                            onClick={() => handleCreateEstimateFromProject(project)}
+                                            className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
+                                            title="見積書を作成"
+                                        >
+                                            <FileText className="w-5 h-5" />
+                                        </button>
                                         <button
                                             onClick={() => handleEdit(project)}
                                             className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
