@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster } from '@/types/unitPrice';
@@ -27,8 +27,14 @@ function getDefault30DaysLater(): string {
 }
 
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
-    const { projects } = useProjects();
+    const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer } = useCustomers();
+
+    // 案件マスターフェッチ
+    useEffect(() => {
+        fetchProjectMasters();
+    }, [fetchProjectMasters]);
+
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
     const [title, setTitle] = useState(initialData?.title || '');
     const [siteName, setSiteName] = useState('');
@@ -68,11 +74,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     // 案件選択時に情報を自動入力
     useEffect(() => {
         if (projectId) {
-            const selectedProject = projects.find(p => p.id === projectId);
+            const selectedProject = projectMasters.find(p => p.id === projectId);
             if (selectedProject) {
                 setSiteName(selectedProject.title || '');
-                if (selectedProject.customer) {
-                    const customerName = selectedProject.customer;
+                const customerName = selectedProject.customerName || selectedProject.customerShortName;
+                if (customerName) {
                     let customer = customers.find(c => c.name === customerName)
                         || customers.find(c => c.shortName === customerName)
                         || customers.find(c => c.name.includes(customerName))
@@ -83,7 +89,16 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 if (!title) setTitle(`${selectedProject.title} 見積書`);
             }
         }
-    }, [projectId, projects, customers, title]);
+    }, [projectId, projectMasters, customers, title]);
+
+    // EstimateHeader 用の案件リスト
+    const projectOptions = React.useMemo(() => {
+        return projectMasters.map(pm => ({
+            id: pm.id,
+            title: pm.title,
+            customer: pm.customerName || pm.customerShortName
+        }));
+    }, [projectMasters]);
 
     // 消費税率
     const TAX_RATE = 0.1;
@@ -172,7 +187,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 customerId={customerId} setCustomerId={setCustomerId}
                 validUntil={validUntil} setValidUntil={setValidUntil}
                 status={status} setStatus={(v) => setStatus(v as EstimateInput['status'])}
-                projects={projects} customers={customers}
+                projects={projectOptions} customers={customers}
                 onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
             />
 
