@@ -33,10 +33,12 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
     } | null>(null);
     const { constructionTypes } = useMasterData();
     const [workerMap, setWorkerMap] = useState<Record<string, string>>({});
+    const [isLoadingWorkers, setIsLoadingWorkers] = useState(false);
 
     // 手配確定メンバー名を取得
     useEffect(() => {
         if (!project.isDispatchConfirmed || !project.confirmedWorkerIds?.length) return;
+        setIsLoadingWorkers(true);
         fetch('/api/dispatch/workers', { cache: 'no-store' })
             .then(res => res.ok ? res.json() : [])
             .then((workers: { id: string; displayName: string }[]) => {
@@ -44,7 +46,8 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                 workers.forEach(w => { map[w.id] = w.displayName; });
                 setWorkerMap(map);
             })
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => setIsLoadingWorkers(false));
     }, [project.isDispatchConfirmed, project.confirmedWorkerIds]);
 
     // 工事種別の色と名前を取得
@@ -225,14 +228,18 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             手配確定メンバー
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            {project.confirmedWorkerIds.map((id) => (
-                                <span
-                                    key={id}
-                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
-                                >
-                                    {workerMap[id] || id}
-                                </span>
-                            ))}
+                            {isLoadingWorkers ? (
+                                <span className="text-sm text-gray-500">読み込み中...</span>
+                            ) : (
+                                project.confirmedWorkerIds.map((id) => (
+                                    <span
+                                        key={id}
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                                    >
+                                        {workerMap[id] || id}
+                                    </span>
+                                ))
+                            )}
                         </div>
                     </div>
                 )}
