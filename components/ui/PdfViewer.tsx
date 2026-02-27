@@ -236,8 +236,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 onMouseLeave={handleMouseUp}
             >
                 <div
-                    className="flex justify-center items-center"
-                    style={{ minHeight: '100%', padding: '16px 8px' }}
+                    style={{ minHeight: '100%', padding: '16px 8px', width: 'fit-content', margin: '0 auto' }}
                 >
                     {!PdfDocument ? (
                         <div className="flex flex-col items-center gap-3 mt-8">
