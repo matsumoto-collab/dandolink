@@ -43,6 +43,13 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     // 時間セレクト用の定数
     const hourOptions = Array.from({ length: 16 }, (_, i) => i + 6); // 6〜21
     const minuteOptions = [0, 15, 30, 45];
+    const durationHourOptions = Array.from({ length: 9 }, (_, i) => i); // 0〜8時間（積込・早出残業用）
+
+    // 分数 → {hour, minute} 変換
+    const minutesToHourMin = (minutes: number) => ({
+        hour: Math.floor(minutes / 60),
+        minute: minutes % 60,
+    });
 
     // フォーム状態
     const [morningLoadingMinutes, setMorningLoadingMinutes] = useState(0);
@@ -199,17 +206,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
         return `${hours}:${mins.toString().padStart(2, '0')}`;
-    };
-
-    // 時間:分形式を分に変換
-    const parseTimeToMinutes = (timeStr: string): number => {
-        const parts = timeStr.split(':');
-        if (parts.length === 2) {
-            const hours = parseInt(parts[0]) || 0;
-            const mins = parseInt(parts[1]) || 0;
-            return hours * 60 + mins;
-        }
-        return parseInt(timeStr) || 0;
     };
 
     // 保存
@@ -488,26 +484,52 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-600 mb-1">朝積込</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={formatMinutes(morningLoadingMinutes)}
-                                                    onChange={(e) => setMorningLoadingMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                />
-                                                <span className="text-sm text-gray-500">（時:分）</span>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={minutesToHourMin(morningLoadingMinutes).hour}
+                                                    onChange={(e) => setMorningLoadingMinutes(Number(e.target.value) * 60 + minutesToHourMin(morningLoadingMinutes).minute)}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {durationHourOptions.map(h => (
+                                                        <option key={h} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">時間</span>
+                                                <select
+                                                    value={minutesToHourMin(morningLoadingMinutes).minute}
+                                                    onChange={(e) => setMorningLoadingMinutes(minutesToHourMin(morningLoadingMinutes).hour * 60 + Number(e.target.value))}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {minuteOptions.map(m => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">分</span>
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-600 mb-1">夕積込</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={formatMinutes(eveningLoadingMinutes)}
-                                                    onChange={(e) => setEveningLoadingMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                />
-                                                <span className="text-sm text-gray-500">（時:分）</span>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={minutesToHourMin(eveningLoadingMinutes).hour}
+                                                    onChange={(e) => setEveningLoadingMinutes(Number(e.target.value) * 60 + minutesToHourMin(eveningLoadingMinutes).minute)}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {durationHourOptions.map(h => (
+                                                        <option key={h} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">時間</span>
+                                                <select
+                                                    value={minutesToHourMin(eveningLoadingMinutes).minute}
+                                                    onChange={(e) => setEveningLoadingMinutes(minutesToHourMin(eveningLoadingMinutes).hour * 60 + Number(e.target.value))}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {minuteOptions.map(m => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">分</span>
                                             </div>
                                         </div>
                                     </div>
@@ -523,26 +545,52 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-600 mb-1">早出</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={formatMinutes(earlyStartMinutes)}
-                                                    onChange={(e) => setEarlyStartMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                />
-                                                <span className="text-sm text-gray-500">（時:分）</span>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={minutesToHourMin(earlyStartMinutes).hour}
+                                                    onChange={(e) => setEarlyStartMinutes(Number(e.target.value) * 60 + minutesToHourMin(earlyStartMinutes).minute)}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {durationHourOptions.map(h => (
+                                                        <option key={h} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">時間</span>
+                                                <select
+                                                    value={minutesToHourMin(earlyStartMinutes).minute}
+                                                    onChange={(e) => setEarlyStartMinutes(minutesToHourMin(earlyStartMinutes).hour * 60 + Number(e.target.value))}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {minuteOptions.map(m => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">分</span>
                                             </div>
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-gray-600 mb-1">残業</label>
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={formatMinutes(overtimeMinutes)}
-                                                    onChange={(e) => setOvertimeMinutes(parseTimeToMinutes(e.target.value))}
-                                                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-center focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                />
-                                                <span className="text-sm text-gray-500">（時:分）</span>
+                                            <div className="flex items-center gap-1">
+                                                <select
+                                                    value={minutesToHourMin(overtimeMinutes).hour}
+                                                    onChange={(e) => setOvertimeMinutes(Number(e.target.value) * 60 + minutesToHourMin(overtimeMinutes).minute)}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {durationHourOptions.map(h => (
+                                                        <option key={h} value={h}>{h}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">時間</span>
+                                                <select
+                                                    value={minutesToHourMin(overtimeMinutes).minute}
+                                                    onChange={(e) => setOvertimeMinutes(minutesToHourMin(overtimeMinutes).hour * 60 + Number(e.target.value))}
+                                                    className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                >
+                                                    {minuteOptions.map(m => (
+                                                        <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                    ))}
+                                                </select>
+                                                <span className="text-gray-400 text-sm">分</span>
                                             </div>
                                         </div>
                                     </div>
