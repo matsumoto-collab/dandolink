@@ -11,11 +11,19 @@ import UnitPriceMasterModal from './UnitPriceMasterModal';
 import EstimateHeader from './EstimateHeader';
 import ItemsEditor from './ItemsEditor';
 import SummaryFooter from './SummaryFooter';
+import ConditionNotes from './ConditionNotes';
 
 interface EstimateFormProps {
     initialData?: Partial<EstimateInput>;
     onSubmit: (data: EstimateInput) => void;
     onCancel: () => void;
+}
+
+/** 30日後の日付文字列を返す */
+function getDefault30DaysLater(): string {
+    const date = new Date();
+    date.setDate(date.getDate() + 30);
+    return date.toISOString().split('T')[0];
 }
 
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
@@ -29,15 +37,27 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState('custom');
 
-    const [estimateNumber, setEstimateNumber] = useState(() => {
-        if (initialData?.estimateNumber) return initialData.estimateNumber;
-        const now = new Date();
-        const pad = (n: number) => String(n).padStart(2, '0');
-        return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
-    });
+    // 見積番号: 新規作成時はAPIから連番取得
+    const [estimateNumber, setEstimateNumber] = useState(initialData?.estimateNumber || '');
+
+    useEffect(() => {
+        if (!initialData?.estimateNumber) {
+            fetch('/api/estimates/next-number')
+                .then(res => res.json())
+                .then(data => { if (data.nextNumber) setEstimateNumber(data.nextNumber); })
+                .catch(() => {
+                    // フォールバック: タイムスタンプ形式
+                    const now = new Date();
+                    const pad = (n: number) => String(n).padStart(2, '0');
+                    setEstimateNumber(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`);
+                });
+        }
+    }, [initialData?.estimateNumber]);
+
+    // 有効期限: デフォルト30日後
     const [validUntil, setValidUntil] = useState(() => {
         if (initialData?.validUntil) return new Date(initialData.validUntil).toISOString().split('T')[0];
-        return '発行日より1ヶ月';
+        return getDefault30DaysLater();
     });
     const [status, setStatus] = useState<EstimateInput['status']>(initialData?.status || 'draft');
     const [notes, setNotes] = useState(initialData?.notes || '');
@@ -75,6 +95,21 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     // 明細操作
     const addItem = () => {
         setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
+    };
+
+    // 値引き行追加
+    const addDiscountItem = () => {
+        setItems([...items, {
+            id: `item-${Date.now()}-discount`,
+            description: '値引き',
+            specification: '',
+            quantity: 1,
+            unit: '式',
+            unitPrice: 0,
+            amount: 0,
+            taxType: 'none',
+            notes: '',
+        }]);
     };
 
     const handleSelectFromMaster = (selectedMasters: UnitPriceMaster[]) => {
@@ -148,18 +183,13 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onMoveUp={moveItemUp}
                 onMoveDown={moveItemDown}
                 onAddItem={addItem}
+                onAddDiscountItem={addDiscountItem}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
             />
 
             <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
 
-            {/* 備考 */}
-            <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">備考</label>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3}
-                    className="w-full px-3 py-3 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"
-                    placeholder="備考を入力..." />
-            </div>
+            <ConditionNotes notes={notes} setNotes={setNotes} />
 
             {/* ボタン */}
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200 safe-area-bottom">

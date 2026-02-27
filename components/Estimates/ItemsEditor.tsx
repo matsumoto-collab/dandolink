@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { EstimateItem } from '@/types/estimate';
-import { Plus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
 interface ItemsEditorProps {
@@ -12,10 +12,11 @@ interface ItemsEditorProps {
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
     onAddItem: () => void;
+    onAddDiscountItem: () => void;
     onOpenUnitPriceModal: () => void;
 }
 
-export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onOpenUnitPriceModal }: ItemsEditorProps) {
+export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onAddDiscountItem, onOpenUnitPriceModal }: ItemsEditorProps) {
     const rowProps = (item: EstimateItem, index: number) => ({
         item, index, totalItems: items.length,
         onUpdate, onRemove, onMoveUp, onMoveDown,
@@ -25,13 +26,16 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
         <div>
             <div className="flex items-center justify-between mb-3">
                 <label className="block text-sm font-semibold text-gray-700">明細</label>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
                     <button type="button" onClick={onOpenUnitPriceModal} className="flex items-center gap-1 px-3 py-2 md:py-1.5 text-sm bg-slate-700 text-white rounded-lg hover:bg-slate-800 active:bg-slate-900 transition-colors">
                         <Plus className="w-4 h-4" />
                         <span className="hidden sm:inline">マスターから</span>追加
                     </button>
                     <button type="button" onClick={onAddItem} className="flex items-center gap-1 px-3 py-2 md:py-1.5 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 active:bg-slate-900 transition-colors">
                         <Plus className="w-4 h-4" />行追加
+                    </button>
+                    <button type="button" onClick={onAddDiscountItem} className="flex items-center gap-1 px-3 py-2 md:py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 active:bg-amber-800 transition-colors">
+                        <Minus className="w-4 h-4" />値引き
                     </button>
                 </div>
             </div>
