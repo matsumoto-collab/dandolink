@@ -1,17 +1,23 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
+import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off } from 'lucide-react';
+import { useCalendarStore } from '@/stores/calendarStore';
 import toast from 'react-hot-toast';
 
 // 大きなモーダルコンポーネントを遅延読み込み
+const ProjectModal = dynamic(
+    () => import('@/components/Projects/ProjectModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
@@ -23,7 +29,7 @@ const EstimateDetailModal = dynamic(
 
 export default function EstimateListPage() {
     const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
-    const { projects } = useProjects();
+    const { projects, addProject } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -40,10 +46,16 @@ export default function EstimateListPage() {
     const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
 
+    // 案件作成モーダル（見積書から案件を作成）
+    const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+    const [projectModalInitialData, setProjectModalInitialData] = useState<Partial<Project>>({});
+    const pendingLinkEstimateIdRef = useRef<string | null>(null);
+
     // プロジェクト名を取得（useCallbackでメモ化）
     const getProjectName = useCallback((projectId: string) => {
+        if (!projectId) return null;
         const project = projects.find(p => p.id === projectId);
-        return project?.title || '不明な案件';
+        return project?.title ?? null;
     }, [projects]);
 
     // ステータスアイコンとカラー
@@ -66,7 +78,7 @@ export default function EstimateListPage() {
             .filter(est => {
                 const matchesSearch = est.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
                     est.estimateNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    getProjectName(est.projectId ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                    (getProjectName(est.projectId ?? '') ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
                 const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
                 return matchesSearch && matchesStatus;
             })
@@ -88,6 +100,34 @@ export default function EstimateListPage() {
         setEditingEstimate(null);
         setIsModalOpen(true);
     };
+
+    // 見積書から案件を作成するフロー
+    const handleCreateProjectFromEstimate = useCallback((estimate: Estimate) => {
+        pendingLinkEstimateIdRef.current = estimate.id;
+        setProjectModalInitialData({
+            title: estimate.title.replace(/\s*見積書\s*$/, '').trim() || estimate.title,
+        });
+        setIsDetailModalOpen(false);
+        setIsProjectModalOpen(true);
+    }, []);
+
+    // 案件作成完了 → estimate.projectId を自動更新
+    const handleSubmitProjectFromEstimate = useCallback(async (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
+        const beforeIds = new Set(useCalendarStore.getState().assignments.map((a) => a.id));
+        await addProject(data);
+        const newAssignment = useCalendarStore.getState().assignments.find((a) => !beforeIds.has(a.id));
+        const estimateId = pendingLinkEstimateIdRef.current;
+        if (newAssignment && estimateId) {
+            try {
+                await updateEstimate(estimateId, { projectId: newAssignment.id } as EstimateInput);
+                toast.success('見積書と案件を紐付けました');
+            } catch {
+                toast.error('案件の紐付けに失敗しました。手動で紐付けてください。');
+            }
+        }
+        pendingLinkEstimateIdRef.current = null;
+        setIsProjectModalOpen(false);
+    }, [addProject, updateEstimate]);
 
     const handleEdit = (estimate: Estimate) => {
         setEditingEstimate(estimate);
@@ -232,15 +272,22 @@ export default function EstimateListPage() {
                                     </div>
 
                                     {/* 案件名 */}
-                                    <button
-                                        onClick={() => {
-                                            setSelectedEstimate(estimate);
-                                            setIsDetailModalOpen(true);
-                                        }}
-                                        className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
-                                    >
-                                        {getProjectName(estimate.projectId ?? '')}
-                                    </button>
+                                    {getProjectName(estimate.projectId ?? '') ? (
+                                        <button
+                                            onClick={() => {
+                                                setSelectedEstimate(estimate);
+                                                setIsDetailModalOpen(true);
+                                            }}
+                                            className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
+                                        >
+                                            {getProjectName(estimate.projectId ?? '')}
+                                        </button>
+                                    ) : (
+                                        <div className="flex items-center gap-1 mb-3">
+                                            <Link2Off className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className="text-xs text-slate-500 font-medium">案件未紐付け</span>
+                                        </div>
+                                    )}
 
                                     {/* 金額 */}
                                     <div className="text-lg font-bold text-slate-900 mb-3">
@@ -334,15 +381,22 @@ export default function EstimateListPage() {
                                             </button>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedEstimate(estimate);
-                                                    setIsDetailModalOpen(true);
-                                                }}
-                                                className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
-                                            >
-                                                {getProjectName(estimate.projectId ?? '')}
-                                            </button>
+                                            {getProjectName(estimate.projectId ?? '') ? (
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedEstimate(estimate);
+                                                        setIsDetailModalOpen(true);
+                                                    }}
+                                                    className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
+                                                >
+                                                    {getProjectName(estimate.projectId ?? '')}
+                                                </button>
+                                            ) : (
+                                                <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
+                                                    <Link2Off className="w-3.5 h-3.5" />
+                                                    案件未紐付け
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                                             ¥{estimate.total.toLocaleString()}
@@ -413,8 +467,21 @@ export default function EstimateListPage() {
                         setEditingEstimate(estimate);
                         setIsModalOpen(true);
                     }}
+                    onCreateProject={selectedEstimate ? () => handleCreateProjectFromEstimate(selectedEstimate) : undefined}
                 />
             )}
+
+            {/* 案件作成モーダル（見積書から案件を作成する場合） */}
+            <ProjectModal
+                isOpen={isProjectModalOpen}
+                onClose={() => {
+                    setIsProjectModalOpen(false);
+                    pendingLinkEstimateIdRef.current = null;
+                }}
+                onSubmit={handleSubmitProjectFromEstimate}
+                initialData={projectModalInitialData}
+                title="案件登録（見積書から作成）"
+            />
         </div>
     );
 }

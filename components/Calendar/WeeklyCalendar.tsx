@@ -17,11 +17,16 @@ import { addDays } from '@/utils/dateUtils';
 import { CalendarEvent, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
+import toast from 'react-hot-toast';
+import { EstimateInput } from '@/types/estimate';
 import DesktopCalendarView from './DesktopCalendarView';
 import MobileCalendarView from './MobileCalendarView';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
+    loading: () => <Loading overlay />
+});
+const EstimateModal = dynamic(() => import('../Estimates/EstimateModal'), {
     loading: () => <Loading overlay />
 });
 const ProjectMasterSearchModal = dynamic(() => import('../ProjectMasterSearchModal'), {
@@ -79,6 +84,39 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         isDispatchModalOpen, dispatchProject, handleOpenDispatchModal, handleCloseDispatchModal,
         isCopyModalOpen, copyEvent, handleCopyEvent, handleCloseCopyModal, handleCopyAssignment,
     } = useCalendarModals(projects, events, addProject);
+
+    // 見積書作成モーダル（案件詳細から起動）
+    const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
+    const [estimateInitialData, setEstimateInitialData] = useState<{ projectId?: string; title?: string }>({});
+
+    const handleCreateEstimateFromProject = useCallback(() => {
+        const project = modalInitialData;
+        if (project?.id) {
+            setEstimateInitialData({
+                projectId: project.id,
+                title: `${project.title ?? ''} 見積書`,
+            });
+        }
+        setIsEstimateModalOpen(true);
+    }, [modalInitialData]);
+
+    const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
+        try {
+            const res = await fetch('/api/estimates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...data,
+                    validUntil: data.validUntil instanceof Date ? data.validUntil.toISOString() : data.validUntil,
+                }),
+            });
+            if (!res.ok) throw new Error('Failed to create estimate');
+            setIsEstimateModalOpen(false);
+            toast.success('見積書を作成しました');
+        } catch {
+            toast.error('見積書の作成に失敗しました');
+        }
+    }, []);
 
     // 手配確定権限チェック
     const canDispatch = useMemo(() => canDispatchCheck(session?.user), [session?.user]);
@@ -392,6 +430,14 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                 defaultEmployeeId={modalInitialData.assignedEmployeeId}
                 title={modalInitialData.id ? '案件編集' : '案件登録'}
                 readOnly={isReadOnly}
+                onCreateEstimate={handleCreateEstimateFromProject}
+            />
+
+            <EstimateModal
+                isOpen={isEstimateModalOpen}
+                onClose={() => setIsEstimateModalOpen(false)}
+                onSubmit={handleEstimateSubmit}
+                initialData={estimateInitialData}
             />
 
             <ProjectMasterSearchModal

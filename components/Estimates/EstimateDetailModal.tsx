@@ -6,7 +6,7 @@ import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
-import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
+import { X, FileDown, Printer, Trash2, Edit, FolderOpen } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface EstimateDetailModalProps {
@@ -17,6 +17,7 @@ interface EstimateDetailModalProps {
     companyInfo: CompanyInfo;
     onDelete: (id: string) => void;
     onEdit: (estimate: Estimate) => void;
+    onCreateProject?: () => void;
 }
 
 export default function EstimateDetailModal({
@@ -27,6 +28,7 @@ export default function EstimateDetailModal({
     companyInfo,
     onDelete,
     onEdit,
+    onCreateProject,
 }: EstimateDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
@@ -144,6 +146,16 @@ export default function EstimateDetailModal({
                     <div className="bg-white border-b border-gray-200 px-6 py-3">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
+                                {!estimate.projectId && onCreateProject && (
+                                    <button
+                                        onClick={() => { onCreateProject(); onClose(); }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                        title="この見積書から案件を作成"
+                                    >
+                                        <FolderOpen size={18} />
+                                        <span className="hidden sm:inline">案件を作成</span>
+                                    </button>
+                                )}
                                 <button
                                     onClick={handleDownload}
                                     className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
