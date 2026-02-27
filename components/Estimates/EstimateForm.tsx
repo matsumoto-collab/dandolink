@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useProjects } from '@/hooks/useProjects';
 import { useCustomers } from '@/hooks/useCustomers';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
@@ -17,7 +17,6 @@ interface EstimateFormProps {
     initialData?: Partial<EstimateInput>;
     onSubmit: (data: EstimateInput) => void;
     onCancel: () => void;
-    onDataChange?: (data: { title: string; customerName: string; siteName: string; items: EstimateItem[]; subtotal: number; tax: number; total: number; notes: string; estimateNumber: string }) => void;
 }
 
 /** 30日後の日付文字列を返す */
@@ -27,27 +26,7 @@ function getDefault30DaysLater(): string {
     return date.toISOString().split('T')[0];
 }
 
-/** グループを考慮した合計計算: トップレベル明細 + グループ行（子の合計） */
-function computeTotals(items: EstimateItem[]) {
-    let subtotal = 0;
-    for (const item of items) {
-        if (item.isGroup) {
-            // グループの金額 = 配下の明細の合計
-            const children = items.filter(i => i.groupId === item.id);
-            subtotal += children.reduce((sum, c) => sum + c.amount, 0);
-        } else if (!item.groupId) {
-            // トップレベルの明細
-            subtotal += item.amount;
-        }
-    }
-    const taxableItems = items.filter(i => i.taxType === 'standard' && !i.isGroup);
-    // グループ配下の課税明細も含める
-    const taxableAmount = taxableItems.reduce((sum, i) => sum + i.amount, 0);
-    const tax = Math.floor(taxableAmount * 0.1);
-    return { subtotal, tax, total: subtotal + tax };
-}
-
-export default function EstimateForm({ initialData, onSubmit, onCancel, onDataChange }: EstimateFormProps) {
+export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
     const { projects } = useProjects();
     const { customers, addCustomer } = useCustomers();
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
@@ -58,6 +37,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState('custom');
 
+    // 見積番号: 新規作成時はAPIから連番取得
     const [estimateNumber, setEstimateNumber] = useState(initialData?.estimateNumber || '');
 
     useEffect(() => {
@@ -66,6 +46,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
                 .then(res => res.json())
                 .then(data => { if (data.nextNumber) setEstimateNumber(data.nextNumber); })
                 .catch(() => {
+                    // フォールバック: タイムスタンプ形式
                     const now = new Date();
                     const pad = (n: number) => String(n).padStart(2, '0');
                     setEstimateNumber(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`);
@@ -73,6 +54,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
         }
     }, [initialData?.estimateNumber]);
 
+    // 有効期限: デフォルト30日後
     const [validUntil, setValidUntil] = useState(() => {
         if (initialData?.validUntil) return new Date(initialData.validUntil).toISOString().split('T')[0];
         return getDefault30DaysLater();
@@ -91,7 +73,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
                 setSiteName(selectedProject.title || '');
                 if (selectedProject.customer) {
                     const customerName = selectedProject.customer;
-                    const customer = customers.find(c => c.name === customerName)
+                    let customer = customers.find(c => c.name === customerName)
                         || customers.find(c => c.shortName === customerName)
                         || customers.find(c => c.name.includes(customerName))
                         || customers.find(c => c.shortName?.includes(customerName))
@@ -103,34 +85,19 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
         }
     }, [projectId, projects, customers, title]);
 
-    const { subtotal, tax, total } = computeTotals(items);
-
-    // プレビュー同期
-    const customerName = customers.find(c => c.id === customerId)?.name || '';
-    useEffect(() => {
-        onDataChange?.({ title, customerName, siteName, items, subtotal, tax, total, notes, estimateNumber });
-    }, [title, customerName, siteName, items, subtotal, tax, total, notes, estimateNumber, onDataChange]);
+    // 消費税率
+    const TAX_RATE = 0.1;
+    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+    const taxableAmount = items.filter(item => item.taxType === 'standard').reduce((sum, item) => sum + item.amount, 0);
+    const tax = Math.floor(taxableAmount * TAX_RATE);
+    const total = subtotal + tax;
 
     // 明細操作
     const addItem = () => {
         setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
     };
 
-    const addGroupItem = () => {
-        setItems([...items, {
-            id: `group-${Date.now()}`,
-            description: '',
-            specification: '',
-            quantity: 0,
-            unit: '',
-            unitPrice: 0,
-            amount: 0,
-            taxType: 'none',
-            notes: '',
-            isGroup: true,
-        }]);
-    };
-
+    // 値引き行追加
     const addDiscountItem = () => {
         setItems([...items, {
             id: `item-${Date.now()}-discount`,
@@ -156,17 +123,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
         setIsUnitPriceModalOpen(false);
     };
 
-    const removeItem = (id: string) => {
-        if (items.length > 1) {
-            // グループ削除時は配下の明細のgroupIdもクリア
-            const item = items.find(i => i.id === id);
-            if (item?.isGroup) {
-                setItems(items.filter(i => i.id !== id).map(i => i.groupId === id ? { ...i, groupId: undefined } : i));
-            } else {
-                setItems(items.filter(i => i.id !== id));
-            }
-        }
-    };
+    const removeItem = (id: string) => { if (items.length > 1) setItems(items.filter(item => item.id !== id)); };
 
     const updateItem = (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
         setItems(items.map(item => {
@@ -193,20 +150,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
         setItems(newItems);
     };
 
-    const handleReorder = useCallback((reorderedItems: EstimateItem[]) => {
-        // ドラッグ後にgroupIdを再計算: グループ行の直後の非グループ行に自動的にgroupIdを設定
-        let currentGroupId: string | undefined;
-        const updated = reorderedItems.map(item => {
-            if (item.isGroup) {
-                currentGroupId = item.id;
-                return item;
-            }
-            // 非グループ行: 直前のグループの配下にする
-            return { ...item, groupId: currentGroupId };
-        });
-        setItems(updated);
-    }, []);
-
+    // 送信
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!title) { toast.error('タイトルは必須です'); return; }
@@ -240,8 +184,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel, onDataCh
                 onMoveDown={moveItemDown}
                 onAddItem={addItem}
                 onAddDiscountItem={addDiscountItem}
-                onAddGroupItem={addGroupItem}
-                onReorder={handleReorder}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
             />
 

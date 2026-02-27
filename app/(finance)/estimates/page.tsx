@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
@@ -14,8 +13,13 @@ import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Load
 import { useCalendarStore } from '@/stores/calendarStore';
 import toast from 'react-hot-toast';
 
+// 大きなモーダルコンポーネントを遅延読み込み
 const ProjectModal = dynamic(
     () => import('@/components/Projects/ProjectModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
+const EstimateModal = dynamic(
+    () => import('@/components/Estimates/EstimateModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 const EstimateDetailModal = dynamic(
@@ -24,33 +28,37 @@ const EstimateDetailModal = dynamic(
 );
 
 export default function EstimateListPage() {
-    const router = useRouter();
-    const { estimates, isLoading, isInitialized, ensureDataLoaded, updateEstimate, deleteEstimate } = useEstimates();
+    const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
     const { projects, addProject } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
 
+    // ページ表示時にデータを読み込み
     useEffect(() => {
         ensureDataLoaded();
         ensureCompanyLoaded();
     }, [ensureDataLoaded, ensureCompanyLoaded]);
-
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
+    const [_isSubmitting, setIsSubmitting] = useState(false);
 
     // 案件作成モーダル（見積書から案件を作成）
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [projectModalInitialData, setProjectModalInitialData] = useState<Partial<Project>>({});
     const pendingLinkEstimateIdRef = useRef<string | null>(null);
 
+    // プロジェクト名を取得（useCallbackでメモ化）
     const getProjectName = useCallback((projectId: string) => {
         if (!projectId) return null;
         const project = projects.find(p => p.id === projectId);
         return project?.title ?? null;
     }, [projects]);
 
+    // ステータスアイコンとカラー
     const getStatusInfo = (status: Estimate['status']) => {
         switch (status) {
             case 'draft':
@@ -64,6 +72,7 @@ export default function EstimateListPage() {
         }
     };
 
+    // フィルタリング（useMemoでメモ化）
     const filteredEstimates = useMemo(() => {
         return estimates
             .filter(est => {
@@ -88,9 +97,11 @@ export default function EstimateListPage() {
     };
 
     const handleAddNew = () => {
-        router.push('/estimates/new');
+        setEditingEstimate(null);
+        setIsModalOpen(true);
     };
 
+    // 見積書から案件を作成するフロー
     const handleCreateProjectFromEstimate = useCallback((estimate: Estimate) => {
         pendingLinkEstimateIdRef.current = estimate.id;
         setProjectModalInitialData({
@@ -100,6 +111,7 @@ export default function EstimateListPage() {
         setIsProjectModalOpen(true);
     }, []);
 
+    // 案件作成完了 → estimate.projectId を自動更新
     const handleSubmitProjectFromEstimate = useCallback(async (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
         const beforeIds = new Set(useCalendarStore.getState().assignments.map((a) => a.id));
         await addProject(data);
@@ -118,12 +130,42 @@ export default function EstimateListPage() {
     }, [addProject, updateEstimate]);
 
     const handleEdit = (estimate: Estimate) => {
-        router.push(`/estimates/${estimate.id}/edit`);
+        setEditingEstimate(estimate);
+        setIsModalOpen(true);
     };
 
+    // 見積書コピー
     const handleCopy = (estimate: Estimate) => {
-        router.push(`/estimates/new?copyFrom=${estimate.id}`);
+        setEditingEstimate(null);
+        // コピー元のデータを初期値として新規作成（番号・ステータスはリセット）
+        setCopySource({
+            projectId: estimate.projectId,
+            title: estimate.title,
+            items: estimate.items.map(item => ({ ...item, id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` })),
+            notes: estimate.notes,
+        });
+        setIsModalOpen(true);
     };
+    const [copySource, setCopySource] = useState<Partial<EstimateInput> | null>(null);
+
+    const handleSubmit = async (data: EstimateInput) => {
+        try {
+            setIsSubmitting(true);
+            if (editingEstimate) {
+                await updateEstimate(editingEstimate.id, data);
+            } else {
+                await addEstimate(data);
+            }
+            setIsModalOpen(false);
+            setEditingEstimate(null);
+        } catch (error) {
+            console.error('Failed to save estimate:', error);
+            toast.error(error instanceof Error ? error.message : '見積書の保存に失敗しました');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
 
     return (
         <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
@@ -135,9 +177,12 @@ export default function EstimateListPage() {
                 <p className="text-slate-600">登録されている全ての見積書を管理できます</p>
             </div>
 
+
             {/* ツールバー */}
             <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+                {/* 検索バーとフィルター */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                    {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
@@ -148,6 +193,8 @@ export default function EstimateListPage() {
                             className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
+
+                    {/* ステータスフィルター */}
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
@@ -160,9 +207,18 @@ export default function EstimateListPage() {
                         <option value="rejected">却下</option>
                     </select>
                 </div>
+
+                {/* 新規追加ボタン */}
                 <button
                     onClick={handleAddNew}
-                    className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+                    className="
+                        flex items-center justify-center gap-2 px-5 py-2.5
+                        bg-gradient-to-r from-slate-700 to-slate-800
+                        text-white font-semibold rounded-lg
+                        hover:from-slate-800 hover:to-slate-900
+                        active:scale-95
+                        transition-all duration-200 shadow-md hover:shadow-lg
+                    "
                 >
                     <Plus className="w-5 h-5" />
                     <span className="hidden sm:inline">新規見積書作成</span>
@@ -194,30 +250,55 @@ export default function EstimateListPage() {
                         {filteredEstimates.map((estimate) => {
                             const statusInfo = getStatusInfo(estimate.status);
                             const StatusIcon = statusInfo.icon;
+
                             return (
-                                <div key={estimate.id} className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow">
+                                <div
+                                    key={estimate.id}
+                                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                >
+                                    {/* ヘッダー: 見積番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">
                                         <button
-                                            onClick={() => { setSelectedEstimate(estimate); setIsDetailModalOpen(true); }}
+                                            onClick={() => {
+                                                setSelectedEstimate(estimate);
+                                                setIsDetailModalOpen(true);
+                                            }}
                                             className="text-base font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
                                         >
                                             {estimate.estimateNumber}
                                         </button>
                                         <div className="flex gap-1">
-                                            <button onClick={() => handleCopy(estimate)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="コピーして新規作成">
+                                            <button
+                                                onClick={() => handleCopy(estimate)}
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                title="コピーして新規作成"
+                                            >
                                                 <Copy className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => handleEdit(estimate)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="編集">
+                                            <button
+                                                onClick={() => handleEdit(estimate)}
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                title="編集"
+                                            >
                                                 <Edit className="w-4 h-4" />
                                             </button>
-                                            <button onClick={() => handleDelete(estimate.id)} className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors" title="削除">
+                                            <button
+                                                onClick={() => handleDelete(estimate.id)}
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                title="削除"
+                                            >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* 案件名 */}
                                     {getProjectName(estimate.projectId ?? '') ? (
                                         <button
-                                            onClick={() => { setSelectedEstimate(estimate); setIsDetailModalOpen(true); }}
+                                            onClick={() => {
+                                                setSelectedEstimate(estimate);
+                                                setIsDetailModalOpen(true);
+                                            }}
                                             className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
                                         >
                                             {getProjectName(estimate.projectId ?? '')}
@@ -228,12 +309,21 @@ export default function EstimateListPage() {
                                             <span className="text-xs text-slate-500 font-medium">案件未紐付け</span>
                                         </div>
                                     )}
-                                    <div className="text-lg font-bold text-slate-900 mb-3">¥{estimate.total.toLocaleString()}</div>
+
+                                    {/* 金額 */}
+                                    <div className="text-lg font-bold text-slate-900 mb-3">
+                                        ¥{estimate.total.toLocaleString()}
+                                    </div>
+
+                                    {/* ステータスと日付 */}
                                     <div className="flex items-center justify-between">
                                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
-                                            <StatusIcon className="w-4 h-4" />{statusInfo.label}
+                                            <StatusIcon className="w-4 h-4" />
+                                            {statusInfo.label}
                                         </span>
-                                        <span className="text-xs text-slate-500">有効期限: {formatDate(estimate.validUntil, 'short')}</span>
+                                        <span className="text-xs text-slate-500">
+                                            有効期限: {formatDate(estimate.validUntil, 'short')}
+                                        </span>
                                     </div>
                                 </div>
                             );
@@ -247,17 +337,32 @@ export default function EstimateListPage() {
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-10">
                         <tr>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">見積番号</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">案件名</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">金額</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">ステータス</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">有効期限</th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">作成日</th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">操作</th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                見積番号
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                案件名
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                金額
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                ステータス
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                有効期限
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                作成日
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                操作
+                            </th>
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
                         {!isInitialized || isLoading ? (
+                            /* 読み込み中はスケルトン表示 */
                             [...Array(5)].map((_, i) => (
                                 <tr key={i} className="animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
@@ -279,11 +384,18 @@ export default function EstimateListPage() {
                             filteredEstimates.map((estimate) => {
                                 const statusInfo = getStatusInfo(estimate.status);
                                 const StatusIcon = statusInfo.icon;
+
                                 return (
-                                    <tr key={estimate.id} className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200">
+                                    <tr
+                                        key={estimate.id}
+                                        className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <button
-                                                onClick={() => { setSelectedEstimate(estimate); setIsDetailModalOpen(true); }}
+                                                onClick={() => {
+                                                    setSelectedEstimate(estimate);
+                                                    setIsDetailModalOpen(true);
+                                                }}
                                                 className="text-sm font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
                                             >
                                                 {estimate.estimateNumber}
@@ -292,14 +404,18 @@ export default function EstimateListPage() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {getProjectName(estimate.projectId ?? '') ? (
                                                 <button
-                                                    onClick={() => { setSelectedEstimate(estimate); setIsDetailModalOpen(true); }}
+                                                    onClick={() => {
+                                                        setSelectedEstimate(estimate);
+                                                        setIsDetailModalOpen(true);
+                                                    }}
                                                     className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
                                                 >
                                                     {getProjectName(estimate.projectId ?? '')}
                                                 </button>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
-                                                    <Link2Off className="w-3.5 h-3.5" />案件未紐付け
+                                                    <Link2Off className="w-3.5 h-3.5" />
+                                                    案件未紐付け
                                                 </span>
                                             )}
                                         </td>
@@ -308,19 +424,36 @@ export default function EstimateListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
-                                                <StatusIcon className="w-4 h-4" />{statusInfo.label}
+                                                <StatusIcon className="w-4 h-4" />
+                                                {statusInfo.label}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{formatDate(estimate.validUntil, 'full')}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">{formatDate(estimate.createdAt, 'full')}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {formatDate(estimate.validUntil, 'full')}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {formatDate(estimate.createdAt, 'full')}
+                                        </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button onClick={() => handleCopy(estimate)} className="text-slate-600 hover:text-slate-700 mr-3 transition-colors" title="コピーして新規作成">
+                                            <button
+                                                onClick={() => handleCopy(estimate)}
+                                                className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
+                                                title="コピーして新規作成"
+                                            >
                                                 <Copy className="w-5 h-5" />
                                             </button>
-                                            <button onClick={() => handleEdit(estimate)} className="text-slate-600 hover:text-slate-700 mr-3 transition-colors" title="編集">
+                                            <button
+                                                onClick={() => handleEdit(estimate)}
+                                                className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
+                                                title="編集"
+                                            >
                                                 <Edit className="w-5 h-5" />
                                             </button>
-                                            <button onClick={() => handleDelete(estimate.id)} className="text-slate-600 hover:text-slate-700 transition-colors" title="削除">
+                                            <button
+                                                onClick={() => handleDelete(estimate.id)}
+                                                className="text-slate-600 hover:text-slate-700 transition-colors"
+                                                title="削除"
+                                            >
                                                 <Trash2 className="w-5 h-5" />
                                             </button>
                                         </td>
@@ -338,24 +471,41 @@ export default function EstimateListPage() {
                 {(searchTerm || statusFilter !== 'all') && ` (${estimates.length}件中)`}
             </div>
 
+            {/* 編集モーダル */}
+            <EstimateModal
+                isOpen={isModalOpen}
+                onClose={() => { setIsModalOpen(false); setCopySource(null); }}
+                onSubmit={handleSubmit}
+                initialData={editingEstimate || copySource || undefined}
+            />
+
             {/* 詳細モーダル */}
             {companyInfo && (
                 <EstimateDetailModal
                     isOpen={isDetailModalOpen}
-                    onClose={() => { setIsDetailModalOpen(false); setSelectedEstimate(null); }}
+                    onClose={() => {
+                        setIsDetailModalOpen(false);
+                        setSelectedEstimate(null);
+                    }}
                     estimate={selectedEstimate}
                     project={selectedEstimate ? projects.find(p => p.id === selectedEstimate.projectId) || null : null}
                     companyInfo={companyInfo}
                     onDelete={deleteEstimate}
-                    onEdit={(estimate) => router.push(`/estimates/${estimate.id}/edit`)}
+                    onEdit={(estimate) => {
+                        setEditingEstimate(estimate);
+                        setIsModalOpen(true);
+                    }}
                     onCreateProject={selectedEstimate ? () => handleCreateProjectFromEstimate(selectedEstimate) : undefined}
                 />
             )}
 
-            {/* 案件作成モーダル */}
+            {/* 案件作成モーダル（見積書から案件を作成する場合） */}
             <ProjectModal
                 isOpen={isProjectModalOpen}
-                onClose={() => { setIsProjectModalOpen(false); pendingLinkEstimateIdRef.current = null; }}
+                onClose={() => {
+                    setIsProjectModalOpen(false);
+                    pendingLinkEstimateIdRef.current = null;
+                }}
                 onSubmit={handleSubmitProjectFromEstimate}
                 initialData={projectModalInitialData}
                 title="案件登録（見積書から作成）"

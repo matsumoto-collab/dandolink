@@ -9,9 +9,6 @@ export interface EstimateItem {
     amount: number;       // 金額
     taxType: 'none' | 'standard'; // 税区分（なし、10%）
     notes?: string;       // 備考
-    isGroup?: boolean;    // trueなら大項目行（金額は子の合計）
-    groupId?: string;     // 所属グループのID（未設定＝トップレベル）
-    showAsLumpSum?: boolean; // PDF出力時に明細を「一式」表示
 }
 
 // 見積書
