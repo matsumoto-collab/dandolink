@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useProjects } from '@/hooks/useProjects';
 import { Project } from '@/types/calendar';
-import { EstimateInput } from '@/types/estimate';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, Loader2, FileText } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
@@ -15,12 +15,9 @@ const ProjectModal = dynamic(
     () => import('@/components/Projects/ProjectModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
-const EstimateModal = dynamic(
-    () => import('@/components/Estimates/EstimateModal'),
-    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
-);
 
 export default function ProjectListPage() {
+    const router = useRouter();
     const { projects, addProject, updateProject, deleteProject, refreshProjects, isLoading } = useProjects();
     const getForemanName = useCalendarStore((state) => state.getForemanName);
     const fetchForemen = useCalendarStore((state) => state.fetchForemen);
@@ -41,38 +38,12 @@ export default function ProjectListPage() {
     const [sortBy, setSortBy] = useState<'date' | 'title'>('date');
     const [_isSubmitting, setIsSubmitting] = useState(false);
 
-    // 見積書作成モーダル（案件詳細から起動）
-    const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
-    const [estimateInitialData, setEstimateInitialData] = useState<{ projectId?: string; title?: string }>({});
-
     const handleCreateEstimateFromProject = useCallback((project?: Partial<Project>) => {
         const p = project ?? editingProject;
         if (p?.id) {
-            setEstimateInitialData({
-                projectId: p.id,
-                title: `${p.title ?? ''} 見積書`,
-            });
-            setIsEstimateModalOpen(true);
+            router.push(`/estimates/new`);
         }
-    }, [editingProject]);
-
-    const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
-        try {
-            const res = await fetch('/api/estimates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...data,
-                    validUntil: data.validUntil instanceof Date ? data.validUntil.toISOString() : data.validUntil,
-                }),
-            });
-            if (!res.ok) throw new Error('Failed to create estimate');
-            setIsEstimateModalOpen(false);
-            toast.success('見積書を作成しました');
-        } catch {
-            toast.error('見積書の作成に失敗しました');
-        }
-    }, []);
+    }, [editingProject, router]);
 
     // フィルタリングとソート
     const filteredAndSortedProjects = projects
@@ -392,13 +363,6 @@ export default function ProjectListPage() {
                 onCreateEstimate={editingProject?.id ? handleCreateEstimateFromProject : undefined}
             />
 
-            {/* 見積書作成モーダル（案件詳細から起動） */}
-            <EstimateModal
-                isOpen={isEstimateModalOpen}
-                onClose={() => setIsEstimateModalOpen(false)}
-                onSubmit={handleEstimateSubmit}
-                initialData={estimateInitialData}
-            />
         </div>
     );
 }

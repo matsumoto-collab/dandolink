@@ -1,11 +1,10 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
-import { EstimateInput } from '@/types/estimate';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building } from 'lucide-react';
 
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
@@ -13,12 +12,8 @@ import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCr
 import toast from 'react-hot-toast';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 
-const EstimateModal = dynamic(
-    () => import('@/components/Estimates/EstimateModal'),
-    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
-);
-
 export default function ProjectMasterListPage() {
+    const router = useRouter();
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
     const constructionTypes = useMasterStore(selectConstructionTypes);
     const [searchTerm, setSearchTerm] = useState('');
@@ -26,8 +21,6 @@ export default function ProjectMasterListPage() {
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
     const [openModalInEditMode, setOpenModalInEditMode] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
-    const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
-    const [estimateInitialData, setEstimateInitialData] = useState<{ projectId?: string; title?: string }>({});
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
@@ -189,31 +182,8 @@ export default function ProjectMasterListPage() {
     };
 
     const handleCreateEstimate = useCallback(() => {
-        if (detailPm) {
-            setEstimateInitialData({
-                title: `${detailPm.title} 見積書`,
-            });
-            setIsEstimateModalOpen(true);
-        }
-    }, [detailPm]);
-
-    const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
-        try {
-            const res = await fetch('/api/estimates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...data,
-                    validUntil: data.validUntil instanceof Date ? data.validUntil.toISOString() : data.validUntil,
-                }),
-            });
-            if (!res.ok) throw new Error('Failed to create estimate');
-            setIsEstimateModalOpen(false);
-            toast.success('見積書を作成しました');
-        } catch {
-            toast.error('見積書の作成に失敗しました');
-        }
-    }, []);
+        router.push('/estimates/new');
+    }, [router]);
 
     const openDetailModal = (pm: ProjectMaster) => {
         setDetailPm(pm);
@@ -251,12 +221,6 @@ export default function ProjectMasterListPage() {
                 onUpdate={handleUpdate}
                 initialEditMode={openModalInEditMode}
                 onCreateEstimate={handleCreateEstimate}
-            />
-            <EstimateModal
-                isOpen={isEstimateModalOpen}
-                onClose={() => setIsEstimateModalOpen(false)}
-                onSubmit={handleEstimateSubmit}
-                initialData={estimateInitialData}
             />
             <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden">
                 {/* Header */}
