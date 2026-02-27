@@ -19,6 +19,7 @@ interface ProjectModalProps {
     defaultDate?: Date;
     defaultEmployeeId?: string;
     readOnly?: boolean;
+    onCreateEstimate?: () => void;
 }
 
 export default function ProjectModal({
@@ -31,6 +32,7 @@ export default function ProjectModal({
     defaultDate,
     defaultEmployeeId,
     readOnly = false,
+    onCreateEstimate,
 }: ProjectModalProps) {
     // 編集モードの状態管理
     // 既存案件の場合は閲覧モード、新規作成の場合は編集モード
@@ -116,6 +118,7 @@ export default function ProjectModal({
                             onClose={onClose}
                             onDelete={readOnly ? undefined : handleDelete}
                             readOnly={readOnly}
+                            onCreateEstimate={readOnly ? undefined : onCreateEstimate}
                         />
                     ) : (
                         // 編集モード（新規作成または編集）

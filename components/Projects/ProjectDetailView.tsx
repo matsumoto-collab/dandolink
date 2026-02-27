@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, FileText } from 'lucide-react';
 
 const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
 
@@ -19,9 +19,10 @@ interface ProjectDetailViewProps {
     onClose: () => void;
     onDelete?: () => void;
     readOnly?: boolean;
+    onCreateEstimate?: () => void;
 }
 
-export default function ProjectDetailView({ project, onEdit, onClose, onDelete, readOnly = false }: ProjectDetailViewProps) {
+export default function ProjectDetailView({ project, onEdit, onClose, onDelete, readOnly = false, onCreateEstimate }: ProjectDetailViewProps) {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
@@ -340,6 +341,17 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
 
             {/* アクションボタン */}
             <div className="space-y-3 pt-4 border-t border-gray-200">
+                {/* 見積書を作成ボタン */}
+                {!readOnly && onCreateEstimate && (
+                    <button
+                        onClick={onCreateEstimate}
+                        className="w-full px-4 py-2 border border-slate-300 bg-white rounded-md text-slate-700 hover:bg-slate-50 transition-colors font-medium flex items-center justify-center gap-2"
+                    >
+                        <FileText className="w-4 h-4" />
+                        見積書を作成
+                    </button>
+                )}
+
                 {/* 削除ボタン（読み取り専用では非表示） */}
                 {!readOnly && onDelete && (
                     <button
