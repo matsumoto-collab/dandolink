@@ -40,6 +40,27 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     // ドラッグ移動用（マウス＋タッチ共通）
     const [isDragging, setIsDragging] = useState(false);
     const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
+    const prevScale = useRef(1);
+
+    // スケール変更時に中央基準でスクロール位置を維持
+    const changeScale = useCallback((fn: (s: number) => number) => {
+        setScale(s => {
+            const newScale = fn(s);
+            prevScale.current = s;
+            // requestAnimationFrameで描画後にスクロール調整
+            requestAnimationFrame(() => {
+                const el = contentRef.current;
+                if (!el) return;
+                const ratio = newScale / prevScale.current;
+                // ビューポート中心を基準にスクロール位置を調整
+                const centerX = el.scrollLeft + el.clientWidth / 2;
+                const centerY = el.scrollTop + el.clientHeight / 2;
+                el.scrollLeft = centerX * ratio - el.clientWidth / 2;
+                el.scrollTop = centerY * ratio - el.clientHeight / 2;
+            });
+            return newScale;
+        });
+    }, []);
 
     // createPortal はクライアント側のみ
     useEffect(() => setMounted(true), []);
@@ -278,12 +299,12 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             <div
                 data-zoom-controls
                 className="fixed left-1/2 -translate-x-1/2 z-[201] pointer-events-none"
-                style={{ bottom: showFooter ? 68 : 20 }}
+                style={{ bottom: showFooter ? 72 : 24, marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
                 <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-60 sm:opacity-40 sm:hover:opacity-100 active:opacity-100 transition-opacity duration-200">
                     <button
                         type="button"
-                        onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
+                        onClick={() => changeScale(s => Math.max(s - 0.25, MIN_SCALE))}
                         disabled={scale <= MIN_SCALE}
                         className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
                         style={{ touchAction: 'manipulation' }}
@@ -293,7 +314,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setScale(1)}
+                        onClick={() => changeScale(() => 1)}
                         className="min-w-[40px] min-h-[36px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded transition-colors"
                         style={{ touchAction: 'manipulation' }}
                         aria-label="ズームリセット"
@@ -304,7 +325,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                     </button>
                     <button
                         type="button"
-                        onClick={() => setScale(s => Math.min(s + 0.25, MAX_SCALE))}
+                        onClick={() => changeScale(s => Math.min(s + 0.25, MAX_SCALE))}
                         disabled={scale >= MAX_SCALE}
                         className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
                         style={{ touchAction: 'manipulation' }}
