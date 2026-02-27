@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Edit, ArrowLeft } from 'lucide-react';
+import { X, Edit, ArrowLeft, FileText } from 'lucide-react';
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
@@ -15,6 +15,7 @@ interface ProjectMasterDetailModalProps {
     onClose: () => void;
     onUpdate: (id: string, data: ProjectMasterFormData) => Promise<void>;
     initialEditMode?: boolean;
+    onCreateEstimate?: () => void;
 }
 
 function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTypeMaster[]): ProjectMasterFormData {
@@ -60,7 +61,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
     };
 }
 
-export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode }: ProjectMasterDetailModalProps) {
+export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate }: ProjectMasterDetailModalProps) {
     const isOpen = pm !== null;
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
@@ -166,6 +167,15 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             >
                                 <Edit className="w-4 h-4" />
                                 編集
+                            </button>
+                        )}
+                        {!isEditMode && onCreateEstimate && (
+                            <button
+                                onClick={onCreateEstimate}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                <FileText className="w-4 h-4" />
+                                見積書を作成
                             </button>
                         )}
                         <button
