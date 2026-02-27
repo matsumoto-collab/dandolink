@@ -28,12 +28,13 @@ function getDefault30DaysLater(): string {
 
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
-    const { customers, addCustomer } = useCustomers();
+    const { customers, addCustomer, ensureDataLoaded } = useCustomers();
 
-    // 案件マスターフェッチ
+    // 案件マスターと顧客データのフェッチ
     useEffect(() => {
         fetchProjectMasters();
-    }, [fetchProjectMasters]);
+        ensureDataLoaded();
+    }, [fetchProjectMasters, ensureDataLoaded]);
 
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
     const [title, setTitle] = useState(initialData?.title || '');
