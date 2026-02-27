@@ -7,6 +7,7 @@ import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import { FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface ProjectModalProps {
@@ -98,14 +99,25 @@ export default function ProjectModal({
                             <EditingIndicator users={otherEditingUsers} />
                         )}
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
-                    >
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {!readOnly && !isEditMode && onCreateEstimate && (
+                            <button
+                                onClick={onCreateEstimate}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                <FileText className="w-4 h-4" />
+                                見積書を作成
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 {/* コンテンツ */}
@@ -118,7 +130,6 @@ export default function ProjectModal({
                             onClose={onClose}
                             onDelete={readOnly ? undefined : handleDelete}
                             readOnly={readOnly}
-                            onCreateEstimate={readOnly ? undefined : onCreateEstimate}
                         />
                     ) : (
                         // 編集モード（新規作成または編集）
