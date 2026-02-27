@@ -227,7 +227,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 className="relative flex-1 overflow-auto bg-gray-700"
                 style={{
                     overscrollBehavior: 'contain',
-                    touchAction: 'manipulation',
+                    touchAction: scale > 1 ? 'pan-x pan-y pinch-zoom' : 'manipulation',
                     cursor: isDragging ? 'grabbing' : 'grab',
                 }}
                 onMouseDown={handleMouseDown}
@@ -285,7 +285,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                     className="sticky bottom-4 flex justify-center pointer-events-none"
                     style={{ marginTop: -52 }}
                 >
-                    <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-40 hover:opacity-100 transition-opacity duration-200">
+                    <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-60 sm:opacity-40 sm:hover:opacity-100 active:opacity-100 transition-opacity duration-200">
                         <button
                             type="button"
                             onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
