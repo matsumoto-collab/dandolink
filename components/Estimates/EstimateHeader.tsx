@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
 
 interface TitleTemplate {
@@ -18,6 +18,142 @@ const TITLE_TEMPLATES: TitleTemplate[] = [
     { id: 'genba', label: '○○現場 仮設工事', format: '{siteName} 仮設工事' },
     { id: 'mitsumori', label: '○○ 見積書', format: '{siteName} 見積書' },
 ];
+
+function SearchableProjectSelect({
+    value,
+    onChange,
+    projects,
+    inputClass
+}: {
+    value: string;
+    onChange: (value: string) => void;
+    projects: { id: string; title: string; customer?: string | null }[];
+    inputClass: string;
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredProjects = projects.filter(p => {
+        const query = searchQuery.toLowerCase();
+        return p.title.toLowerCase().includes(query) || (p.customer && p.customer.toLowerCase().includes(query));
+    });
+
+    const selectedProject = projects.find(p => p.id === value);
+    const displayText = selectedProject
+        ? `${selectedProject.title}${selectedProject.customer ? ` (${selectedProject.customer})` : ''}`
+        : '案件を選択（任意）';
+
+    return (
+        <div className="relative" ref={dropdownRef}>
+            <div
+                className={`${inputClass} flex justify-between items-center cursor-pointer bg-white`}
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className={`truncate ${!selectedProject ? 'text-gray-500' : ''}`}>
+                    {displayText}
+                </span>
+                <span className="text-gray-400 ml-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </span>
+            </div>
+
+            {isOpen && (
+                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white rounded-t-lg">
+                        <div className="relative">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </span>
+                            <input
+                                type="text"
+                                className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                placeholder="案件を検索..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
+                            />
+                            {searchQuery && (
+                                <button
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSearchQuery('');
+                                    }}
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                    <ul className="max-h-60 overflow-y-auto overscroll-contain">
+                        <li
+                            className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center justify-between ${!value ? 'bg-slate-50 font-medium' : ''}`}
+                            onClick={() => {
+                                onChange('');
+                                setIsOpen(false);
+                                setSearchQuery('');
+                            }}
+                        >
+                            <span className="text-gray-600">案件を選択（任意）</span>
+                            {!value && (
+                                <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            )}
+                        </li>
+                        {filteredProjects.length === 0 ? (
+                            <li className="px-4 py-3 text-sm text-gray-500 text-center">
+                                該当する案件がありません
+                            </li>
+                        ) : (
+                            filteredProjects.map(project => (
+                                <li
+                                    key={project.id}
+                                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center justify-between ${project.id === value ? 'bg-slate-50 font-medium' : ''}`}
+                                    onClick={() => {
+                                        onChange(project.id);
+                                        setIsOpen(false);
+                                        setSearchQuery('');
+                                    }}
+                                >
+                                    <div className="flex flex-col">
+                                        <span>{project.title}</span>
+                                        {project.customer && (
+                                            <span className="text-xs text-gray-500 mt-0.5">{project.customer}</span>
+                                        )}
+                                    </div>
+                                    {project.id === value && (
+                                        <svg className="w-4 h-4 text-slate-500 flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </li>
+                            ))
+                        )}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
 
 interface EstimateHeaderProps {
     projectId: string;
@@ -70,15 +206,13 @@ export default function EstimateHeader({
             {/* 基本情報 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-4">
                 <div>
-                    <label className={labelClass}>案件（オプション）</label>
-                    <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}>
-                        <option value="">案件を選択（任意）</option>
-                        {projects.map(project => (
-                            <option key={project.id} value={project.id}>
-                                {project.title}{project.customer ? ` (${project.customer})` : ''}
-                            </option>
-                        ))}
-                    </select>
+                    <label className={labelClass}>既存案件から作成</label>
+                    <SearchableProjectSelect
+                        value={projectId}
+                        onChange={setProjectId}
+                        projects={projects}
+                        inputClass={inputClass}
+                    />
                     <p className="text-xs text-gray-500 mt-1">案件を選択すると現場名・元請会社が自動入力されます</p>
                 </div>
 
