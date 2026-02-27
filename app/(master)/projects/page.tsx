@@ -368,6 +368,7 @@ export default function ProjectListPage() {
 
             {/* モーダル */}
             <ProjectModal
+                key={editingProject?.id ?? 'new'}
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 onSubmit={handleSubmit}
