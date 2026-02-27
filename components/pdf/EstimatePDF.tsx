@@ -309,10 +309,6 @@ const styles = StyleSheet.create({
     cellText: {
         fontSize: 9,
     },
-    cellTextBold: {
-        fontSize: 9,
-        fontWeight: 'bold',
-    },
     cellTextCenter: {
         fontSize: 9,
         textAlign: 'center',
@@ -320,21 +316,6 @@ const styles = StyleSheet.create({
     cellTextRed: {
         fontSize: 9,
         color: '#ff0000',
-    },
-    cellNameIndented: {
-        width: 260,
-        padding: 3,
-        paddingLeft: 20,
-        borderRightWidth: 0.5,
-        borderRightColor: '#000',
-        justifyContent: 'center' as const,
-    },
-    groupRow: {
-        flexDirection: 'row' as const,
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#000',
-        minHeight: 18,
-        backgroundColor: '#f5f5f5',
     },
     // Total section
     totalRow: {
@@ -491,8 +472,8 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
 function DetailsPage({ estimate }: { estimate: Estimate }) {
     const maxRows = 20;
 
-    // Build visible items considering groups and lump sum
-    type VisibleItem = {
+    // Prepare items array with 20 rows
+    const items: Array<{
         index: number;
         description: string;
         quantity: number | null;
@@ -502,67 +483,33 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
         notes: string;
         isNegative: boolean;
         isEmpty: boolean;
-        isGroup: boolean;
-        isIndented: boolean;
-    };
+    }> = [];
 
-    const visibleItems: VisibleItem[] = [];
-    const allItems = estimate.items;
-
-    for (const item of allItems) {
-        if (item.isGroup) {
-            const children = allItems.filter(i => i.groupId === item.id);
-            const groupAmount = children.reduce((sum, c) => sum + c.amount, 0);
-            if (item.showAsLumpSum) {
-                // 一式表示: グループ行のみ表示
-                visibleItems.push({
-                    index: 0, description: item.description || '', quantity: 1,
-                    unit: '式', unitPrice: groupAmount, amount: groupAmount,
-                    notes: item.notes || '', isNegative: groupAmount < 0, isEmpty: false,
-                    isGroup: true, isIndented: false,
-                });
-            } else {
-                // グループヘッダー + 子明細
-                visibleItems.push({
-                    index: 0, description: item.description || '', quantity: null,
-                    unit: '', unitPrice: null, amount: groupAmount,
-                    notes: '', isNegative: groupAmount < 0, isEmpty: false,
-                    isGroup: true, isIndented: false,
-                });
-                for (const child of children) {
-                    visibleItems.push({
-                        index: 0, description: child.description || '',
-                        quantity: child.quantity > 0 ? child.quantity : null,
-                        unit: child.unit || '', unitPrice: child.unitPrice !== 0 ? child.unitPrice : null,
-                        amount: child.amount, notes: child.notes || '',
-                        isNegative: child.amount < 0, isEmpty: false,
-                        isGroup: false, isIndented: true,
-                    });
-                }
-            }
-        } else if (!item.groupId) {
-            // トップレベル明細
-            visibleItems.push({
-                index: 0, description: item.description || '',
-                quantity: item.quantity > 0 ? item.quantity : null,
-                unit: item.unit || '', unitPrice: item.unitPrice !== 0 ? item.unitPrice : null,
-                amount: item.amount, notes: item.notes || '',
-                isNegative: item.amount < 0, isEmpty: false,
-                isGroup: false, isIndented: false,
-            });
-        }
-    }
-
-    // Fill to maxRows and assign indices
-    const items: VisibleItem[] = [];
     for (let i = 0; i < maxRows; i++) {
-        if (i < visibleItems.length) {
-            items.push({ ...visibleItems[i], index: i + 1 });
+        if (i < estimate.items.length) {
+            const item = estimate.items[i];
+            items.push({
+                index: i + 1,
+                description: item.description || '',
+                quantity: item.quantity > 0 ? item.quantity : null,
+                unit: item.unit || '',
+                unitPrice: item.unitPrice !== 0 ? item.unitPrice : null,
+                amount: item.amount,
+                notes: item.notes || '',
+                isNegative: item.amount < 0,
+                isEmpty: false,
+            });
         } else {
             items.push({
-                index: i + 1, description: '', quantity: null, unit: '',
-                unitPrice: null, amount: null, notes: '', isNegative: false,
-                isEmpty: true, isGroup: false, isIndented: false,
+                index: i + 1,
+                description: '',
+                quantity: null,
+                unit: '',
+                unitPrice: null,
+                amount: null,
+                notes: '',
+                isNegative: false,
+                isEmpty: true,
             });
         }
     }
@@ -595,12 +542,12 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
 
                 {/* Body Rows */}
                 {items.map((item, idx) => (
-                    <View key={idx} style={item.isGroup ? styles.groupRow : (idx === items.length - 1 ? styles.tableRowLast : styles.tableRow)}>
+                    <View key={idx} style={idx === items.length - 1 ? styles.tableRowLast : styles.tableRow}>
                         <View style={styles.cellNo}>
                             <Text style={styles.cellText}>{item.index}</Text>
                         </View>
-                        <View style={item.isIndented ? styles.cellNameIndented : styles.cellName}>
-                            <Text style={item.isGroup ? styles.cellTextBold : (item.isNegative ? styles.cellTextRed : styles.cellText)}>
+                        <View style={styles.cellName}>
+                            <Text style={item.isNegative ? styles.cellTextRed : styles.cellText}>
                                 {item.description}
                             </Text>
                         </View>
