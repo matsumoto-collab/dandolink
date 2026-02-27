@@ -279,45 +279,46 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                     )}
                 </div>
 
-                {/* ===== ズームコントロール（PDFエリア上にオーバーレイ） ===== */}
-                <div
-                    data-zoom-controls
-                    className="sticky bottom-4 flex justify-center pointer-events-none"
-                    style={{ marginTop: -52 }}
-                >
-                    <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-60 sm:opacity-40 sm:hover:opacity-100 active:opacity-100 transition-opacity duration-200">
-                        <button
-                            type="button"
-                            onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
-                            disabled={scale <= MIN_SCALE}
-                            className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
-                            style={{ touchAction: 'manipulation' }}
-                            aria-label="縮小"
-                        >
-                            <ZoomOut className="w-4 h-4 text-white" />
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setScale(1)}
-                            className="min-w-[40px] min-h-[36px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded transition-colors"
-                            style={{ touchAction: 'manipulation' }}
-                            aria-label="ズームリセット"
-                        >
-                            <span className="text-white text-xs tabular-nums">
-                                {Math.round(scale * 100)}%
-                            </span>
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setScale(s => Math.min(s + 0.25, MAX_SCALE))}
-                            disabled={scale >= MAX_SCALE}
-                            className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
-                            style={{ touchAction: 'manipulation' }}
-                            aria-label="拡大"
-                        >
-                            <ZoomIn className="w-4 h-4 text-white" />
-                        </button>
-                    </div>
+            </div>
+
+            {/* ===== ズームコントロール（画面中央下に固定） ===== */}
+            <div
+                data-zoom-controls
+                className="fixed left-1/2 -translate-x-1/2 z-[201] pointer-events-none"
+                style={{ bottom: showFooter || numPages > 0 ? 68 : 20 }}
+            >
+                <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-60 sm:opacity-40 sm:hover:opacity-100 active:opacity-100 transition-opacity duration-200">
+                    <button
+                        type="button"
+                        onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
+                        disabled={scale <= MIN_SCALE}
+                        className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                        aria-label="縮小"
+                    >
+                        <ZoomOut className="w-4 h-4 text-white" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setScale(1)}
+                        className="min-w-[40px] min-h-[36px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                        aria-label="ズームリセット"
+                    >
+                        <span className="text-white text-xs tabular-nums">
+                            {Math.round(scale * 100)}%
+                        </span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setScale(s => Math.min(s + 0.25, MAX_SCALE))}
+                        disabled={scale >= MAX_SCALE}
+                        className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
+                        style={{ touchAction: 'manipulation' }}
+                        aria-label="拡大"
+                    >
+                        <ZoomIn className="w-4 h-4 text-white" />
+                    </button>
                 </div>
             </div>
 
