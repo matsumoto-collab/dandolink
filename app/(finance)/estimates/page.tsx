@@ -9,7 +9,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off, Copy } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import toast from 'react-hot-toast';
 
@@ -134,6 +134,20 @@ export default function EstimateListPage() {
         setIsModalOpen(true);
     };
 
+    // 見積書コピー
+    const handleCopy = (estimate: Estimate) => {
+        setEditingEstimate(null);
+        // コピー元のデータを初期値として新規作成（番号・ステータスはリセット）
+        setCopySource({
+            projectId: estimate.projectId,
+            title: estimate.title,
+            items: estimate.items.map(item => ({ ...item, id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` })),
+            notes: estimate.notes,
+        });
+        setIsModalOpen(true);
+    };
+    const [copySource, setCopySource] = useState<Partial<EstimateInput> | null>(null);
+
     const handleSubmit = async (data: EstimateInput) => {
         try {
             setIsSubmitting(true);
@@ -253,7 +267,14 @@ export default function EstimateListPage() {
                                         >
                                             {estimate.estimateNumber}
                                         </button>
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => handleCopy(estimate)}
+                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                title="コピーして新規作成"
+                                            >
+                                                <Copy className="w-4 h-4" />
+                                            </button>
                                             <button
                                                 onClick={() => handleEdit(estimate)}
                                                 className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -415,8 +436,15 @@ export default function EstimateListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
+                                                onClick={() => handleCopy(estimate)}
+                                                className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
+                                                title="コピーして新規作成"
+                                            >
+                                                <Copy className="w-5 h-5" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleEdit(estimate)}
-                                                className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
+                                                className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
                                                 title="編集"
                                             >
                                                 <Edit className="w-5 h-5" />
@@ -446,9 +474,9 @@ export default function EstimateListPage() {
             {/* 編集モーダル */}
             <EstimateModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
+                onClose={() => { setIsModalOpen(false); setCopySource(null); }}
                 onSubmit={handleSubmit}
-                initialData={editingEstimate || undefined}
+                initialData={editingEstimate || copySource || undefined}
             />
 
             {/* 詳細モーダル */}
