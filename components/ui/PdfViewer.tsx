@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Loader2, ArrowLeft, ZoomIn, ZoomOut } from 'lucide-react';
 
@@ -38,6 +38,10 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     const contentRef = useRef<HTMLDivElement>(null);
     const lastPinchDist = useRef<number | null>(null);
     const gestureBaseScale = useRef(1);
+
+    // ドラッグ移動用
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
 
     // createPortal はクライアント側のみ
     useEffect(() => setMounted(true), []);
@@ -88,20 +92,16 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     }, []);
 
     // ピンチズーム: iOS Safari は GestureEvent API、その他は TouchEvent で対応
-    // mounted を依存にすることで createPortal 後に確実に contentRef が取れる
     useEffect(() => {
         const el = contentRef.current;
         if (!el) return;
 
-        // --- iOS Safari: WebKit GestureEvent API ---
-        // touchmove ベースのピンチは iOS のコンポジター層で横取りされるが、
-        // GestureEvent は別のイベントパスなので確実に発火する
         const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 
         if (isIOS) {
             const onGestureStart = (e: Event) => {
-                e.preventDefault(); // ブラウザのネイティブズームを阻止
+                e.preventDefault();
                 gestureBaseScale.current = scale;
             };
             const onGestureChange = (e: Event) => {
@@ -124,7 +124,6 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             };
         }
 
-        // --- Android / その他: TouchEvent ベース ---
         const onTouchStart = (e: TouchEvent) => {
             if (e.touches.length === 2) {
                 lastPinchDist.current = Math.hypot(
@@ -158,8 +157,35 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         };
     }, [mounted, scale]);
 
-    // scale に応じて実際の描画幅を決定（CSS transform ではなく width prop で制御）
-    // → ヒットテストが常に正確、スクロール範囲も実サイズに追従
+    // マウスドラッグ移動
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        const el = contentRef.current;
+        if (!el) return;
+        // ズームボタン上のクリックは無視
+        if ((e.target as HTMLElement).closest('[data-zoom-controls]')) return;
+        setIsDragging(true);
+        dragStart.current = {
+            x: e.clientX,
+            y: e.clientY,
+            scrollLeft: el.scrollLeft,
+            scrollTop: el.scrollTop,
+        };
+        e.preventDefault();
+    }, []);
+
+    const handleMouseMove = useCallback((e: React.MouseEvent) => {
+        if (!isDragging || !dragStart.current || !contentRef.current) return;
+        const dx = e.clientX - dragStart.current.x;
+        const dy = e.clientY - dragStart.current.y;
+        contentRef.current.scrollLeft = dragStart.current.scrollLeft - dx;
+        contentRef.current.scrollTop = dragStart.current.scrollTop - dy;
+    }, [isDragging]);
+
+    const handleMouseUp = useCallback(() => {
+        setIsDragging(false);
+        dragStart.current = null;
+    }, []);
+
     const baseWidth = Math.min(containerWidth - 16, 900);
     const pageRenderWidth = Math.max(0, Math.floor(baseWidth * scale));
     const showFooter = numPages > 1;
@@ -167,8 +193,6 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     if (!mounted) return null;
 
     return createPortal(
-        // document.body 直下にポータル描画
-        // → iOS Safari の overflow スクロールコンテナ内 fixed 配置バグを回避
         <div
             className="fixed inset-0 z-[200] bg-black flex flex-col"
             style={{
@@ -181,7 +205,6 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 className="flex items-center justify-between px-2 bg-gray-900 shrink-0"
                 style={{ minHeight: 48 }}
             >
-                {/* 左: 戻るボタン + ファイル名 */}
                 <div className="flex items-center gap-1 min-w-0 flex-1">
                     <button
                         type="button"
@@ -196,51 +219,21 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         {fileName}
                     </span>
                 </div>
-
-                {/* 右: ズームボタン */}
-                <div className="flex items-center shrink-0">
-                    <button
-                        type="button"
-                        onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
-                        disabled={scale <= MIN_SCALE}
-                        className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
-                        style={{ touchAction: 'manipulation' }}
-                        aria-label="縮小"
-                    >
-                        <ZoomOut className="w-4 h-4 text-white/70" />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScale(1)}
-                        className="min-w-[40px] min-h-[36px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded transition-colors"
-                        style={{ touchAction: 'manipulation' }}
-                        aria-label="ズームリセット"
-                    >
-                        <span className="text-white/50 text-xs tabular-nums">
-                            {Math.round(scale * 100)}%
-                        </span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScale(s => Math.min(s + 0.25, MAX_SCALE))}
-                        disabled={scale >= MAX_SCALE}
-                        className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
-                        style={{ touchAction: 'manipulation' }}
-                        aria-label="拡大"
-                    >
-                        <ZoomIn className="w-4 h-4 text-white/70" />
-                    </button>
-                </div>
             </div>
 
             {/* ===== PDFコンテンツエリア ===== */}
             <div
                 ref={contentRef}
-                className="flex-1 overflow-auto bg-gray-700"
+                className="relative flex-1 overflow-auto bg-gray-700"
                 style={{
                     overscrollBehavior: 'contain',
-                    touchAction: 'manipulation', // 1本指パン許可、ダブルタップ無効、2本指はtouchmoveで制御
+                    touchAction: 'manipulation',
+                    cursor: isDragging ? 'grabbing' : 'grab',
                 }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
             >
                 <div
                     className="flex justify-center items-center"
@@ -285,6 +278,47 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                             )}
                         </PdfDocument>
                     )}
+                </div>
+
+                {/* ===== ズームコントロール（PDFエリア上にオーバーレイ） ===== */}
+                <div
+                    data-zoom-controls
+                    className="sticky bottom-4 flex justify-center pointer-events-none"
+                    style={{ marginTop: -52 }}
+                >
+                    <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-40 hover:opacity-100 transition-opacity duration-200">
+                        <button
+                            type="button"
+                            onClick={() => setScale(s => Math.max(s - 0.25, MIN_SCALE))}
+                            disabled={scale <= MIN_SCALE}
+                            className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
+                            style={{ touchAction: 'manipulation' }}
+                            aria-label="縮小"
+                        >
+                            <ZoomOut className="w-4 h-4 text-white" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setScale(1)}
+                            className="min-w-[40px] min-h-[36px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 rounded transition-colors"
+                            style={{ touchAction: 'manipulation' }}
+                            aria-label="ズームリセット"
+                        >
+                            <span className="text-white text-xs tabular-nums">
+                                {Math.round(scale * 100)}%
+                            </span>
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setScale(s => Math.min(s + 0.25, MAX_SCALE))}
+                            disabled={scale >= MAX_SCALE}
+                            className="p-2 min-w-[40px] min-h-[40px] flex items-center justify-center hover:bg-white/10 active:bg-white/20 disabled:opacity-30 rounded-full transition-colors"
+                            style={{ touchAction: 'manipulation' }}
+                            aria-label="拡大"
+                        >
+                            <ZoomIn className="w-4 h-4 text-white" />
+                        </button>
+                    </div>
                 </div>
             </div>
 
