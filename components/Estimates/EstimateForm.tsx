@@ -158,11 +158,17 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         }));
     };
 
-    const reorderItems = (oldIndex: number, newIndex: number) => {
-        if (oldIndex === newIndex) return;
+    const moveItemUp = (index: number) => {
+        if (index === 0) return;
         const newItems = [...items];
-        const [movedItem] = newItems.splice(oldIndex, 1);
-        newItems.splice(newIndex, 0, movedItem);
+        [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
+        setItems(newItems);
+    };
+
+    const moveItemDown = (index: number) => {
+        if (index === items.length - 1) return;
+        const newItems = [...items];
+        [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
         setItems(newItems);
     };
 
@@ -196,7 +202,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 items={items}
                 onUpdate={updateItem}
                 onRemove={removeItem}
-                onReorder={reorderItems}
+                onMoveUp={moveItemUp}
+                onMoveDown={moveItemDown}
                 onAddItem={addItem}
                 onAddDiscountItem={addDiscountItem}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
