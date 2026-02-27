@@ -251,7 +251,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
             >
                 <div
                     className="flex items-center justify-center"
-                    style={{ minHeight: '100%', padding: '16px 8px', width: scale > 1 ? 'fit-content' : undefined, margin: scale > 1 ? undefined : '0 auto' }}
+                    style={{ minHeight: '100%', padding: '16px 8px', width: 'fit-content', margin: '0 auto' }}
                 >
                     {!PdfDocument ? (
                         <div className="flex flex-col items-center gap-3">
