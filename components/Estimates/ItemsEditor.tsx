@@ -3,24 +3,58 @@
 import React from 'react';
 import { EstimateItem } from '@/types/estimate';
 import { Plus, Minus } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
 interface ItemsEditorProps {
     items: EstimateItem[];
     onUpdate: (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => void;
     onRemove: (id: string) => void;
-    onMoveUp: (index: number) => void;
-    onMoveDown: (index: number) => void;
+    onReorder: (oldIndex: number, newIndex: number) => void;
     onAddItem: () => void;
     onAddDiscountItem: () => void;
     onOpenUnitPriceModal: () => void;
 }
 
-export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onAddDiscountItem, onOpenUnitPriceModal }: ItemsEditorProps) {
+export default function ItemsEditor({ items, onUpdate, onRemove, onReorder, onAddItem, onAddDiscountItem, onOpenUnitPriceModal }: ItemsEditorProps) {
     const rowProps = (item: EstimateItem, index: number) => ({
-        item, index, totalItems: items.length,
-        onUpdate, onRemove, onMoveUp, onMoveDown,
+        item, index,
+        onUpdate, onRemove,
     });
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, {
+            activationConstraint: {
+                distance: 5, // ドラッグ開始判定距離を5pxに設定（誤動作防止）
+            },
+        }),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+
+        if (over && active.id !== over.id) {
+            const oldIndex = items.findIndex((item) => item.id === active.id);
+            const newIndex = items.findIndex((item) => item.id === over.id);
+            onReorder(oldIndex, newIndex);
+        }
+    };
 
     return (
         <div>
@@ -40,36 +74,52 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                 </div>
             </div>
 
-            {/* デスクトップ: テーブル表示 */}
-            <div className="hidden md:block border border-gray-300 rounded-lg overflow-x-auto">
-                <table className="w-full">
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">品目・内容</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">規格</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">数量</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-24">単位</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">単価</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">金額</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-28">税区分</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">備考</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">操作</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {items.map((item, index) => (
-                            <ItemTableRow key={item.id} {...rowProps(item, index)} />
-                        ))}
-                    </tbody>
-                </table>
-            </div>
+            <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+            >
+                {/* デスクトップ: テーブル表示 */}
+                <div className="hidden md:block border border-gray-300 rounded-lg overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">品目・内容</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">規格</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">数量</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-24">単位</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">単価</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">金額</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-28">税区分</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">備考</th>
+                                <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">操作</th>
+                            </tr>
+                        </thead>
+                        <SortableContext
+                            items={items.map(i => i.id)}
+                            strategy={verticalListSortingStrategy}
+                        >
+                            <tbody className="bg-white">
+                                {items.map((item, index) => (
+                                    <ItemTableRow key={item.id} {...rowProps(item, index)} />
+                                ))}
+                            </tbody>
+                        </SortableContext>
+                    </table>
+                </div>
 
-            {/* モバイル: カード表示 */}
-            <div className="md:hidden space-y-3">
-                {items.map((item, index) => (
-                    <ItemCard key={item.id} {...rowProps(item, index)} />
-                ))}
-            </div>
+                {/* モバイル: カード表示 */}
+                <div className="md:hidden space-y-3">
+                    <SortableContext
+                        items={items.map(i => i.id)}
+                        strategy={verticalListSortingStrategy}
+                    >
+                        {items.map((item, index) => (
+                            <ItemCard key={item.id} {...rowProps(item, index)} />
+                        ))}
+                    </SortableContext>
+                </div>
+            </DndContext>
         </div>
     );
 }

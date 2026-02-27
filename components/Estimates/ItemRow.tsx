@@ -2,24 +2,39 @@
 
 import React from 'react';
 import { EstimateItem } from '@/types/estimate';
-import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, GripVertical } from 'lucide-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ItemRowProps {
     item: EstimateItem;
     index: number;
-    totalItems: number;
     onUpdate: (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => void;
     onRemove: (id: string) => void;
-    onMoveUp: (index: number) => void;
-    onMoveDown: (index: number) => void;
 }
 
 /** デスクトップ用テーブル行 */
-export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown }: ItemRowProps) {
+export function ItemTableRow({ item, onUpdate, onRemove }: ItemRowProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...(isDragging ? {
+            display: 'table',
+            tableLayout: 'fixed',
+            width: '100%',
+            backgroundColor: '#f8fafc', // bg-slate-50相当
+            zIndex: 50,
+            opacity: 0.9,
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)'
+        } : {})
+    };
+
     const cellInputClass = "w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
 
     return (
-        <tr className="border-b border-gray-200 last:border-b-0">
+        <tr ref={setNodeRef} style={style} className={`border-b border-gray-200 last:border-b-0 ${isDragging ? 'relative' : ''}`}>
             <td className="px-3 py-2">
                 <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={cellInputClass} placeholder="品目・内容" />
             </td>
@@ -51,15 +66,12 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
             </td>
             <td className="px-3 py-2">
                 <div className="flex items-center justify-center gap-1">
-                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
-                        <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="下に移動" aria-label="下に移動">
-                        <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => onRemove(item.id)} className="p-1 text-slate-600 hover:bg-slate-50 rounded transition-colors" title="削除" aria-label="削除">
+                    <button type="button" onClick={() => onRemove(item.id)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded transition-colors" title="削除" aria-label="削除">
                         <Trash2 className="w-4 h-4" />
                     </button>
+                    <div {...attributes} {...listeners} className="p-1.5 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing rounded hover:bg-gray-100 transition-colors" title="ドラッグして並び替え">
+                        <GripVertical className="w-4 h-4" />
+                    </div>
                 </div>
             </td>
         </tr>
@@ -67,22 +79,33 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 }
 
 /** モバイル用カード */
-export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown }: ItemRowProps) {
+export function ItemCard({ item, index, onUpdate, onRemove }: ItemRowProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...(isDragging ? {
+            zIndex: 50,
+            opacity: 0.9,
+            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)'
+        } : {})
+    };
+
     const mobileInputClass = "w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
     const mobileLabelClass = "block text-xs font-medium text-gray-500 mb-1";
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm">
+        <div ref={setNodeRef} style={style} className={`bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm ${isDragging ? 'relative border-slate-400' : ''}`}>
             {/* ヘッダー: 番号 + 操作ボタン */}
             <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">#{index + 1}</span>
+                <div className="flex items-center gap-2">
+                    <div {...attributes} {...listeners} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing rounded-lg hover:bg-gray-100 transition-colors" aria-label="ドラッグして並び替え">
+                        <GripVertical className="w-5 h-5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">#{index + 1}</span>
+                </div>
                 <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-2 text-gray-500 rounded-lg active:bg-gray-100 disabled:opacity-30" aria-label="上に移動">
-                        <ChevronUp className="w-5 h-5" />
-                    </button>
-                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-2 text-gray-500 rounded-lg active:bg-gray-100 disabled:opacity-30" aria-label="下に移動">
-                        <ChevronDown className="w-5 h-5" />
-                    </button>
                     <button type="button" onClick={() => onRemove(item.id)} className="p-2 text-red-500 rounded-lg active:bg-red-50" aria-label="削除">
                         <Trash2 className="w-5 h-5" />
                     </button>
