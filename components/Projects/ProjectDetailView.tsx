@@ -32,6 +32,20 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
         plusCode?: string;
     } | null>(null);
     const { constructionTypes } = useMasterData();
+    const [workerMap, setWorkerMap] = useState<Record<string, string>>({});
+
+    // 手配確定メンバー名を取得
+    useEffect(() => {
+        if (!project.isDispatchConfirmed || !project.confirmedWorkerIds?.length) return;
+        fetch('/api/dispatch/workers', { cache: 'no-store' })
+            .then(res => res.ok ? res.json() : [])
+            .then((workers: { id: string; displayName: string }[]) => {
+                const map: Record<string, string> = {};
+                workers.forEach(w => { map[w.id] = w.displayName; });
+                setWorkerMap(map);
+            })
+            .catch(() => {});
+    }, [project.isDispatchConfirmed, project.confirmedWorkerIds]);
 
     // 工事種別の色と名前を取得
     const constructionTypeInfo = useMemo(() => {
@@ -200,6 +214,25 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                             </svg>
                             <span className="text-base text-gray-900 font-medium">{project.memberCount || project.workers?.length || 0}名</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* 手配確定メンバー */}
+                {project.isDispatchConfirmed && project.confirmedWorkerIds && project.confirmedWorkerIds.length > 0 && (
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            手配確定メンバー
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                            {project.confirmedWorkerIds.map((id) => (
+                                <span
+                                    key={id}
+                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                                >
+                                    {workerMap[id] || id}
+                                </span>
+                            ))}
                         </div>
                     </div>
                 )}
