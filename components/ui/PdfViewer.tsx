@@ -36,10 +36,8 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     const [PdfPage, setPdfPage] = useState<PageComponent | null>(null);
     const [mounted, setMounted] = useState(false);
     const contentRef = useRef<HTMLDivElement>(null);
-    const lastPinchDist = useRef<number | null>(null);
-    const gestureBaseScale = useRef(1);
 
-    // ドラッグ移動用
+    // ドラッグ移動用（マウス＋タッチ共通）
     const [isDragging, setIsDragging] = useState(false);
     const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
 
@@ -91,69 +89,65 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         return () => { document.body.style.overflow = original; };
     }, []);
 
-    // ピンチズーム: iOS Safari は GestureEvent API、その他は TouchEvent で対応
+    // ピンチズーム無効化 + タッチドラッグ移動
     useEffect(() => {
         const el = contentRef.current;
         if (!el) return;
 
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-
-        if (isIOS) {
-            const onGestureStart = (e: Event) => {
-                e.preventDefault();
-                gestureBaseScale.current = scale;
-            };
-            const onGestureChange = (e: Event) => {
-                e.preventDefault();
-                const ge = e as unknown as { scale: number };
-                const newScale = gestureBaseScale.current * ge.scale;
-                setScale(Math.max(MIN_SCALE, Math.min(MAX_SCALE, newScale)));
-            };
-            const onGestureEnd = (e: Event) => {
-                e.preventDefault();
-            };
-
-            el.addEventListener('gesturestart', onGestureStart, { capture: true });
-            el.addEventListener('gesturechange', onGestureChange, { capture: true });
-            el.addEventListener('gestureend', onGestureEnd, { capture: true });
-            return () => {
-                el.removeEventListener('gesturestart', onGestureStart, { capture: true });
-                el.removeEventListener('gesturechange', onGestureChange, { capture: true });
-                el.removeEventListener('gestureend', onGestureEnd, { capture: true });
-            };
-        }
+        let touchDragId: number | null = null;
 
         const onTouchStart = (e: TouchEvent) => {
-            if (e.touches.length === 2) {
-                lastPinchDist.current = Math.hypot(
-                    e.touches[1].clientX - e.touches[0].clientX,
-                    e.touches[1].clientY - e.touches[0].clientY
-                );
+            // 2本指以上はすべて無効化（ピンチズーム防止）
+            if (e.touches.length >= 2) {
+                e.preventDefault();
+                return;
+            }
+            // ズームボタン上は無視
+            if ((e.target as HTMLElement).closest('[data-zoom-controls]')) return;
+            // 1本指: 拡大時のみドラッグ移動開始
+            if (scale > 1) {
+                touchDragId = e.touches[0].identifier;
+                dragStart.current = {
+                    x: e.touches[0].clientX,
+                    y: e.touches[0].clientY,
+                    scrollLeft: el.scrollLeft,
+                    scrollTop: el.scrollTop,
+                };
             }
         };
         const onTouchMove = (e: TouchEvent) => {
-            if (e.touches.length !== 2) return;
-            e.preventDefault();
-            const dist = Math.hypot(
-                e.touches[1].clientX - e.touches[0].clientX,
-                e.touches[1].clientY - e.touches[0].clientY
-            );
-            if (lastPinchDist.current !== null) {
-                const ratio = dist / lastPinchDist.current;
-                setScale(s => Math.max(MIN_SCALE, Math.min(MAX_SCALE, s * ratio)));
+            if (e.touches.length >= 2) {
+                e.preventDefault();
+                return;
             }
-            lastPinchDist.current = dist;
+            if (touchDragId === null || !dragStart.current) return;
+            const touch = Array.from(e.touches).find(t => t.identifier === touchDragId);
+            if (!touch) return;
+            e.preventDefault();
+            el.scrollLeft = dragStart.current.scrollLeft - (touch.clientX - dragStart.current.x);
+            el.scrollTop = dragStart.current.scrollTop - (touch.clientY - dragStart.current.y);
         };
-        const onTouchEnd = () => { lastPinchDist.current = null; };
+        const onTouchEnd = () => {
+            touchDragId = null;
+            dragStart.current = null;
+        };
 
-        el.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+        // iOS Safari GestureEvent も無効化
+        const preventGesture = (e: Event) => { e.preventDefault(); };
+
+        el.addEventListener('touchstart', onTouchStart, { passive: false, capture: true });
         el.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
         el.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+        el.addEventListener('gesturestart', preventGesture, { capture: true });
+        el.addEventListener('gesturechange', preventGesture, { capture: true });
+        el.addEventListener('gestureend', preventGesture, { capture: true });
         return () => {
             el.removeEventListener('touchstart', onTouchStart, { capture: true });
             el.removeEventListener('touchmove', onTouchMove, { capture: true });
             el.removeEventListener('touchend', onTouchEnd, { capture: true });
+            el.removeEventListener('gesturestart', preventGesture, { capture: true });
+            el.removeEventListener('gesturechange', preventGesture, { capture: true });
+            el.removeEventListener('gestureend', preventGesture, { capture: true });
         };
     }, [mounted, scale]);
 
@@ -161,7 +155,6 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         const el = contentRef.current;
         if (!el) return;
-        // ズームボタン上のクリックは無視
         if ((e.target as HTMLElement).closest('[data-zoom-controls]')) return;
         setIsDragging(true);
         dragStart.current = {
@@ -227,7 +220,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 className="relative flex-1 overflow-auto bg-gray-700"
                 style={{
                     overscrollBehavior: 'contain',
-                    touchAction: scale > 1 ? 'pan-x pan-y pinch-zoom' : 'manipulation',
+                    touchAction: 'none',
                     cursor: isDragging ? 'grabbing' : 'grab',
                 }}
                 onMouseDown={handleMouseDown}
@@ -236,10 +229,11 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 onMouseLeave={handleMouseUp}
             >
                 <div
-                    style={{ minHeight: '100%', padding: '16px 8px', width: 'fit-content', margin: '0 auto' }}
+                    className="flex items-center justify-center"
+                    style={{ minHeight: '100%', padding: '16px 8px', width: scale > 1 ? 'fit-content' : undefined, margin: scale > 1 ? undefined : '0 auto' }}
                 >
                     {!PdfDocument ? (
-                        <div className="flex flex-col items-center gap-3 mt-8">
+                        <div className="flex flex-col items-center gap-3">
                             <Loader2 className="w-8 h-8 animate-spin text-white/60" />
                             <span className="text-sm text-white/70">PDFを読み込んでいます...</span>
                         </div>
@@ -248,13 +242,13 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                             file={url}
                             onLoadSuccess={({ numPages: n }) => { setNumPages(n); setPageNumber(1); }}
                             loading={
-                                <div className="flex flex-col items-center gap-3 mt-8">
+                                <div className="flex flex-col items-center gap-3">
                                     <Loader2 className="w-8 h-8 animate-spin text-white/60" />
                                     <span className="text-sm text-white/70">PDFを読み込んでいます...</span>
                                 </div>
                             }
                             error={
-                                <div className="flex flex-col items-center gap-4 text-white px-6 text-center mt-8">
+                                <div className="flex flex-col items-center gap-4 text-white px-6 text-center">
                                     <p>PDFの読み込みに失敗しました</p>
                                     <a
                                         href={url}
@@ -278,14 +272,13 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         </PdfDocument>
                     )}
                 </div>
-
             </div>
 
             {/* ===== ズームコントロール（画面中央下に固定） ===== */}
             <div
                 data-zoom-controls
                 className="fixed left-1/2 -translate-x-1/2 z-[201] pointer-events-none"
-                style={{ bottom: showFooter || numPages > 0 ? 68 : 20 }}
+                style={{ bottom: showFooter ? 68 : 20 }}
             >
                 <div className="pointer-events-auto flex items-center gap-1 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1 opacity-60 sm:opacity-40 sm:hover:opacity-100 active:opacity-100 transition-opacity duration-200">
                     <button
@@ -347,22 +340,6 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                         aria-label="次のページ"
                     >
                         <ChevronRight className="w-5 h-5 text-white" />
-                    </button>
-                </div>
-            )}
-
-            {/* 1ページのみの場合も下部に閉じるボタンを表示 */}
-            {!showFooter && numPages > 0 && (
-                <div className="flex items-center justify-center bg-gray-900 shrink-0" style={{ minHeight: 52 }}>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="flex items-center gap-2 px-4 py-2 min-h-[44px] bg-white/10 hover:bg-white/20 active:bg-white/30 rounded-full transition-colors"
-                        style={{ touchAction: 'manipulation' }}
-                        aria-label="閉じる"
-                    >
-                        <ArrowLeft className="w-4 h-4 text-white" />
-                        <span className="text-white text-sm">戻る</span>
                     </button>
                 </div>
             )}
