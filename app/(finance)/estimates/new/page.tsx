@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { Suspense, useState, useCallback, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEstimates } from '@/hooks/useEstimates';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
@@ -9,7 +9,7 @@ import EstimatePreview from '@/components/Estimates/EstimatePreview';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function NewEstimatePage() {
+function NewEstimateContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const copyFromId = searchParams.get('copyFrom');
@@ -61,7 +61,6 @@ export default function NewEstimatePage() {
                         {copySource ? '見積書コピー作成' : '新規見積書作成'}
                     </h1>
                 </div>
-                {/* モバイル: プレビュー切替 */}
                 <button onClick={() => setShowPreview(!showPreview)} className="lg:hidden flex items-center gap-1 px-3 py-2 text-sm bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
                     {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     {showPreview ? 'フォーム' : 'プレビュー'}
@@ -70,7 +69,6 @@ export default function NewEstimatePage() {
 
             {/* コンテンツ */}
             <div className="flex-1 flex overflow-hidden">
-                {/* 左: フォーム */}
                 <div className={`flex-1 overflow-y-auto p-4 sm:p-6 ${showPreview ? 'hidden lg:block' : ''} lg:w-1/2`}>
                     <div className="max-w-4xl">
                         <EstimateForm
@@ -82,7 +80,6 @@ export default function NewEstimatePage() {
                     </div>
                 </div>
 
-                {/* 右: プレビュー */}
                 <div className={`lg:w-1/2 lg:border-l border-slate-200 overflow-y-auto bg-gray-100 p-4 ${showPreview ? '' : 'hidden lg:block'}`}>
                     <div className="max-w-3xl mx-auto">
                         <EstimatePreview {...previewData} />
@@ -90,5 +87,13 @@ export default function NewEstimatePage() {
                 </div>
             </div>
         </div>
+    );
+}
+
+export default function NewEstimatePage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600"></div></div>}>
+            <NewEstimateContent />
+        </Suspense>
     );
 }
