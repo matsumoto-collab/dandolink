@@ -177,3 +177,6 @@ UPSTASH_REDIS_REST_URL=*.txt
 
 # Misc
 nul
+
+# Claude Code local settings (contains credentials)
+.claude/settings.local.json
