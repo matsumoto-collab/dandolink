@@ -77,14 +77,20 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             const selectedProject = projectMasters.find(p => p.id === projectId);
             if (selectedProject) {
                 setSiteName(selectedProject.title || '');
-                const customerName = selectedProject.customerName || selectedProject.customerShortName;
-                if (customerName) {
-                    let customer = customers.find(c => c.name === customerName)
-                        || customers.find(c => c.shortName === customerName)
-                        || customers.find(c => c.name.includes(customerName))
-                        || customers.find(c => c.shortName?.includes(customerName))
-                        || customers.find(c => customerName.includes(c.name) || (c.shortName && customerName.includes(c.shortName)));
-                    setCustomerId(customer?.id || '');
+                // 案件マスターに顧客IDが保持されている場合は直接セットする
+                if (selectedProject.customerId) {
+                    setCustomerId(selectedProject.customerId);
+                } else {
+                    // 古いデータへの後方互換性として名前での検索を残す
+                    const customerName = selectedProject.customerName || selectedProject.customerShortName;
+                    if (customerName) {
+                        let customer = customers.find(c => c.name === customerName)
+                            || customers.find(c => c.shortName === customerName)
+                            || customers.find(c => c.name.includes(customerName))
+                            || customers.find(c => c.shortName?.includes(customerName))
+                            || customers.find(c => customerName.includes(c.name) || (c.shortName && customerName.includes(c.shortName)));
+                        setCustomerId(customer?.id || '');
+                    }
                 }
                 if (!title) setTitle(`${selectedProject.title} 見積書`);
             }
