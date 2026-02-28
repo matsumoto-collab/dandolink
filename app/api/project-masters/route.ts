@@ -9,9 +9,6 @@ import { formatProjectMaster } from '@/lib/formatters';
  * GET /api/project-masters - 案件マスター一覧取得
  */
 export async function GET(req: NextRequest) {
-    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
-    if (rateLimitError) return rateLimitError;
-
     try {
         const { error } = await requireAuth();
         if (error) return error;

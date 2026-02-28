@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
+import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 const workItemSelect = {
     id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true,
@@ -15,9 +15,6 @@ const reportSelect = {
 };
 
 export async function GET(request: NextRequest) {
-    const rateLimitError = await applyRateLimit(request, RATE_LIMITS.api);
-    if (rateLimitError) return rateLimitError;
-
     try {
         const { error } = await requireAuth();
         if (error) return error;

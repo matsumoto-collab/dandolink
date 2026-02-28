@@ -9,9 +9,6 @@ import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validat
  * GET /api/users - ユーザー一覧取得
  */
 export async function GET(req: NextRequest) {
-    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
-    if (rateLimitError) return rateLimitError;
-
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
