@@ -15,6 +15,7 @@ export interface EstimateItem {
 export interface Estimate {
     id: string;
     projectId?: string;
+    customerId?: string;
     estimateNumber: string;
     title: string;
     items: EstimateItem[];
