@@ -15,7 +15,7 @@ import ConditionNotes from './ConditionNotes';
 
 interface EstimateFormProps {
     initialData?: Partial<EstimateInput>;
-    onSubmit: (data: EstimateInput) => void;
+    onSubmit: (data: EstimateInput) => Promise<void> | void;
     onCancel: () => void;
 }
 
@@ -172,15 +172,23 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         setItems(newItems);
     };
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     // 送信
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title) { toast.error('タイトルは必須です'); return; }
-        const data: EstimateInput = {
-            projectId: projectId || undefined, estimateNumber, title, items, subtotal, tax, total,
-            validUntil: new Date(validUntil), status, notes: notes || undefined,
-        };
-        onSubmit(data);
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+        try {
+            const data: EstimateInput = {
+                projectId: projectId || undefined, estimateNumber, title, items, subtotal, tax, total,
+                validUntil: new Date(validUntil), status, notes: notes || undefined,
+            };
+            await onSubmit(data);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -218,8 +226,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors text-base md:text-sm">
                     キャンセル
                 </button>
-                <button type="submit" className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 active:from-blue-800 active:to-blue-900 transition-all shadow-md text-base md:text-sm font-medium">
-                    保存
+                <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 active:from-blue-800 active:to-blue-900 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isSubmitting ? '保存中...' : '保存'}
                 </button>
             </div>
 
