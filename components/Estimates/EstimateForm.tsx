@@ -116,7 +116,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     // 明細操作
     const addItem = () => {
-        setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
+        setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
     };
 
     // 値引き行追加
