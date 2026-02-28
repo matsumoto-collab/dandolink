@@ -22,7 +22,7 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
             if (params?.startDate) searchParams.set('startDate', params.startDate);
             if (params?.endDate) searchParams.set('endDate', params.endDate);
 
-            const response = await fetch(`/api/daily-reports?${searchParams.toString()}`);
+            const response = await fetch(`/api/daily-reports?${searchParams.toString()}`, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 const parsed = data.map(parseDailyReportDates);

@@ -8,4 +8,5 @@ export const prisma =
         log: process.env.NODE_ENV === 'production' ? ['error'] : ['query', 'error', 'warn'],
     });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
+// 本番環境でもシングルトンをキャッシュして接続プール枯渇を防止
+globalForPrisma.prisma = prisma;

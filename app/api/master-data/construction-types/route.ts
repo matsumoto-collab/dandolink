@@ -32,7 +32,7 @@ export async function GET() {
         }
 
         return NextResponse.json(constructionTypes, {
-            headers: { 'Cache-Control': 'private, max-age=3600, stale-while-revalidate=60' },
+            headers: { 'Cache-Control': 'no-store' },
         });
     } catch (error) {
         return serverErrorResponse('工事種別一覧取得', error);

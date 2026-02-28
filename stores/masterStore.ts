@@ -78,8 +78,8 @@ export const useMasterStore = create<MasterStore>()(
             try {
                 // Fetch master data and construction types in parallel
                 const [masterResponse, constructionTypesResponse] = await Promise.all([
-                    fetch('/api/master-data'),
-                    fetch('/api/master-data/construction-types'),
+                    fetch('/api/master-data', { cache: 'no-store' }),
+                    fetch('/api/master-data/construction-types', { cache: 'no-store' }),
                 ]);
 
                 let constructionTypes: ConstructionTypeMaster[] = [];
@@ -107,8 +107,8 @@ export const useMasterStore = create<MasterStore>()(
             // Force refresh without checking isLoading
             try {
                 const [masterResponse, constructionTypesResponse] = await Promise.all([
-                    fetch('/api/master-data'),
-                    fetch('/api/master-data/construction-types'),
+                    fetch('/api/master-data', { cache: 'no-store' }),
+                    fetch('/api/master-data/construction-types', { cache: 'no-store' }),
                 ]);
 
                 let constructionTypes: ConstructionTypeMaster[] = [];
