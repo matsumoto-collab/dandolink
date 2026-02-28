@@ -27,13 +27,41 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                 <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={cellInputClass} placeholder="規格" />
             </td>
             <td className="px-3 py-2">
-                <input type="number" value={item.quantity === 0 ? '' : item.quantity} onChange={(e) => { const val = parseFloat(e.target.value); onUpdate(item.id, 'quantity', isNaN(val) ? 0 : val); }} className={cellInputClass} placeholder="数量" step="0.01" />
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={item.quantity === 0 ? '' : item.quantity}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                            onUpdate(item.id, 'quantity', 0);
+                        } else if (!isNaN(Number(val))) {
+                            onUpdate(item.id, 'quantity', Number(val));
+                        }
+                    }}
+                    className={cellInputClass}
+                    placeholder="数量"
+                />
             </td>
             <td className="px-3 py-2">
                 <input type="text" value={item.unit || ''} onChange={(e) => onUpdate(item.id, 'unit', e.target.value)} className={cellInputClass} placeholder="式、m、個" />
             </td>
             <td className="px-3 py-2">
-                <input type="number" value={item.unitPrice === 0 ? '' : item.unitPrice} onChange={(e) => { const val = parseFloat(e.target.value); onUpdate(item.id, 'unitPrice', isNaN(val) ? 0 : val); }} className={`${cellInputClass} ${item.unitPrice < 0 ? 'text-slate-600' : ''}`} placeholder="単価" />
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={item.unitPrice === 0 ? '' : item.unitPrice}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                            onUpdate(item.id, 'unitPrice', 0);
+                        } else if (!isNaN(Number(val))) {
+                            onUpdate(item.id, 'unitPrice', Number(val));
+                        }
+                    }}
+                    className={`${cellInputClass} ${item.unitPrice < 0 ? 'text-slate-600' : ''}`}
+                    placeholder="単価"
+                />
             </td>
             <td className="px-3 py-2">
                 <div className={`text-right font-medium ${item.amount < 0 ? 'text-slate-600' : ''}`}>
@@ -105,7 +133,21 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
             <div className="grid grid-cols-3 gap-2">
                 <div>
                     <label className={mobileLabelClass}>数量</label>
-                    <input type="number" value={item.quantity === 0 ? '' : item.quantity} onChange={(e) => { const val = parseFloat(e.target.value); onUpdate(item.id, 'quantity', isNaN(val) ? 0 : val); }} className={mobileInputClass} placeholder="数量" step="0.01" inputMode="decimal" />
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                                onUpdate(item.id, 'quantity', 0);
+                            } else if (!isNaN(Number(val))) {
+                                onUpdate(item.id, 'quantity', Number(val));
+                            }
+                        }}
+                        className={mobileInputClass}
+                        placeholder="数量"
+                    />
                 </div>
                 <div>
                     <label className={mobileLabelClass}>単位</label>
@@ -113,7 +155,21 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
                 </div>
                 <div>
                     <label className={mobileLabelClass}>単価</label>
-                    <input type="number" value={item.unitPrice === 0 ? '' : item.unitPrice} onChange={(e) => { const val = parseFloat(e.target.value); onUpdate(item.id, 'unitPrice', isNaN(val) ? 0 : val); }} className={`${mobileInputClass} ${item.unitPrice < 0 ? 'text-slate-600' : ''}`} placeholder="単価" inputMode="numeric" />
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.unitPrice === 0 ? '' : item.unitPrice}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') {
+                                onUpdate(item.id, 'unitPrice', 0);
+                            } else if (!isNaN(Number(val))) {
+                                onUpdate(item.id, 'unitPrice', Number(val));
+                            }
+                        }}
+                        className={`${mobileInputClass} ${item.unitPrice < 0 ? 'text-slate-600' : ''}`}
+                        placeholder="単価"
+                    />
                 </div>
             </div>
 
