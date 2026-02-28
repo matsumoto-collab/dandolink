@@ -19,10 +19,10 @@ model User {
   role             String   @default("manager")
   assignedProjects String?
   isActive         Boolean  @default(true)
-  hourlyRate       Decimal? @db.Decimal(10, 2)
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   teamId           String?
+  hourlyRate       Decimal? @db.Decimal(10, 2)
 
   @@index([username])
   @@index([email])
@@ -50,19 +50,19 @@ model ProjectMaster {
   contractAmount             Int?
   customerId                 String?
   customerName               String?
-  customerShortName          String?
   demolitionDate             DateTime?
   estimatedAssemblyWorkers   Int?
   estimatedDemolitionWorkers Int?
   plusCode                   String?
-  latitude                   Float?
-  longitude                  Float?
   postalCode                 String?
   prefecture                 String?
   scaffoldingSpec            Json?
-  materialCost               Decimal? @db.Decimal(12, 2)
-  otherExpenses              Decimal? @db.Decimal(12, 2)
-  subcontractorCost          Decimal? @db.Decimal(12, 2)
+  materialCost               Decimal?            @db.Decimal(12, 2)
+  otherExpenses              Decimal?            @db.Decimal(12, 2)
+  subcontractorCost          Decimal?            @db.Decimal(12, 2)
+  customerShortName          String?
+  latitude                   Float?
+  longitude                  Float?
   assignments                ProjectAssignment[]
   files                      ProjectMasterFile[]
 
@@ -90,16 +90,15 @@ model ProjectAssignment {
   confirmedWorkerIds   String?
   confirmedVehicleIds  String?
   isDispatchConfirmed  Boolean               @default(false)
-  constructionType     String?               // 配置ごとの工事種別（nullの場合はProjectMasterから継承）
-  estimatedHours       Float                 @default(8.0) // 予定作業時間（時間単位）
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
+  constructionType     String?
+  estimatedHours       Float                 @default(8.0)
+  assignmentVehicles   AssignmentVehicle[]
+  assignmentWorkers    AssignmentWorker[]
   dailyReportWorkItems DailyReportWorkItem[]
   projectMaster        ProjectMaster         @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
-  assignmentWorkers    AssignmentWorker[]
-  assignmentVehicles   AssignmentVehicle[]
 
-  // 一意制約を削除: 同じ案件を同じ日・同じ職長に複数配置可能に（午前組立、夕方解体など）
   @@index([projectMasterId])
   @@index([assignedEmployeeId])
   @@index([date])
@@ -112,11 +111,11 @@ model ProjectAssignment {
 }
 
 model AssignmentWorker {
-  id              String            @id @default(uuid())
-  assignmentId    String
-  assignment      ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  workerId        String?
-  workerName      String
+  id           String            @id @default(uuid())
+  assignmentId String
+  workerId     String?
+  workerName   String
+  assignment   ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@index([assignmentId])
   @@index([workerName])
@@ -124,11 +123,11 @@ model AssignmentWorker {
 }
 
 model AssignmentVehicle {
-  id              String            @id @default(uuid())
-  assignmentId    String
-  assignment      ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  vehicleId       String?
-  vehicleName     String
+  id           String            @id @default(uuid())
+  assignmentId String
+  vehicleId    String?
+  vehicleName  String
+  assignment   ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
 
   @@index([assignmentId])
   @@index([vehicleName])
@@ -221,38 +220,37 @@ model Vehicle {
 model Worker {
   id         String   @id @default(uuid())
   name       String
-  hourlyRate Decimal? @db.Decimal(10, 2)
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
+  hourlyRate Decimal?
 
   @@index([name])
   @@schema("public")
 }
 
 model ConstructionType {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   name      String
   color     String   @default("#a8c8e8")
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@index([name])
   @@index([sortOrder])
   @@schema("public")
 }
 
-
 model SystemSettings {
-  id                   String   @id @default("default")
-  totalMembers         Int      @default(20)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  laborDailyRate       Decimal  @default(15000) @db.Decimal(10, 2)
-  standardWorkMinutes  Int      @default(480)
-  displayedForemanIds  String   @default("[]")
+  id                  String   @id @default("default")
+  totalMembers        Int      @default(20)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  laborDailyRate      Decimal  @default(15000) @db.Decimal(10, 2)
+  standardWorkMinutes Int      @default(480)
+  displayedForemanIds String   @default("[]")
 
   @@schema("public")
 }
@@ -304,7 +302,7 @@ model CalendarRemark {
 }
 
 model CellRemark {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
   foremanId String
   dateKey   String
   text      String
@@ -363,10 +361,10 @@ model DailyReportWorkItem {
   id            String            @id @default(uuid())
   dailyReportId String
   assignmentId  String
-  startTime     String?           // 作業開始時間 (例: "08:00")
-  endTime       String?           // 作業終了時間 (例: "17:00")
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
+  startTime     String?
+  endTime       String?
   assignment    ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   dailyReport   DailyReport       @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
 
@@ -391,18 +389,23 @@ model audit_log_entries {
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model flow_state {
-  id                     String                @id @db.Uuid
-  user_id                String?               @db.Uuid
-  auth_code              String
-  code_challenge_method  code_challenge_method
-  code_challenge         String
+  id                     String                 @id @db.Uuid
+  user_id                String?                @db.Uuid
+  auth_code              String?
+  code_challenge_method  code_challenge_method?
+  code_challenge         String?
   provider_type          String
   provider_access_token  String?
   provider_refresh_token String?
-  created_at             DateTime?             @db.Timestamptz(6)
-  updated_at             DateTime?             @db.Timestamptz(6)
+  created_at             DateTime?              @db.Timestamptz(6)
+  updated_at             DateTime?              @db.Timestamptz(6)
   authentication_method  String
-  auth_code_issued_at    DateTime?             @db.Timestamptz(6)
+  auth_code_issued_at    DateTime?              @db.Timestamptz(6)
+  invite_token           String?
+  referrer               String?
+  oauth_client_state_id  String?                @db.Uuid
+  linking_target_id      String?                @db.Uuid
+  email_optional         Boolean                @default(false)
   saml_relay_states      saml_relay_states[]
 
   @@index([created_at(sort: Desc)])
@@ -536,21 +539,22 @@ model oauth_client_states {
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model oauth_clients {
-  id                   String                  @id @db.Uuid
-  client_secret_hash   String?
-  registration_type    oauth_registration_type
-  redirect_uris        String
-  grant_types          String
-  client_name          String?
-  client_uri           String?
-  logo_uri             String?
-  created_at           DateTime                @default(now()) @db.Timestamptz(6)
-  updated_at           DateTime                @default(now()) @db.Timestamptz(6)
-  deleted_at           DateTime?               @db.Timestamptz(6)
-  client_type          oauth_client_type       @default(confidential)
-  oauth_authorizations oauth_authorizations[]
-  oauth_consents       oauth_consents[]
-  sessions             sessions[]
+  id                         String                  @id @db.Uuid
+  client_secret_hash         String?
+  registration_type          oauth_registration_type
+  redirect_uris              String
+  grant_types                String
+  client_name                String?
+  client_uri                 String?
+  logo_uri                   String?
+  created_at                 DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime                @default(now()) @db.Timestamptz(6)
+  deleted_at                 DateTime?               @db.Timestamptz(6)
+  client_type                oauth_client_type       @default(confidential)
+  token_endpoint_auth_method String
+  oauth_authorizations       oauth_authorizations[]
+  oauth_consents             oauth_consents[]
+  sessions                   sessions[]
 
   @@index([deleted_at])
   @@schema("auth")
@@ -792,22 +796,68 @@ model profiles {
 }
 
 model ProjectMasterFile {
-  id              String        @id @default(uuid())
-  projectMasterId String
-  projectMaster   ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
-  fileName        String
-  storagePath     String
-  fileType        String
-  mimeType        String
-  fileSize        Int
-  description     String?
-  uploadedBy          String?
-  category            String        @default("other")
-  signedUrl           String?
-  signedUrlExpiresAt  DateTime?
-  createdAt           DateTime      @default(now())
+  id                 String        @id @default(uuid())
+  projectMasterId    String
+  fileName           String
+  storagePath        String
+  fileType           String
+  mimeType           String
+  fileSize           Int
+  description        String?
+  uploadedBy         String?
+  createdAt          DateTime      @default(now())
+  category           String        @default("other")
+  signedUrl          String?
+  signedUrlExpiresAt DateTime?
+  projectMaster      ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
+  @@schema("public")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model custom_oauth_providers {
+  id                    String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider_type         String
+  identifier            String    @unique
+  name                  String
+  client_id             String
+  client_secret         String
+  acceptable_client_ids String[]  @default([])
+  scopes                String[]  @default([])
+  pkce_enabled          Boolean   @default(true)
+  attribute_mapping     Json      @default("{}")
+  authorization_params  Json      @default("{}")
+  enabled               Boolean   @default(true)
+  email_optional        Boolean   @default(false)
+  issuer                String?
+  discovery_url         String?
+  skip_nonce_check      Boolean   @default(false)
+  cached_discovery      Json?
+  discovery_cached_at   DateTime? @db.Timestamptz(6)
+  authorization_url     String?
+  token_url             String?
+  userinfo_url          String?
+  jwks_uri              String?
+  created_at            DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at])
+  @@index([enabled])
+  @@index([identifier])
+  @@index([provider_type])
+  @@schema("auth")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model Manager {
+  id        String   @id
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime
+
+  @@index([name])
   @@schema("public")
 }
 

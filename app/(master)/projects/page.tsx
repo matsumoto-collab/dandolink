@@ -17,7 +17,7 @@ const ProjectModal = dynamic(
 );
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
-    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 
 export default function ProjectListPage() {
@@ -52,6 +52,7 @@ export default function ProjectListPage() {
                 projectId: p.id,
                 title: `${p.title ?? ''} 見積書`,
             });
+            setIsModalOpen(false); // 詳細モーダルを閉じる
             setIsEstimateModalOpen(true);
         }
     }, [editingProject]);
