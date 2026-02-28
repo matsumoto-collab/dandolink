@@ -35,21 +35,47 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
     // ドラッグ移動用（マウス＋タッチ共通）
     const [isDragging, setIsDragging] = useState(false);
     const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
-    const prevScale = useRef(1);
 
     // スケール変更時に中央基準でスクロール位置を維持
     const changeScale = useCallback((fn: (s: number) => number) => {
         setScale(s => {
             const newScale = fn(s);
-            prevScale.current = s;
+            if (newScale === s) return s;
+
+            // DOMの状態をキャプチャ (requestAnimationFrameの前に計算)
+            const el = contentRef.current;
+            if (!el) return newScale;
+
+            const ratio = newScale / s;
+            const cw = el.clientWidth;
+            const ch = el.clientHeight;
+
+            const baseW = Math.max(0, cw - 32);
+            const oldWidth = Math.floor(baseW * s);
+            const newWidth = Math.floor(baseW * newScale);
+
+            // CSS margin:autoの代わりに使われるパディング量を計算（旧・新）
+            const oldPadX = Math.max(0, (cw - oldWidth) / 2);
+            const newPadX = Math.max(0, (cw - newWidth) / 2);
+
+            const scrollL = el.scrollLeft;
+            const scrollT = el.scrollTop;
+
             requestAnimationFrame(() => {
-                const el = contentRef.current;
-                if (!el) return;
-                const ratio = newScale / prevScale.current;
-                const centerX = el.scrollLeft + el.clientWidth / 2;
-                const centerY = el.scrollTop + el.clientHeight / 2;
-                el.scrollLeft = centerX * ratio - el.clientWidth / 2;
-                el.scrollTop = centerY * ratio - el.clientHeight / 2;
+                const updatedEl = contentRef.current;
+                if (!updatedEl) return;
+
+                // コンテンツの原点に対するX座標を計算しズーム後の座標へマッピング
+                const contentX = scrollL + cw / 2 - oldPadX;
+                const newContentX = contentX * ratio;
+                updatedEl.scrollLeft = newContentX + newPadX - cw / 2;
+
+                // PDFViewerにおける縦ギャップ（padY相当）はスケールに従うよう設計されているため比例計算
+                const oldPadY = 16 * s;
+                const newPadY = 16 * newScale;
+                const contentY = scrollT + ch / 2 - oldPadY;
+                const newContentY = contentY * ratio;
+                updatedEl.scrollTop = newContentY + newPadY - ch / 2;
             });
             return newScale;
         });
@@ -174,12 +200,14 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
     // 左右に少し余白を持たせる
     const baseWidth = Math.max(0, containerWidth - 32);
     const pageRenderWidth = Math.max(0, Math.floor(baseWidth * scale));
+    const padX = Math.max(0, (containerWidth - pageRenderWidth) / 2);
+    const padY = 16 * scale;
 
     return (
         <div className="relative w-full h-full flex flex-col items-center bg-gray-100">
             <div
                 ref={contentRef}
-                className="w-full h-full overflow-auto flex flex-col items-center py-4 overscroll-none"
+                className="w-full h-full overflow-auto overscroll-none"
                 style={{
                     touchAction: scale > 1 ? 'none' : 'auto', // 拡大時はスクロールをJSで制御
                     cursor: isDragging ? 'grabbing' : (scale > 1 ? 'grab' : 'auto'),
@@ -189,39 +217,41 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
             >
-                {!PdfDocument ? (
-                    <div className="flex flex-col items-center justify-center h-full gap-3 mt-10">
-                        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                        <span className="text-sm text-gray-500">PDFを読み込んでいます...</span>
-                    </div>
-                ) : (
-                    <PdfDocument
-                        file={url}
-                        onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-                        loading={
-                            <div className="flex flex-col items-center justify-center h-full gap-3 mt-10">
-                                <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                                <span className="text-sm text-gray-500">PDFを読み込んでいます...</span>
-                            </div>
-                        }
-                        error={
-                            <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-600 px-6 text-center mt-10">
-                                <p>PDFの読み込みに失敗しました</p>
-                            </div>
-                        }
-                    >
-                        {PdfPage && pageRenderWidth > 0 && Array.from(new Array(numPages), (_, index) => (
-                            <div key={`page_${index + 1}`} className="mb-4 shadow-md bg-white shrink-0">
-                                <PdfPage
-                                    pageNumber={index + 1}
-                                    width={pageRenderWidth}
-                                    renderTextLayer={false}
-                                    renderAnnotationLayer={false}
-                                />
-                            </div>
-                        ))}
-                    </PdfDocument>
-                )}
+                <div style={{ padding: `${padY}px ${padX}px`, minWidth: 'max-content' }}>
+                    {!PdfDocument ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-3 mt-10">
+                            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                            <span className="text-sm text-gray-500">PDFを読み込んでいます...</span>
+                        </div>
+                    ) : (
+                        <PdfDocument
+                            file={url}
+                            onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+                            loading={
+                                <div className="flex flex-col items-center justify-center h-full gap-3 mt-10">
+                                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                                    <span className="text-sm text-gray-500">PDFを読み込んでいます...</span>
+                                </div>
+                            }
+                            error={
+                                <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-600 px-6 text-center mt-10">
+                                    <p>PDFの読み込みに失敗しました</p>
+                                </div>
+                            }
+                        >
+                            {PdfPage && pageRenderWidth > 0 && Array.from(new Array(numPages), (_, index) => (
+                                <div key={`page_${index + 1}`} style={{ width: pageRenderWidth, marginBottom: index === numPages - 1 ? 0 : 16 * scale }} className="shadow-md bg-white shrink-0">
+                                    <PdfPage
+                                        pageNumber={index + 1}
+                                        width={pageRenderWidth}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                    />
+                                </div>
+                            ))}
+                        </PdfDocument>
+                    )}
+                </div>
             </div>
 
             {/* ===== ズームコントロール（画面中央下に配置） ===== */}

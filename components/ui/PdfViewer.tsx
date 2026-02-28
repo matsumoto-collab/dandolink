@@ -40,23 +40,47 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
     // ドラッグ移動用（マウス＋タッチ共通）
     const [isDragging, setIsDragging] = useState(false);
     const dragStart = useRef<{ x: number; y: number; scrollLeft: number; scrollTop: number } | null>(null);
-    const prevScale = useRef(1);
 
     // スケール変更時に中央基準でスクロール位置を維持
     const changeScale = useCallback((fn: (s: number) => number) => {
         setScale(s => {
             const newScale = fn(s);
-            prevScale.current = s;
-            // requestAnimationFrameで描画後にスクロール調整
+            if (newScale === s) return s;
+
+            // DOMの状態をキャプチャ (requestAnimationFrameの前に計算)
+            const el = contentRef.current;
+            if (!el) return newScale;
+
+            const ratio = newScale / s;
+            const cw = el.clientWidth;
+            const ch = el.clientHeight;
+
+            const baseW = Math.min(cw - 16, 900);
+            const oldWidth = Math.max(0, Math.floor(baseW * s));
+            const newWidth = Math.max(0, Math.floor(baseW * newScale));
+
+            // CSS margin:autoの代わりに使われるパディング量を計算（旧・新）
+            const oldPadX = Math.max(0, (cw - oldWidth) / 2);
+            const newPadX = Math.max(0, (cw - newWidth) / 2);
+
+            const scrollL = el.scrollLeft;
+            const scrollT = el.scrollTop;
+
             requestAnimationFrame(() => {
-                const el = contentRef.current;
-                if (!el) return;
-                const ratio = newScale / prevScale.current;
-                // ビューポート中心を基準にスクロール位置を調整
-                const centerX = el.scrollLeft + el.clientWidth / 2;
-                const centerY = el.scrollTop + el.clientHeight / 2;
-                el.scrollLeft = centerX * ratio - el.clientWidth / 2;
-                el.scrollTop = centerY * ratio - el.clientHeight / 2;
+                const updatedEl = contentRef.current;
+                if (!updatedEl) return;
+
+                // コンテンツの原点に対するX座標を計算しズーム後の座標へマッピング
+                const contentX = scrollL + cw / 2 - oldPadX;
+                const newContentX = contentX * ratio;
+                updatedEl.scrollLeft = newContentX + newPadX - cw / 2;
+
+                // PDFViewerの中央描画の場合：パディング固定16pxとする
+                const oldPadY = 16 * s;
+                const newPadY = 16 * newScale;
+                const contentY = scrollT + ch / 2 - oldPadY;
+                const newContentY = contentY * ratio;
+                updatedEl.scrollTop = newContentY + newPadY - ch / 2;
             });
             return newScale;
         });
@@ -202,6 +226,8 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
 
     const baseWidth = Math.min(containerWidth - 16, 900);
     const pageRenderWidth = Math.max(0, Math.floor(baseWidth * scale));
+    const padX = Math.max(0, (containerWidth - pageRenderWidth) / 2);
+    const padY = 16 * scale;
     const showFooter = numPages > 1;
 
     if (!mounted) return null;
@@ -235,24 +261,19 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                 </div>
             </div>
 
-            {/* ===== PDFコンテンツエリア ===== */}
             <div
                 ref={contentRef}
-                className="relative flex-1 overflow-auto bg-gray-700"
+                className="relative flex-1 overflow-auto bg-gray-700 overscroll-none scroll-smooth"
                 style={{
-                    overscrollBehavior: 'contain',
-                    touchAction: 'none',
-                    cursor: isDragging ? 'grabbing' : 'grab',
+                    touchAction: scale > 1 ? 'none' : 'auto',
+                    cursor: isDragging ? 'grabbing' : (scale > 1 ? 'grab' : 'auto'),
                 }}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
             >
-                <div
-                    className="flex items-center justify-center"
-                    style={{ minHeight: '100%', padding: '16px 8px', width: 'fit-content', margin: '0 auto' }}
-                >
+                <div style={{ padding: `${padY}px ${padX}px`, minWidth: 'max-content' }}>
                     {!PdfDocument ? (
                         <div className="flex flex-col items-center gap-3">
                             <Loader2 className="w-8 h-8 animate-spin text-white/60" />
@@ -283,12 +304,14 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                             }
                         >
                             {PdfPage && pageRenderWidth > 0 && (
-                                <PdfPage
-                                    pageNumber={pageNumber}
-                                    width={pageRenderWidth}
-                                    renderTextLayer={false}
-                                    renderAnnotationLayer={false}
-                                />
+                                <div style={{ width: pageRenderWidth }} className="bg-white shadow-lg mx-auto">
+                                    <PdfPage
+                                        pageNumber={pageNumber}
+                                        width={pageRenderWidth}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                    />
+                                </div>
                             )}
                         </PdfDocument>
                     )}
