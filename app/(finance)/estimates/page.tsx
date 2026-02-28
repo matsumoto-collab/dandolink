@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Project } from '@/types/calendar';
@@ -31,6 +32,7 @@ export default function EstimateListPage() {
     const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
     const { projects, addProject } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
+    const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -39,7 +41,8 @@ export default function EstimateListPage() {
     useEffect(() => {
         ensureDataLoaded();
         ensureCompanyLoaded();
-    }, [ensureDataLoaded, ensureCompanyLoaded]);
+        ensureCustomersLoaded();
+    }, [ensureDataLoaded, ensureCompanyLoaded, ensureCustomersLoaded]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -140,6 +143,7 @@ export default function EstimateListPage() {
         // コピー元のデータを初期値として新規作成（番号・ステータスはリセット）
         setCopySource({
             projectId: estimate.projectId,
+            customerId: estimate.customerId,
             title: estimate.title,
             items: estimate.items.map(item => ({ ...item, id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}` })),
             notes: estimate.notes,
@@ -489,6 +493,7 @@ export default function EstimateListPage() {
                     }}
                     estimate={selectedEstimate}
                     project={selectedEstimate ? projects.find(p => p.id === selectedEstimate.projectId) || null : null}
+                    customerName={selectedEstimate?.customerId ? customers.find(c => c.id === selectedEstimate.customerId)?.name : undefined}
                     companyInfo={companyInfo}
                     onDelete={deleteEstimate}
                     onEdit={(estimate) => {

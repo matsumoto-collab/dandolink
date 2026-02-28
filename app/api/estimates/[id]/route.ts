@@ -19,6 +19,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
         const updateData: Prisma.EstimateUpdateInput = {};
         if (body.projectMasterId !== undefined) updateData.projectMasterId = body.projectMasterId || null;
+        if (body.customerId !== undefined) updateData.customerId = body.customerId || null;
         if (body.estimateNumber !== undefined) updateData.estimateNumber = body.estimateNumber;
         if (body.title !== undefined) updateData.title = body.title;
         if (body.items !== undefined) updateData.items = JSON.stringify(body.items);

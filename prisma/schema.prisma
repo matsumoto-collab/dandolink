@@ -168,8 +168,10 @@ model Estimate {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   projectMasterId String?
+  customerId      String?
 
   @@index([estimateNumber])
+  @@index([customerId])
   @@index([projectMasterId])
   @@index([status])
   @@index([createdAt])

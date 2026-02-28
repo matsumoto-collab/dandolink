@@ -18,6 +18,7 @@ interface EstimateDetailModalProps {
     onDelete: (id: string) => void;
     onEdit: (estimate: Estimate) => void;
     onCreateProject?: () => void;
+    customerName?: string;
 }
 
 export default function EstimateDetailModal({
@@ -29,6 +30,7 @@ export default function EstimateDetailModal({
     onDelete,
     onEdit,
     onCreateProject,
+    customerName,
 }: EstimateDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
@@ -36,17 +38,26 @@ export default function EstimateDetailModal({
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // projectがnullの場合はestimateからダミーのProjectを作成（useMemoでメモ化）
-    const effectiveProject: Project = useMemo(() => project || {
-        id: estimate?.id || '',
-        title: estimate?.title || '',
-        startDate: new Date(),
-        category: 'construction' as const,
-        color: '#3B82F6',
-        customer: '',
-        location: '',
-        createdAt: estimate?.createdAt || new Date(),
-        updatedAt: estimate?.updatedAt || new Date(),
-    }, [project, estimate?.id, estimate?.title, estimate?.createdAt, estimate?.updatedAt]);
+    const effectiveProject: Project = useMemo(() => {
+        if (project) {
+            // projectにcustomerがない場合、customerNameで補完
+            if (!project.customer && customerName) {
+                return { ...project, customer: customerName };
+            }
+            return project;
+        }
+        return {
+            id: estimate?.id || '',
+            title: estimate?.title || '',
+            startDate: new Date(),
+            category: 'construction' as const,
+            color: '#3B82F6',
+            customer: customerName || '',
+            location: '',
+            createdAt: estimate?.createdAt || new Date(),
+            updatedAt: estimate?.updatedAt || new Date(),
+        };
+    }, [project, estimate?.id, estimate?.title, estimate?.createdAt, estimate?.updatedAt, customerName]);
 
     useEffect(() => {
         let currentUrl = '';

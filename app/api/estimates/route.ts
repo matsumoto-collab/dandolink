@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         if (error) return error;
 
         const body = await req.json();
-        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes } = body;
+        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId } = body;
 
         if (!estimateNumber || !title) {
             return validationErrorResponse('見積番号とタイトルは必須です');
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
         const newEstimate = await prisma.estimate.create({
             data: {
-                projectMasterId: projectMasterId || null, estimateNumber, title,
+                projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber, title,
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
                 validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null,
             },
