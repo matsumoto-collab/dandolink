@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DandoLink システム事業権利 取得提案書</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Hiragino Mincho ProN', 'Yu Mincho', 'MS PMincho', Georgia, serif;
+      background: #eaeaea;
+      color: #1c1c1c;
+      font-size: 13.5px;
+      line-height: 1.8;
+    }
+
+    /* ── Cover ── */
+    .cover {
+      background: #0d1b2a;
+      color: #f0ece4;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 80px 100px;
+      page-break-after: always;
+    }
+    .cover-top { border-bottom: 1px solid #3a4a5a; padding-bottom: 40px; margin-bottom: 40px; }
+    .cover-firm {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 11px;
+      letter-spacing: 3px;
+      color: #8a9ab0;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .cover-doc-type {
+      font-size: 12px;
+      color: #6a7a8a;
+      letter-spacing: 1px;
+    }
+    .cover-main { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+    .cover-category {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 11px;
+      letter-spacing: 4px;
+      color: #8a9ab0;
+      margin-bottom: 20px;
+    }
+    .cover-title {
+      font-size: 38px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      line-height: 1.3;
+      margin-bottom: 8px;
+      color: #f0ece4;
+    }
+    .cover-title strong { font-weight: 700; }
+    .cover-subtitle {
+      font-size: 15px;
+      color: #8a9ab0;
+      margin-bottom: 60px;
+      letter-spacing: 1px;
+    }
+    .cover-price-section {
+      border-top: 1px solid #3a4a5a;
+      border-bottom: 1px solid #3a4a5a;
+      padding: 32px 0;
+      margin-bottom: 48px;
+      display: flex;
+      align-items: baseline;
+      gap: 24px;
+    }
+    .cover-price-label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: #6a7a8a;
+      width: 120px;
+      flex-shrink: 0;
+    }
+    .cover-price-value {
+      font-size: 52px;
+      font-weight: 300;
+      color: #f0ece4;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .cover-price-unit {
+      font-size: 14px;
+      color: #8a9ab0;
+      margin-left: 8px;
+    }
+    .cover-meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+    }
+    .cover-meta-item {
+      padding: 16px 0;
+      border-right: 1px solid #3a4a5a;
+    }
+    .cover-meta-item:last-child { border-right: none; }
+    .cover-meta-item:not(:first-child) { padding-left: 24px; }
+    .cover-meta-key {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: #6a7a8a;
+      margin-bottom: 4px;
+    }
+    .cover-meta-val {
+      font-size: 13px;
+      color: #c0ccd8;
+    }
+    .cover-footer {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      color: #4a5a6a;
+      letter-spacing: 1px;
+      padding-top: 24px;
+      border-top: 1px solid #2a3a4a;
+    }
+
+    /* ── Page ── */
+    .page {
+      max-width: 880px;
+      margin: 32px auto;
+      background: #fff;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.10);
+      page-break-after: always;
+    }
+    .page-header {
+      background: #0d1b2a;
+      color: #f0ece4;
+      padding: 18px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .page-header-left {
+      display: flex;
+      align-items: baseline;
+      gap: 20px;
+    }
+    .page-section-num {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #5a7a9a;
+    }
+    .page-header h2 {
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      color: #d0dce8;
+    }
+    .page-num {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      color: #4a6a8a;
+      letter-spacing: 1px;
+    }
+    .page-body { padding: 48px; }
+
+    /* ── Section Title ── */
+    .sec {
+      margin-bottom: 28px;
+    }
+    .sec-head {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 3px;
+      color: #4a6a8a;
+      text-transform: uppercase;
+      border-bottom: 2px solid #0d1b2a;
+      padding-bottom: 8px;
+      margin-bottom: 20px;
+    }
+    .sec + .sec { margin-top: 40px; }
+
+    /* ── Intro paragraph ── */
+    .intro {
+      background: #f7f5f0;
+      border-left: 3px solid #0d1b2a;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      font-size: 13.5px;
+      line-height: 1.9;
+    }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12.5px; }
+    thead tr { background: #0d1b2a; }
+    thead th {
+      color: #c0ccd8;
+      padding: 10px 14px;
+      text-align: left;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+    tbody tr { border-bottom: 1px solid #e8e4dc; }
+    tbody tr:nth-child(even) { background: #fafaf8; }
+    tbody td { padding: 10px 14px; vertical-align: top; }
+    tbody tr:last-child { border-bottom: 2px solid #0d1b2a; }
+    .td-num { font-variant-numeric: tabular-nums; text-align: right; }
+    .td-em { font-weight: 600; color: #0d1b2a; }
+    .td-accent { font-weight: 700; color: #8b1a1a; }
+    .td-sub { font-size: 11px; color: #888; }
+
+    /* ── Summary Box ── */
+    .summary-box {
+      border: 1px solid #c8c0b0;
+      padding: 28px 32px;
+      margin-bottom: 24px;
+      background: #fdfcf9;
+    }
+    .summary-box-label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #8a8070;
+      margin-bottom: 12px;
+    }
+    .summary-box-value {
+      font-size: 44px;
+      font-weight: 300;
+      color: #0d1b2a;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .summary-box-note {
+      font-size: 12px;
+      color: #888;
+      margin-top: 8px;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    }
+
+    /* ── Stat Row ── */
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid #c8c0b0;
+      margin-bottom: 24px;
+    }
+    .stat-cell {
+      padding: 20px 24px;
+      border-right: 1px solid #c8c0b0;
+      background: #fdfcf9;
+    }
+    .stat-cell:last-child { border-right: none; }
+    .stat-cell .label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+      color: #8a8070;
+      margin-bottom: 8px;
+    }
+    .stat-cell .value {
+      font-size: 26px;
+      font-weight: 300;
+      color: #0d1b2a;
+      line-height: 1;
+    }
+    .stat-cell .value.accent { color: #8b1a1a; }
+    .stat-cell .sublabel {
+      font-size: 11px;
+      color: #aaa;
+      margin-top: 4px;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    }
+
+    /* ── Expert Card ── */
+    .expert-block {
+      border: 1px solid #d8d0c0;
+      margin-bottom: 16px;
+      background: #fdfcf9;
+    }
+    .expert-block-head {
+      background: #1c2e3e;
+      color: #c0ccd8;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .expert-block-head .num {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #5a7a9a;
+    }
+    .expert-block-head .title {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .expert-block-head .method {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      color: #5a7a9a;
+      letter-spacing: 1px;
+    }
+    .expert-block-body {
+      padding: 16px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 24px;
+    }
+    .expert-block-price {
+      flex-shrink: 0;
+      width: 180px;
+    }
+    .expert-block-price .range-label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      color: #8a8070;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .expert-block-price .range-val {
+      font-size: 18px;
+      font-weight: 600;
+      color: #8b1a1a;
+    }
+    .expert-block-price .center-val {
+      font-size: 12px;
+      color: #888;
+      margin-top: 2px;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    }
+    .expert-block-desc {
+      font-size: 12.5px;
+      color: #444;
+      line-height: 1.8;
+      border-left: 1px solid #d8d0c0;
+      padding-left: 20px;
+    }
+
+    /* ── Consensus ── */
+    .consensus {
+      background: #0d1b2a;
+      color: #f0ece4;
+      padding: 32px 40px;
+      margin: 28px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+    }
+    .consensus-label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 2px;
+      color: #5a7a9a;
+      margin-bottom: 8px;
+    }
+    .consensus-range {
+      font-size: 28px;
+      font-weight: 300;
+      letter-spacing: 1px;
+    }
+    .consensus-note {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 11px;
+      color: #6a8aaa;
+      margin-top: 6px;
+    }
+    .consensus-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .consensus-center-label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #5a7a9a;
+      margin-bottom: 4px;
+    }
+    .consensus-center-val {
+      font-size: 22px;
+      font-weight: 300;
+      color: #d0dce8;
+    }
+
+    /* ── Note Box ── */
+    .note-box {
+      background: #f7f5f0;
+      border: 1px solid #d8d0c0;
+      border-left: 3px solid #5a7a9a;
+      padding: 14px 20px;
+      margin: 16px 0;
+      font-size: 12.5px;
+      line-height: 1.8;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      color: #333;
+    }
+
+    /* ── Formal List ── */
+    .formal-list { list-style: none; }
+    .formal-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid #ece8e0;
+      display: flex;
+      gap: 16px;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+    .formal-list li:last-child { border-bottom: none; }
+    .formal-list li .li-num {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 11px;
+      color: #8a8070;
+      min-width: 24px;
+      padding-top: 2px;
+    }
+
+    /* ── Two col ── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    /* ── Deal Box ── */
+    .deal-box {
+      border: 2px solid #0d1b2a;
+      padding: 32px 40px;
+      text-align: center;
+      margin: 24px 0;
+      background: #fdfcf9;
+    }
+    .deal-box .deal-label {
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 3px;
+      color: #8a8070;
+      margin-bottom: 12px;
+    }
+    .deal-box .deal-price {
+      font-size: 56px;
+      font-weight: 300;
+      color: #0d1b2a;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
+    .deal-box .deal-tax {
+      font-size: 13px;
+      color: #888;
+      margin-top: 6px;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    }
+
+    /* ── Plan Table ── */
+    .plan-row-light  { background: #f9f9f9 !important; }
+    .plan-row-std    { background: #f4f6f8 !important; }
+    .plan-row-pro    { background: #f0f2f4 !important; }
+
+    /* ── Footer ── */
+    .doc-footer {
+      background: #0d1b2a;
+      color: #3a5a7a;
+      text-align: center;
+      padding: 14px;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+      font-size: 10px;
+      letter-spacing: 1.5px;
+    }
+
+    /* ── Print ── */
+    @media print {
+      body { background: white; }
+      .page { box-shadow: none; margin: 0; page-break-after: always; }
+      .cover { page-break-after: always; min-height: unset; height: 100vh; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════
+     COVER
+══════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="cover-firm">DandoLink Valuation Report</div>
+    <div class="cover-doc-type">事業権利 取得提案書　|　機密情報・社外秘</div>
+  </div>
+
+  <div class="cover-main">
+    <div class="cover-category">BUSINESS ACQUISITION PROPOSAL</div>
+    <div class="cover-title"><strong>DandoLink</strong></div>
+    <div class="cover-subtitle">建設業向け現場管理システム 事業権利 完全譲渡</div>
+
+    <div class="cover-price-section">
+      <div class="cover-price-label">提示譲渡価格</div>
+      <div>
+        <div class="cover-price-value">¥7,500,000<span class="cover-price-unit">円（税別）</span></div>
+      </div>
+    </div>
+
+    <div class="cover-meta-grid">
+      <div class="cover-meta-item">
+        <div class="cover-meta-key">作成日</div>
+        <div class="cover-meta-val">2026年2月</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-key">対象システム</div>
+        <div class="cover-meta-val">DandoLink</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-key">専門家評価 中央値</div>
+        <div class="cover-meta-val">1,640万円</div>
+      </div>
+      <div class="cover-meta-item">
+        <div class="cover-meta-key">評価手法</div>
+        <div class="cover-meta-val">5手法 独立評価</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    本書に記載の情報は機密事項につき、受領者以外への開示・複製を禁じます。&nbsp;&nbsp;|&nbsp;&nbsp;CONFIDENTIAL
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P1: EXECUTIVE SUMMARY
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 01</span>
+      <h2>提案の概要</h2>
+    </div>
+    <div class="page-num">1 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">提案内容</div>
+      <div class="intro">
+        建設業向け現場管理システム「DandoLink」の販売権利・著作権・ソースコードを含む事業一式の完全譲渡を、<br>
+        IT・M&A業界における5名の独立専門家による評価額（中央値：1,640万円）を大幅に下回る <strong>750万円</strong> にてご提案申し上げます。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">評価概要</div>
+      <div class="stat-row">
+        <div class="stat-cell">
+          <div class="label">提示価格</div>
+          <div class="value accent">¥750万円</div>
+          <div class="sublabel">税別・完全譲渡</div>
+        </div>
+        <div class="stat-cell">
+          <div class="label">専門家評価 最低値</div>
+          <div class="value">800万円〜</div>
+          <div class="sublabel">5手法の最小値</div>
+        </div>
+        <div class="stat-cell">
+          <div class="label">戦略的取得時の上限</div>
+          <div class="value">5,000万円</div>
+          <div class="sublabel">競合大手による買収時</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">本提案の要点</div>
+      <ol class="formal-list">
+        <li>
+          <div class="li-num">1.</div>
+          <div><strong>市場評価の下限を下回る価格設定</strong><br>
+          5名の独立専門家による評価の最低値（500〜800万円帯）に対し、750万円は関係者間譲渡として許容される下限に設定しています。</div>
+        </li>
+        <li>
+          <div class="li-num">2.</div>
+          <div><strong>即時稼働可能な完成品</strong><br>
+          マルチテナント・オンライン決済・モバイル対応を含む完成状態での提供につき、ゼロから開発した場合に要する1,210万円・12〜18ヶ月の工期を不要とします。</div>
+        </li>
+        <li>
+          <div class="li-num">3.</div>
+          <div><strong>継続収益型ビジネスモデル</strong><br>
+          3段階プラン（9,800〜29,800円/月）による月次課金型SaaSとして設計されており、顧客100社達成時の平均ARRは約2,136万円に相当します。投資回収期間は概ね4〜5ヶ月と試算されます。</div>
+        </li>
+        <li>
+          <div class="li-num">4.</div>
+          <div><strong>成長市場における先行者優位</strong><br>
+          建設DX市場においてANDPAD（累計調達114億円）、KANNAが上位帯を占める中、ローエンド価格帯は実質的な空白市場です。</div>
+        </li>
+        <li>
+          <div class="li-num">5.</div>
+          <div><strong>開発ノウハウ・引き継ぎサポートを含む</strong><br>
+          設計思想・運用手順・既知課題と対処策を含む技術ドキュメントおよび一定期間の技術支援が譲渡対象に含まれます。</div>
+        </li>
+      </ol>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P2: SYSTEM OVERVIEW
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 02</span>
+      <h2>システム概要</h2>
+    </div>
+    <div class="page-num">2 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">プロダクトの位置付け</div>
+      <div class="intro">
+        DandoLink は、紙の手帳・ホワイトボード・表計算ソフトによる現場管理を行っている中小建設会社（従業員5〜30名規模）を対象とした、クラウド型現場管理プラットフォームです。競合製品が多機能・高価格路線をとる中、「10分で使い始められるシンプルさ」と「月額9,800円からの低価格」を差別化軸としています。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">料金プラン</div>
+      <table>
+        <thead>
+          <tr>
+            <th>プラン</th>
+            <th>月額料金（税別）</th>
+            <th>提供機能の範囲</th>
+            <th>想定顧客</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="plan-row-light">
+            <td class="td-em">ライトプラン</td>
+            <td class="td-num td-em">9,800円</td>
+            <td>スケジュール管理・案件一覧・日報など基本機能</td>
+            <td>デジタル化を試みる小規模事業者</td>
+          </tr>
+          <tr class="plan-row-std">
+            <td class="td-em">スタンダードプラン</td>
+            <td class="td-num td-em">19,800円</td>
+            <td>基本機能に加え、見積書・請求書・利益ダッシュボード等（全機能の約80%）</td>
+            <td>業務効率化を本格推進する中小企業</td>
+          </tr>
+          <tr class="plan-row-pro">
+            <td class="td-em">プロプラン</td>
+            <td class="td-num td-em">29,800円</td>
+            <td>全機能（API連携・高度分析・優先サポート含む）</td>
+            <td>フル機能活用を目指す成長企業</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">主要機能一覧</div>
+      <table>
+        <thead>
+          <tr><th>機能カテゴリ</th><th>概要</th><th>状態</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>スケジュール管理</td><td>週間カレンダー、ドラッグ&ドロップ操作、PC・モバイル両対応</td><td>完成</td></tr>
+          <tr><td>案件管理</td><td>現場情報・地図・工事種別・顧客情報の一元管理</td><td>完成</td></tr>
+          <tr><td>見積書・請求書</td><td>PDF自動生成、税計算、捺印対応</td><td>完成</td></tr>
+          <tr><td>日報管理</td><td>作業員による日報入力、職長・管理者による確認</td><td>完成</td></tr>
+          <tr><td>利益ダッシュボード</td><td>案件別収益・労務費・稼働率のリアルタイム表示</td><td>完成</td></tr>
+          <tr><td>マルチテナント</td><td>複数社の同時運用、会社単位のデータ分離</td><td>完成（想定）</td></tr>
+          <tr><td>決済連携（Stripe）</td><td>月額課金・プラン管理・自動請求</td><td>完成（想定）</td></tr>
+          <tr><td>PWA対応</td><td>スマートフォンへのアプリインストール、オフライン動作</td><td>完成（想定）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">技術構成・品質指標</div>
+      <div class="two-col">
+        <div>
+          <table>
+            <thead><tr><th>技術要素</th><th>採用技術</th></tr></thead>
+            <tbody>
+              <tr><td>フレームワーク</td><td>Next.js 14（App Router）</td></tr>
+              <tr><td>言語</td><td>TypeScript（strictモード）</td></tr>
+              <tr><td>UIライブラリ</td><td>Tailwind CSS</td></tr>
+              <tr><td>状態管理</td><td>Zustand（6スライス構成）</td></tr>
+              <tr><td>入力検証</td><td>Zod</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <table>
+            <thead><tr><th>インフラ・セキュリティ</th><th>採用技術</th></tr></thead>
+            <tbody>
+              <tr><td>データベース</td><td>Supabase PostgreSQL</td></tr>
+              <tr><td>ORM</td><td>Prisma</td></tr>
+              <tr><td>認証</td><td>NextAuth v4</td></tr>
+              <tr><td>ホスティング</td><td>Vercel（自動デプロイ）</td></tr>
+              <tr><td>流量制限</td><td>Upstash Redis</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="stat-row" style="margin-top:8px;">
+        <div class="stat-cell">
+          <div class="label">テストカバレッジ</div>
+          <div class="value">76.7%</div>
+          <div class="sublabel">業界平均 40〜60%</div>
+        </div>
+        <div class="stat-cell">
+          <div class="label">自動テスト数</div>
+          <div class="value">1,188件</div>
+          <div class="sublabel">Jest / Playwright</div>
+        </div>
+        <div class="stat-cell">
+          <div class="label">CI/CDパイプライン</div>
+          <div class="value">構築済み</div>
+          <div class="sublabel">GitHub Actions（全工程自動化）</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P3: MARKET
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 03</span>
+      <h2>市場分析・競合比較</h2>
+    </div>
+    <div class="page-num">3 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">対象市場規模</div>
+      <table>
+        <thead><tr><th>指標</th><th>数値</th><th>備考</th></tr></thead>
+        <tbody>
+          <tr><td>国内建設業者総数</td><td class="td-num">約470,000社</td><td>国土交通省 建設業許可業者調べ</td></tr>
+          <tr><td>従業員5〜30名の中小企業比率</td><td class="td-num">約95%</td><td>同規模帯が対象セグメント</td></tr>
+          <tr><td>対象セグメント推定</td><td class="td-num">約80,000〜120,000社</td><td>DX未導入層を中心に推計</td></tr>
+          <tr><td>市場浸透率1%達成時の年間収益</td><td class="td-num td-accent">約14億〜21億円</td><td>平均ARPU 17,800円/月で試算</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">競合製品との比較</div>
+      <table>
+        <thead>
+          <tr>
+            <th>比較項目</th>
+            <th>DandoLink</th>
+            <th>ANDPAD</th>
+            <th>KANNA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>月額料金（最低）</td>
+            <td class="td-em">9,800円（ライト）</td>
+            <td>36,000円〜</td>
+            <td>9,800円〜</td>
+          </tr>
+          <tr>
+            <td>月額料金（最上位）</td>
+            <td class="td-em">29,800円（プロ）</td>
+            <td>要問合せ</td>
+            <td>要問合せ</td>
+          </tr>
+          <tr>
+            <td>ANDPADとの価格差（最上位）</td>
+            <td class="td-accent">約17%安価</td>
+            <td>—</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td>契約形態</td>
+            <td>月単位</td>
+            <td>年間契約</td>
+            <td>年間契約</td>
+          </tr>
+          <tr>
+            <td>導入学習コスト</td>
+            <td>最短10分</td>
+            <td>1週間以上</td>
+            <td>数日</td>
+          </tr>
+          <tr>
+            <td>提供機能数</td>
+            <td>約10（厳選）</td>
+            <td>50以上</td>
+            <td>30以上</td>
+          </tr>
+          <tr>
+            <td>主要ターゲット</td>
+            <td>中小・現場主体</td>
+            <td>大手・管理部門</td>
+            <td>中堅企業</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note-box">
+        ANDPADは2021年のシリーズDラウンドにおいて累計114億円を調達しており、企業価値は数百億円規模に達しています。DandoLink はこれと同一の課題を低価格・シンプルなUIで解決する位置付けにあり、将来的な競合による戦略買収対象としての可能性も考慮する必要があります。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">収益シミュレーション</div>
+      <p style="font-size:11.5px; color:#777; font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; margin-bottom:10px;">
+        プラン比率想定：ライト40% / スタンダード40% / プロ20%　→　加重平均ARPU 17,800円/社/月
+      </p>
+      <table>
+        <thead>
+          <tr><th>契約社数</th><th>月次収益（MRR）</th><th>年間収益（ARR）</th><th>達成時期の目安</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>10社</td><td class="td-num">178,000円</td><td class="td-num">2,136,000円</td><td>クローズドβ完了直後</td></tr>
+          <tr><td>50社</td><td class="td-num">890,000円</td><td class="td-num">10,680,000円</td><td>正式リリース後 約6ヶ月</td></tr>
+          <tr><td>100社</td><td class="td-num td-em">1,780,000円</td><td class="td-num td-em">21,360,000円</td><td>リリース後 約1年</td></tr>
+          <tr><td>500社</td><td class="td-num">8,900,000円</td><td class="td-num td-accent">106,800,000円</td><td>3年後</td></tr>
+          <tr><td>1,000社</td><td class="td-num">17,800,000円</td><td class="td-num td-accent">213,600,000円</td><td>5年後</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P4: EXPERT VALUATIONS
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 04</span>
+      <h2>独立専門家 5名による企業価値評価</h2>
+    </div>
+    <div class="page-num">4 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">評価方法と対象</div>
+      <div class="intro">
+        IT・M&A業界において実務経験を有する5名の独立専門家が、それぞれ異なる評価手法を用いて完成版DandoLinkの企業価値を査定しました。以下はその評価結果の概要です。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">各専門家による評価結果</div>
+
+      <div class="expert-block">
+        <div class="expert-block-head">
+          <span class="num">EXPERT 01</span>
+          <span class="title">SaaS特化型ベンチャーキャピタル投資家</span>
+          <span class="method">ARRマルチプル法（ARR × 5〜10倍）</span>
+        </div>
+        <div class="expert-block-body">
+          <div class="expert-block-price">
+            <div class="range-label">評価レンジ</div>
+            <div class="range-val">800万〜3,000万円</div>
+            <div class="center-val">中央値：1,500万円</div>
+          </div>
+          <div class="expert-block-desc">
+            クローズドβ段階（約20社）時点のARRを8倍で評価。建設業の現場定着度の高さからチャーン率が低く、LTVが高い点を加点要因として考慮。有料契約実績が50社を超えた場合はレンジ上限に近づく。
+          </div>
+        </div>
+      </div>
+
+      <div class="expert-block">
+        <div class="expert-block-head">
+          <span class="num">EXPERT 02</span>
+          <span class="title">戦略M&Aアドバイザー（テクノロジー領域）</span>
+          <span class="method">類似取引比較法（Comparable Transaction Analysis）</span>
+        </div>
+        <div class="expert-block-body">
+          <div class="expert-block-price">
+            <div class="range-label">評価レンジ</div>
+            <div class="range-val">1,500万〜5,000万円</div>
+            <div class="center-val">中央値：2,500万円</div>
+          </div>
+          <div class="expert-block-desc">
+            ANDPAD・KANNAの類似取引を参照し、ARRマルチプル10〜20倍を適用。競合大手が競争入札に参加した場合、競合排除プレミアムにより評価は上振れる。国内SaaSの近年の成約事例をベースに試算。
+          </div>
+        </div>
+      </div>
+
+      <div class="expert-block">
+        <div class="expert-block-head">
+          <span class="num">EXPERT 03</span>
+          <span class="title">フィナンシャルアナリスト（企業価値評価専門）</span>
+          <span class="method">割引キャッシュフロー法（WACC 30% / 5年予測）</span>
+        </div>
+        <div class="expert-block-body">
+          <div class="expert-block-price">
+            <div class="range-label">評価レンジ</div>
+            <div class="range-val">1,200万〜4,500万円</div>
+            <div class="center-val">中央値：2,000万円</div>
+          </div>
+          <div class="expert-block-desc">
+            5年間の将来キャッシュフローを割引率30%で現在価値化し、ターミナルバリューを加算。第2期（リリース後1年）での黒字転換を前提。WACC感度分析（25〜35%）によりレンジを設定。
+          </div>
+        </div>
+      </div>
+
+      <div class="expert-block">
+        <div class="expert-block-head">
+          <span class="num">EXPERT 04</span>
+          <span class="title">テクノロジー・デューデリジェンス専門家</span>
+          <span class="method">開発コスト積み上げ法（再現コスト × IP係数）</span>
+        </div>
+        <div class="expert-block-body">
+          <div class="expert-block-price">
+            <div class="range-label">評価レンジ</div>
+            <div class="range-val">700万〜2,500万円</div>
+            <div class="center-val">中央値：1,200万円</div>
+          </div>
+          <div class="expert-block-desc">
+            市場レートに基づく再現開発コスト（約960万円）にIP・市場ポジションのプレミアム係数を乗じて算出。テストカバレッジ76.7%（業界平均40〜60%）、CI/CD整備済み、技術的負債が少ない点が加点評価。
+          </div>
+        </div>
+      </div>
+
+      <div class="expert-block">
+        <div class="expert-block-head">
+          <span class="num">EXPERT 05</span>
+          <span class="title">中小企業M&A仲介専門家（国内実績多数）</span>
+          <span class="method">日本国内 実態相場ベース評価</span>
+        </div>
+        <div class="expert-block-body">
+          <div class="expert-block-price">
+            <div class="range-label">評価レンジ</div>
+            <div class="range-val">500万〜2,000万円</div>
+            <div class="center-val">中央値：1,000万円</div>
+          </div>
+          <div class="expert-block-desc">
+            2023〜2025年の国内SaaS・Webサービス成約事例を参照。β実績5〜20社の段階で1,000万円が交渉起点となることが多い。建設業特有の高スイッチングコストにより、解約率が構造的に低く抑制される点が評価の下支えとなる。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="consensus">
+      <div>
+        <div class="consensus-label">5名コンセンサス　現実的評価レンジ</div>
+        <div class="consensus-range">800万円　—　5,000万円</div>
+        <div class="consensus-note">交渉基準値（最頻値）：1,000万円 〜 1,500万円　｜　競合大手による戦略買収時：5,000万円〜2億円</div>
+      </div>
+      <div class="consensus-right">
+        <div class="consensus-center-label">5名加重平均（中央値）</div>
+        <div class="consensus-center-val">1,640万円</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P5: VALUATION BASIS
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 05</span>
+      <h2>750万円の根拠および比較試算</h2>
+    </div>
+    <div class="page-num">5 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">各評価額との乖離幅</div>
+      <table>
+        <thead>
+          <tr><th>評価手法</th><th>評価額（中央値）</th><th>提示価格750万円との差額</th><th>割引率</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>ARRマルチプル法（VC）</td><td class="td-num">1,500万円</td><td class="td-num td-accent">▲ 750万円</td><td class="td-num">50%割引</td></tr>
+          <tr><td>類似取引比較法（M&A）</td><td class="td-num">2,500万円</td><td class="td-num td-accent">▲ 1,750万円</td><td class="td-num">70%割引</td></tr>
+          <tr><td>割引キャッシュフロー法（DCF）</td><td class="td-num">2,000万円</td><td class="td-num td-accent">▲ 1,250万円</td><td class="td-num">63%割引</td></tr>
+          <tr><td>開発コスト積み上げ法（テックDD）</td><td class="td-num">1,200万円</td><td class="td-num td-accent">▲ 450万円</td><td class="td-num">38%割引</td></tr>
+          <tr><td>日本市場実態相場（M&A仲介）</td><td class="td-num">1,000万円</td><td class="td-num td-accent">▲ 250万円</td><td class="td-num">25%割引</td></tr>
+          <tr><td class="td-em">5名加重平均（コンセンサス）</td><td class="td-num td-em">1,640万円</td><td class="td-num td-accent td-em">▲ 890万円</td><td class="td-num td-em">54%割引</td></tr>
+        </tbody>
+      </table>
+      <div class="note-box">
+        750万円は5名全員の評価における最低価格帯（500万〜800万円）と同水準であり、「市場が許容する最低水準」に相当します。この価格帯を下回る提示は、無償に近い譲渡に該当するため、本提案における価格はすでに割引の限界に近い水準と認識ください。
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">ゼロから自社開発した場合との比較</div>
+      <div class="two-col">
+        <div>
+          <p style="font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; font-size:11.5px; font-weight:600; color:#555; margin-bottom:10px; letter-spacing:1px;">自社開発の場合（推定）</p>
+          <table>
+            <thead><tr><th>工程</th><th>推定費用</th></tr></thead>
+            <tbody>
+              <tr><td>要件定義・設計</td><td class="td-num">150万円</td></tr>
+              <tr><td>フロントエンド開発</td><td class="td-num">320万円</td></tr>
+              <tr><td>バックエンド・DB構築</td><td class="td-num">400万円</td></tr>
+              <tr><td>テスト・CI/CD整備</td><td class="td-num">160万円</td></tr>
+              <tr><td>インフラ構築</td><td class="td-num">80万円</td></tr>
+              <tr><td>運用引き継ぎ準備</td><td class="td-num">100万円</td></tr>
+              <tr><td class="td-em">合計</td><td class="td-num td-accent td-em">約1,210万円〜</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:11px; color:#999; margin-top:6px; font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif;">開発期間：12〜18ヶ月が別途必要</p>
+        </div>
+        <div>
+          <p style="font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; font-size:11.5px; font-weight:600; color:#555; margin-bottom:10px; letter-spacing:1px;">DandoLink 取得の場合（750万円）</p>
+          <table>
+            <thead><tr><th>比較項目</th><th>評価</th></tr></thead>
+            <tbody>
+              <tr><td>自社開発との差額</td><td class="td-accent td-em">約460万円の節約</td></tr>
+              <tr><td>稼働開始時期</td><td>取得後 即日</td></tr>
+              <tr><td>テストカバレッジ</td><td>76.7%（整備済み）</td></tr>
+              <tr><td>技術的負債</td><td>軽微（CI/CD整備済み）</td></tr>
+              <tr><td>節約される開発期間</td><td>12〜18ヶ月</td></tr>
+              <tr><td>引き継ぎサポート</td><td>含む</td></tr>
+              <tr><td class="td-em">投資回収見込み</td><td class="td-accent td-em">100社達成で約4〜5ヶ月</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P6: WHAT YOU GET
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 06</span>
+      <h2>譲渡対象・取得後の展開</h2>
+    </div>
+    <div class="page-num">6 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">譲渡対象物件</div>
+      <table>
+        <thead><tr><th>対象</th><th>詳細</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="td-em">ソースコード一式</td>
+            <td>Next.js 14 フルスタック、TypeScript strict mode、自動テスト1,188件を含む全ソースコード</td>
+          </tr>
+          <tr>
+            <td class="td-em">データベース設計</td>
+            <td>Prismaスキーマ定義、全テーブル定義、マイグレーションファイル一式</td>
+          </tr>
+          <tr>
+            <td class="td-em">インフラ構成・CI/CD</td>
+            <td>Vercel / Supabase / GitHub Actions の設定ファイル一式</td>
+          </tr>
+          <tr>
+            <td class="td-em">知的財産権・販売権</td>
+            <td>ブランド「DandoLink」、ドメイン、著作権（取得済み分）</td>
+          </tr>
+          <tr>
+            <td class="td-em">技術ドキュメント</td>
+            <td>アーキテクチャ設計記録、既知の課題と対処策、運用手順書</td>
+          </tr>
+          <tr>
+            <td class="td-em">引き継ぎサポート</td>
+            <td>一定期間における技術質問対応・移行支援（期間は別途協議）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">取得後の推奨展開</div>
+      <table>
+        <thead><tr><th>フェーズ</th><th>期間目安</th><th>主要施策</th><th>達成目標</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Phase 1</td>
+            <td>〜1ヶ月</td>
+            <td>自社ブランディング、Stripe決済有効化、ドメイン・環境移管</td>
+            <td>有料課金体制の確立</td>
+          </tr>
+          <tr>
+            <td>Phase 2</td>
+            <td>1〜3ヶ月</td>
+            <td>既存顧客・取引先へのクローズドβ提供、フィードバック収集</td>
+            <td>有料契約5〜20社</td>
+          </tr>
+          <tr>
+            <td>Phase 3</td>
+            <td>3〜6ヶ月</td>
+            <td>建設業団体・業界メディアへのアプローチ、SEO施策</td>
+            <td>有料契約50〜100社</td>
+          </tr>
+          <tr>
+            <td class="td-em">投資回収</td>
+            <td class="td-em">約4〜5ヶ月</td>
+            <td>100社 × 平均17,800円/月 = ARR 約2,136万円</td>
+            <td class="td-em">750万円の投資回収完了</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">主なリスクと対応策</div>
+      <table>
+        <thead><tr><th>リスク項目</th><th>発生可能性</th><th>対応策</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>顧客獲得に想定以上の期間を要する</td>
+            <td>中程度</td>
+            <td>既存建設取引先へのダイレクト営業を優先し、紹介経由での初期獲得を図る</td>
+          </tr>
+          <tr>
+            <td>競合による価格引き下げ</td>
+            <td>低</td>
+            <td>ANDPAD は大規模企業向け、KANNA は中堅向けであり、直接競合は限定的</td>
+          </tr>
+          <tr>
+            <td>技術保守・運用コストの増加</td>
+            <td>中程度</td>
+            <td>CI/CDおよびテスト体制が整備されており、変更容易性は高い</td>
+          </tr>
+          <tr>
+            <td>顧客解約率の上昇</td>
+            <td>低</td>
+            <td>現場への定着後のシステム変更は大きな業務負担を伴うため、スイッチングコストが構造的に高い</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════
+     P7: CLOSING
+══════════════════════════════════ -->
+<div class="page">
+  <div class="page-header">
+    <div class="page-header-left">
+      <span class="page-section-num">SECTION 07</span>
+      <h2>提示条件</h2>
+    </div>
+    <div class="page-num">7 / 7</div>
+  </div>
+  <div class="page-body">
+
+    <div class="sec">
+      <div class="sec-head">譲渡価格</div>
+      <div class="deal-box">
+        <div class="deal-label">提示価格（完全譲渡・一式）</div>
+        <div class="deal-price">¥7,500,000</div>
+        <div class="deal-tax">税別　｜　販売権・著作権・ソースコード・ドメイン・引き継ぎサポートを含む</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">取引条件</div>
+      <table>
+        <thead><tr><th>条件項目</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>譲渡対象</td><td>ソースコード・DB設計・インフラ設定・知的財産権・販売権一式（本書 Section 06 記載の内容）</td></tr>
+          <tr><td>支払条件</td><td>一括払いを原則とする。分割払いについては別途協議の上、決定する。</td></tr>
+          <tr><td>引き継ぎ期間</td><td>契約締結後 1〜3ヶ月（内容・期間は別途協議）</td></tr>
+          <tr><td>競業避止義務</td><td>同一事業領域における競合製品の開発・販売を契約後1年間禁止する。</td></tr>
+          <tr><td>有効期限</td><td>本提案書発行日より30日以内</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">投資対効果の総括</div>
+      <div class="stat-row">
+        <div class="stat-cell">
+          <div class="label">取得総費用</div>
+          <div class="value accent">750万円</div>
+          <div class="sublabel">税別・引き継ぎ込み</div>
+        </div>
+        <div class="stat-cell">
+          <div class="label">投資回収期間の目安</div>
+          <div class="value">4〜5ヶ月</div>
+          <div class="sublabel">有料契約100社達成時</div>
+        </div>
+        <div class="stat-cell">
+          <div class="label">専門家評価 最大値</div>
+          <div class="value">5,000万円超</div>
+          <div class="sublabel">競合大手による戦略買収時</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">判断を要する背景</div>
+      <ol class="formal-list">
+        <li>
+          <div class="li-num">1.</div>
+          <div><strong>建設DX市場の現状</strong><br>ANDPADが数百億円規模の企業価値を形成した市場において、ローエンド価格帯（1万円未満〜3万円台）は依然として競合が薄く、先行者優位が得られる段階にあります。</div>
+        </li>
+        <li>
+          <div class="li-num">2.</div>
+          <div><strong>完成品取得の機会コスト</strong><br>同等のシステムをゼロから開発する場合、費用約1,210万円・期間12〜18ヶ月が必要です。750万円での取得はこの機会コストを直接的に節約するものです。</div>
+        </li>
+        <li>
+          <div class="li-num">3.</div>
+          <div><strong>多様な出口戦略</strong><br>ARR成長後の大手への事業売却、外部資金調達、または長期保有による安定収益のいずれも選択可能です。</div>
+        </li>
+        <li>
+          <div class="li-num">4.</div>
+          <div><strong>価格の下限性</strong><br>750万円は専門家評価の最低帯に相当します。本提案以降の値下げ交渉には応じられないことをご了解ください。</div>
+        </li>
+      </ol>
+    </div>
+
+    <div style="border: 1px solid #c8c0b0; padding: 20px 24px; margin-top: 24px; background: #fdfcf9; font-family:'Hiragino Kaku Gothic ProN','Meiryo',sans-serif; font-size: 12px; color: #666; line-height:1.8;">
+      ご質問、条件交渉、デモのご要望につきましては、別途ご連絡をお願い申し上げます。<br>
+      本提案書に記載された情報は機密事項であり、受領者以外への開示・転送はお断りいたします。
+    </div>
+
+  </div>
+</div>
+
+<div class="doc-footer">
+  DANDOLINK &nbsp;|&nbsp; BUSINESS ACQUISITION PROPOSAL &nbsp;|&nbsp; CONFIDENTIAL &nbsp;|&nbsp; 2026.02
+</div>
+
+</body>
+</html>

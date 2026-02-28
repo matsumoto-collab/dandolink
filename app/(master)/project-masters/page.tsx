@@ -15,7 +15,7 @@ import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
-    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 
 export default function ProjectMasterListPage() {
@@ -191,8 +191,10 @@ export default function ProjectMasterListPage() {
     const handleCreateEstimate = useCallback(() => {
         if (detailPm) {
             setEstimateInitialData({
+                projectId: detailPm.id,
                 title: `${detailPm.title} 見積書`,
             });
+            setDetailPm(null); // 詳細モーダルを閉じる
             setIsEstimateModalOpen(true);
         }
     }, [detailPm]);
