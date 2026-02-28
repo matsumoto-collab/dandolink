@@ -13,6 +13,7 @@ import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
 import dynamic from 'next/dynamic';
+import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -132,6 +133,8 @@ export default function EstimateDetailPage() {
                         <button
                             onClick={() => router.push('/estimates')}
                             className="text-slate-600 hover:text-slate-800 transition-colors"
+                            title="見積書一覧に戻る"
+                            aria-label="見積書一覧に戻る"
                         >
                             <ArrowLeft size={24} />
                         </button>
@@ -218,11 +221,7 @@ export default function EstimateDetailPage() {
             <div className="flex-1 overflow-hidden">
                 {activeTab === 'estimate' ? (
                     pdfUrl && pdfUrl !== 'error' ? (
-                        <iframe
-                            src={pdfUrl}
-                            className="w-full h-full border-0"
-                            title="見積書プレビュー"
-                        />
+                        <InlinePdfViewer url={pdfUrl} />
                     ) : pdfUrl === 'error' ? (
                         <div className="flex items-center justify-center h-full">
                             <div className="text-center text-slate-500">
