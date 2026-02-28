@@ -133,14 +133,6 @@ export default function ProjectListPage() {
         setEditingProject(null);
     };
 
-    if (isLoading && projects.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
-            </div>
-        );
-    }
-
     return (
         <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
@@ -198,7 +190,11 @@ export default function ProjectListPage() {
 
             {/* モバイルカードビュー */}
             <div className="md:hidden flex-1 overflow-auto">
-                {filteredAndSortedProjects.length === 0 ? (
+                {isLoading && projects.length === 0 ? (
+                    <div className="flex items-center justify-center py-12">
+                        <Loader2 className="w-8 h-8 animate-spin text-slate-500" />
+                    </div>
+                ) : filteredAndSortedProjects.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 rounded-lg">
                         <p className="text-slate-500">
                             {searchTerm ? '検索結果が見つかりませんでした' : '案件が登録されていません'}
@@ -308,7 +304,13 @@ export default function ProjectListPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                        {filteredAndSortedProjects.length === 0 ? (
+                        {isLoading && projects.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-12 text-center">
+                                    <Loader2 className="w-8 h-8 animate-spin text-slate-500 mx-auto" />
+                                </td>
+                            </tr>
+                        ) : filteredAndSortedProjects.length === 0 ? (
                             <tr>
                                 <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm ? '検索結果が見つかりませんでした' : '案件が登録されていません'}
