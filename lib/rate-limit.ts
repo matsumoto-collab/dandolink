@@ -67,7 +67,7 @@ export interface RateLimitResult {
 
 // プリセット設定 (ミリ秒からUpstash用フォーマットへの変換は動的に行うか固定します)
 export const RATE_LIMITS = {
-    api: { limit: 100, windowMs: 60000 },        // 通常API: 100req/分
+    api: { limit: 300, windowMs: 60000 },        // 通常API: 300req/分
     auth: { limit: 10, windowMs: 60000 },        // 認証: 10req/分
     heavy: { limit: 20, windowMs: 60000 },       // 重い処理: 20req/分
 } as const;
