@@ -494,6 +494,7 @@ export default function EstimateListPage() {
                     estimate={selectedEstimate}
                     project={selectedEstimate ? projects.find(p => p.id === selectedEstimate.projectId) || null : null}
                     customerName={selectedEstimate?.customerId ? customers.find(c => c.id === selectedEstimate.customerId)?.name : undefined}
+                    customerHonorific={selectedEstimate?.customerId ? customers.find(c => c.id === selectedEstimate.customerId)?.honorific : undefined}
                     companyInfo={companyInfo}
                     onDelete={deleteEstimate}
                     onEdit={(estimate) => {

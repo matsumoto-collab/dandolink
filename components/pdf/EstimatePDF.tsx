@@ -382,7 +382,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             {/* Customer Name and Description */}
             <View style={styles.customerSection}>
                 <View style={styles.customerNameContainer}>
-                    <Text style={styles.customerName}>{project.customer || '御中'} 様</Text>
+                    <Text style={styles.customerName}>{project.customer || ''} {project.customerHonorific || '御中'}</Text>
                     <View style={styles.customerUnderline} />
                     <Text style={styles.descriptionText}>下記のとおり御見積申し上げます。</Text>
                 </View>

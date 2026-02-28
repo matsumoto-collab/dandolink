@@ -15,6 +15,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
     const [formData, setFormData] = useState<CustomerInput>({
         name: initialData?.name || '',
         shortName: initialData?.shortName || '',
+        honorific: initialData?.honorific || '御中',
         contactPersons: initialData?.contactPersons || [],
         email: initialData?.email || '',
         phone: initialData?.phone || '',
@@ -83,18 +84,33 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                 />
             </div>
 
-            {/* 略称 */}
-            <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    略称
-                </label>
-                <input
-                    type="text"
-                    value={formData.shortName}
-                    onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="例: ○○建設"
-                />
+            {/* 略称・敬称 */}
+            <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        略称
+                    </label>
+                    <input
+                        type="text"
+                        value={formData.shortName}
+                        onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="例: ○○建設"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        敬称
+                    </label>
+                    <select
+                        value={formData.honorific}
+                        onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                        <option value="御中">御中</option>
+                        <option value="様">様</option>
+                    </select>
+                </div>
             </div>
 
             {/* 担当者 */}

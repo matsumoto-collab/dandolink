@@ -11,6 +11,7 @@ export interface Customer {
     id: string;
     name: string;              // 会社名
     shortName?: string;        // 略称
+    honorific: string;         // 敬称（御中/様）
     contactPersons: ContactPerson[]; // 担当者（複数）
     email?: string;            // 代表メールアドレス
     phone?: string;            // 代表電話番号

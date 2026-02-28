@@ -332,7 +332,7 @@ function InvoicePage({
                 <View style={styles.customerSection}>
                     <Text style={styles.postalCode}>〒</Text>
                     <Text style={styles.addressText}>{project.location || ''}</Text>
-                    <Text style={styles.customerName}>{project.customer || ''} 御中</Text>
+                    <Text style={styles.customerName}>{project.customer || ''} {project.customerHonorific || '御中'}</Text>
 
                     {/* 挨拶文 */}
                     <View style={styles.greetingSection}>

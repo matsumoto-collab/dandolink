@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useInvoices } from '@/hooks/useInvoices';
 import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
+import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
@@ -22,11 +23,13 @@ export default function InvoiceListPage() {
     const { invoices, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projects } = useProjects();
     const { companyInfo } = useCompany();
+    const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
 
     // ページ表示時にデータを読み込み
     useEffect(() => {
         ensureDataLoaded();
-    }, [ensureDataLoaded]);
+        ensureCustomersLoaded();
+    }, [ensureDataLoaded, ensureCustomersLoaded]);
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -98,9 +101,12 @@ export default function InvoiceListPage() {
             toast.error('関連する案件が見つかりません');
             return;
         }
+        // 顧客の敬称を付与
+        const customer = project.customer ? customers.find(c => c.name === project.customer || c.shortName === project.customer) : undefined;
+        const projectWithHonorific = customer ? { ...project, customerHonorific: customer.honorific } : project;
         try {
             toast.loading('PDFを生成中...', { id: 'pdf-generating' });
-            await exportInvoicePDFReact(invoice, project, companyInfo);
+            await exportInvoicePDFReact(invoice, projectWithHonorific, companyInfo);
             toast.success('PDFをダウンロードしました', { id: 'pdf-generating' });
         } catch (error) {
             console.error('PDF generation error:', error);

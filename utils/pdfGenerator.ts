@@ -163,8 +163,8 @@ function generateCoverPage(
     // ========== 中央: 宛先 ==========
     let y = 55;
     doc.setFontSize(18);
-    const customerName = project.customer || '御中';
-    const customerText = `${customerName} 様`;
+    const customerName = project.customer || '';
+    const customerText = `${customerName} ${project.customerHonorific || '御中'}`;
     const customerWidth = doc.getTextWidth(customerText);
     doc.text(customerText, (pageWidth - customerWidth) / 2, y);
 
