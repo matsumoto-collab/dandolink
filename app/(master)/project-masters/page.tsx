@@ -232,14 +232,6 @@ export default function ProjectMasterListPage() {
         setOpenModalInEditMode(false);
     };
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <div className="animate-spin w-8 h-8 border-4 border-slate-500 border-t-transparent rounded-full"></div>
-            </div>
-        );
-    }
-
     return (
         <>
             <ProjectMasterCreateModal
@@ -310,7 +302,11 @@ export default function ProjectMasterListPage() {
 
                 {/* List */}
                 <div className="flex-1 overflow-y-auto space-y-3">
-                    {filteredMasters.length === 0 ? (
+                    {isLoading ? (
+                        <div className="flex items-center justify-center py-12">
+                            <div className="animate-spin w-8 h-8 border-4 border-slate-500 border-t-transparent rounded-full"></div>
+                        </div>
+                    ) : filteredMasters.length === 0 ? (
                         <div className="text-center py-12 text-slate-500">
                             <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-300" />
                             <p>案件マスターがありません</p>
