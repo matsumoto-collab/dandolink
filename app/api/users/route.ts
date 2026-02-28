@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
 
             // 一般ユーザーには基本情報のみを返す
             return baseData;
-        }));
+        }), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('ユーザー一覧の取得', error);
     }

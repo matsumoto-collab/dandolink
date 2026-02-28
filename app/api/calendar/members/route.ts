@@ -14,7 +14,7 @@ export async function GET() {
         });
 
         return NextResponse.json(users, {
-            headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=60' },
+            headers: { 'Cache-Control': 'no-store' },
         });
     } catch (error) {
         return serverErrorResponse('メンバー一覧取得', error);

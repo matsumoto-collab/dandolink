@@ -18,7 +18,7 @@ export async function GET() {
             orderBy: { displayName: 'asc' },
         });
 
-        return NextResponse.json(workers, { headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=60' } });
+        return NextResponse.json(workers, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('ワーカー一覧取得', error);
     }

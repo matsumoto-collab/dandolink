@@ -14,7 +14,7 @@ export async function GET() {
 
         return NextResponse.json(
             { vehicles, totalMembers: settings?.totalMembers || 20 },
-            { headers: { 'Cache-Control': 'private, max-age=300, stale-while-revalidate=60' } }
+            { headers: { 'Cache-Control': 'no-store' } }
         );
     } catch (error) {
         return serverErrorResponse('マスタデータ取得', error);

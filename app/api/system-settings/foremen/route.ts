@@ -10,7 +10,7 @@ export async function GET() {
         const settings = await prisma.systemSettings.findUnique({ where: { id: 'default' } });
         return NextResponse.json({
             displayedForemanIds: settings ? parseJsonField<string[]>(settings.displayedForemanIds, []) : [],
-        });
+        }, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('職長表示設定の取得', error);
     }

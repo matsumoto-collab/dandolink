@@ -139,7 +139,7 @@ export const useFinanceStore = create<FinanceStore>()(
 
             set({ companyLoading: true });
             try {
-                const response = await fetch('/api/master-data/company');
+                const response = await fetch('/api/master-data/company', { cache: 'no-store' });
                 if (response.ok) {
                     const data = await response.json();
                     set({
@@ -408,7 +408,7 @@ export const useFinanceStore = create<FinanceStore>()(
 
             set({ unitPricesLoading: true });
             try {
-                const response = await fetch('/api/master-data/unit-prices');
+                const response = await fetch('/api/master-data/unit-prices', { cache: 'no-store' });
                 if (response.ok) {
                     const data = await response.json();
                     set({
