@@ -8,7 +8,7 @@ import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 interface EstimateModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: EstimateInput) => void;
+    onSubmit: (data: EstimateInput) => Promise<void> | void;
     initialData?: Partial<EstimateInput>;
 }
 
@@ -17,9 +17,8 @@ export default function EstimateModal({ isOpen, onClose, onSubmit, initialData }
 
     if (!isOpen) return null;
 
-    const handleSubmit = (data: EstimateInput) => {
-        onSubmit(data);
-        onClose();
+    const handleSubmit = async (data: EstimateInput) => {
+        await onSubmit(data);
     };
 
     return (
