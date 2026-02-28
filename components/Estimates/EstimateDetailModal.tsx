@@ -19,6 +19,7 @@ interface EstimateDetailModalProps {
     onEdit: (estimate: Estimate) => void;
     onCreateProject?: () => void;
     customerName?: string;
+    customerHonorific?: string;
 }
 
 export default function EstimateDetailModal({
@@ -31,6 +32,7 @@ export default function EstimateDetailModal({
     onEdit,
     onCreateProject,
     customerName,
+    customerHonorific,
 }: EstimateDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
@@ -41,10 +43,10 @@ export default function EstimateDetailModal({
     const effectiveProject: Project = useMemo(() => {
         if (project) {
             // projectにcustomerがない場合、customerNameで補完
-            if (!project.customer && customerName) {
-                return { ...project, customer: customerName };
-            }
-            return project;
+            const patched = { ...project };
+            if (!patched.customer && customerName) patched.customer = customerName;
+            if (!patched.customerHonorific && customerHonorific) patched.customerHonorific = customerHonorific;
+            return patched;
         }
         return {
             id: estimate?.id || '',
@@ -53,11 +55,12 @@ export default function EstimateDetailModal({
             category: 'construction' as const,
             color: '#3B82F6',
             customer: customerName || '',
+            customerHonorific: customerHonorific || '御中',
             location: '',
             createdAt: estimate?.createdAt || new Date(),
             updatedAt: estimate?.updatedAt || new Date(),
         };
-    }, [project, estimate?.id, estimate?.title, estimate?.createdAt, estimate?.updatedAt, customerName]);
+    }, [project, estimate?.id, estimate?.title, estimate?.createdAt, estimate?.updatedAt, customerName, customerHonorific]);
 
     useEffect(() => {
         let currentUrl = '';

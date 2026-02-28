@@ -12,6 +12,7 @@ export interface CalendarEvent {
     description?: string;
     location?: string;
     customer?: string;
+    customerHonorific?: string;
     memberCount?: number;
     estimatedHours?: number;
     workers?: string[];

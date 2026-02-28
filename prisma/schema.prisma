@@ -138,6 +138,7 @@ model Customer {
   id             String   @id @default(uuid())
   name           String
   shortName      String?
+  honorific      String   @default("御中")
   contactPersons String?
   email          String?
   phone          String?

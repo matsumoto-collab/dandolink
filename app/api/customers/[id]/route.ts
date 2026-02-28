@@ -47,11 +47,12 @@ export async function PATCH(
         }
 
         // 更新データを構築
-        const { name, shortName, contactPersons, email, phone, fax, address, notes } = validation.data;
+        const { name, shortName, honorific, contactPersons, email, phone, fax, address, notes } = validation.data;
         const updateData: Record<string, unknown> = {};
 
         if (name !== undefined) updateData.name = name;
         if (shortName !== undefined) updateData.shortName = shortName || null;
+        if (honorific !== undefined) updateData.honorific = honorific;
         if (contactPersons !== undefined) updateData.contactPersons = stringifyJsonField(contactPersons);
         if (email !== undefined) updateData.email = email || null;
         if (phone !== undefined) updateData.phone = phone || null;
