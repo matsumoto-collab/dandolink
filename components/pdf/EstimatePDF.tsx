@@ -9,12 +9,12 @@ import {
     StyleSheet,
     Image,
 } from '@react-pdf/renderer';
-import { Estimate, EstimateCategory } from '@/types/estimate';
+import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 import { toReiwa } from './styles';
 
-// ===== Styles =====
+// Styles
 const styles = StyleSheet.create({
     page: {
         fontFamily: 'NotoSansJP',
@@ -24,11 +24,30 @@ const styles = StyleSheet.create({
         paddingHorizontal: 40,
         backgroundColor: '#ffffff',
     },
-    // ===== Cover Page Header =====
+    // ===== Cover Page =====
     coverHeader: {
         position: 'relative',
         height: 50,
         marginBottom: 30,
+    },
+    siteNameSection: {
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    siteNameLabel: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        marginRight: 15,
+    },
+    siteNameValue: {
+        fontSize: 12,
+        paddingBottom: 2,
+        borderBottomWidth: 1,
+        borderBottomColor: '#000',
+        minWidth: 150,
     },
     titleBoxContainer: {
         position: 'absolute',
@@ -56,7 +75,6 @@ const styles = StyleSheet.create({
     dateText: {
         fontSize: 11,
     },
-    // ===== Customer Section =====
     customerSection: {
         marginTop: 40,
         marginBottom: 10,
@@ -80,7 +98,6 @@ const styles = StyleSheet.create({
         marginTop: 8,
         alignSelf: 'flex-start',
     },
-    // ===== Amount Section =====
     amountSection: {
         marginTop: 30,
         marginBottom: 20,
@@ -125,7 +142,7 @@ const styles = StyleSheet.create({
     },
     amountDetailLabel: {
         fontSize: 12,
-        width: 80,
+        width: 60,
         textAlign: 'right',
         marginRight: 20,
     },
@@ -134,7 +151,6 @@ const styles = StyleSheet.create({
         width: 120,
         textAlign: 'right',
     },
-    // ===== Bottom Section =====
     bottomSection: {
         flexDirection: 'row',
         justifyContent: 'space-between',
@@ -192,7 +208,7 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#ccc',
     },
-    // ===== Table (shared) =====
+    // ===== Details Page =====
     detailsPage: {
         fontFamily: 'NotoSansJP',
         fontSize: 10,
@@ -214,12 +230,6 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         marginBottom: 15,
     },
-    categoryTitle: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        marginBottom: 6,
-        marginTop: 4,
-    },
     table: {
         width: '100%',
         borderWidth: 1,
@@ -229,7 +239,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: '#000',
-        backgroundColor: '#f5f5f5',
+        backgroundColor: '#fff',
     },
     tableRow: {
         flexDirection: 'row',
@@ -243,7 +253,7 @@ const styles = StyleSheet.create({
         borderBottomWidth: 0.5,
         borderBottomColor: '#000',
     },
-    // Column definitions: No, 名称, 規格, 数量, 単位, 単価, 金額, 備考
+    // Column styles
     cellNo: {
         width: 25,
         padding: 3,
@@ -253,14 +263,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellName: {
-        width: 180,
-        padding: 3,
-        borderRightWidth: 0.5,
-        borderRightColor: '#000',
-        justifyContent: 'center',
-    },
-    cellSpec: {
-        width: 100,
+        width: 260,
         padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: '#000',
@@ -283,7 +286,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellPrice: {
-        width: 60,
+        width: 55,
         padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: '#000',
@@ -310,15 +313,11 @@ const styles = StyleSheet.create({
         fontSize: 9,
         textAlign: 'center',
     },
-    cellTextBold: {
-        fontSize: 9,
-        fontWeight: 'bold',
-    },
     cellTextRed: {
         fontSize: 9,
         color: '#ff0000',
     },
-    // Total rows
+    // Total section
     totalRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
@@ -326,7 +325,7 @@ const styles = StyleSheet.create({
         minHeight: 20,
     },
     totalLabelCell: {
-        width: 450,
+        width: 425,
         padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: '#000',
@@ -346,145 +345,28 @@ const styles = StyleSheet.create({
         padding: 3,
         justifyContent: 'center',
     },
-    // Pattern A: cover page inline table (smaller)
-    coverTable: {
-        width: '100%',
-        borderWidth: 1,
-        borderColor: '#000',
-        marginTop: 15,
-    },
-    // Pattern B: cover category summary row
-    categorySummaryRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.5,
-        borderBottomColor: '#000',
-        minHeight: 22,
-    },
 });
 
-// ===== Helper =====
-function formatAmount(amount: number | null, isNegative: boolean, isEmpty: boolean): string {
-    if (isEmpty || amount === null) return '';
-    if (isNegative) return `(${Math.abs(amount).toLocaleString()})`;
-    return amount.toLocaleString();
+interface EstimatePDFProps {
+    estimate: Estimate;
+    project: Project;
+    companyInfo: CompanyInfo;
+    includeCoverPage?: boolean;
 }
 
-// ===== Table Header (shared) =====
-function TableHeader() {
-    return (
-        <View style={styles.tableHeader}>
-            <View style={styles.cellNo}><Text style={styles.cellTextCenter}>No</Text></View>
-            <View style={styles.cellName}><Text style={styles.cellTextCenter}>名称</Text></View>
-            <View style={styles.cellSpec}><Text style={styles.cellTextCenter}>規格</Text></View>
-            <View style={styles.cellQty}><Text style={styles.cellTextCenter}>数量</Text></View>
-            <View style={styles.cellUnit}><Text style={styles.cellTextCenter}>単位</Text></View>
-            <View style={styles.cellPrice}><Text style={styles.cellTextCenter}>単価</Text></View>
-            <View style={styles.cellAmount}><Text style={styles.cellTextCenter}>金額</Text></View>
-            <View style={styles.cellNotes}><Text style={styles.cellTextCenter}>備考</Text></View>
-        </View>
-    );
-}
-
-// ===== Item Row (shared) =====
-function ItemRow({ item, index, isLast }: { item: Estimate['items'][0]; index: number; isLast: boolean }) {
-    const isNegative = item.amount < 0;
-    return (
-        <View style={isLast ? styles.tableRowLast : styles.tableRow}>
-            <View style={styles.cellNo}>
-                <Text style={styles.cellText}>{index + 1}</Text>
-            </View>
-            <View style={styles.cellName}>
-                <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                    {item.description || ''}
-                </Text>
-            </View>
-            <View style={styles.cellSpec}>
-                <Text style={styles.cellText}>{item.specification || ''}</Text>
-            </View>
-            <View style={styles.cellQty}>
-                <Text style={styles.cellText}>
-                    {item.quantity > 0 ? item.quantity.toLocaleString() : ''}
-                </Text>
-            </View>
-            <View style={styles.cellUnit}>
-                <Text style={styles.cellText}>{item.unit || ''}</Text>
-            </View>
-            <View style={styles.cellPrice}>
-                <Text style={styles.cellText}>
-                    {item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}
-                </Text>
-            </View>
-            <View style={styles.cellAmount}>
-                <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                    {formatAmount(item.amount, isNegative, false)}
-                </Text>
-            </View>
-            <View style={styles.cellNotes}>
-                <Text style={styles.cellText}>{item.notes || ''}</Text>
-            </View>
-        </View>
-    );
-}
-
-// ===== Empty Row (for padding) =====
-function EmptyRow({ index, isLast }: { index: number; isLast: boolean }) {
-    return (
-        <View style={isLast ? styles.tableRowLast : styles.tableRow}>
-            <View style={styles.cellNo}><Text style={styles.cellText}>{index + 1}</Text></View>
-            <View style={styles.cellName}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellNotes}><Text style={styles.cellText}></Text></View>
-        </View>
-    );
-}
-
-// ===== Total Rows (shared) =====
-function TotalRows({ subtotal, tax, total }: { subtotal: number; tax: number; total: number }) {
-    return (
-        <>
-            <View style={styles.totalRow}>
-                <View style={styles.totalLabelCell}>
-                    <Text style={styles.cellText}>小計</Text>
-                </View>
-                <View style={styles.totalAmountCell}>
-                    <Text style={styles.cellText}>{subtotal.toLocaleString()}</Text>
-                </View>
-                <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
-            </View>
-            <View style={styles.totalRow}>
-                <View style={styles.totalLabelCell}>
-                    <Text style={styles.cellText}>消費税（10%）</Text>
-                </View>
-                <View style={styles.totalAmountCell}>
-                    <Text style={styles.cellText}>{tax.toLocaleString()}</Text>
-                </View>
-                <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
-            </View>
-            <View style={styles.totalRow}>
-                <View style={styles.totalLabelCell}>
-                    <Text style={styles.cellTextBold}>合計</Text>
-                </View>
-                <View style={styles.totalAmountCell}>
-                    <Text style={styles.cellTextBold}>{total.toLocaleString()}</Text>
-                </View>
-                <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
-            </View>
-        </>
-    );
-}
-
-// ===== Cover Page Header Info (shared between Pattern A & B) =====
-function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimate; project: Project; companyInfo: CompanyInfo }) {
+// Cover Page Component
+function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeCoverPage'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
 
+    // Calculate adjustment amount (if any negative items exist)
+    const adjustmentAmount = estimate.items
+        .filter(item => item.amount < 0)
+        .reduce((sum, item) => sum + item.amount, 0);
+
     return (
-        <>
+        <Page size="A4" orientation="landscape" style={styles.page}>
             {/* Header: Title, Date */}
             <View style={styles.coverHeader}>
                 <View style={styles.titleBoxContainer}>
@@ -497,7 +379,7 @@ function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimat
                 </View>
             </View>
 
-            {/* Customer Name */}
+            {/* Customer Name and Description */}
             <View style={styles.customerSection}>
                 <View style={styles.customerNameContainer}>
                     <Text style={styles.customerName}>{project.customer || ''} {project.customerHonorific || '御中'}</Text>
@@ -506,7 +388,7 @@ function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimat
                 </View>
             </View>
 
-            {/* Amount */}
+            {/* Amount Section */}
             <View style={styles.amountSection}>
                 <View style={styles.amountContainer}>
                     <View style={styles.amountMainRow}>
@@ -523,19 +405,26 @@ function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimat
                             <Text style={styles.amountDetailValue}>¥{estimate.subtotal.toLocaleString()} −</Text>
                         </View>
                         <View style={styles.amountDetailRow}>
-                            <Text style={styles.amountDetailLabel}>消費税（10%）</Text>
+                            <Text style={styles.amountDetailLabel}>消費税</Text>
                             <Text style={styles.amountDetailValue}>¥{estimate.tax.toLocaleString()} −</Text>
+                        </View>
+                        <View style={styles.amountDetailRow}>
+                            <Text style={styles.amountDetailLabel}>調整額</Text>
+                            <Text style={styles.amountDetailValue}>
+                                {adjustmentAmount !== 0 ? `¥${Math.abs(adjustmentAmount).toLocaleString()} −` : '−'}
+                            </Text>
                         </View>
                     </View>
                 </View>
             </View>
 
-            {/* Bottom: Info + Company */}
+            {/* Bottom Section */}
             <View style={styles.bottomSection}>
+                {/* Left: Site Information */}
                 <View style={styles.infoSection}>
                     <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>件名：</Text>
-                        <Text style={styles.infoValue}>{estimate.title || project.title || ''}</Text>
+                        <Text style={styles.infoLabel}>現場名称：</Text>
+                        <Text style={styles.infoValue}>{project.title || estimate.title}</Text>
                     </View>
                     <View style={styles.infoRow}>
                         <Text style={styles.infoLabel}>現場住所：</Text>
@@ -555,6 +444,7 @@ function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimat
                     </View>
                 </View>
 
+                {/* Right: Company Information */}
                 <View style={styles.companySection}>
                     <View style={styles.companyRow}>
                         <View style={styles.companyInfo}>
@@ -565,9 +455,6 @@ function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimat
                             <Text style={styles.companyRep}>{companyInfo.representativeTitle || '代表取締役'}　{companyInfo.representative}</Text>
                             <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
                             <Text style={styles.companyText}>TEL:{companyInfo.tel}　FAX：{companyInfo.fax || ''}</Text>
-                            {companyInfo.email && (
-                                <Text style={styles.companyText}>{companyInfo.email}</Text>
-                            )}
                         </View>
                         {companyInfo.sealImage ? (
                             <Image src={companyInfo.sealImage} style={styles.stampBox} />
@@ -577,283 +464,154 @@ function CoverHeaderInfo({ estimate, project, companyInfo }: { estimate: Estimat
                     </View>
                 </View>
             </View>
-        </>
-    );
-}
-
-// =============================================================================
-// パターンA: 1枚完結（小規模工事向け）
-// 表紙に明細テーブルを直接表示
-// =============================================================================
-function PatternACoverPage({ estimate, project, companyInfo }: { estimate: Estimate; project: Project; companyInfo: CompanyInfo }) {
-    const maxRows = 15; // 表紙に収まる行数
-    const allItems = estimate.items;
-
-    return (
-        <Page size="A4" orientation="landscape" style={styles.page}>
-            <CoverHeaderInfo estimate={estimate} project={project} companyInfo={companyInfo} />
-
-            {/* Inline items table */}
-            <View style={styles.coverTable}>
-                <TableHeader />
-                {allItems.map((item, idx) => (
-                    <ItemRow key={item.id || idx} item={item} index={idx} isLast={idx === maxRows - 1 && idx === allItems.length - 1} />
-                ))}
-                {/* Fill empty rows */}
-                {Array.from({ length: Math.max(0, maxRows - allItems.length) }).map((_, i) => {
-                    const idx = allItems.length + i;
-                    return <EmptyRow key={`empty-${idx}`} index={idx} isLast={idx === maxRows - 1} />;
-                })}
-                <TotalRows subtotal={estimate.subtotal} tax={estimate.tax} total={estimate.total} />
-            </View>
         </Page>
     );
 }
 
-// =============================================================================
-// パターンB: 表紙（大項目サマリー）+ 内訳明細書（複数ページ）
-// =============================================================================
+// Details Page Component
+function DetailsPage({ estimate }: { estimate: Estimate }) {
+    const maxRows = 20;
 
-// パターンB表紙: 大項目の合計金額一覧
-function PatternBCoverPage({ estimate, project, companyInfo, categories }: { estimate: Estimate; project: Project; companyInfo: CompanyInfo; categories: EstimateCategory[] }) {
-    const maxRows = 15;
+    // Prepare items array with 20 rows
+    const items: Array<{
+        index: number;
+        description: string;
+        quantity: number | null;
+        unit: string;
+        unitPrice: number | null;
+        amount: number | null;
+        notes: string;
+        isNegative: boolean;
+        isEmpty: boolean;
+    }> = [];
+
+    for (let i = 0; i < maxRows; i++) {
+        if (i < estimate.items.length) {
+            const item = estimate.items[i];
+            items.push({
+                index: i + 1,
+                description: item.description || '',
+                quantity: item.quantity > 0 ? item.quantity : null,
+                unit: item.unit || '',
+                unitPrice: item.unitPrice !== 0 ? item.unitPrice : null,
+                amount: item.amount,
+                notes: item.notes || '',
+                isNegative: item.amount < 0,
+                isEmpty: false,
+            });
+        } else {
+            items.push({
+                index: i + 1,
+                description: '',
+                quantity: null,
+                unit: '',
+                unitPrice: null,
+                amount: null,
+                notes: '',
+                isNegative: false,
+                isEmpty: true,
+            });
+        }
+    }
+
+    // Format amount with parentheses for negative values
+    const formatAmount = (amount: number | null, isNegative: boolean, isEmpty: boolean): string => {
+        if (isEmpty || amount === null) return '';
+        if (isNegative) return `(${Math.abs(amount).toLocaleString()})`;
+        return amount.toLocaleString();
+    };
 
     return (
-        <Page size="A4" orientation="landscape" style={styles.page}>
-            <CoverHeaderInfo estimate={estimate} project={project} companyInfo={companyInfo} />
+        <Page size="A4" orientation="landscape" style={styles.detailsPage}>
+            {/* Title */}
+            <Text style={styles.detailsTitle}>内 訳 書</Text>
+            <View style={styles.detailsTitleUnderline} />
 
-            {/* Category summary table */}
-            <View style={styles.coverTable}>
-                {/* Header: No, 名称, 金額, 備考 (simplified for summary) */}
+            {/* Table */}
+            <View style={styles.table}>
+                {/* Header */}
                 <View style={styles.tableHeader}>
-                    <View style={styles.cellNo}><Text style={styles.cellTextCenter}>No</Text></View>
-                    <View style={{ ...styles.cellName, width: 280 }}><Text style={styles.cellTextCenter}>名称</Text></View>
-                    <View style={styles.cellSpec}><Text style={styles.cellTextCenter}></Text></View>
+                    <View style={styles.cellNo}><Text style={styles.cellTextCenter}></Text></View>
+                    <View style={styles.cellName}><Text style={styles.cellTextCenter}>工事名称</Text></View>
                     <View style={styles.cellQty}><Text style={styles.cellTextCenter}>数量</Text></View>
                     <View style={styles.cellUnit}><Text style={styles.cellTextCenter}>単位</Text></View>
-                    <View style={styles.cellPrice}><Text style={styles.cellTextCenter}></Text></View>
+                    <View style={styles.cellPrice}><Text style={styles.cellTextCenter}>単価</Text></View>
                     <View style={styles.cellAmount}><Text style={styles.cellTextCenter}>金額</Text></View>
                     <View style={styles.cellNotes}><Text style={styles.cellTextCenter}>備考</Text></View>
                 </View>
 
-                {/* Category rows */}
-                {categories.map((cat, idx) => (
-                    <View key={cat.id || idx} style={idx === categories.length - 1 && categories.length >= maxRows ? styles.tableRowLast : styles.tableRow}>
+                {/* Body Rows */}
+                {items.map((item, idx) => (
+                    <View key={idx} style={idx === items.length - 1 ? styles.tableRowLast : styles.tableRow}>
                         <View style={styles.cellNo}>
-                            <Text style={styles.cellText}>{idx + 1}</Text>
+                            <Text style={styles.cellText}>{item.index}</Text>
                         </View>
-                        <View style={{ ...styles.cellName, width: 280 }}>
-                            <Text style={styles.cellTextBold}>{cat.categoryName}</Text>
-                        </View>
-                        <View style={styles.cellSpec}>
-                            <Text style={styles.cellText}></Text>
+                        <View style={styles.cellName}>
+                            <Text style={item.isNegative ? styles.cellTextRed : styles.cellText}>
+                                {item.description}
+                            </Text>
                         </View>
                         <View style={styles.cellQty}>
-                            <Text style={styles.cellText}>1</Text>
+                            <Text style={styles.cellText}>
+                                {item.quantity !== null ? item.quantity.toLocaleString() : ''}
+                            </Text>
                         </View>
                         <View style={styles.cellUnit}>
-                            <Text style={styles.cellText}>式</Text>
+                            <Text style={styles.cellText}>{item.unit}</Text>
                         </View>
                         <View style={styles.cellPrice}>
-                            <Text style={styles.cellText}></Text>
+                            <Text style={styles.cellText}>
+                                {item.unitPrice !== null ? item.unitPrice.toLocaleString() : ''}
+                            </Text>
                         </View>
                         <View style={styles.cellAmount}>
-                            <Text style={styles.cellTextBold}>{cat.categoryTotal.toLocaleString()}</Text>
+                            <Text style={item.isNegative ? styles.cellTextRed : styles.cellText}>
+                                {formatAmount(item.amount, item.isNegative, item.isEmpty)}
+                            </Text>
                         </View>
                         <View style={styles.cellNotes}>
-                            <Text style={styles.cellText}></Text>
+                            <Text style={styles.cellText}>{item.notes}</Text>
                         </View>
                     </View>
                 ))}
 
-                {/* Fill empty rows */}
-                {Array.from({ length: Math.max(0, maxRows - categories.length) }).map((_, i) => {
-                    const idx = categories.length + i;
-                    return (
-                        <View key={`empty-${idx}`} style={idx === maxRows - 1 ? styles.tableRowLast : styles.tableRow}>
-                            <View style={styles.cellNo}><Text style={styles.cellText}>{idx + 1}</Text></View>
-                            <View style={{ ...styles.cellName, width: 280 }}><Text style={styles.cellText}></Text></View>
-                            <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
-                            <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
-                            <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
-                            <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
-                            <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
-                            <View style={styles.cellNotes}><Text style={styles.cellText}></Text></View>
-                        </View>
-                    );
-                })}
+                {/* Subtotal Row */}
+                <View style={styles.totalRow}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalAmountCell}>
+                        <Text style={styles.cellText}>{estimate.subtotal.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
+                </View>
 
-                <TotalRows subtotal={estimate.subtotal} tax={estimate.tax} total={estimate.total} />
+                {/* Tax Row */}
+                <View style={styles.totalRow}>
+                    <View style={styles.totalLabelCell}>
+                        <Text style={styles.cellText}>消費税</Text>
+                    </View>
+                    <View style={styles.totalAmountCell}>
+                        <Text style={styles.cellText}>{estimate.tax.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
+                </View>
+
+                {/* Total Row */}
+                <View style={styles.totalRow}>
+                    <View style={styles.totalLabelCell}>
+                        <Text style={styles.cellText}>合計</Text>
+                    </View>
+                    <View style={styles.totalAmountCell}>
+                        <Text style={styles.cellText}>{estimate.total.toLocaleString()}</Text>
+                    </View>
+                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
+                </View>
             </View>
         </Page>
     );
 }
 
-// パターンB内訳明細書: 大項目ごとの詳細ページ
-function DetailBreakdownPage({ category, categoryIndex }: { category: EstimateCategory; categoryIndex: number }) {
-    const maxRowsPerPage = 25;
-    const items = category.items;
-
-    // Split items into pages if needed
-    const pages: EstimateCategory['items'][] = [];
-    for (let i = 0; i < items.length; i += maxRowsPerPage) {
-        pages.push(items.slice(i, i + maxRowsPerPage));
-    }
-    if (pages.length === 0) pages.push([]);
-
-    return (
-        <>
-            {pages.map((pageItems, pageIdx) => (
-                <Page key={`cat-${categoryIndex}-page-${pageIdx}`} size="A4" orientation="landscape" style={styles.detailsPage}>
-                    {/* Title */}
-                    <Text style={styles.detailsTitle}>内 訳 明 細 書</Text>
-                    <View style={styles.detailsTitleUnderline} />
-
-                    {/* Category name */}
-                    <Text style={styles.categoryTitle}>
-                        {categoryIndex + 1}. {category.categoryName}
-                        {pages.length > 1 ? `（${pageIdx + 1}/${pages.length}）` : ''}
-                    </Text>
-
-                    {/* Table */}
-                    <View style={styles.table}>
-                        <TableHeader />
-
-                        {pageItems.map((item, idx) => {
-                            const globalIdx = pageIdx * maxRowsPerPage + idx;
-                            return (
-                                <ItemRow
-                                    key={item.id || globalIdx}
-                                    item={item}
-                                    index={globalIdx}
-                                    isLast={idx === pageItems.length - 1 && pageIdx === pages.length - 1}
-                                />
-                            );
-                        })}
-
-                        {/* Fill empty rows on last page */}
-                        {pageIdx === pages.length - 1 && pageItems.length < maxRowsPerPage &&
-                            Array.from({ length: maxRowsPerPage - pageItems.length }).map((_, i) => {
-                                const idx = pageItems.length + i;
-                                return <EmptyRow key={`empty-${idx}`} index={pageItems.length + pageIdx * maxRowsPerPage + i} isLast={idx === maxRowsPerPage - 1} />;
-                            })
-                        }
-
-                        {/* Category subtotal on last page */}
-                        {pageIdx === pages.length - 1 && (
-                            <View style={styles.totalRow}>
-                                <View style={styles.totalLabelCell}>
-                                    <Text style={styles.cellTextBold}>{category.categoryName} 計</Text>
-                                </View>
-                                <View style={styles.totalAmountCell}>
-                                    <Text style={styles.cellTextBold}>{category.categoryTotal.toLocaleString()}</Text>
-                                </View>
-                                <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
-                            </View>
-                        )}
-                    </View>
-                </Page>
-            ))}
-        </>
-    );
-}
-
-// =============================================================================
-// パターンA用: 明細が表紙に収まらない場合の追加ページ（フォールバック）
-// =============================================================================
-function PatternADetailsPage({ estimate }: { estimate: Estimate }) {
-    const maxRows = 25;
-    const items = estimate.items;
-
-    const pages: Estimate['items'][] = [];
-    for (let i = 0; i < items.length; i += maxRows) {
-        pages.push(items.slice(i, i + maxRows));
-    }
-
-    return (
-        <>
-            {pages.map((pageItems, pageIdx) => (
-                <Page key={`details-${pageIdx}`} size="A4" orientation="landscape" style={styles.detailsPage}>
-                    <Text style={styles.detailsTitle}>内 訳 書</Text>
-                    <View style={styles.detailsTitleUnderline} />
-
-                    <View style={styles.table}>
-                        <TableHeader />
-                        {pageItems.map((item, idx) => {
-                            const globalIdx = pageIdx * maxRows + idx;
-                            return (
-                                <ItemRow
-                                    key={item.id || globalIdx}
-                                    item={item}
-                                    index={globalIdx}
-                                    isLast={idx === pageItems.length - 1 && pageIdx === pages.length - 1}
-                                />
-                            );
-                        })}
-
-                        {/* Fill empty rows on last page */}
-                        {pageIdx === pages.length - 1 && pageItems.length < maxRows &&
-                            Array.from({ length: maxRows - pageItems.length }).map((_, i) => {
-                                const idx = pageItems.length + i;
-                                return <EmptyRow key={`empty-${idx}`} index={pageItems.length + pageIdx * maxRows + i} isLast={idx === maxRows - 1} />;
-                            })
-                        }
-
-                        {/* Total rows on last page only */}
-                        {pageIdx === pages.length - 1 && (
-                            <TotalRows subtotal={estimate.subtotal} tax={estimate.tax} total={estimate.total} />
-                        )}
-                    </View>
-                </Page>
-            ))}
-        </>
-    );
-}
-
-// =============================================================================
-// Main Component
-// =============================================================================
-interface EstimatePDFProps {
-    estimate: Estimate;
-    project: Project;
-    companyInfo: CompanyInfo;
-    includeCoverPage?: boolean;
-}
-
-const MAX_INLINE_ITEMS = 15; // 表紙に直接表示可能な最大行数
-
+// Main Estimate PDF Document
 export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage = true }: EstimatePDFProps) {
-    const isComplex = estimate.isComplex ?? false;
-    const categories = estimate.categories ?? [];
-
-    // パターンB: 大項目カテゴリがある場合
-    if (isComplex && categories.length > 0) {
-        return (
-            <Document
-                title={`見積書 ${estimate.estimateNumber}`}
-                author={companyInfo.name}
-                subject={`${project.title}の見積書`}
-                keywords="見積書, estimate"
-                creator="DandoLink"
-            >
-                {includeCoverPage && (
-                    <PatternBCoverPage
-                        estimate={estimate}
-                        project={project}
-                        companyInfo={companyInfo}
-                        categories={categories}
-                    />
-                )}
-                {categories.map((cat, idx) => (
-                    <DetailBreakdownPage key={cat.id || idx} category={cat} categoryIndex={idx} />
-                ))}
-            </Document>
-        );
-    }
-
-    // パターンA: 1枚完結（明細が少ない場合は表紙に直接表示）
-    const fitsOnCover = estimate.items.length <= MAX_INLINE_ITEMS;
-
     return (
         <Document
             title={`見積書 ${estimate.estimateNumber}`}
@@ -862,23 +620,10 @@ export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage =
             keywords="見積書, estimate"
             creator="DandoLink"
         >
-            {includeCoverPage && fitsOnCover && (
-                <PatternACoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
+            {includeCoverPage && (
+                <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
             )}
-            {includeCoverPage && !fitsOnCover && (
-                <>
-                    {/* 明細が多い場合は従来通り表紙+明細ページ */}
-                    <Page size="A4" orientation="landscape" style={styles.page}>
-                        <CoverHeaderInfo estimate={estimate} project={project} companyInfo={companyInfo} />
-                    </Page>
-                </>
-            )}
-            {!fitsOnCover && (
-                <PatternADetailsPage estimate={estimate} />
-            )}
-            {!includeCoverPage && (
-                <PatternADetailsPage estimate={estimate} />
-            )}
+            <DetailsPage estimate={estimate} />
         </Document>
     );
 }
