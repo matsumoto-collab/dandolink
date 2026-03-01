@@ -10,18 +10,23 @@ interface SummaryFooterProps {
 
 export default function SummaryFooter({ subtotal, tax, total }: SummaryFooterProps) {
     return (
-        <div className="bg-gray-50 rounded-lg p-4 space-y-2 md:static sticky bottom-0 z-10 border border-gray-200 md:border-0 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] md:shadow-none">
-            <div className="flex justify-between text-sm">
-                <span className="text-gray-700">小計:</span>
-                <span className="font-semibold">¥{subtotal.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-                <span className="text-gray-700">消費税(10%):</span>
-                <span className="font-semibold">¥{tax.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-lg border-t border-gray-300 pt-2">
-                <span className="font-bold text-gray-900">合計:</span>
-                <span className="font-bold text-slate-600">¥{total.toLocaleString()}</span>
+        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+            <div className="grid grid-cols-3 gap-0 divide-x divide-gray-200">
+                {/* 小計 */}
+                <div className="flex flex-col items-start px-4 first:pl-0">
+                    <span className="text-xs text-gray-500 mb-0.5">小計</span>
+                    <span className="text-base font-semibold text-gray-800">¥{subtotal.toLocaleString()}</span>
+                </div>
+                {/* 消費税 */}
+                <div className="flex flex-col items-start px-4">
+                    <span className="text-xs text-gray-500 mb-0.5">消費税</span>
+                    <span className="text-base font-semibold text-gray-800">¥{tax.toLocaleString()}</span>
+                </div>
+                {/* 合計 */}
+                <div className="flex flex-col items-start px-4">
+                    <span className="text-xs text-gray-500 mb-0.5">合計</span>
+                    <span className="text-base font-bold text-slate-700">¥{total.toLocaleString()}</span>
+                </div>
             </div>
         </div>
     );

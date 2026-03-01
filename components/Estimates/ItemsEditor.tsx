@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { EstimateItem } from '@/types/estimate';
-import { Plus, Minus } from 'lucide-react';
+import { Plus, Minus, Star, ClipboardList, PenLine } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
 interface ItemsEditorProps {
@@ -24,36 +24,55 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-3">
-                <label className="block text-sm font-semibold text-gray-700">明細</label>
-                <div className="flex flex-wrap gap-2 justify-end">
-                    <button type="button" onClick={onOpenUnitPriceModal} className="flex items-center gap-1 px-3 py-2 md:py-1.5 text-sm bg-slate-700 text-white rounded-lg hover:bg-slate-800 active:bg-slate-900 transition-colors">
-                        <Plus className="w-4 h-4" />
-                        <span className="hidden sm:inline">マスターから</span>追加
+            {/* ツールバー */}
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* マスターに登録 */}
+                    <button
+                        type="button"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-emerald-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                        title="マスターに登録（未実装）"
+                        disabled
+                    >
+                        <Star className="w-3.5 h-3.5" />
+                        マスターに登録
                     </button>
-                    <button type="button" onClick={onAddItem} className="flex items-center gap-1 px-3 py-2 md:py-1.5 text-sm bg-slate-800 text-white rounded-lg hover:bg-slate-700 active:bg-slate-900 transition-colors">
-                        <Plus className="w-4 h-4" />行追加
+                    {/* 単価マスターから一括追加 */}
+                    <button
+                        type="button"
+                        onClick={onOpenUnitPriceModal}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                    >
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        単価マスターから一括追加
                     </button>
-                    <button type="button" onClick={onAddDiscountItem} className="flex items-center gap-1 px-3 py-2 md:py-1.5 text-sm bg-amber-600 text-white rounded-lg hover:bg-amber-700 active:bg-amber-800 transition-colors">
-                        <Minus className="w-4 h-4" />値引き
+                    {/* 項目を選択して一括入力 */}
+                    <button
+                        type="button"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                        title="項目を選択して一括入力（未実装）"
+                        disabled
+                    >
+                        <PenLine className="w-3.5 h-3.5" />
+                        項目を選択して一括入力
                     </button>
                 </div>
             </div>
 
             {/* デスクトップ: テーブル表示 */}
-            <div className="hidden md:block border border-gray-300 rounded-lg overflow-x-auto">
+            <div className="hidden md:block border border-gray-200 rounded-lg overflow-x-auto">
                 <table className="w-full">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300">品目・内容</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">規格</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">数量</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-24">単位</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">単価</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">金額</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-28">税区分</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 w-32">備考</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 w-20">操作</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-full">項目</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-28">規格</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-16">数量</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-16">単位</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-24">単価</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">税率</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-24">金額</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-28">備考</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-16">操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -64,8 +83,33 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                 </table>
             </div>
 
+            {/* テーブル下部の行追加ボタン */}
+            <div className="mt-2 flex items-center gap-3 flex-wrap">
+                <button
+                    type="button"
+                    onClick={onAddItem}
+                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                >
+                    <Plus className="w-4 h-4" />
+                    項目行を追加
+                </button>
+                <button
+                    type="button"
+                    onClick={onAddDiscountItem}
+                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                    <Minus className="w-4 h-4" />
+                    値引き行を追加
+                </button>
+            </div>
+
+            {/* 操作ヒント（デスクトップのみ） */}
+            <p className="hidden md:block mt-1.5 text-xs text-gray-400">
+                各行はドラッグ&amp;ドロップで並び替えられます。Enter (+Shift) / Tab (+Shift) キーでセルの移動ができます。
+            </p>
+
             {/* モバイル: カード表示 */}
-            <div className="md:hidden space-y-3">
+            <div className="md:hidden space-y-3 mt-3">
                 {items.map((item, index) => (
                     <ItemCard key={item.id} {...rowProps(item, index)} />
                 ))}

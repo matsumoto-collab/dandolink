@@ -206,6 +206,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
             />
 
+            <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
+
             <ItemsEditor
                 items={items}
                 onUpdate={updateItem}
@@ -216,8 +218,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onAddDiscountItem={addDiscountItem}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
             />
-
-            <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
 
             <ConditionNotes notes={notes} setNotes={setNotes} />
 
