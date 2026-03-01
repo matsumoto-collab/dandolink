@@ -69,7 +69,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [status, setStatus] = useState<EstimateInput['status']>(initialData?.status || 'draft');
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [items, setItems] = useState<EstimateItem[]>(initialData?.items || [
-        { id: `item-${Date.now()}`, description: '', specification: '', quantity: 1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }
+        { id: `item-${Date.now()}`, description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }
     ]);
 
     // 案件選択時に情報を自動入力
