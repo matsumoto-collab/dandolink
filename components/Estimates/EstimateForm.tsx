@@ -119,20 +119,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
     };
 
-    // 値引き行追加
-    const addDiscountItem = () => {
-        setItems([...items, {
-            id: `item-${Date.now()}-discount`,
-            description: '値引き',
-            specification: '',
-            quantity: 1,
-            unit: '式',
-            unitPrice: 0,
-            amount: 0,
-            taxType: 'none',
-            notes: '',
-        }]);
-    };
 
     const handleSelectFromMaster = (selectedMasters: UnitPriceMaster[]) => {
         const newItems = selectedMasters.map(master => ({
@@ -213,7 +199,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onMoveUp={moveItemUp}
                 onMoveDown={moveItemDown}
                 onAddItem={addItem}
-                onAddDiscountItem={addDiscountItem}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
             />
 

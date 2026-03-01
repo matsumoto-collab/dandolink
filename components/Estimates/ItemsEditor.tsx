@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { EstimateItem } from '@/types/estimate';
-import { Plus, Minus, Star, ClipboardList, PenLine } from 'lucide-react';
+import { Plus, Star, ClipboardList, PenLine } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
 interface ItemsEditorProps {
@@ -12,11 +12,10 @@ interface ItemsEditorProps {
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
     onAddItem: () => void;
-    onAddDiscountItem: () => void;
     onOpenUnitPriceModal: () => void;
 }
 
-export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onAddDiscountItem, onOpenUnitPriceModal }: ItemsEditorProps) {
+export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onOpenUnitPriceModal }: ItemsEditorProps) {
     const rowProps = (item: EstimateItem, index: number) => ({
         item, index, totalItems: items.length,
         onUpdate, onRemove, onMoveUp, onMoveDown,
@@ -92,14 +91,6 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                 >
                     <Plus className="w-4 h-4" />
                     項目行を追加
-                </button>
-                <button
-                    type="button"
-                    onClick={onAddDiscountItem}
-                    className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                    <Minus className="w-4 h-4" />
-                    値引き行を追加
                 </button>
             </div>
 
