@@ -110,6 +110,17 @@ export function toReiwa(date: Date, options?: { space?: boolean }): string {
     return `令和${reiwaYear}年${sep}${month}月${day}日`;
 }
 
+/** フォント未対応の特殊Unicode文字を置換 */
+export function sanitizePdfText(text: string): string {
+    return text
+        .replace(/㎡/g, 'm²')
+        .replace(/㎥/g, 'm³')
+        .replace(/㎝/g, 'cm')
+        .replace(/㎜/g, 'mm')
+        .replace(/㎞/g, 'km')
+        .replace(/㏄/g, 'cc');
+}
+
 // Helper function to format currency
 export function formatCurrency(value: number): string {
     return `¥${value.toLocaleString()}`;

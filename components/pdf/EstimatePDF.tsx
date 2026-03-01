@@ -12,7 +12,7 @@ import {
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
-import { toReiwa } from './styles';
+import { toReiwa, sanitizePdfText } from './styles';
 
 // Styles
 const styles = StyleSheet.create({
@@ -382,7 +382,12 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             {/* Customer Name and Description */}
             <View style={styles.customerSection}>
                 <View style={styles.customerNameContainer}>
-                    <Text style={styles.customerName}>{project.customer || ''} {project.customerHonorific || '御中'}</Text>
+                    {(() => {
+                        const fullName = `${project.customer || ''} ${project.customerHonorific || '御中'}`;
+                        const len = fullName.length;
+                        const fontSize = len <= 14 ? 22 : len <= 18 ? 18 : len <= 22 ? 15 : 13;
+                        return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
+                    })()}
                     <View style={styles.customerUnderline} />
                     <Text style={styles.descriptionText}>下記のとおり御見積申し上げます。</Text>
                 </View>
@@ -490,12 +495,12 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
             const item = estimate.items[i];
             items.push({
                 index: i + 1,
-                description: item.description || '',
+                description: sanitizePdfText(item.description || ''),
                 quantity: item.quantity > 0 ? item.quantity : null,
-                unit: item.unit || '',
+                unit: sanitizePdfText(item.unit || ''),
                 unitPrice: item.unitPrice !== 0 ? item.unitPrice : null,
                 amount: item.amount,
-                notes: item.notes || '',
+                notes: sanitizePdfText(item.notes || ''),
                 isNegative: item.amount < 0,
                 isEmpty: false,
             });
