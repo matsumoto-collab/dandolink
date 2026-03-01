@@ -26,13 +26,8 @@ const nextConfig = {
         // pdfjs-dist はブラウザ専用 API (DOMMatrix 等) を使うため SSR バンドルから除外
         serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf'],
     },
-    webpack: (config, { isServer }) => {
+    webpack: (config) => {
         config.resolve.alias.canvas = false;
-        // pdfjs-dist v5 はESM-onlyでNext.js 14のwebpackと衝突するため
-        // クライアントバンドルではCJS互換モードで処理する
-        if (!isServer) {
-            config.resolve.alias['pdfjs-dist'] = require.resolve('pdfjs-dist/legacy/build/pdf.mjs');
-        }
         return config;
     },
     // セキュリティヘッダー
