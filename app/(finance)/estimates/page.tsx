@@ -64,6 +64,13 @@ export default function EstimateListPage() {
         return pm?.title ?? null;
     }, [projectMasters]);
 
+    // 顧客名を取得
+    const getCustomerName = useCallback((customerId?: string) => {
+        if (!customerId) return null;
+        const c = customers.find(c => c.id === customerId);
+        return c?.name ?? null;
+    }, [customers]);
+
     // ステータスアイコンとカラー
     const getStatusInfo = (status: Estimate['status']) => {
         switch (status) {
@@ -329,6 +336,11 @@ export default function EstimateListPage() {
                                         </div>
                                     )}
 
+                                    {/* 顧客名 */}
+                                    {getCustomerName(estimate.customerId) && (
+                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(estimate.customerId)}</div>
+                                    )}
+
                                     {/* 金額 */}
                                     <div className="text-lg font-bold text-slate-900 mb-3">
                                         ¥{estimate.total.toLocaleString()}
@@ -363,6 +375,9 @@ export default function EstimateListPage() {
                                 案件名
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                顧客名
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 金額
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -386,6 +401,7 @@ export default function EstimateListPage() {
                                 <tr key={i} className="animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                                     <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-16"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
@@ -395,7 +411,7 @@ export default function EstimateListPage() {
                             ))
                         ) : filteredEstimates.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '見積書が登録されていません'}
                                 </td>
                             </tr>
@@ -437,6 +453,9 @@ export default function EstimateListPage() {
                                                     案件未紐付け
                                                 </span>
                                             )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {getCustomerName(estimate.customerId) || '−'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                                             ¥{estimate.total.toLocaleString()}
