@@ -11,7 +11,7 @@ import {
 import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
-import { toReiwa } from './styles';
+import { toReiwa, sanitizePdfText } from './styles';
 
 // Styles
 const styles = StyleSheet.create({
@@ -421,7 +421,7 @@ function InvoicePage({
                             <Text style={styles.cellText}></Text>
                         </View>
                         <View style={styles.cellName}>
-                            <Text style={styles.cellText}>{item.description}</Text>
+                            <Text style={styles.cellText}>{sanitizePdfText(item.description)}</Text>
                         </View>
                         <View style={styles.cellQty}>
                             <Text style={styles.cellText}>
@@ -429,7 +429,7 @@ function InvoicePage({
                             </Text>
                         </View>
                         <View style={styles.cellUnit}>
-                            <Text style={styles.cellText}>{item.unit || ''}</Text>
+                            <Text style={styles.cellText}>{sanitizePdfText(item.unit || '')}</Text>
                         </View>
                         <View style={styles.cellPrice}>
                             <Text style={styles.cellText}>
