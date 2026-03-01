@@ -68,7 +68,7 @@ export default function EstimateListPage() {
     const getCustomerName = useCallback((customerId?: string) => {
         if (!customerId) return null;
         const c = customers.find(c => c.id === customerId);
-        return c?.shortName || c?.name ?? null;
+        return c?.shortName || c?.name || null;
     }, [customers]);
 
     // ステータスアイコンとカラー
