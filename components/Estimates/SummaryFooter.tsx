@@ -10,7 +10,7 @@ interface SummaryFooterProps {
 
 export default function SummaryFooter({ subtotal, tax, total }: SummaryFooterProps) {
     return (
-        <div className="bg-white border border-gray-200 rounded-lg px-4 py-3">
+        <div className="bg-white px-4 py-1">
             <div className="grid grid-cols-3 gap-0 divide-x divide-gray-200">
                 {/* 小計 */}
                 <div className="flex flex-col items-start px-4 first:pl-0">

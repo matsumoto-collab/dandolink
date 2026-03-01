@@ -206,8 +206,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
             />
 
-            <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
-
             <ItemsEditor
                 items={items}
                 onUpdate={updateItem}
@@ -221,8 +219,13 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
             <ConditionNotes notes={notes} setNotes={setNotes} />
 
+            {/* 合計エリア（sticky） */}
+            <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-gray-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+                <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
+            </div>
+
             {/* ボタン */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-200 safe-area-bottom">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 safe-area-bottom">
                 <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 active:bg-gray-100 transition-colors text-base md:text-sm">
                     キャンセル
                 </button>
