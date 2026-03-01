@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { EstimateItem } from '@/types/estimate';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 
@@ -12,6 +12,37 @@ interface ItemRowProps {
     onRemove: (id: string) => void;
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
+}
+
+/** 単価入力（マイナス値対応） */
+function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onUpdate: ItemRowProps['onUpdate']; className: string }) {
+    const [localValue, setLocalValue] = useState(item.unitPrice === 0 ? '' : String(item.unitPrice));
+
+    useEffect(() => {
+        setLocalValue(item.unitPrice === 0 ? '' : String(item.unitPrice));
+    }, [item.unitPrice]);
+
+    return (
+        <input
+            type="text"
+            inputMode="text"
+            value={localValue}
+            onChange={(e) => {
+                const val = e.target.value;
+                setLocalValue(val);
+                if (val === '' || val === '-') {
+                    onUpdate(item.id, 'unitPrice', 0);
+                } else if (!isNaN(Number(val))) {
+                    onUpdate(item.id, 'unitPrice', Number(val));
+                }
+            }}
+            onBlur={() => {
+                setLocalValue(item.unitPrice === 0 ? '' : String(item.unitPrice));
+            }}
+            className={`${className} ${item.unitPrice < 0 ? 'text-red-600' : ''}`}
+            placeholder="単価"
+        />
+    );
 }
 
 /** デスクトップ用テーブル行 */
@@ -47,32 +78,18 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                 <input type="text" value={item.unit || ''} onChange={(e) => onUpdate(item.id, 'unit', e.target.value)} className={cellInputClass} placeholder="式、m、個" />
             </td>
             <td className="px-3 py-2">
-                <input
-                    type="text"
-                    inputMode="numeric"
-                    value={item.unitPrice === 0 ? '' : item.unitPrice}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') {
-                            onUpdate(item.id, 'unitPrice', 0);
-                        } else if (!isNaN(Number(val))) {
-                            onUpdate(item.id, 'unitPrice', Number(val));
-                        }
-                    }}
-                    className={`${cellInputClass} ${item.unitPrice < 0 ? 'text-slate-600' : ''}`}
-                    placeholder="単価"
-                />
-            </td>
-            <td className="px-3 py-2">
-                <div className={`text-right font-medium ${item.amount < 0 ? 'text-slate-600' : ''}`}>
-                    {item.amount < 0 ? `(${Math.abs(item.amount).toLocaleString()})` : `¥${item.amount.toLocaleString()}`}
-                </div>
+                <UnitPriceInput item={item} onUpdate={onUpdate} className={cellInputClass} />
             </td>
             <td className="px-3 py-2">
                 <select value={item.taxType} onChange={(e) => onUpdate(item.id, 'taxType', e.target.value as 'none' | 'standard')} className={cellInputClass}>
                     <option value="standard">10%</option>
                     <option value="none">なし</option>
                 </select>
+            </td>
+            <td className="px-3 py-2">
+                <div className={`text-right font-medium ${item.amount < 0 ? 'text-red-600' : ''}`}>
+                    {item.amount < 0 ? `-¥${Math.abs(item.amount).toLocaleString()}` : `¥${item.amount.toLocaleString()}`}
+                </div>
             </td>
             <td className="px-3 py-2">
                 <input type="text" value={item.notes || ''} onChange={(e) => onUpdate(item.id, 'notes', e.target.value)} className={cellInputClass} placeholder="備考" />
@@ -155,21 +172,7 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
                 </div>
                 <div>
                     <label className={mobileLabelClass}>単価</label>
-                    <input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.unitPrice === 0 ? '' : item.unitPrice}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '') {
-                                onUpdate(item.id, 'unitPrice', 0);
-                            } else if (!isNaN(Number(val))) {
-                                onUpdate(item.id, 'unitPrice', Number(val));
-                            }
-                        }}
-                        className={`${mobileInputClass} ${item.unitPrice < 0 ? 'text-slate-600' : ''}`}
-                        placeholder="単価"
-                    />
+                    <UnitPriceInput item={item} onUpdate={onUpdate} className={`${mobileInputClass}`} />
                 </div>
             </div>
 
