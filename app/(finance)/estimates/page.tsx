@@ -4,6 +4,7 @@ import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import dynamic from 'next/dynamic';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useProjects } from '@/hooks/useProjects';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCompany } from '@/hooks/useCompany';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -30,7 +31,8 @@ const EstimateDetailModal = dynamic(
 
 export default function EstimateListPage() {
     const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
-    const { projects, addProject } = useProjects();
+    const { addProject } = useProjects();
+    const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const [searchTerm, setSearchTerm] = useState('');
@@ -42,7 +44,8 @@ export default function EstimateListPage() {
         ensureDataLoaded();
         ensureCompanyLoaded();
         ensureCustomersLoaded();
-    }, [ensureDataLoaded, ensureCompanyLoaded, ensureCustomersLoaded]);
+        fetchProjectMasters();
+    }, [ensureDataLoaded, ensureCompanyLoaded, ensureCustomersLoaded, fetchProjectMasters]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -54,12 +57,12 @@ export default function EstimateListPage() {
     const [projectModalInitialData, setProjectModalInitialData] = useState<Partial<Project>>({});
     const pendingLinkEstimateIdRef = useRef<string | null>(null);
 
-    // プロジェクト名を取得（useCallbackでメモ化）
-    const getProjectName = useCallback((projectId: string) => {
-        if (!projectId) return null;
-        const project = projects.find(p => p.id === projectId);
-        return project?.title ?? null;
-    }, [projects]);
+    // プロジェクト名を取得（projectMasterIdで検索）
+    const getProjectName = useCallback((projectMasterId: string) => {
+        if (!projectMasterId) return null;
+        const pm = projectMasters.find(p => p.id === projectMasterId);
+        return pm?.title ?? null;
+    }, [projectMasters]);
 
     // ステータスアイコンとカラー
     const getStatusInfo = (status: Estimate['status']) => {
@@ -114,18 +117,30 @@ export default function EstimateListPage() {
         setIsProjectModalOpen(true);
     }, []);
 
-    // 案件作成完了 → estimate.projectId を自動更新
+    // 案件作成完了 → estimate.projectId(=projectMasterId) を自動更新
     const handleSubmitProjectFromEstimate = useCallback(async (data: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => {
-        const beforeIds = new Set(useCalendarStore.getState().assignments.map((a) => a.id));
+        const beforeMasterIds = new Set(useCalendarStore.getState().projectMasters.map((m) => m.id));
         await addProject(data);
-        const newAssignment = useCalendarStore.getState().assignments.find((a) => !beforeIds.has(a.id));
+        const newMaster = useCalendarStore.getState().projectMasters.find((m) => !beforeMasterIds.has(m.id));
         const estimateId = pendingLinkEstimateIdRef.current;
-        if (newAssignment && estimateId) {
+        if (newMaster && estimateId) {
             try {
-                await updateEstimate(estimateId, { projectId: newAssignment.id } as EstimateInput);
+                await updateEstimate(estimateId, { projectId: newMaster.id } as EstimateInput);
                 toast.success('見積書と案件を紐付けました');
             } catch {
                 toast.error('案件の紐付けに失敗しました。手動で紐付けてください。');
+            }
+        } else if (estimateId && !newMaster) {
+            // 既存マスターにマッチした場合、assignmentのprojectMasterIdから取得
+            const newAssignment = useCalendarStore.getState().assignments.find((a) => !beforeMasterIds.has(a.id));
+            const masterId = newAssignment?.projectMasterId;
+            if (masterId) {
+                try {
+                    await updateEstimate(estimateId, { projectId: masterId } as EstimateInput);
+                    toast.success('見積書と案件を紐付けました');
+                } catch {
+                    toast.error('案件の紐付けに失敗しました。手動で紐付けてください。');
+                }
             }
         }
         pendingLinkEstimateIdRef.current = null;
@@ -492,7 +507,16 @@ export default function EstimateListPage() {
                         setSelectedEstimate(null);
                     }}
                     estimate={selectedEstimate}
-                    project={selectedEstimate ? projects.find(p => p.id === selectedEstimate.projectId) || null : null}
+                    project={selectedEstimate?.projectId ? (() => {
+                        const pm = projectMasters.find(p => p.id === selectedEstimate.projectId);
+                        if (!pm) return null;
+                        return {
+                            id: pm.id, title: pm.title, startDate: new Date(), category: 'construction' as const,
+                            color: '#3B82F6', customer: pm.customerName || pm.customerShortName || '',
+                            customerHonorific: '御中', location: pm.location || '',
+                            createdAt: pm.createdAt, updatedAt: pm.updatedAt,
+                        };
+                    })() : null}
                     customerName={selectedEstimate?.customerId ? customers.find(c => c.id === selectedEstimate.customerId)?.name : undefined}
                     customerHonorific={selectedEstimate?.customerId ? customers.find(c => c.id === selectedEstimate.customerId)?.honorific : undefined}
                     companyInfo={companyInfo}
