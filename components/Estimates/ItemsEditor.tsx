@@ -61,18 +61,18 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
 
             {/* デスクトップ: テーブル表示 */}
             <div className="hidden md:block border border-gray-200 rounded-lg overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full min-w-[800px]">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-full">項目</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">項目</th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-28">規格</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-16">数量</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-16">単位</th>
-                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-24">単価</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">税率</th>
-                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-24">金額</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">数量</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">単位</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-28">単価</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-24">税率</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-28">金額</th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-28">備考</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-16">操作</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">操作</th>
                         </tr>
                     </thead>
                     <tbody>
