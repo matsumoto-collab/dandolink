@@ -15,12 +15,25 @@ function parseCustomerDates(customer: Customer & { createdAt: string | Date; upd
     };
 }
 
-function parseEstimateDates(estimate: Estimate & { validUntil: string | Date; createdAt: string | Date; updatedAt: string | Date }): Estimate {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function parseEstimateDates(estimate: any): Estimate {
     return {
         ...estimate,
+        // API returns projectMasterId, frontend uses projectId
+        projectId: estimate.projectId ?? estimate.projectMasterId ?? undefined,
         validUntil: new Date(estimate.validUntil),
         createdAt: new Date(estimate.createdAt),
         updatedAt: new Date(estimate.updatedAt),
+    };
+}
+
+/** フロントのprojectIdをAPIのprojectMasterIdに変換 */
+function toEstimateApiPayload(data: Partial<EstimateInput>): Record<string, unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { projectId, ...rest } = data;
+    return {
+        ...rest,
+        projectMasterId: projectId,
     };
 }
 
@@ -273,7 +286,7 @@ export const useFinanceStore = create<FinanceStore>()(
             const response = await fetch('/api/estimates', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(toEstimateApiPayload(data)),
             });
 
             if (!response.ok) {
@@ -293,7 +306,7 @@ export const useFinanceStore = create<FinanceStore>()(
             const response = await fetch(`/api/estimates/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(toEstimateApiPayload(data)),
             });
 
             if (!response.ok) {
