@@ -191,48 +191,53 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
 
                 {/* 現場名（3フィールド分離） */}
                 <FormField label="現場名" required>
-                    <div className="flex gap-2 items-end">
-                        <div className="flex-1">
+                    <div className="space-y-3">
+                        {/* 1行目: 名前（フル幅） */}
+                        <div>
                             <label className="block text-xs text-gray-500 mb-1">名前</label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
                                 placeholder="例: 佐藤"
                             />
                         </div>
-                        <div className="w-24">
-                            <label className="block text-xs text-gray-500 mb-1">敬称</label>
-                            <select
-                                value={formData.honorific}
-                                onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                            >
-                                {HONORIFIC_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
+                        {/* 2行目: 敬称 + 工事名称 */}
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs text-gray-500 mb-1">敬称</label>
+                                <select
+                                    value={formData.honorific}
+                                    onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                >
+                                    {HONORIFIC_OPTIONS.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex-[2]">
+                                <label className="block text-xs text-gray-500 mb-1">工事名称</label>
+                                <select
+                                    value={formData.constructionSuffixId}
+                                    onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                >
+                                    <option value="">選択なし</option>
+                                    {constructionSuffixes.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
-                        <div className="w-40">
-                            <label className="block text-xs text-gray-500 mb-1">工事名称</label>
-                            <select
-                                value={formData.constructionSuffixId}
-                                onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                            >
-                                <option value="">選択なし</option>
-                                {constructionSuffixes.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* プレビュー */}
+                        {titlePreview && (
+                            <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+                                正式名称: <span className="font-medium">{titlePreview}</span>
+                            </div>
+                        )}
                     </div>
-                    {titlePreview && (
-                        <div className="mt-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
-                            正式名称: <span className="font-medium">{titlePreview}</span>
-                        </div>
-                    )}
                 </FormField>
 
                 {/* 元請け（顧客選択） */}
