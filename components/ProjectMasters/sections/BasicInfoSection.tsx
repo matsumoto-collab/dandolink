@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { FormField } from '../common/FormField';
@@ -12,6 +12,19 @@ import CustomerModal from '@/components/Customers/CustomerModal';
 import { CustomerInput } from '@/types/customer';
 import { useFinanceStore } from '@/stores/financeStore';
 import toast from 'react-hot-toast';
+
+const HONORIFIC_OPTIONS = [
+    { value: '様邸', label: '様邸' },
+    { value: '様', label: '様' },
+    { value: '御中', label: '御中' },
+    { value: '', label: 'なし' },
+];
+
+interface ConstructionSuffix {
+    id: string;
+    name: string;
+    sortOrder: number;
+}
 
 interface ManagerUser {
     id: string;
@@ -30,6 +43,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
     const customerDropdownRef = useRef<HTMLDivElement>(null);
+    const [constructionSuffixes, setConstructionSuffixes] = useState<ConstructionSuffix[]>([]);
 
     const {
         setCustomers,
@@ -103,6 +117,29 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
         fetchManagers();
     }, []);
 
+    useEffect(() => {
+        const fetchSuffixes = async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-suffixes');
+                if (res.ok) {
+                    setConstructionSuffixes(await res.json());
+                }
+            } catch (error) {
+                console.error('Failed to fetch construction suffixes:', error);
+            }
+        };
+        fetchSuffixes();
+    }, []);
+
+    // 正式名称プレビューを生成
+    const titlePreview = useMemo(() => {
+        const n = formData.name.trim();
+        if (!n) return '';
+        const h = formData.honorific || '';
+        const suffix = constructionSuffixes.find(s => s.id === formData.constructionSuffixId)?.name || '';
+        return `${n}${h}${suffix ? ' ' + suffix : ''}`;
+    }, [formData.name, formData.honorific, formData.constructionSuffixId, constructionSuffixes]);
+
     return (
         <>
             <div className="space-y-4">
@@ -152,15 +189,50 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     </div>
                 </FormField>
 
-                {/* 現場名 */}
+                {/* 現場名（3フィールド分離） */}
                 <FormField label="現場名" required>
-                    <input
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                        placeholder="例: 松本様邸"
-                    />
+                    <div className="flex gap-2 items-end">
+                        <div className="flex-1">
+                            <label className="block text-xs text-gray-500 mb-1">名前</label>
+                            <input
+                                type="text"
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                                placeholder="例: 佐藤"
+                            />
+                        </div>
+                        <div className="w-24">
+                            <label className="block text-xs text-gray-500 mb-1">敬称</label>
+                            <select
+                                value={formData.honorific}
+                                onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                            >
+                                {HONORIFIC_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="w-40">
+                            <label className="block text-xs text-gray-500 mb-1">工事名称</label>
+                            <select
+                                value={formData.constructionSuffixId}
+                                onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                            >
+                                <option value="">選択なし</option>
+                                {constructionSuffixes.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    {titlePreview && (
+                        <div className="mt-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-700">
+                            正式名称: <span className="font-medium">{titlePreview}</span>
+                        </div>
+                    )}
                 </FormField>
 
                 {/* 元請け（顧客選択） */}

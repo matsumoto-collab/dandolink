@@ -81,7 +81,18 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
+        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
+
+        // 正式名称を自動合成（nameがある場合）
+        let resolvedTitle = title || '';
+        if (name) {
+            let suffixName = '';
+            if (constructionSuffixId) {
+                const suffix = await prisma.constructionSuffix.findUnique({ where: { id: constructionSuffixId } });
+                suffixName = suffix?.name || '';
+            }
+            resolvedTitle = `${name}${honorific || ''}${suffixName ? ' ' + suffixName : ''}`;
+        }
 
         // customerShortNameが未指定の場合、Customerテーブルから自動取得
         let resolvedCustomerShortName = customerShortName || null;
@@ -101,7 +112,8 @@ export async function POST(req: NextRequest) {
 
         const projectMaster = await prisma.projectMaster.create({
             data: {
-                title, customerId: resolvedCustomerId, customerName: customerName || null, customerShortName: resolvedCustomerShortName,
+                title: resolvedTitle || title, name: name || null, honorific: honorific ?? null, constructionSuffixId: constructionSuffixId || null,
+                customerId: resolvedCustomerId, customerName: customerName || null, customerShortName: resolvedCustomerShortName,
                 constructionType: constructionType || 'other', constructionContent: constructionContent || null,
                 status: status || 'active', location: location || null, postalCode: postalCode || null,
                 prefecture: prefecture || null, city: city || null, plusCode: plusCode || null,

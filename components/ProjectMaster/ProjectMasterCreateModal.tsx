@@ -40,8 +40,8 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!formData.title.trim()) {
-            toast.error('現場名は必須です');
+        if (!formData.name.trim()) {
+            toast.error('名前は必須です');
             return;
         }
         if (!formData.constructionContent) {

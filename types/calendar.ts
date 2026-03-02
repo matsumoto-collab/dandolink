@@ -142,7 +142,11 @@ export const DEFAULT_SCAFFOLDING_SPEC: ScaffoldingSpec = {
 // 案件マスター（1現場=1レコード）
 export interface ProjectMaster {
     id: string;
-    title: string;                   // 現場名
+    title: string;                   // 正式名称（自動合成）
+    name?: string;                   // 短縮名（カレンダー表示用）
+    honorific?: string;              // 敬称（様邸/様/御中/空文字）
+    constructionSuffixId?: string;   // 工事名称マスタID
+    constructionSuffixName?: string; // 工事名称（表示用、APIレスポンス）
     customerId?: string;             // 顧客ID
     customerName?: string;           // 顧客名（表示用）
     customerShortName?: string;      // 顧客略称（表示用）

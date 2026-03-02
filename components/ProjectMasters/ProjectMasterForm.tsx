@@ -23,6 +23,9 @@ export interface WorkDateEntry {
 
 export interface ProjectMasterFormData {
     title: string;
+    name: string;
+    honorific: string;
+    constructionSuffixId: string;
     customerId: string;
     customerName: string;
     constructionContent: ConstructionContentType | '';
@@ -50,6 +53,9 @@ export interface ProjectMasterFormData {
 
 export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     title: '',
+    name: '',
+    honorific: '様邸',
+    constructionSuffixId: '',
     customerId: '',
     customerName: '',
     constructionContent: '',

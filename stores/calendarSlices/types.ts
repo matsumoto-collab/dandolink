@@ -48,7 +48,7 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
 
     return {
         id: assignment.id,
-        title: assignment.projectMaster?.title || '不明な案件',
+        title: assignment.projectMaster?.name || assignment.projectMaster?.title || '不明な案件',
         startDate: assignment.date,
         category: 'construction',
         color,

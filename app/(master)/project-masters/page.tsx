@@ -80,6 +80,9 @@ export default function ProjectMasterListPage() {
 
         const pm = await createProjectMaster({
             title: data.title,
+            name: data.name || undefined,
+            honorific: data.honorific ?? undefined,
+            constructionSuffixId: data.constructionSuffixId || undefined,
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
             constructionType: 'other',
@@ -131,6 +134,9 @@ export default function ProjectMasterListPage() {
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
         await updateProjectMaster(id, {
             title: data.title,
+            name: data.name || undefined,
+            honorific: data.honorific ?? undefined,
+            constructionSuffixId: data.constructionSuffixId || undefined,
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
             constructionContent: data.constructionContent as ConstructionContentType || undefined,
