@@ -393,12 +393,12 @@ export default function MobileCalendarView({
                                                                         {event.customer}
                                                                     </div>
                                                                 )}
-                                                                {(event.workers && event.workers.length > 0 || event.estimatedHours != null) && (
+                                                                {((event.memberCount != null) || (event.workers && event.workers.length > 0) || event.estimatedHours != null) && (
                                                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                                                        {event.workers && event.workers.length > 0 && (
+                                                                        {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && (
                                                                             <span className="flex items-center gap-0.5">
                                                                                 <Users className="w-2.5 h-2.5 text-gray-500" />
-                                                                                <span className="text-[9px] text-gray-600">{event.workers.length}人</span>
+                                                                                <span className="text-[9px] text-gray-600">{event.memberCount ?? event.workers?.length ?? 0}人</span>
                                                                             </span>
                                                                         )}
                                                                         {event.estimatedHours != null && (
@@ -461,9 +461,9 @@ export default function MobileCalendarView({
                                         <div className="text-slate-500 text-sm mt-0.5">{actionSheet.event.customer}</div>
                                     )}
                                     <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs">
-                                        {actionSheet.event.workers && actionSheet.event.workers.length > 0 && (
+                                        {((actionSheet.event.memberCount != null) || (actionSheet.event.workers && actionSheet.event.workers.length > 0)) && (
                                             <span className="flex items-center gap-1">
-                                                <Users className="w-3 h-3" />{actionSheet.event.workers.length}人
+                                                <Users className="w-3 h-3" />{actionSheet.event.memberCount ?? actionSheet.event.workers?.length ?? 0}人
                                             </span>
                                         )}
                                         {actionSheet.event.estimatedHours != null && (
