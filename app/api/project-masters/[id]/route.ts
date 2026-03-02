@@ -35,7 +35,30 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const VALID_STATUSES = ['active', 'completed', 'cancelled'];
 
         const updateData: Record<string, unknown> = {};
-        if (body.title !== undefined) updateData.title = body.title;
+        if (body.name !== undefined) updateData.name = body.name || null;
+        if (body.honorific !== undefined) updateData.honorific = body.honorific ?? null;
+        if (body.constructionSuffixId !== undefined) updateData.constructionSuffixId = body.constructionSuffixId || null;
+
+        // nameがある場合、titleを自動合成
+        if (body.name !== undefined) {
+            let suffixName = '';
+            const suffixId = body.constructionSuffixId !== undefined ? body.constructionSuffixId : undefined;
+            if (suffixId) {
+                const suffix = await prisma.constructionSuffix.findUnique({ where: { id: suffixId } });
+                suffixName = suffix?.name || '';
+            } else if (suffixId === undefined) {
+                // constructionSuffixIdが変更されていない場合、既存のIDから取得
+                const existing = await prisma.projectMaster.findUnique({ where: { id }, select: { constructionSuffixId: true } });
+                if (existing?.constructionSuffixId) {
+                    const suffix = await prisma.constructionSuffix.findUnique({ where: { id: existing.constructionSuffixId } });
+                    suffixName = suffix?.name || '';
+                }
+            }
+            const h = body.honorific !== undefined ? (body.honorific || '') : '';
+            updateData.title = `${body.name}${h}${suffixName ? ' ' + suffixName : ''}`;
+        } else if (body.title !== undefined) {
+            updateData.title = body.title;
+        }
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.customerName !== undefined) updateData.customerName = body.customerName;
         if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;

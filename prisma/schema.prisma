@@ -34,6 +34,9 @@ model User {
 model ProjectMaster {
   id                         String              @id @default(uuid())
   title                      String
+  name                       String?
+  honorific                  String?
+  constructionSuffixId       String?
   constructionType           String              @default("other")
   status                     String              @default("active")
   location                   String?
@@ -229,6 +232,19 @@ model Worker {
   hourlyRate Decimal?
 
   @@index([name])
+  @@schema("public")
+}
+
+model ConstructionSuffix {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([name])
+  @@index([sortOrder])
   @@schema("public")
 }
 

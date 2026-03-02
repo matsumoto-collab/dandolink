@@ -39,6 +39,9 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
 
     return {
         title: pm.title,
+        name: pm.name || '',
+        honorific: pm.honorific ?? '様邸',
+        constructionSuffixId: pm.constructionSuffixId || '',
         customerId: pm.customerId || '',
         customerName: pm.customerName || '',
         constructionContent: pm.constructionContent || '',
@@ -108,8 +111,8 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     };
 
     const handleUpdate = async () => {
-        if (!formData.title.trim()) {
-            toast.error('現場名は必須です');
+        if (!formData.name.trim() && !formData.title.trim()) {
+            toast.error('名前は必須です');
             return;
         }
         try {

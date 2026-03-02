@@ -96,8 +96,12 @@ export const constructionTypeSchema = z.string().min(1);
 export const createProjectMasterSchema = z.object({
     title: z
         .string()
-        .min(1, '案件名は必須です')
-        .max(200, '案件名は200文字以内で入力してください'),
+        .max(200, '案件名は200文字以内で入力してください')
+        .optional()
+        .default(''),
+    name: z.string().max(100, '名前は100文字以内で入力してください').optional().nullable(),
+    honorific: z.string().max(20).optional().nullable(),
+    constructionSuffixId: z.string().optional().nullable(),
     customerId: z.string().optional().nullable(),
     customerName: z.string().max(200).optional().nullable(),
     customerShortName: z.string().max(100).optional().nullable(),

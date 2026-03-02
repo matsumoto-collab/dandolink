@@ -16,6 +16,19 @@ import { useFinanceStore } from '@/stores/financeStore';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
 
+const HONORIFIC_OPTIONS = [
+    { value: '様邸', label: '様邸' },
+    { value: '様', label: '様' },
+    { value: '御中', label: '御中' },
+    { value: '', label: 'なし' },
+];
+
+interface ConstructionSuffixItem {
+    id: string;
+    name: string;
+    sortOrder: number;
+}
+
 interface ManagerUser {
     id: string;
     displayName: string;
@@ -44,7 +57,22 @@ export default function ProjectForm({
     const { vehicles: mockVehicles, constructionTypes, totalMembers: TOTAL_MEMBERS } = useMasterData();
     const { getForemanName, allForemen } = useCalendarDisplay();
 
+    // 工事名称マスタ
+    const [constructionSuffixes, setConstructionSuffixes] = useState<ConstructionSuffixItem[]>([]);
+    useEffect(() => {
+        const fetchSuffixes = async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-suffixes');
+                if (res.ok) setConstructionSuffixes(await res.json());
+            } catch { /* ignore */ }
+        };
+        fetchSuffixes();
+    }, []);
+
     const [formData, setFormData] = useState({
+        name: '',
+        honorific: '様邸',
+        constructionSuffixId: '',
         title: initialData?.title || '',
         customer: initialData?.customer || '',
         customerId: '', // 顧客ID追加
@@ -289,7 +317,14 @@ export default function ProjectForm({
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
+        if (!formData.name.trim() && !formData.title.trim()) return;
         if (!formData.customer.trim()) return;
+
+        // 正式名称を自動合成
+        const suffixName = constructionSuffixes.find(s => s.id === formData.constructionSuffixId)?.name || '';
+        const composedTitle = formData.name.trim()
+            ? `${formData.name.trim()}${formData.honorific}${suffixName ? ' ' + suffixName : ''}`
+            : formData.title;
 
         // customerId未セット = ドロップダウン未選択 / 新規登録未経由
         // 編集時で顧客名が初期値から変わっていない場合のみ許容（後方互換）
@@ -323,7 +358,7 @@ export default function ProjectForm({
         }
 
         const projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
-            title: formData.title,
+            title: composedTitle,
             customer: formData.customer || undefined,
             createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : undefined,
             startDate: startDate,
@@ -349,19 +384,54 @@ export default function ProjectForm({
     return (
         <>
         <form onSubmit={handleSubmit} className="space-y-4">
-            {/* 現場名 */}
+            {/* 現場名（3フィールド分離） */}
             <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                     現場名 <span className="text-slate-500">*</span>
                 </label>
-                <input
-                    type="text"
-                    required
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="例: 帝人"
-                />
+                <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                        <label className="block text-xs text-gray-500 mb-1">名前</label>
+                        <input
+                            type="text"
+                            required
+                            value={formData.name}
+                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            placeholder="例: 佐藤"
+                        />
+                    </div>
+                    <div className="w-24">
+                        <label className="block text-xs text-gray-500 mb-1">敬称</label>
+                        <select
+                            value={formData.honorific}
+                            onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        >
+                            {HONORIFIC_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="w-40">
+                        <label className="block text-xs text-gray-500 mb-1">工事名称</label>
+                        <select
+                            value={formData.constructionSuffixId}
+                            onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        >
+                            <option value="">選択なし</option>
+                            {constructionSuffixes.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                {formData.name.trim() && (
+                    <div className="mt-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-slate-700">
+                        正式名称: <span className="font-medium">{formData.name.trim()}{formData.honorific}{(() => { const s = constructionSuffixes.find(s => s.id === formData.constructionSuffixId)?.name; return s ? ' ' + s : ''; })()}</span>
+                    </div>
+                )}
             </div>
 
             {/* 元請名（顧客選択） */}
