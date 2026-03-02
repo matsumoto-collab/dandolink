@@ -10,6 +10,7 @@ import { isManagerOrAbove } from '@/utils/permissions';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { CustomerInput } from '@/types/customer';
+import { useFinanceStore } from '@/stores/financeStore';
 import toast from 'react-hot-toast';
 
 interface ManagerUser {
@@ -64,6 +65,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
             if (res.ok) {
                 const newCustomer = await res.json();
                 setCustomers(prev => [...prev, newCustomer]);
+                useFinanceStore.getState().fetchCustomers();
                 setFormData(prev => ({
                     ...prev,
                     customerId: newCustomer.id,

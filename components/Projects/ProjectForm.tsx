@@ -12,6 +12,7 @@ import MultiDayScheduleEditor from './MultiDayScheduleEditor';
 import { User, Search, Plus } from 'lucide-react';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { CustomerInput } from '@/types/customer';
+import { useFinanceStore } from '@/stores/financeStore';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -270,6 +271,7 @@ export default function ProjectForm({
             if (res.ok) {
                 const newCustomer = await res.json();
                 setCustomers(prev => [...prev, newCustomer]);
+                useFinanceStore.getState().fetchCustomers();
                 setFormData(prev => ({
                     ...prev,
                     customerId: newCustomer.id,
