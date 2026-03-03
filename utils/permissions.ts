@@ -37,10 +37,10 @@ const ROLE_PERMISSIONS = {
         assignments: ['view', 'edit'], // 全班のメンバー・車両采配可能
     },
     foreman2: {
-        projects: ['view', 'edit'], // 自班のみ
-        estimates: ['view'],
-        invoices: ['view'],
-        customers: ['view'],
+        projects: ['view'], // 自班のみ、閲覧のみ（金額非表示）
+        estimates: [],
+        invoices: [],
+        customers: [],
         settings: [],
         users: [],
         assignments: ['view', 'edit'], // 自班のみ操作可能
@@ -53,6 +53,15 @@ const ROLE_PERMISSIONS = {
         settings: [],
         users: [],
         assignments: ['view'], // 自班のみ表示
+    },
+    partner: {
+        projects: ['view'], // 自分のみ
+        estimates: [],
+        invoices: [],
+        customers: [],
+        settings: [],
+        users: [],
+        assignments: ['view'], // 自分のみ表示
     },
 } as const;
 
@@ -90,8 +99,8 @@ export function canAccessProject(
     // Foreman1 can access all projects
     if (user.role === 'foreman1') return true;
 
-    // Foreman2 and Worker need to check assigned projects
-    if (user.role === 'foreman2' || user.role === 'worker') {
+    // Foreman2, Worker, Partner need to check assigned projects
+    if (user.role === 'foreman2' || user.role === 'worker' || user.role === 'partner') {
         if (!user.assignedProjects) return false;
         return user.assignedProjects.includes(projectId);
     }
@@ -146,6 +155,8 @@ export function getRoleDisplayName(role: string): string {
             return '職長2';
         case 'worker':
             return '職方';
+        case 'partner':
+            return '協力会社';
         default:
             return role;
     }

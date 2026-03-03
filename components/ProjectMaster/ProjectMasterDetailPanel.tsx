@@ -11,6 +11,7 @@ const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim()
 
 interface ProjectMasterDetailPanelProps {
     pm: ProjectMaster;
+    hideFinancials?: boolean;
 }
 
 const CONSTRUCTION_CONTENT_LABELS: Record<string, string> = {
@@ -43,7 +44,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
     );
 }
 
-export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPanelProps) {
+export default function ProjectMasterDetailPanel({ pm, hideFinancials }: ProjectMasterDetailPanelProps) {
     const [userMap, setUserMap] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -153,10 +154,12 @@ export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPane
                     value={pm.estimatedDemolitionWorkers != null ? `${pm.estimatedDemolitionWorkers}名` : undefined}
                 />
                 <Field label="面積" value={pm.area != null ? `${pm.area}m²` : undefined} />
-                <Field
-                    label="請負金額"
-                    value={pm.contractAmount != null ? `¥${pm.contractAmount.toLocaleString()}` : undefined}
-                />
+                {!hideFinancials && (
+                    <Field
+                        label="請負金額"
+                        value={pm.contractAmount != null ? `¥${pm.contractAmount.toLocaleString()}` : undefined}
+                    />
+                )}
             </dl>
 
             {/* 備考 */}
@@ -178,8 +181,12 @@ export default function ProjectMasterDetailPanel({ pm }: ProjectMasterDetailPane
             <WorkHistoryDisplay projectMasterId={pm.id} />
 
             {/* 利益サマリー */}
-            <SectionTitle>利益サマリー</SectionTitle>
-            <ProjectProfitDisplay projectMasterId={pm.id} />
+            {!hideFinancials && (
+                <>
+                    <SectionTitle>利益サマリー</SectionTitle>
+                    <ProjectProfitDisplay projectMasterId={pm.id} />
+                </>
+            )}
         </div>
     );
 }

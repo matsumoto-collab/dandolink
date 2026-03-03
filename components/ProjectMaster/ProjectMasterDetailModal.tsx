@@ -16,6 +16,7 @@ interface ProjectMasterDetailModalProps {
     onUpdate: (id: string, data: ProjectMasterFormData) => Promise<void>;
     initialEditMode?: boolean;
     onCreateEstimate?: () => void;
+    readOnly?: boolean;
 }
 
 function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTypeMaster[]): ProjectMasterFormData {
@@ -64,7 +65,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
     };
 }
 
-export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate }: ProjectMasterDetailModalProps) {
+export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, readOnly }: ProjectMasterDetailModalProps) {
     const isOpen = pm !== null;
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
@@ -155,22 +156,24 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                         )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                        {isEditMode ? (
-                            <button
-                                onClick={handleCancelEdit}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
-                            >
-                                <ArrowLeft className="w-4 h-4" />
-                                閲覧に戻る
-                            </button>
-                        ) : (
-                            <button
-                                onClick={handleStartEdit}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                <Edit className="w-4 h-4" />
-                                編集
-                            </button>
+                        {!readOnly && (
+                            isEditMode ? (
+                                <button
+                                    onClick={handleCancelEdit}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white hover:bg-gray-100 border border-gray-300 rounded-lg transition-colors"
+                                >
+                                    <ArrowLeft className="w-4 h-4" />
+                                    閲覧に戻る
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleStartEdit}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <Edit className="w-4 h-4" />
+                                    編集
+                                </button>
+                            )
                         )}
                         {!isEditMode && onCreateEstimate && (
                             <button
@@ -202,7 +205,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             projectMasterId={pm.id}
                         />
                     ) : (
-                        <ProjectMasterDetailPanel pm={pm} />
+                        <ProjectMasterDetailPanel pm={pm} hideFinancials={readOnly} />
                     )}
                 </div>
             </div>

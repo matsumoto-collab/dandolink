@@ -182,6 +182,13 @@ export default function Sidebar() {
                                 if (filteredItems.length === 0) return null;
                                 return { ...section, items: filteredItems };
                             }
+                            // 職長2: スケジュール管理 + 案件一覧のみ
+                            if (session?.user?.role === 'foreman2') {
+                                if (section.title !== '業務管理') return null;
+                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters');
+                                if (filteredItems.length === 0) return null;
+                                return { ...section, items: filteredItems };
+                            }
                             return section;
                         })
                         .filter((section): section is NavSection => section !== null)
