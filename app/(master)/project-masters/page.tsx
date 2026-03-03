@@ -12,6 +12,7 @@ import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDe
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import toast from 'react-hot-toast';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
+import { useSession } from 'next-auth/react';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -21,6 +22,9 @@ const EstimateModal = dynamic(
 export default function ProjectMasterListPage() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
     const constructionTypes = useMasterStore(selectConstructionTypes);
+    const { data: session } = useSession();
+    const userRole = session?.user?.role;
+    const isForeman2 = userRole === 'foreman2';
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('active');
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
@@ -250,7 +254,8 @@ export default function ProjectMasterListPage() {
                 onClose={closeModal}
                 onUpdate={handleUpdate}
                 initialEditMode={openModalInEditMode}
-                onCreateEstimate={handleCreateEstimate}
+                onCreateEstimate={isForeman2 ? undefined : handleCreateEstimate}
+                readOnly={isForeman2}
             />
             <EstimateModal
                 isOpen={isEstimateModalOpen}
@@ -295,14 +300,16 @@ export default function ProjectMasterListPage() {
                             <option value="completed">完了</option>
                         </select>
 
-                        <button
-                            onClick={() => setIsCreating(true)}
-                            className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
-                        >
-                            <Plus className="w-5 h-5" />
-                            <span className="hidden sm:inline">新規案件登録</span>
-                            <span className="sm:hidden">新規登録</span>
-                        </button>
+                        {!isForeman2 && (
+                            <button
+                                onClick={() => setIsCreating(true)}
+                                className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+                            >
+                                <Plus className="w-5 h-5" />
+                                <span className="hidden sm:inline">新規案件登録</span>
+                                <span className="sm:hidden">新規登録</span>
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -365,58 +372,62 @@ export default function ProjectMasterListPage() {
                                         </div>
 
                                         {/* PC: アクションボタン */}
-                                        <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        {!isForeman2 && (
+                                            <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => openEditModal(pm)}
+                                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                    title="編集"
+                                                >
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleArchive(pm)}
+                                                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
+                                                        ? 'bg-slate-100 text-slate-700 hover:bg-green-200'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                        }`}
+                                                >
+                                                    {pm.status === 'active' ? '完了にする' : '再開する'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(pm.id)}
+                                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* モバイル: アクションボタン行 */}
+                                    {!isForeman2 && (
+                                        <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => openEditModal(pm)}
-                                                className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                title="編集"
+                                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                             >
-                                                <Edit className="w-5 h-5" />
+                                                <Edit className="w-4 h-4" />
+                                                編集
                                             </button>
                                             <button
                                                 onClick={() => handleArchive(pm)}
-                                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
-                                                    ? 'bg-slate-100 text-slate-700 hover:bg-green-200'
-                                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
+                                                    ? 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                                                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                                                     }`}
                                             >
                                                 {pm.status === 'active' ? '完了にする' : '再開する'}
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(pm.id)}
-                                                className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                title="削除"
+                                                className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
                                             >
-                                                <Trash2 className="w-5 h-5" />
+                                                <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
-                                    </div>
-
-                                    {/* モバイル: アクションボタン行 */}
-                                    <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
-                                        <button
-                                            onClick={() => openEditModal(pm)}
-                                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                        >
-                                            <Edit className="w-4 h-4" />
-                                            編集
-                                        </button>
-                                        <button
-                                            onClick={() => handleArchive(pm)}
-                                            className={`flex-1 py-2.5 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
-                                                ? 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                                                : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
-                                                }`}
-                                        >
-                                            {pm.status === 'active' ? '完了にする' : '再開する'}
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(pm.id)}
-                                            className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         ))

@@ -8,7 +8,7 @@ export async function GET() {
         if (error) return error;
 
         const role = session!.user.role;
-        if (!['admin', 'manager', 'foreman1', 'worker'].includes(role)) {
+        if (!['admin', 'manager', 'foreman1', 'foreman2', 'worker'].includes(role)) {
             return errorResponse('権限がありません', 403);
         }
 
