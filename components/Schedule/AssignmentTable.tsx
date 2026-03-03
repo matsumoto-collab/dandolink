@@ -118,14 +118,23 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             dayProjects = dayProjects.filter(project =>
                 project.confirmedWorkerIds?.includes(userTeamId)
             );
-            return { '_worker': dayProjects };
         }
         const grouped: Record<string, typeof dayProjects> = {};
-        foremen.forEach(foreman => {
-            grouped[foreman.id] = dayProjects
-                .filter(p => p.assignedEmployeeId === foreman.id)
-                .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
-        });
+        if (userRole === 'worker') {
+            // 職方: 手配された案件をassignedEmployeeId（職長）ごとにグルーピング
+            dayProjects.forEach(p => {
+                const fid = p.assignedEmployeeId || '_unknown';
+                if (!grouped[fid]) grouped[fid] = [];
+                grouped[fid].push(p);
+            });
+            Object.values(grouped).forEach(arr => arr.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0)));
+        } else {
+            foremen.forEach(foreman => {
+                grouped[foreman.id] = dayProjects
+                    .filter(p => p.assignedEmployeeId === foreman.id)
+                    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+            });
+        }
         return grouped;
     }, [projects, foremen, selectedDate, userRole, userTeamId]);
 
@@ -197,18 +206,29 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             <div className="flex-1 overflow-auto">
                 <div className="space-y-4">
                     {userRole === 'worker' ? (
-                        <ForemanSection
-                            foremanName={`あなたの担当現場${userTeamId ? `　${allForemen.find(f => f.id === userTeamId)?.displayName ?? ''}` : ''}`}
-                            assignments={Object.values(assignmentsByEmployee).flat()}
-                            emptyMessage="担当現場なし"
-                            canEdit={false}
-                            isNamesLoaded={isNamesLoaded}
-                            workerNameMap={workerNameMap}
-                            vehicleNameMap={vehicleNameMap}
-                            foremanId=""
-                            showForemanBadge
-                            allForemen={allForemen}
-                        />
+                        Object.keys(assignmentsByEmployee).length === 0 ? (
+                            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                                <div className="py-8 text-center text-slate-300 text-sm">担当現場なし</div>
+                            </div>
+                        ) : (
+                            Object.entries(assignmentsByEmployee).map(([foremanId, assignments]) => {
+                                const fName = allForemen.find(f => f.id === foremanId)?.displayName ?? '';
+                                return (
+                                    <ForemanSection
+                                        key={foremanId}
+                                        foremanName={fName ? `あなたの担当現場　${fName}` : 'あなたの担当現場'}
+                                        assignments={assignments}
+                                        emptyMessage="担当現場なし"
+                                        canEdit={false}
+                                        isNamesLoaded={isNamesLoaded}
+                                        workerNameMap={workerNameMap}
+                                        vehicleNameMap={vehicleNameMap}
+                                        foremanId={foremanId}
+                                        allForemen={allForemen}
+                                    />
+                                );
+                            })
+                        )
                     ) : (
                         foremen.map((foreman) => {
                             const assignments = assignmentsByEmployee[foreman.id] || [];
