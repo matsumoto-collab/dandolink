@@ -8,6 +8,8 @@ import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays } from 'lucide-react';
+import ProjectModal from '@/components/Projects/ProjectModal';
+import { Project } from '@/types/calendar';
 
 interface AssignmentTableProps {
     userRole?: string;
@@ -24,6 +26,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
+    const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
     useEffect(() => {
         const fetchNames = async () => {
@@ -225,6 +228,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                         vehicleNameMap={vehicleNameMap}
                                         foremanId={foremanId}
                                         allForemen={allForemen}
+                                        onProjectClick={(p) => setSelectedProject(p as Project)}
                                     />
                                 );
                             })
@@ -250,6 +254,15 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                     )}
                 </div>
             </div>
+
+            {/* 案件詳細モーダル（閲覧専用） */}
+            <ProjectModal
+                isOpen={!!selectedProject}
+                onClose={() => setSelectedProject(null)}
+                onSubmit={() => {}}
+                initialData={selectedProject ?? undefined}
+                readOnly={true}
+            />
         </div>
     );
 }
@@ -266,6 +279,7 @@ interface ForemanSectionProps {
     foremanId: string;
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
+    onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
 }
 
 function ForemanSection({
@@ -279,6 +293,7 @@ function ForemanSection({
     foremanId,
     showForemanBadge,
     allForemen,
+    onProjectClick,
 }: ForemanSectionProps) {
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
 
@@ -316,6 +331,7 @@ function ForemanSection({
                             foremanId={foremanId}
                             showForemanBadge={showForemanBadge}
                             allForemen={allForemen}
+                            onProjectClick={onProjectClick}
                         />
                     ))
                 )}
@@ -334,6 +350,7 @@ interface ProjectCardProps {
     foremanId: string;
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
+    onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
 }
 
 function ProjectCard({
@@ -345,6 +362,7 @@ function ProjectCard({
     foremanId,
     showForemanBadge,
     allForemen,
+    onProjectClick,
 }: ProjectCardProps) {
     const workerCount = project.workers?.length || 0;
     const vehicleCount = project.trucks?.length || project.vehicles?.length || 0;
@@ -366,7 +384,9 @@ function ProjectCard({
     const memberCount = project.memberCount || workerCount || 0;
 
     return (
-        <div className={`mx-3 my-2 rounded-2xl border transition-all shadow-sm ${
+        <div
+            onClick={() => onProjectClick?.(project)}
+            className={`mx-3 my-2 rounded-2xl border transition-all shadow-sm ${onProjectClick ? 'cursor-pointer active:scale-[0.98]' : ''} ${
             isConfirmed
                 ? 'bg-white border-slate-300'
                 : 'bg-white border-slate-200'
