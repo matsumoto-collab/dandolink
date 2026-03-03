@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
+import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
 import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays } from 'lucide-react';
@@ -14,7 +16,8 @@ interface AssignmentTableProps {
 
 
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
-    const { projects } = useProjects();
+    const { status } = useSession();
+    const { projects, fetchForDateRange } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
 
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
@@ -59,6 +62,15 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         tomorrow.setHours(0, 0, 0, 0);
         return tomorrow;
     });
+
+    // 手配表マウント時にアサインメントデータを取得（カレンダーを経由しない場合の対策）
+    useEffect(() => {
+        if (status === 'authenticated') {
+            const rangeStart = addDays(selectedDate, -7);
+            const rangeEnd = addDays(selectedDate, 7);
+            fetchForDateRange(rangeStart, rangeEnd);
+        }
+    }, [status, selectedDate, fetchForDateRange]);
 
     const foremen = useMemo(() => {
         return displayedForemanIds
