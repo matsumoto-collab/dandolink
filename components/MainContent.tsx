@@ -10,7 +10,7 @@ import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 function LoadingSpinner() {
     return (
         <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-600"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
         </div>
     );
 }
@@ -141,7 +141,7 @@ export default function MainContent() {
 
     return (
         <main className="
-            fixed top-0 bottom-0 bg-slate-50 overflow-auto
+            fixed top-0 bottom-0 bg-gradient-to-br from-slate-100 to-slate-50 overflow-auto
 
             /* Mobile: Full width with top padding for header */
             left-0 right-0 pt-16
@@ -151,7 +151,7 @@ export default function MainContent() {
 
             pwa-main-safe
         ">
-            <div className={`${activePage === 'schedule' ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+            <div key={activePage} className={`${activePage === 'schedule' ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                 {renderContent()}
             </div>
         </main>

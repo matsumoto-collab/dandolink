@@ -16,7 +16,6 @@ import {
     HelpCircle,
     LogOut,
     ChevronRight,
-    User as UserIcon,
     X,
     BarChart3,
 } from 'lucide-react';
@@ -127,15 +126,15 @@ export default function Sidebar() {
             {/* Sidebar */}
             <aside
                 className={`
-                    fixed left-0 top-0 h-dvh bg-slate-900
-                    border-r border-slate-800 flex flex-col shadow-lg z-50 transition-transform duration-300
+                    fixed left-0 top-0 h-dvh bg-gradient-to-b from-slate-950 to-slate-900
+                    border-r border-slate-800/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
                     w-64 pwa-sidebar-safe
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
                 `}
             >
                 {/* Logo Area */}
-                <div className="h-16 flex items-center px-4 border-b border-slate-800">
+                <div className="h-16 flex items-center px-4 border-b border-slate-800/50">
                     <button
                         onClick={() => window.location.reload()}
                         className="flex items-center justify-center flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
@@ -154,10 +153,12 @@ export default function Sidebar() {
 
                 {/* User Info */}
                 {session?.user && (
-                    <div className="px-3 py-4 border-b border-slate-800">
-                        <div className="flex items-center gap-3 px-3 py-2 bg-slate-800/60 rounded-lg">
-                            <div className="w-10 h-10 bg-slate-700 rounded-full flex items-center justify-center">
-                                <UserIcon className="w-5 h-5 text-slate-300" />
+                    <div className="px-3 py-4 border-b border-slate-800/50">
+                        <div className="flex items-center gap-3 px-3 py-2.5 bg-slate-800/40 rounded-xl">
+                            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-indigo-700 rounded-full flex items-center justify-center ring-2 ring-indigo-400/30 shadow-md">
+                                <span className="text-sm font-bold text-white">
+                                    {(session.user.name || session.user.username || '?').charAt(0).toUpperCase()}
+                                </span>
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-slate-200 truncate">
@@ -207,16 +208,16 @@ export default function Sidebar() {
                                                 <button
                                                     onClick={() => handleNavigation(item.page)}
                                                     className={`
-                                                    w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150
+                                                    nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                                                     ${isActive
-                                                            ? 'bg-slate-700/80 text-white'
-                                                            : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+                                                            ? 'bg-indigo-600/90 text-white shadow-md shadow-indigo-900/30 border-l-2 border-indigo-400'
+                                                            : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 border-l-2 border-transparent'
                                                         }
                                                 `}
                                                 >
-                                                    <Icon className={`w-5 h-5 ${isActive ? 'text-slate-200' : 'text-slate-500'}`} />
+                                                    <Icon className={`w-5 h-5 ${isActive ? 'text-indigo-200' : 'text-slate-500'}`} />
                                                     <span className="flex-1 text-left">{item.name}</span>
-                                                    {isActive && <ChevronRight className="w-4 h-4 text-slate-300" />}
+                                                    {isActive && <ChevronRight className="w-4 h-4 text-indigo-200" />}
                                                 </button>
                                             </li>
                                         );
@@ -227,14 +228,14 @@ export default function Sidebar() {
                 </nav>
 
                 {/* Utility Area */}
-                <div className="flex-shrink-0 border-t border-slate-800 p-3 space-y-1">
-                    <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 transition-colors duration-150">
+                <div className="flex-shrink-0 border-t border-slate-800/50 p-3 space-y-1">
+                    <button className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
                         <HelpCircle className="w-5 h-5 text-slate-500" />
                         <span>ヘルプ</span>
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-950/30 hover:text-slate-300 transition-colors duration-150"
+                        className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-950/30 hover:text-slate-300"
                     >
                         <LogOut className="w-5 h-5" />
                         <span>ログアウト</span>
