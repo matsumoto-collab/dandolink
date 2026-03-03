@@ -70,9 +70,9 @@ export default function ProjectForm({
     }, []);
 
     const [formData, setFormData] = useState({
-        name: '',
-        honorific: '様邸',
-        constructionSuffixId: '',
+        name: initialData?.name || '',
+        honorific: initialData?.honorific ?? '様邸',
+        constructionSuffixId: initialData?.constructionSuffixId || '',
         title: initialData?.title || '',
         customer: initialData?.customer || '',
         customerId: '', // 顧客ID追加
