@@ -9,7 +9,6 @@ declare module 'next-auth' {
             role: UserRole;
             assignedProjects?: string[];
             isActive: boolean;
-            teamId?: string | null;
         } & DefaultSession['user'];
     }
 
