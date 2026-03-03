@@ -9,6 +9,7 @@ declare module 'next-auth' {
             role: UserRole;
             assignedProjects?: string[];
             isActive: boolean;
+            teamId?: string | null;
         } & DefaultSession['user'];
     }
 
@@ -20,6 +21,7 @@ declare module 'next-auth' {
         role: UserRole;
         assignedProjects?: string[];
         isActive: boolean;
+        teamId?: string | null;
     }
 }
 
@@ -30,5 +32,6 @@ declare module 'next-auth/jwt' {
         role: UserRole;
         assignedProjects?: string[];
         isActive: boolean;
+        teamId?: string | null;
     }
 }
