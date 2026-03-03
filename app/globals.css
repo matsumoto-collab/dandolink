@@ -4,24 +4,27 @@
 
 :root {
   --foreground-rgb: 15, 23, 42;
-  --background-start-rgb: 250, 250, 250;
-  --background-end-rgb: 255, 255, 255;
+  --background-start-rgb: 248, 250, 252;
+  --background-end-rgb: 241, 245, 249;
 
   /* Premium Navy & Monochrome Palette */
   --color-navy-primary: 15, 23, 42;
-  /* Slate-900 - Rich Navy Black */
   --color-navy-secondary: 30, 41, 59;
-  /* Slate-800 - Deep Navy */
   --color-navy-accent: 51, 65, 85;
-  /* Slate-700 - Navy Gray */
   --color-charcoal: 30, 41, 59;
-  /* Charcoal Black */
   --color-pearl-white: 248, 250, 252;
-  /* Pearl White */
   --color-silver-gray: 148, 163, 184;
-  /* Silver Gray */
   --color-platinum: 226, 232, 240;
-  /* Platinum */
+
+  /* Accent Colors — Indigo & Amber */
+  --color-accent: 79, 70, 229;
+  /* indigo-600 */
+  --color-accent-light: 129, 140, 248;
+  /* indigo-400 */
+  --color-accent-dark: 67, 56, 202;
+  /* indigo-700 */
+  --color-accent-warn: 245, 158, 11;
+  /* amber-500 */
 }
 
 body {
@@ -46,8 +49,8 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg,
-      rgba(51, 65, 85, 0.8) 0%,
-      rgba(71, 85, 105, 0.8) 100%);
+      rgba(79, 70, 229, 0.6) 0%,
+      rgba(99, 102, 241, 0.6) 100%);
   border-radius: 5px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -55,8 +58,8 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg,
-      rgb(51, 65, 85) 0%,
-      rgb(71, 85, 105) 100%);
+      rgb(79, 70, 229) 0%,
+      rgb(99, 102, 241) 100%);
 }
 
 /* Mobile: calendar-container はモバイルビューに切り替えるため scale 不要 */
@@ -128,5 +131,54 @@ body {
 @media (max-width: 1023px) {
   .pwa-modal-offset-safe {
     padding-top: calc(4rem + env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+/* ========== Micro Animations ========== */
+
+/* ナビゲーションアイテム */
+.nav-item-animate {
+  transition: background-color 150ms ease, color 150ms ease, transform 100ms ease, box-shadow 150ms ease;
+}
+
+.nav-item-animate:hover {
+  transform: translateX(2px);
+}
+
+/* ページ進入フェードイン */
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: page-enter 250ms ease-out;
+}
+
+/* プライマリボタン glow */
+.btn-glow:hover {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+}
+
+.btn-glow:focus-visible {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+  outline: none;
+}
+
+/* アクセシビリティ: モーション軽減 */
+@media (prefers-reduced-motion: reduce) {
+
+  .nav-item-animate,
+  .animate-page-enter {
+    animation: none !important;
+    transition-duration: 50ms !important;
+    transform: none !important;
   }
 }
