@@ -67,6 +67,9 @@ export function useCalendarModals(
         // 案件マスターの情報を初期値として編集モーダルを開く
         setModalInitialData({
             title: projectMaster.title,
+            name: projectMaster.name || '',
+            honorific: projectMaster.honorific ?? '様邸',
+            constructionSuffixId: projectMaster.constructionSuffixId || '',
             customer: projectMaster.customerName,
             location: projectMaster.location,
             startDate: cellContext.date,

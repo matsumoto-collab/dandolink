@@ -228,6 +228,9 @@ export interface AssignmentCalendarEvent extends CalendarEvent {
  * 旧システム互換用。新規開発では使用しないでください。
  */
 export interface Project extends CalendarEvent {
+    name?: string;
+    honorific?: string;
+    constructionSuffixId?: string;
     createdAt: Date;
     updatedAt: Date;
     createdBy?: string | string[];
