@@ -72,6 +72,7 @@ export const authOptions: NextAuthOptions = {
                         role: user.role.toLowerCase() as UserRole,
                         assignedProjects,
                         isActive: user.isActive,
+                        teamId: user.teamId,
                     };
                 } catch (error) {
                     if (error instanceof Error) {
@@ -91,6 +92,7 @@ export const authOptions: NextAuthOptions = {
                 token.role = user.role;
                 token.assignedProjects = user.assignedProjects;
                 token.isActive = user.isActive;
+                token.teamId = user.teamId;
                 token.lastDbCheck = Date.now();
             } else if (token?.id) {
                 // 以降のリクエスト時のDB再検証 (5分 = 300,000ms ごと)
@@ -101,7 +103,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
-                            select: { isActive: true, role: true }
+                            select: { isActive: true, role: true, teamId: true }
                         });
 
                         if (!dbUser || !dbUser.isActive) {
@@ -111,6 +113,7 @@ export const authOptions: NextAuthOptions = {
                             // 状態が有効であれば更新
                             token.isActive = dbUser.isActive;
                             token.role = dbUser.role.toLowerCase() as UserRole;
+                            token.teamId = dbUser.teamId;
                             token.lastDbCheck = now;
                         }
                     } catch (error) {
@@ -128,6 +131,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.role = token.role;
                 session.user.assignedProjects = token.assignedProjects;
                 session.user.isActive = token.isActive;
+                session.user.teamId = token.teamId;
             }
             return session;
         },

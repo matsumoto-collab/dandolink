@@ -75,7 +75,7 @@ export default function MainContent() {
                 if (userRole === 'worker') {
                     return (
                         <div className="flex-1 min-h-0">
-                            <AssignmentTable userRole="worker" userTeamId={userId} />
+                            <AssignmentTable userRole="worker" userTeamId={session?.user?.teamId ?? userId} />
                         </div>
                     );
                 }
