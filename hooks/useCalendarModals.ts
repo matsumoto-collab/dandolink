@@ -65,10 +65,12 @@ export function useCalendarModals(
         if (!cellContext) return;
 
         // 案件マスターの情報を初期値として編集モーダルを開く
+        // 3フィールド分離前の古い案件はname=nullなので、titleからフォールバック
+        const hasNameField = !!projectMaster.name;
         setModalInitialData({
             title: projectMaster.title,
-            name: projectMaster.name || '',
-            honorific: projectMaster.honorific ?? '様邸',
+            name: hasNameField ? projectMaster.name! : projectMaster.title || '',
+            honorific: hasNameField ? (projectMaster.honorific ?? '様邸') : '',
             constructionSuffixId: projectMaster.constructionSuffixId || '',
             customer: projectMaster.customerName,
             location: projectMaster.location,
