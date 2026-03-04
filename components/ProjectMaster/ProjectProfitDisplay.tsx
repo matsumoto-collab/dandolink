@@ -139,7 +139,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                             icon={Truck}
                             label="車両費"
                             amount={costBreakdown.vehicleCost}
-                            color="indigo"
+                            color="teal"
                         />
                         <CostItem
                             icon={Package}
@@ -170,14 +170,14 @@ interface CostItemProps {
     icon: React.ElementType;
     label: string;
     amount: number;
-    color: 'blue' | 'purple' | 'indigo' | 'amber' | 'orange' | 'gray';
+    color: 'blue' | 'purple' | 'teal' | 'amber' | 'orange' | 'gray';
 }
 
 function CostItem({ icon: Icon, label, amount, color }: CostItemProps) {
     const colorClasses = {
         blue: 'bg-slate-50 text-slate-600',
         purple: 'bg-purple-50 text-slate-600',
-        indigo: 'bg-slate-50 text-indigo-600',
+        teal: 'bg-teal-50 text-teal-700',
         amber: 'bg-slate-50 text-slate-600',
         orange: 'bg-slate-50 text-slate-600',
         gray: 'bg-gray-50 text-gray-600',

@@ -16,13 +16,13 @@
   --color-silver-gray: 148, 163, 184;
   --color-platinum: 226, 232, 240;
 
-  /* Accent Colors — Indigo & Amber */
-  --color-accent: 79, 70, 229;
-  /* indigo-600 */
-  --color-accent-light: 129, 140, 248;
-  /* indigo-400 */
-  --color-accent-dark: 67, 56, 202;
-  /* indigo-700 */
+  /* Accent Colors — Teal & Amber */
+  --color-accent: 15, 118, 110;
+  /* teal-700 */
+  --color-accent-light: 20, 184, 166;
+  /* teal-500 */
+  --color-accent-dark: 13, 98, 92;
+  /* teal-800 */
   --color-accent-warn: 245, 158, 11;
   /* amber-500 */
 }
@@ -49,8 +49,8 @@ body {
 
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg,
-      rgba(79, 70, 229, 0.6) 0%,
-      rgba(99, 102, 241, 0.6) 100%);
+      rgba(15, 118, 110, 0.6) 0%,
+      rgba(20, 184, 166, 0.6) 100%);
   border-radius: 5px;
   border: 2px solid transparent;
   background-clip: padding-box;
@@ -58,8 +58,8 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: linear-gradient(180deg,
-      rgb(79, 70, 229) 0%,
-      rgb(99, 102, 241) 100%);
+      rgb(15, 118, 110) 0%,
+      rgb(20, 184, 166) 100%);
 }
 
 /* Mobile: calendar-container はモバイルビューに切り替えるため scale 不要 */
@@ -164,11 +164,11 @@ body {
 
 /* プライマリボタン glow */
 .btn-glow:hover {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.3);
 }
 
 .btn-glow:focus-visible {
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.5);
   outline: none;
 }
 
