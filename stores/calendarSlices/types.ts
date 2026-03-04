@@ -68,7 +68,7 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         estimatedHours: assignment.estimatedHours ?? 8.0,
         workers: assignment.workers,
         trucks: assignment.vehicles,
-        remarks: assignment.remarks || assignment.projectMaster?.remarks,
+        remarks: assignment.remarks || '',
         constructionType: constructionType as 'assembly' | 'demolition' | 'other',
         constructionContent: assignment.projectMaster?.constructionContent,
         assignedEmployeeId: assignment.assignedEmployeeId,
