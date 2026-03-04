@@ -84,6 +84,9 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         title: project.title,
+                        name: project.name,
+                        honorific: project.honorific,
+                        constructionSuffixId: project.constructionSuffixId,
                         customerName: project.customer,
                         constructionType: project.constructionType || 'other',
                         constructionContent: project.constructionContent,
