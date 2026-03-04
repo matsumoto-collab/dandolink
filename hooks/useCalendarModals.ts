@@ -80,7 +80,7 @@ export function useCalendarModals(
             constructionType: projectMaster.constructionType || 'assembly',
             constructionContent: projectMaster.constructionContent,
             status: 'pending',
-            remarks: projectMaster.remarks,
+            remarks: '',
             createdBy: projectMaster.createdBy, // 案件担当者
             workers: [],
             vehicles: [],
