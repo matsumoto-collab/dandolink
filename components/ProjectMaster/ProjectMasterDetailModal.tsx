@@ -38,10 +38,13 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
         },
     ];
 
+    // 3フィールド分離前の古い案件はname=nullなので、titleからフォールバック
+    const hasNameField = !!pm.name;
+
     return {
         title: pm.title,
-        name: pm.name || '',
-        honorific: pm.honorific ?? '様邸',
+        name: hasNameField ? pm.name! : pm.title || '',
+        honorific: hasNameField ? (pm.honorific ?? '様邸') : '',
         constructionSuffixId: pm.constructionSuffixId || '',
         customerId: pm.customerId || '',
         customerName: pm.customerName || '',
