@@ -98,6 +98,7 @@ export function useCalendarModals(
         const projectId = eventId.replace(/-assembly$|-demolition$/, '');
         const project = projects.find(p => p.id === projectId);
         if (project) {
+            console.log('[handleEventClick] project:', { name: project.name, honorific: project.honorific, constructionSuffixId: project.constructionSuffixId, title: project.title, id: project.id });
             setModalInitialData(project);
             setIsModalOpen(true);
         }
