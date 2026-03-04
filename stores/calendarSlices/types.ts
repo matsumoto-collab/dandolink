@@ -46,17 +46,22 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
     const constructionType = assignment.constructionType || assignment.projectMaster?.constructionType || 'other';
     const color = CONSTRUCTION_TYPE_COLORS[constructionType as keyof typeof CONSTRUCTION_TYPE_COLORS] || CONSTRUCTION_TYPE_COLORS.other;
 
-    // カード表示用: name+honorific（工事名称は非表示）、なければtitleフォールバック
+    // 3フィールド分離前の古い案件はname=nullなので、titleからフォールバック
     const pm = assignment.projectMaster;
-    const cardTitle = pm?.name
-        ? `${pm.name}${pm.honorific || ''}`
+    const hasNameField = !!pm?.name;
+    const resolvedName = hasNameField ? pm!.name : pm?.title || '';
+    const resolvedHonorific = hasNameField ? (pm!.honorific ?? '様邸') : '';
+
+    // カード表示用: name+honorific（工事名称は非表示）
+    const cardTitle = hasNameField
+        ? `${pm!.name}${pm!.honorific || ''}`
         : pm?.title || '不明な案件';
 
     return {
         id: assignment.id,
         title: cardTitle,
-        name: pm?.name,
-        honorific: pm?.honorific,
+        name: resolvedName,
+        honorific: resolvedHonorific,
         constructionSuffixId: pm?.constructionSuffixId,
         startDate: assignment.date,
         category: 'construction',

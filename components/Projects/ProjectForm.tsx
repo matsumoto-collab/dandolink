@@ -69,7 +69,6 @@ export default function ProjectForm({
         fetchSuffixes();
     }, []);
 
-    console.log('[ProjectForm] initialData:', { name: initialData?.name, honorific: initialData?.honorific, constructionSuffixId: initialData?.constructionSuffixId, title: initialData?.title, id: initialData?.id, projectMasterId: initialData?.projectMasterId });
     const [formData, setFormData] = useState({
         name: initialData?.name || '',
         honorific: initialData?.honorific ?? '様邸',
