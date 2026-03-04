@@ -217,8 +217,12 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
 
         try {
             // ProjectMasterの更新が必要な場合
-            if (assignment?.projectMasterId && (updates.createdBy || updates.constructionContent)) {
+            if (assignment?.projectMasterId && (updates.title || updates.name !== undefined || updates.createdBy || updates.constructionContent)) {
                 const projectMasterUpdates: Record<string, unknown> = {};
+                if (updates.title) projectMasterUpdates.title = updates.title;
+                if (updates.name !== undefined) projectMasterUpdates.name = updates.name || null;
+                if (updates.honorific !== undefined) projectMasterUpdates.honorific = updates.honorific || null;
+                if (updates.constructionSuffixId !== undefined) projectMasterUpdates.constructionSuffixId = updates.constructionSuffixId || null;
                 if (updates.createdBy) projectMasterUpdates.createdBy = updates.createdBy;
                 if (updates.constructionContent) projectMasterUpdates.constructionContent = updates.constructionContent;
 
@@ -269,6 +273,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         date: new Date(updatedAssignment.date),
                         createdAt: new Date(updatedAssignment.createdAt),
                         updatedAt: new Date(updatedAssignment.updatedAt),
+                        projectMaster: updatedAssignment.projectMaster ? {
+                            ...updatedAssignment.projectMaster,
+                            createdAt: new Date(updatedAssignment.projectMaster.createdAt),
+                            updatedAt: new Date(updatedAssignment.projectMaster.updatedAt),
+                        } : a.projectMaster,
                     } : a
                 ),
             }));
