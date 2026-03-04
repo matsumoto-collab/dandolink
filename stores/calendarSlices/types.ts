@@ -57,6 +57,8 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         ? `${pm!.name}${pm!.honorific || ''}`
         : pm?.title || '不明な案件';
 
+    console.log('[assignmentToProject]', { pmName: pm?.name, pmHonorific: pm?.honorific, pmSuffixId: pm?.constructionSuffixId, pmTitle: pm?.title, hasNameField, resolvedName, resolvedHonorific, hasPm: !!pm });
+
     return {
         id: assignment.id,
         title: cardTitle,
