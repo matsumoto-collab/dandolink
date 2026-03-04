@@ -69,9 +69,11 @@ export default function ProjectForm({
         fetchSuffixes();
     }, []);
 
+    // 3フィールド分離前の古い案件: name=undefinedの場合titleからフォールバック
+    const hasInitialName = !!initialData?.name;
     const [formData, setFormData] = useState({
-        name: initialData?.name || '',
-        honorific: initialData?.honorific ?? '様邸',
+        name: initialData?.name || initialData?.title || '',
+        honorific: hasInitialName ? (initialData?.honorific ?? '様邸') : (initialData?.honorific || ''),
         constructionSuffixId: initialData?.constructionSuffixId || '',
         title: initialData?.title || '',
         customer: initialData?.customer || '',
