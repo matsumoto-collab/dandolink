@@ -565,7 +565,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                         const w = allWorkers.find(w => w.id === id);
                                                                         return (
                                                                             <span key={id} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 pl-2 pr-1 py-1 rounded-full">
-                                                                                {w?.displayName || id}
+                                                                                {w?.displayName || (allWorkers.length === 0 ? '...' : id)}
                                                                                 <button
                                                                                     type="button"
                                                                                     onClick={() => toggleWorker(assignment.id, id)}
