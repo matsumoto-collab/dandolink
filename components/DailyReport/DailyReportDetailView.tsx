@@ -123,12 +123,12 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                         const ids = item.workerIds && item.workerIds.length > 0
                                             ? item.workerIds
                                             : projects.find(p => p.id === item.assignmentId)?.confirmedWorkerIds || [];
-                                        return ids.length > 0 && (
+                                        return ids.length > 0 && workerNameMap.size > 0 && (
                                             <div className="flex items-center gap-1 mt-2 flex-wrap">
                                                 <Users className="w-3.5 h-3.5 text-gray-400" />
                                                 {ids.map(id => (
                                                     <span key={id} className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
-                                                        {workerNameMap.get(id) || id}
+                                                        {workerNameMap.get(id) || ''}
                                                     </span>
                                                 ))}
                                             </div>
