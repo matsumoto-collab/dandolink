@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
             })
         );
 
-        return NextResponse.json({ success: true, count: results.length });
+        return NextResponse.json({ success: true, count: results.length, results: results.map(r => ({ id: r.id, updatedAt: r.updatedAt })) });
     } catch (error) {
         return serverErrorResponse('配置の一括更新', error);
     }

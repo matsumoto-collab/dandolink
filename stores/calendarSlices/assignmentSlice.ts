@@ -341,6 +341,18 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             if (!response.ok) {
                 throw new Error('Failed to update assignments');
             }
+
+            // サーバーから返った updatedAt でストアを更新（楽観的ロック対策）
+            const responseData = await response.json();
+            if (responseData.results) {
+                const updatedMap = new Map<string, Date>(responseData.results.map((r: { id: string; updatedAt: string }) => [r.id, new Date(r.updatedAt)]));
+                set((state) => ({
+                    assignments: state.assignments.map((a) => {
+                        const newUpdatedAt = updatedMap.get(a.id);
+                        return newUpdatedAt ? { ...a, updatedAt: newUpdatedAt } : a;
+                    }),
+                }));
+            }
         } catch (error) {
             if (!(error instanceof ConflictUpdateError)) {
                 set({ assignments: previousAssignments });
