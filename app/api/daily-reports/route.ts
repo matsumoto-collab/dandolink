@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 const workItemSelect = {
-    id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true,
+    id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true, breakMinutes: true,
     assignment: { select: { id: true, date: true, projectMaster: { select: { id: true, title: true, customerName: true } } } },
 };
 
@@ -71,9 +71,10 @@ export async function POST(request: NextRequest) {
             await prisma.dailyReportWorkItem.deleteMany({ where: { dailyReportId: dailyReport.id } });
             if (workItems.length > 0) {
                 await prisma.dailyReportWorkItem.createMany({
-                    data: workItems.map((item: { assignmentId: string; startTime?: string; endTime?: string }) => ({
+                    data: workItems.map((item: { assignmentId: string; startTime?: string; endTime?: string; breakMinutes?: number }) => ({
                         dailyReportId: dailyReport.id, assignmentId: item.assignmentId,
                         startTime: item.startTime || null, endTime: item.endTime || null,
+                        breakMinutes: item.breakMinutes ?? 0,
                     })),
                 });
             }
