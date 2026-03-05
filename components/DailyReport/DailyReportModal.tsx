@@ -62,6 +62,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [workItems, setWorkItems] = useState<{ assignmentId: string; startTime: string; endTime: string; breakMinutes: number; workerIds: string[] }[]>([]);
     // 全作業員リスト（チェックリスト用）
     const [allWorkers, setAllWorkers] = useState<{ id: string; displayName: string; role: string }[]>([]);
+    // 作業員ドロップダウンが開いているassignmentId
+    const [openWorkerDropdown, setOpenWorkerDropdown] = useState<string | null>(null);
     // 既存の日報から読み込んだ案件情報（todayAssignmentsに含まれない場合のフォールバック用）
     const [existingWorkItemInfoMap, setExistingWorkItemInfoMap] = useState<Map<string, { title: string; customer?: string }>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
@@ -540,34 +542,61 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            {/* 作業員チェックリスト */}
-                                                            <div className="mt-3 pt-2 border-t border-gray-200">
-                                                                <div className="flex items-center gap-1 mb-2">
-                                                                    <Users className="w-4 h-4 text-gray-500" />
-                                                                    <span className="text-sm font-medium text-gray-600">作業員</span>
-                                                                    <span className="text-xs text-gray-400 ml-1">
-                                                                        ({workItem?.workerIds?.length || 0}名)
-                                                                    </span>
-                                                                </div>
-                                                                <div className="flex flex-wrap gap-2">
-                                                                    {allWorkers.map(worker => {
-                                                                        const isSelected = workItem?.workerIds?.includes(worker.id) || false;
+                                                            {/* 作業員セレクター */}
+                                                            <div className="mt-3 pt-2 border-t border-gray-200 relative">
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setOpenWorkerDropdown(openWorkerDropdown === assignment.id ? null : assignment.id)}
+                                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-lg border border-gray-300 bg-white text-gray-600 hover:border-slate-400 hover:bg-slate-50 transition-colors"
+                                                                    >
+                                                                        <Users className="w-3.5 h-3.5" />
+                                                                        作業員
+                                                                        <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-xs font-medium">
+                                                                            {workItem?.workerIds?.length || 0}
+                                                                        </span>
+                                                                    </button>
+                                                                    {(workItem?.workerIds || []).map(id => {
+                                                                        const w = allWorkers.find(w => w.id === id);
                                                                         return (
-                                                                            <button
-                                                                                key={worker.id}
-                                                                                type="button"
-                                                                                onClick={() => toggleWorker(assignment.id, worker.id)}
-                                                                                className={`px-2.5 py-1.5 text-sm rounded-lg border transition-colors ${
-                                                                                    isSelected
-                                                                                        ? 'bg-slate-700 text-white border-slate-700'
-                                                                                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                                                                                }`}
-                                                                            >
-                                                                                {worker.displayName}
-                                                                            </button>
+                                                                            <span key={id} className="inline-flex items-center gap-1 text-xs bg-slate-100 text-slate-700 pl-2 pr-1 py-1 rounded-full">
+                                                                                {w?.displayName || id}
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => toggleWorker(assignment.id, id)}
+                                                                                    className="w-4 h-4 rounded-full hover:bg-slate-300 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-colors"
+                                                                                >
+                                                                                    ×
+                                                                                </button>
+                                                                            </span>
                                                                         );
                                                                     })}
                                                                 </div>
+                                                                {openWorkerDropdown === assignment.id && (
+                                                                    <>
+                                                                        <div className="fixed inset-0 z-10" onClick={() => setOpenWorkerDropdown(null)} />
+                                                                        <div className="absolute left-0 mt-1 z-20 w-64 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg">
+                                                                            {allWorkers.map(worker => {
+                                                                                const isSelected = workItem?.workerIds?.includes(worker.id) || false;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={worker.id}
+                                                                                        type="button"
+                                                                                        onClick={() => toggleWorker(assignment.id, worker.id)}
+                                                                                        className="w-full flex items-center gap-3 px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors text-left"
+                                                                                    >
+                                                                                        <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                                                                                            isSelected ? 'bg-slate-700 border-slate-700 text-white' : 'border-gray-300'
+                                                                                        }`}>
+                                                                                            {isSelected && <span className="text-xs">✓</span>}
+                                                                                        </span>
+                                                                                        <span className="text-gray-700">{worker.displayName}</span>
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    </>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     );
