@@ -177,7 +177,7 @@ export function useCalendarModals(
                 assignedEmployeeId: employeeId,
                 constructionType: sourceProject.constructionType || 'assembly',
                 status: 'pending',
-                remarks: sourceProject.remarks,
+                remarks: '',
                 workers: sourceProject.workers || [],
                 vehicles: sourceProject.vehicles || [],
                 trucks: sourceProject.trucks || [],
