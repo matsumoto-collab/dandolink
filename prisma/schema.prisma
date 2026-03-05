@@ -386,6 +386,7 @@ model DailyReportWorkItem {
   startTime     String?
   endTime       String?
   breakMinutes  Int               @default(0)
+  workerIds     String[]          @default([])
   assignment    ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   dailyReport   DailyReport       @relation(fields: [dailyReportId], references: [id], onDelete: Cascade)
 

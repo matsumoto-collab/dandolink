@@ -6,7 +6,7 @@ import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
-import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User } from 'lucide-react';
+import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User, Users } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
 
@@ -59,7 +59,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [overtimeMinutes, setOvertimeMinutes] = useState(0);
     const [breakMinutes, setBreakMinutes] = useState(0);
     const [notes, setNotes] = useState('');
-    const [workItems, setWorkItems] = useState<{ assignmentId: string; startTime: string; endTime: string; breakMinutes: number }[]>([]);
+    const [workItems, setWorkItems] = useState<{ assignmentId: string; startTime: string; endTime: string; breakMinutes: number; workerIds: string[] }[]>([]);
+    // 全作業員リスト（チェックリスト用）
+    const [allWorkers, setAllWorkers] = useState<{ id: string; displayName: string; role: string }[]>([]);
     // 既存の日報から読み込んだ案件情報（todayAssignmentsに含まれない場合のフォールバック用）
     const [existingWorkItemInfoMap, setExistingWorkItemInfoMap] = useState<Map<string, { title: string; customer?: string }>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
@@ -67,6 +69,20 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     // 既存日報 → 詳細ビュー、新規 → 編集モード
     const [isEditMode, setIsEditMode] = useState(!selectedReport);
     const modalRef = useModalKeyboard(isOpen, onClose);
+
+    // 作業員リスト取得
+    useEffect(() => {
+        if (!isOpen) return;
+        const fetchWorkers = async () => {
+            try {
+                const res = await fetch('/api/dispatch/workers');
+                if (res.ok) setAllWorkers(await res.json());
+            } catch (e) {
+                console.error('Failed to fetch workers:', e);
+            }
+        };
+        fetchWorkers();
+    }, [isOpen]);
 
     // モーダルが開いたときの初期化（foremanId設定）
     useEffect(() => {
@@ -128,12 +144,13 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         setNotes('');
         setExistingWorkItemInfoMap(new Map());
         setSaveMessage(null);
-        // workItemsはtodayAssignmentsからデフォルト生成（即座に表示される）
+        // workItemsはtodayAssignmentsからデフォルト生成（手配確定メンバーをデフォルト選択）
         setWorkItems(todayAssignments.map(a => ({
             assignmentId: a.id,
             startTime: '08:00',
             endTime: '17:00',
             breakMinutes: 0,
+            workerIds: a.confirmedWorkerIds || [],
         })));
 
         // 2) 既存の日報があれば非同期で上書き
@@ -158,6 +175,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                     startTime: item.startTime || '08:00',
                     endTime: item.endTime || '17:00',
                     breakMinutes: item.breakMinutes ?? 0,
+                    workerIds: item.workerIds || [],
                 })));
                 const infoMap = new Map<string, { title: string; customer?: string }>();
                 for (const item of existing.workItems) {
@@ -203,8 +221,19 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             if (existing) {
                 return prev.map(w => w.assignmentId === assignmentId ? { ...w, [field]: timeStr } : w);
             }
-            return [...prev, { assignmentId, startTime: field === 'startTime' ? timeStr : '08:00', endTime: field === 'endTime' ? timeStr : '17:00', breakMinutes: 0 }];
+            return [...prev, { assignmentId, startTime: field === 'startTime' ? timeStr : '08:00', endTime: field === 'endTime' ? timeStr : '17:00', breakMinutes: 0, workerIds: [] }];
         });
+    };
+
+    // 案件ごとの作業員トグル
+    const toggleWorker = (assignmentId: string, workerId: string) => {
+        setWorkItems(prev => prev.map(w => {
+            if (w.assignmentId !== assignmentId) return w;
+            const ids = w.workerIds.includes(workerId)
+                ? w.workerIds.filter(id => id !== workerId)
+                : [...w.workerIds, workerId];
+            return { ...w, workerIds: ids };
+        }));
     };
 
     // 案件ごとの休憩時間更新
@@ -244,6 +273,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                     startTime: w.startTime,
                     endTime: w.endTime,
                     breakMinutes: w.breakMinutes,
+                    workerIds: w.workerIds,
                 })),
             };
 
@@ -509,6 +539,35 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                         実作業 <span className="font-bold">{formatMinutes(netMinutes)}</span>
                                                                     </span>
                                                                 )}
+                                                            </div>
+                                                            {/* 作業員チェックリスト */}
+                                                            <div className="mt-3 pt-2 border-t border-gray-200">
+                                                                <div className="flex items-center gap-1 mb-2">
+                                                                    <Users className="w-4 h-4 text-gray-500" />
+                                                                    <span className="text-sm font-medium text-gray-600">作業員</span>
+                                                                    <span className="text-xs text-gray-400 ml-1">
+                                                                        ({workItem?.workerIds?.length || 0}名)
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    {allWorkers.map(worker => {
+                                                                        const isSelected = workItem?.workerIds?.includes(worker.id) || false;
+                                                                        return (
+                                                                            <button
+                                                                                key={worker.id}
+                                                                                type="button"
+                                                                                onClick={() => toggleWorker(assignment.id, worker.id)}
+                                                                                className={`px-2.5 py-1.5 text-sm rounded-lg border transition-colors ${
+                                                                                    isSelected
+                                                                                        ? 'bg-slate-700 text-white border-slate-700'
+                                                                                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
+                                                                                }`}
+                                                                            >
+                                                                                {worker.displayName}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );

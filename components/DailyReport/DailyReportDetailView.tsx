@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DailyReport } from '@/types/dailyReport';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { formatDate } from '@/utils/dateUtils';
-import { Clock, FileText, Truck, User, Calendar, Trash2 } from 'lucide-react';
+import { Clock, FileText, Truck, User, Users, Calendar, Trash2 } from 'lucide-react';
 
 interface DailyReportDetailViewProps {
     report: DailyReport;
@@ -16,6 +16,20 @@ interface DailyReportDetailViewProps {
 export default function DailyReportDetailView({ report, onEdit, onClose, onDelete }: DailyReportDetailViewProps) {
     const { getForemanName } = useCalendarDisplay();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
+
+    useEffect(() => {
+        const fetchWorkers = async () => {
+            try {
+                const res = await fetch('/api/dispatch/workers');
+                if (res.ok) {
+                    const workers: { id: string; displayName: string }[] = await res.json();
+                    setWorkerNameMap(new Map(workers.map(w => [w.id, w.displayName])));
+                }
+            } catch (e) { /* ignore */ }
+        };
+        fetchWorkers();
+    }, []);
 
     const reportDate = report.date instanceof Date ? report.date : new Date(report.date);
 
@@ -103,6 +117,16 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                             <span className="ml-2 text-gray-400">（休憩 {formatMinutes(item.breakMinutes!)}、実作業 {formatMinutes(Math.max(0, workMin - item.breakMinutes!))}）</span>
                                         )}
                                     </div>
+                                    {item.workerIds && item.workerIds.length > 0 && (
+                                        <div className="flex items-center gap-1 mt-2 flex-wrap">
+                                            <Users className="w-3.5 h-3.5 text-gray-400" />
+                                            {item.workerIds.map(id => (
+                                                <span key={id} className="text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                                                    {workerNameMap.get(id) || id}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
