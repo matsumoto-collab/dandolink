@@ -7,7 +7,7 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Wrench } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
@@ -150,8 +150,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     };
 
     const constructionTypeMap = useMemo(() => {
-        const map = new Map<string, string>();
-        constructionTypes.forEach(ct => map.set(ct.id, ct.name));
+        const map = new Map<string, { name: string; color: string }>();
+        constructionTypes.forEach(ct => map.set(ct.id, { name: ct.name, color: ct.color }));
         return map;
     }, [constructionTypes]);
 
@@ -290,7 +290,7 @@ interface ForemanSectionProps {
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
-    constructionTypeMap: Map<string, string>;
+    constructionTypeMap: Map<string, { name: string; color: string }>;
 }
 
 function ForemanSection({
@@ -364,7 +364,7 @@ interface ProjectCardProps {
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
-    constructionTypeMap: Map<string, string>;
+    constructionTypeMap: Map<string, { name: string; color: string }>;
 }
 
 function ProjectCard({
@@ -397,7 +397,7 @@ function ProjectCard({
 
     const isConfirmed = project.isDispatchConfirmed;
     const memberCount = project.memberCount || workerCount || 0;
-    const constructionTypeName = project.constructionType ? constructionTypeMap.get(project.constructionType) : null;
+    const constructionTypeInfo = project.constructionType ? constructionTypeMap.get(project.constructionType) : null;
 
     return (
         <div
@@ -444,10 +444,16 @@ function ProjectCard({
                                 {foremanName}班
                             </span>
                         )}
-                        {constructionTypeName && (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[rgb(var(--color-navy-accent))] bg-[rgb(var(--color-pearl-white))] border border-[rgb(var(--color-platinum))] px-2 py-0.5 rounded-full">
-                                <Wrench className="w-3 h-3" />
-                                {constructionTypeName}
+                        {constructionTypeInfo && (
+                            <span
+                                className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
+                                style={{
+                                    backgroundColor: `${constructionTypeInfo.color}30`,
+                                    border: `1.5px solid ${constructionTypeInfo.color}`,
+                                    color: constructionTypeInfo.color,
+                                }}
+                            >
+                                {constructionTypeInfo.name}
                             </span>
                         )}
                     </div>
