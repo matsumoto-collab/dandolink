@@ -111,13 +111,14 @@ export default function DailyReportPage() {
         });
     };
 
-    // 総作業時間を計算
+    // 実作業時間を計算（休憩差引後）
     const getTotalWorkMinutes = (report: DailyReport): number => {
         return report.workItems.reduce((sum, item) => {
             if (item.startTime && item.endTime) {
                 const [sh, sm] = item.startTime.split(':').map(Number);
                 const [eh, em] = item.endTime.split(':').map(Number);
-                return sum + Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+                const gross = (eh * 60 + em) - (sh * 60 + sm);
+                return sum + Math.max(0, gross - (item.breakMinutes ?? 0));
             }
             return sum;
         }, 0);
@@ -262,7 +263,7 @@ export default function DailyReportPage() {
                                     <div className="flex flex-wrap items-center gap-3 mb-3">
                                         <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
                                             <Clock className="w-3 h-3" />
-                                            作業 {formatMinutes(totalWork)}
+                                            実作業 {formatMinutes(totalWork)}
                                         </span>
                                         <span className="text-xs text-slate-600">
                                             積込: 朝 {formatMinutes(report.morningLoadingMinutes)} / 夕 {formatMinutes(report.eveningLoadingMinutes)}
@@ -304,7 +305,7 @@ export default function DailyReportPage() {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     <div className="flex items-center gap-2">
                                         <Clock className="w-4 h-4" />
-                                        作業時間
+                                        実作業時間
                                     </div>
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
