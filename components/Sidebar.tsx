@@ -183,10 +183,17 @@ export default function Sidebar() {
                                 if (filteredItems.length === 0) return null;
                                 return { ...section, items: filteredItems };
                             }
-                            // 職長2: スケジュール管理 + 案件一覧のみ
+                            // 職長1: 業務管理のみ（スケジュール・案件一覧・日報一覧）
+                            if (session?.user?.role === 'foreman1') {
+                                if (section.title !== '業務管理') return null;
+                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports');
+                                if (filteredItems.length === 0) return null;
+                                return { ...section, items: filteredItems };
+                            }
+                            // 職長2: 業務管理のみ（スケジュール・案件一覧・日報一覧）
                             if (session?.user?.role === 'foreman2') {
                                 if (section.title !== '業務管理') return null;
-                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters');
+                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports');
                                 if (filteredItems.length === 0) return null;
                                 return { ...section, items: filteredItems };
                             }
