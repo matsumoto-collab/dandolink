@@ -70,7 +70,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                 {savedRemark ? (
                     <div
                         onClick={handleStartEdit}
-                        className="w-full text-[12px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-slate-50 text-gray-700 border border-slate-200 hover:bg-slate-100 transition-colors whitespace-pre-wrap break-words"
+                        className="w-full text-[12px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-slate-800 text-white shadow-sm hover:bg-slate-700 transition-colors whitespace-pre-wrap break-words"
                     >
                         {savedRemark}
                     </div>
