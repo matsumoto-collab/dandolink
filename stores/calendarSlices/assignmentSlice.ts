@@ -232,6 +232,13 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 });
             }
 
+            // 職長または日付が変わった場合、手配確定を自動解除
+            const isMoving = (updates.assignedEmployeeId && updates.assignedEmployeeId !== assignment?.assignedEmployeeId) ||
+                (updates.startDate && new Date(updates.startDate).toISOString().split('T')[0] !== assignment?.date?.toISOString().split('T')[0]);
+            const dispatchConfirmed = isMoving ? false : updates.isDispatchConfirmed;
+            const dispatchWorkerIds = isMoving ? [] : updates.confirmedWorkerIds;
+            const dispatchVehicleIds = isMoving ? [] : updates.confirmedVehicleIds;
+
             const response = await fetch(`/api/assignments/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
@@ -245,9 +252,9 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     meetingTime: updates.meetingTime,
                     sortOrder: updates.sortOrder,
                     remarks: updates.remarks,
-                    isDispatchConfirmed: updates.isDispatchConfirmed,
-                    confirmedWorkerIds: updates.confirmedWorkerIds,
-                    confirmedVehicleIds: updates.confirmedVehicleIds,
+                    isDispatchConfirmed: dispatchConfirmed,
+                    confirmedWorkerIds: dispatchWorkerIds,
+                    confirmedVehicleIds: dispatchVehicleIds,
                     constructionType: updates.constructionType,
                     estimatedHours: updates.estimatedHours,
                 }),
