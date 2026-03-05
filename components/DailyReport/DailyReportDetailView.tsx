@@ -102,9 +102,14 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                 </div>
                             );
                         })}
-                        <div className="flex justify-end pt-1">
-                            <span className="text-sm font-semibold text-gray-700">
-                                合計: {formatMinutes(totalWorkMinutes)}
+                        <div className="flex items-center justify-between pt-2 border-t border-gray-200 mt-2">
+                            {report.breakMinutes > 0 && (
+                                <span className="text-sm text-gray-500">
+                                    休憩: {formatMinutes(report.breakMinutes)}
+                                </span>
+                            )}
+                            <span className="text-sm font-semibold text-gray-700 ml-auto">
+                                合計: {formatMinutes(Math.max(0, totalWorkMinutes - (report.breakMinutes ?? 0)))}
                             </span>
                         </div>
                     </div>

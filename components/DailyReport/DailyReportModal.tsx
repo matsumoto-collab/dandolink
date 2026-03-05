@@ -44,6 +44,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const hourOptions = Array.from({ length: 16 }, (_, i) => i + 6); // 6〜21
     const minuteOptions = [0, 15, 30, 45];
     const durationHourOptions = Array.from({ length: 9 }, (_, i) => i); // 0〜8時間（積込・早出残業用）
+    const breakHourOptions = [0, 1, 2]; // 0〜2時間（休憩用）
 
     // 分数 → {hour, minute} 変換
     const minutesToHourMin = (minutes: number) => ({
@@ -56,6 +57,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [eveningLoadingMinutes, setEveningLoadingMinutes] = useState(0);
     const [earlyStartMinutes, setEarlyStartMinutes] = useState(0);
     const [overtimeMinutes, setOvertimeMinutes] = useState(0);
+    const [breakMinutes, setBreakMinutes] = useState(0);
     const [notes, setNotes] = useState('');
     const [workItems, setWorkItems] = useState<{ assignmentId: string; startTime: string; endTime: string }[]>([]);
     // 既存の日報から読み込んだ案件情報（todayAssignmentsに含まれない場合のフォールバック用）
@@ -122,6 +124,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         setEveningLoadingMinutes(0);
         setEarlyStartMinutes(0);
         setOvertimeMinutes(0);
+        setBreakMinutes(0);
         setNotes('');
         setExistingWorkItemInfoMap(new Map());
         setSaveMessage(null);
@@ -147,6 +150,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 setEveningLoadingMinutes(existing.eveningLoadingMinutes);
                 setEarlyStartMinutes(existing.earlyStartMinutes);
                 setOvertimeMinutes(existing.overtimeMinutes);
+                setBreakMinutes(existing.breakMinutes ?? 0);
                 setNotes(existing.notes || '');
                 setWorkItems(existing.workItems.map(item => ({
                     assignmentId: item.assignmentId,
@@ -226,6 +230,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 eveningLoadingMinutes,
                 earlyStartMinutes,
                 overtimeMinutes,
+                breakMinutes,
                 notes: notes || undefined,
                 workItems: workItems.filter(w => w.startTime && w.endTime),
             };
@@ -467,8 +472,33 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                         </div>
                                                     );
                                                 })}
-                                                <div className="flex justify-end text-sm text-gray-600">
-                                                    合計: <span className="font-bold ml-1">{formatMinutes(totalWorkMinutes)}</span>
+                                                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-200 mt-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-gray-600">休憩</span>
+                                                        <select
+                                                            value={minutesToHourMin(breakMinutes).hour}
+                                                            onChange={(e) => setBreakMinutes(Number(e.target.value) * 60 + minutesToHourMin(breakMinutes).minute)}
+                                                            className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                        >
+                                                            {breakHourOptions.map(h => (
+                                                                <option key={h} value={h}>{h}</option>
+                                                            ))}
+                                                        </select>
+                                                        <span className="text-gray-400 text-sm">時間</span>
+                                                        <select
+                                                            value={minutesToHourMin(breakMinutes).minute}
+                                                            onChange={(e) => setBreakMinutes(minutesToHourMin(breakMinutes).hour * 60 + Number(e.target.value))}
+                                                            className="px-1 py-1.5 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                                                        >
+                                                            {minuteOptions.map(m => (
+                                                                <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
+                                                            ))}
+                                                        </select>
+                                                        <span className="text-gray-400 text-sm">分</span>
+                                                    </div>
+                                                    <div className="text-sm text-gray-600">
+                                                        合計: <span className="font-bold">{formatMinutes(Math.max(0, totalWorkMinutes - breakMinutes))}</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         );

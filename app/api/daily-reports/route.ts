@@ -10,7 +10,7 @@ const workItemSelect = {
 const reportSelect = {
     id: true, foremanId: true, date: true,
     morningLoadingMinutes: true, eveningLoadingMinutes: true,
-    earlyStartMinutes: true, overtimeMinutes: true, notes: true, createdAt: true, updatedAt: true,
+    earlyStartMinutes: true, overtimeMinutes: true, breakMinutes: true, notes: true, createdAt: true, updatedAt: true,
     workItems: { select: workItemSelect },
 };
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { foremanId, date, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, notes, workItems } = await request.json();
+        const { foremanId, date, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, breakMinutes, notes, workItems } = await request.json();
         if (!foremanId || !date) return validationErrorResponse('職長IDと日付は必須です');
 
         const targetDate = new Date(date);
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
 
         const reportData = {
             morningLoadingMinutes: morningLoadingMinutes ?? 0, eveningLoadingMinutes: eveningLoadingMinutes ?? 0,
-            earlyStartMinutes: earlyStartMinutes ?? 0, overtimeMinutes: overtimeMinutes ?? 0, notes,
+            earlyStartMinutes: earlyStartMinutes ?? 0, overtimeMinutes: overtimeMinutes ?? 0, breakMinutes: breakMinutes ?? 0, notes,
         };
 
         const dailyReport = await prisma.dailyReport.upsert({
