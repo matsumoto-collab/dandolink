@@ -7,7 +7,8 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Wrench } from 'lucide-react';
+import { useMasterData } from '@/hooks/useMasterData';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
 
@@ -21,6 +22,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const { status } = useSession();
     const { projects, fetchForDateRange } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
+    const { constructionTypes } = useMasterData();
 
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
@@ -147,6 +149,12 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         return false;
     };
 
+    const constructionTypeMap = useMemo(() => {
+        const map = new Map<string, string>();
+        constructionTypes.forEach(ct => map.set(ct.id, ct.name));
+        return map;
+    }, [constructionTypes]);
+
     const dateInfo = formatDisplayDate(selectedDate);
 
     return (
@@ -229,6 +237,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                         foremanId={foremanId}
                                         allForemen={allForemen}
                                         onProjectClick={(p) => setSelectedProject(p as Project)}
+                                    constructionTypeMap={constructionTypeMap}
                                     />
                                 );
                             })
@@ -248,6 +257,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     vehicleNameMap={vehicleNameMap}
                                     foremanId={foreman.id}
                                     allForemen={allForemen}
+                                    constructionTypeMap={constructionTypeMap}
                                 />
                             );
                         })
@@ -280,6 +290,7 @@ interface ForemanSectionProps {
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
+    constructionTypeMap: Map<string, string>;
 }
 
 function ForemanSection({
@@ -294,6 +305,7 @@ function ForemanSection({
     showForemanBadge,
     allForemen,
     onProjectClick,
+    constructionTypeMap,
 }: ForemanSectionProps) {
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
 
@@ -332,6 +344,7 @@ function ForemanSection({
                             showForemanBadge={showForemanBadge}
                             allForemen={allForemen}
                             onProjectClick={onProjectClick}
+                            constructionTypeMap={constructionTypeMap}
                         />
                     ))
                 )}
@@ -351,6 +364,7 @@ interface ProjectCardProps {
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
+    constructionTypeMap: Map<string, string>;
 }
 
 function ProjectCard({
@@ -363,6 +377,7 @@ function ProjectCard({
     showForemanBadge,
     allForemen,
     onProjectClick,
+    constructionTypeMap,
 }: ProjectCardProps) {
     const workerCount = project.workers?.length || 0;
     const vehicleCount = project.trucks?.length || project.vehicles?.length || 0;
@@ -382,6 +397,7 @@ function ProjectCard({
 
     const isConfirmed = project.isDispatchConfirmed;
     const memberCount = project.memberCount || workerCount || 0;
+    const constructionTypeName = project.constructionType ? constructionTypeMap.get(project.constructionType) : null;
 
     return (
         <div
@@ -426,6 +442,12 @@ function ProjectCard({
                         {foremanName && (
                             <span className="inline-flex text-[11px] font-medium text-[rgb(var(--color-navy-accent))] bg-[rgb(var(--color-pearl-white))] border border-[rgb(var(--color-platinum))] px-2 py-0.5 rounded-full">
                                 {foremanName}班
+                            </span>
+                        )}
+                        {constructionTypeName && (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-[rgb(var(--color-navy-accent))] bg-[rgb(var(--color-pearl-white))] border border-[rgb(var(--color-platinum))] px-2 py-0.5 rounded-full">
+                                <Wrench className="w-3 h-3" />
+                                {constructionTypeName}
                             </span>
                         )}
                     </div>
