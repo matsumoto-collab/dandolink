@@ -172,13 +172,18 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 setOvertimeMinutes(existing.overtimeMinutes);
                 setBreakMinutes(existing.breakMinutes ?? 0);
                 setNotes(existing.notes || '');
-                setWorkItems(existing.workItems.map(item => ({
-                    assignmentId: item.assignmentId,
-                    startTime: item.startTime || '08:00',
-                    endTime: item.endTime || '17:00',
-                    breakMinutes: item.breakMinutes ?? 0,
-                    workerIds: item.workerIds || [],
-                })));
+                setWorkItems(existing.workItems.map(item => {
+                    // workerIdsが未保存の場合、手配確定メンバーをフォールバック
+                    const savedWorkerIds = item.workerIds && item.workerIds.length > 0 ? item.workerIds : null;
+                    const fallbackWorkerIds = todayAssignments.find(a => a.id === item.assignmentId)?.confirmedWorkerIds || [];
+                    return {
+                        assignmentId: item.assignmentId,
+                        startTime: item.startTime || '08:00',
+                        endTime: item.endTime || '17:00',
+                        breakMinutes: item.breakMinutes ?? 0,
+                        workerIds: savedWorkerIds || fallbackWorkerIds,
+                    };
+                }));
                 const infoMap = new Map<string, { title: string; customer?: string }>();
                 for (const item of existing.workItems) {
                     if (item.assignment?.projectMaster) {
