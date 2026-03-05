@@ -6,6 +6,7 @@ export interface DailyReportWorkItem {
     assignmentId: string;
     startTime?: string | null;  // 作業開始時間 (例: "08:00")
     endTime?: string | null;    // 作業終了時間 (例: "17:00")
+    breakMinutes?: number;      // 休憩時間（分）
     // 表示用（APIから取得時）
     assignment?: {
         id: string;
@@ -26,7 +27,7 @@ export interface DailyReport {
     eveningLoadingMinutes: number;  // 夕積込（分）
     earlyStartMinutes: number;      // 早出（分）- 保留
     overtimeMinutes: number;        // 残業（分）- 保留
-    breakMinutes: number;           // 休憩（分）
+    breakMinutes: number;           // 休憩（分）- レガシー（案件別に移行）
     notes?: string;
     workItems: DailyReportWorkItem[];
     createdAt: Date;
@@ -46,5 +47,6 @@ export interface DailyReportInput {
         assignmentId: string;
         startTime?: string;
         endTime?: string;
+        breakMinutes?: number;
     }[];
 }

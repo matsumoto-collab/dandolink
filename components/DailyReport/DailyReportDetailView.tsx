@@ -33,10 +33,11 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
         return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
     };
 
-    // 総作業時間
-    const totalWorkMinutes = report.workItems.reduce((sum, item) => {
+    // 総作業時間（休憩差引後）
+    const totalNetWorkMinutes = report.workItems.reduce((sum, item) => {
         if (item.startTime && item.endTime) {
-            return sum + calcWorkMinutes(item.startTime, item.endTime);
+            const work = calcWorkMinutes(item.startTime, item.endTime);
+            return sum + Math.max(0, work - (item.breakMinutes ?? 0));
         }
         return sum;
     }, 0);
@@ -98,18 +99,16 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                     </div>
                                     <div className="text-sm text-gray-600 mt-1">
                                         {start} 〜 {end}
+                                        {(item.breakMinutes ?? 0) > 0 && (
+                                            <span className="ml-2 text-gray-400">（休憩 {formatMinutes(item.breakMinutes!)}、実作業 {formatMinutes(Math.max(0, workMin - item.breakMinutes!))}）</span>
+                                        )}
                                     </div>
                                 </div>
                             );
                         })}
-                        <div className="flex items-center justify-between pt-2 border-t border-gray-200 mt-2">
-                            {report.breakMinutes > 0 && (
-                                <span className="text-sm text-gray-500">
-                                    休憩: {formatMinutes(report.breakMinutes)}
-                                </span>
-                            )}
-                            <span className="text-sm font-semibold text-gray-700 ml-auto">
-                                合計: {formatMinutes(Math.max(0, totalWorkMinutes - (report.breakMinutes ?? 0)))}
+                        <div className="flex justify-end pt-1">
+                            <span className="text-sm font-semibold text-gray-700">
+                                合計: {formatMinutes(totalNetWorkMinutes)}
                             </span>
                         </div>
                     </div>
