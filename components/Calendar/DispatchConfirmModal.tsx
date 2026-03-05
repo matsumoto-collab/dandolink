@@ -130,6 +130,32 @@ export default function DispatchConfirmModal({
                 confirmedVehicleIds: selectedVehicleIds,
                 isDispatchConfirmed: true,
             });
+
+            // 同日・同職長の未確定案件にも同じ作業員・車両をコピー
+            const dateKey = formatDateKey(project.startDate);
+            const unconfirmedSameDay = projects.filter(p =>
+                p.id !== project.id &&
+                formatDateKey(p.startDate) === dateKey &&
+                p.assignedEmployeeId === project.assignedEmployeeId &&
+                !p.isDispatchConfirmed
+            );
+
+            for (const p of unconfirmedSameDay) {
+                try {
+                    await updateProject(p.id, {
+                        confirmedWorkerIds: selectedWorkerIds,
+                        confirmedVehicleIds: selectedVehicleIds,
+                        isDispatchConfirmed: true,
+                    });
+                } catch {
+                    // 個別の失敗は無視（メインの確定は成功済み）
+                }
+            }
+
+            if (unconfirmedSameDay.length > 0) {
+                toast.success(`他${unconfirmedSameDay.length}件の案件も手配確定しました`);
+            }
+
             onClose();
         } catch (error) {
             console.error('Failed to confirm dispatch:', error);
