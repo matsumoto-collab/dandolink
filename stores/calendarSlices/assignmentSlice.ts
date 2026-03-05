@@ -92,7 +92,6 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         constructionContent: project.constructionContent,
                         location: project.location,
                         description: project.description,
-                        remarks: project.remarks,
                         createdBy: project.createdBy,
                     }),
                 });
