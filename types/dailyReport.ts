@@ -26,6 +26,7 @@ export interface DailyReport {
     eveningLoadingMinutes: number;  // 夕積込（分）
     earlyStartMinutes: number;      // 早出（分）- 保留
     overtimeMinutes: number;        // 残業（分）- 保留
+    breakMinutes: number;           // 休憩（分）
     notes?: string;
     workItems: DailyReportWorkItem[];
     createdAt: Date;
@@ -39,6 +40,7 @@ export interface DailyReportInput {
     eveningLoadingMinutes?: number;
     earlyStartMinutes?: number;
     overtimeMinutes?: number;
+    breakMinutes?: number;
     notes?: string;
     workItems: {
         assignmentId: string;

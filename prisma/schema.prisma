@@ -365,6 +365,7 @@ model DailyReport {
   eveningLoadingMinutes Int                   @default(0)
   earlyStartMinutes     Int                   @default(0)
   overtimeMinutes       Int                   @default(0)
+  breakMinutes          Int                   @default(0)
   notes                 String?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
