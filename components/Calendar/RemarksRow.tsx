@@ -96,7 +96,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                                         placeholder="備考を入力..."
                                     />
                                 ) : (
-                                    <div className="w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words text-gray-700">
+                                    <div className={`w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white shadow-sm' : 'text-gray-700'}`}>
                                         {remarkText || (
                                             <span className="text-gray-400 italic text-[10px]">クリックして入力</span>
                                         )}
