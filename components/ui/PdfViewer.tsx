@@ -242,7 +242,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
         >
             {/* ===== ヘッダー ===== */}
             <div
-                className="flex items-center justify-between px-2 bg-gray-900 shrink-0"
+                className="flex items-center justify-between px-2 bg-slate-900 shrink-0"
                 style={{ minHeight: 48 }}
             >
                 <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -263,7 +263,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
 
             <div
                 ref={contentRef}
-                className="relative flex-1 overflow-auto bg-gray-700 overscroll-none scroll-smooth"
+                className="relative flex-1 overflow-auto bg-slate-700 overscroll-none scroll-smooth"
                 style={{
                     touchAction: scale > 1 ? 'none' : 'auto',
                     cursor: isDragging ? 'grabbing' : (scale > 1 ? 'grab' : 'auto'),
@@ -361,7 +361,7 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
 
             {/* ===== フッター・ページナビ ===== */}
             {showFooter && (
-                <div className="flex items-center justify-center gap-6 bg-gray-900 shrink-0" style={{ minHeight: 52 }}>
+                <div className="flex items-center justify-center gap-6 bg-slate-900 shrink-0" style={{ minHeight: 52 }}>
                     <button
                         type="button"
                         onClick={() => setPageNumber(p => Math.max(p - 1, 1))}

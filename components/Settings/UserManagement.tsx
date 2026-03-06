@@ -180,11 +180,11 @@ export default function UserManagement() {
             case 'foreman2':
                 return 'bg-teal-100 text-teal-800';
             case 'worker':
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-slate-100 text-slate-800';
             case 'partner':
                 return 'bg-slate-100 text-slate-700';
             default:
-                return 'bg-gray-100 text-gray-800';
+                return 'bg-slate-100 text-slate-800';
         }
     };
 
@@ -234,43 +234,43 @@ export default function UserManagement() {
             </div>
 
             {/* Users Table - PC */}
-            <div className="hidden md:block bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+            <div className="hidden md:block bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                        <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
                             <tr>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                     ユーザー
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                     メール
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                     ロール
                                 </th>
-                                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                     ステータス
                                 </th>
                                 {isAdminOrManager && (
-                                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                    <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                         時給
                                     </th>
                                 )}
-                                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                     操作
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200">
+                        <tbody className="divide-y divide-slate-200">
                             {users.map((user) => (
-                                <tr key={user.id} className="hover:bg-gray-50 transition-colors">
+                                <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-6 py-4">
                                         <div>
-                                            <div className="font-medium text-gray-900">{user.displayName}</div>
-                                            <div className="text-sm text-gray-500">@{user.username}</div>
+                                            <div className="font-medium text-slate-900">{user.displayName}</div>
+                                            <div className="text-sm text-slate-500">@{user.username}</div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">{user.email}</td>
+                                    <td className="px-6 py-4 text-sm text-slate-600">{user.email}</td>
                                     <td className="px-6 py-4">
                                         <span
                                             className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getRoleBadgeColor(
@@ -293,7 +293,7 @@ export default function UserManagement() {
                                     </td>
                                     {isAdminOrManager && (
                                         <td className="px-6 py-4 text-right">
-                                            <span className="text-sm text-gray-700 font-medium">
+                                            <span className="text-sm text-slate-700 font-medium">
                                                 {user.hourlyRate != null ? `¥${Number(user.hourlyRate).toLocaleString()}` : '-'}
                                             </span>
                                         </td>
@@ -334,8 +334,8 @@ export default function UserManagement() {
 
                 {users.length === 0 && (
                     <div className="text-center py-12">
-                        <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">ユーザーが登録されていません</p>
+                        <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                        <p className="text-slate-500">ユーザーが登録されていません</p>
                     </div>
                 )}
             </div>
@@ -343,12 +343,12 @@ export default function UserManagement() {
             {/* Users Cards - Mobile */}
             <div className="md:hidden space-y-3">
                 {users.map((user) => (
-                    <div key={user.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                    <div key={user.id} className="bg-white rounded-lg shadow-sm border border-slate-200 p-3">
                         <div className="flex items-start justify-between">
                             <div className="flex-1 min-w-0">
-                                <div className="font-medium text-gray-900">{user.displayName}</div>
-                                <div className="text-sm text-gray-500">@{user.username}</div>
-                                <div className="text-sm text-gray-500 truncate">{user.email}</div>
+                                <div className="font-medium text-slate-900">{user.displayName}</div>
+                                <div className="text-sm text-slate-500">@{user.username}</div>
+                                <div className="text-sm text-slate-500 truncate">{user.email}</div>
                             </div>
                             <div className="flex flex-col items-end gap-1 ml-2">
                                 <span
@@ -364,12 +364,12 @@ export default function UserManagement() {
                                 </span>
                             </div>
                             {isAdminOrManager && user.hourlyRate != null && (
-                                <div className="text-xs text-gray-500 mt-1">
+                                <div className="text-xs text-slate-500 mt-1">
                                     時給: ¥{Number(user.hourlyRate).toLocaleString()}
                                 </div>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                             <button
                                 onClick={() => handleResetPassword(user)}
                                 className="flex-1 flex items-center justify-center gap-1.5 py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -398,8 +398,8 @@ export default function UserManagement() {
                 ))}
                 {users.length === 0 && (
                     <div className="text-center py-12">
-                        <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                        <p className="text-gray-500">ユーザーが登録されていません</p>
+                        <Users className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                        <p className="text-slate-500">ユーザーが登録されていません</p>
                     </div>
                 )}
             </div>
@@ -418,13 +418,13 @@ export default function UserManagement() {
                 <div className="fixed inset-0 lg:left-64 z-[70] flex items-center justify-center">
                     <div className="absolute inset-0 bg-black bg-opacity-50" onClick={isResetting ? undefined : closeResetDialog} />
                     <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6 z-10">
-                        <h3 className="text-xl font-bold text-gray-900 mb-4">
+                        <h3 className="text-xl font-bold text-slate-900 mb-4">
                             パスワードリセット
                         </h3>
 
                         {!showResetResult ? (
                             <>
-                                <p className="text-gray-600 mb-6">
+                                <p className="text-slate-600 mb-6">
                                     <span className="font-semibold">{resetPasswordUser.displayName}</span> さんのパスワードをリセットしますか？<br />
                                     新しいランダムなパスワードが生成されます。
                                 </p>
@@ -432,7 +432,7 @@ export default function UserManagement() {
                                     <button
                                         onClick={closeResetDialog}
                                         disabled={isResetting}
-                                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                                        className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50"
                                     >
                                         キャンセル
                                     </button>
@@ -448,17 +448,17 @@ export default function UserManagement() {
                             </>
                         ) : (
                             <>
-                                <p className="text-gray-600 mb-4">
+                                <p className="text-slate-600 mb-4">
                                     パスワードをリセットしました。<br />
                                     以下の仮パスワードをユーザーにお伝えください。
                                 </p>
-                                <div className="bg-gray-100 p-4 rounded-lg mb-6 flex items-center justify-between border border-gray-300">
-                                    <code className="text-lg font-mono font-bold text-gray-800 tracking-wider">
+                                <div className="bg-slate-100 p-4 rounded-lg mb-6 flex items-center justify-between border border-slate-300">
+                                    <code className="text-lg font-mono font-bold text-slate-800 tracking-wider">
                                         {generatedPassword}
                                     </code>
                                     <button
                                         onClick={copyPassword}
-                                        className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded transition-colors"
+                                        className="p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-200 rounded transition-colors"
                                         title="コピー"
                                         aria-label="コピー"
                                     >

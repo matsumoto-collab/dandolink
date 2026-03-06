@@ -70,7 +70,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     if (error || !profitData) {
         return (
             <div className="bg-white rounded-lg shadow p-6">
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-slate-500">
                     {error || '利益情報がありません'}
                 </div>
             </div>
@@ -101,9 +101,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     </div>
 
                     {/* 原価 */}
-                    <div className="bg-gray-50 rounded-lg p-4">
-                        <div className="text-sm text-gray-600 font-medium">原価合計</div>
-                        <div className="text-2xl font-bold text-gray-700">{formatCurrency(costBreakdown.totalCost)}</div>
+                    <div className="bg-slate-50 rounded-lg p-4">
+                        <div className="text-sm text-slate-600 font-medium">原価合計</div>
+                        <div className="text-2xl font-bold text-slate-700">{formatCurrency(costBreakdown.totalCost)}</div>
                     </div>
 
                     {/* 粗利 */}
@@ -121,7 +121,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
                 {/* 原価内訳 */}
                 <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold text-gray-600 mb-3">原価内訳</h4>
+                    <h4 className="text-sm font-semibold text-slate-600 mb-3">原価内訳</h4>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <CostItem
                             icon={Users}
@@ -180,7 +180,7 @@ function CostItem({ icon: Icon, label, amount, color }: CostItemProps) {
         teal: 'bg-teal-50 text-teal-700',
         amber: 'bg-slate-50 text-slate-600',
         orange: 'bg-slate-50 text-slate-600',
-        gray: 'bg-gray-50 text-gray-600',
+        gray: 'bg-slate-50 text-slate-600',
     };
 
     return (

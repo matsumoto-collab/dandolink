@@ -42,14 +42,14 @@ export default function ConflictResolutionModal({
 
                 {/* コンテンツ */}
                 <div className="px-6 py-4">
-                    <p className="text-gray-700 mb-4">
+                    <p className="text-slate-700 mb-4">
                         {conflictMessage}
                     </p>
 
                     {latestData && (
-                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                            <h3 className="text-sm font-medium text-gray-700 mb-2">最新のデータ:</h3>
-                            <div className="text-sm text-gray-600 space-y-1">
+                        <div className="bg-slate-50 rounded-lg p-4 mb-4">
+                            <h3 className="text-sm font-medium text-slate-700 mb-2">最新のデータ:</h3>
+                            <div className="text-sm text-slate-600 space-y-1">
                                 <p>
                                     <span className="font-medium">現場名:</span>{' '}
                                     {latestData.projectMaster?.title || '不明'}
@@ -66,7 +66,7 @@ export default function ConflictResolutionModal({
                         </div>
                     )}
 
-                    <p className="text-sm text-gray-500 mb-6">
+                    <p className="text-sm text-slate-500 mb-6">
                         どのように処理しますか？
                     </p>
 
@@ -90,7 +90,7 @@ export default function ConflictResolutionModal({
 
                         <button
                             onClick={() => onResolve('cancel')}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors"
                         >
                             <X className="w-5 h-5" />
                             <span>キャンセル</span>

@@ -47,10 +47,10 @@ function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onU
 
 /** デスクトップ用テーブル行 */
 export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown }: ItemRowProps) {
-    const cellInputClass = "w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
+    const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
 
     return (
-        <tr className="border-b border-gray-200 last:border-b-0">
+        <tr className="border-b border-slate-200 last:border-b-0">
             <td className="px-3 py-2">
                 <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={cellInputClass} placeholder="品目・内容" />
             </td>
@@ -96,10 +96,10 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
             </td>
             <td className="px-3 py-2">
                 <div className="flex items-center justify-center gap-1">
-                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
+                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
                         <ChevronUp className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-1 text-gray-600 hover:bg-gray-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="下に移動" aria-label="下に移動">
+                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="下に移動" aria-label="下に移動">
                         <ChevronDown className="w-4 h-4" />
                     </button>
                     <button type="button" onClick={() => onRemove(item.id)} className="p-1 text-slate-600 hover:bg-slate-50 rounded transition-colors" title="削除" aria-label="削除">
@@ -113,19 +113,19 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 
 /** モバイル用カード */
 export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown }: ItemRowProps) {
-    const mobileInputClass = "w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
-    const mobileLabelClass = "block text-xs font-medium text-gray-500 mb-1";
+    const mobileInputClass = "w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
+    const mobileLabelClass = "block text-xs font-medium text-slate-500 mb-1";
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3 shadow-sm">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-sm">
             {/* ヘッダー: 番号 + 操作ボタン */}
             <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">#{index + 1}</span>
                 <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-2 text-gray-500 rounded-lg active:bg-gray-100 disabled:opacity-30" aria-label="上に移動">
+                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-2 text-slate-500 rounded-lg active:bg-slate-100 disabled:opacity-30" aria-label="上に移動">
                         <ChevronUp className="w-5 h-5" />
                     </button>
-                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-2 text-gray-500 rounded-lg active:bg-gray-100 disabled:opacity-30" aria-label="下に移動">
+                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-2 text-slate-500 rounded-lg active:bg-slate-100 disabled:opacity-30" aria-label="下に移動">
                         <ChevronDown className="w-5 h-5" />
                     </button>
                     <button type="button" onClick={() => onRemove(item.id)} className="p-2 text-red-500 rounded-lg active:bg-red-50" aria-label="削除">
@@ -177,15 +177,15 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
             </div>
 
             {/* 金額 + 税区分 */}
-            <div className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5">
+            <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5">
                 <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-500">税区分:</span>
-                    <select value={item.taxType} onChange={(e) => onUpdate(item.id, 'taxType', e.target.value as 'none' | 'standard')} className="px-2 py-1 border border-gray-300 rounded text-sm bg-white">
+                    <span className="text-xs text-slate-500">税区分:</span>
+                    <select value={item.taxType} onChange={(e) => onUpdate(item.id, 'taxType', e.target.value as 'none' | 'standard')} className="px-2 py-1 border border-slate-300 rounded text-sm bg-white">
                         <option value="standard">10%</option>
                         <option value="none">なし</option>
                     </select>
                 </div>
-                <div className={`text-lg font-bold ${item.amount < 0 ? 'text-slate-600' : 'text-gray-900'}`}>
+                <div className={`text-lg font-bold ${item.amount < 0 ? 'text-slate-600' : 'text-slate-900'}`}>
                     {item.amount < 0 ? `(${Math.abs(item.amount).toLocaleString()})` : `¥${item.amount.toLocaleString()}`}
                 </div>
             </div>

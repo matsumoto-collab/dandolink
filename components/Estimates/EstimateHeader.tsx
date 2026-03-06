@@ -61,10 +61,10 @@ function SearchableProjectSelect({
                 className={`${inputClass} flex justify-between items-center cursor-pointer bg-white`}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className={`truncate ${!selectedProject ? 'text-gray-500' : ''}`}>
+                <span className={`truncate ${!selectedProject ? 'text-slate-500' : ''}`}>
                     {displayText}
                 </span>
-                <span className="text-gray-400 ml-2">
+                <span className="text-slate-400 ml-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
@@ -72,17 +72,17 @@ function SearchableProjectSelect({
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white rounded-t-lg">
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg">
+                    <div className="p-2 border-b border-slate-200 sticky top-0 bg-white rounded-t-lg">
                         <div className="relative">
-                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </span>
                             <input
                                 type="text"
-                                className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                className="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
                                 placeholder="案件を検索..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -91,7 +91,7 @@ function SearchableProjectSelect({
                             />
                             {searchQuery && (
                                 <button
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSearchQuery('');
@@ -106,14 +106,14 @@ function SearchableProjectSelect({
                     </div>
                     <ul className="max-h-60 overflow-y-auto overscroll-contain">
                         <li
-                            className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center justify-between ${!value ? 'bg-slate-50 font-medium' : ''}`}
+                            className={`px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm flex items-center justify-between ${!value ? 'bg-slate-50 font-medium' : ''}`}
                             onClick={() => {
                                 onChange('');
                                 setIsOpen(false);
                                 setSearchQuery('');
                             }}
                         >
-                            <span className="text-gray-600">案件を選択（任意）</span>
+                            <span className="text-slate-600">案件を選択（任意）</span>
                             {!value && (
                                 <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -121,14 +121,14 @@ function SearchableProjectSelect({
                             )}
                         </li>
                         {filteredProjects.length === 0 ? (
-                            <li className="px-4 py-3 text-sm text-gray-500 text-center">
+                            <li className="px-4 py-3 text-sm text-slate-500 text-center">
                                 該当する案件がありません
                             </li>
                         ) : (
                             filteredProjects.map(project => (
                                 <li
                                     key={project.id}
-                                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center justify-between ${project.id === value ? 'bg-slate-50 font-medium' : ''}`}
+                                    className={`px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm flex items-center justify-between ${project.id === value ? 'bg-slate-50 font-medium' : ''}`}
                                     onClick={() => {
                                         onChange(project.id);
                                         setIsOpen(false);
@@ -138,7 +138,7 @@ function SearchableProjectSelect({
                                     <div className="flex flex-col">
                                         <span>{project.title}</span>
                                         {project.customer && (
-                                            <span className="text-xs text-gray-500 mt-0.5">{project.customer}</span>
+                                            <span className="text-xs text-slate-500 mt-0.5">{project.customer}</span>
                                         )}
                                     </div>
                                     {project.id === value && (
@@ -195,10 +195,10 @@ function SearchableCustomerSelect({
                 className={`${inputClass} flex justify-between items-center cursor-pointer bg-white`}
                 onClick={() => setIsOpen(!isOpen)}
             >
-                <span className={`truncate ${!selectedCustomer ? 'text-gray-500' : ''}`}>
+                <span className={`truncate ${!selectedCustomer ? 'text-slate-500' : ''}`}>
                     {displayText}
                 </span>
-                <span className="text-gray-400 ml-2">
+                <span className="text-slate-400 ml-2">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                     </svg>
@@ -206,17 +206,17 @@ function SearchableCustomerSelect({
             </div>
 
             {isOpen && (
-                <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
-                    <div className="p-2 border-b border-gray-200 sticky top-0 bg-white rounded-t-lg">
+                <div className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg">
+                    <div className="p-2 border-b border-slate-200 sticky top-0 bg-white rounded-t-lg">
                         <div className="relative">
-                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </span>
                             <input
                                 type="text"
-                                className="w-full pl-9 pr-8 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                className="w-full pl-9 pr-8 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
                                 placeholder="元請会社を検索..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -225,7 +225,7 @@ function SearchableCustomerSelect({
                             />
                             {searchQuery && (
                                 <button
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setSearchQuery('');
@@ -240,14 +240,14 @@ function SearchableCustomerSelect({
                     </div>
                     <ul className="max-h-60 overflow-y-auto overscroll-contain">
                         <li
-                            className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center justify-between ${!value ? 'bg-slate-50 font-medium' : ''}`}
+                            className={`px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm flex items-center justify-between ${!value ? 'bg-slate-50 font-medium' : ''}`}
                             onClick={() => {
                                 onChange('');
                                 setIsOpen(false);
                                 setSearchQuery('');
                             }}
                         >
-                            <span className="text-gray-600">選択してください</span>
+                            <span className="text-slate-600">選択してください</span>
                             {!value && (
                                 <svg className="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
@@ -255,14 +255,14 @@ function SearchableCustomerSelect({
                             )}
                         </li>
                         {filteredCustomers.length === 0 ? (
-                            <li className="px-4 py-3 text-sm text-gray-500 text-center">
+                            <li className="px-4 py-3 text-sm text-slate-500 text-center">
                                 該当する元請会社がありません
                             </li>
                         ) : (
                             filteredCustomers.map(customer => (
                                 <li
                                     key={customer.id}
-                                    className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm flex items-center justify-between ${customer.id === value ? 'bg-slate-50 font-medium' : ''}`}
+                                    className={`px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm flex items-center justify-between ${customer.id === value ? 'bg-slate-50 font-medium' : ''}`}
                                     onClick={() => {
                                         onChange(customer.id);
                                         setIsOpen(false);
@@ -272,7 +272,7 @@ function SearchableCustomerSelect({
                                     <div className="flex flex-col">
                                         <span>{customer.name}</span>
                                         {customer.shortName && (
-                                            <span className="text-xs text-gray-500 mt-0.5">{customer.shortName}</span>
+                                            <span className="text-xs text-slate-500 mt-0.5">{customer.shortName}</span>
                                         )}
                                     </div>
                                     {customer.id === value && (
@@ -333,8 +333,8 @@ export default function EstimateHeader({
         }
     };
 
-    const inputClass = "w-full px-3 py-3 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm";
-    const labelClass = "block text-sm font-semibold text-gray-700 mb-1.5";
+    const inputClass = "w-full px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm";
+    const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
 
     return (
         <>
@@ -348,7 +348,7 @@ export default function EstimateHeader({
                         projects={projects}
                         inputClass={inputClass}
                     />
-                    <p className="text-xs text-gray-500 mt-1">案件を選択すると現場名・元請会社が自動入力されます</p>
+                    <p className="text-xs text-slate-500 mt-1">案件を選択すると現場名・元請会社が自動入力されます</p>
                 </div>
 
                 <div>
@@ -363,7 +363,7 @@ export default function EstimateHeader({
                             <option key={template.id} value={template.id}>{template.label}</option>
                         ))}
                     </select>
-                    <p className="text-xs text-gray-500 mt-1">テンプレートを選択すると、現場名を使ってタイトルが自動生成されます</p>
+                    <p className="text-xs text-slate-500 mt-1">テンプレートを選択すると、現場名を使ってタイトルが自動生成されます</p>
                 </div>
 
                 <div>
@@ -393,7 +393,7 @@ export default function EstimateHeader({
                             value={customerId}
                             onChange={setCustomerId}
                             customers={customers}
-                            inputClass={"flex-1 px-3 py-3 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"}
+                            inputClass={"flex-1 px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"}
                         />
                         <button type="button" onClick={onOpenCustomerModal} className="px-4 py-3 md:py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 active:bg-slate-900 transition-colors whitespace-nowrap text-sm font-medium">
                             + 新規顧客

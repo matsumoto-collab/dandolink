@@ -165,16 +165,16 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 {/* タブスケルトン */}
                 <div className="flex gap-1">
                     {[80, 48, 48, 64, 72].map((w, i) => (
-                        <div key={i} className={`h-7 rounded-full bg-gray-200 animate-pulse`} style={{ width: w }} />
+                        <div key={i} className={`h-7 rounded-full bg-slate-200 animate-pulse`} style={{ width: w }} />
                     ))}
                 </div>
                 {/* ファイル行スケルトン */}
                 {[1, 2, 3].map(i => (
-                    <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="w-12 h-12 rounded bg-gray-200 animate-pulse shrink-0" />
+                    <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="w-12 h-12 rounded bg-slate-200 animate-pulse shrink-0" />
                         <div className="flex-1 space-y-2">
-                            <div className="h-3.5 bg-gray-200 animate-pulse rounded w-2/3" />
-                            <div className="h-3 bg-gray-100 animate-pulse rounded w-1/3" />
+                            <div className="h-3.5 bg-slate-200 animate-pulse rounded w-2/3" />
+                            <div className="h-3 bg-slate-100 animate-pulse rounded w-1/3" />
                         </div>
                     </div>
                 ))}
@@ -197,12 +197,12 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                 shrink-0 px-3 py-2 rounded-full text-xs font-medium transition-colors min-h-[36px]
                                 ${activeTab === key
                                     ? 'bg-slate-700 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'}
+                                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200 active:bg-slate-300'}
                             `}
                         >
                             {label}
                             {count > 0 && (
-                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === key ? 'bg-white/20' : 'bg-gray-300'}`}>
+                                <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === key ? 'bg-white/20' : 'bg-slate-300'}`}>
                                     {count}
                                 </span>
                             )}
@@ -218,7 +218,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 onDrop={handleDrop}
                 className={`
                     border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors
-                    ${isDragOver ? 'border-slate-400 bg-slate-50' : 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'}
+                    ${isDragOver ? 'border-slate-400 bg-slate-50' : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'}
                     ${uploading ? 'pointer-events-none opacity-60' : ''}
                 `}
                 onClick={() => fileInputRef.current?.click()}
@@ -238,25 +238,25 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                         <span className="text-sm">アップロード中...</span>
                     </div>
                 ) : (
-                    <div className="flex items-center justify-center gap-2 text-gray-500">
+                    <div className="flex items-center justify-center gap-2 text-slate-500">
                         <Upload className="w-4 h-4" />
                         <span className="text-sm">
                             「{CATEGORIES.find(c => c.key === activeTab)?.label}」にアップロード
                         </span>
                     </div>
                 )}
-                <p className="text-xs text-gray-400 mt-1">画像（JPG・PNG等）・PDF対応 / 最大20MB</p>
+                <p className="text-xs text-slate-400 mt-1">画像（JPG・PNG等）・PDF対応 / 最大20MB</p>
             </div>
 
             {/* ファイル一覧 */}
             {tabFiles.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-2">ファイルがありません</p>
+                <p className="text-sm text-slate-400 text-center py-2">ファイルがありません</p>
             ) : (
                 <div className="space-y-2">
                     {tabFiles.map((file) => (
                         <div
                             key={file.id}
-                            className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                            className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200"
                         >
                             {/* サムネイル or PDF アイコン */}
                             {file.fileType === 'image' && file.signedUrl ? (
@@ -269,7 +269,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     }}
                                     className="shrink-0 hover:opacity-80 transition-opacity"
                                 >
-                                    <div className="relative w-12 h-12 overflow-hidden rounded border border-gray-200">
+                                    <div className="relative w-12 h-12 overflow-hidden rounded border border-slate-200">
                                         <Image
                                             src={file.signedUrl}
                                             alt={file.fileName}
@@ -311,11 +311,11 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                         </a>
                                     )
                                 ) : (
-                                    <span className="text-sm font-medium text-gray-700 truncate block">
+                                    <span className="text-sm font-medium text-slate-700 truncate block">
                                         {file.fileName}
                                     </span>
                                 )}
-                                <p className="text-xs text-gray-400">
+                                <p className="text-xs text-slate-400">
                                     {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
                                 </p>
                             </div>
@@ -325,7 +325,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                 type="button"
                                 onClick={() => handleDelete(file.id, file.fileName)}
                                 disabled={deletingId === file.id}
-                                className="shrink-0 p-1.5 text-gray-400 hover:text-slate-500 hover:bg-slate-50 rounded transition-colors"
+                                className="shrink-0 p-1.5 text-slate-400 hover:text-slate-500 hover:bg-slate-50 rounded transition-colors"
                                 title="削除"
                             >
                                 {deletingId === file.id ? (

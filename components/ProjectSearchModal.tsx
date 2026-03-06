@@ -79,12 +79,12 @@ export default function ProjectSearchModal({
         <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-start pt-[4rem] pwa-modal-offset-safe lg:items-center lg:pt-0 justify-center z-[60]">
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white lg:rounded-lg shadow-xl w-full h-full lg:h-auto flex-1 lg:flex-none max-w-3xl lg:max-h-[80vh] flex flex-col">
                 {/* ヘッダー */}
-                <div className="px-6 py-4 border-b border-gray-200">
+                <div className="px-6 py-4 border-b border-slate-200">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xl font-bold text-gray-800">案件を検索</h2>
+                        <h2 className="text-xl font-bold text-slate-800">案件を検索</h2>
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
                         >
                             <svg
                                 className="w-6 h-6"
@@ -109,7 +109,7 @@ export default function ProjectSearchModal({
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="現場名、顧客名、場所で検索..."
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                            className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                         />
 
                         {/* 工事種別フィルター */}
@@ -118,7 +118,7 @@ export default function ProjectSearchModal({
                                 onClick={() => setSelectedType('all')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'all'
                                     ? 'bg-slate-700 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                             >
                                 すべて
@@ -127,7 +127,7 @@ export default function ProjectSearchModal({
                                 onClick={() => setSelectedType('assembly')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'assembly'
                                     ? 'bg-slate-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                             >
                                 組立
@@ -136,7 +136,7 @@ export default function ProjectSearchModal({
                                 onClick={() => setSelectedType('demolition')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'demolition'
                                     ? 'bg-slate-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                             >
                                 解体
@@ -145,7 +145,7 @@ export default function ProjectSearchModal({
                                 onClick={() => setSelectedType('other')}
                                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${selectedType === 'other'
                                     ? 'bg-slate-600 text-white'
-                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                                     }`}
                             >
                                 その他
@@ -157,9 +157,9 @@ export default function ProjectSearchModal({
                 {/* 検索結果 */}
                 <div className="flex-1 overflow-y-auto px-6 py-4">
                     {filteredProjects.length === 0 ? (
-                        <div className="text-center py-12 text-gray-500">
+                        <div className="text-center py-12 text-slate-500">
                             <svg
-                                className="w-16 h-16 mx-auto mb-4 text-gray-300"
+                                className="w-16 h-16 mx-auto mb-4 text-slate-300"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -180,21 +180,21 @@ export default function ProjectSearchModal({
                                 <div
                                     key={project.id}
                                     onClick={() => handleSelect(project)}
-                                    className="p-4 border border-gray-200 rounded-lg hover:border-slate-500 hover:shadow-md transition-all cursor-pointer"
+                                    className="p-4 border border-slate-200 rounded-lg hover:border-slate-500 hover:shadow-md transition-all cursor-pointer"
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1">
-                                            <h3 className="text-lg font-bold text-gray-800">
+                                            <h3 className="text-lg font-bold text-slate-800">
                                                 {project.title}
                                             </h3>
-                                            <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                                            <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
                                                 {project.customer && (
                                                     <span>顧客: {project.customer}</span>
                                                 )}
                                                 <span>日付: {formatDate(project.startDate)}</span>
                                             </div>
                                             {project.location && (
-                                                <p className="text-sm text-gray-500 mt-1">
+                                                <p className="text-sm text-slate-500 mt-1">
                                                     場所: {project.location}
                                                 </p>
                                             )}
@@ -211,7 +211,7 @@ export default function ProjectSearchModal({
                                             </div>
                                         </div>
                                         <svg
-                                            className="w-6 h-6 text-gray-400"
+                                            className="w-6 h-6 text-slate-400"
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
@@ -231,14 +231,14 @@ export default function ProjectSearchModal({
                 </div>
 
                 {/* フッター */}
-                <div className="px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-gray-200 bg-gray-50">
+                <div className="px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))] border-t border-slate-200 bg-slate-50">
                     <div className="flex justify-between items-center">
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-slate-600">
                             {filteredProjects.length}件の案件が見つかりました
                         </p>
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                             キャンセル
                         </button>

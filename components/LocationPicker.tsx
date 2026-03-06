@@ -50,7 +50,7 @@ export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }
 
     return (
         <APIProvider apiKey={API_KEY}>
-            <div className="relative border border-gray-200 rounded-lg overflow-hidden" style={{ height: 280 }}>
+            <div className="relative border border-slate-200 rounded-lg overflow-hidden" style={{ height: 280 }}>
                 <Map
                     defaultCenter={defaultCenter}
                     defaultZoom={DEFAULT_ZOOM}
@@ -78,7 +78,7 @@ export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }
                     📍
                 </div>
             </div>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-xs text-slate-400 mt-1">
                 地図をドラッグしてピンの位置を合わせてください（ズーム: Ctrl+スクロール）
             </p>
         </APIProvider>

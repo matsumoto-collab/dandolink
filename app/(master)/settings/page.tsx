@@ -118,12 +118,12 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
             <div className="p-3 sm:p-6 lg:p-8">
                 {/* Header */}
                 <div className="mb-4 md:mb-8">
-                    <h1 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent">マスター・設定</h1>
-                    <p className="text-sm md:text-base text-slate-600 mt-1 md:mt-2">マスターデータを管理します</p>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">マスター・設定</h1>
+                    <p className="text-slate-600">マスターデータを管理します</p>
                 </div>
 
                 {/* Tabs */}
@@ -283,7 +283,7 @@ export default function SettingsPage() {
                                                             </button>
                                                             <button
                                                                 onClick={() => setDeleteConfirm(null)}
-                                                                className="px-3 py-1 text-xs bg-gray-300 text-slate-700 rounded-md hover:bg-gray-400 transition-colors"
+                                                                className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
                                                             >
                                                                 キャンセル
                                                             </button>

@@ -204,7 +204,7 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
     const padY = 16 * scale;
 
     return (
-        <div className="relative w-full h-full flex flex-col items-center bg-gray-100">
+        <div className="relative w-full h-full flex flex-col items-center bg-slate-100">
             <div
                 ref={contentRef}
                 className="w-full h-full overflow-auto overscroll-none"
@@ -220,8 +220,8 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
                 <div style={{ padding: `${padY}px ${padX}px`, minWidth: 'max-content' }}>
                     {!PdfDocument ? (
                         <div className="flex flex-col items-center justify-center h-full gap-3 mt-10">
-                            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                            <span className="text-sm text-gray-500">PDFを読み込んでいます...</span>
+                            <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                            <span className="text-sm text-slate-500">PDFを読み込んでいます...</span>
                         </div>
                     ) : (
                         <PdfDocument
@@ -229,12 +229,12 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
                             onLoadSuccess={({ numPages: n }) => setNumPages(n)}
                             loading={
                                 <div className="flex flex-col items-center justify-center h-full gap-3 mt-10">
-                                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-                                    <span className="text-sm text-gray-500">PDFを読み込んでいます...</span>
+                                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                                    <span className="text-sm text-slate-500">PDFを読み込んでいます...</span>
                                 </div>
                             }
                             error={
-                                <div className="flex flex-col items-center justify-center h-full gap-4 text-gray-600 px-6 text-center mt-10">
+                                <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-600 px-6 text-center mt-10">
                                     <p>PDFの読み込みに失敗しました</p>
                                 </div>
                             }
@@ -260,7 +260,7 @@ export function InlinePdfViewer({ url }: InlinePdfViewerProps) {
                 className="absolute left-1/2 -translate-x-1/2 z-[10] pointer-events-none"
                 style={{ bottom: 16, marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
             >
-                <div className="pointer-events-auto flex items-center gap-1 bg-gray-800/80 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg">
+                <div className="pointer-events-auto flex items-center gap-1 bg-slate-800/80 backdrop-blur-sm rounded-full px-2 py-1 shadow-lg">
                     <button
                         type="button"
                         onClick={() => changeScale(s => Math.max(s - 0.25, MIN_SCALE))}

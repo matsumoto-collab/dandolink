@@ -101,7 +101,7 @@ export default function CompanyInfoSettings() {
             {/* 基本情報 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">会社名</label>
+                    <label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-1">会社名</label>
                     <input
                         id="name"
                         type="text"
@@ -111,7 +111,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="representativeTitle" className="block text-sm font-medium text-gray-700 mb-1">代表者肩書</label>
+                    <label htmlFor="representativeTitle" className="block text-sm font-medium text-slate-700 mb-1">代表者肩書</label>
                     <input
                         id="representativeTitle"
                         type="text"
@@ -122,7 +122,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="representative" className="block text-sm font-medium text-gray-700 mb-1">代表者氏名</label>
+                    <label htmlFor="representative" className="block text-sm font-medium text-slate-700 mb-1">代表者氏名</label>
                     <input
                         id="representative"
                         type="text"
@@ -132,7 +132,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="postalCode" className="block text-sm font-medium text-gray-700 mb-1">郵便番号</label>
+                    <label htmlFor="postalCode" className="block text-sm font-medium text-slate-700 mb-1">郵便番号</label>
                     <input
                         id="postalCode"
                         type="text"
@@ -143,7 +143,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">住所</label>
+                    <label htmlFor="address" className="block text-sm font-medium text-slate-700 mb-1">住所</label>
                     <input
                         id="address"
                         type="text"
@@ -153,7 +153,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="tel" className="block text-sm font-medium text-gray-700 mb-1">電話番号</label>
+                    <label htmlFor="tel" className="block text-sm font-medium text-slate-700 mb-1">電話番号</label>
                     <input
                         id="tel"
                         type="text"
@@ -163,7 +163,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="fax" className="block text-sm font-medium text-gray-700 mb-1">FAX番号</label>
+                    <label htmlFor="fax" className="block text-sm font-medium text-slate-700 mb-1">FAX番号</label>
                     <input
                         id="fax"
                         type="text"
@@ -173,7 +173,7 @@ export default function CompanyInfoSettings() {
                     />
                 </div>
                 <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">メールアドレス</label>
+                    <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-1">メールアドレス</label>
                     <input
                         id="email"
                         type="email"
@@ -189,7 +189,7 @@ export default function CompanyInfoSettings() {
                 <h4 className="text-md font-medium text-slate-800 mb-3">許可・登録情報</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label htmlFor="licenseNumber" className="block text-sm font-medium text-gray-700 mb-1">建設業許可番号</label>
+                        <label htmlFor="licenseNumber" className="block text-sm font-medium text-slate-700 mb-1">建設業許可番号</label>
                         <input
                             id="licenseNumber"
                             type="text"
@@ -200,7 +200,7 @@ export default function CompanyInfoSettings() {
                         />
                     </div>
                     <div>
-                        <label htmlFor="registrationNumber" className="block text-sm font-medium text-gray-700 mb-1">インボイス登録番号</label>
+                        <label htmlFor="registrationNumber" className="block text-sm font-medium text-slate-700 mb-1">インボイス登録番号</label>
                         <input
                             id="registrationNumber"
                             type="text"
@@ -240,7 +240,7 @@ export default function CompanyInfoSettings() {
                             }}
                             className="text-sm"
                         />
-                        <p className="text-xs text-gray-500 mt-1">PNG/JPG推奨、背景透過PNG推奨</p>
+                        <p className="text-xs text-slate-500 mt-1">PNG/JPG推奨、背景透過PNG推奨</p>
                         {formData.sealImage && (
                             <button
                                 type="button"
@@ -311,7 +311,7 @@ export default function CompanyInfoSettings() {
                         </div>
                     ))}
                     {formData.bankAccounts.length === 0 && (
-                        <p className="text-sm text-gray-500 py-2">口座が登録されていません</p>
+                        <p className="text-sm text-slate-500 py-2">口座が登録されていません</p>
                     )}
                 </div>
             </div>

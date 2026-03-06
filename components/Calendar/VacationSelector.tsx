@@ -102,7 +102,7 @@ export default function VacationSelector({
 
                 {/* ドロップダウンメニュー */}
                 {isDropdownOpen && availableMembers.length > 0 && (
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
+                    <div className="absolute left-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
                         {availableMembers.map(member => (
                             <button
                                 key={member.id}

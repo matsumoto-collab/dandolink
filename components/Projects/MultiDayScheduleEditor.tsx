@@ -139,14 +139,14 @@ export default function MultiDayScheduleEditor({
                 <button
                     type="button"
                     onClick={() => setMode('range')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${mode === 'range' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${mode === 'range' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                 >
                     期間指定
                 </button>
                 <button
                     type="button"
                     onClick={() => setMode('individual')}
-                    className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${mode === 'individual' ? 'bg-slate-700 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors text-sm ${mode === 'individual' ? 'bg-slate-700 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
                 >
                     個別選択
                 </button>
@@ -157,31 +157,31 @@ export default function MultiDayScheduleEditor({
                 <div className="space-y-3 bg-slate-50 p-4 rounded-lg">
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">開始日</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">開始日</label>
                             <input
                                 type="date"
                                 value={rangeStart}
                                 onChange={(e) => setRangeStart(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">終了日</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">終了日</label>
                             <input
                                 type="date"
                                 value={rangeEnd}
                                 onChange={(e) => setRangeEnd(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">職長（デフォルト）</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">職長（デフォルト）</label>
                             <select
                                 value={defaultLeader}
                                 onChange={(e) => setDefaultLeader(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             >
                                 <option value="">選択なし</option>
                                 {foremen.map((f) => (
@@ -190,11 +190,11 @@ export default function MultiDayScheduleEditor({
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">人数（デフォルト）</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">人数（デフォルト）</label>
                             <div className="flex items-center gap-2">
-                                <button type="button" onClick={() => setDefaultMemberCount(v => Math.max(0, v - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded-md text-gray-600 active:bg-gray-100">−</button>
+                                <button type="button" onClick={() => setDefaultMemberCount(v => Math.max(0, v - 1))} className="w-9 h-9 flex items-center justify-center border border-slate-300 rounded-md text-slate-600 active:bg-slate-100">−</button>
                                 <span className="w-10 text-center font-medium">{defaultMemberCount}</span>
-                                <button type="button" onClick={() => setDefaultMemberCount(v => v + 1)} className="w-9 h-9 flex items-center justify-center border border-gray-300 rounded-md text-gray-600 active:bg-gray-100">＋</button>
+                                <button type="button" onClick={() => setDefaultMemberCount(v => v + 1)} className="w-9 h-9 flex items-center justify-center border border-slate-300 rounded-md text-slate-600 active:bg-slate-100">＋</button>
                             </div>
                         </div>
                     </div>
@@ -234,7 +234,7 @@ export default function MultiDayScheduleEditor({
             {/* 日程リスト */}
             {dailySchedules.length > 0 && (
                 <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-700">
+                    <h4 className="text-sm font-medium text-slate-700">
                         登録済みの日程（{dailySchedules.length}日間）
                     </h4>
                     <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
@@ -246,7 +246,7 @@ export default function MultiDayScheduleEditor({
                             return (
                                 <div
                                     key={index}
-                                    className="bg-white border border-gray-200 rounded-lg p-3 space-y-2.5"
+                                    className="bg-white border border-slate-200 rounded-lg p-3 space-y-2.5"
                                 >
                                     {/* 日付ヘッダー + 削除ボタン */}
                                     <div className="flex items-center justify-between gap-2">
@@ -259,14 +259,14 @@ export default function MultiDayScheduleEditor({
                                                     type="date"
                                                     value={toDateKey(schedule.date)}
                                                     onChange={(e) => updateSchedule(index, { date: new Date(e.target.value) })}
-                                                    className="px-2 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                                    className="px-2 py-1 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400"
                                                 />
                                             )}
                                         </div>
                                         <button
                                             type="button"
                                             onClick={() => removeSchedule(index)}
-                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors shrink-0"
+                                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors shrink-0"
                                             title="削除"
                                         >
                                             <X className="w-4 h-4" />
@@ -277,7 +277,7 @@ export default function MultiDayScheduleEditor({
                                     <div className="flex items-center flex-wrap gap-1.5 text-xs min-h-[24px]">
                                         {existing.length > 0 ? (
                                             <>
-                                                <span className="text-gray-400">既存:</span>
+                                                <span className="text-slate-400">既存:</span>
                                                 {existing.map((e, i) => (
                                                     <span
                                                         key={i}
@@ -290,7 +290,7 @@ export default function MultiDayScheduleEditor({
                                                 ))}
                                             </>
                                         ) : (
-                                            <span className="text-gray-300 text-xs">配置なし</span>
+                                            <span className="text-slate-300 text-xs">配置なし</span>
                                         )}
                                         <span className={`ml-auto font-bold px-2 py-0.5 rounded-full text-xs text-white shadow-sm ${remaining < 0 ? 'bg-slate-700' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-600'}`}>
                                             残り {remaining}名
@@ -299,11 +299,11 @@ export default function MultiDayScheduleEditor({
 
                                     {/* 職長 */}
                                     <div>
-                                        <label className="block text-xs text-gray-500 mb-1">職長</label>
+                                        <label className="block text-xs text-slate-500 mb-1">職長</label>
                                         <select
                                             value={schedule.assignedEmployeeId || ''}
                                             onChange={(e) => updateSchedule(index, { assignedEmployeeId: e.target.value || undefined })}
-                                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         >
                                             <option value="">選択なし</option>
                                             {foremen.map((f) => (
@@ -315,19 +315,19 @@ export default function MultiDayScheduleEditor({
                                     {/* 人数 + 予定作業時間 */}
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label className="block text-xs text-gray-500 mb-1">人数</label>
+                                            <label className="block text-xs text-slate-500 mb-1">人数</label>
                                             <div className="flex items-center gap-1">
-                                                <button type="button" onClick={() => updateSchedule(index, { memberCount: Math.max(0, schedule.memberCount - 1) })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">−</button>
+                                                <button type="button" onClick={() => updateSchedule(index, { memberCount: Math.max(0, schedule.memberCount - 1) })} className="w-8 h-8 flex items-center justify-center border border-slate-300 rounded text-slate-600 active:bg-slate-100 flex-shrink-0">−</button>
                                                 <span className="flex-1 text-center text-sm font-medium">{schedule.memberCount}</span>
-                                                <button type="button" onClick={() => updateSchedule(index, { memberCount: schedule.memberCount + 1 })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">＋</button>
+                                                <button type="button" onClick={() => updateSchedule(index, { memberCount: schedule.memberCount + 1 })} className="w-8 h-8 flex items-center justify-center border border-slate-300 rounded text-slate-600 active:bg-slate-100 flex-shrink-0">＋</button>
                                             </div>
                                         </div>
                                         <div>
-                                            <label className="block text-xs text-gray-500 mb-1">予定作業時間</label>
+                                            <label className="block text-xs text-slate-500 mb-1">予定作業時間</label>
                                             <div className="flex items-center gap-1">
-                                                <button type="button" onClick={() => updateSchedule(index, { estimatedHours: Math.max(0, Math.round(((schedule.estimatedHours ?? 8) - 0.5) * 10) / 10) })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">−</button>
+                                                <button type="button" onClick={() => updateSchedule(index, { estimatedHours: Math.max(0, Math.round(((schedule.estimatedHours ?? 8) - 0.5) * 10) / 10) })} className="w-8 h-8 flex items-center justify-center border border-slate-300 rounded text-slate-600 active:bg-slate-100 flex-shrink-0">−</button>
                                                 <span className="flex-1 text-center text-sm font-medium">{schedule.estimatedHours ?? 8}h</span>
-                                                <button type="button" onClick={() => updateSchedule(index, { estimatedHours: Math.min(24, Math.round(((schedule.estimatedHours ?? 8) + 0.5) * 10) / 10) })} className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded text-gray-600 active:bg-gray-100 flex-shrink-0">＋</button>
+                                                <button type="button" onClick={() => updateSchedule(index, { estimatedHours: Math.min(24, Math.round(((schedule.estimatedHours ?? 8) + 0.5) * 10) / 10) })} className="w-8 h-8 flex items-center justify-center border border-slate-300 rounded text-slate-600 active:bg-slate-100 flex-shrink-0">＋</button>
                                             </div>
                                         </div>
                                     </div>
@@ -335,17 +335,17 @@ export default function MultiDayScheduleEditor({
                                     {/* 車両 */}
                                     {vehicles.length > 0 && (
                                         <div>
-                                            <label className="block text-xs text-gray-500 mb-1">車両</label>
+                                            <label className="block text-xs text-slate-500 mb-1">車両</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {vehicles.map((v) => {
                                                     const checked = selectedTrucks.includes(v.name);
                                                     return (
                                                         <label
                                                             key={v.id}
-                                                            className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg border transition-colors select-none cursor-pointer hover:bg-gray-100 ${
+                                                            className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg border transition-colors select-none cursor-pointer hover:bg-slate-100 ${
                                                                 checked
                                                                     ? 'bg-slate-100 border-slate-400 text-slate-700 font-medium'
-                                                                    : 'bg-gray-50 border-gray-200 text-gray-600'
+                                                                    : 'bg-slate-50 border-slate-200 text-slate-600'
                                                             }`}
                                                         >
                                                             <input
@@ -378,12 +378,12 @@ export default function MultiDayScheduleEditor({
 
                                     {/* 備考 */}
                                     <div>
-                                        <label className="block text-xs text-gray-500 mb-1">備考</label>
+                                        <label className="block text-xs text-slate-500 mb-1">備考</label>
                                         <input
                                             type="text"
                                             value={schedule.remarks || ''}
                                             onChange={(e) => updateSchedule(index, { remarks: e.target.value })}
-                                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                             placeholder="備考"
                                         />
                                     </div>

@@ -173,7 +173,7 @@ export default function ConstructionSuffixSettings() {
                                 </button>
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
                                     title="キャンセル"
                                 >
                                     <X className="w-4 h-4" />
@@ -199,7 +199,7 @@ export default function ConstructionSuffixSettings() {
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(null)}
-                                            className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                                            className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
                                         >
                                             キャンセル
                                         </button>
@@ -220,7 +220,7 @@ export default function ConstructionSuffixSettings() {
             </div>
 
             {suffixes.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-slate-500">
                     <p>工事名称が登録されていません</p>
                     <p className="text-sm mt-2">上のフォームから追加してください</p>
                 </div>

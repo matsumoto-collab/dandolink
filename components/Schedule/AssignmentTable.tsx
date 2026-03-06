@@ -446,7 +446,7 @@ function ProjectCard({
                         )}
                         {constructionTypeInfo && (
                             <span
-                                className="inline-flex items-center text-[11px] font-medium text-gray-900 px-2 py-0.5 rounded-full"
+                                className="inline-flex items-center text-[11px] font-medium text-slate-900 px-2 py-0.5 rounded-full"
                                 style={{
                                     backgroundColor: `${constructionTypeInfo.color}30`,
                                     border: `1.5px solid ${constructionTypeInfo.color}`,

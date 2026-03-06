@@ -140,7 +140,7 @@ export default function ConstructionTypeSettings() {
             <button
                 type="button"
                 onClick={() => setShowColorPicker(showColorPicker === pickerId ? null : pickerId)}
-                className="w-8 h-8 rounded-lg border-2 border-gray-300 shadow-sm hover:shadow-md transition-shadow"
+                className="w-8 h-8 rounded-lg border-2 border-slate-300 shadow-sm hover:shadow-md transition-shadow"
                 style={{ backgroundColor: selectedColor }}
                 title={COLOR_PALETTE_NAMES[selectedColor] || '色を選択'}
             />
@@ -150,7 +150,7 @@ export default function ConstructionTypeSettings() {
                         className="fixed inset-0 z-40"
                         onClick={() => setShowColorPicker(null)}
                     />
-                    <div className="absolute z-50 top-10 left-0 p-2 bg-white rounded-xl shadow-xl border border-gray-200 grid grid-cols-2 gap-1 w-[320px]">
+                    <div className="absolute z-50 top-10 left-0 p-2 bg-white rounded-xl shadow-xl border border-slate-200 grid grid-cols-2 gap-1 w-[320px]">
                         {COLOR_PALETTE.map((color) => (
                             <button
                                 key={color}
@@ -159,13 +159,13 @@ export default function ConstructionTypeSettings() {
                                     onSelect(color);
                                     setShowColorPicker(null);
                                 }}
-                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all hover:bg-gray-100 ${
+                                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all hover:bg-slate-100 ${
                                     selectedColor === color ? 'bg-slate-100 ring-1 ring-slate-400' : ''
                                 }`}
                             >
                                 <div
                                     className={`w-7 h-7 rounded-md border-2 flex-shrink-0 ${
-                                        selectedColor === color ? 'border-slate-700 shadow-sm' : 'border-gray-200'
+                                        selectedColor === color ? 'border-slate-700 shadow-sm' : 'border-slate-200'
                                     }`}
                                     style={{ backgroundColor: color }}
                                 />
@@ -253,7 +253,7 @@ export default function ConstructionTypeSettings() {
                                 </button>
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+                                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
                                     title="キャンセル"
                                 >
                                     <X className="w-4 h-4" />
@@ -263,7 +263,7 @@ export default function ConstructionTypeSettings() {
                             <>
                                 <GripVertical className="w-4 h-4 text-slate-400" />
                                 <div
-                                    className="w-6 h-6 rounded-md border border-gray-300"
+                                    className="w-6 h-6 rounded-md border border-slate-300"
                                     style={{ backgroundColor: item.color }}
                                 />
                                 <span className="flex-1 text-slate-900">{item.name}</span>
@@ -284,7 +284,7 @@ export default function ConstructionTypeSettings() {
                                         </button>
                                         <button
                                             onClick={() => setDeleteConfirm(null)}
-                                            className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400 transition-colors"
+                                            className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
                                         >
                                             キャンセル
                                         </button>
@@ -305,7 +305,7 @@ export default function ConstructionTypeSettings() {
             </div>
 
             {constructionTypes.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
+                <div className="text-center py-12 text-slate-500">
                     <p>工事種別が登録されていません</p>
                     <p className="text-sm mt-2">上のフォームから追加してください</p>
                 </div>

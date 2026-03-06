@@ -21,13 +21,13 @@ interface CheckboxFieldProps {
 function CheckboxField({ label, checked, onChange, labelWidth = 'w-24' }: CheckboxFieldProps) {
     return (
         <div className="flex items-center gap-2">
-            <span className={`text-sm text-gray-600 ${labelWidth}`}>{label}</span>
+            <span className={`text-sm text-slate-600 ${labelWidth}`}>{label}</span>
             <label className="flex items-center gap-1 cursor-pointer">
                 <input
                     type="checkbox"
                     checked={checked}
                     onChange={(e) => onChange(e.target.checked)}
-                    className="w-4 h-4 rounded border-gray-300"
+                    className="w-4 h-4 rounded border-slate-300"
                 />
                 <span className="text-sm">必要</span>
             </label>
@@ -48,7 +48,7 @@ interface RadioFieldProps {
 function RadioField({ label, name, options, value, onChange, labelWidth = 'w-24' }: RadioFieldProps) {
     return (
         <div className="flex items-center gap-2">
-            <span className={`text-sm text-gray-600 ${labelWidth}`}>{label}</span>
+            <span className={`text-sm text-slate-600 ${labelWidth}`}>{label}</span>
             <div className="flex gap-2">
                 {options.map(opt => (
                     <label key={opt} className="flex items-center gap-1 cursor-pointer">
@@ -80,12 +80,12 @@ interface TextFieldProps {
 function TextField({ label, value, onChange, placeholder, labelWidth = 'w-24', colSpan = '' }: TextFieldProps) {
     return (
         <div className={`flex items-center gap-2 ${colSpan}`}>
-            <span className={`text-sm text-gray-600 ${labelWidth}`}>{label}</span>
+            <span className={`text-sm text-slate-600 ${labelWidth}`}>{label}</span>
             <input
                 type="text"
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
-                className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                className="flex-1 px-2 py-1 text-sm border border-slate-300 rounded"
                 placeholder={placeholder || label}
             />
         </div>
@@ -107,7 +107,7 @@ function SubSection({ title, isExpanded, onToggle, children, hasBorder = true }:
             <button
                 type="button"
                 onClick={onToggle}
-                className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-3"
+                className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-3"
             >
                 {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 {title}

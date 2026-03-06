@@ -63,7 +63,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                     <div
                         key={index}
                         className={`
-                            flex-1 min-w-[140px] border-r border-gray-200 p-1.5
+                            flex-1 min-w-[140px] border-r border-slate-200 p-1.5
                             transition-all duration-200
                             ${isSaturday ? 'bg-slate-50/40' : isSunday ? 'bg-slate-50/40' : 'bg-white'}
                         `}
@@ -96,9 +96,9 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                                         placeholder="備考を入力..."
                                     />
                                 ) : (
-                                    <div className={`w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white shadow-sm' : 'text-gray-700'}`}>
+                                    <div className={`w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-700'}`}>
                                         {remarkText || (
-                                            <span className="text-gray-400 italic text-[10px]">クリックして入力</span>
+                                            <span className="text-slate-400 italic text-[10px]">クリックして入力</span>
                                         )}
                                     </div>
                                 )}

@@ -86,7 +86,7 @@ export default function DraggableEventCard({
                         {/* ドラッグ可能を示すグリップアイコン（視覚的ヒント） */}
                         <div className="flex-shrink-0 mt-0.5">
                             <svg
-                                className="w-3 h-3 text-gray-600 opacity-70"
+                                className="w-3 h-3 text-slate-600 opacity-70"
                                 fill="currentColor"
                                 viewBox="0 0 16 16"
                             >
@@ -110,19 +110,19 @@ export default function DraggableEventCard({
                             }}
                         >
                             {/* 1段目: 現場名 */}
-                            <div className="font-medium text-gray-900 truncate">
+                            <div className="font-medium text-slate-900 truncate">
                                 {event.title}
                             </div>
 
                             {/* 2段目: 元請名 */}
                             {event.customer && (
-                                <div className="text-gray-700 truncate mt-0.5">
+                                <div className="text-slate-700 truncate mt-0.5">
                                     {event.customer}
                                 </div>
                             )}
 
                             {/* 3段目: 人数 + 時間 */}
-                            <div className="flex items-center gap-1 mt-0.5 text-gray-700">
+                            <div className="flex items-center gap-1 mt-0.5 text-slate-700">
                                 {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && (
                                     <>
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -133,7 +133,7 @@ export default function DraggableEventCard({
                                 )}
                                 {event.estimatedHours != null && (
                                     <>
-                                        {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && <span className="text-gray-500">|</span>}
+                                        {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && <span className="text-slate-500">|</span>}
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -144,7 +144,7 @@ export default function DraggableEventCard({
 
                             {/* 4段目: 備考 */}
                             {event.remarks && (
-                                <div className="flex items-start gap-1 mt-0.5 text-gray-700">
+                                <div className="flex items-start gap-1 mt-0.5 text-slate-700">
                                     <svg className="w-3 h-3 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
@@ -162,8 +162,8 @@ export default function DraggableEventCard({
                                 }}
                                 disabled={!canMoveUp}
                                 className={`p-1 sm:p-0.5 rounded transition-colors ${canMoveUp
-                                    ? 'hover:bg-gray-500 hover:bg-opacity-20 text-gray-700 cursor-pointer'
-                                    : 'text-gray-400 opacity-50 cursor-not-allowed'
+                                    ? 'hover:bg-slate-500 hover:bg-opacity-20 text-slate-700 cursor-pointer'
+                                    : 'text-slate-400 opacity-50 cursor-not-allowed'
                                     }`}
                                 title="上に移動"
                                 aria-label="上に移動"
@@ -177,8 +177,8 @@ export default function DraggableEventCard({
                                 }}
                                 disabled={!canMoveDown}
                                 className={`p-1 sm:p-0.5 rounded transition-colors ${canMoveDown
-                                    ? 'hover:bg-gray-500 hover:bg-opacity-20 text-gray-700 cursor-pointer'
-                                    : 'text-gray-400 opacity-50 cursor-not-allowed'
+                                    ? 'hover:bg-slate-500 hover:bg-opacity-20 text-slate-700 cursor-pointer'
+                                    : 'text-slate-400 opacity-50 cursor-not-allowed'
                                     }`}
                                 title="下に移動"
                                 aria-label="下に移動"
@@ -193,7 +193,7 @@ export default function DraggableEventCard({
                                         e.stopPropagation();
                                         onCopy();
                                     }}
-                                    className="p-1 sm:p-0.5 rounded transition-colors hover:bg-gray-500 hover:bg-opacity-20 text-gray-700"
+                                    className="p-1 sm:p-0.5 rounded transition-colors hover:bg-slate-500 hover:bg-opacity-20 text-slate-700"
                                     title="コピー"
                                     aria-label="コピー"
                                 >
@@ -210,7 +210,7 @@ export default function DraggableEventCard({
                                     }}
                                     className={`p-1 sm:p-0.5 rounded transition-colors ${isDispatchConfirmed
                                         ? 'text-slate-600 hover:bg-slate-100'
-                                        : 'text-gray-700 hover:bg-gray-500 hover:bg-opacity-20'
+                                        : 'text-slate-700 hover:bg-slate-500 hover:bg-opacity-20'
                                         }`}
                                     title={isDispatchConfirmed ? '手配確定済み' : '手配確定'}
                                     aria-label={isDispatchConfirmed ? '手配確定済み' : '手配確定'}

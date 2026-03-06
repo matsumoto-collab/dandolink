@@ -385,11 +385,11 @@ export default function MobileCalendarView({
                                                                 {!editingUsers.length && project?.isDispatchConfirmed && (
                                                                     <CheckCircle className="absolute top-0.5 right-0.5 w-2.5 h-2.5 text-slate-700" />
                                                                 )}
-                                                                <div className="text-[10px] font-bold text-gray-800 leading-tight truncate pr-3">
+                                                                <div className="text-[10px] font-bold text-slate-800 leading-tight truncate pr-3">
                                                                     {event.title}
                                                                 </div>
                                                                 {event.customer && (
-                                                                    <div className="text-[9px] text-gray-600 leading-tight truncate">
+                                                                    <div className="text-[9px] text-slate-600 leading-tight truncate">
                                                                         {event.customer}
                                                                     </div>
                                                                 )}
@@ -397,12 +397,12 @@ export default function MobileCalendarView({
                                                                     <div className="flex items-center gap-1.5 mt-0.5">
                                                                         {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && (
                                                                             <span className="flex items-center gap-0.5">
-                                                                                <Users className="w-2.5 h-2.5 text-gray-500" />
-                                                                                <span className="text-[9px] text-gray-600">{event.memberCount ?? event.workers?.length ?? 0}人</span>
+                                                                                <Users className="w-2.5 h-2.5 text-slate-500" />
+                                                                                <span className="text-[9px] text-slate-600">{event.memberCount ?? event.workers?.length ?? 0}人</span>
                                                                             </span>
                                                                         )}
                                                                         {event.estimatedHours != null && (
-                                                                            <span className="text-[9px] text-gray-600">{event.estimatedHours}h</span>
+                                                                            <span className="text-[9px] text-slate-600">{event.estimatedHours}h</span>
                                                                         )}
                                                                     </div>
                                                                 )}
@@ -547,7 +547,7 @@ export default function MobileCalendarView({
                 <div className="fixed inset-0 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
                     <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3 pointer-events-auto">
                         <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm font-medium text-gray-700">保存中...</span>
+                        <span className="text-sm font-medium text-slate-700">保存中...</span>
                     </div>
                 </div>
             )}

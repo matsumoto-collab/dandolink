@@ -93,14 +93,14 @@ export default function CopyAssignmentModal({
 
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-lg lg:max-w-md lg:h-auto">
                     {/* ヘッダー */}
-                    <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 pwa-modal-safe">
+                    <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 pwa-modal-safe">
                         <div className="flex items-center gap-2">
                             <Copy className="w-5 h-5 text-slate-600" />
-                            <h2 className="text-lg font-semibold text-gray-800">案件をコピー</h2>
+                            <h2 className="text-lg font-semibold text-slate-800">案件をコピー</h2>
                         </div>
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -109,24 +109,24 @@ export default function CopyAssignmentModal({
                     {/* コンテンツ */}
                     <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4">
                         {/* コピー元情報 */}
-                        <div className="bg-gray-50 rounded-lg p-4">
-                            <div className="text-sm text-gray-500 mb-1">コピー元</div>
-                            <div className="font-medium text-gray-900">{event.title}</div>
+                        <div className="bg-slate-50 rounded-lg p-4">
+                            <div className="text-sm text-slate-500 mb-1">コピー元</div>
+                            <div className="font-medium text-slate-900">{event.title}</div>
                             {event.customer && (
-                                <div className="text-sm text-gray-600">{event.customer}</div>
+                                <div className="text-sm text-slate-600">{event.customer}</div>
                             )}
                         </div>
 
                         {/* 職長選択 */}
                         <div>
-                            <label htmlFor="employeeId" className="block text-sm font-medium text-gray-700 mb-1">
+                            <label htmlFor="employeeId" className="block text-sm font-medium text-slate-700 mb-1">
                                 職長
                             </label>
                             <select
                                 id="employeeId"
                                 value={employeeId}
                                 onChange={(e) => setEmployeeId(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                 required
                             >
                                 <option value="">選択してください</option>
@@ -141,7 +141,7 @@ export default function CopyAssignmentModal({
                         {/* 日付範囲 */}
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="startDate" className="block text-sm font-medium text-slate-700 mb-1">
                                     <Calendar className="w-4 h-4 inline mr-1" />
                                     開始日
                                 </label>
@@ -155,12 +155,12 @@ export default function CopyAssignmentModal({
                                             setEndDate(e.target.value);
                                         }
                                     }}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                     required
                                 />
                             </div>
                             <div>
-                                <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">
+                                <label htmlFor="endDate" className="block text-sm font-medium text-slate-700 mb-1">
                                     <Calendar className="w-4 h-4 inline mr-1" />
                                     終了日
                                 </label>
@@ -170,7 +170,7 @@ export default function CopyAssignmentModal({
                                     value={endDate}
                                     onChange={(e) => setEndDate(e.target.value)}
                                     min={startDate}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                     required
                                 />
                             </div>
@@ -178,7 +178,7 @@ export default function CopyAssignmentModal({
 
                         {/* 日数表示 */}
                         {dateCount > 0 && (
-                            <div className="text-sm text-gray-600 text-center">
+                            <div className="text-sm text-slate-600 text-center">
                                 <span className="font-medium text-slate-600">{dateCount}日間</span>
                                 の案件が作成されます
                             </div>
@@ -189,7 +189,7 @@ export default function CopyAssignmentModal({
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                                className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                             >
                                 キャンセル
                             </button>

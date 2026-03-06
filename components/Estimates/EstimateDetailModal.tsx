@@ -130,12 +130,12 @@ export default function EstimateDetailModal({
                 className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-6xl lg:mx-4 lg:max-h-[90vh]"
             >
                 {/* ヘッダー */}
-                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 md:px-6 py-4 lg:rounded-t-lg">
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 lg:rounded-t-lg">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div>
-                                <div className="text-sm text-gray-500">見積書</div>
-                                <h2 className="text-xl font-semibold text-gray-800">
+                                <div className="text-sm text-slate-500">見積書</div>
+                                <h2 className="text-xl font-semibold text-slate-800">
                                     {effectiveProject.title}
                                 </h2>
                             </div>
@@ -150,7 +150,7 @@ export default function EstimateDetailModal({
                             </button>
                             <button
                                 onClick={onClose}
-                                className="text-gray-400 hover:text-gray-600 transition-colors"
+                                className="text-slate-400 hover:text-slate-600 transition-colors"
                                 title="閉じる"
                                 aria-label="閉じる"
                             >
@@ -162,7 +162,7 @@ export default function EstimateDetailModal({
 
                 {/* アクションバー */}
                 {/* アクションバー */}
-                <div className="bg-white border-b border-gray-200 px-6 py-3">
+                <div className="bg-white border-b border-slate-200 px-6 py-3">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                             {!estimate.projectId && onCreateProject && (
@@ -177,7 +177,7 @@ export default function EstimateDetailModal({
                             )}
                             <button
                                 onClick={handleDownload}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                                 title="PDF出力"
                                 aria-label="PDF出力"
                             >
@@ -186,7 +186,7 @@ export default function EstimateDetailModal({
                             </button>
                             <button
                                 onClick={handlePrint}
-                                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                                 title="印刷"
                                 aria-label="印刷"
                             >
@@ -203,12 +203,12 @@ export default function EstimateDetailModal({
                                 <span className="hidden sm:inline">削除</span>
                             </button>
                         </div>
-                        <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                             <input
                                 type="checkbox"
                                 checked={includeCoverPage}
                                 onChange={(e) => setIncludeCoverPage(e.target.checked)}
-                                className="w-4 h-4 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
+                                className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                             />
                             表紙を含める
                         </label>
@@ -216,13 +216,13 @@ export default function EstimateDetailModal({
                 </div>
 
                 {/* タブ */}
-                <div className="bg-white border-b border-gray-200 px-6">
+                <div className="bg-white border-b border-slate-200 px-6">
                     <div className="flex gap-6">
                         <button
                             onClick={() => setActiveTab('estimate')}
                             className={`py-3 px-2 border-b-2 transition-colors ${activeTab === 'estimate'
                                 ? 'border-slate-500 text-slate-600 font-medium'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                         >
                             見積書
@@ -231,7 +231,7 @@ export default function EstimateDetailModal({
                             onClick={() => setActiveTab('budget')}
                             className={`py-3 px-2 border-b-2 transition-colors ${activeTab === 'budget'
                                 ? 'border-slate-500 text-slate-600 font-medium'
-                                : 'border-transparent text-gray-500 hover:text-gray-700'
+                                : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                         >
                             予算書
@@ -240,7 +240,7 @@ export default function EstimateDetailModal({
                 </div>
 
                 {/* PDFプレビュー */}
-                <div className="flex-1 overflow-hidden bg-gray-100">
+                <div className="flex-1 overflow-hidden bg-slate-100">
                     {activeTab === 'estimate' ? (
                         pdfUrl ? (
                             <InlinePdfViewer url={pdfUrl} />
@@ -248,13 +248,13 @@ export default function EstimateDetailModal({
                             <div className="flex items-center justify-center h-full">
                                 <div className="text-center">
                                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-600 mx-auto mb-4"></div>
-                                    <p className="text-gray-600">PDFを読み込んでいます...</p>
+                                    <p className="text-slate-600">PDFを読み込んでいます...</p>
                                 </div>
                             </div>
                         )
                     ) : (
                         <div className="flex items-center justify-center h-full">
-                            <div className="text-center text-gray-500">
+                            <div className="text-center text-slate-500">
                                 <p className="text-lg">予算書機能は今後実装予定です</p>
                             </div>
                         </div>

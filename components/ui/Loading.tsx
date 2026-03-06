@@ -109,7 +109,7 @@ export function TableRowSkeleton({ columns = 5 }: { columns?: number }) {
  */
 export function CardSkeleton() {
     return (
-        <div className="bg-white border border-gray-200 rounded-lg p-5 animate-pulse">
+        <div className="bg-white border border-slate-200 rounded-lg p-5 animate-pulse">
             <div className="h-5 bg-slate-200 rounded w-3/4 mb-3"></div>
             <div className="space-y-2">
                 <div className="h-3 bg-slate-200 rounded w-full"></div>

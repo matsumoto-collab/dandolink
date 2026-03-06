@@ -92,9 +92,9 @@ export default function ProjectModal({
             {/* モーダルコンテンツ */}
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]">
                 {/* ヘッダー */}
-                <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-semibold text-gray-900">{modalTitle}</h2>
+                        <h2 className="text-xl font-semibold text-slate-900">{modalTitle}</h2>
                         {otherEditingUsers.length > 0 && (
                             <EditingIndicator users={otherEditingUsers} />
                         )}
@@ -111,7 +111,7 @@ export default function ProjectModal({
                         )}
                         <button
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
                         >
                             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />

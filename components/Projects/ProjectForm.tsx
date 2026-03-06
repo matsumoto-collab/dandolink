@@ -391,30 +391,30 @@ export default function ProjectForm({
         <form onSubmit={handleSubmit} className="space-y-4">
             {/* 現場名（3フィールド分離） */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                     現場名 <span className="text-slate-500">*</span>
                 </label>
                 <div className="space-y-3">
                     {/* 1行目: 名前（フル幅） */}
                     <div>
-                        <label className="block text-xs text-gray-500 mb-1">名前</label>
+                        <label className="block text-xs text-slate-500 mb-1">名前</label>
                         <input
                             type="text"
                             required
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
+                            className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
                             placeholder="例: 佐藤"
                         />
                     </div>
                     {/* 2行目: 敬称 + 工事名称 */}
                     <div className="flex gap-3">
                         <div className="flex-1">
-                            <label className="block text-xs text-gray-500 mb-1">敬称</label>
+                            <label className="block text-xs text-slate-500 mb-1">敬称</label>
                             <select
                                 value={formData.honorific}
                                 onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
-                                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
                             >
                                 {HONORIFIC_OPTIONS.map(opt => (
                                     <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -422,11 +422,11 @@ export default function ProjectForm({
                             </select>
                         </div>
                         <div className="flex-[2]">
-                            <label className="block text-xs text-gray-500 mb-1">工事名称</label>
+                            <label className="block text-xs text-slate-500 mb-1">工事名称</label>
                             <select
                                 value={formData.constructionSuffixId}
                                 onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
-                                className="w-full px-3 py-2.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
                             >
                                 <option value="">選択なし</option>
                                 {constructionSuffixes.map(s => (
@@ -446,12 +446,12 @@ export default function ProjectForm({
 
             {/* 元請名（顧客選択） */}
             <div className="relative" ref={customerFieldRef}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                     元請名 <span className="text-slate-500">*</span>
                 </label>
                 <div className="flex gap-2">
                     <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                             type="text"
                             required
@@ -463,7 +463,7 @@ export default function ProjectForm({
                                 setCustomerError(false);
                             }}
                             onFocus={() => setShowCustomerDropdown(true)}
-                            className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 ${customerError ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+                            className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 ${customerError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
                             placeholder="顧客を検索または入力..."
                         />
                     </div>
@@ -481,7 +481,7 @@ export default function ProjectForm({
                     <p className="mt-1 text-xs text-red-500">リストから選択するか、「新規登録」から顧客を登録してください</p>
                 )}
                 {showCustomerDropdown && filteredCustomers.length > 0 && customerSearchTerm && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                         {filteredCustomers.map(customer => (
                             <button
                                 key={customer.id}
@@ -496,11 +496,11 @@ export default function ProjectForm({
                                     setShowCustomerDropdown(false);
                                     setCustomerError(false);
                                 }}
-                                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                                className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center justify-between"
                             >
                                 <span>{customer.name}</span>
                                 {customer.shortName && (
-                                    <span className="text-sm text-gray-500">({customer.shortName})</span>
+                                    <span className="text-sm text-slate-500">({customer.shortName})</span>
                                 )}
                             </button>
                         ))}
@@ -511,10 +511,10 @@ export default function ProjectForm({
 
             {/* 工事種別（ラジオボタン） */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                     工事種別 <span className="text-slate-500">*</span>
                 </label>
-                <div className="flex flex-wrap gap-3 border border-gray-200 rounded-md p-4">
+                <div className="flex flex-wrap gap-3 border border-slate-200 rounded-md p-4">
                     {constructionTypes.length > 0 ? (
                         constructionTypes.map((type) => {
                             // 明るい背景色を生成（色に透明度を追加）
@@ -531,10 +531,10 @@ export default function ProjectForm({
                                             // 工事種別変更時にスケジュールをクリア
                                             setMultiDaySchedules([]);
                                         }}
-                                        className="w-4 h-4 text-slate-600 border-gray-300 focus:ring-slate-500"
+                                        className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
                                     />
                                     <span
-                                        className="text-sm font-medium px-3 py-1 rounded-full text-gray-900"
+                                        className="text-sm font-medium px-3 py-1 rounded-full text-slate-900"
                                         style={{
                                             backgroundColor: bgColor,
                                             border: `2px solid ${type.color}`
@@ -546,7 +546,7 @@ export default function ProjectForm({
                             );
                         })
                     ) : (
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-slate-500">
                             設定の「工事種別」から種別を追加してください
                         </p>
                     )}
@@ -555,10 +555,10 @@ export default function ProjectForm({
 
             {/* 工事内容 */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                     工事内容
                 </label>
-                <div className="flex flex-wrap gap-2 border border-gray-200 rounded-md p-3">
+                <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3">
                     {(Object.entries(CONSTRUCTION_CONTENT_LABELS) as [ConstructionContentType, string][]).map(([value, label]) => (
                         <label key={value} className="flex items-center space-x-2 cursor-pointer">
                             <input
@@ -566,9 +566,9 @@ export default function ProjectForm({
                                 name="constructionContent"
                                 checked={formData.constructionContent === value}
                                 onChange={() => setFormData({ ...formData, constructionContent: value })}
-                                className="w-4 h-4 text-slate-600 border-gray-300 focus:ring-slate-500"
+                                className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
                             />
-                            <span className="text-sm text-gray-700">{label}</span>
+                            <span className="text-sm text-slate-700">{label}</span>
                         </label>
                     ))}
                 </div>
@@ -577,7 +577,7 @@ export default function ProjectForm({
             {/* 複数日スケジュール管理 */}
             <div>
                 <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-slate-700">
                         複数日スケジュール管理
                     </label>
                     <label className="flex items-center space-x-2 cursor-pointer">
@@ -585,14 +585,14 @@ export default function ProjectForm({
                             type="checkbox"
                             checked={useMultiDaySchedule}
                             onChange={(e) => setUseMultiDaySchedule(e.target.checked)}
-                            className="w-4 h-4 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
+                            className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                         />
-                        <span className="text-sm text-gray-600">複数日の作業を登録</span>
+                        <span className="text-sm text-slate-600">複数日の作業を登録</span>
                     </label>
                 </div>
 
                 {useMultiDaySchedule && (
-                    <div className="space-y-4 border border-gray-200 rounded-md p-4 bg-gray-50">
+                    <div className="space-y-4 border border-slate-200 rounded-md p-4 bg-slate-50">
                         <div className="bg-white p-4 rounded-lg border border-slate-200">
                             <h3 className="text-lg font-semibold text-slate-700 mb-3">
                                 {selectedConstructionTypeName || '工事'}スケジュール
@@ -613,37 +613,37 @@ export default function ProjectForm({
 
             {/* 案件担当者（チェックボックス） */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                     <User className="inline w-4 h-4 mr-1" />
                     案件担当者
                 </label>
-                <div className="flex flex-wrap gap-2 border border-gray-200 rounded-md p-3 min-h-[60px]">
+                <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3 min-h-[60px]">
                     {isLoadingManagers ? (
-                        <div className="flex items-center gap-2 text-gray-500">
+                        <div className="flex items-center gap-2 text-slate-500">
                             <ButtonLoading />
                             <span className="text-sm">担当者を読み込み中...</span>
                         </div>
                     ) : apiManagers.length > 0 ? (
                         apiManagers.map(manager => (
-                            <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                            <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
                                 <input
                                     type="checkbox"
                                     checked={formData.selectedManagers.includes(manager.id)}
                                     onChange={() => handleManagerToggle(manager.id)}
-                                    className="w-4 h-4 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
+                                    className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                                 />
-                                <span className="text-sm text-gray-700">{manager.displayName}</span>
+                                <span className="text-sm text-slate-700">{manager.displayName}</span>
                                 <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-700'}`}>
                                     {manager.role === 'admin' ? '管理者' : 'マネージャー'}
                                 </span>
                             </label>
                         ))
                     ) : (
-                        <span className="text-sm text-gray-500">担当者が見つかりません</span>
+                        <span className="text-sm text-slate-500">担当者が見つかりません</span>
                     )}
                 </div>
                 {formData.selectedManagers.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                         選択中: {formData.selectedManagers.length}名
                     </p>
                 )}
@@ -651,15 +651,15 @@ export default function ProjectForm({
 
             {/* メンバー数（選択式） */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                     メンバー数
-                    {useMultiDaySchedule && <span className="ml-2 text-xs text-gray-400 font-normal">（複数日スケジュールで設定）</span>}
+                    {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
                 </label>
                 <select
                     value={formData.memberCount}
                     disabled={useMultiDaySchedule}
                     onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                 >
                     {Array.from({ length: Math.min(availableMembers + formData.memberCount, TOTAL_MEMBERS) + 1 }, (_, i) => (
                         <option key={i} value={i}>
@@ -667,16 +667,16 @@ export default function ProjectForm({
                         </option>
                     ))}
                 </select>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-slate-500 mt-1">
                     残り: {availableMembers}人
                 </p>
             </div>
 
             {/* 予定作業時間 */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                     予定作業時間
-                    {useMultiDaySchedule && <span className="ml-2 text-xs text-gray-400 font-normal">（複数日スケジュールで設定）</span>}
+                    {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
                 </label>
                 <div className={`flex flex-wrap gap-2 ${useMultiDaySchedule ? 'opacity-50 pointer-events-none' : ''}`}>
                     {[2, 4, 8].map(hours => (
@@ -688,7 +688,7 @@ export default function ProjectForm({
                             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border disabled:cursor-not-allowed ${
                                 formData.estimatedHours === hours
                                     ? 'bg-slate-700 text-white border-slate-700'
-                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                             }`}
                         >
                             {hours}h
@@ -712,36 +712,36 @@ export default function ProjectForm({
                             className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:cursor-not-allowed ${
                                 ![2, 4, 8].includes(formData.estimatedHours)
                                     ? 'border-slate-700 bg-slate-50'
-                                    : 'border-gray-300'
+                                    : 'border-slate-300'
                             }`}
                         />
-                        <span className="text-sm text-gray-500">h</span>
+                        <span className="text-sm text-slate-500">h</span>
                     </div>
                 </div>
             </div>
 
             {/* 車両（チェックボックス） */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">
                     車両
-                    {useMultiDaySchedule && <span className="ml-2 text-xs text-gray-400 font-normal">（複数日スケジュールで設定）</span>}
+                    {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
                 </label>
-                <div className={`flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-gray-200 rounded-md p-3 ${useMultiDaySchedule ? 'opacity-50' : ''}`}>
+                <div className={`flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-md p-3 ${useMultiDaySchedule ? 'opacity-50' : ''}`}>
                     {sortedVehicles.map(vehicle => {
                         const usages = vehicleUsageMap.get(vehicle.name);
                         const isInUse = usages && usages.length > 0;
                         const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
 
                         return (
-                            <label key={vehicle.id} className={`flex items-center gap-2 p-2 rounded text-sm ${useMultiDaySchedule ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-gray-50'}`}>
+                            <label key={vehicle.id} className={`flex items-center gap-2 p-2 rounded text-sm ${useMultiDaySchedule ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-slate-50'}`}>
                                 <input
                                     type="checkbox"
                                     checked={formData.selectedVehicles.includes(vehicle.name)}
                                     disabled={useMultiDaySchedule}
                                     onChange={() => handleVehicleToggle(vehicle.name)}
-                                    className="w-4 h-4 shrink-0 text-slate-600 border-gray-300 rounded focus:ring-slate-500 disabled:cursor-not-allowed"
+                                    className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500 disabled:cursor-not-allowed"
                                 />
-                                <span className="text-gray-700 whitespace-nowrap">{vehicle.name}</span>
+                                <span className="text-slate-700 whitespace-nowrap">{vehicle.name}</span>
                                 {isConfirmed ? (
                                     <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
                                         手配確定済
@@ -764,7 +764,7 @@ export default function ProjectForm({
                     })}
                 </div>
                 {formData.selectedVehicles.length > 0 && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-slate-500 mt-1">
                         選択中: {formData.selectedVehicles.length}台
                     </p>
                 )}
@@ -772,14 +772,14 @@ export default function ProjectForm({
 
             {/* 備考 */}
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-slate-700 mb-1">
                     備考
                 </label>
                 <textarea
                     value={formData.remarks}
                     onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="備考を入力"
                 />
             </div>
@@ -790,7 +790,7 @@ export default function ProjectForm({
                     type="button"
                     onClick={onCancel}
                     disabled={isSaving}
-                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                    className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
                 >
                     キャンセル
                 </button>
