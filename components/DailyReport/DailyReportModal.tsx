@@ -310,15 +310,14 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:p-0">
-                {/* Backdrop */}
-                <div className="fixed inset-0 bg-black/50 transition-opacity" onClick={onClose} />
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
+            {/* オーバーレイ（PCのみ） */}
+            <div className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block" onClick={onClose} />
 
-                {/* Modal */}
-                <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative inline-block w-full max-w-2xl bg-white rounded-lg shadow-lg transform transition-all text-left overflow-hidden">
+                {/* モーダル本体 */}
+                <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]">
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                    <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200">
                         <h2 className="text-xl font-semibold text-gray-800">
                             {selectedReport && !isEditMode ? '日報詳細' : '日報入力'}
                         </h2>
@@ -331,7 +330,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                     </div>
 
                     {/* Content */}
-                    <div className="p-6 max-h-[calc(100vh-200px)] overflow-y-auto">
+                    <div className="flex-1 p-6 overflow-y-auto">
                     {/* 詳細ビュー（既存日報 + 非編集モード） */}
                     {selectedReport && !isEditMode ? (
                         <DailyReportDetailView
@@ -757,7 +756,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
 
                     {/* Footer（編集モード時のみ表示） */}
                     {(isEditMode || !selectedReport) && (
-                    <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
+                    <div className="flex-shrink-0 flex justify-end gap-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
                         <button
                             onClick={onClose}
                             className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -775,7 +774,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                     </div>
                     )}
                 </div>
-            </div>
         </div>
     );
 }
