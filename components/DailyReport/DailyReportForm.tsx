@@ -6,6 +6,7 @@ import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
 import { DailyReportInput } from '@/types/dailyReport';
 import { Clock, Save, Loader2, FileText, Truck, AlertCircle } from 'lucide-react';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 interface DailyReportFormProps {
     date: Date;
@@ -19,7 +20,7 @@ export default function DailyReportForm({ date, foremanId, onSaved }: DailyRepor
     const { projects } = useProjects();
 
     const effectiveForemanId = foremanId || session?.user?.id || '';
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatDateKey(date);
 
     // 時間セレクト用の定数
     const hourOptions = Array.from({ length: 16 }, (_, i) => i + 6); // 6〜21
@@ -38,7 +39,7 @@ export default function DailyReportForm({ date, foremanId, onSaved }: DailyRepor
     // この日の配置を取得
     const todayAssignments = projects.filter(p => {
         const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
-        return projectDate.toISOString().split('T')[0] === dateStr &&
+        return formatDateKey(projectDate) === dateStr &&
             p.assignedEmployeeId === effectiveForemanId;
     });
 

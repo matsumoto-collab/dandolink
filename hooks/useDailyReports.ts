@@ -3,6 +3,7 @@
 import { useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { formatDateKey } from '@/utils/employeeUtils';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { DailyReportInput } from '@/types/dailyReport';
 import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
@@ -35,8 +36,8 @@ export function useDailyReports({ autoFetch = false }: { autoFetch?: boolean } =
             startDate.setDate(startDate.getDate() - 30);
 
             fetchDailyReportsStore({
-                startDate: startDate.toISOString().split('T')[0],
-                endDate: endDate.toISOString().split('T')[0],
+                startDate: formatDateKey(startDate),
+                endDate: formatDateKey(endDate),
             });
         }
     }, [autoFetch, status, isInitialLoaded, fetchDailyReportsStore]);

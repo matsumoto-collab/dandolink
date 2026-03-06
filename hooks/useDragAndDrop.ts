@@ -167,7 +167,7 @@ export function useDragAndDrop(
 
         // 新しい日付を作成
         const [year, month, day] = newDateStr.split('-').map(Number);
-        const newDate = new Date(year, month - 1, day);
+        const newDate = new Date(Date.UTC(year, month - 1, day));
 
         // イベントを移動
         moveEvent(eventId, newEmployeeId, newDate);

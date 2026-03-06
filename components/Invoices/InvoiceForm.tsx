@@ -7,6 +7,7 @@ import { InvoiceInput } from '@/types/invoice';
 import { EstimateItem } from '@/types/estimate';
 import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 interface InvoiceFormProps {
     initialData?: Partial<InvoiceInput>;
@@ -23,16 +24,16 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || `INV-${Date.now()}`);
     const [dueDate, setDueDate] = useState(() => {
         if (initialData?.dueDate) {
-            return new Date(initialData.dueDate).toISOString().split('T')[0];
+            return formatDateKey(new Date(initialData.dueDate));
         }
         const date = new Date();
         date.setDate(date.getDate() + 30);
-        return date.toISOString().split('T')[0];
+        return formatDateKey(date);
     });
     const [status, setStatus] = useState<InvoiceInput['status']>(initialData?.status || 'draft');
     const [paidDate, setPaidDate] = useState(() => {
         if (initialData?.paidDate) {
-            return new Date(initialData.paidDate).toISOString().split('T')[0];
+            return formatDateKey(new Date(initialData.paidDate));
         }
         return '';
     });

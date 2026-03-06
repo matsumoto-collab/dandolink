@@ -8,6 +8,7 @@ import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
 import { ProjectMasterForm, ProjectMasterFormData, WorkDateEntry, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { ConstructionTypeMaster } from '@/types/calendar';
+import { formatDateKey } from '@/utils/employeeUtils';
 import toast from 'react-hot-toast';
 
 interface ProjectMasterDetailModalProps {
@@ -27,13 +28,13 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
         {
             id: 'default-0',
             constructionType: assemblyTypeId,
-            date: pm.assemblyDate ? new Date(pm.assemblyDate).toISOString().split('T')[0] : '',
+            date: pm.assemblyDate ? formatDateKey(new Date(pm.assemblyDate)) : '',
             foremen: [],
         },
         {
             id: 'default-1',
             constructionType: demolitionTypeId,
-            date: pm.demolitionDate ? new Date(pm.demolitionDate).toISOString().split('T')[0] : '',
+            date: pm.demolitionDate ? formatDateKey(new Date(pm.demolitionDate)) : '',
             foremen: [],
         },
     ];

@@ -5,6 +5,7 @@ import { CalendarEvent, Employee } from '@/types/calendar';
 import { X, Copy, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 interface CopyAssignmentModalProps {
     isOpen: boolean;
@@ -34,7 +35,7 @@ export default function CopyAssignmentModal({
             // デフォルト: 翌日
             const tomorrow = new Date();
             tomorrow.setDate(tomorrow.getDate() + 1);
-            const dateStr = tomorrow.toISOString().split('T')[0];
+            const dateStr = formatDateKey(tomorrow);
             setStartDate(dateStr);
             setEndDate(dateStr);
             setEmployeeId(event.assignedEmployeeId || '');

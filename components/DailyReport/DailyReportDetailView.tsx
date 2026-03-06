@@ -110,13 +110,13 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                             )}
                                         </div>
                                         <span className="text-sm font-medium text-slate-700 bg-slate-50 px-2 py-0.5 rounded">
-                                            {formatMinutes(workMin)}
+                                            {formatMinutes(Math.max(0, workMin - (item.breakMinutes ?? 0)))}
                                         </span>
                                     </div>
                                     <div className="text-sm text-gray-600 mt-1">
                                         {start} 〜 {end}
                                         {(item.breakMinutes ?? 0) > 0 && (
-                                            <span className="ml-2 text-gray-400">（休憩 {formatMinutes(item.breakMinutes!)}、実作業 {formatMinutes(Math.max(0, workMin - item.breakMinutes!))}）</span>
+                                            <span className="ml-2 text-gray-400">（休憩 {formatMinutes(item.breakMinutes!)}）</span>
                                         )}
                                     </div>
                                     {(() => {

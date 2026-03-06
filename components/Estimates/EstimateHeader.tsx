@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 interface TitleTemplate {
     id: string;
@@ -410,7 +411,7 @@ export default function EstimateHeader({
                             if (validUntil === '発行日より1ヶ月') {
                                 const date = new Date();
                                 date.setMonth(date.getMonth() + 1);
-                                setValidUntil(date.toISOString().split('T')[0]);
+                                setValidUntil(formatDateKey(date));
                                 setTimeout(() => { e.target.type = 'date'; e.target.focus(); }, 0);
                             }
                         }}
