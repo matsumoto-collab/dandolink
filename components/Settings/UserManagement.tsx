@@ -220,12 +220,12 @@ export default function UserManagement() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-800">ユーザー管理</h2>
-                    <p className="text-xs md:text-sm text-slate-500">システムユーザーの管理</p>
+                    <h3 className="text-lg font-semibold text-slate-900">ユーザー管理</h3>
+                    <p className="text-sm text-slate-500">システムユーザーの管理</p>
                 </div>
                 <button
                     onClick={handleCreateUser}
-                    className="flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-2 bg-slate-800 text-white text-sm md:text-base rounded-lg hover:bg-slate-700 active:bg-slate-900 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-md hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="hidden sm:inline">ユーザー追加</span>

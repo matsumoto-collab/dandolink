@@ -246,7 +246,7 @@ export default function ConstructionTypeSettings() {
                                 />
                                 <button
                                     onClick={handleSaveEdit}
-                                    className="p-2 text-green-600 hover:bg-green-50 rounded-md transition-colors"
+                                    className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
                                     title="保存"
                                 >
                                     <Check className="w-4 h-4" />
@@ -278,7 +278,7 @@ export default function ConstructionTypeSettings() {
                                     <div className="flex gap-1">
                                         <button
                                             onClick={() => handleDelete(item.id)}
-                                            className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                                            className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
                                         >
                                             削除
                                         </button>
@@ -292,7 +292,7 @@ export default function ConstructionTypeSettings() {
                                 ) : (
                                     <button
                                         onClick={() => setDeleteConfirm(item.id)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
                                         title="削除"
                                     >
                                         <Trash2 className="w-4 h-4" />
