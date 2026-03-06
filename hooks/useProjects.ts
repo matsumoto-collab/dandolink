@@ -7,6 +7,7 @@ import { Project, CalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/type
 import { useMasterStore } from '@/stores/masterStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 // Re-export types for backward compatibility
 export type { Project, CalendarEvent, ProjectAssignment, ProjectMaster } from '@/types/calendar';
@@ -63,12 +64,13 @@ export function useProjects() {
 
     // Fetch for a specific date range
     const fetchForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
+        const startStr = formatDateKey(startDate);
+        const endStr = formatDateKey(endDate);
 
-        // Skip if same range is already loaded
+        // Skip if same range is already loaded and has data
         const currentRange = currentDateRangeRef.current;
-        if (currentRange?.start === startStr && currentRange?.end === endStr) {
+        const { projectsInitialized, assignments } = useCalendarStore.getState();
+        if (currentRange?.start === startStr && currentRange?.end === endStr && projectsInitialized && assignments.length > 0) {
             return;
         }
 
@@ -102,7 +104,7 @@ export function useProjects() {
             // 現在の表示日付範囲内のみstoreに追加
             const range = currentDateRangeRef.current;
             if (range) {
-                const assignmentDate = assignment.date.toISOString().split('T')[0];
+                const assignmentDate = formatDateKey(assignment.date);
                 if (assignmentDate >= range.start && assignmentDate <= range.end) {
                     upsertAssignmentStore(assignment);
                 }
@@ -337,8 +339,8 @@ export function useProjects() {
     // ポーリング用: 指定範囲を強制再フェッチ（Realtime補完）
     const forceRefreshRange = useCallback(async (startDate: Date, endDate: Date) => {
         if (isUpdatingRef.current) return; // 自分が更新中なら跳ばす
-        const startStr = startDate.toISOString().split('T')[0];
-        const endStr = endDate.toISOString().split('T')[0];
+        const startStr = formatDateKey(startDate);
+        const endStr = formatDateKey(endDate);
         currentDateRangeRef.current = null; // キャッシュをクリアして強制再フェッチ
         await fetchAssignmentsStore(startStr, endStr);
         currentDateRangeRef.current = { start: startStr, end: endStr };

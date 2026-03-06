@@ -1,6 +1,7 @@
 import { ProjectMaster, ProjectAssignment, ConflictError } from '@/types/calendar';
 import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, assignmentToProject, parseProjectMasterDates } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
     Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
@@ -33,9 +34,13 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     } : undefined,
                 }));
                 set({ assignments: parsed, projectsInitialized: true });
+            } else {
+                console.error('Failed to fetch assignments: HTTP', response.status);
+                set({ projectsInitialized: true });
             }
         } catch (error) {
             console.error('Failed to fetch assignments:', error);
+            set({ projectsInitialized: true });
         } finally {
             set({ projectsLoading: false });
         }
@@ -234,7 +239,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
 
             // 職長または日付が変わった場合、手配確定を自動解除
             const isMoving = (updates.assignedEmployeeId && updates.assignedEmployeeId !== assignment?.assignedEmployeeId) ||
-                (updates.startDate && new Date(updates.startDate).toISOString().split('T')[0] !== assignment?.date?.toISOString().split('T')[0]);
+                (updates.startDate && formatDateKey(new Date(updates.startDate)) !== (assignment?.date ? formatDateKey(assignment.date) : ''));
             const dispatchConfirmed = isMoving ? false : updates.isDispatchConfirmed;
             const dispatchWorkerIds = isMoving ? [] : updates.confirmedWorkerIds;
             const dispatchVehicleIds = isMoving ? [] : updates.confirmedVehicleIds;

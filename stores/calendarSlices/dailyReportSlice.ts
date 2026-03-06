@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState, parseDailyReportDates } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { formatDateKey } from '@/utils/employeeUtils';
 
 type DailyReportSlice = Pick<CalendarState, 'dailyReports' | 'dailyReportsLoading' | 'dailyReportsInitialized'> &
     Pick<CalendarActions, 'fetchDailyReports' | 'getDailyReportByForemanAndDate' | 'saveDailyReport' | 'deleteDailyReport'>;
@@ -58,7 +59,7 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
 
     getDailyReportByForemanAndDate: (foremanId, date) => {
         return get().dailyReports.find((report) => {
-            const reportDate = report.date instanceof Date ? report.date.toISOString().split('T')[0] : report.date;
+            const reportDate = report.date instanceof Date ? formatDateKey(report.date) : report.date;
             return report.foremanId === foremanId && reportDate === date;
         });
     },

@@ -6,6 +6,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
+import { formatDateKey } from '@/utils/employeeUtils';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from './UnitPriceMasterModal';
 import EstimateHeader from './EstimateHeader';
@@ -23,7 +24,7 @@ interface EstimateFormProps {
 function getDefault30DaysLater(): string {
     const date = new Date();
     date.setDate(date.getDate() + 30);
-    return date.toISOString().split('T')[0];
+    return formatDateKey(date);
 }
 
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
@@ -63,7 +64,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     // 有効期限: デフォルト30日後
     const [validUntil, setValidUntil] = useState(() => {
-        if (initialData?.validUntil) return new Date(initialData.validUntil).toISOString().split('T')[0];
+        if (initialData?.validUntil) return formatDateKey(new Date(initialData.validUntil));
         return getDefault30DaysLater();
     });
     const [status, setStatus] = useState<EstimateInput['status']>(initialData?.status || 'draft');

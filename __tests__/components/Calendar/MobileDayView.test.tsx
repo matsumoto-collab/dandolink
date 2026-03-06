@@ -21,7 +21,7 @@ jest.mock('@/utils/dateUtils', () => ({
 }));
 
 jest.mock('@/utils/employeeUtils', () => ({
-    formatDateKey: jest.fn((date) => date.toISOString().split('T')[0]),
+    formatDateKey: jest.fn((date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`),
 }));
 
 describe('MobileDayView', () => {

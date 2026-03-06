@@ -7,6 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User, Users } from 'lucide-react';
+import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
 
@@ -38,7 +39,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         ? (selectedForemanId || foremanId || session?.user?.id || '')
         : (foremanId || session?.user?.id || '');
 
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    const dateStr = formatDateKey(selectedDate);
 
     // 時間セレクト用の定数
     const hourOptions = Array.from({ length: 16 }, (_, i) => i + 6); // 6〜21
@@ -101,7 +102,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     // この日の配置を取得
     const todayAssignments = projects.filter(p => {
         const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
-        return projectDate.toISOString().split('T')[0] === dateStr &&
+        return formatDateKey(projectDate) === dateStr &&
             p.assignedEmployeeId === effectiveForemanId;
     });
 

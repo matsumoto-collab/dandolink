@@ -6,6 +6,7 @@ import { useDailyReports } from '@/hooks/useDailyReports';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
+import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
@@ -49,8 +50,8 @@ export default function DailyReportPage() {
                 // 日付フィルター
                 if (dateFilter) {
                     const reportDate = report.date instanceof Date
-                        ? report.date.toISOString().split('T')[0]
-                        : new Date(report.date).toISOString().split('T')[0];
+                        ? formatDateKey(report.date)
+                        : formatDateKey(new Date(report.date));
                     if (reportDate !== dateFilter) {
                         return false;
                     }
@@ -106,8 +107,8 @@ export default function DailyReportPage() {
         startDate.setDate(startDate.getDate() - 30);
 
         fetchDailyReports({
-            startDate: startDate.toISOString().split('T')[0],
-            endDate: endDate.toISOString().split('T')[0],
+            startDate: formatDateKey(startDate),
+            endDate: formatDateKey(endDate),
         });
     };
 
