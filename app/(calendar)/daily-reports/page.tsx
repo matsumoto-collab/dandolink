@@ -8,7 +8,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Search, Eye, Trash2, Clock, FileText, Calendar } from 'lucide-react';
+import { Plus, Search, Trash2, Clock, Calendar, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import toast from 'react-hot-toast';
 
@@ -29,7 +29,27 @@ export default function DailyReportPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
 
-    // データはContextで自動取得されるため、ここでのfetchは不要
+    // ソート
+    type SortKey = 'date' | 'foreman' | 'workTime' | 'loading' | 'earlyStart' | 'overtime';
+    type SortDir = 'asc' | 'desc';
+    const [sortKey, setSortKey] = useState<SortKey>('date');
+    const [sortDir, setSortDir] = useState<SortDir>('desc');
+
+    const toggleSort = (key: SortKey) => {
+        if (sortKey === key) {
+            setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortKey(key);
+            setSortDir(key === 'date' ? 'desc' : 'asc');
+        }
+    };
+
+    const SortIcon = ({ column }: { column: SortKey }) => {
+        if (sortKey !== column) return <ChevronsUpDown className="w-3 h-3 text-slate-300" />;
+        return sortDir === 'asc'
+            ? <ChevronUp className="w-3 h-3 text-slate-600" />
+            : <ChevronDown className="w-3 h-3 text-slate-600" />;
+    };
 
     // 分を時間:分形式に変換
     const formatMinutes = (minutes: number): string => {
@@ -38,16 +58,28 @@ export default function DailyReportPage() {
         return `${hours}:${mins.toString().padStart(2, '0')}`;
     };
 
+    // 案件ごとの実作業時間を取得
+    const getWorkItemSummaries = (report: DailyReport): { title: string; minutes: number }[] => {
+        return report.workItems.map(item => {
+            const title = item.assignment?.projectMaster?.title || '(案件名不明)';
+            let minutes = 0;
+            if (item.startTime && item.endTime) {
+                const [sh, sm] = item.startTime.split(':').map(Number);
+                const [eh, em] = item.endTime.split(':').map(Number);
+                const gross = (eh * 60 + em) - (sh * 60 + sm);
+                minutes = Math.max(0, gross - (item.breakMinutes ?? 0));
+            }
+            return { title, minutes };
+        });
+    };
+
     // フィルタリング（useMemoでメモ化）
     const filteredReports = useMemo(() => {
         return dailyReports
             .filter(report => {
-                // 職長フィルター
                 if (foremanFilter !== 'all' && report.foremanId !== foremanFilter) {
                     return false;
                 }
-
-                // 日付フィルター
                 if (dateFilter) {
                     const reportDate = report.date instanceof Date
                         ? formatDateKey(report.date)
@@ -56,25 +88,58 @@ export default function DailyReportPage() {
                         return false;
                     }
                 }
-
-                // 検索フィルター
                 if (debouncedSearchTerm) {
                     const foremanName = getForemanName(report.foremanId).toLowerCase();
                     const notes = (report.notes || '').toLowerCase();
                     const search = debouncedSearchTerm.toLowerCase();
                     return foremanName.includes(search) || notes.includes(search);
                 }
-
                 return true;
             })
             .sort((a, b) => {
-                const dateA = a.date instanceof Date ? a.date : new Date(a.date);
-                const dateB = b.date instanceof Date ? b.date : new Date(b.date);
-                return dateB.getTime() - dateA.getTime();
+                let cmp = 0;
+                switch (sortKey) {
+                    case 'date': {
+                        const dA = a.date instanceof Date ? a.date : new Date(a.date);
+                        const dB = b.date instanceof Date ? b.date : new Date(b.date);
+                        cmp = dA.getTime() - dB.getTime();
+                        break;
+                    }
+                    case 'foreman':
+                        cmp = getForemanName(a.foremanId).localeCompare(getForemanName(b.foremanId));
+                        break;
+                    case 'workTime': {
+                        const totalA = a.workItems.reduce((s, i) => {
+                            if (!i.startTime || !i.endTime) return s;
+                            const [sh, sm] = i.startTime.split(':').map(Number);
+                            const [eh, em] = i.endTime.split(':').map(Number);
+                            return s + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (i.breakMinutes ?? 0));
+                        }, 0);
+                        const totalB = b.workItems.reduce((s, i) => {
+                            if (!i.startTime || !i.endTime) return s;
+                            const [sh, sm] = i.startTime.split(':').map(Number);
+                            const [eh, em] = i.endTime.split(':').map(Number);
+                            return s + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (i.breakMinutes ?? 0));
+                        }, 0);
+                        cmp = totalA - totalB;
+                        break;
+                    }
+                    case 'loading':
+                        cmp = (a.morningLoadingMinutes + a.eveningLoadingMinutes) - (b.morningLoadingMinutes + b.eveningLoadingMinutes);
+                        break;
+                    case 'earlyStart':
+                        cmp = a.earlyStartMinutes - b.earlyStartMinutes;
+                        break;
+                    case 'overtime':
+                        cmp = a.overtimeMinutes - b.overtimeMinutes;
+                        break;
+                }
+                return sortDir === 'asc' ? cmp : -cmp;
             });
-    }, [dailyReports, foremanFilter, dateFilter, debouncedSearchTerm, getForemanName]);
+    }, [dailyReports, foremanFilter, dateFilter, debouncedSearchTerm, getForemanName, sortKey, sortDir]);
 
-    const handleDelete = async (id: string) => {
+    const handleDelete = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
         if (confirm('この日報を削除してもよろしいですか?')) {
             try {
                 await deleteDailyReport(id);
@@ -101,28 +166,13 @@ export default function DailyReportPage() {
     };
 
     const handleSaved = () => {
-        // 日報保存後にリストを更新
         const endDate = new Date();
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - 30);
-
         fetchDailyReports({
             startDate: formatDateKey(startDate),
             endDate: formatDateKey(endDate),
         });
-    };
-
-    // 実作業時間を計算（休憩差引後）
-    const getTotalWorkMinutes = (report: DailyReport): number => {
-        return report.workItems.reduce((sum, item) => {
-            if (item.startTime && item.endTime) {
-                const [sh, sm] = item.startTime.split(':').map(Number);
-                const [eh, em] = item.endTime.split(':').map(Number);
-                const gross = (eh * 60 + em) - (sh * 60 + sm);
-                return sum + Math.max(0, gross - (item.breakMinutes ?? 0));
-            }
-            return sum;
-        }, 0);
     };
 
     return (
@@ -137,9 +187,7 @@ export default function DailyReportPage() {
 
             {/* ツールバー */}
             <div className="mb-6 flex flex-col gap-3 sm:gap-4">
-                {/* 上段: 検索バーと新規追加ボタン */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
@@ -150,18 +198,9 @@ export default function DailyReportPage() {
                             className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
-
-                    {/* 新規追加ボタン */}
                     <button
                         onClick={handleAddNew}
-                        className="
-                            flex items-center justify-center gap-2 px-5 py-2.5
-                            bg-gradient-to-r from-slate-700 to-slate-800
-                            text-white font-semibold rounded-lg
-                            hover:from-slate-800 hover:to-slate-900
-                            active:scale-95
-                            transition-all duration-200 shadow-md hover:shadow-lg
-                        "
+                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
                     >
                         <Plus className="w-5 h-5" />
                         <span className="hidden sm:inline">新規日報追加</span>
@@ -169,9 +208,7 @@ export default function DailyReportPage() {
                     </button>
                 </div>
 
-                {/* 下段: フィルター */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    {/* 職長フィルター */}
                     <select
                         value={foremanFilter}
                         onChange={(e) => setForemanFilter(e.target.value)}
@@ -184,8 +221,6 @@ export default function DailyReportPage() {
                             </option>
                         ))}
                     </select>
-
-                    {/* 日付フィルター */}
                     <div className="flex items-center gap-2">
                         <input
                             type="date"
@@ -205,191 +240,142 @@ export default function DailyReportPage() {
                 </div>
             </div>
 
-            {/* モバイルカードビュー */}
-            <div className="md:hidden flex-1 overflow-auto">
+            {/* デスクトップ: テーブルヘッダー */}
+            <div className="hidden md:block bg-gradient-to-r from-slate-100 to-slate-50 rounded-t-xl border border-slate-200 border-b-0 select-none">
+                <div className="grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('date')}>
+                        <Calendar className="w-3.5 h-3.5" />
+                        日付
+                        <SortIcon column="date" />
+                    </div>
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('foreman')}>
+                        職長
+                        <SortIcon column="foreman" />
+                    </div>
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('workTime')}>
+                        <Clock className="w-3.5 h-3.5" />
+                        作業時間
+                        <SortIcon column="workTime" />
+                    </div>
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('loading')}>
+                        積込時間
+                        <SortIcon column="loading" />
+                    </div>
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('earlyStart')}>
+                        早出
+                        <SortIcon column="earlyStart" />
+                    </div>
+                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('overtime')}>
+                        残業
+                        <SortIcon column="overtime" />
+                    </div>
+                    <div></div>
+                </div>
+            </div>
+
+            {/* リスト */}
+            <div className="flex-1 overflow-y-auto">
                 {isLoading ? (
                     <div className="flex items-center justify-center h-48">
                         <Loading text="読み込み中..." />
                     </div>
                 ) : filteredReports.length === 0 ? (
-                    <div className="text-center py-12 bg-slate-50 rounded-lg">
+                    <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
                         <p className="text-slate-500">
-                            {searchTerm || foremanFilter !== 'all' || dateFilter ?
-                                '検索結果が見つかりませんでした' :
-                                '日報が登録されていません'}
+                            {searchTerm || foremanFilter !== 'all' || dateFilter
+                                ? '検索結果が見つかりませんでした'
+                                : '日報が登録されていません'}
                         </p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="md:border md:border-slate-200 md:rounded-b-xl md:bg-white space-y-3 md:space-y-0 md:divide-y md:divide-slate-100">
                         {filteredReports.map((report) => {
-                            const totalWork = getTotalWorkMinutes(report);
+                            const workItemSummaries = getWorkItemSummaries(report);
 
                             return (
                                 <div
                                     key={report.id}
-                                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                    className="bg-white rounded-lg md:rounded-none border border-slate-200 md:border-0 hover:bg-slate-50 transition-colors cursor-pointer"
+                                    onClick={() => handleViewReport(report)}
                                 >
-                                    {/* ヘッダー: 日付とアクション */}
-                                    <div className="flex items-start justify-between mb-3">
-                                        <div className="flex items-center gap-2">
-                                            <Calendar className="w-4 h-4 text-slate-500" />
-                                            <span className="text-base font-semibold text-slate-900">
-                                                {formatDate(report.date, 'full')}
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-2">
+                                    {/* モバイル表示 */}
+                                    <div className="md:hidden p-4">
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div>
+                                                <div className="text-base font-semibold text-slate-900">
+                                                    {formatDate(report.date, 'full')}
+                                                </div>
+                                                <div className="text-sm text-slate-600 mt-0.5">
+                                                    {getForemanName(report.foremanId)}
+                                                </div>
+                                            </div>
                                             <button
-                                                onClick={() => handleViewReport(report)}
-                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                title="詳細"
+                                                onClick={(e) => handleDelete(e, report.id)}
+                                                className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
                                             >
-                                                <Eye className="w-4 h-4" />
+                                                <Trash2 className="w-4 h-4" />
                                             </button>
+                                        </div>
+                                        {/* 案件ごとの作業時間 */}
+                                        <div className="space-y-1 mb-2">
+                                            {workItemSummaries.map((item, i) => (
+                                                <div key={i} className="text-sm text-slate-700">
+                                                    <span className="text-slate-500">{i + 1}件目</span>{' '}
+                                                    <span className="font-medium">{item.title}</span>{' '}
+                                                    <span className="text-slate-600">{formatMinutes(item.minutes)}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+                                            <span>積込 朝{formatMinutes(report.morningLoadingMinutes)} / 夕{formatMinutes(report.eveningLoadingMinutes)}</span>
+                                            {report.earlyStartMinutes > 0 && <span>早出 {formatMinutes(report.earlyStartMinutes)}</span>}
+                                            {report.overtimeMinutes > 0 && <span>残業 {formatMinutes(report.overtimeMinutes)}</span>}
+                                        </div>
+                                    </div>
+
+                                    {/* デスクトップ表示 */}
+                                    <div className="hidden md:grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 items-center">
+                                        <div className="text-sm font-semibold text-slate-900">
+                                            {formatDate(report.date, 'full')}
+                                        </div>
+                                        <div className="text-sm text-slate-700">
+                                            {getForemanName(report.foremanId)}
+                                        </div>
+                                        <div className="text-sm text-slate-700 min-w-0">
+                                            {workItemSummaries.map((item, i) => (
+                                                <span key={i} className={i > 0 ? 'ml-3' : ''}>
+                                                    <span className="text-slate-400">{i + 1}件目</span>{' '}
+                                                    <span className="truncate">{item.title}</span>{' '}
+                                                    <span className="font-medium text-slate-800">{formatMinutes(item.minutes)}</span>
+                                                </span>
+                                            ))}
+                                            {workItemSummaries.length === 0 && <span className="text-slate-400">-</span>}
+                                        </div>
+                                        <div className="text-sm text-slate-700">
+                                            <span className="text-slate-500">朝</span> {formatMinutes(report.morningLoadingMinutes)}
+                                            <span className="mx-1.5 text-slate-300">|</span>
+                                            <span className="text-slate-500">夕</span> {formatMinutes(report.eveningLoadingMinutes)}
+                                        </div>
+                                        <div className="text-sm text-slate-700">
+                                            {report.earlyStartMinutes > 0 ? formatMinutes(report.earlyStartMinutes) : <span className="text-slate-300">-</span>}
+                                        </div>
+                                        <div className="text-sm text-slate-700">
+                                            {report.overtimeMinutes > 0 ? formatMinutes(report.overtimeMinutes) : <span className="text-slate-300">-</span>}
+                                        </div>
+                                        <div className="flex justify-end">
                                             <button
-                                                onClick={() => handleDelete(report.id)}
-                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                                onClick={(e) => handleDelete(e, report.id)}
+                                                className="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors"
                                                 title="削除"
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </button>
                                         </div>
                                     </div>
-
-                                    {/* 職長名 */}
-                                    <div className="text-sm text-slate-700 mb-3">
-                                        職長: {getForemanName(report.foremanId)}
-                                    </div>
-
-                                    {/* 作業時間と積込時間 */}
-                                    <div className="flex flex-wrap items-center gap-3 mb-3">
-                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
-                                            <Clock className="w-3 h-3" />
-                                            実作業 {formatMinutes(totalWork)}
-                                        </span>
-                                        <span className="text-xs text-slate-600">
-                                            積込: 朝 {formatMinutes(report.morningLoadingMinutes)} / 夕 {formatMinutes(report.eveningLoadingMinutes)}
-                                        </span>
-                                    </div>
-
-                                    {/* 備考 */}
-                                    {report.notes && (
-                                        <div className="text-sm text-slate-600 truncate border-t border-slate-100 pt-2 mt-2">
-                                            {report.notes}
-                                        </div>
-                                    )}
                                 </div>
                             );
                         })}
                     </div>
-                )}
-            </div>
-
-            {/* デスクトップテーブルビュー */}
-            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
-                {isLoading ? (
-                    <div className="flex items-center justify-center h-48">
-                        <Loading text="読み込み中..." />
-                    </div>
-                ) : (
-                    <table className="min-w-full divide-y divide-slate-200">
-                        <thead className="bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-10">
-                            <tr>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    <div className="flex items-center gap-2">
-                                        <Calendar className="w-4 h-4" />
-                                        日付
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    職長
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4" />
-                                        実作業時間
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    積込時間
-                                </th>
-                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    <div className="flex items-center gap-2">
-                                        <FileText className="w-4 h-4" />
-                                        備考
-                                    </div>
-                                </th>
-                                <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    操作
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-slate-200">
-                            {filteredReports.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
-                                        {searchTerm || foremanFilter !== 'all' || dateFilter ?
-                                            '検索結果が見つかりませんでした' :
-                                            '日報が登録されていません'}
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredReports.map((report) => {
-                                    const totalWork = getTotalWorkMinutes(report);
-
-                                    return (
-                                        <tr
-                                            key={report.id}
-                                            className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
-                                        >
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm font-semibold text-slate-900">
-                                                    {formatDate(report.date, 'full')}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="text-sm text-slate-700">
-                                                    {getForemanName(report.foremanId)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">
-                                                    {formatMinutes(totalWork)}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm text-slate-700">
-                                                    <span className="text-slate-500">朝:</span> {formatMinutes(report.morningLoadingMinutes)}
-                                                    <span className="mx-2 text-slate-300">|</span>
-                                                    <span className="text-slate-500">夕:</span> {formatMinutes(report.eveningLoadingMinutes)}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-sm text-slate-600 truncate max-w-xs block">
-                                                    {report.notes || '-'}
-                                                </span>
-                                            </td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                <button
-                                                    onClick={() => handleViewReport(report)}
-                                                    className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
-                                                    title="詳細"
-                                                >
-                                                    <Eye className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(report.id)}
-                                                    className="text-slate-600 hover:text-slate-700 transition-colors"
-                                                    title="削除"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
                 )}
             </div>
 
@@ -407,8 +393,10 @@ export default function DailyReportPage() {
                 foremanId={selectedReport?.foremanId}
                 selectedReport={selectedReport}
                 onSaved={handleSaved}
-                onDelete={handleDelete}
+                onDelete={(id) => {
+                    deleteDailyReport(id).catch(() => toast.error('日報の削除に失敗しました'));
+                }}
             />
-        </div >
+        </div>
     );
 }
