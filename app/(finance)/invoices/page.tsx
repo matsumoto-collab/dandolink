@@ -11,6 +11,7 @@ import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
 import { exportInvoicePDFReact } from '@/utils/reactPdfGenerator';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, Download } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
@@ -155,23 +156,23 @@ export default function InvoiceListPage() {
 
             {/* 統計カード */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
                     <div className="text-xs sm:text-sm text-slate-600 mb-1">全体</div>
                     <div className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
                     <div className="text-xs sm:text-sm text-slate-600 mb-1">送付済み</div>
                     <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.sent}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
                     <div className="text-xs sm:text-sm text-slate-600 mb-1">支払済み</div>
                     <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.paid}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200">
+                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
                     <div className="text-xs sm:text-sm text-slate-600 mb-1">期限超過</div>
                     <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.overdue}</div>
                 </div>
-                <div className="bg-white rounded-lg p-3 sm:p-4 shadow-sm border border-slate-200 col-span-2 sm:col-span-1">
+                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 col-span-2 sm:col-span-1">
                     <div className="text-xs sm:text-sm text-slate-600 mb-1">未回収</div>
                     <div className="text-base sm:text-lg font-bold text-slate-600">¥{stats.unpaidAmount.toLocaleString()}</div>
                 </div>
@@ -189,7 +190,7 @@ export default function InvoiceListPage() {
                             placeholder="請求番号、案件名で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -197,7 +198,7 @@ export default function InvoiceListPage() {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全てのステータス</option>
                         <option value="draft">下書き</option>
@@ -208,21 +209,14 @@ export default function InvoiceListPage() {
                 </div>
 
                 {/* 新規追加ボタン */}
-                <button
+                <Button
+                    variant="gradient"
                     onClick={handleAddNew}
-                    className="
-                        flex items-center justify-center gap-2 px-5 py-2.5
-                        bg-gradient-to-r from-slate-700 to-slate-800
-                        text-white font-semibold rounded-lg
-                        hover:from-slate-800 hover:to-slate-900
-                        active:scale-95
-                        transition-all duration-200 shadow-md hover:shadow-lg
-                    "
+                    leftIcon={<Plus className="w-5 h-5" />}
                 >
-                    <Plus className="w-5 h-5" />
                     <span className="hidden sm:inline">新規請求書作成</span>
                     <span className="sm:hidden">新規作成</span>
-                </button>
+                </Button>
             </div>
 
             {/* モバイルカードビュー */}
@@ -242,7 +236,7 @@ export default function InvoiceListPage() {
                             return (
                                 <div
                                     key={invoice.id}
-                                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
                                 >
                                     {/* ヘッダー: 請求番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">

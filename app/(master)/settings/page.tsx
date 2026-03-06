@@ -159,7 +159,7 @@ export default function SettingsPage() {
                             // Total Members Configuration
                             <div className="max-w-md">
                                 <h3 className="text-lg font-semibold text-slate-900 mb-4">総メンバー数の設定</h3>
-                                <div className="bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-300 rounded-lg p-4 mb-4">
+                                <div className="bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
                                     <p className="text-sm text-slate-700">
                                         現在の設定: <span className="font-bold text-xl">{totalMembers}</span>人
                                     </p>
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                                                 min="1"
                                                 value={newTotalMembers}
                                                 onChange={(e) => setNewTotalMembers(e.target.value)}
-                                                className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                 placeholder="人数を入力"
                                             />
                                             <span className="flex items-center text-slate-600">人</span>
@@ -183,7 +183,7 @@ export default function SettingsPage() {
                                     </div>
                                     <button
                                         onClick={handleSaveTotalMembers}
-                                        className="w-full px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-md hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                                        className="w-full px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl hover:from-slate-800 hover:to-slate-900 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                                     >
                                         保存
                                     </button>
@@ -217,12 +217,12 @@ export default function SettingsPage() {
                                         value={newItemName}
                                         onChange={(e) => setNewItemName(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                                        className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder={`新しい${getTabLabel()}を追加`}
                                     />
                                     <button
                                         onClick={handleAdd}
-                                        className="px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-md hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
+                                        className="px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-xl hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
                                     >
                                         <Plus className="w-4 h-4" />
                                         追加
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                                     {getCurrentItems().map((item) => (
                                         <div
                                             key={item.id}
-                                            className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+                                            className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
                                         >
                                             {editingId === item.id ? (
                                                 <>
@@ -243,19 +243,19 @@ export default function SettingsPage() {
                                                         value={editingValue}
                                                         onChange={(e) => setEditingValue(e.target.value)}
                                                         onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
-                                                        className="flex-1 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                        className="flex-1 px-3 py-1 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                         autoFocus
                                                     />
                                                     <button
                                                         onClick={handleSaveEdit}
-                                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                                         title="保存"
                                                     >
                                                         <Check className="w-4 h-4" />
                                                     </button>
                                                     <button
                                                         onClick={handleCancelEdit}
-                                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                                                         title="キャンセル"
                                                     >
                                                         <X className="w-4 h-4" />
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                                                     </span>
                                                     <button
                                                         onClick={() => handleEdit(item.id, item.name)}
-                                                        className="p-2 text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                                                        className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                                                         title="編集"
                                                     >
                                                         <Edit className="w-4 h-4" />
@@ -277,13 +277,13 @@ export default function SettingsPage() {
                                                         <div className="flex gap-1">
                                                             <button
                                                                 onClick={() => handleDelete(item.id)}
-                                                                className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
+                                                                className="px-3 py-1 text-xs bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors"
                                                             >
                                                                 削除
                                                             </button>
                                                             <button
                                                                 onClick={() => setDeleteConfirm(null)}
-                                                                className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
+                                                                className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-xl hover:bg-slate-400 transition-colors"
                                                             >
                                                                 キャンセル
                                                             </button>
@@ -291,7 +291,7 @@ export default function SettingsPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => setDeleteConfirm(item.id)}
-                                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                                             title="削除"
                                                         >
                                                             <Trash2 className="w-4 h-4" />

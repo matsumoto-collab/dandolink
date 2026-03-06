@@ -6,7 +6,7 @@ import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
-
+import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
@@ -284,7 +284,7 @@ export default function ProjectMasterListPage() {
                             placeholder="現場名・顧客名・場所で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-slate-500"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -293,7 +293,7 @@ export default function ProjectMasterListPage() {
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            className="flex-1 md:flex-none px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                            className="flex-1 md:flex-none px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                         >
                             <option value="all">全てのステータス</option>
                             <option value="active">進行中</option>
@@ -301,14 +301,14 @@ export default function ProjectMasterListPage() {
                         </select>
 
                         {!isForeman2 && (
-                            <button
+                            <Button
+                                variant="gradient"
                                 onClick={() => setIsCreating(true)}
-                                className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg whitespace-nowrap"
+                                leftIcon={<Plus className="w-5 h-5" />}
                             >
-                                <Plus className="w-5 h-5" />
                                 <span className="hidden sm:inline">新規案件登録</span>
                                 <span className="sm:hidden">新規登録</span>
-                            </button>
+                            </Button>
                         )}
                     </div>
                 </div>
@@ -328,7 +328,7 @@ export default function ProjectMasterListPage() {
                         paginatedMasters.map((pm) => (
                             <div
                                 key={pm.id}
-                                className="bg-white rounded-lg shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
+                                className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
                             >
                                 {/* カード表示（クリックで詳細モーダルを開く） */}
                                 <div
@@ -440,7 +440,7 @@ export default function ProjectMasterListPage() {
                         <button
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
-                            className="px-3 py-1.5 rounded-md border border-slate-300 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
                         >
                             前へ
                         </button>
@@ -450,7 +450,7 @@ export default function ProjectMasterListPage() {
                         <button
                             onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
                             disabled={currentPage === totalPages}
-                            className="px-3 py-1.5 rounded-md border border-slate-300 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
                         >
                             次へ
                         </button>

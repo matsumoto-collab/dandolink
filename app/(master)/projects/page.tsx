@@ -8,6 +8,7 @@ import { EstimateInput } from '@/types/estimate';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, Loader2, FileText } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
@@ -155,7 +156,7 @@ export default function ProjectListPage() {
                             placeholder="現場名または元請会社名で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -163,7 +164,7 @@ export default function ProjectListPage() {
                     <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as 'date' | 'title')}
-                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="date">日付順</option>
                         <option value="title">現場名順</option>
@@ -171,21 +172,14 @@ export default function ProjectListPage() {
                 </div>
 
                 {/* 新規追加ボタン */}
-                <button
+                <Button
+                    variant="gradient"
                     onClick={handleAddNew}
-                    className="
-                        flex items-center justify-center gap-2 px-5 py-2.5
-                        bg-gradient-to-r from-slate-700 to-slate-800
-                        text-white font-semibold rounded-lg
-                        hover:from-slate-800 hover:to-slate-900
-                        active:scale-95
-                        transition-all duration-200 shadow-md hover:shadow-lg
-                    "
+                    leftIcon={<Plus className="w-5 h-5" />}
                 >
-                    <Plus className="w-5 h-5" />
                     <span className="hidden sm:inline">新規案件追加</span>
                     <span className="sm:hidden">新規追加</span>
-                </button>
+                </Button>
             </div>
 
             {/* モバイルカードビュー */}
@@ -205,7 +199,7 @@ export default function ProjectListPage() {
                         {filteredAndSortedProjects.map((project) => (
                             <div
                                 key={project.id}
-                                className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
                             >
                                 {/* ヘッダー: 現場名とアクション */}
                                 <div className="flex items-start justify-between mb-3">
