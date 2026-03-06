@@ -127,7 +127,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             {/* 基本情報 */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         見積書から読み込み
                     </label>
                     <select
@@ -138,7 +138,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 loadFromEstimate(e.target.value);
                             }
                         }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">見積書を選択（任意）</option>
                         {estimates.map(estimate => (
@@ -150,25 +150,25 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         請求番号
                     </label>
                     <input
                         type="text"
                         value={invoiceNumber}
                         onChange={(e) => setInvoiceNumber(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         案件 <span className="text-slate-500">*</span>
                     </label>
                     <select
                         value={projectId}
                         onChange={(e) => setProjectId(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         required
                     >
                         <option value="">案件を選択</option>
@@ -181,38 +181,38 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         タイトル <span className="text-slate-500">*</span>
                     </label>
                     <input
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         required
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         支払期限
                     </label>
                     <input
                         type="date"
                         value={dueDate}
                         onChange={(e) => setDueDate(e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         ステータス
                     </label>
                     <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value as InvoiceInput['status'])}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="draft">下書き</option>
                         <option value="sent">送付済み</option>
@@ -223,14 +223,14 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
                 {status === 'paid' && (
                     <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">
                             支払日
                         </label>
                         <input
                             type="date"
                             value={paidDate}
                             onChange={(e) => setPaidDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         />
                     </div>
                 )}
@@ -239,7 +239,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             {/* 明細 */}
             <div>
                 <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-semibold text-gray-700">
+                    <label className="block text-sm font-semibold text-slate-700">
                         明細
                     </label>
                     <button
@@ -252,18 +252,18 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                     </button>
                 </div>
 
-                <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                <div className="border border-slate-300 rounded-lg overflow-hidden">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-50">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700">品目・内容</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 w-24">数量</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 w-32">単価</th>
-                                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 w-32">金額</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700">品目・内容</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 w-24">数量</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 w-32">単価</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 w-32">金額</th>
                                 <th className="px-4 py-3 w-12"></th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white divide-y divide-slate-200">
                             {items.map((item) => (
                                 <tr key={item.id}>
                                     <td className="px-4 py-2">
@@ -271,7 +271,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="text"
                                             value={item.description}
                                             onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
+                                            className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             placeholder="品目・内容"
                                         />
                                     </td>
@@ -280,7 +280,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="number"
                                             value={item.quantity}
                                             onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
+                                            className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             min="0"
                                             step="0.1"
                                         />
@@ -290,7 +290,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="number"
                                             value={item.unitPrice}
                                             onChange={(e) => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
+                                            className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                                             min="0"
                                         />
                                     </td>
@@ -302,7 +302,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                             type="button"
                                             onClick={() => removeItem(item.id)}
                                             disabled={items.length === 1}
-                                            className="text-slate-600 hover:text-slate-700 disabled:text-gray-400 disabled:cursor-not-allowed"
+                                            className="text-slate-600 hover:text-slate-700 disabled:text-slate-400 disabled:cursor-not-allowed"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -315,41 +315,41 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             </div>
 
             {/* 合計 */}
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">小計:</span>
+                    <span className="text-slate-700">小計:</span>
                     <span className="font-semibold">¥{subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                    <span className="text-gray-700">消費税(10%):</span>
+                    <span className="text-slate-700">消費税(10%):</span>
                     <span className="font-semibold">¥{tax.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-lg border-t border-gray-300 pt-2">
-                    <span className="font-bold text-gray-900">合計:</span>
+                <div className="flex justify-between text-lg border-t border-slate-300 pt-2">
+                    <span className="font-bold text-slate-900">合計:</span>
                     <span className="font-bold text-slate-600">¥{total.toLocaleString()}</span>
                 </div>
             </div>
 
             {/* 備考 */}
             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                     備考
                 </label>
                 <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="備考を入力..."
                 />
             </div>
 
             {/* ボタン */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                     キャンセル
                 </button>

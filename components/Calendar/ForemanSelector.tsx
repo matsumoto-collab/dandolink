@@ -39,7 +39,7 @@ export default function ForemanSelector() {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className={`flex items-center gap-2 px-4 py-2 text-sm rounded-lg transition-colors border ${hasAvailableForemen
                     ? 'text-slate-600 hover:bg-slate-50 border-slate-200 hover:border-slate-300'
-                    : 'text-gray-400 bg-gray-50 border-gray-200 cursor-not-allowed'
+                    : 'text-slate-400 bg-slate-50 border-slate-200 cursor-not-allowed'
                     }`}
                 type="button"
                 disabled={!hasAvailableForemen}
@@ -52,7 +52,7 @@ export default function ForemanSelector() {
 
             {/* ドロップダウンメニュー */}
             {isDropdownOpen && hasAvailableForemen && (
-                <div className="absolute left-0 bottom-full mb-2 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto min-w-[200px]">
+                <div className="absolute left-0 bottom-full mb-2 bg-white border border-slate-300 rounded-lg shadow-lg z-50 max-h-60 overflow-y-auto min-w-[200px]">
                     {availableForemen.map(foreman => (
                         <button
                             key={foreman.id}

@@ -148,7 +148,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     <select
                         value={formData.constructionContent}
                         onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value as ConstructionContentType })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">選択してください</option>
                         {Object.entries(CONSTRUCTION_CONTENT_LABELS).map(([key, label]) => (
@@ -159,15 +159,15 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
 
                 {/* 案件担当者 */}
                 <FormField label="案件責任者" required>
-                    <div className="flex flex-wrap gap-2 min-h-[42px] p-2 border border-gray-300 rounded-lg bg-white">
+                    <div className="flex flex-wrap gap-2 min-h-[42px] p-2 border border-slate-300 rounded-lg bg-white">
                         {isLoadingManagers ? (
-                            <div className="flex items-center gap-2 text-gray-500">
+                            <div className="flex items-center gap-2 text-slate-500">
                                 <ButtonLoading />
                                 <span className="text-sm">担当者を読み込み中...</span>
                             </div>
                         ) : managers.length > 0 ? (
                             managers.map(manager => (
-                                <label key={manager.id} className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100">
+                                <label key={manager.id} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
                                     <input
                                         type="checkbox"
                                         checked={formData.createdBy.includes(manager.id)}
@@ -180,11 +180,11 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                         }}
                                         className="w-4 h-4 text-slate-600 rounded"
                                     />
-                                    <span className="text-sm text-gray-700">{manager.displayName}</span>
+                                    <span className="text-sm text-slate-700">{manager.displayName}</span>
                                 </label>
                             ))
                         ) : (
-                            <span className="text-sm text-gray-500">担当者が見つかりません</span>
+                            <span className="text-sm text-slate-500">担当者が見つかりません</span>
                         )}
                     </div>
                 </FormField>
@@ -194,23 +194,23 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     <div className="space-y-3">
                         {/* 1行目: 名前（フル幅） */}
                         <div>
-                            <label className="block text-xs text-gray-500 mb-1">名前</label>
+                            <label className="block text-xs text-slate-500 mb-1">名前</label>
                             <input
                                 type="text"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
                                 placeholder="例: 佐藤"
                             />
                         </div>
                         {/* 2行目: 敬称 + 工事名称 */}
                         <div className="flex gap-3">
                             <div className="flex-1">
-                                <label className="block text-xs text-gray-500 mb-1">敬称</label>
+                                <label className="block text-xs text-slate-500 mb-1">敬称</label>
                                 <select
                                     value={formData.honorific}
                                     onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
                                 >
                                     {HONORIFIC_OPTIONS.map(opt => (
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -218,11 +218,11 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                 </select>
                             </div>
                             <div className="flex-[2]">
-                                <label className="block text-xs text-gray-500 mb-1">工事名称</label>
+                                <label className="block text-xs text-slate-500 mb-1">工事名称</label>
                                 <select
                                     value={formData.constructionSuffixId}
                                     onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
-                                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
                                 >
                                     <option value="">選択なし</option>
                                     {constructionSuffixes.map(s => (
@@ -244,7 +244,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                 <FormField label="元請け" required>
                     <div className="relative" ref={customerDropdownRef}>
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
                                 value={customerSearchTerm || formData.customerName}
@@ -253,12 +253,12 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                     setShowCustomerDropdown(true);
                                 }}
                                 onFocus={() => setShowCustomerDropdown(true)}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                                className="w-full pl-10 pr-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                                 placeholder="顧客を検索..."
                             />
                         </div>
                         {showCustomerDropdown && (
-                            <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                            <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
                                 {filteredCustomers.map(customer => (
                                     <button
                                         key={customer.id}
@@ -272,11 +272,11 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                             setCustomerSearchTerm('');
                                             setShowCustomerDropdown(false);
                                         }}
-                                        className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center justify-between"
+                                        className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center justify-between"
                                     >
                                         <span>{customer.name}</span>
                                         {customer.shortName && (
-                                            <span className="text-sm text-gray-500">({customer.shortName})</span>
+                                            <span className="text-sm text-slate-500">({customer.shortName})</span>
                                         )}
                                     </button>
                                 ))}
@@ -301,7 +301,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                                 <button
                                     type="button"
                                     onClick={() => setFormData({ ...formData, customerId: '', customerName: '' })}
-                                    className="text-gray-400 hover:text-slate-500"
+                                    className="text-slate-400 hover:text-slate-500"
                                 >
                                     ×
                                 </button>

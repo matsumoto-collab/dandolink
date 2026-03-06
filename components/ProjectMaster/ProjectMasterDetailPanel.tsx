@@ -30,15 +30,15 @@ function formatDate(date: Date | string | undefined) {
 function Field({ label, value }: { label: string; value?: string | null }) {
     return (
         <div>
-            <dt className="text-xs text-gray-500 mb-0.5">{label}</dt>
-            <dd className="text-sm font-medium text-gray-800">{value || '-'}</dd>
+            <dt className="text-xs text-slate-500 mb-0.5">{label}</dt>
+            <dd className="text-sm font-medium text-slate-800">{value || '-'}</dd>
         </div>
     );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
     return (
-        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 mt-4 first:mt-0">
+        <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 mt-4 first:mt-0">
             {children}
         </h4>
     );
@@ -110,7 +110,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                     <SectionTitle>所在地</SectionTitle>
                     {address && (
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-gray-800">{address}</p>
+                            <p className="text-sm font-medium text-slate-800">{address}</p>
                             {googleMapsUrl && (
                                 <a
                                     href={googleMapsUrl}
@@ -125,7 +125,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                         </div>
                     )}
                     {mapQuery && (
-                        <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <div className="border border-slate-200 rounded-lg overflow-hidden">
                             <iframe
                                 key={mapQuery}
                                 title="Map Preview"
@@ -166,7 +166,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
             {pm.remarks && (
                 <>
                     <SectionTitle>備考</SectionTitle>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-slate-700 whitespace-pre-wrap bg-slate-50 rounded-lg p-3">
                         {pm.remarks}
                     </p>
                 </>

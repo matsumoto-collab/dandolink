@@ -140,7 +140,7 @@ export default function DesktopCalendarView({
                                     const remainingCount = totalMembers - assignedCount - vacationCount;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-gray-100 p-1 flex items-center justify-center gap-1.5 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
+                                        <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1.5 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
                                             <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingCount > 0 ? 'bg-slate-600' : remainingCount === 0 ? 'bg-slate-400' : 'bg-slate-700'}`}>{remainingCount}人</span>
                                         </div>
                                     );
@@ -189,7 +189,7 @@ export default function DesktopCalendarView({
                 <div className="fixed inset-0 lg:left-64 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
                     <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3 pointer-events-auto">
                         <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-sm font-medium text-gray-700">案件を保存中...</span>
+                        <span className="text-sm font-medium text-slate-700">案件を保存中...</span>
                     </div>
                 </div>
             )}

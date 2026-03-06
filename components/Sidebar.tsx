@@ -90,9 +90,9 @@ export default function Sidebar() {
             case 'user':
                 return 'bg-slate-600/20 text-slate-300 ring-green-500/30';
             case 'viewer':
-                return 'bg-gray-500/20 text-gray-300 ring-gray-500/30';
+                return 'bg-slate-500/20 text-slate-300 ring-slate-500/30';
             default:
-                return 'bg-gray-500/20 text-gray-300 ring-gray-500/30';
+                return 'bg-slate-500/20 text-slate-300 ring-slate-500/30';
         }
     };
 

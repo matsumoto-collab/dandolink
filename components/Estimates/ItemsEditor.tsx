@@ -29,7 +29,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                     {/* マスターに登録 */}
                     <button
                         type="button"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-emerald-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-emerald-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 active:bg-slate-100 transition-colors"
                         title="マスターに登録（未実装）"
                         disabled
                     >
@@ -40,7 +40,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                     <button
                         type="button"
                         onClick={onOpenUnitPriceModal}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 active:bg-slate-100 transition-colors"
                     >
                         <ClipboardList className="w-3.5 h-3.5" />
                         単価マスターから一括追加
@@ -48,7 +48,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                     {/* 項目を選択して一括入力 */}
                     <button
                         type="button"
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 active:bg-gray-100 transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 active:bg-slate-100 transition-colors"
                         title="項目を選択して一括入力（未実装）"
                         disabled
                     >
@@ -59,19 +59,19 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
             </div>
 
             {/* デスクトップ: テーブル表示 */}
-            <div className="hidden md:block border border-gray-200 rounded-lg overflow-x-auto">
+            <div className="hidden md:block border border-slate-200 rounded-lg overflow-x-auto">
                 <table className="w-full min-w-[800px]">
-                    <thead className="bg-gray-50 border-b border-gray-200">
+                    <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">項目</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-28">規格</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">数量</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">単位</th>
-                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-28">単価</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-24">税率</th>
-                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600 w-28">金額</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600 w-28">備考</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-600 w-20">操作</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">項目</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-28">規格</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">数量</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">単位</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 w-28">単価</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-24">税率</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 w-28">金額</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-28">備考</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">操作</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -95,7 +95,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
             </div>
 
             {/* 操作ヒント（デスクトップのみ） */}
-            <p className="hidden md:block mt-1.5 text-xs text-gray-400">
+            <p className="hidden md:block mt-1.5 text-xs text-slate-400">
                 各行はドラッグ&amp;ドロップで並び替えられます。Enter (+Shift) / Tab (+Shift) キーでセルの移動ができます。
             </p>
 

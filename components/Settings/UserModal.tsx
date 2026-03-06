@@ -98,13 +98,13 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
         <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                    <h2 className="text-xl font-semibold text-gray-800">
+                <div className="flex items-center justify-between p-6 border-b border-slate-200">
+                    <h2 className="text-xl font-semibold text-slate-800">
                         {mode === 'create' ? 'ユーザー追加' : 'ユーザー編集'}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="text-gray-400 hover:text-gray-600 transition-colors"
+                        className="text-slate-400 hover:text-slate-600 transition-colors"
                     >
                         <X className="w-6 h-6" />
                     </button>
@@ -122,7 +122,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {/* Username */}
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
                                 ユーザー名 <span className="text-slate-500">*</span>
                             </label>
                             <input
@@ -130,18 +130,18 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                 type="text"
                                 value={formData.username}
                                 onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent disabled:bg-gray-100"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent disabled:bg-slate-100"
                                 required
                                 disabled={mode === 'edit'}
                             />
                             {mode === 'edit' && (
-                                <p className="mt-1 text-xs text-gray-500">ユーザー名は変更できません</p>
+                                <p className="mt-1 text-xs text-slate-500">ユーザー名は変更できません</p>
                             )}
                         </div>
 
                         {/* Email */}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
                                 メールアドレス <span className="text-slate-500">*</span>
                             </label>
                             <input
@@ -149,14 +149,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                 type="email"
                                 value={formData.email}
                                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
                             />
                         </div>
 
                         {/* Display Name */}
                         <div>
-                            <label htmlFor="displayName" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="displayName" className="block text-sm font-medium text-slate-700 mb-2">
                                 表示名 <span className="text-slate-500">*</span>
                             </label>
                             <input
@@ -164,14 +164,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                 type="text"
                                 value={formData.displayName}
                                 onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
                             />
                         </div>
 
                         {/* Password */}
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                                 パスワード {mode === 'create' && <span className="text-slate-500">*</span>}
                             </label>
                             <input
@@ -179,7 +179,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                 type="password"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required={mode === 'create'}
                                 placeholder={mode === 'edit' ? '変更する場合のみ入力' : ''}
                             />
@@ -187,14 +187,14 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
 
                         {/* Role */}
                         <div>
-                            <label htmlFor="role" className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="role" className="block text-sm font-medium text-slate-700 mb-2">
                                 ロール <span className="text-slate-500">*</span>
                             </label>
                             <select
                                 id="role"
                                 value={formData.role}
                                 onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
                             >
                                 <option value="admin">管理者</option>
@@ -214,16 +214,16 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                     type="checkbox"
                                     checked={formData.isActive}
                                     onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                                    className="w-5 h-5 text-slate-600 border-gray-300 rounded focus:ring-slate-500"
+                                    className="w-5 h-5 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                                 />
-                                <span className="ml-2 text-sm font-medium text-gray-700">アクティブ</span>
+                                <span className="ml-2 text-sm font-medium text-slate-700">アクティブ</span>
                             </label>
                         </div>
 
                         {/* Hourly Rate - admin/manager only */}
                         {isAdminOrManager && (
                             <div>
-                                <label htmlFor="hourlyRate" className="block text-sm font-medium text-gray-700 mb-2">
+                                <label htmlFor="hourlyRate" className="block text-sm font-medium text-slate-700 mb-2">
                                     時給（円/時間）
                                 </label>
                                 <input
@@ -233,7 +233,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                     step="1"
                                     value={formData.hourlyRate}
                                     onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                     placeholder="例: 2500"
                                 />
                             </div>
@@ -241,11 +241,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex justify-end gap-3 pt-6 border-t border-gray-200">
+                    <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
                         <button
                             type="button"
                             onClick={onClose}
-                            className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             disabled={isLoading}
                         >
                             キャンセル

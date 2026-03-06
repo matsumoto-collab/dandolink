@@ -341,7 +341,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
         return (
-            <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-gray-200 min-h-[400px]">
+            <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 min-h-[400px]">
                 <Loading size="lg" text="週間スケジュールを読み込み中..." />
             </div>
         );

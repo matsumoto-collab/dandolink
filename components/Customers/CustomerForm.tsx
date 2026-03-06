@@ -71,14 +71,14 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
         <form onSubmit={handleSubmit} className="space-y-4">
             {/* 会社名 */}
             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                     会社名 <span className="text-slate-500">*</span>
                 </label>
                 <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="例: ○○建設株式会社"
                     required
                 />
@@ -87,25 +87,25 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
             {/* 略称・敬称 */}
             <div className="grid grid-cols-3 gap-4">
                 <div className="col-span-2">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         略称
                     </label>
                     <input
                         type="text"
                         value={formData.shortName}
                         onChange={(e) => setFormData({ ...formData, shortName: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         placeholder="例: ○○建設"
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         敬称
                     </label>
                     <select
                         value={formData.honorific}
                         onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="御中">御中</option>
                         <option value="様">様</option>
@@ -116,7 +116,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
             {/* 担当者 */}
             <div>
                 <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold text-gray-700">
+                    <label className="block text-sm font-semibold text-slate-700">
                         担当者
                     </label>
                     <button
@@ -130,15 +130,15 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                 </div>
 
                 {formData.contactPersons.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4 border border-gray-200 rounded-lg">
+                    <p className="text-sm text-slate-500 text-center py-4 border border-slate-200 rounded-lg">
                         担当者が登録されていません
                     </p>
                 ) : (
                     <div className="space-y-3">
                         {formData.contactPersons.map((contact, index) => (
-                            <div key={contact.id} className="p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <div key={contact.id} className="p-4 border border-slate-200 rounded-lg bg-slate-50">
                                 <div className="flex items-center justify-between mb-3">
-                                    <span className="text-sm font-semibold text-gray-700">
+                                    <span className="text-sm font-semibold text-slate-700">
                                         担当者 {index + 1}
                                     </span>
                                     <button
@@ -154,21 +154,21 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                                         type="text"
                                         value={contact.name}
                                         onChange={(e) => updateContactPerson(contact.id, 'name', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder="氏名"
                                     />
                                     <input
                                         type="email"
                                         value={contact.email}
                                         onChange={(e) => updateContactPerson(contact.id, 'email', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder="メールアドレス"
                                     />
                                     <input
                                         type="tel"
                                         value={contact.phone}
                                         onChange={(e) => updateContactPerson(contact.id, 'phone', e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder="電話番号"
                                     />
                                 </div>
@@ -181,40 +181,40 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
             {/* 代表連絡先 */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         代表メールアドレス
                     </label>
                     <input
                         type="email"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         placeholder="例: info@example.com"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         代表電話番号
                     </label>
                     <input
                         type="tel"
                         value={formData.phone}
                         onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         placeholder="例: 03-1234-5678"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
                         FAX番号
                     </label>
                     <input
                         type="tel"
                         value={formData.fax}
                         onChange={(e) => setFormData({ ...formData, fax: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         placeholder="例: 03-1234-5679"
                     />
                 </div>
@@ -222,20 +222,20 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
 
             {/* 住所 */}
             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                     住所
                 </label>
                 <input
                     type="text"
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 東京都○○区○○1-2-3"
                 />
 
                 {/* 地図プレビュー */}
                 {formData.address && (
-                    <div className="mt-3 border border-gray-300 rounded-lg overflow-hidden">
+                    <div className="mt-3 border border-slate-300 rounded-lg overflow-hidden">
                         <iframe
                             width="100%"
                             height="300"
@@ -251,24 +251,24 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
 
             {/* 備考 */}
             <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                     備考
                 </label>
                 <textarea
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="備考を入力..."
                 />
             </div>
 
             {/* ボタン */}
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <button
                     type="button"
                     onClick={onCancel}
-                    className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
                 >
                     キャンセル
                 </button>

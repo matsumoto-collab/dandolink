@@ -191,7 +191,7 @@ export default function DispatchConfirmModal({
             <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={onClose} />
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:rounded-lg lg:shadow-lg lg:max-w-2xl lg:h-auto lg:max-h-[90vh] lg:overflow-hidden">
                 {/* ヘッダー */}
-                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-slate-800 pwa-modal-safe">
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-slate-800 pwa-modal-safe">
                     <div>
                         <h2 className="text-lg font-semibold text-white">手配確定</h2>
                         <p className="text-sm text-slate-400">{project.title}</p>
@@ -214,13 +214,13 @@ export default function DispatchConfirmModal({
                         <>
                             {/* 職方選択 */}
                             <div>
-                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                                     <Users className="w-4 h-4" />
                                     職方（メンバー）
                                 </label>
-                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3">
                                     {workers.length === 0 ? (
-                                        <p className="col-span-2 text-center text-gray-500 py-4">
+                                        <p className="col-span-2 text-center text-slate-500 py-4">
                                             ユーザー管理でworkerロールのユーザーを追加してください
                                         </p>
                                     ) : (
@@ -232,10 +232,10 @@ export default function DispatchConfirmModal({
                                                 <label
                                                     key={worker.id}
                                                     className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                         : isSelected
                                                             ? 'bg-slate-50 border border-slate-300'
-                                                            : 'hover:bg-gray-50'
+                                                            : 'hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     <input
@@ -255,7 +255,7 @@ export default function DispatchConfirmModal({
                                     )}
                                 </div>
                                 {selectedWorkerIds.length > 0 && (
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-slate-500 mt-1">
                                         選択中: {selectedWorkerIds.length}名
                                     </p>
                                 )}
@@ -263,13 +263,13 @@ export default function DispatchConfirmModal({
 
                             {/* 車両選択 */}
                             <div>
-                                <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
+                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
                                     <Truck className="w-4 h-4" />
                                     車両
                                 </label>
-                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3">
+                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3">
                                     {vehicles.length === 0 ? (
-                                        <p className="col-span-2 text-center text-gray-500 py-4">
+                                        <p className="col-span-2 text-center text-slate-500 py-4">
                                             設定の車両マスターから車両を追加してください
                                         </p>
                                     ) : (
@@ -281,10 +281,10 @@ export default function DispatchConfirmModal({
                                                 <label
                                                     key={vehicle.id}
                                                     className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
-                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                                         : isSelected
                                                             ? 'bg-slate-50 border border-slate-300'
-                                                            : 'hover:bg-gray-50'
+                                                            : 'hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     <input
@@ -304,7 +304,7 @@ export default function DispatchConfirmModal({
                                     )}
                                 </div>
                                 {selectedVehicleIds.length > 0 && (
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-slate-500 mt-1">
                                         選択中: {selectedVehicleIds.length}台
                                     </p>
                                 )}
@@ -314,7 +314,7 @@ export default function DispatchConfirmModal({
                 </div>
 
                 {/* フッター */}
-                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-t border-gray-200 bg-gray-50 safe-area-bottom">
+                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50 safe-area-bottom">
                     <div>
                         {project.isDispatchConfirmed && (
                             <button
@@ -329,7 +329,7 @@ export default function DispatchConfirmModal({
                     <div className="flex gap-3">
                         <button
                             onClick={onClose}
-                            className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                             キャンセル
                         </button>

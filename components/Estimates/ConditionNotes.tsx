@@ -30,12 +30,12 @@ export default function ConditionNotes({ notes, setNotes }: ConditionNotesProps)
     };
 
     return (
-        <div className="border-t border-gray-200 pt-3">
+        <div className="border-t border-slate-200 pt-3">
             {/* トグルヘッダー */}
             <button
                 type="button"
                 onClick={() => setIsExpanded(prev => !prev)}
-                className="flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-800 transition-colors"
+                className="flex items-center gap-1 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
                 aria-expanded={isExpanded ? 'true' : 'false'}
             >
                 備考
@@ -53,7 +53,7 @@ export default function ConditionNotes({ notes, setNotes }: ConditionNotesProps)
                                 onClick={() => addCondition(condition)}
                                 className={`px-2.5 py-1.5 text-xs rounded-full border transition-colors ${notes.includes(condition)
                                     ? 'bg-slate-200 border-slate-400 text-slate-600'
-                                    : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50 active:bg-gray-100'
+                                    : 'bg-white border-slate-300 text-slate-600 hover:bg-slate-50 active:bg-slate-100'
                                     }`}
                             >
                                 {condition}
@@ -64,7 +64,7 @@ export default function ConditionNotes({ notes, setNotes }: ConditionNotesProps)
                         value={notes}
                         onChange={(e) => setNotes(e.target.value)}
                         rows={4}
-                        className="w-full px-3 py-3 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"
+                        className="w-full px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"
                         placeholder="見積条件・備考を入力...&#10;プリセットボタンをタップして追加できます"
                     />
                 </div>

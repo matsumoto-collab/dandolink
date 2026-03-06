@@ -74,7 +74,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
 
     if (isLoading) {
         return (
-            <div className="flex items-center gap-2 text-gray-500 text-sm py-2">
+            <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
                 <div className="animate-spin w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full"></div>
                 <span>作業履歴を読み込み中...</span>
             </div>
@@ -87,7 +87,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
 
     if (history.length === 0) {
         return (
-            <div className="text-sm text-gray-500 py-2">
+            <div className="text-sm text-slate-500 py-2">
                 作業履歴がありません
             </div>
         );
@@ -95,7 +95,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
                 作業履歴 ({history.length}件)
             </h4>
@@ -103,10 +103,10 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                 {history.map((item) => (
                     <div
                         key={item.id}
-                        className="p-3 bg-gray-50 rounded-lg border border-gray-200 text-sm"
+                        className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm"
                     >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-gray-800">
+                            <span className="font-medium text-slate-800">
                                 {formatDate(item.date)}
                             </span>
                             <span
@@ -119,29 +119,29 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                                 {getConstructionTypeInfo(item.constructionType).label}
                             </span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-gray-600">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-slate-600">
                             <div className="flex items-center gap-1">
-                                <User className="w-3.5 h-3.5 text-gray-400" />
+                                <User className="w-3.5 h-3.5 text-slate-400" />
                                 <span className="font-medium">{item.foremanName}</span>
                                 {item.memberCount > 0 && (
-                                    <span className="ml-1 text-xs text-gray-500">({item.memberCount}名)</span>
+                                    <span className="ml-1 text-xs text-slate-500">({item.memberCount}名)</span>
                                 )}
                             </div>
                             {item.workerNames.length > 0 && (
                                 <div className="flex items-center gap-1">
-                                    <Users className="w-3.5 h-3.5 text-gray-400" />
+                                    <Users className="w-3.5 h-3.5 text-slate-400" />
                                     <span>{item.workerNames.join(', ')}</span>
                                 </div>
                             )}
                             {item.vehicleNames.length > 0 && (
                                 <div className="flex items-center gap-1">
-                                    <Truck className="w-3.5 h-3.5 text-gray-400" />
+                                    <Truck className="w-3.5 h-3.5 text-slate-400" />
                                     <span>{item.vehicleNames.join(', ')}</span>
                                 </div>
                             )}
                         </div>
                         {item.remarks && (
-                            <div className="mt-2 text-xs text-gray-500 flex items-start gap-1">
+                            <div className="mt-2 text-xs text-slate-500 flex items-start gap-1">
                                 <Wrench className="w-3 h-3 mt-0.5" />
                                 <span>{item.remarks}</span>
                             </div>

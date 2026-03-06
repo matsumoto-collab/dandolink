@@ -48,7 +48,7 @@ class ErrorBoundary extends Component<Props, State> {
 
             // デフォルトのエラーUI
             return (
-                <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <div className="min-h-screen flex items-center justify-center bg-slate-100">
                     <div className="max-w-md w-full bg-white shadow-lg rounded-lg p-8 text-center">
                         <div className="mb-6">
                             <svg
@@ -66,20 +66,20 @@ class ErrorBoundary extends Component<Props, State> {
                                 />
                             </svg>
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                        <h1 className="text-2xl font-bold text-slate-900 mb-4">
                             エラーが発生しました
                         </h1>
-                        <p className="text-gray-600 mb-6">
+                        <p className="text-slate-600 mb-6">
                             申し訳ございません。予期せぬエラーが発生しました。
                             <br />
                             ページを再読み込みするか、ホームに戻ってください。
                         </p>
                         {process.env.NODE_ENV === 'development' && this.state.error && (
                             <details className="mb-6 text-left">
-                                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                                <summary className="cursor-pointer text-sm text-slate-500 hover:text-slate-700">
                                     エラー詳細（開発環境のみ）
                                 </summary>
-                                <pre className="mt-2 p-3 bg-gray-100 rounded text-xs text-slate-600 overflow-auto max-h-40">
+                                <pre className="mt-2 p-3 bg-slate-100 rounded text-xs text-slate-600 overflow-auto max-h-40">
                                     {this.state.error.message}
                                     {'\n'}
                                     {this.state.error.stack}
@@ -95,7 +95,7 @@ class ErrorBoundary extends Component<Props, State> {
                             </button>
                             <button
                                 onClick={this.handleGoHome}
-                                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+                                className="px-4 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300 transition-colors"
                             >
                                 ホームに戻る
                             </button>

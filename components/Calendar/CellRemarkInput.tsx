@@ -78,7 +78,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                     <div className="flex justify-end">
                         <button
                             onClick={handleStartEdit}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-gray-100 rounded text-gray-400 hover:text-gray-600"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600"
                             title="メモを追加"
                             aria-label="メモを追加"
                         >
@@ -97,7 +97,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                     onClick={handleSave} // 背景クリックで保存して閉じる
                 >
                     <div
-                        className="bg-white rounded-lg shadow-xl border border-gray-200 w-64 p-2 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100"
+                        className="bg-white rounded-lg shadow-xl border border-slate-200 w-64 p-2 flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-100"
                         style={{
                             position: 'fixed',
                             top: Math.min(popoverPosition.top, window.innerHeight - 150), // 画面下端対策
@@ -105,9 +105,9 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                         }}
                         onClick={(e) => e.stopPropagation()} // 内部クリックは伝播させない
                     >
-                        <div className="flex items-center justify-between border-b border-gray-100 pb-1 mb-1">
-                            <span className="text-xs font-bold text-gray-700">メモ編集</span>
-                            <button onClick={handleCancel} className="text-gray-400 hover:text-gray-600">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-1 mb-1">
+                            <span className="text-xs font-bold text-slate-700">メモ編集</span>
+                            <button onClick={handleCancel} className="text-slate-400 hover:text-slate-600">
                                 <X className="w-3 h-3" />
                             </button>
                         </div>

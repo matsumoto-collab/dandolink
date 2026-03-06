@@ -52,8 +52,8 @@ function PlaceholderPage({ title }: { title: string }) {
     return (
         <div className="flex items-center justify-center h-full">
             <div className="text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-                <p className="text-gray-600">この機能は現在開発中です</p>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">{title}</h2>
+                <p className="text-slate-600">この機能は現在開発中です</p>
             </div>
         </div>
     );

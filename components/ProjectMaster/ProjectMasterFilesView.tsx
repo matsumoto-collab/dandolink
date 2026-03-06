@@ -71,7 +71,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
         return (
             <div className="grid grid-cols-2 gap-2">
                 {[1, 2, 3, 4, 5].map(i => (
-                    <div key={i} className={`h-11 rounded-xl bg-gray-200 animate-pulse ${i === 5 ? 'col-span-2' : ''}`} />
+                    <div key={i} className={`h-11 rounded-xl bg-slate-200 animate-pulse ${i === 5 ? 'col-span-2' : ''}`} />
                 ))}
             </div>
         );
@@ -102,13 +102,13 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                 flex items-center gap-2 px-3 py-3 rounded-xl border text-left transition-colors min-h-[44px]
                                 ${isLast ? 'col-span-2' : ''}
                                 ${hasFiles
-                                    ? 'bg-gray-50 border-gray-200 hover:bg-slate-100 active:bg-slate-200 cursor-pointer'
-                                    : 'bg-gray-50 border-gray-100 opacity-40 cursor-default'}
+                                    ? 'bg-slate-50 border-slate-200 hover:bg-slate-100 active:bg-slate-200 cursor-pointer'
+                                    : 'bg-slate-50 border-slate-100 opacity-40 cursor-default'}
                             `}
                         >
-                            <Folder className={`w-4 h-4 shrink-0 ${hasFiles ? 'text-slate-500' : 'text-gray-300'}`} />
-                            <span className="text-sm text-gray-700 flex-1 truncate">{label}</span>
-                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${hasFiles ? 'bg-slate-100 text-slate-600' : 'bg-gray-100 text-gray-400'}`}>
+                            <Folder className={`w-4 h-4 shrink-0 ${hasFiles ? 'text-slate-500' : 'text-slate-300'}`} />
+                            <span className="text-sm text-slate-700 flex-1 truncate">{label}</span>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${hasFiles ? 'bg-slate-100 text-slate-600' : 'bg-slate-100 text-slate-400'}`}>
                                 {count}件
                             </span>
                         </button>
@@ -127,20 +127,20 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                     <div className="bg-white rounded-t-2xl sm:rounded-xl shadow-xl w-full sm:max-w-lg flex flex-col max-h-[85vh] sm:max-h-[80vh]">
                         {/* モバイル用ドラッグハンドル */}
                         <div className="sm:hidden flex justify-center pt-3 pb-1 shrink-0">
-                            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+                            <div className="w-10 h-1 bg-slate-300 rounded-full" />
                         </div>
 
                         {/* ヘッダー */}
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 shrink-0">
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 shrink-0">
                             <div className="flex items-center gap-2">
                                 <Folder className="w-4 h-4 text-slate-500" />
-                                <span className="font-medium text-gray-800">{selectedLabel}</span>
-                                <span className="text-xs text-gray-400">{selectedFiles.length}件</span>
+                                <span className="font-medium text-slate-800">{selectedLabel}</span>
+                                <span className="text-xs text-slate-400">{selectedFiles.length}件</span>
                             </div>
                             <button
                                 type="button"
                                 onClick={() => setSelectedCategory(null)}
-                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                className="p-2 rounded-lg hover:bg-slate-100 text-slate-500 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
                             >
                                 <X className="w-5 h-5" />
                             </button>
@@ -160,7 +160,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                                 setLightboxIndex(idx);
                                                 setLightboxOpen(true);
                                             }}
-                                            className="relative aspect-square overflow-hidden rounded-lg border border-gray-200 hover:opacity-80 active:opacity-60 transition-opacity"
+                                            className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 hover:opacity-80 active:opacity-60 transition-opacity"
                                         >
                                             <Image
                                                 src={img.src}
@@ -182,14 +182,14 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                             key={file.id}
                                             type="button"
                                             onClick={() => file.signedUrl && setPdfView({ url: file.signedUrl, name: file.fileName })}
-                                            className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200 hover:bg-gray-100 active:bg-gray-200 transition-colors text-left min-h-[56px]"
+                                            className="w-full flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 active:bg-slate-200 transition-colors text-left min-h-[56px]"
                                         >
                                             <div className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 shrink-0">
                                                 <FileText className="w-5 h-5 text-slate-400" />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium text-slate-600 truncate">{file.fileName}</p>
-                                                <p className="text-xs text-gray-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
+                                                <p className="text-xs text-slate-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
                                             </div>
                                         </button>
                                     ))}

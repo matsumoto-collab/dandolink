@@ -45,20 +45,20 @@ export default function VehicleModal({ isOpen, onClose }: VehicleModalProps) {
             {/* Modal */}
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
                 {/* Header */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-200">
-                    <h2 className="text-lg font-semibold text-gray-900">車両を追加</h2>
+                <div className="flex items-center justify-between p-4 border-b border-slate-200">
+                    <h2 className="text-lg font-semibold text-slate-900">車両を追加</h2>
                     <button
                         onClick={handleCancel}
-                        className="p-1 hover:bg-gray-100 rounded-md transition-colors"
+                        className="p-1 hover:bg-slate-100 rounded-md transition-colors"
                     >
-                        <X className="w-5 h-5 text-gray-500" />
+                        <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
 
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
                             車両名 <span className="text-slate-500">*</span>
                         </label>
                         <input
@@ -66,7 +66,7 @@ export default function VehicleModal({ isOpen, onClose }: VehicleModalProps) {
                             required
                             value={vehicleName}
                             onChange={(e) => setVehicleName(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             placeholder="例: 3t(1234)"
                             autoFocus
                         />
@@ -77,7 +77,7 @@ export default function VehicleModal({ isOpen, onClose }: VehicleModalProps) {
                         <button
                             type="button"
                             onClick={handleCancel}
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors"
                         >
                             キャンセル
                         </button>

@@ -10,7 +10,7 @@ import toast from 'react-hot-toast';
 
 const LocationPicker = dynamic(
     () => import('@/components/LocationPicker').then(m => m.LocationPicker),
-    { ssr: false, loading: () => <div className="h-[280px] bg-gray-100 rounded-lg animate-pulse" /> }
+    { ssr: false, loading: () => <div className="h-[280px] bg-slate-100 rounded-lg animate-pulse" /> }
 );
 
 const PREFECTURES = [
@@ -205,14 +205,14 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     return (
         <div className="space-y-4">
             {/* 入力モード切り替え */}
-            <div className="flex items-center gap-1 p-1 bg-gray-100 rounded-lg w-fit">
+            <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg w-fit">
                 <button
                     type="button"
                     onClick={() => setInputMode('address')}
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                         inputMode === 'address'
                             ? 'bg-white text-slate-800 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                            : 'text-slate-500 hover:text-slate-700'
                     }`}
                 >
                     住所から入力
@@ -223,7 +223,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors ${
                         inputMode === 'map'
                             ? 'bg-white text-slate-800 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700'
+                            : 'text-slate-500 hover:text-slate-700'
                     }`}
                 >
                     地図・現在地から入力
@@ -238,17 +238,17 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                             value={formData.postalCode}
                             onChange={handlePostalCodeChange}
                             maxLength={7}
-                            className="w-40 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                            className="w-40 px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                             placeholder="例: 1600023"
                         />
-                        <span className="text-sm text-gray-500">市区町村が自動で入力されます</span>
+                        <span className="text-sm text-slate-500">市区町村が自動で入力されます</span>
                     </div>
                 </FormField>
                 <FormField label="都道府県">
                     <select
                         value={formData.prefecture}
                         onChange={(e) => setFormData(prev => ({ ...prev, prefecture: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">選択してください</option>
                         {PREFECTURES.map(pref => (
@@ -263,7 +263,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     type="text"
                     value={formData.city}
                     onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="例: 新宿区西新宿"
                 />
             </FormField>
@@ -273,7 +273,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                     type="text"
                     value={formData.location}
                     onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     placeholder="番地、建物名など"
                 />
             </FormField>
@@ -282,11 +282,11 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             <div>
                 <div className="flex items-center justify-between mb-2">
                     {inputMode === 'map' && (
-                        <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
                             <MapPin className="w-4 h-4" />
                             位置情報
                             {isReverseGeocoding && (
-                                <span className="flex items-center gap-1 text-xs text-gray-400">
+                                <span className="flex items-center gap-1 text-xs text-slate-400">
                                     <Loader2 className="w-3 h-3 animate-spin" />住所を取得中...
                                 </span>
                             )}
@@ -311,7 +311,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 {inputMode === 'address' ? (
                     /* 住所モード: Google Maps iframe プレビュー */
                     iframeQuery ? (
-                        <div className="border border-gray-300 rounded-lg overflow-hidden">
+                        <div className="border border-slate-300 rounded-lg overflow-hidden">
                             <iframe
                                 width="100%"
                                 height="280"
@@ -322,7 +322,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                             />
                         </div>
                     ) : (
-                        <div className="h-[200px] bg-gray-50 border border-gray-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 select-none">
+                        <div className="h-[200px] bg-slate-50 border border-slate-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-slate-400 select-none">
                             <MapPin className="w-8 h-8" />
                             <p className="text-sm">住所を入力すると地図が表示されます</p>
                         </div>
@@ -330,7 +330,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 ) : (
                     /* 地図モード: インタラクティブ LocationPicker */
                     <>
-                        <p className="text-xs text-gray-500 mb-2">
+                        <p className="text-xs text-slate-500 mb-2">
                             地図をドラッグすると都道府県・市区町村が自動で入力されます
                         </p>
                         {mapVisible ? (
@@ -340,14 +340,14 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                                 onLocationChange={handleLocationChange}
                             />
                         ) : (
-                            <div className="h-[200px] bg-gray-50 border border-gray-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-gray-400 select-none">
+                            <div className="h-[200px] bg-slate-50 border border-slate-200 border-dashed rounded-lg flex flex-col items-center justify-center gap-2 text-slate-400 select-none">
                                 <MapPin className="w-8 h-8" />
                                 <p className="text-sm">住所を入力すると地図が表示されます</p>
                                 <p className="text-xs">または「現在地」ボタンで現在地から入力できます</p>
                             </div>
                         )}
                         {formData.latitude != null && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-slate-500 mt-1">
                                 座標: {formData.latitude.toFixed(6)}, {formData.longitude?.toFixed(6)}
                             </p>
                         )}

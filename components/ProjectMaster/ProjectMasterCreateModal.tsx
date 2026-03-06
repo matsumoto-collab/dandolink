@@ -81,7 +81,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
                 <div className="flex-shrink-0 bg-slate-50 border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between">
                     <div className="flex-1 min-w-0 mr-3">
                         <div className="flex items-center gap-2">
-                            <h2 className="text-lg md:text-xl font-semibold text-gray-900">新規案件登録</h2>
+                            <h2 className="text-lg md:text-xl font-semibold text-slate-900">新規案件登録</h2>
                             <span className="px-2 py-0.5 text-xs font-bold bg-slate-200 text-slate-700 rounded-full whitespace-nowrap">
                                 新規作成
                             </span>
@@ -89,7 +89,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
                     </div>
                     <button
                         onClick={handleClose}
-                        className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-white rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-white rounded-lg transition-colors"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -112,12 +112,12 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
                 <div className="fixed inset-0 z-[70] flex items-center justify-center">
                     <div className="absolute inset-0 bg-black/50" onClick={() => setShowUnsavedConfirm(false)} />
                     <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-sm w-full mx-4">
-                        <h3 className="text-base font-semibold text-gray-900 mb-2">入力内容を破棄しますか？</h3>
-                        <p className="text-sm text-gray-500">入力中の内容は保存されません。</p>
+                        <h3 className="text-base font-semibold text-slate-900 mb-2">入力内容を破棄しますか？</h3>
+                        <p className="text-sm text-slate-500">入力中の内容は保存されません。</p>
                         <div className="flex gap-3 mt-5">
                             <button
                                 onClick={() => setShowUnsavedConfirm(false)}
-                                className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                className="flex-1 px-4 py-2 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                             >
                                 入力を続ける
                             </button>

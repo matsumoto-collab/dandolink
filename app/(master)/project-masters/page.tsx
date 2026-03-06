@@ -263,12 +263,12 @@ export default function ProjectMasterListPage() {
                 onSubmit={handleEstimateSubmit}
                 initialData={estimateInitialData}
             />
-            <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden">
+            <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden bg-gradient-to-br from-slate-50 to-white">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3 md:mb-6">
                     <div>
-                        <h1 className="text-lg md:text-2xl font-bold text-slate-800">案件一覧</h1>
-                        <p className="text-xs md:text-sm text-slate-500 mt-1">
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">案件一覧</h1>
+                        <p className="text-slate-600">
                             {filteredMasters.length}件の案件データ
                         </p>
                     </div>
