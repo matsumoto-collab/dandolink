@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession, signOut } from 'next-auth/react';
 import {
@@ -63,6 +63,12 @@ const navigationSections: NavSection[] = [
 export default function Sidebar() {
     const { activePage, setActivePage, isMobileMenuOpen, closeMobileMenu } = useNavigation();
     const { data: session } = useSession();
+    const [isReloading, setIsReloading] = useState(false);
+
+    const handleReload = () => {
+        setIsReloading(true);
+        window.location.reload();
+    };
 
     const handleLogout = async () => {
         if (confirm('ログアウトしますか？')) {
@@ -134,13 +140,19 @@ export default function Sidebar() {
                 `}
             >
                 {/* Logo Area */}
-                <div className="h-16 flex items-center px-4 border-b border-slate-800/50">
+                <div className="h-16 flex flex-col border-b border-slate-800/50">
+                    <div className="flex-1 flex items-center px-4">
                     <button
-                        onClick={() => window.location.reload()}
-                        className="flex items-center justify-center flex-1 hover:opacity-80 active:opacity-60 transition-opacity"
+                        onClick={handleReload}
+                        disabled={isReloading}
+                        className="flex items-center justify-center flex-1 active:scale-90 transition-transform duration-150"
                         aria-label="ホームに戻る（更新）"
                     >
-                        <img src="/dandlink-logo.svg" alt="DandLink" className="h-6 w-auto" />
+                        <img
+                            src="/dandlink-logo.svg"
+                            alt="DandLink"
+                            className={`h-6 w-auto ${isReloading ? 'animate-pulse opacity-50' : ''}`}
+                        />
                     </button>
                     {/* Mobile Close Button */}
                     <button
@@ -149,6 +161,12 @@ export default function Sidebar() {
                     >
                         <X className="w-5 h-5 text-slate-400" />
                     </button>
+                    </div>
+                    {isReloading && (
+                        <div className="h-0.5 w-full bg-slate-800">
+                            <div className="h-full bg-sky-400 animate-loading-bar" />
+                        </div>
+                    )}
                 </div>
 
                 {/* User Info */}
