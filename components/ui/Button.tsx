@@ -3,7 +3,7 @@
 import React, { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'outline' | 'ghost';
+export type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'danger' | 'outline' | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -29,6 +29,14 @@ const variantStyles: Record<ButtonVariant, string> = {
     focus:ring-slate-500
     shadow-sm
   `,
+  gradient: `
+    bg-gradient-to-r from-slate-700 to-slate-800
+    text-white
+    hover:from-slate-800 hover:to-slate-900
+    focus:ring-slate-500
+    shadow-md hover:shadow-lg
+    active:scale-95
+  `,
   secondary: `
     bg-slate-100
     text-slate-700
@@ -44,9 +52,9 @@ const variantStyles: Record<ButtonVariant, string> = {
   outline: `
     bg-transparent
     text-slate-700
-    border border-slate-300
+    border border-slate-200
     hover:bg-slate-50
-    hover:border-slate-400
+    hover:border-slate-300
     focus:ring-slate-400
   `,
   ghost: `
@@ -116,8 +124,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         disabled={isDisabled}
         className={`
           inline-flex items-center justify-center
-          rounded-lg font-medium
-          transition-colors duration-150
+          rounded-xl font-medium
+          transition-all duration-200
           focus:outline-none focus:ring-2 focus:ring-offset-2
           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
           ${variantStyles[variant]}

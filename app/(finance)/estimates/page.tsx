@@ -13,6 +13,7 @@ import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off, Copy } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
 // 大きなモーダルコンポーネントを遅延読み込み
@@ -216,7 +217,7 @@ export default function EstimateListPage() {
                             placeholder="見積番号、案件名で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
 
@@ -224,7 +225,7 @@ export default function EstimateListPage() {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全てのステータス</option>
                         <option value="draft">下書き</option>
@@ -235,21 +236,14 @@ export default function EstimateListPage() {
                 </div>
 
                 {/* 新規追加ボタン */}
-                <button
+                <Button
+                    variant="gradient"
                     onClick={handleAddNew}
-                    className="
-                        flex items-center justify-center gap-2 px-5 py-2.5
-                        bg-gradient-to-r from-slate-700 to-slate-800
-                        text-white font-semibold rounded-lg
-                        hover:from-slate-800 hover:to-slate-900
-                        active:scale-95
-                        transition-all duration-200 shadow-md hover:shadow-lg
-                    "
+                    leftIcon={<Plus className="w-5 h-5" />}
                 >
-                    <Plus className="w-5 h-5" />
                     <span className="hidden sm:inline">新規見積書作成</span>
                     <span className="sm:hidden">新規作成</span>
-                </button>
+                </Button>
             </div>
 
             {/* モバイルカードビュー */}
@@ -280,7 +274,7 @@ export default function EstimateListPage() {
                             return (
                                 <div
                                     key={estimate.id}
-                                    className="bg-white border border-slate-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
                                 >
                                     {/* ヘッダー: 見積番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">

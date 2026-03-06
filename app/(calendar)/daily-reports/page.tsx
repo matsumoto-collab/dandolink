@@ -10,6 +10,7 @@ import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Search, Trash2, Clock, Calendar, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
+import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
@@ -195,24 +196,24 @@ export default function DailyReportPage() {
                             placeholder="職長名、備考で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
+                            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
-                    <button
+                    <Button
+                        variant="gradient"
                         onClick={handleAddNew}
-                        className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white font-semibold rounded-lg hover:from-slate-800 hover:to-slate-900 active:scale-95 transition-all duration-200 shadow-md hover:shadow-lg"
+                        leftIcon={<Plus className="w-5 h-5" />}
                     >
-                        <Plus className="w-5 h-5" />
                         <span className="hidden sm:inline">新規日報追加</span>
                         <span className="sm:hidden">新規追加</span>
-                    </button>
+                    </Button>
                 </div>
 
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <select
                         value={foremanFilter}
                         onChange={(e) => setForemanFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全ての職長</option>
                         {allForemen.map(foreman => (
@@ -226,7 +227,7 @@ export default function DailyReportPage() {
                             type="date"
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-4 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                            className="flex-1 sm:flex-none px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                         />
                         {dateFilter && (
                             <button
@@ -280,7 +281,7 @@ export default function DailyReportPage() {
                         <Loading text="読み込み中..." />
                     </div>
                 ) : filteredReports.length === 0 ? (
-                    <div className="text-center py-12 bg-white rounded-lg border border-slate-200">
+                    <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
                         <p className="text-slate-500">
                             {searchTerm || foremanFilter !== 'all' || dateFilter
                                 ? '検索結果が見つかりませんでした'
@@ -295,7 +296,7 @@ export default function DailyReportPage() {
                             return (
                                 <div
                                     key={report.id}
-                                    className="bg-white rounded-lg md:rounded-none border border-slate-200 md:border-0 hover:bg-slate-50 transition-colors cursor-pointer"
+                                    className="bg-white rounded-xl md:rounded-none border border-slate-200 md:border-0 hover:bg-slate-50 transition-colors cursor-pointer"
                                     onClick={() => handleViewReport(report)}
                                 >
                                     {/* モバイル表示 */}

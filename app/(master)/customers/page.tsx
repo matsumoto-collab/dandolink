@@ -85,15 +85,19 @@ export default function CustomersPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 space-y-6 bg-gradient-to-br from-slate-50 to-white min-h-full">
+        <div className="p-4 sm:p-6 space-y-6 bg-gradient-to-br from-slate-50 to-white min-h-full w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="flex items-center justify-between">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                    顧客一覧
-                </h1>
+                <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                        顧客一覧
+                    </h1>
+                    <p className="text-slate-600">登録されている全ての顧客を管理できます</p>
+                </div>
                 <Button
+                    variant="gradient"
                     onClick={() => setIsModalOpen(true)}
-                    leftIcon={<Plus className="w-4 h-4" />}
+                    leftIcon={<Plus className="w-5 h-5" />}
                 >
                     新規登録
                 </Button>
@@ -107,7 +111,7 @@ export default function CustomersPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="顧客名または担当者名で検索..."
-                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                 />
             </div>
 
@@ -139,7 +143,7 @@ export default function CustomersPage() {
                     {filteredCustomers.map((customer) => (
                         <div
                             key={customer.id}
-                            className="bg-white border border-slate-200 rounded-lg p-5 hover:shadow-lg transition-shadow"
+                            className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
                         >
                             {/* 会社名 */}
                             <div className="flex items-start justify-between mb-3">

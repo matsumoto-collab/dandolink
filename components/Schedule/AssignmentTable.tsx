@@ -166,7 +166,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             )}
 
             {/* 日付ナビゲーション */}
-            <div className="flex-shrink-0 bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+            <div className="flex-shrink-0 bg-white rounded-xl shadow-sm border border-slate-200 p-4">
                 <div className="flex items-center justify-between gap-3">
                     <button
                         onClick={() => changeDate(-1)}
@@ -218,7 +218,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 <div className="space-y-4">
                     {userRole === 'worker' ? (
                         Object.keys(assignmentsByEmployee).length === 0 ? (
-                            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                                 <div className="py-8 text-center text-slate-300 text-sm">担当現場なし</div>
                             </div>
                         ) : (
@@ -310,7 +310,7 @@ function ForemanSection({
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             {/* 職長ヘッダー */}
             <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-200">
                 <div className="flex items-center gap-2.5">
@@ -402,7 +402,7 @@ function ProjectCard({
     return (
         <div
             onClick={() => onProjectClick?.(project)}
-            className={`mx-3 my-2 rounded-2xl border transition-all shadow-sm ${onProjectClick ? 'cursor-pointer active:scale-[0.98]' : ''} ${
+            className={`mx-3 my-2 rounded-xl border transition-all shadow-sm ${onProjectClick ? 'cursor-pointer active:scale-[0.98]' : ''} ${
             isConfirmed
                 ? 'bg-white border-slate-300'
                 : 'bg-white border-slate-200'
