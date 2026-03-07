@@ -172,7 +172,7 @@ export default function UserManagement() {
     const getRoleBadgeColor = (role: string) => {
         switch (role) {
             case 'admin':
-                return 'bg-slate-100 text-purple-800';
+                return 'bg-slate-100 text-slate-800';
             case 'manager':
                 return 'bg-slate-100 text-slate-700';
             case 'foreman1':
@@ -225,7 +225,7 @@ export default function UserManagement() {
                 </div>
                 <button
                     onClick={handleCreateUser}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-md hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="hidden sm:inline">ユーザー追加</span>
@@ -237,7 +237,7 @@ export default function UserManagement() {
             <div className="hidden md:block bg-white rounded-xl shadow-lg overflow-hidden border border-slate-200">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-gradient-to-r from-slate-50 to-slate-100 border-b border-slate-200">
+                        <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider">
                                     ユーザー

@@ -263,11 +263,11 @@ export default function ProjectMasterListPage() {
                 onSubmit={handleEstimateSubmit}
                 initialData={estimateInitialData}
             />
-            <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden bg-gradient-to-br from-slate-50 to-white">
+            <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden bg-slate-50">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-3 md:mb-6">
                     <div>
-                        <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">案件一覧</h1>
+                        <h1 className="text-3xl font-bold text-slate-800 mb-2">案件一覧</h1>
                         <p className="text-slate-600">
                             {filteredMasters.length}件の案件データ
                         </p>
@@ -302,7 +302,7 @@ export default function ProjectMasterListPage() {
 
                         {!isForeman2 && (
                             <Button
-                                variant="gradient"
+                                variant="primary"
                                 onClick={() => setIsCreating(true)}
                                 leftIcon={<Plus className="w-5 h-5" />}
                             >

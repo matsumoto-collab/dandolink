@@ -83,7 +83,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     return (
         <div className="bg-white rounded-lg shadow overflow-hidden">
             {/* ヘッダー */}
-            <div className="px-6 py-4 bg-gradient-to-r from-slate-700 to-slate-600">
+            <div className="px-6 py-4 bg-slate-700">
                 <h3 className="text-lg font-bold text-white flex items-center gap-2">
                     <DollarSign className="w-5 h-5" />
                     利益サマリー
@@ -176,7 +176,7 @@ interface CostItemProps {
 function CostItem({ icon: Icon, label, amount, color }: CostItemProps) {
     const colorClasses = {
         blue: 'bg-slate-50 text-slate-600',
-        purple: 'bg-purple-50 text-slate-600',
+        purple: 'bg-slate-50 text-slate-600',
         teal: 'bg-teal-50 text-teal-700',
         amber: 'bg-slate-50 text-slate-600',
         orange: 'bg-slate-50 text-slate-600',

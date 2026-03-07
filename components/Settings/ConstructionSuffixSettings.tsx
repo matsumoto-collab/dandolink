@@ -140,7 +140,7 @@ export default function ConstructionSuffixSettings() {
                 />
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-md hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
+                    className="px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     追加

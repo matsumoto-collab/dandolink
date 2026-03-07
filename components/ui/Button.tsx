@@ -30,12 +30,11 @@ const variantStyles: Record<ButtonVariant, string> = {
     shadow-sm
   `,
   gradient: `
-    bg-gradient-to-r from-slate-700 to-slate-800
+    bg-slate-800
     text-white
-    hover:from-slate-800 hover:to-slate-900
+    hover:bg-slate-700
     focus:ring-slate-500
-    shadow-md hover:shadow-lg
-    active:scale-95
+    shadow-sm
   `,
   secondary: `
     bg-slate-100

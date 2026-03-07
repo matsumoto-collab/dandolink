@@ -18,7 +18,7 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
                     px-6 py-3 font-medium text-sm transition-all duration-300
                     border-b-2 -mb-px rounded-t-lg
                     ${activeView === 'calendar'
-                        ? 'border-slate-700 text-white bg-gradient-to-r from-slate-700 to-slate-600 shadow-lg shadow-slate-900/30'
+                        ? 'border-slate-700 text-white bg-slate-700 shadow-sm'
                         : 'border-transparent text-slate-600 hover:text-slate-800 hover:bg-slate-100'
                     }
                 `}
@@ -37,7 +37,7 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
                     px-6 py-3 font-medium text-sm transition-all duration-300
                     border-b-2 -mb-px rounded-t-lg
                     ${activeView === 'assignment'
-                        ? 'border-slate-700 text-white bg-gradient-to-r from-slate-700 to-slate-600 shadow-lg shadow-slate-900/30'
+                        ? 'border-slate-700 text-white bg-slate-700 shadow-sm'
                         : 'border-transparent text-slate-600 hover:text-slate-800 hover:bg-slate-100'
                     }
                 `}

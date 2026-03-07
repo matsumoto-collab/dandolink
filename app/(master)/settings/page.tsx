@@ -118,11 +118,11 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 to-white">
+        <div className="min-h-screen bg-slate-50">
             <div className="p-3 sm:p-6 lg:p-8">
                 {/* Header */}
                 <div className="mb-4 md:mb-8">
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">マスター・設定</h1>
+                    <h1 className="text-3xl font-bold text-slate-800 mb-2">マスター・設定</h1>
                     <p className="text-slate-600">マスターデータを管理します</p>
                 </div>
 
@@ -137,7 +137,7 @@ export default function SettingsPage() {
                                     className={`
                                         px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-all duration-300 whitespace-nowrap flex-shrink-0
                                         ${activeTab === tab.id
-                                            ? 'border-slate-700 text-slate-900 bg-gradient-to-t from-slate-100 to-transparent'
+                                            ? 'border-slate-700 text-slate-900 bg-slate-100'
                                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
                                         }
                                     `}
@@ -159,7 +159,7 @@ export default function SettingsPage() {
                             // Total Members Configuration
                             <div className="max-w-md">
                                 <h3 className="text-lg font-semibold text-slate-900 mb-4">総メンバー数の設定</h3>
-                                <div className="bg-gradient-to-r from-slate-100 to-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
+                                <div className="bg-slate-100 border border-slate-200 rounded-xl p-4 mb-4">
                                     <p className="text-sm text-slate-700">
                                         現在の設定: <span className="font-bold text-xl">{totalMembers}</span>人
                                     </p>
@@ -183,7 +183,7 @@ export default function SettingsPage() {
                                     </div>
                                     <button
                                         onClick={handleSaveTotalMembers}
-                                        className="w-full px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-xl hover:from-slate-800 hover:to-slate-900 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                                        className="w-full px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                                     >
                                         保存
                                     </button>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
                                     />
                                     <button
                                         onClick={handleAdd}
-                                        className="px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-xl hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
+                                        className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
                                     >
                                         <Plus className="w-4 h-4" />
                                         追加

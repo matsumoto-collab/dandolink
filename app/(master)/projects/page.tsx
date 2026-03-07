@@ -135,10 +135,10 @@ export default function ProjectListPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
+        <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-3xl font-bold text-slate-800 mb-2">
                     案件一覧
                 </h1>
                 <p className="text-slate-600">登録されている全ての案件を管理できます</p>
@@ -173,7 +173,7 @@ export default function ProjectListPage() {
 
                 {/* 新規追加ボタン */}
                 <Button
-                    variant="gradient"
+                    variant="primary"
                     onClick={handleAddNew}
                     leftIcon={<Plus className="w-5 h-5" />}
                 >
@@ -272,7 +272,7 @@ export default function ProjectListPage() {
             {/* デスクトップテーブルビュー */}
             <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
                 <table className="min-w-full divide-y divide-slate-200">
-                    <thead className="bg-gradient-to-r from-slate-100 to-slate-50 sticky top-0 z-10">
+                    <thead className="bg-slate-100 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 現場名
@@ -314,7 +314,7 @@ export default function ProjectListPage() {
                             filteredAndSortedProjects.map((project) => (
                                 <tr
                                     key={project.id}
-                                    className="hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200"
+                                    className="hover:bg-slate-50 transition-all duration-200"
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="flex items-center">

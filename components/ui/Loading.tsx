@@ -68,7 +68,7 @@ export default function Loading({
     // フルスクリーン表示
     if (fullScreen) {
         return (
-            <div className="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-slate-50 to-white z-40">
+            <div className="fixed inset-0 flex items-center justify-center bg-slate-50 z-40">
                 {spinner}
             </div>
         );

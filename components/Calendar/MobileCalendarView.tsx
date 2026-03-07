@@ -194,7 +194,7 @@ export default function MobileCalendarView({
                     {/* 日付ヘッダー行（sticky top） */}
                     <div className="flex sticky top-0 z-20 border-b-2 border-slate-300 shadow-sm" style={{ height: 40 }}>
                         <div
-                            className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
+                            className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
                             style={{ width: LABEL_W }}
                         >
                             <span className="text-[10px] font-bold text-slate-600 tracking-wide">職長</span>
@@ -208,10 +208,10 @@ export default function MobileCalendarView({
                                 <div
                                     key={dateKey}
                                     className={`flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
-                                        isToday ? 'bg-gradient-to-b from-slate-700 to-slate-600'
-                                        : isSat ? 'bg-gradient-to-b from-blue-100 to-blue-50'
-                                        : isSun ? 'bg-gradient-to-b from-rose-100 to-rose-50'
-                                        : 'bg-gradient-to-b from-slate-100 to-slate-50'
+                                        isToday ? 'bg-slate-700'
+                                        : isSat ? 'bg-blue-50'
+                                        : isSun ? 'bg-rose-50'
+                                        : 'bg-slate-100'
                                     }`}
                                     style={{ width: COL_W }}
                                 >
@@ -228,11 +228,11 @@ export default function MobileCalendarView({
 
                     {/* 空き人数行（sticky: ヘッダー直下） */}
                     <div
-                        className="flex sticky top-[40px] z-[15] border-b-2 border-slate-300 bg-gradient-to-r from-slate-100 to-slate-50 shadow-sm"
+                        className="flex sticky top-[40px] z-[15] border-b-2 border-slate-300 bg-slate-100 shadow-sm"
                         style={{ height: 28 }}
                     >
                         <div
-                            className="sticky left-0 z-20 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
+                            className="sticky left-0 z-20 bg-slate-100 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
                             style={{ width: LABEL_W }}
                         >
                             <span className="text-[9px] font-bold text-slate-500">空き</span>

@@ -85,17 +85,17 @@ export default function CustomersPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 space-y-6 bg-gradient-to-br from-slate-50 to-white min-h-full w-full max-w-[1800px] mx-auto">
+        <div className="p-4 sm:p-6 space-y-6 bg-slate-50 min-h-full w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                    <h1 className="text-3xl font-bold text-slate-800 mb-2">
                         顧客一覧
                     </h1>
                     <p className="text-slate-600">登録されている全ての顧客を管理できます</p>
                 </div>
                 <Button
-                    variant="gradient"
+                    variant="primary"
                     onClick={() => setIsModalOpen(true)}
                     leftIcon={<Plus className="w-5 h-5" />}
                 >

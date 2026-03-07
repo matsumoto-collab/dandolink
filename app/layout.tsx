@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Noto_Sans_JP } from "next/font/google";
 import "./globals.css";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import AuthProvider from '@/components/AuthProvider';
@@ -9,7 +9,12 @@ import { CalendarProviders } from './providers/CalendarProviders';
 import { FinanceProviders } from './providers/FinanceProviders';
 import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const notoSansJP = Noto_Sans_JP({
+    subsets: ["latin"],
+    weight: ["400", "500", "700"],
+    variable: "--font-noto",
+});
 
 // viewport は metadata とは別に定義（Next.js 14+ 推奨）
 export const viewport: Viewport = {
@@ -42,7 +47,7 @@ export default function RootLayout({
 }) {
     return (
         <html lang="ja">
-            <body className={inter.className}>
+            <body className={`${notoSansJP.variable} ${inter.variable} font-sans`}>
                 <Toaster
                     position="top-center"
                     toastOptions={{

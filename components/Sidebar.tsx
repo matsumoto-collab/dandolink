@@ -12,6 +12,7 @@ import {
     ShoppingCart,
     Users,
     Building,
+    Landmark,
     Settings,
     HelpCircle,
     LogOut,
@@ -54,7 +55,7 @@ const navigationSections: NavSection[] = [
         items: [
             { name: '協力会社', icon: Users, page: 'partners' },
             { name: '顧客管理', icon: Building, page: 'customers' },
-            { name: '自社情報', icon: Building, page: 'company' },
+            { name: '自社情報', icon: Landmark, page: 'company' },
             { name: '設定', icon: Settings, page: 'settings' },
         ],
     },
