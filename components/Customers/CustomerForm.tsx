@@ -274,7 +274,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                 </button>
                 <button
                     type="submit"
-                    className="px-6 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg hover:from-slate-800 hover:to-slate-900 transition-all shadow-md hover:shadow-lg"
+                    className="px-6 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all shadow-md hover:shadow-lg"
                 >
                     保存
                 </button>

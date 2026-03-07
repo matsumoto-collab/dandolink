@@ -177,10 +177,10 @@ export default function DailyReportPage() {
     };
 
     return (
-        <div className="p-4 sm:p-6 h-full flex flex-col bg-gradient-to-br from-slate-50 to-white w-full max-w-[1800px] mx-auto">
+        <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent mb-2">
+                <h1 className="text-3xl font-bold text-slate-800 mb-2">
                     日報一覧
                 </h1>
                 <p className="text-slate-600">登録されている日報を管理できます</p>
@@ -200,7 +200,7 @@ export default function DailyReportPage() {
                         />
                     </div>
                     <Button
-                        variant="gradient"
+                        variant="primary"
                         onClick={handleAddNew}
                         leftIcon={<Plus className="w-5 h-5" />}
                     >
@@ -242,7 +242,7 @@ export default function DailyReportPage() {
             </div>
 
             {/* デスクトップ: テーブルヘッダー */}
-            <div className="hidden md:block bg-gradient-to-r from-slate-100 to-slate-50 rounded-t-xl border border-slate-200 border-b-0 select-none">
+            <div className="hidden md:block bg-slate-100 rounded-t-xl border border-slate-200 border-b-0 select-none">
                 <div className="grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 text-xs font-bold text-slate-800 uppercase tracking-wider">
                     <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('date')}>
                         <Calendar className="w-3.5 h-3.5" />

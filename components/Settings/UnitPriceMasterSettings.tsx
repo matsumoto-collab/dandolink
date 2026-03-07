@@ -96,7 +96,7 @@ export default function UnitPriceMasterSettings() {
                 <h3 className="text-lg font-semibold text-slate-900">単価マスター管理</h3>
                 <button
                     onClick={() => handleOpenForm()}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-md hover:from-slate-800 hover:to-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     新規登録
@@ -263,7 +263,7 @@ export default function UnitPriceMasterSettings() {
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-6 py-2.5 bg-gradient-to-r from-slate-700 to-slate-800 text-white rounded-lg hover:from-slate-800 hover:to-slate-900 transition-all"
+                                        className="px-6 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all"
                                     >
                                         保存
                                     </button>

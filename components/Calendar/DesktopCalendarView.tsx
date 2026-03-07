@@ -91,13 +91,13 @@ export default function DesktopCalendarView({
                     onToday={goToToday}
                 />
 
-                <div className="flex-1 overflow-auto bg-gradient-to-br from-slate-50 via-white to-slate-50">
+                <div className="flex-1 overflow-auto bg-slate-50">
                     <div className="flex flex-col min-w-full">
                         {/* ヘッダー行: 日付と曜日 + 残り人数行 を1つのstickyコンテナにまとめる */}
                         <div className="sticky top-0 z-20 shadow-md">
                             {/* 日付・曜日ヘッダー行 */}
-                            <div className="flex border-b-2 border-slate-300 bg-gradient-to-r from-slate-100 to-slate-50">
-                                <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-300 shadow-md">
+                            <div className="flex border-b-2 border-slate-300 bg-slate-100">
+                                <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-300 shadow-md">
                                     <div className="w-32 h-8 flex items-center justify-center font-bold text-slate-700 text-xs tracking-wide">職長</div>
                                 </div>
                                 {weekDays.map((day, index) => {
@@ -108,7 +108,7 @@ export default function DesktopCalendarView({
                                     const combinedDate = `${dateString}(${dayOfWeekString})`;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center ${isSaturday ? 'bg-gradient-to-b from-blue-100 to-blue-50' : isSunday ? 'bg-gradient-to-b from-rose-100 to-rose-50' : 'bg-gradient-to-b from-slate-100 to-slate-50'} ${day.isToday ? 'bg-gradient-to-r from-slate-700 to-slate-600' : ''}`}>
+                                        <div key={index} className={`flex-1 min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-slate-700' : ''}`}>
                                             <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>{combinedDate}</div>
                                         </div>
                                     );
@@ -116,8 +116,8 @@ export default function DesktopCalendarView({
                             </div>
 
                             {/* 未割り当て行 */}
-                            <div className="flex border-b-2 border-slate-400 bg-gradient-to-r from-slate-100 to-slate-50 h-9">
-                                <div className="sticky left-0 z-30 bg-gradient-to-r from-slate-100 to-slate-50 border-r-2 border-slate-400 shadow-md">
+                            <div className="flex border-b-2 border-slate-400 bg-slate-100 h-9">
+                                <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-400 shadow-md">
                                     <div className="w-32 h-full flex items-center justify-center">
                                         <span className="text-xs font-bold text-slate-700 tracking-wide truncate">{'残り人数'}</span>
                                     </div>
@@ -173,7 +173,7 @@ export default function DesktopCalendarView({
                             ))}
                         </div>
 
-                        <div className="flex border-t-2 border-slate-300 bg-gradient-to-r from-slate-50 to-white p-4">
+                        <div className="flex border-t-2 border-slate-300 bg-slate-50 p-4">
                             <ForemanSelector />
                         </div>
                     </div>

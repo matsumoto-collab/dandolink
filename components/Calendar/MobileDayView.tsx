@@ -60,7 +60,7 @@ export default function MobileDayView({
     };
 
     return (
-        <div className="h-full flex flex-col bg-gradient-to-br from-slate-50 via-white to-slate-100">
+        <div className="h-full flex flex-col bg-slate-50">
             {/* ヘッダー: 日付ナビゲーション */}
             <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 py-3 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -121,7 +121,7 @@ export default function MobileDayView({
                                 className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden"
                             >
                                 {/* 職長名ヘッダー */}
-                                <div className="bg-gradient-to-r from-slate-700 to-slate-600 px-4 py-2">
+                                <div className="bg-slate-700 px-4 py-2">
                                     <h3 className="text-white font-medium text-sm">
                                         {employee.name}
                                     </h3>
@@ -190,7 +190,7 @@ export default function MobileDayView({
             {!isReadOnly && onAddEvent && (
                 <button
                     onClick={onAddEvent}
-                    className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-full shadow-lg flex items-center justify-center hover:from-blue-700 hover:to-blue-800 active:scale-95 transition-all z-50"
+                    className="fixed bottom-6 right-6 w-14 h-14 bg-slate-800 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all z-50"
                 >
                     <Plus className="w-7 h-7" />
                 </button>

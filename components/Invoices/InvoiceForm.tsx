@@ -355,7 +355,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 </button>
                 <button
                     type="submit"
-                    className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all shadow-md hover:shadow-lg"
+                    className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all shadow-md hover:shadow-lg"
                 >
                     保存
                 </button>
