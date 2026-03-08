@@ -315,7 +315,7 @@ export default function MobileCalendarView({
                     {!isReadOnly && (
                         <div className="flex border-b-2 border-slate-300 bg-teal-50/80" style={{ minHeight: 48 }}>
                             <div
-                                className="sticky left-0 z-20 bg-teal-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
+                                className="sticky left-0 z-[5] bg-teal-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
                                 style={{ width: LABEL_W }}
                             >
                                 <span className="text-[9px] font-bold text-slate-700">備考</span>
