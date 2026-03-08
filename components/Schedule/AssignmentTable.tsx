@@ -591,7 +591,7 @@ function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
     return (
         <>
             <div className="fixed inset-0 bg-black/40 z-[60]" onClick={onClose} />
-            <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[70] animate-slide-up safe-area-bottom">
+            <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-white rounded-t-2xl shadow-2xl z-[70] animate-slide-up safe-area-bottom">
                 <div className="flex justify-center pt-3 pb-2">
                     <div className="w-10 h-1 bg-slate-300 rounded-full" />
                 </div>
