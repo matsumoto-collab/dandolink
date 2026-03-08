@@ -462,6 +462,13 @@ function ProjectCard({
                         {project.title}
                     </h4>
 
+                    {/* 元請 */}
+                    {project.customer && (
+                        <div className="text-sm text-[rgb(var(--color-navy-accent))] mt-0.5 truncate">
+                            {project.customer}
+                        </div>
+                    )}
+
                     {/* 場所 */}
                     {project.location && (
                         <div className="flex items-center gap-1.5 mt-1.5">
