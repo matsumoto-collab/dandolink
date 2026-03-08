@@ -113,7 +113,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                                 className="px-2 py-0.5 text-xs font-medium rounded-full"
                                 style={{
                                     backgroundColor: `${getConstructionTypeInfo(item.constructionType).color}30`,
-                                    color: getConstructionTypeInfo(item.constructionType).color,
+                                    color: '#000000',
                                 }}
                             >
                                 {getConstructionTypeInfo(item.constructionType).label}
