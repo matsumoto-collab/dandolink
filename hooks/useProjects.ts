@@ -360,9 +360,19 @@ export function useProjects() {
         const masterType = constructionTypes.find(ct => ct.id === constructionType || ct.name === constructionType);
         const color = masterType?.color || DEFAULT_CONSTRUCTION_TYPE_COLORS[constructionType] || DEFAULT_CONSTRUCTION_TYPE_COLORS.other;
 
+        // カード表示用: name+honorific（工事名称なし）。nameが無い旧データはtitleにフォールバック
+        const pm = a.projectMaster;
+        const hasNameField = !!pm?.name;
+        const displayTitle = hasNameField
+            ? `${pm!.name}${(pm as any)?.honorific || ''}` || pm?.title || '不明な案件'
+            : pm?.title || '不明な案件';
+
         return {
             id: a.id,
-            title: a.projectMaster?.title || '不明な案件',
+            title: displayTitle,
+            name: hasNameField ? pm!.name : undefined,
+            honorific: hasNameField ? (pm as any)?.honorific : undefined,
+            constructionSuffixId: (pm as any)?.constructionSuffixId,
             startDate: a.date,
             category: 'construction' as const,
             color,
