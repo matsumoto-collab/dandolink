@@ -52,9 +52,9 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
     const resolvedName = hasNameField ? pm!.name : pm?.title || '';
     const resolvedHonorific = hasNameField ? (pm!.honorific ?? '様邸') : '';
 
-    // カード表示用: nameのみ（敬称・工事名称は非表示）
+    // カード表示用: name+honorific（工事名称は非表示）
     const cardTitle = hasNameField
-        ? (pm!.name || '不明な案件')
+        ? `${pm!.name || ''}${pm!.honorific || ''}` || '不明な案件'
         : pm?.title || '不明な案件';
 
     return {
