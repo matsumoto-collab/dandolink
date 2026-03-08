@@ -1,10 +1,13 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
+import { useVacation } from '@/hooks/useVacation';
+import { useCalendarStore } from '@/stores/calendarStore';
+import VacationSelector from './VacationSelector';
 
 interface MobileCalendarViewProps {
     weekDays: WeekDay[];
@@ -62,6 +65,42 @@ export default function MobileCalendarView({
     handleMoveToCell,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
+
+    // ── 備考・休暇 ──
+    const { getRemarks, setRemarks, getVacationEmployees: getVacEmp, addVacationEmployee, removeVacationEmployee } = useVacation();
+    const { setCellRemark } = useCalendarStore();
+    const cellRemarks = useCalendarStore(state => state.cellRemarks);
+
+    // 備考編集
+    const [editingRemark, setEditingRemark] = useState<string | null>(null);
+    const [remarkTemp, setRemarkTemp] = useState<{ [key: string]: string }>({});
+
+    const startEditRemark = useCallback((dateKey: string) => {
+        if (isReadOnly) return;
+        setEditingRemark(dateKey);
+        setRemarkTemp(prev => ({ ...prev, [dateKey]: getRemarks(dateKey) }));
+    }, [isReadOnly, getRemarks]);
+
+    const saveRemark = useCallback((dateKey: string) => {
+        setRemarks(dateKey, remarkTemp[dateKey] || '');
+        setEditingRemark(null);
+    }, [remarkTemp, setRemarks]);
+
+    // セルメモ編集
+    const [editingCellMemo, setEditingCellMemo] = useState<{ foremanId: string; dateKey: string } | null>(null);
+    const [cellMemoTemp, setCellMemoTemp] = useState('');
+
+    const startEditCellMemo = useCallback((foremanId: string, dateKey: string) => {
+        if (isReadOnly) return;
+        setEditingCellMemo({ foremanId, dateKey });
+        setCellMemoTemp(cellRemarks[`${foremanId}-${dateKey}`] || '');
+    }, [isReadOnly, cellRemarks]);
+
+    const saveCellMemo = useCallback(() => {
+        if (!editingCellMemo) return;
+        setCellRemark(editingCellMemo.foremanId, editingCellMemo.dateKey, cellMemoTemp);
+        setEditingCellMemo(null);
+    }, [editingCellMemo, cellMemoTemp, setCellRemark]);
 
     // ── アクションシート ──
     const [actionSheet, setActionSheet] = useState<ActionSheetState>({
@@ -272,6 +311,64 @@ export default function MobileCalendarView({
                         })}
                     </div>
 
+                    {/* 備考行（休暇+フリーテキスト） */}
+                    {!isReadOnly && (
+                        <div className="flex border-b-2 border-slate-300 bg-teal-50/80" style={{ minHeight: 48 }}>
+                            <div
+                                className="sticky left-0 z-20 bg-teal-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
+                                style={{ width: LABEL_W }}
+                            >
+                                <span className="text-[9px] font-bold text-slate-700">備考</span>
+                            </div>
+                            {weekDays.map((day) => {
+                                const dateKey = formatDateKey(day.date);
+                                const isEditing = editingRemark === dateKey;
+                                const remarkText = isEditing ? (remarkTemp[dateKey] ?? '') : getRemarks(dateKey);
+                                const vacIds = getVacEmp(dateKey);
+
+                                return (
+                                    <div
+                                        key={dateKey}
+                                        className="flex-shrink-0 border-r border-slate-200 p-1"
+                                        style={{ width: COL_W }}
+                                    >
+                                        {/* 休暇バッジ（コンパクト版） */}
+                                        <VacationSelector
+                                            dateKey={dateKey}
+                                            selectedEmployeeIds={vacIds}
+                                            onAddEmployee={(empId) => addVacationEmployee(dateKey, empId)}
+                                            onRemoveEmployee={(empId) => removeVacationEmployee(dateKey, empId)}
+                                        />
+                                        {/* フリーテキスト備考 */}
+                                        <div
+                                            onClick={() => !isEditing && startEditRemark(dateKey)}
+                                            className={!isEditing ? 'cursor-text' : ''}
+                                        >
+                                            {isEditing ? (
+                                                <textarea
+                                                    autoFocus
+                                                    value={remarkText}
+                                                    onChange={(e) => setRemarkTemp(prev => ({ ...prev, [dateKey]: e.target.value }))}
+                                                    onBlur={() => saveRemark(dateKey)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveRemark(dateKey); }
+                                                        else if (e.key === 'Escape') setEditingRemark(null);
+                                                    }}
+                                                    className="w-full min-h-[32px] p-1 text-[9px] resize-none border border-slate-400 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 bg-white"
+                                                    placeholder="備考を入力..."
+                                                />
+                                            ) : (
+                                                <div className={`w-full min-h-[20px] p-0.5 text-[9px] whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white' : 'text-slate-400 italic'}`}>
+                                                    {remarkText || 'タップで入力'}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
                     {/* 職長行 */}
                     {employeeRows.length === 0 ? (
                         <div className="py-16 text-center text-slate-400 text-sm">表示する職長がいません</div>
@@ -329,20 +426,36 @@ export default function MobileCalendarView({
                                             style={{ width: COL_W }}
                                         >
                                             {isEmpty ? (
-                                                movingEvent ? (
-                                                    // 移動モード: 空きセルは移動先候補として点線丸を表示
-                                                    <div className="h-full min-h-[72px] flex items-center justify-center pointer-events-none">
-                                                        <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-400 flex items-center justify-center">
-                                                            <Plus className="w-4 h-4 text-slate-400" />
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    !isReadOnly && (
-                                                        <div className="h-full min-h-[72px] flex items-center justify-center pointer-events-none">
+                                                <div className="flex flex-col h-full min-h-[72px]">
+                                                    <div className="flex-1 flex items-center justify-center pointer-events-none">
+                                                        {movingEvent ? (
+                                                            <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-400 flex items-center justify-center">
+                                                                <Plus className="w-4 h-4 text-slate-400" />
+                                                            </div>
+                                                        ) : !isReadOnly ? (
                                                             <Plus className="w-4 h-4 text-slate-200" />
-                                                        </div>
-                                                    )
-                                                )
+                                                        ) : null}
+                                                    </div>
+                                                    {/* 空セルのメモ */}
+                                                    {(() => {
+                                                        const memo = cellRemarks[`${row.employeeId}-${dateKey}`] || '';
+                                                        return memo ? (
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-slate-800 text-white mt-auto whitespace-pre-wrap break-words leading-tight"
+                                                            >
+                                                                {memo}
+                                                            </div>
+                                                        ) : !isReadOnly && !movingEvent ? (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full flex items-center justify-center py-0.5 text-slate-200 hover:text-slate-400 transition-colors mt-auto"
+                                                            >
+                                                                <Pencil className="w-2.5 h-2.5" />
+                                                            </button>
+                                                        ) : null;
+                                                    })()}
+                                                </div>
                                             ) : (
                                                 <div className="space-y-1 py-0.5">
                                                     {cellEvents.map((event) => {
@@ -429,6 +542,26 @@ export default function MobileCalendarView({
                                                             <Plus className="w-3 h-3" />
                                                         </button>
                                                     )}
+
+                                                    {/* セルメモ */}
+                                                    {(() => {
+                                                        const memo = cellRemarks[`${row.employeeId}-${dateKey}`] || '';
+                                                        return memo ? (
+                                                            <div
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-slate-800 text-white mt-0.5 whitespace-pre-wrap break-words leading-tight"
+                                                            >
+                                                                {memo}
+                                                            </div>
+                                                        ) : !isReadOnly && !movingEvent ? (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
+                                                                className="w-full flex items-center justify-center py-0.5 text-slate-200 hover:text-slate-400 transition-colors"
+                                                            >
+                                                                <Pencil className="w-2.5 h-2.5" />
+                                                            </button>
+                                                        ) : null;
+                                                    })()}
                                                 </div>
                                             )}
                                         </div>
@@ -537,6 +670,40 @@ export default function MobileCalendarView({
                             >
                                 閉じる
                             </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* セルメモ編集モーダル */}
+            {editingCellMemo && (
+                <>
+                    <div className="fixed inset-0 bg-black/40 z-40" onClick={saveCellMemo} />
+                    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 animate-slide-up safe-area-bottom">
+                        <div className="flex justify-center pt-3 pb-2">
+                            <div className="w-10 h-1 bg-slate-300 rounded-full" />
+                        </div>
+                        <div className="px-4 pb-2">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-bold text-slate-700">メモ編集</span>
+                                <button
+                                    onClick={saveCellMemo}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors"
+                                >
+                                    <Check className="w-3 h-3" /> 保存
+                                </button>
+                            </div>
+                            <textarea
+                                autoFocus
+                                value={cellMemoTemp}
+                                onChange={(e) => setCellMemoTemp(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveCellMemo(); }
+                                    else if (e.key === 'Escape') setEditingCellMemo(null);
+                                }}
+                                className="w-full min-h-[80px] p-3 text-sm border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 resize-none"
+                                placeholder="メモを入力..."
+                            />
                         </div>
                     </div>
                 </>
