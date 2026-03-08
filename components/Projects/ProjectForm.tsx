@@ -23,6 +23,33 @@ const HONORIFIC_OPTIONS = [
     { value: '', label: 'なし' },
 ];
 
+// 旧データ: titleから名前・敬称・工事名称をパースする
+function parseTitleIntoFields(title: string, suffixes: ConstructionSuffixItem[]) {
+    let name = title;
+    let honorific = '';
+    let suffixId = '';
+    // 工事名称マスタとマッチングして除去（末尾スペース+名称）
+    for (const s of suffixes) {
+        if (title.endsWith(' ' + s.name)) {
+            name = title.slice(0, -(s.name.length + 1));
+            suffixId = s.id;
+            break;
+        }
+    }
+    // 敬称をマッチングして除去（長い順にチェック）
+    const sortedHonorifics = HONORIFIC_OPTIONS
+        .filter(opt => opt.value)
+        .sort((a, b) => b.value.length - a.value.length);
+    for (const opt of sortedHonorifics) {
+        if (name.endsWith(opt.value)) {
+            name = name.slice(0, -opt.value.length);
+            honorific = opt.value;
+            break;
+        }
+    }
+    return { name, honorific, suffixId };
+}
+
 interface ConstructionSuffixItem {
     id: string;
     name: string;
@@ -94,6 +121,23 @@ export default function ProjectForm({
         constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
         remarks: initialData?.remarks || '',
     });
+
+    // 旧データ（name未設定）の場合、constructionSuffixes取得後にtitleをパースして分離
+    const hasInitialNameRef = useRef(hasInitialName);
+    useEffect(() => {
+        if (!hasInitialNameRef.current && constructionSuffixes.length > 0 && initialData?.title) {
+            const parsed = parseTitleIntoFields(initialData.title, constructionSuffixes);
+            // パースで実際に分離できた場合のみ更新（敬称 or suffixIdが見つかった場合）
+            if (parsed.honorific || parsed.suffixId) {
+                setFormData(prev => ({
+                    ...prev,
+                    name: parsed.name,
+                    honorific: parsed.honorific,
+                    constructionSuffixId: parsed.suffixId,
+                }));
+            }
+        }
+    }, [constructionSuffixes, initialData?.title]);
 
     // 複数日スケジュール管理用の状態
     const [useMultiDaySchedule, setUseMultiDaySchedule] = useState(false);
@@ -388,436 +432,434 @@ export default function ProjectForm({
 
     return (
         <>
-        <form onSubmit={handleSubmit} className="space-y-4">
-            {/* 現場名（3フィールド分離） */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    現場名 <span className="text-slate-500">*</span>
-                </label>
-                <div className="space-y-3">
-                    {/* 1行目: 名前（フル幅） */}
-                    <div>
-                        <label className="block text-xs text-slate-500 mb-1">名前</label>
-                        <input
-                            type="text"
-                            required
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
-                            placeholder="例: 佐藤"
-                        />
-                    </div>
-                    {/* 2行目: 敬称 + 工事名称 */}
-                    <div className="flex gap-3">
-                        <div className="flex-1">
-                            <label className="block text-xs text-slate-500 mb-1">敬称</label>
-                            <select
-                                value={formData.honorific}
-                                onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
+            <form onSubmit={handleSubmit} className="space-y-4">
+                {/* 現場名（3フィールド分離） */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                        現場名 <span className="text-slate-500">*</span>
+                    </label>
+                    <div className="space-y-3">
+                        {/* 1行目: 名前（フル幅） */}
+                        <div>
+                            <label className="block text-xs text-slate-500 mb-1">名前</label>
+                            <input
+                                type="text"
+                                required
+                                value={formData.name}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
-                            >
-                                {HONORIFIC_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                ))}
-                            </select>
+                                placeholder="例: 佐藤"
+                            />
                         </div>
-                        <div className="flex-[2]">
-                            <label className="block text-xs text-slate-500 mb-1">工事名称</label>
-                            <select
-                                value={formData.constructionSuffixId}
-                                onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
-                                className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
-                            >
-                                <option value="">選択なし</option>
-                                {constructionSuffixes.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                            </select>
+                        {/* 2行目: 敬称 + 工事名称 */}
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs text-slate-500 mb-1">敬称</label>
+                                <select
+                                    value={formData.honorific}
+                                    onChange={(e) => setFormData({ ...formData, honorific: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
+                                >
+                                    {HONORIFIC_OPTIONS.map(opt => (
+                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex-[2]">
+                                <label className="block text-xs text-slate-500 mb-1">工事名称</label>
+                                <select
+                                    value={formData.constructionSuffixId}
+                                    onChange={(e) => setFormData({ ...formData, constructionSuffixId: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 text-base"
+                                >
+                                    <option value="">選択なし</option>
+                                    {constructionSuffixes.map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
+                        {/* プレビュー */}
+                        {formData.name.trim() && (
+                            <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm text-slate-700">
+                                正式名称: <span className="font-medium">{formData.name.trim()}{formData.honorific}{(() => { const s = constructionSuffixes.find(s => s.id === formData.constructionSuffixId)?.name; return s ? ' ' + s : ''; })()}</span>
+                            </div>
+                        )}
                     </div>
-                    {/* プレビュー */}
-                    {formData.name.trim() && (
-                        <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded text-sm text-slate-700">
-                            正式名称: <span className="font-medium">{formData.name.trim()}{formData.honorific}{(() => { const s = constructionSuffixes.find(s => s.id === formData.constructionSuffixId)?.name; return s ? ' ' + s : ''; })()}</span>
+                </div>
+
+                {/* 元請名（顧客選択） */}
+                <div className="relative" ref={customerFieldRef}>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                        元請名 <span className="text-slate-500">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                required
+                                value={customerSearchTerm || formData.customer}
+                                onChange={(e) => {
+                                    setCustomerSearchTerm(e.target.value);
+                                    setShowCustomerDropdown(true);
+                                    setFormData({ ...formData, customer: e.target.value, customerId: '' });
+                                    setCustomerError(false);
+                                }}
+                                onFocus={() => setShowCustomerDropdown(true)}
+                                className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 ${customerError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
+                                placeholder="顧客を検索または入力..."
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setShowNewCustomerModal(true)}
+                            className="flex items-center gap-1 px-3 py-2 bg-slate-700 text-white text-sm rounded-md hover:bg-slate-600 transition-colors whitespace-nowrap"
+                        >
+                            <Plus className="w-4 h-4" />
+                            新規登録
+                        </button>
+                    </div>
+
+                    {customerError && (
+                        <p className="mt-1 text-xs text-red-500">リストから選択するか、「新規登録」から顧客を登録してください</p>
+                    )}
+                    {showCustomerDropdown && filteredCustomers.length > 0 && customerSearchTerm && (
+                        <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
+                            {filteredCustomers.map(customer => (
+                                <button
+                                    key={customer.id}
+                                    type="button"
+                                    onClick={() => {
+                                        setFormData({
+                                            ...formData,
+                                            customerId: customer.id,
+                                            customer: customer.name,
+                                        });
+                                        setCustomerSearchTerm('');
+                                        setShowCustomerDropdown(false);
+                                        setCustomerError(false);
+                                    }}
+                                    className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center justify-between"
+                                >
+                                    <span>{customer.name}</span>
+                                    {customer.shortName && (
+                                        <span className="text-sm text-slate-500">({customer.shortName})</span>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                </div>
+
+                {/* 工事種別（ラジオボタン） */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        工事種別 <span className="text-slate-500">*</span>
+                    </label>
+                    <div className="flex flex-wrap gap-3 border border-slate-200 rounded-md p-4">
+                        {constructionTypes.length > 0 ? (
+                            constructionTypes.map((type) => {
+                                // 明るい背景色を生成（色に透明度を追加）
+                                const bgColor = `${type.color}30`;
+
+                                return (
+                                    <label key={type.id} className="flex items-center space-x-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="constructionType"
+                                            checked={formData.constructionType === type.id}
+                                            onChange={() => {
+                                                setFormData({ ...formData, constructionType: type.id });
+                                                // 工事種別変更時にスケジュールをクリア
+                                                setMultiDaySchedules([]);
+                                            }}
+                                            className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                        />
+                                        <span
+                                            className="text-sm font-medium px-3 py-1 rounded-full text-slate-900"
+                                            style={{
+                                                backgroundColor: bgColor,
+                                                border: `2px solid ${type.color}`
+                                            }}
+                                        >
+                                            {type.name}
+                                        </span>
+                                    </label>
+                                );
+                            })
+                        ) : (
+                            <p className="text-sm text-slate-500">
+                                設定の「工事種別」から種別を追加してください
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* 工事内容 */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        工事内容
+                    </label>
+                    <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3">
+                        {(Object.entries(CONSTRUCTION_CONTENT_LABELS) as [ConstructionContentType, string][]).map(([value, label]) => (
+                            <label key={value} className="flex items-center space-x-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="constructionContent"
+                                    checked={formData.constructionContent === value}
+                                    onChange={() => setFormData({ ...formData, constructionContent: value })}
+                                    className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                />
+                                <span className="text-sm text-slate-700">{label}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                {/* 複数日スケジュール管理 */}
+                <div>
+                    <div className="flex items-center justify-between mb-3">
+                        <label className="block text-sm font-medium text-slate-700">
+                            複数日スケジュール管理
+                        </label>
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={useMultiDaySchedule}
+                                onChange={(e) => setUseMultiDaySchedule(e.target.checked)}
+                                className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                            />
+                            <span className="text-sm text-slate-600">複数日の作業を登録</span>
+                        </label>
+                    </div>
+
+                    {useMultiDaySchedule && (
+                        <div className="space-y-4 border border-slate-200 rounded-md p-4 bg-slate-50">
+                            <div className="bg-white p-4 rounded-lg border border-slate-200">
+                                <h3 className="text-lg font-semibold text-slate-700 mb-3">
+                                    {selectedConstructionTypeName || '工事'}スケジュール
+                                </h3>
+                                <MultiDayScheduleEditor
+                                    type={formData.constructionType}
+                                    dailySchedules={multiDaySchedules}
+                                    onChange={setMultiDaySchedules}
+                                    foremen={allForemen}
+                                    vehicles={mockVehicles}
+                                    existingDayMap={existingDayMap}
+                                    totalMembers={TOTAL_MEMBERS}
+                                />
+                            </div>
                         </div>
                     )}
                 </div>
-            </div>
 
-            {/* 元請名（顧客選択） */}
-            <div className="relative" ref={customerFieldRef}>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    元請名 <span className="text-slate-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                        <input
-                            type="text"
-                            required
-                            value={customerSearchTerm || formData.customer}
-                            onChange={(e) => {
-                                setCustomerSearchTerm(e.target.value);
-                                setShowCustomerDropdown(true);
-                                setFormData({ ...formData, customer: e.target.value, customerId: '' });
-                                setCustomerError(false);
-                            }}
-                            onFocus={() => setShowCustomerDropdown(true)}
-                            className={`w-full pl-10 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 ${customerError ? 'border-red-400 bg-red-50' : 'border-slate-300'}`}
-                            placeholder="顧客を検索または入力..."
-                        />
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => setShowNewCustomerModal(true)}
-                        className="flex items-center gap-1 px-3 py-2 bg-slate-700 text-white text-sm rounded-md hover:bg-slate-600 transition-colors whitespace-nowrap"
-                    >
-                        <Plus className="w-4 h-4" />
-                        新規登録
-                    </button>
-                </div>
-
-                {customerError && (
-                    <p className="mt-1 text-xs text-red-500">リストから選択するか、「新規登録」から顧客を登録してください</p>
-                )}
-                {showCustomerDropdown && filteredCustomers.length > 0 && customerSearchTerm && (
-                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-                        {filteredCustomers.map(customer => (
-                            <button
-                                key={customer.id}
-                                type="button"
-                                onClick={() => {
-                                    setFormData({
-                                        ...formData,
-                                        customerId: customer.id,
-                                        customer: customer.name,
-                                    });
-                                    setCustomerSearchTerm('');
-                                    setShowCustomerDropdown(false);
-                                    setCustomerError(false);
-                                }}
-                                className="w-full px-4 py-2 text-left hover:bg-slate-50 flex items-center justify-between"
-                            >
-                                <span>{customer.name}</span>
-                                {customer.shortName && (
-                                    <span className="text-sm text-slate-500">({customer.shortName})</span>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-            </div>
-
-            {/* 工事種別（ラジオボタン） */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                    工事種別 <span className="text-slate-500">*</span>
-                </label>
-                <div className="flex flex-wrap gap-3 border border-slate-200 rounded-md p-4">
-                    {constructionTypes.length > 0 ? (
-                        constructionTypes.map((type) => {
-                            // 明るい背景色を生成（色に透明度を追加）
-                            const bgColor = `${type.color}30`;
-
-                            return (
-                                <label key={type.id} className="flex items-center space-x-2 cursor-pointer">
+                {/* 案件担当者（チェックボックス） */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        <User className="inline w-4 h-4 mr-1" />
+                        案件担当者
+                    </label>
+                    <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3 min-h-[60px]">
+                        {isLoadingManagers ? (
+                            <div className="flex items-center gap-2 text-slate-500">
+                                <ButtonLoading />
+                                <span className="text-sm">担当者を読み込み中...</span>
+                            </div>
+                        ) : apiManagers.length > 0 ? (
+                            apiManagers.map(manager => (
+                                <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
                                     <input
-                                        type="radio"
-                                        name="constructionType"
-                                        checked={formData.constructionType === type.id}
-                                        onChange={() => {
-                                            setFormData({ ...formData, constructionType: type.id });
-                                            // 工事種別変更時にスケジュールをクリア
-                                            setMultiDaySchedules([]);
-                                        }}
-                                        className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                        type="checkbox"
+                                        checked={formData.selectedManagers.includes(manager.id)}
+                                        onChange={() => handleManagerToggle(manager.id)}
+                                        className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                                     />
-                                    <span
-                                        className="text-sm font-medium px-3 py-1 rounded-full text-slate-900"
-                                        style={{
-                                            backgroundColor: bgColor,
-                                            border: `2px solid ${type.color}`
-                                        }}
-                                    >
-                                        {type.name}
+                                    <span className="text-sm text-slate-700">{manager.displayName}</span>
+                                    <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-700'}`}>
+                                        {manager.role === 'admin' ? '管理者' : 'マネージャー'}
                                     </span>
                                 </label>
-                            );
-                        })
-                    ) : (
-                        <p className="text-sm text-slate-500">
-                            設定の「工事種別」から種別を追加してください
+                            ))
+                        ) : (
+                            <span className="text-sm text-slate-500">担当者が見つかりません</span>
+                        )}
+                    </div>
+                    {formData.selectedManagers.length > 0 && (
+                        <p className="text-xs text-slate-500 mt-1">
+                            選択中: {formData.selectedManagers.length}名
                         </p>
                     )}
                 </div>
-            </div>
 
-            {/* 工事内容 */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                    工事内容
-                </label>
-                <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3">
-                    {(Object.entries(CONSTRUCTION_CONTENT_LABELS) as [ConstructionContentType, string][]).map(([value, label]) => (
-                        <label key={value} className="flex items-center space-x-2 cursor-pointer">
+                {/* メンバー数（選択式） */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                        メンバー数
+                        {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
+                    </label>
+                    <select
+                        value={formData.memberCount}
+                        disabled={useMultiDaySchedule}
+                        onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
+                    >
+                        {Array.from({ length: Math.min(availableMembers + formData.memberCount, TOTAL_MEMBERS) + 1 }, (_, i) => (
+                            <option key={i} value={i}>
+                                {i}人
+                            </option>
+                        ))}
+                    </select>
+                    <p className="text-xs text-slate-500 mt-1">
+                        残り: {availableMembers}人
+                    </p>
+                </div>
+
+                {/* 予定作業時間 */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        予定作業時間
+                        {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
+                    </label>
+                    <div className={`flex flex-wrap gap-2 ${useMultiDaySchedule ? 'opacity-50 pointer-events-none' : ''}`}>
+                        {[2, 4, 8].map(hours => (
+                            <button
+                                key={hours}
+                                type="button"
+                                disabled={useMultiDaySchedule}
+                                onClick={() => setFormData({ ...formData, estimatedHours: hours })}
+                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border disabled:cursor-not-allowed ${formData.estimatedHours === hours
+                                        ? 'bg-slate-700 text-white border-slate-700'
+                                        : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
+                                    }`}
+                            >
+                                {hours}h
+                            </button>
+                        ))}
+                        <div className="flex items-center gap-1">
                             <input
-                                type="radio"
-                                name="constructionContent"
-                                checked={formData.constructionContent === value}
-                                onChange={() => setFormData({ ...formData, constructionContent: value })}
-                                className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
+                                type="number"
+                                min="0.5"
+                                max="24"
+                                step="0.5"
+                                disabled={useMultiDaySchedule}
+                                value={![2, 4, 8].includes(formData.estimatedHours) ? formData.estimatedHours : ''}
+                                onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    if (!isNaN(val) && val >= 0.5 && val <= 24) {
+                                        setFormData({ ...formData, estimatedHours: val });
+                                    }
+                                }}
+                                placeholder="その他"
+                                className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:cursor-not-allowed ${![2, 4, 8].includes(formData.estimatedHours)
+                                        ? 'border-slate-700 bg-slate-50'
+                                        : 'border-slate-300'
+                                    }`}
                             />
-                            <span className="text-sm text-slate-700">{label}</span>
-                        </label>
-                    ))}
-                </div>
-            </div>
-
-            {/* 複数日スケジュール管理 */}
-            <div>
-                <div className="flex items-center justify-between mb-3">
-                    <label className="block text-sm font-medium text-slate-700">
-                        複数日スケジュール管理
-                    </label>
-                    <label className="flex items-center space-x-2 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={useMultiDaySchedule}
-                            onChange={(e) => setUseMultiDaySchedule(e.target.checked)}
-                            className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
-                        />
-                        <span className="text-sm text-slate-600">複数日の作業を登録</span>
-                    </label>
-                </div>
-
-                {useMultiDaySchedule && (
-                    <div className="space-y-4 border border-slate-200 rounded-md p-4 bg-slate-50">
-                        <div className="bg-white p-4 rounded-lg border border-slate-200">
-                            <h3 className="text-lg font-semibold text-slate-700 mb-3">
-                                {selectedConstructionTypeName || '工事'}スケジュール
-                            </h3>
-                            <MultiDayScheduleEditor
-                                type={formData.constructionType}
-                                dailySchedules={multiDaySchedules}
-                                onChange={setMultiDaySchedules}
-                                foremen={allForemen}
-                                vehicles={mockVehicles}
-                                existingDayMap={existingDayMap}
-                                totalMembers={TOTAL_MEMBERS}
-                            />
+                            <span className="text-sm text-slate-500">h</span>
                         </div>
                     </div>
-                )}
-            </div>
-
-            {/* 案件担当者（チェックボックス） */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                    <User className="inline w-4 h-4 mr-1" />
-                    案件担当者
-                </label>
-                <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3 min-h-[60px]">
-                    {isLoadingManagers ? (
-                        <div className="flex items-center gap-2 text-slate-500">
-                            <ButtonLoading />
-                            <span className="text-sm">担当者を読み込み中...</span>
-                        </div>
-                    ) : apiManagers.length > 0 ? (
-                        apiManagers.map(manager => (
-                            <label key={manager.id} className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg cursor-pointer hover:bg-slate-100">
-                                <input
-                                    type="checkbox"
-                                    checked={formData.selectedManagers.includes(manager.id)}
-                                    onChange={() => handleManagerToggle(manager.id)}
-                                    className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
-                                />
-                                <span className="text-sm text-slate-700">{manager.displayName}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${manager.role === 'admin' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-700'}`}>
-                                    {manager.role === 'admin' ? '管理者' : 'マネージャー'}
-                                </span>
-                            </label>
-                        ))
-                    ) : (
-                        <span className="text-sm text-slate-500">担当者が見つかりません</span>
-                    )}
                 </div>
-                {formData.selectedManagers.length > 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
-                        選択中: {formData.selectedManagers.length}名
-                    </p>
-                )}
-            </div>
 
-            {/* メンバー数（選択式） */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    メンバー数
-                    {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
-                </label>
-                <select
-                    value={formData.memberCount}
-                    disabled={useMultiDaySchedule}
-                    onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
-                >
-                    {Array.from({ length: Math.min(availableMembers + formData.memberCount, TOTAL_MEMBERS) + 1 }, (_, i) => (
-                        <option key={i} value={i}>
-                            {i}人
-                        </option>
-                    ))}
-                </select>
-                <p className="text-xs text-slate-500 mt-1">
-                    残り: {availableMembers}人
-                </p>
-            </div>
+                {/* 車両（チェックボックス） */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        車両
+                        {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
+                    </label>
+                    <div className={`flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-md p-3 ${useMultiDaySchedule ? 'opacity-50' : ''}`}>
+                        {sortedVehicles.map(vehicle => {
+                            const usages = vehicleUsageMap.get(vehicle.name);
+                            const isInUse = usages && usages.length > 0;
+                            const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
 
-            {/* 予定作業時間 */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                    予定作業時間
-                    {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
-                </label>
-                <div className={`flex flex-wrap gap-2 ${useMultiDaySchedule ? 'opacity-50 pointer-events-none' : ''}`}>
-                    {[2, 4, 8].map(hours => (
-                        <button
-                            key={hours}
-                            type="button"
-                            disabled={useMultiDaySchedule}
-                            onClick={() => setFormData({ ...formData, estimatedHours: hours })}
-                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border disabled:cursor-not-allowed ${
-                                formData.estimatedHours === hours
-                                    ? 'bg-slate-700 text-white border-slate-700'
-                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                            }`}
-                        >
-                            {hours}h
-                        </button>
-                    ))}
-                    <div className="flex items-center gap-1">
-                        <input
-                            type="number"
-                            min="0.5"
-                            max="24"
-                            step="0.5"
-                            disabled={useMultiDaySchedule}
-                            value={![2, 4, 8].includes(formData.estimatedHours) ? formData.estimatedHours : ''}
-                            onChange={(e) => {
-                                const val = parseFloat(e.target.value);
-                                if (!isNaN(val) && val >= 0.5 && val <= 24) {
-                                    setFormData({ ...formData, estimatedHours: val });
-                                }
-                            }}
-                            placeholder="その他"
-                            className={`w-20 px-2 py-2 border rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:cursor-not-allowed ${
-                                ![2, 4, 8].includes(formData.estimatedHours)
-                                    ? 'border-slate-700 bg-slate-50'
-                                    : 'border-slate-300'
-                            }`}
-                        />
-                        <span className="text-sm text-slate-500">h</span>
+                            return (
+                                <label key={vehicle.id} className={`flex items-center gap-2 p-2 rounded text-sm ${useMultiDaySchedule ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-slate-50'}`}>
+                                    <input
+                                        type="checkbox"
+                                        checked={formData.selectedVehicles.includes(vehicle.name)}
+                                        disabled={useMultiDaySchedule}
+                                        onChange={() => handleVehicleToggle(vehicle.name)}
+                                        className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500 disabled:cursor-not-allowed"
+                                    />
+                                    <span className="text-slate-700 whitespace-nowrap">{vehicle.name}</span>
+                                    {isConfirmed ? (
+                                        <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
+                                            手配確定済
+                                        </span>
+                                    ) : isInUse ? (
+                                        <div className="flex flex-wrap gap-1 ml-auto">
+                                            {usages!.map((u, i) => (
+                                                <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
+                                                    {u.foremanName}班 ({u.projectTitle})
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 ml-auto">
+                                            空き
+                                        </span>
+                                    )}
+                                </label>
+                            );
+                        })}
                     </div>
-                </div>
-            </div>
-
-            {/* 車両（チェックボックス） */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                    車両
-                    {useMultiDaySchedule && <span className="ml-2 text-xs text-slate-400 font-normal">（複数日スケジュールで設定）</span>}
-                </label>
-                <div className={`flex flex-col gap-1.5 max-h-48 overflow-y-auto border border-slate-200 rounded-md p-3 ${useMultiDaySchedule ? 'opacity-50' : ''}`}>
-                    {sortedVehicles.map(vehicle => {
-                        const usages = vehicleUsageMap.get(vehicle.name);
-                        const isInUse = usages && usages.length > 0;
-                        const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
-
-                        return (
-                            <label key={vehicle.id} className={`flex items-center gap-2 p-2 rounded text-sm ${useMultiDaySchedule ? 'cursor-not-allowed' : 'cursor-pointer'} ${isConfirmed ? 'bg-slate-50 hover:bg-slate-100' : isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-slate-50'}`}>
-                                <input
-                                    type="checkbox"
-                                    checked={formData.selectedVehicles.includes(vehicle.name)}
-                                    disabled={useMultiDaySchedule}
-                                    onChange={() => handleVehicleToggle(vehicle.name)}
-                                    className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500 disabled:cursor-not-allowed"
-                                />
-                                <span className="text-slate-700 whitespace-nowrap">{vehicle.name}</span>
-                                {isConfirmed ? (
-                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
-                                        手配確定済
-                                    </span>
-                                ) : isInUse ? (
-                                    <div className="flex flex-wrap gap-1 ml-auto">
-                                        {usages!.map((u, i) => (
-                                            <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
-                                                {u.foremanName}班 ({u.projectTitle})
-                                            </span>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 ml-auto">
-                                        空き
-                                    </span>
-                                )}
-                            </label>
-                        );
-                    })}
-                </div>
-                {formData.selectedVehicles.length > 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
-                        選択中: {formData.selectedVehicles.length}台
-                    </p>
-                )}
-            </div>
-
-            {/* 備考 */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    備考
-                </label>
-                <textarea
-                    value={formData.remarks}
-                    onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="備考を入力"
-                />
-            </div>
-
-            {/* ボタン */}
-            <div className="flex gap-3 pt-4">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={isSaving}
-                    className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                    キャンセル
-                </button>
-                <button
-                    type="submit"
-                    disabled={isSaving}
-                    className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                    {isSaving ? (
-                        <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            保存中...
-                        </>
-                    ) : (
-                        '保存'
+                    {formData.selectedVehicles.length > 0 && (
+                        <p className="text-xs text-slate-500 mt-1">
+                            選択中: {formData.selectedVehicles.length}台
+                        </p>
                     )}
-                </button>
-            </div>
-        </form>
+                </div>
 
-        {/* 新規顧客登録モーダル（formの外に配置してネスト回避） */}
-        <CustomerModal
-            isOpen={showNewCustomerModal}
-            onClose={() => setShowNewCustomerModal(false)}
-            onSubmit={handleNewCustomerSubmit}
-            title="新規顧客登録"
-        />
+                {/* 備考 */}
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                        備考
+                    </label>
+                    <textarea
+                        value={formData.remarks}
+                        onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
+                        rows={3}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="備考を入力"
+                    />
+                </div>
+
+                {/* ボタン */}
+                <div className="flex gap-3 pt-4">
+                    <button
+                        type="button"
+                        onClick={onCancel}
+                        disabled={isSaving}
+                        className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                        キャンセル
+                    </button>
+                    <button
+                        type="submit"
+                        disabled={isSaving}
+                        className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isSaving ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                保存中...
+                            </>
+                        ) : (
+                            '保存'
+                        )}
+                    </button>
+                </div>
+            </form>
+
+            {/* 新規顧客登録モーダル（formの外に配置してネスト回避） */}
+            <CustomerModal
+                isOpen={showNewCustomerModal}
+                onClose={() => setShowNewCustomerModal(false)}
+                onSubmit={handleNewCustomerSubmit}
+                title="新規顧客登録"
+            />
         </>
     );
 }
