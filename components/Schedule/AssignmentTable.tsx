@@ -566,7 +566,6 @@ interface QuickEditSheetProps {
 
 function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
     const [meetingTime, setMeetingTime] = useState(project.meetingTime || '');
-    const [memberCount, setMemberCount] = useState(project.memberCount || project.workers?.length || 0);
     const [remarks, setRemarks] = useState(project.remarks || '');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -575,7 +574,6 @@ function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
         try {
             await onSave({
                 meetingTime: meetingTime || undefined,
-                memberCount,
                 remarks,
             });
         } catch {
@@ -618,29 +616,6 @@ function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
                             onChange={(e) => setMeetingTime(e.target.value)}
                             className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
-                    </div>
-
-                    {/* 人数 */}
-                    <div>
-                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
-                            <Users className="w-4 h-4 text-slate-400" />
-                            人数
-                        </label>
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={() => setMemberCount(Math.max(0, memberCount - 1))}
-                                className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-lg font-bold"
-                            >
-                                −
-                            </button>
-                            <span className="text-lg font-bold text-slate-800 min-w-[40px] text-center">{memberCount}名</span>
-                            <button
-                                onClick={() => setMemberCount(memberCount + 1)}
-                                className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-lg font-bold"
-                            >
-                                ＋
-                            </button>
-                        </div>
                     </div>
 
                     {/* 備考 */}
