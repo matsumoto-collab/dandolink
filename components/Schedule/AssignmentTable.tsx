@@ -7,7 +7,7 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Check, X, MessageSquare } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
@@ -20,7 +20,7 @@ interface AssignmentTableProps {
 
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
     const { status } = useSession();
-    const { projects, fetchForDateRange } = useProjects();
+    const { projects, fetchForDateRange, updateProject } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
     const { constructionTypes } = useMasterData();
 
@@ -29,6 +29,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+    const [editingProject, setEditingProject] = useState<Project | null>(null);
 
     useEffect(() => {
         const fetchNames = async () => {
@@ -237,6 +238,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                         foremanId={foremanId}
                                         allForemen={allForemen}
                                         onProjectClick={(p) => setSelectedProject(p as Project)}
+                                        onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
                                     />
                                 );
@@ -257,6 +259,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     vehicleNameMap={vehicleNameMap}
                                     foremanId={foreman.id}
                                     allForemen={allForemen}
+                                    onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
                                 />
                             );
@@ -264,6 +267,18 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                     )}
                 </div>
             </div>
+
+            {/* 簡易編集シート */}
+            {editingProject && (
+                <QuickEditSheet
+                    project={editingProject}
+                    onSave={async (updates) => {
+                        await updateProject(editingProject.id, updates);
+                        setEditingProject(null);
+                    }}
+                    onClose={() => setEditingProject(null)}
+                />
+            )}
 
             {/* 案件詳細モーダル（閲覧専用） */}
             <ProjectModal
@@ -290,6 +305,7 @@ interface ForemanSectionProps {
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
+    onEditClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     constructionTypeMap: Map<string, { name: string; color: string }>;
 }
 
@@ -305,6 +321,7 @@ function ForemanSection({
     showForemanBadge,
     allForemen,
     onProjectClick,
+    onEditClick,
     constructionTypeMap,
 }: ForemanSectionProps) {
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
@@ -344,6 +361,7 @@ function ForemanSection({
                             showForemanBadge={showForemanBadge}
                             allForemen={allForemen}
                             onProjectClick={onProjectClick}
+                            onEditClick={onEditClick}
                             constructionTypeMap={constructionTypeMap}
                         />
                     ))
@@ -364,6 +382,7 @@ interface ProjectCardProps {
     showForemanBadge?: boolean;
     allForemen: { id: string; displayName: string }[];
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
+    onEditClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     constructionTypeMap: Map<string, { name: string; color: string }>;
 }
 
@@ -377,6 +396,7 @@ function ProjectCard({
     showForemanBadge,
     allForemen,
     onProjectClick,
+    onEditClick,
     constructionTypeMap,
 }: ProjectCardProps) {
     const workerCount = project.workers?.length || 0;
@@ -522,14 +542,143 @@ function ProjectCard({
                 </div>
 
                 {/* 編集ボタン */}
-                {canEdit && (
+                {canEdit && onEditClick && (
                     <div className="flex items-center pr-3">
-                        <button className="flex-shrink-0 px-3 py-2 text-sm font-medium text-slate-500 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 rounded-xl transition-colors min-h-[44px]">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEditClick(project); }}
+                            className="flex-shrink-0 px-3 py-2 text-sm font-medium text-slate-500 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 rounded-xl transition-colors min-h-[44px]"
+                        >
                             編集
                         </button>
                     </div>
                 )}
             </div>
         </div>
+    );
+}
+
+// ── 簡易編集シート ──────────────────────────────────────────────
+interface QuickEditSheetProps {
+    project: Project;
+    onSave: (updates: Partial<Project>) => Promise<void>;
+    onClose: () => void;
+}
+
+function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
+    const [meetingTime, setMeetingTime] = useState(project.meetingTime || '');
+    const [memberCount, setMemberCount] = useState(project.memberCount || project.workers?.length || 0);
+    const [remarks, setRemarks] = useState(project.remarks || '');
+    const [isSaving, setIsSaving] = useState(false);
+
+    const handleSave = async () => {
+        setIsSaving(true);
+        try {
+            await onSave({
+                meetingTime: meetingTime || undefined,
+                memberCount,
+                remarks,
+            });
+        } catch {
+            setIsSaving(false);
+        }
+    };
+
+    return (
+        <>
+            <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
+            <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 animate-slide-up safe-area-bottom">
+                <div className="flex justify-center pt-3 pb-2">
+                    <div className="w-10 h-1 bg-slate-300 rounded-full" />
+                </div>
+
+                {/* ヘッダー */}
+                <div className="px-4 pb-3 border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                        <h3 className="text-base font-bold text-slate-800">{project.title}</h3>
+                        <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                    {project.customer && (
+                        <div className="text-sm text-slate-500 mt-0.5">{project.customer}</div>
+                    )}
+                </div>
+
+                {/* フォーム */}
+                <div className="px-4 py-4 space-y-4">
+                    {/* 集合時間 */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
+                            <Clock className="w-4 h-4 text-slate-400" />
+                            集合時間
+                        </label>
+                        <input
+                            type="time"
+                            value={meetingTime}
+                            onChange={(e) => setMeetingTime(e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
+                        />
+                    </div>
+
+                    {/* 人数 */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
+                            <Users className="w-4 h-4 text-slate-400" />
+                            人数
+                        </label>
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => setMemberCount(Math.max(0, memberCount - 1))}
+                                className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-lg font-bold"
+                            >
+                                −
+                            </button>
+                            <span className="text-lg font-bold text-slate-800 min-w-[40px] text-center">{memberCount}名</span>
+                            <button
+                                onClick={() => setMemberCount(memberCount + 1)}
+                                className="w-10 h-10 flex items-center justify-center border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-lg font-bold"
+                            >
+                                ＋
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* 備考 */}
+                    <div>
+                        <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
+                            <MessageSquare className="w-4 h-4 text-slate-400" />
+                            備考
+                        </label>
+                        <textarea
+                            value={remarks}
+                            onChange={(e) => setRemarks(e.target.value)}
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm resize-none min-h-[80px]"
+                            placeholder="備考を入力..."
+                        />
+                    </div>
+                </div>
+
+                {/* 保存ボタン */}
+                <div className="px-4 pb-4">
+                    <button
+                        onClick={handleSave}
+                        disabled={isSaving}
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 text-white font-medium rounded-xl hover:bg-slate-900 active:bg-slate-700 transition-colors disabled:opacity-50"
+                    >
+                        {isSaving ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                保存中...
+                            </>
+                        ) : (
+                            <>
+                                <Check className="w-4 h-4" />
+                                保存
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+        </>
     );
 }
