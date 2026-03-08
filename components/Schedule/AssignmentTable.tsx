@@ -533,10 +533,17 @@ function ProjectCard({
                         </div>
                     )}
 
-                    {/* 備考 */}
+                    {/* 備考（スケジュール作成時） */}
                     {project.remarks && (
                         <p className="mt-2 text-sm text-[rgb(var(--color-navy-accent))] bg-[rgb(var(--color-pearl-white))] border-l-3 border-[rgb(var(--color-silver-gray))] pl-3 pr-2 py-1.5 rounded-r-lg">
                             {project.remarks}
+                        </p>
+                    )}
+
+                    {/* 手配備考（職長入力） */}
+                    {project.dispatchRemark && (
+                        <p className="mt-2 text-sm text-[rgb(var(--color-navy-accent))] bg-amber-50 border-l-3 border-amber-400 pl-3 pr-2 py-1.5 rounded-r-lg">
+                            {project.dispatchRemark}
                         </p>
                     )}
                 </div>
@@ -566,7 +573,7 @@ interface QuickEditSheetProps {
 
 function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
     const [meetingTime, setMeetingTime] = useState(project.meetingTime || '');
-    const [remarks, setRemarks] = useState(project.remarks || '');
+    const [dispatchRemark, setDispatchRemark] = useState(project.dispatchRemark || '');
     const [isSaving, setIsSaving] = useState(false);
 
     const handleSave = async () => {
@@ -574,7 +581,7 @@ function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
         try {
             await onSave({
                 meetingTime: meetingTime || undefined,
-                remarks,
+                dispatchRemark,
             });
         } catch {
             setIsSaving(false);
@@ -618,15 +625,15 @@ function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
                         />
                     </div>
 
-                    {/* 備考 */}
+                    {/* 手配備考 */}
                     <div>
                         <label className="flex items-center gap-1.5 text-sm font-medium text-slate-700 mb-1.5">
                             <MessageSquare className="w-4 h-4 text-slate-400" />
-                            備考
+                            手配備考
                         </label>
                         <textarea
-                            value={remarks}
-                            onChange={(e) => setRemarks(e.target.value)}
+                            value={dispatchRemark}
+                            onChange={(e) => setDispatchRemark(e.target.value)}
                             className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm resize-none min-h-[80px]"
                             placeholder="備考を入力..."
                         />

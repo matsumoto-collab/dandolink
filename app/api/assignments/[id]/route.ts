@@ -85,6 +85,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.meetingTime !== undefined) updateData.meetingTime = body.meetingTime;
         if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
         if (body.remarks !== undefined) updateData.remarks = body.remarks;
+        if (body.dispatchRemark !== undefined) updateData.dispatchRemark = body.dispatchRemark;
         if (body.isDispatchConfirmed !== undefined) updateData.isDispatchConfirmed = body.isDispatchConfirmed;
         if (body.confirmedWorkerIds !== undefined) updateData.confirmedWorkerIds = stringifyJsonField(body.confirmedWorkerIds);
         if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);

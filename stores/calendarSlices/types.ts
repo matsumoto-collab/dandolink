@@ -74,6 +74,7 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         workers: assignment.workers,
         trucks: assignment.vehicles,
         remarks: assignment.remarks || '',
+        dispatchRemark: assignment.dispatchRemark || '',
         constructionType: constructionType as 'assembly' | 'demolition' | 'other',
         constructionContent: assignment.projectMaster?.constructionContent,
         assignedEmployeeId: assignment.assignedEmployeeId,

@@ -257,6 +257,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     meetingTime: updates.meetingTime,
                     sortOrder: updates.sortOrder,
                     remarks: updates.remarks,
+                    dispatchRemark: updates.dispatchRemark,
                     isDispatchConfirmed: dispatchConfirmed,
                     confirmedWorkerIds: dispatchWorkerIds,
                     confirmedVehicleIds: dispatchVehicleIds,
