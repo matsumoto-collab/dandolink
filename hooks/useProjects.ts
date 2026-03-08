@@ -374,6 +374,7 @@ export function useProjects() {
             estimatedHours: a.estimatedHours ?? 8.0,
             trucks: a.vehicles,
             remarks: a.remarks || a.projectMaster?.remarks,
+            dispatchRemark: a.dispatchRemark,
             constructionType: constructionType as 'assembly' | 'demolition' | 'other',
             constructionContent: a.projectMaster?.constructionContent,
             assignedEmployeeId: a.assignedEmployeeId,

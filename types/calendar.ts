@@ -18,6 +18,7 @@ export interface CalendarEvent {
     workers?: string[];
     trucks?: string[];
     remarks?: string;
+    dispatchRemark?: string;
     status?: ProjectStatus;
     constructionType?: ConstructionType; // 工事種別(後方互換性のため保持)
     // 班長割り当て用
@@ -200,6 +201,7 @@ export interface ProjectAssignment {
     meetingTime?: string;    // 集合時間（例: "08:00"）
     sortOrder: number;       // カレンダー内での表示順序
     remarks?: string;        // 配置固有の備考
+    dispatchRemark?: string; // 手配備考（職長が手配表で入力）
     constructionType?: ConstructionType; // 配置ごとの工事種別（nullの場合はProjectMasterから継承）
 
     // 手配確定フィールド

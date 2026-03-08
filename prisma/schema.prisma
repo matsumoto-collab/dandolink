@@ -90,6 +90,7 @@ model ProjectAssignment {
   meetingTime          String?
   sortOrder            Int                   @default(0)
   remarks              String?
+  dispatchRemark       String?
   confirmedWorkerIds   String?
   confirmedVehicleIds  String?
   isDispatchConfirmed  Boolean               @default(false)
