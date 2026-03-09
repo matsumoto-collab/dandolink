@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, User, Users, Truck, Wrench } from 'lucide-react';
+// アイコン不使用（ラベルテキストのみ）
 import { useMasterData } from '@/hooks/useMasterData';
 import { DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 
@@ -98,62 +98,72 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
         <div className="space-y-2">
             <div className="text-xs text-slate-500 text-right">{history.length}件</div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
-                {history.map((item) => (
-                    <div
-                        key={item.id}
-                        className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-sm"
-                    >
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-slate-800">
-                                {formatDate(item.date)}
-                            </span>
-                            <div className="flex items-center gap-2">
-                                {item.workTimeMinutes != null && (
-                                    <span className="flex items-center gap-1 text-xs text-slate-500">
-                                        <Clock className="w-3 h-3" />
-                                        {Math.floor(item.workTimeMinutes / 60)}h{item.workTimeMinutes % 60 > 0 ? `${item.workTimeMinutes % 60}m` : ''}
-                                    </span>
-                                )}
+                {history.map((item) => {
+                    const ctInfo = getConstructionTypeInfo(item.constructionType);
+                    const formatMinutes = (m: number) => {
+                        const h = Math.floor(m / 60);
+                        const min = m % 60;
+                        return min > 0 ? `${h}時間${min}分` : `${h}時間`;
+                    };
+                    return (
+                        <div
+                            key={item.id}
+                            className="p-3 bg-white rounded-xl border border-slate-200 text-sm"
+                        >
+                            {/* 日付 + 工事種別 */}
+                            <div className="flex items-center justify-between mb-2.5">
+                                <span className="font-semibold text-slate-800">
+                                    {formatDate(item.date)}
+                                </span>
                                 <span
                                     className="px-2 py-0.5 text-xs font-medium rounded-full"
                                     style={{
-                                        backgroundColor: `${getConstructionTypeInfo(item.constructionType).color}30`,
+                                        backgroundColor: `${ctInfo.color}30`,
                                         color: '#000000',
                                     }}
                                 >
-                                    {getConstructionTypeInfo(item.constructionType).label}
+                                    {ctInfo.label}
                                 </span>
                             </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-slate-600">
-                            <div className="flex items-center gap-1">
-                                <User className="w-3.5 h-3.5 text-slate-400" />
-                                <span className="font-medium">{item.foremanName}</span>
-                                {item.memberCount > 0 && (
-                                    <span className="ml-1 text-xs text-slate-500">({item.memberCount}名)</span>
+
+                            {/* 詳細グリッド */}
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                                <div>
+                                    <span className="text-slate-400">職長</span>
+                                    <p className="text-slate-700 font-medium">
+                                        {item.foremanName}
+                                        {item.memberCount > 0 && <span className="text-slate-400 font-normal ml-1">({item.memberCount}名)</span>}
+                                    </p>
+                                </div>
+                                <div>
+                                    <span className="text-slate-400">作業時間</span>
+                                    <p className="text-slate-700 font-medium">
+                                        {item.workTimeMinutes != null ? formatMinutes(item.workTimeMinutes) : '−'}
+                                    </p>
+                                </div>
+                                {item.workerNames.length > 0 && (
+                                    <div>
+                                        <span className="text-slate-400">メンバー</span>
+                                        <p className="text-slate-700">{item.workerNames.join('、')}</p>
+                                    </div>
+                                )}
+                                {item.vehicleNames.length > 0 && (
+                                    <div>
+                                        <span className="text-slate-400">車両</span>
+                                        <p className="text-slate-700">{item.vehicleNames.join('、')}</p>
+                                    </div>
                                 )}
                             </div>
-                            {item.workerNames.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                    <Users className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>{item.workerNames.join(', ')}</span>
-                                </div>
-                            )}
-                            {item.vehicleNames.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                    <Truck className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>{item.vehicleNames.join(', ')}</span>
-                                </div>
+
+                            {/* 備考 */}
+                            {item.remarks && (
+                                <p className="mt-2 text-xs text-slate-500 border-t border-slate-100 pt-1.5">
+                                    {item.remarks}
+                                </p>
                             )}
                         </div>
-                        {item.remarks && (
-                            <div className="mt-2 text-xs text-slate-500 flex items-start gap-1">
-                                <Wrench className="w-3 h-3 mt-0.5" />
-                                <span>{item.remarks}</span>
-                            </div>
-                        )}
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
