@@ -62,7 +62,10 @@ export default function DailyReportPage() {
     // 案件ごとの実作業時間を取得
     const getWorkItemSummaries = (report: DailyReport): { title: string; minutes: number }[] => {
         return report.workItems.map(item => {
-            const title = item.assignment?.projectMaster?.title || '(案件名不明)';
+            const pm = item.assignment?.projectMaster;
+            const title = pm?.name
+                ? `${pm.name}${pm.honorific || ''}`
+                : pm?.title || '(案件名不明)';
             let minutes = 0;
             if (item.startTime && item.endTime) {
                 const [sh, sm] = item.startTime.split(':').map(Number);
