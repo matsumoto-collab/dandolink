@@ -52,7 +52,9 @@ export default function ConflictResolutionModal({
                             <div className="text-sm text-slate-600 space-y-1">
                                 <p>
                                     <span className="font-medium">現場名:</span>{' '}
-                                    {latestData.projectMaster?.title || '不明'}
+                                    {latestData.projectMaster?.name
+                                        ? `${latestData.projectMaster.name}${latestData.projectMaster.honorific || ''}`
+                                        : latestData.projectMaster?.title || '不明'}
                                 </p>
                                 <p>
                                     <span className="font-medium">日付:</span>{' '}

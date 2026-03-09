@@ -15,6 +15,8 @@ export interface DailyReportWorkItem {
         projectMaster?: {
             id: string;
             title: string;
+            name?: string;
+            honorific?: string;
             customerName?: string;
         };
     };

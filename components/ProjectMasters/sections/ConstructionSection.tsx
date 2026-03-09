@@ -95,7 +95,9 @@ function DateConflictList({
                         {getForemanName(a.assignedEmployeeId)}
                     </span>
                     <span className="text-slate-600 truncate">
-                        {a.projectMaster?.title ?? '（現場名なし）'}
+                        {a.projectMaster?.name
+                            ? `${a.projectMaster.name}${a.projectMaster.honorific || ''}`
+                            : a.projectMaster?.title ?? '（現場名なし）'}
                     </span>
                     {a.memberCount > 0 && (
                         <span className="ml-auto text-slate-500 whitespace-nowrap flex-shrink-0">
@@ -153,9 +155,8 @@ function ForemanSelector({
                     return (
                         <div
                             key={f.id}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${
-                                isSelected ? 'bg-slate-50 border border-slate-200' : 'hover:bg-slate-50'
-                            }`}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-lg transition-colors ${isSelected ? 'bg-slate-50 border border-slate-200' : 'hover:bg-slate-50'
+                                }`}
                         >
                             <input
                                 type="checkbox"

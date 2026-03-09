@@ -94,7 +94,10 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                 ) : (
                     <div className="space-y-2">
                         {report.workItems.map((item) => {
-                            const title = item.assignment?.projectMaster?.title || '(案件名不明)';
+                            const pm = item.assignment?.projectMaster;
+                            const title = pm?.name
+                                ? `${pm.name}${pm.honorific || ''}`
+                                : pm?.title || '(案件名不明)';
                             const customer = item.assignment?.projectMaster?.customerName;
                             const start = item.startTime || '08:00';
                             const end = item.endTime || '17:00';
