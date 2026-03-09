@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, assemblyDate, demolitionDate, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
+        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
 
         // 正式名称を自動合成（nameがある場合）
         let resolvedTitle = title || '';
@@ -119,8 +119,6 @@ export async function POST(req: NextRequest) {
                 prefecture: prefecture || null, city: city || null, plusCode: plusCode || null,
                 latitude: latitude ?? null, longitude: longitude ?? null,
                 area: area || null, areaRemarks: areaRemarks || null,
-                assemblyDate: assemblyDate ? new Date(assemblyDate) : null,
-                demolitionDate: demolitionDate ? new Date(demolitionDate) : null,
                 estimatedAssemblyWorkers: estimatedAssemblyWorkers || null,
                 estimatedDemolitionWorkers: estimatedDemolitionWorkers || null,
                 contractAmount: contractAmount || null, scaffoldingSpec: scaffoldingSpec || undefined,

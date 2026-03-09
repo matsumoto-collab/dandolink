@@ -21,12 +21,6 @@ const CONSTRUCTION_CONTENT_LABELS: Record<string, string> = {
     other: 'その他',
 };
 
-function formatDate(date: Date | string | undefined) {
-    if (!date) return '-';
-    const d = new Date(date);
-    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()}`;
-}
-
 function Field({ label, value }: { label: string; value?: string | null }) {
     return (
         <div>
@@ -143,8 +137,6 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
             {/* 工事情報 */}
             <SectionTitle>工事情報</SectionTitle>
             <dl className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-3">
-                <Field label="組立日" value={formatDate(pm.assemblyDate)} />
-                <Field label="解体日" value={formatDate(pm.demolitionDate)} />
                 <Field
                     label="予定組立人工"
                     value={pm.estimatedAssemblyWorkers != null ? `${pm.estimatedAssemblyWorkers}名` : undefined}

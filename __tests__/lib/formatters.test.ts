@@ -153,33 +153,12 @@ describe('Formatters', () => {
                 createdBy: null,
                 createdAt: testCreatedAt,
                 updatedAt: testUpdatedAt,
-                assemblyDate: testDate,
-                demolitionDate: new Date('2024-02-15T09:00:00.000Z'),
             };
 
             const result = formatProjectMaster(raw);
 
             expect(result.createdAt).toBe('2024-01-10T08:00:00.000Z');
             expect(result.updatedAt).toBe('2024-01-14T10:00:00.000Z');
-            expect(result.assemblyDate).toBe('2024-01-15T09:00:00.000Z');
-            expect(result.demolitionDate).toBe('2024-02-15T09:00:00.000Z');
-        });
-
-        it('should handle null dates', () => {
-            const raw: RawProjectMaster = {
-                id: 'pm-1',
-                title: 'Test Project',
-                createdBy: null,
-                createdAt: testCreatedAt,
-                updatedAt: testUpdatedAt,
-                assemblyDate: null,
-                demolitionDate: undefined,
-            };
-
-            const result = formatProjectMaster(raw);
-
-            expect(result.assemblyDate).toBeNull();
-            expect(result.demolitionDate).toBeNull();
         });
 
         it('should parse createdBy JSON string', () => {

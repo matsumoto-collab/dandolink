@@ -11,7 +11,6 @@ import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMaster
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import toast from 'react-hot-toast';
-import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { useSession } from 'next-auth/react';
 
 const EstimateModal = dynamic(
@@ -21,7 +20,6 @@ const EstimateModal = dynamic(
 
 export default function ProjectMasterListPage() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
-    const constructionTypes = useMasterStore(selectConstructionTypes);
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
@@ -74,14 +72,6 @@ export default function ProjectMasterListPage() {
     }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
-        // workDates から組立日・解体日を抽出してプロジェクトマスタに保存
-        const findDateByTypeName = (typeName: string) => {
-            const typeId = constructionTypes.find(t => t.name === typeName)?.id;
-            return data.workDates.find(w => w.constructionType === typeId && w.date)?.date;
-        };
-        const assemblyDateStr = findDateByTypeName('組立');
-        const demolitionDateStr = findDateByTypeName('解体');
-
         const pm = await createProjectMaster({
             title: data.title,
             name: data.name || undefined,
@@ -101,8 +91,6 @@ export default function ProjectMasterListPage() {
             longitude: data.longitude ?? undefined,
             area: data.area ? parseFloat(data.area) : undefined,
             areaRemarks: data.areaRemarks || undefined,
-            assemblyDate: assemblyDateStr ? new Date(`${assemblyDateStr}T00:00:00Z`) : undefined,
-            demolitionDate: demolitionDateStr ? new Date(`${demolitionDateStr}T00:00:00Z`) : undefined,
             estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
@@ -153,8 +141,6 @@ export default function ProjectMasterListPage() {
             longitude: data.longitude ?? undefined,
             area: data.area ? parseFloat(data.area) : undefined,
             areaRemarks: data.areaRemarks || undefined,
-            assemblyDate: (() => { const typeId = constructionTypes.find(t => t.name === '組立')?.id; const d = data.workDates.find(w => w.constructionType === typeId && w.date)?.date; return d ? new Date(`${d}T00:00:00Z`) : undefined; })(),
-            demolitionDate: (() => { const typeId = constructionTypes.find(t => t.name === '解体')?.id; const d = data.workDates.find(w => w.constructionType === typeId && w.date)?.date; return d ? new Date(`${d}T00:00:00Z`) : undefined; })(),
             estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,

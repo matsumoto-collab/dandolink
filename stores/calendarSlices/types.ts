@@ -23,13 +23,11 @@ export interface ForemanUser {
 }
 
 // Helper functions
-export function parseProjectMasterDates(pm: ProjectMaster & { createdAt: string; updatedAt: string; assemblyDate?: string; demolitionDate?: string }): ProjectMaster {
+export function parseProjectMasterDates(pm: ProjectMaster & { createdAt: string; updatedAt: string }): ProjectMaster {
     return {
         ...pm,
         createdAt: new Date(pm.createdAt),
         updatedAt: new Date(pm.updatedAt),
-        assemblyDate: pm.assemblyDate ? new Date(pm.assemblyDate) : undefined,
-        demolitionDate: pm.demolitionDate ? new Date(pm.demolitionDate) : undefined,
     };
 }
 

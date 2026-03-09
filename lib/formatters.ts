@@ -41,8 +41,6 @@ export interface RawProjectMasterBase {
 
 /** 案件マスターの生データ型（配置含む） */
 export interface RawProjectMaster extends RawProjectMasterBase {
-    assemblyDate?: Date | null;
-    demolitionDate?: Date | null;
     assignments?: RawAssignment[];
     _count?: { assignments: number };
 }
@@ -133,8 +131,6 @@ export function formatProjectMaster(pm: RawProjectMaster) {
         createdBy: parseJsonField<string[] | null>(pm.createdBy, null),
         createdAt: pm.createdAt.toISOString(),
         updatedAt: pm.updatedAt.toISOString(),
-        assemblyDate: pm.assemblyDate?.toISOString() || null,
-        demolitionDate: pm.demolitionDate?.toISOString() || null,
         assignments: pm.assignments?.map(a => formatAssignment(a as RawAssignment)),
         assignmentCount: pm._count?.assignments ?? pm.assignments?.length ?? 0,
     };

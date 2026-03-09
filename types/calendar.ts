@@ -167,8 +167,6 @@ export interface ProjectMaster {
     // 工事情報
     area?: number;                   // 面積（m2）
     areaRemarks?: string;            // 面積備考
-    assemblyDate?: Date;             // 組立日
-    demolitionDate?: Date;           // 解体日
     estimatedAssemblyWorkers?: number;   // 予定組立人工
     estimatedDemolitionWorkers?: number; // 予定解体人工
     contractAmount?: number;         // 請負金額（円、税抜）
