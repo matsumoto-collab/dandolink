@@ -118,8 +118,6 @@ export const createProjectMasterSchema = z.object({
     // 工事情報
     area: z.number().optional().nullable(),
     areaRemarks: z.string().optional().nullable(),
-    assemblyDate: z.string().optional().nullable(),
-    demolitionDate: z.string().optional().nullable(),
     estimatedAssemblyWorkers: z.number().int().min(0).optional().nullable(),
     estimatedDemolitionWorkers: z.number().int().min(0).optional().nullable(),
     contractAmount: z.number().min(0).optional().nullable(),

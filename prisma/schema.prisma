@@ -47,13 +47,11 @@ model ProjectMaster {
   updatedAt                  DateTime            @updatedAt
   area                       Float?
   areaRemarks                String?
-  assemblyDate               DateTime?
   city                       String?
   constructionContent        String?
   contractAmount             Int?
   customerId                 String?
   customerName               String?
-  demolitionDate             DateTime?
   estimatedAssemblyWorkers   Int?
   estimatedDemolitionWorkers Int?
   plusCode                   String?

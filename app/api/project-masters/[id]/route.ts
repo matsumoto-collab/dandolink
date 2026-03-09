@@ -76,8 +76,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.longitude !== undefined) updateData.longitude = body.longitude;
         if (body.area !== undefined) updateData.area = body.area;
         if (body.areaRemarks !== undefined) updateData.areaRemarks = body.areaRemarks;
-        if (body.assemblyDate !== undefined) updateData.assemblyDate = body.assemblyDate ? new Date(body.assemblyDate) : null;
-        if (body.demolitionDate !== undefined) updateData.demolitionDate = body.demolitionDate ? new Date(body.demolitionDate) : null;
         if (body.estimatedAssemblyWorkers !== undefined) updateData.estimatedAssemblyWorkers = body.estimatedAssemblyWorkers;
         if (body.estimatedDemolitionWorkers !== undefined) updateData.estimatedDemolitionWorkers = body.estimatedDemolitionWorkers;
         if (body.contractAmount !== undefined) {
