@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Calendar, User, Users, Truck, Wrench } from 'lucide-react';
+import { User, Users, Truck, Wrench } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
 import { DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 
@@ -95,10 +95,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
 
     return (
         <div className="space-y-2">
-            <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
-                作業履歴 ({history.length}件)
-            </h4>
+            <div className="text-xs text-slate-500 text-right">{history.length}件</div>
             <div className="space-y-2 max-h-60 overflow-y-auto">
                 {history.map((item) => (
                     <div
