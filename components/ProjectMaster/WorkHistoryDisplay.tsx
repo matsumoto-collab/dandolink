@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Users, Truck, Wrench } from 'lucide-react';
+import { Clock, User, Users, Truck, Wrench } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
 import { DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 
@@ -19,6 +19,7 @@ interface WorkHistoryItem {
     vehicleNames: string[];
     isConfirmed: boolean;
     remarks?: string;
+    workTimeMinutes?: number | null;
 }
 
 interface WorkHistoryDisplayProps {
@@ -106,15 +107,23 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                             <span className="font-medium text-slate-800">
                                 {formatDate(item.date)}
                             </span>
-                            <span
-                                className="px-2 py-0.5 text-xs font-medium rounded-full"
-                                style={{
-                                    backgroundColor: `${getConstructionTypeInfo(item.constructionType).color}30`,
-                                    color: '#000000',
-                                }}
-                            >
-                                {getConstructionTypeInfo(item.constructionType).label}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                {item.workTimeMinutes != null && (
+                                    <span className="flex items-center gap-1 text-xs text-slate-500">
+                                        <Clock className="w-3 h-3" />
+                                        {Math.floor(item.workTimeMinutes / 60)}h{item.workTimeMinutes % 60 > 0 ? `${item.workTimeMinutes % 60}m` : ''}
+                                    </span>
+                                )}
+                                <span
+                                    className="px-2 py-0.5 text-xs font-medium rounded-full"
+                                    style={{
+                                        backgroundColor: `${getConstructionTypeInfo(item.constructionType).color}30`,
+                                        color: '#000000',
+                                    }}
+                                >
+                                    {getConstructionTypeInfo(item.constructionType).label}
+                                </span>
+                            </div>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-slate-600">
                             <div className="flex items-center gap-1">

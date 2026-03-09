@@ -13,7 +13,10 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const assignments = await prisma.projectAssignment.findMany({
             where: { projectMasterId: id },
             orderBy: { date: 'desc' },
-            include: { projectMaster: { select: { constructionType: true, constructionContent: true } } },
+            include: {
+                projectMaster: { select: { constructionType: true, constructionContent: true } },
+                dailyReportWorkItems: { select: { startTime: true, endTime: true, breakMinutes: true } },
+            },
         });
 
         const employeeIds = new Set<string>();
@@ -45,7 +48,15 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                 memberCount: a.memberCount,
                 workerIds, workerNames: workerIds.map(wid => userMap.get(wid) || wid).filter(name => name !== userMap.get(a.assignedEmployeeId)),
                 vehicleIds: vehicleIdList, vehicleNames: vehicleIdList.map(vid => vehicleMap.get(vid) || vid),
-                isConfirmed: a.isDispatchConfirmed, remarks: a.remarks, createdAt: a.createdAt.toISOString(),
+                isConfirmed: a.isDispatchConfirmed, remarks: a.remarks,
+                workTimeMinutes: a.dailyReportWorkItems.reduce((sum, wi) => {
+                    if (!wi.startTime || !wi.endTime) return sum;
+                    const [sh, sm] = wi.startTime.split(':').map(Number);
+                    const [eh, em] = wi.endTime.split(':').map(Number);
+                    const total = (eh * 60 + em) - (sh * 60 + sm) - (wi.breakMinutes || 0);
+                    return sum + Math.max(0, total);
+                }, 0) || null,
+                createdAt: a.createdAt.toISOString(),
             };
         });
 
