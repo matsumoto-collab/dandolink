@@ -21,7 +21,7 @@ const InvoiceModal = dynamic(
 );
 
 export default function InvoiceListPage() {
-    const { invoices, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
+    const { invoices, isLoading, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projects } = useProjects();
     const { companyInfo } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
@@ -43,6 +43,14 @@ export default function InvoiceListPage() {
         const project = projects.find(p => p.id === projectId);
         return project?.title || '不明な案件';
     }, [projects]);
+
+    // 顧客名を取得
+    const getCustomerName = useCallback((projectId: string) => {
+        const project = projects.find(p => p.id === projectId);
+        if (!project?.customer) return null;
+        const c = customers.find(c => c.name === project.customer || c.shortName === project.customer);
+        return c?.shortName || c?.name || project.customer;
+    }, [projects, customers]);
 
     // ステータスアイコンとカラー
     const getStatusInfo = (status: Invoice['status']) => {
@@ -133,17 +141,6 @@ export default function InvoiceListPage() {
         }
     };
 
-    // 統計情報（useMemoでメモ化）
-    const stats = useMemo(() => ({
-        total: invoices.length,
-        draft: invoices.filter(i => i.status === 'draft').length,
-        sent: invoices.filter(i => i.status === 'sent').length,
-        paid: invoices.filter(i => i.status === 'paid').length,
-        overdue: invoices.filter(i => i.status === 'overdue').length,
-        totalAmount: invoices.filter(i => i.status !== 'draft').reduce((sum, i) => sum + i.total, 0),
-        unpaidAmount: invoices.filter(i => i.status === 'sent' || i.status === 'overdue').reduce((sum, i) => sum + i.total, 0),
-    }), [invoices]);
-
     return (
         <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
@@ -154,29 +151,6 @@ export default function InvoiceListPage() {
                 <p className="text-slate-600">登録されている全ての請求書を管理できます</p>
             </div>
 
-            {/* 統計カード */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
-                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
-                    <div className="text-xs sm:text-sm text-slate-600 mb-1">全体</div>
-                    <div className="text-xl sm:text-2xl font-bold text-slate-900">{stats.total}</div>
-                </div>
-                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
-                    <div className="text-xs sm:text-sm text-slate-600 mb-1">送付済み</div>
-                    <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.sent}</div>
-                </div>
-                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
-                    <div className="text-xs sm:text-sm text-slate-600 mb-1">支払済み</div>
-                    <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.paid}</div>
-                </div>
-                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200">
-                    <div className="text-xs sm:text-sm text-slate-600 mb-1">期限超過</div>
-                    <div className="text-xl sm:text-2xl font-bold text-slate-600">{stats.overdue}</div>
-                </div>
-                <div className="bg-white rounded-xl p-3 sm:p-4 shadow-sm border border-slate-200 col-span-2 sm:col-span-1">
-                    <div className="text-xs sm:text-sm text-slate-600 mb-1">未回収</div>
-                    <div className="text-base sm:text-lg font-bold text-slate-600">¥{stats.unpaidAmount.toLocaleString()}</div>
-                </div>
-            </div>
 
             {/* ツールバー */}
             <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
@@ -221,7 +195,18 @@ export default function InvoiceListPage() {
 
             {/* モバイルカードビュー */}
             <div className="md:hidden flex-1 overflow-auto">
-                {filteredInvoices.length === 0 ? (
+                {!isInitialized || isLoading ? (
+                    <div className="grid grid-cols-1 gap-4">
+                        {[...Array(5)].map((_, i) => (
+                            <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 animate-pulse">
+                                <div className="h-5 bg-slate-200 rounded w-32 mb-3"></div>
+                                <div className="h-4 bg-slate-200 rounded w-48 mb-2"></div>
+                                <div className="h-6 bg-slate-200 rounded w-24 mb-2"></div>
+                                <div className="h-5 bg-slate-200 rounded-full w-20"></div>
+                            </div>
+                        ))}
+                    </div>
+                ) : filteredInvoices.length === 0 ? (
                     <div className="text-center py-12 bg-slate-50 rounded-lg">
                         <p className="text-slate-500">
                             {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
@@ -273,6 +258,11 @@ export default function InvoiceListPage() {
                                         {getProjectName(invoice.projectId)}
                                     </div>
 
+                                    {/* 顧客名 */}
+                                    {getCustomerName(invoice.projectId) && (
+                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(invoice.projectId)}</div>
+                                    )}
+
                                     {/* 金額 */}
                                     <div className="text-lg font-bold text-slate-900 mb-3">
                                         ¥{invoice.total.toLocaleString()}
@@ -307,6 +297,9 @@ export default function InvoiceListPage() {
                                 案件名
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                顧客名
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 金額
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -324,9 +317,22 @@ export default function InvoiceListPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                        {filteredInvoices.length === 0 ? (
+                        {!isInitialized || isLoading ? (
+                            [...Array(5)].map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                                    <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-16"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4 text-right"><div className="h-4 bg-slate-200 rounded w-16 ml-auto"></div></td>
+                                </tr>
+                            ))
+                        ) : filteredInvoices.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
                                 </td>
                             </tr>
@@ -347,6 +353,9 @@ export default function InvoiceListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {getProjectName(invoice.projectId)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {getCustomerName(invoice.projectId) || '−'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
