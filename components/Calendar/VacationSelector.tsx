@@ -11,6 +11,7 @@ interface VacationSelectorProps {
     selectedEmployeeIds: string[];
     onAddEmployee: (employeeId: string) => void;
     onRemoveEmployee: (employeeId: string) => void;
+    readOnly?: boolean;
 }
 
 export default function VacationSelector({
@@ -18,6 +19,7 @@ export default function VacationSelector({
     selectedEmployeeIds,
     onAddEmployee,
     onRemoveEmployee,
+    readOnly = false,
 }: VacationSelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -75,14 +77,16 @@ export default function VacationSelector({
                                 className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[12px] font-semibold"
                             >
                                 {member.displayName}
-                                <button
-                                    onClick={() => onRemoveEmployee(memberId)}
-                                    className="hover:bg-slate-200 rounded-full p-0.5 transition-colors"
-                                    title="削除"
-                                    aria-label="削除"
-                                >
-                                    <X className="w-3 h-3" />
-                                </button>
+                                {!readOnly && (
+                                    <button
+                                        onClick={() => onRemoveEmployee(memberId)}
+                                        className="hover:bg-slate-200 rounded-full p-0.5 transition-colors"
+                                        title="削除"
+                                        aria-label="削除"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                )}
                             </span>
                         );
                     })}
@@ -90,32 +94,34 @@ export default function VacationSelector({
             )}
 
             {/* メンバー追加ボタン */}
-            <div className="relative" ref={dropdownRef}>
-                <button
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] text-slate-600 hover:bg-slate-50 rounded transition-colors whitespace-nowrap"
-                    type="button"
-                >
-                    <Plus className="w-3 h-3" />
-                    休暇を追加
-                </button>
+            {!readOnly && (
+                <div className="relative" ref={dropdownRef}>
+                    <button
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 text-[9px] text-slate-600 hover:bg-slate-50 rounded transition-colors whitespace-nowrap"
+                        type="button"
+                    >
+                        <Plus className="w-3 h-3" />
+                        休暇を追加
+                    </button>
 
-                {/* ドロップダウンメニュー */}
-                {isDropdownOpen && availableMembers.length > 0 && (
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
-                        {availableMembers.map(member => (
-                            <button
-                                key={member.id}
-                                onClick={() => handleSelectEmployee(member.id)}
-                                className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors"
-                                type="button"
-                            >
-                                {member.displayName}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </div>
+                    {/* ドロップダウンメニュー */}
+                    {isDropdownOpen && availableMembers.length > 0 && (
+                        <div className="absolute left-0 top-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg z-50 max-h-40 overflow-y-auto min-w-[120px]">
+                            {availableMembers.map(member => (
+                                <button
+                                    key={member.id}
+                                    onClick={() => handleSelectEmployee(member.id)}
+                                    className="w-full text-left px-3 py-1.5 text-xs hover:bg-slate-50 transition-colors"
+                                    type="button"
+                                >
+                                    {member.displayName}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
