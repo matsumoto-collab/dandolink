@@ -6,9 +6,10 @@ import VacationSelector from './VacationSelector';
 
 interface RemarksRowProps {
     weekDays: WeekDay[];
+    readOnly?: boolean;
 }
 
-export default function RemarksRow({ weekDays }: RemarksRowProps) {
+export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowProps) {
     const { getRemarks, setRemarks, getVacationEmployees, addVacationEmployee, removeVacationEmployee } = useVacation();
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [tempValues, setTempValues] = useState<{ [key: string]: string }>({});
@@ -75,14 +76,15 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                                 selectedEmployeeIds={vacationEmployeeIds}
                                 onAddEmployee={(empId) => addVacationEmployee(dateKey, empId)}
                                 onRemoveEmployee={(empId) => removeVacationEmployee(dateKey, empId)}
+                                readOnly={readOnly}
                             />
 
                             {/* フリーテキスト備考セクション */}
                             <div
-                                className={`flex-1 ${!isEditing ? 'cursor-text hover:bg-slate-50/30 rounded' : ''}`}
-                                onClick={() => !isEditing && handleCellClick(dateKey)}
+                                className={`flex-1 ${!isEditing && !readOnly ? 'cursor-text hover:bg-slate-50/30 rounded' : ''}`}
+                                onClick={() => !isEditing && !readOnly && handleCellClick(dateKey)}
                             >
-                                {isEditing ? (
+                                {isEditing && !readOnly ? (
                                     <textarea
                                         autoFocus
                                         value={remarkText}
@@ -98,7 +100,7 @@ export default function RemarksRow({ weekDays }: RemarksRowProps) {
                                 ) : (
                                     <div className={`w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-700'}`}>
                                         {remarkText || (
-                                            <span className="text-slate-400 italic text-[10px]">クリックして入力</span>
+                                            readOnly ? null : <span className="text-slate-400 italic text-[10px]">クリックして入力</span>
                                         )}
                                     </div>
                                 )}

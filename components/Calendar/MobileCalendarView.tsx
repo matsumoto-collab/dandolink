@@ -312,7 +312,7 @@ export default function MobileCalendarView({
                     </div>
 
                     {/* 備考行（休暇+フリーテキスト） */}
-                    {!isReadOnly && (
+                    {(
                         <div className="flex border-b-2 border-slate-300 bg-teal-50/80" style={{ minHeight: 48 }}>
                             <div
                                 className="sticky left-0 z-[5] bg-teal-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
@@ -338,13 +338,14 @@ export default function MobileCalendarView({
                                             selectedEmployeeIds={vacIds}
                                             onAddEmployee={(empId) => addVacationEmployee(dateKey, empId)}
                                             onRemoveEmployee={(empId) => removeVacationEmployee(dateKey, empId)}
+                                            readOnly={isReadOnly}
                                         />
                                         {/* フリーテキスト備考 */}
                                         <div
-                                            onClick={() => !isEditing && startEditRemark(dateKey)}
-                                            className={!isEditing ? 'cursor-text' : ''}
+                                            onClick={() => !isEditing && !isReadOnly && startEditRemark(dateKey)}
+                                            className={!isEditing && !isReadOnly ? 'cursor-text' : ''}
                                         >
-                                            {isEditing ? (
+                                            {isEditing && !isReadOnly ? (
                                                 <textarea
                                                     autoFocus
                                                     value={remarkText}
@@ -359,7 +360,7 @@ export default function MobileCalendarView({
                                                 />
                                             ) : (
                                                 <div className={`w-full min-h-[20px] p-0.5 text-[9px] whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white' : 'text-slate-400 italic'}`}>
-                                                    {remarkText || 'タップで入力'}
+                                                    {remarkText || (isReadOnly ? '' : 'タップで入力')}
                                                 </div>
                                             )}
                                         </div>
