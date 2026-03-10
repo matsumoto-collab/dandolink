@@ -33,7 +33,21 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         updatedAt: new Date(a.projectMaster.updatedAt),
                     } : undefined,
                 }));
-                set({ assignments: parsed, projectsInitialized: true });
+
+                // スマートマージ: 既存データと差分がない場合はstateを更新しない（ちらつき防止）
+                const { assignments: existing } = get();
+                const existingMap = new Map(existing.map(a => [a.id, a.updatedAt?.getTime()]));
+                const newIds = new Set(parsed.map((a: { id: string }) => a.id));
+                const hasChanges =
+                    existing.length !== parsed.length ||
+                    parsed.some((a: { id: string; updatedAt: Date }) => existingMap.get(a.id) !== a.updatedAt?.getTime()) ||
+                    existing.some(a => !newIds.has(a.id));
+
+                if (hasChanges) {
+                    set({ assignments: parsed, projectsInitialized: true });
+                } else if (!get().projectsInitialized) {
+                    set({ projectsInitialized: true });
+                }
             } else {
                 console.error('Failed to fetch assignments: HTTP', response.status);
                 set({ projectsInitialized: true });
