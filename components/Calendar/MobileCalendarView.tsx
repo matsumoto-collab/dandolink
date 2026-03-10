@@ -40,8 +40,10 @@ interface ActionSheetState {
     project: Project | null;
 }
 
-const LABEL_W = 64;   // 職長名列の幅（px）
-const COL_W = 90;     // 日付列の幅（px）
+const LABEL_W_NORMAL = 64;   // 職長名列の幅（px）
+const COL_W_NORMAL = 90;     // 日付列の幅（px）
+const LABEL_W_LANDSCAPE = 52;
+const COL_W_LANDSCAPE = 80;
 const LONG_PRESS_MS = 500; // 長押し判定時間（ms）
 
 export default function MobileCalendarView({
@@ -67,6 +69,8 @@ export default function MobileCalendarView({
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
+    const LABEL_W = isLandscape ? LABEL_W_LANDSCAPE : LABEL_W_NORMAL;
+    const COL_W = isLandscape ? COL_W_LANDSCAPE : COL_W_NORMAL;
     const [showRemarks, setShowRemarks] = useState(false);
 
     // ── 備考・休暇 ──
