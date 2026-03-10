@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare } from 'lucide-react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -65,6 +66,8 @@ export default function MobileCalendarView({
     handleMoveToCell,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
+    const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
+    const [showRemarks, setShowRemarks] = useState(false);
 
     // ── 備考・休暇 ──
     const { getRemarks, setRemarks, getVacationEmployees: getVacEmp, addVacationEmployee, removeVacationEmployee } = useVacation();
@@ -181,25 +184,36 @@ export default function MobileCalendarView({
         <div className="h-full flex flex-col bg-white overflow-hidden">
 
             {/* ── 週ナビゲーション ── */}
-            <div className="flex-shrink-0 bg-white border-b border-slate-200 px-3 py-2">
+            <div className={`flex-shrink-0 bg-white border-b border-slate-200 px-3 ${isLandscape ? 'py-0.5' : 'py-2'}`}>
                 <div className="flex items-center justify-between">
                     <button
                         onClick={goToPreviousWeek}
-                        className="p-2 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-1' : 'p-2'}`}
                     >
-                        <ChevronLeft className="w-5 h-5 text-slate-600" />
+                        <ChevronLeft className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </button>
-                    <button
-                        onClick={goToToday}
-                        className="text-sm font-bold text-slate-800 px-3 py-1 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors"
-                    >
-                        {weekLabel}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={goToToday}
+                            className={`font-bold text-slate-800 px-3 py-1 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'text-xs' : 'text-sm'}`}
+                        >
+                            {weekLabel}
+                        </button>
+                        {isLandscape && (
+                            <button
+                                onClick={() => setShowRemarks(prev => !prev)}
+                                className={`p-1 rounded-lg transition-colors ${showRemarks ? 'bg-teal-100 text-teal-700' : 'text-slate-400 hover:bg-slate-100'}`}
+                                title="備考表示切替"
+                            >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
                     <button
                         onClick={goToNextWeek}
-                        className="p-2 rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-1' : 'p-2'}`}
                     >
-                        <ChevronRight className="w-5 h-5 text-slate-600" />
+                        <ChevronRight className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
                     </button>
                 </div>
             </div>
@@ -231,7 +245,7 @@ export default function MobileCalendarView({
                 <div style={{ minWidth: totalGridWidth }}>
 
                     {/* 日付ヘッダー行（sticky top） */}
-                    <div className="flex sticky top-0 z-20 border-b-2 border-slate-300 shadow-sm" style={{ height: 40 }}>
+                    <div className="flex sticky top-0 z-20 border-b-2 border-slate-300 shadow-sm" style={{ height: isLandscape ? 28 : 40 }}>
                         <div
                             className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
                             style={{ width: LABEL_W }}
@@ -267,8 +281,8 @@ export default function MobileCalendarView({
 
                     {/* 空き人数行（sticky: ヘッダー直下） */}
                     <div
-                        className="flex sticky top-[40px] z-[15] border-b-2 border-slate-300 bg-slate-100 shadow-sm"
-                        style={{ height: 28 }}
+                        className="flex sticky z-[15] border-b-2 border-slate-300 bg-slate-100 shadow-sm"
+                        style={{ height: isLandscape ? 20 : 28, top: isLandscape ? 28 : 40 }}
                     >
                         <div
                             className="sticky left-0 z-20 bg-slate-100 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
@@ -312,8 +326,8 @@ export default function MobileCalendarView({
                     </div>
 
                     {/* 備考行（休暇+フリーテキスト） */}
-                    {(
-                        <div className="flex border-b-2 border-slate-300 bg-teal-50/80" style={{ minHeight: 48 }}>
+                    {(!isLandscape || showRemarks) && (
+                        <div className="flex border-b-2 border-slate-300 bg-teal-50/80" style={{ minHeight: isLandscape ? 36 : 48 }}>
                             <div
                                 className="sticky left-0 z-[5] bg-teal-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
                                 style={{ width: LABEL_W }}
@@ -377,7 +391,7 @@ export default function MobileCalendarView({
                         employeeRows.map((row) => (
                             <div
                                 key={`${row.employeeId}-${row.rowIndex}`}
-                                className="flex border-b border-slate-200 min-h-[80px]"
+                                className={`flex border-b border-slate-200 ${isLandscape ? 'min-h-[52px]' : 'min-h-[80px]'}`}
                             >
                                 {/* 職長名（左固定） */}
                                 <div
@@ -427,7 +441,7 @@ export default function MobileCalendarView({
                                             style={{ width: COL_W }}
                                         >
                                             {isEmpty ? (
-                                                <div className="flex flex-col h-full min-h-[72px]">
+                                                <div className={`flex flex-col h-full ${isLandscape ? 'min-h-[44px]' : 'min-h-[72px]'}`}>
                                                     <div className="flex-1 flex items-center justify-center pointer-events-none">
                                                         {movingEvent ? (
                                                             <div className="w-8 h-8 rounded-full border-2 border-dashed border-slate-400 flex items-center justify-center">
