@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
 
 export async function GET() {
     try {
@@ -21,7 +21,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { name, postalCode, address, tel, fax, email, representativeTitle, representative, sealImage, licenseNumber, registrationNumber, bankAccounts } = await request.json();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 export async function GET() {
     try {
@@ -19,7 +19,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { totalMembers } = await request.json();

@@ -29,7 +29,8 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
     },
 
     setVacationEmployees: async (dateKey: string, employeeIds: string[]) => {
-        const currentRemarks = get().vacations[dateKey]?.remarks || '';
+        const previousVacation = get().vacations[dateKey];
+        const currentRemarks = previousVacation?.remarks || '';
         set((state) => ({
             vacations: {
                 ...state.vacations,
@@ -37,15 +38,21 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
             },
         }));
         try {
-            await fetch('/api/calendar/vacations', {
+            const res = await fetch('/api/calendar/vacations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dateKey, employeeIds, remarks: currentRemarks }),
             });
+            if (!res.ok) throw new Error('Failed to save vacation');
             sendBroadcast('vacation_updated', { dateKey });
         } catch (error) {
             console.error('Failed to save vacation:', error);
-            get().fetchVacations();
+            set((state) => ({
+                vacations: {
+                    ...state.vacations,
+                    [dateKey]: previousVacation || { employeeIds: [], remarks: '' },
+                },
+            }));
         }
     },
 
@@ -66,7 +73,8 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
     },
 
     setVacationRemarks: async (dateKey: string, remarks: string) => {
-        const currentEmployees = get().vacations[dateKey]?.employeeIds || [];
+        const previousVacation = get().vacations[dateKey];
+        const currentEmployees = previousVacation?.employeeIds || [];
         set((state) => ({
             vacations: {
                 ...state.vacations,
@@ -74,15 +82,21 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
             },
         }));
         try {
-            await fetch('/api/calendar/vacations', {
+            const res = await fetch('/api/calendar/vacations', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ dateKey, employeeIds: currentEmployees, remarks }),
             });
+            if (!res.ok) throw new Error('Failed to save vacation remarks');
             sendBroadcast('vacation_updated', { dateKey });
         } catch (error) {
             console.error('Failed to save vacation remarks:', error);
-            get().fetchVacations();
+            set((state) => ({
+                vacations: {
+                    ...state.vacations,
+                    [dateKey]: previousVacation || { employeeIds: [], remarks: '' },
+                },
+            }));
         }
     },
 });
