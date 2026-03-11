@@ -9,51 +9,70 @@ interface ScheduleViewTabsProps {
     onViewChange: (view: ScheduleView) => void;
 }
 
+// Calendar icon (mini)
+function CalendarIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" width="1em" height="1em">
+            <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1z" clipRule="evenodd" />
+        </svg>
+    );
+}
+
+// List/clipboard icon (mini)
+function ClipboardIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" width="1em" height="1em">
+            <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+            <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+        </svg>
+    );
+}
+
 export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleViewTabsProps) {
     const isAssignment = activeView === 'assignment';
 
-    const toggle = () => {
-        onViewChange(isAssignment ? 'calendar' : 'assignment');
-    };
-
     return (
-        <div className="flex justify-center items-center gap-2 lg:gap-3 mb-2">
-            <span
-                className={`text-xs lg:text-sm font-medium transition-colors duration-200 cursor-pointer ${
-                    !isAssignment ? 'text-slate-700' : 'text-slate-400'
-                }`}
-                onClick={() => onViewChange('calendar')}
-            >
-                カレンダー
-            </span>
-            <button
-                role="switch"
-                aria-checked={isAssignment}
-                onClick={toggle}
-                className={`
-                    relative inline-flex h-6 w-11 lg:h-7 lg:w-12 shrink-0 cursor-pointer
-                    rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2
-                    ${isAssignment ? 'bg-slate-700' : 'bg-slate-300'}
-                `}
-            >
-                <span
+        <div className="flex justify-center mb-2">
+            <div className="relative inline-flex bg-slate-100 rounded-xl p-1 lg:p-1.5">
+                {/* Sliding highlight */}
+                <div
                     className={`
-                        pointer-events-none inline-block h-5 w-5 lg:h-6 lg:w-6
-                        rounded-full bg-white shadow-md ring-0
-                        transition-transform duration-200 ease-in-out
-                        ${isAssignment ? 'translate-x-5 lg:translate-x-5' : 'translate-x-0'}
+                        absolute top-1 lg:top-1.5 bottom-1 lg:bottom-1.5
+                        w-[calc(50%-4px)] lg:w-[calc(50%-6px)]
+                        bg-gradient-to-r from-slate-700 to-slate-600 rounded-lg shadow-md
+                        transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
+                        ${isAssignment ? 'translate-x-[calc(100%+4px)] lg:translate-x-[calc(100%+6px)]' : 'translate-x-0'}
                     `}
                 />
-            </button>
-            <span
-                className={`text-xs lg:text-sm font-medium transition-colors duration-200 cursor-pointer ${
-                    isAssignment ? 'text-slate-700' : 'text-slate-400'
-                }`}
-                onClick={() => onViewChange('assignment')}
-            >
-                手配表
-            </span>
+                {/* Calendar button */}
+                <button
+                    onClick={() => onViewChange('calendar')}
+                    className={`
+                        relative z-10 flex items-center gap-1.5 lg:gap-2
+                        px-3.5 py-1.5 lg:px-5 lg:py-2
+                        text-xs lg:text-sm font-medium rounded-lg
+                        transition-colors duration-300
+                        ${!isAssignment ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
+                    `}
+                >
+                    <CalendarIcon className="text-[14px] lg:text-[16px]" />
+                    カレンダー
+                </button>
+                {/* Assignment button */}
+                <button
+                    onClick={() => onViewChange('assignment')}
+                    className={`
+                        relative z-10 flex items-center gap-1.5 lg:gap-2
+                        px-3.5 py-1.5 lg:px-5 lg:py-2
+                        text-xs lg:text-sm font-medium rounded-lg
+                        transition-colors duration-300
+                        ${isAssignment ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
+                    `}
+                >
+                    <ClipboardIcon className="text-[14px] lg:text-[16px]" />
+                    手配表
+                </button>
+            </div>
         </div>
     );
 }
