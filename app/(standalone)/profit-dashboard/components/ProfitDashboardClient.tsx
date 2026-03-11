@@ -2,9 +2,12 @@
 
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { TrendingUp, TrendingDown, DollarSign, BarChart3, Filter, Building, RefreshCw } from 'lucide-react';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import type { DashboardSummary } from '@/lib/profitDashboard';
+
+const ProfitCharts = dynamic(() => import('./ProfitCharts'), { ssr: false });
 
 // Server Componentから渡されるシリアライズ済みの型
 export interface SerializedProjectProfit {
@@ -133,6 +136,9 @@ export default function ProfitDashboardClient({ projects, summary, currentStatus
                         color="purple"
                     />
                 </div>
+
+                {/* グラフセクション */}
+                <ProfitCharts projects={projects} />
 
                 {/* フィルター */}
                 <div className="bg-white rounded-lg shadow p-4 mb-6">

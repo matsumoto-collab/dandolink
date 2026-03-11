@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { TrendingUp, TrendingDown, DollarSign, Truck, Users, Wrench, Package, MoreHorizontal } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
+
+const ProjectProfitChart = dynamic(() => import('./ProjectProfitChart'), { ssr: false });
 
 interface CostBreakdown {
     laborCost: number;
@@ -117,6 +120,15 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                             利益率: {profitMargin}%
                         </div>
                     </div>
+                </div>
+
+                {/* 利益グラフ */}
+                <div className="border-t pt-4">
+                    <ProjectProfitChart
+                        costBreakdown={costBreakdown}
+                        revenue={revenue}
+                        grossProfit={grossProfit}
+                    />
                 </div>
 
                 {/* 原価内訳 */}
