@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 function formatUnitPrice(up: { templates: string; [key: string]: unknown }) {
     return { ...up, templates: parseJsonField<unknown[]>(up.templates, []) };
@@ -20,7 +20,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { description, unit, unitPrice, templates, notes } = await request.json();

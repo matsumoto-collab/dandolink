@@ -42,26 +42,40 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     addForeman: async (employeeId) => {
         const { displayedForemanIds } = get();
         if (!displayedForemanIds.includes(employeeId)) {
+            const previousIds = [...displayedForemanIds];
             const newIds = [...displayedForemanIds, employeeId];
             set({ displayedForemanIds: newIds });
-            await fetch('/api/system-settings/foremen', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ displayedForemanIds: newIds }),
-            });
-            sendBroadcast('foreman_settings_updated', {});
+            try {
+                const res = await fetch('/api/system-settings/foremen', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ displayedForemanIds: newIds }),
+                });
+                if (!res.ok) throw new Error('Failed to add foreman');
+                sendBroadcast('foreman_settings_updated', {});
+            } catch (error) {
+                set({ displayedForemanIds: previousIds });
+                console.error('Failed to add foreman:', error);
+            }
         }
     },
 
     removeForeman: async (employeeId) => {
-        const newIds = get().displayedForemanIds.filter((id) => id !== employeeId);
+        const previousIds = [...get().displayedForemanIds];
+        const newIds = previousIds.filter((id) => id !== employeeId);
         set({ displayedForemanIds: newIds });
-        await fetch('/api/system-settings/foremen', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ displayedForemanIds: newIds }),
-        });
-        sendBroadcast('foreman_settings_updated', {});
+        try {
+            const res = await fetch('/api/system-settings/foremen', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ displayedForemanIds: newIds }),
+            });
+            if (!res.ok) throw new Error('Failed to remove foreman');
+            sendBroadcast('foreman_settings_updated', {});
+        } catch (error) {
+            set({ displayedForemanIds: previousIds });
+            console.error('Failed to remove foreman:', error);
+        }
     },
 
     moveForeman: async (employeeId, direction) => {
@@ -72,15 +86,22 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
         if (newIndex < 0 || newIndex >= displayedForemanIds.length) return;
 
+        const previousIds = [...displayedForemanIds];
         const newIds = [...displayedForemanIds];
         [newIds[currentIndex], newIds[newIndex]] = [newIds[newIndex], newIds[currentIndex]];
         set({ displayedForemanIds: newIds });
-        await fetch('/api/system-settings/foremen', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ displayedForemanIds: newIds }),
-        });
-        sendBroadcast('foreman_settings_updated', {});
+        try {
+            const res = await fetch('/api/system-settings/foremen', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ displayedForemanIds: newIds }),
+            });
+            if (!res.ok) throw new Error('Failed to move foreman');
+            sendBroadcast('foreman_settings_updated', {});
+        } catch (error) {
+            set({ displayedForemanIds: previousIds });
+            console.error('Failed to move foreman:', error);
+        }
     },
 
     getAvailableForemen: () => {

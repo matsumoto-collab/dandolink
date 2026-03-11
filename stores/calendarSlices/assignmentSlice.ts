@@ -57,14 +57,16 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 if (project.constructionType) updateData.constructionType = project.constructionType;
                 if (project.createdBy) updateData.createdBy = project.createdBy;
                 if (project.constructionContent) updateData.constructionContent = project.constructionContent;
-                await fetch(`/api/project-masters/${project.projectMasterId}`, {
+                const patchRes = await fetch(`/api/project-masters/${project.projectMasterId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updateData),
                 });
+                if (!patchRes.ok) throw new Error('Failed to update project master');
             }
         } else {
             const mastersRes = await fetch(`/api/project-masters?search=${encodeURIComponent(project.title)}`, { cache: 'no-store' });
+            if (!mastersRes.ok) throw new Error('Failed to search project masters');
             const masters = await mastersRes.json();
             const existing = masters.find((m: ProjectMaster) => m.title === project.title);
 
@@ -77,11 +79,12 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     }
                     if (project.createdBy) updateData.createdBy = project.createdBy;
                     if (project.constructionContent) updateData.constructionContent = project.constructionContent;
-                    await fetch(`/api/project-masters/${existing.id}`, {
+                    const patchExistingRes = await fetch(`/api/project-masters/${existing.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updateData),
                     });
+                    if (!patchExistingRes.ok) throw new Error('Failed to update existing project master');
                 }
             } else {
                 const createMasterRes = await fetch('/api/project-masters', {
@@ -100,6 +103,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         createdBy: project.createdBy,
                     }),
                 });
+                if (!createMasterRes.ok) throw new Error('Failed to create project master');
                 const newMaster = await createMasterRes.json();
                 projectMasterId = newMaster.id;
                 broadcastMasterId = newMaster.id; // 配置作成後にブロードキャストするためIDを保持
@@ -375,7 +379,10 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     },
 
     deleteProject: async (id) => {
-        await fetch(`/api/assignments/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/assignments/${id}`, { method: 'DELETE' });
+        if (!response.ok) {
+            throw new Error('Failed to delete assignment');
+        }
         set((state) => ({
             assignments: state.assignments.filter((a) => a.id !== id),
         }));
