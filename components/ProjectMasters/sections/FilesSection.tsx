@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import imageCompression from 'browser-image-compression';
 import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
@@ -12,13 +11,6 @@ const PdfViewer = dynamic(
     () => import('@/components/ui/PdfViewer').then(m => m.PdfViewer),
     { ssr: false }
 );
-
-const IMAGE_COMPRESSION_OPTIONS = {
-    maxSizeMB: 1,
-    maxWidthOrHeight: 1600,
-    useWebWorker: true,
-    initialQuality: 0.8,
-} as const;
 
 type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction';
 
@@ -41,6 +33,7 @@ interface ProjectMasterFileData {
     description: string | null;
     createdAt: string;
     signedUrl: string | null;
+    thumbnailSignedUrl: string | null;
 }
 
 interface FilesSectionProps {
@@ -89,19 +82,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         let successCount = 0;
 
         for (const rawFile of Array.from(fileList)) {
-            // 画像はアップロード前に圧縮（最大1600px・1MB・80%品質）
-            let file: File = rawFile;
-            if (rawFile.type.startsWith('image/') && rawFile.size > 500 * 1024) {
-                try {
-                    file = await imageCompression(rawFile, IMAGE_COMPRESSION_OPTIONS);
-                } catch {
-                    // 圧縮失敗時は元ファイルをそのまま使用
-                    file = rawFile;
-                }
-            }
-
             const formData = new FormData();
-            formData.append('file', file, rawFile.name); // ファイル名は元のまま維持
+            formData.append('file', rawFile);
             formData.append('category', activeTab);
 
             try {
@@ -111,12 +93,12 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 });
                 if (!res.ok) {
                     const err = await res.json();
-                    toast.error(`${file.name}: ${err.error || 'アップロード失敗'}`);
+                    toast.error(`${rawFile.name}: ${err.error || 'アップロード失敗'}`);
                 } else {
                     successCount++;
                 }
             } catch {
-                toast.error(`${file.name}: アップロードに失敗しました`);
+                toast.error(`${rawFile.name}: アップロードに失敗しました`);
             }
         }
 
@@ -157,7 +139,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const tabFiles = files.filter(f => f.category === activeTab);
     const tabImages = tabFiles
         .filter(f => f.fileType === 'image' && f.signedUrl)
-        .map(f => ({ src: f.signedUrl!, alt: f.fileName }));
+        .map(f => ({ src: f.signedUrl!, alt: f.fileName, thumbnail: f.thumbnailSignedUrl || f.signedUrl! }));
 
     if (isLoading) {
         return (
@@ -271,7 +253,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                 >
                                     <div className="relative w-12 h-12 overflow-hidden rounded border border-slate-200">
                                         <Image
-                                            src={file.signedUrl}
+                                            src={file.thumbnailSignedUrl || file.signedUrl}
                                             alt={file.fileName}
                                             fill
                                             sizes="48px"

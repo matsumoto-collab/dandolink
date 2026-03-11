@@ -22,10 +22,12 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         });
         if (!file) return notFoundResponse('ファイル');
 
-        // Supabase Storage から削除
+        // Supabase Storage から削除（オリジナル + サムネイル）
+        const pathsToRemove = [file.storagePath];
+        if (file.thumbnailPath) pathsToRemove.push(file.thumbnailPath);
         const { error: removeError } = await supabaseAdmin.storage
             .from(STORAGE_BUCKET)
-            .remove([file.storagePath]);
+            .remove(pathsToRemove);
 
         if (removeError) {
             console.error('Storage remove error:', removeError);

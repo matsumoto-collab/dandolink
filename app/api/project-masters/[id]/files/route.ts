@@ -4,6 +4,7 @@ import { requireAuth, errorResponse, notFoundResponse, serverErrorResponse } fro
 import { canDispatch } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { randomUUID } from 'crypto';
+import sharp from 'sharp';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -43,33 +44,48 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
         const filesWithUrls = await Promise.all(
             files.map(async (file) => {
-                // キャッシュが有効な場合はそのまま返す
-                if (
-                    file.signedUrl &&
-                    file.signedUrlExpiresAt &&
-                    file.signedUrlExpiresAt.getTime() - now.getTime() > BUFFER_MS
-                ) {
-                    return { ...file };
+                const updateData: Record<string, unknown> = {};
+
+                // オリジナルURL更新
+                let signedUrl = file.signedUrl;
+                const originalValid = file.signedUrl && file.signedUrlExpiresAt &&
+                    file.signedUrlExpiresAt.getTime() - now.getTime() > BUFFER_MS;
+                if (!originalValid) {
+                    const { data } = await supabaseAdmin.storage
+                        .from(STORAGE_BUCKET)
+                        .createSignedUrl(file.storagePath, SIGNED_URL_TTL);
+                    signedUrl = data?.signedUrl ?? null;
+                    if (signedUrl) {
+                        updateData.signedUrl = signedUrl;
+                        updateData.signedUrlExpiresAt = new Date(now.getTime() + SIGNED_URL_TTL * 1000);
+                    }
                 }
 
-                // 期限切れ or 未生成 → Supabase で再生成してDBを更新
-                const { data } = await supabaseAdmin.storage
-                    .from(STORAGE_BUCKET)
-                    .createSignedUrl(file.storagePath, SIGNED_URL_TTL);
+                // サムネイルURL更新
+                let thumbnailSignedUrl = file.thumbnailSignedUrl;
+                if (file.thumbnailPath) {
+                    const thumbValid = file.thumbnailSignedUrl && file.thumbnailSignedUrlExpiresAt &&
+                        file.thumbnailSignedUrlExpiresAt.getTime() - now.getTime() > BUFFER_MS;
+                    if (!thumbValid) {
+                        const { data } = await supabaseAdmin.storage
+                            .from(STORAGE_BUCKET)
+                            .createSignedUrl(file.thumbnailPath, SIGNED_URL_TTL);
+                        thumbnailSignedUrl = data?.signedUrl ?? null;
+                        if (thumbnailSignedUrl) {
+                            updateData.thumbnailSignedUrl = thumbnailSignedUrl;
+                            updateData.thumbnailSignedUrlExpiresAt = new Date(now.getTime() + SIGNED_URL_TTL * 1000);
+                        }
+                    }
+                }
 
-                const newSignedUrl = data?.signedUrl ?? null;
-                const newExpiresAt = newSignedUrl
-                    ? new Date(now.getTime() + SIGNED_URL_TTL * 1000)
-                    : null;
-
-                if (newSignedUrl) {
+                if (Object.keys(updateData).length > 0) {
                     await prisma.projectMasterFile.update({
                         where: { id: file.id },
-                        data: { signedUrl: newSignedUrl, signedUrlExpiresAt: newExpiresAt },
+                        data: updateData,
                     });
                 }
 
-                return { ...file, signedUrl: newSignedUrl };
+                return { ...file, signedUrl, thumbnailSignedUrl };
             })
         );
 
@@ -107,40 +123,94 @@ export async function POST(req: NextRequest, context: RouteContext) {
             return errorResponse('ファイルサイズが20MBを超えています', 400);
         }
 
-        // ストレージパスはUUID+拡張子のみ（日本語等のUnicodeはSupabase Storageで無効なキーになるため）
-        // 元のファイル名はDBのfileNameフィールドに保存する
         const fileId = randomUUID();
-        const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
-        const storagePath = `${id}/${fileId}.${ext}`;
         const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
-
-        // Supabase Storage へアップロード
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
+        // 画像の場合: オリジナルをWebP変換 + サムネイル生成
+        // PDFの場合: そのままアップロード
+        let uploadBuffer: Buffer;
+        let uploadContentType: string;
+        let storagePath: string;
+        let thumbnailPath: string | null = null;
+        let actualFileSize: number;
+
+        if (fileType === 'image') {
+            // オリジナルをWebP変換（品質85%、最大長辺2400px）
+            uploadBuffer = await sharp(buffer)
+                .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 85 })
+                .toBuffer();
+            uploadContentType = 'image/webp';
+            storagePath = `${id}/${fileId}.webp`;
+            actualFileSize = uploadBuffer.length;
+
+            // サムネイル生成（400px、品質60%）
+            const thumbBuffer = await sharp(buffer)
+                .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 60 })
+                .toBuffer();
+            thumbnailPath = `${id}/${fileId}_thumb.webp`;
+
+            const { error: thumbError } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .upload(thumbnailPath, thumbBuffer, {
+                    contentType: 'image/webp',
+                    upsert: false,
+                });
+            if (thumbError) {
+                console.error('Thumbnail upload error:', thumbError);
+                thumbnailPath = null; // サムネイル失敗時はオリジナルのみで続行
+            }
+        } else {
+            uploadBuffer = buffer;
+            uploadContentType = file.type;
+            const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+            storagePath = `${id}/${fileId}.${ext}`;
+            actualFileSize = buffer.length;
+        }
+
+        // オリジナルファイルをアップロード
         const { error: uploadError } = await supabaseAdmin.storage
             .from(STORAGE_BUCKET)
-            .upload(storagePath, buffer, {
-                contentType: file.type,
+            .upload(storagePath, uploadBuffer, {
+                contentType: uploadContentType,
                 upsert: false,
             });
 
         if (uploadError) {
             console.error('Storage upload error:', uploadError);
+            // サムネイルが先にアップロード済みなら削除
+            if (thumbnailPath) {
+                await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([thumbnailPath]);
+            }
             return errorResponse('ファイルのアップロードに失敗しました', 500);
         }
 
-        // 署名付きURLを生成（DBにもキャッシュ保存）
+        // 署名付きURLを生成（オリジナル + サムネイル）
         const uploadedAt = new Date();
         const SIGNED_URL_TTL = 3600;
+
         const { data: signedData } = await supabaseAdmin.storage
             .from(STORAGE_BUCKET)
             .createSignedUrl(storagePath, SIGNED_URL_TTL);
-
         const newSignedUrl = signedData?.signedUrl ?? null;
         const newExpiresAt = newSignedUrl
             ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
             : null;
+
+        let thumbSignedUrl: string | null = null;
+        let thumbExpiresAt: Date | null = null;
+        if (thumbnailPath) {
+            const { data: thumbData } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .createSignedUrl(thumbnailPath, SIGNED_URL_TTL);
+            thumbSignedUrl = thumbData?.signedUrl ?? null;
+            thumbExpiresAt = thumbSignedUrl
+                ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
+                : null;
+        }
 
         // DBにメタデータ＋URLキャッシュを保存
         const projectMasterFile = await prisma.projectMasterFile.create({
@@ -150,18 +220,21 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 fileName: file.name,
                 storagePath,
                 fileType,
-                mimeType: file.type,
-                fileSize: file.size,
+                mimeType: uploadContentType,
+                fileSize: actualFileSize,
                 description: description || null,
                 uploadedBy: session!.user.id,
                 category,
                 signedUrl: newSignedUrl,
                 signedUrlExpiresAt: newExpiresAt,
+                thumbnailPath,
+                thumbnailSignedUrl: thumbSignedUrl,
+                thumbnailSignedUrlExpiresAt: thumbExpiresAt,
             },
         });
 
         return NextResponse.json(
-            { ...projectMasterFile, signedUrl: newSignedUrl },
+            { ...projectMasterFile, signedUrl: newSignedUrl, thumbnailSignedUrl: thumbSignedUrl },
             { status: 201 }
         );
     } catch (error) {
