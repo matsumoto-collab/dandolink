@@ -29,6 +29,7 @@ interface ProjectMasterFileData {
     category: string;
     createdAt: string;
     signedUrl: string | null;
+    thumbnailSignedUrl: string | null;
 }
 
 interface ProjectMasterFilesViewProps {
@@ -80,7 +81,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     const selectedFiles = selectedCategory ? files.filter(f => f.category === selectedCategory) : [];
     const selectedImages = selectedFiles
         .filter(f => f.fileType === 'image' && f.signedUrl)
-        .map(f => ({ src: f.signedUrl!, alt: f.fileName }));
+        .map(f => ({ src: f.signedUrl!, alt: f.fileName, thumbnail: f.thumbnailSignedUrl || f.signedUrl! }));
     const selectedPdfs = selectedFiles.filter(f => f.fileType === 'pdf');
     const selectedLabel = CATEGORIES.find(c => c.key === selectedCategory)?.label ?? '';
 
@@ -163,7 +164,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                                             className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 hover:opacity-80 active:opacity-60 transition-opacity"
                                         >
                                             <Image
-                                                src={img.src}
+                                                src={img.thumbnail}
                                                 alt={img.alt}
                                                 fill
                                                 sizes="(max-width: 640px) 30vw, 120px"

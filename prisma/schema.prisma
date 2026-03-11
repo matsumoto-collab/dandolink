@@ -817,20 +817,23 @@ model profiles {
 }
 
 model ProjectMasterFile {
-  id                 String        @id @default(uuid())
-  projectMasterId    String
-  fileName           String
-  storagePath        String
-  fileType           String
-  mimeType           String
-  fileSize           Int
-  description        String?
-  uploadedBy         String?
-  createdAt          DateTime      @default(now())
-  category           String        @default("other")
-  signedUrl          String?
-  signedUrlExpiresAt DateTime?
-  projectMaster      ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  id                          String        @id @default(uuid())
+  projectMasterId             String
+  fileName                    String
+  storagePath                 String
+  fileType                    String
+  mimeType                    String
+  fileSize                    Int
+  description                 String?
+  uploadedBy                  String?
+  createdAt                   DateTime      @default(now())
+  category                    String        @default("other")
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailPath               String?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+  projectMaster               ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
   @@schema("public")
