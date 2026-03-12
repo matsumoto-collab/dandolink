@@ -56,12 +56,33 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.navy,
     },
 
-    // Header row: customer left, title+company right
+    // Top row: estimateNo (left), title (center), date (right)
+    topRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-end',
+        marginTop: 10,
+        marginBottom: 12,
+    },
+    estimateNoText: {
+        fontSize: 9,
+        color: COLORS.textSecondary,
+        width: '25%',
+    },
+    titleCenter: {
+        width: '50%',
+        alignItems: 'center',
+    },
+    dateRight: {
+        width: '25%',
+        alignItems: 'flex-end',
+    },
+
+    // Header row: customer left, company right
     coverHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginBottom: 15,
-        marginTop: 10,
     },
 
     // Left: Customer info
@@ -92,7 +113,7 @@ const styles = StyleSheet.create({
         color: COLORS.textSecondary,
     },
 
-    // Right: Title + Company
+    // Right: Company
     rightArea: {
         width: '45%',
         alignItems: 'flex-end',
@@ -105,12 +126,6 @@ const styles = StyleSheet.create({
         paddingBottom: 4,
         borderBottomWidth: 2,
         borderBottomColor: COLORS.navy,
-        marginBottom: 6,
-    },
-    dateText: {
-        fontSize: 10,
-        color: COLORS.textSecondary,
-        marginBottom: 12,
     },
     companyRow: {
         flexDirection: 'row',
@@ -118,7 +133,6 @@ const styles = StyleSheet.create({
     },
     companyInfoBlock: {
         alignItems: 'flex-end',
-        marginRight: 8,
     },
     companyName: {
         fontSize: 12,
@@ -135,8 +149,6 @@ const styles = StyleSheet.create({
     stampBox: {
         width: 50,
         height: 50,
-        borderWidth: 0.5,
-        borderColor: COLORS.borderLight,
     },
 
     // ===== Amount Section =====
@@ -297,8 +309,9 @@ const styles = StyleSheet.create({
     },
 
     // Column styles (portrait A4 = ~525pt usable width)
+    // No.(25) + Name(170) + Spec(150) + Qty(45) + Unit(35) + Price(60) + Amount(70) = 555 ≈ usable
     cellNo: {
-        width: 22,
+        width: 25,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -306,21 +319,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellName: {
-        width: 130,
+        width: 170,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellSpec: {
-        width: 120,
+        width: 150,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellQty: {
-        width: 42,
+        width: 45,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -328,7 +341,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     cellUnit: {
-        width: 30,
+        width: 35,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -336,7 +349,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellPrice: {
-        width: 55,
+        width: 60,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -344,17 +357,10 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     cellAmount: {
-        width: 65,
-        padding: 3,
-        borderRightWidth: 0.3,
-        borderRightColor: COLORS.borderMedium,
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-    },
-    cellNotes: {
         flex: 1,
         padding: 3,
         justifyContent: 'center',
+        alignItems: 'flex-end',
     },
 
     // Header cell text
@@ -391,7 +397,8 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        width: 399,
+        // No(25) + Name(170) + Spec(150) + Qty(45) + Unit(35) + Price(60) = 485
+        width: 485,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -399,17 +406,10 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     totalAmountCell: {
-        width: 65,
-        padding: 3,
-        borderRightWidth: 0.3,
-        borderRightColor: COLORS.borderMedium,
-        justifyContent: 'center',
-        alignItems: 'flex-end',
-    },
-    totalNotesCell: {
         flex: 1,
         padding: 3,
         justifyContent: 'center',
+        alignItems: 'flex-end',
     },
     totalLabelText: {
         fontSize: 9,
@@ -450,7 +450,7 @@ const styles = StyleSheet.create({
         left: 35,
         right: 35,
         flexDirection: 'row',
-        justifyContent: 'center',
+        justifyContent: 'space-between',
     },
     footerText: {
         fontSize: 7,
@@ -476,7 +476,20 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             {/* Top accent bar */}
             <View style={styles.accentBar} fixed />
 
-            {/* Header: Customer (left) + Title & Company (right) */}
+            {/* Top row: 見積No (left), Title (center), Date (right) */}
+            <View style={styles.topRow}>
+                <View style={{ width: '25%' }}>
+                    <Text style={styles.estimateNoText}>見積No. {estimate.estimateNumber}</Text>
+                </View>
+                <View style={styles.titleCenter}>
+                    <Text style={styles.titleText}>御 見 積 書</Text>
+                </View>
+                <View style={styles.dateRight}>
+                    <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>見積日　{toReiwa(createdDate)}</Text>
+                </View>
+            </View>
+
+            {/* Header: Customer (left) + Company (right) */}
             <View style={styles.coverHeader}>
                 {/* Left: Customer */}
                 <View style={styles.customerArea}>
@@ -496,15 +509,11 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
                     })()}
-                    {/* contactPerson is available on Customer type if needed */}
                     <Text style={styles.greetingText}>下記の通り御見積り申し上げます。</Text>
                 </View>
 
-                {/* Right: Title + Company Info */}
+                {/* Right: Company Info + Seal */}
                 <View style={styles.rightArea}>
-                    <Text style={styles.titleText}>御 見 積 書</Text>
-                    <Text style={styles.dateText}>発行日：{toReiwa(createdDate)}</Text>
-
                     <View style={styles.companyRow}>
                         <View style={styles.companyInfoBlock}>
                             {companyInfo.licenseNumber && (
@@ -524,10 +533,8 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                 <Text style={styles.companyText}>{companyInfo.email}</Text>
                             )}
                         </View>
-                        {companyInfo.sealImage ? (
+                        {companyInfo.sealImage && (
                             <Image src={companyInfo.sealImage} style={styles.stampBox} />
-                        ) : (
-                            <View style={styles.stampBox} />
                         )}
                     </View>
                 </View>
@@ -618,14 +625,13 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             <View style={styles.table}>
                 {/* Header */}
                 <View style={styles.tableHeader}>
-                    <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
+                    <View style={styles.cellNo}><Text style={styles.headerCellText}>No.</Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
-                    <View style={styles.cellSpec}><Text style={styles.headerCellText}>規格</Text></View>
+                    <View style={styles.cellSpec}><Text style={styles.headerCellText}>仕様</Text></View>
                     <View style={styles.cellQty}><Text style={styles.headerCellText}>数量</Text></View>
                     <View style={styles.cellUnit}><Text style={styles.headerCellText}>単位</Text></View>
-                    <View style={styles.cellPrice}><Text style={styles.headerCellText}>単価</Text></View>
-                    <View style={styles.cellAmount}><Text style={styles.headerCellText}>金額</Text></View>
-                    <View style={styles.cellNotes}><Text style={styles.headerCellText}>備考</Text></View>
+                    <View style={styles.cellPrice}><Text style={styles.headerCellText}>見積単価</Text></View>
+                    <View style={styles.cellAmount}><Text style={styles.headerCellText}>見積金額</Text></View>
                 </View>
 
                 {/* Body Rows */}
@@ -674,11 +680,6 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                         {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                                     </Text>
                                 </View>
-                                <View style={styles.cellNotes}>
-                                    <Text style={styles.cellText}>
-                                        {item ? sanitizePdfText(item.notes || '') : ''}
-                                    </Text>
-                                </View>
                             </View>
                         );
                     }
@@ -693,20 +694,20 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
                     </View>
-                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>DandoLink</Text>
+                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}>No. 1</Text>
             </View>
         </Page>
     );
 }
 
 // ===== Details Page Component =====
-function DetailsPage({ estimate }: { estimate: Estimate }) {
+function DetailsPage({ estimate, companyInfo }: { estimate: Estimate; companyInfo: CompanyInfo }) {
     const maxRows = 25;
 
     const items: Array<{
@@ -766,7 +767,7 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
 
             {/* Header */}
             <View style={styles.detailsHeader}>
-                <Text style={styles.detailsTitle}>内 訳 書</Text>
+                <Text style={styles.detailsTitle}>見積内訳明細書</Text>
                 <Text style={styles.detailsSubInfo}>
                     見積番号：{estimate.estimateNumber}
                 </Text>
@@ -776,14 +777,13 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
             <View style={styles.table}>
                 {/* Header */}
                 <View style={styles.tableHeader}>
-                    <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
+                    <View style={styles.cellNo}><Text style={styles.headerCellText}>No.</Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
-                    <View style={styles.cellSpec}><Text style={styles.headerCellText}>規格</Text></View>
+                    <View style={styles.cellSpec}><Text style={styles.headerCellText}>仕様</Text></View>
                     <View style={styles.cellQty}><Text style={styles.headerCellText}>数量</Text></View>
                     <View style={styles.cellUnit}><Text style={styles.headerCellText}>単位</Text></View>
-                    <View style={styles.cellPrice}><Text style={styles.headerCellText}>単価</Text></View>
-                    <View style={styles.cellAmount}><Text style={styles.headerCellText}>金額</Text></View>
-                    <View style={styles.cellNotes}><Text style={styles.headerCellText}>備考</Text></View>
+                    <View style={styles.cellPrice}><Text style={styles.headerCellText}>見積単価</Text></View>
+                    <View style={styles.cellAmount}><Text style={styles.headerCellText}>見積金額</Text></View>
                 </View>
 
                 {/* Body Rows */}
@@ -821,9 +821,6 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
                                     {formatAmount(item.amount, item.isNegative, item.isEmpty)}
                                 </Text>
                             </View>
-                            <View style={styles.cellNotes}>
-                                <Text style={styles.cellText}>{item.notes}</Text>
-                            </View>
                         </View>
                     );
                 })}
@@ -836,7 +833,6 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.subtotal.toLocaleString()}</Text>
                     </View>
-                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
                 </View>
 
                 {/* Tax Row */}
@@ -847,7 +843,6 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.tax.toLocaleString()}</Text>
                     </View>
-                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
                 </View>
 
                 {/* Total Row */}
@@ -860,13 +855,13 @@ function DetailsPage({ estimate }: { estimate: Estimate }) {
                             {estimate.total.toLocaleString()}
                         </Text>
                     </View>
-                    <View style={styles.totalNotesCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>DandoLink</Text>
+                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}>No. 2</Text>
             </View>
         </Page>
     );
@@ -885,7 +880,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage =
             {includeCoverPage && (
                 <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
             )}
-            <DetailsPage estimate={estimate} />
+            <DetailsPage estimate={estimate} companyInfo={companyInfo} />
         </Document>
     );
 }
