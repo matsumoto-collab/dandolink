@@ -122,6 +122,32 @@ export default function ProjectForm({
         remarks: initialData?.remarks || '',
     });
 
+    // initialDataが変わったらformDataをリセット（備考などが前回の値で残るのを防止）
+    useEffect(() => {
+        const hasName = !!initialData?.name;
+        setFormData({
+            name: initialData?.name || initialData?.title || '',
+            honorific: hasName ? (initialData?.honorific ?? '様邸') : (initialData?.honorific || ''),
+            constructionSuffixId: initialData?.constructionSuffixId || '',
+            title: initialData?.title || '',
+            customer: initialData?.customer || '',
+            customerId: '',
+            selectedManagers: Array.isArray(initialData?.createdBy)
+                ? initialData.createdBy
+                : initialData?.createdBy
+                    ? [initialData.createdBy]
+                    : [],
+            memberCount: initialData?.memberCount ?? initialData?.workers?.length ?? 0,
+            estimatedHours: initialData?.estimatedHours ?? 8,
+            selectedVehicles: initialData?.isDispatchConfirmed && initialData?.confirmedVehicleIds?.length
+                ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
+                : initialData?.trucks || [],
+            constructionType: initialData?.constructionType || '',
+            constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
+            remarks: initialData?.remarks || '',
+        });
+    }, [initialData]);
+
     // 旧データ（name未設定）の場合、constructionSuffixes取得後にtitleをパースして分離
     const hasInitialNameRef = useRef(hasInitialName);
     useEffect(() => {
