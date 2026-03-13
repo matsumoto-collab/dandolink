@@ -126,34 +126,37 @@ export default function SettingsPage() {
                     <p className="text-slate-600">マスターデータを管理します</p>
                 </div>
 
-                {/* Tabs */}
-                <div className="bg-white rounded-xl shadow-lg border border-slate-200">
-                    <div className="border-b border-slate-200">
-                        <nav className="flex flex-wrap -mb-px">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`
-                                        px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-all duration-300 whitespace-nowrap
-                                        ${activeTab === tab.id
-                                            ? 'border-slate-700 text-slate-900 bg-slate-100'
-                                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                                        }
-                                    `}
-                                >
-                                    {tab.label}
-                                    {tab.count !== null && (
-                                        <span className="ml-1 md:ml-2 px-1.5 md:px-2 py-0.5 text-xs rounded-full bg-slate-100 text-slate-600">
-                                            {tab.count}
-                                        </span>
-                                    )}
-                                </button>
-                            ))}
-                        </nav>
-                    </div>
+                {/* Segment Tabs */}
+                <div className="flex flex-wrap gap-1.5 md:gap-2 bg-slate-100 rounded-xl p-1.5 md:p-2 mb-4 md:mb-6">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`
+                                px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium rounded-lg
+                                transition-all duration-300 whitespace-nowrap
+                                ${activeTab === tab.id
+                                    ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md'
+                                    : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
+                                }
+                            `}
+                        >
+                            {tab.label}
+                            {tab.count !== null && (
+                                <span className={`ml-1 md:ml-1.5 px-1.5 py-0.5 text-xs rounded-full ${
+                                    activeTab === tab.id
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-slate-200 text-slate-600'
+                                }`}>
+                                    {tab.count}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
 
-                    {/* Tab Content */}
+                {/* Tab Content */}
+                <div className="bg-white rounded-xl shadow-lg border border-slate-200">
                     <div className="p-3 md:p-6 min-w-0 overflow-hidden">
                         {activeTab === 'members' ? (
                             // Total Members Configuration
