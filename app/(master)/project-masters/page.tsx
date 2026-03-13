@@ -145,7 +145,7 @@ export default function ProjectMasterListPage() {
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
             scaffoldingSpec: data.scaffoldingSpec as ScaffoldingSpec,
-            remarks: data.remarks || undefined,
+            remarks: data.remarks ?? '',
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
         // 保存後、detailPmをストアの最新データで更新（再編集時にpm.latitudeが古い値にならないよう）
