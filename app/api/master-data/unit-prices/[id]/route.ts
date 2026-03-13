@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, serverErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAbove, parseJsonField, serverErrorResponse } from '@/lib/api/utils';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -10,7 +10,7 @@ function formatUnitPrice(up: { templates: string; [key: string]: unknown }) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await context.params;
@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await context.params;

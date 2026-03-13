@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse, validateStringField, validateHexColor } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse, validateStringField, validateHexColor } from '@/lib/api/utils';
 
 // デフォルトの工事種別データ
 const DEFAULT_CONSTRUCTION_TYPES = [
@@ -41,7 +41,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { name, color } = await request.json();

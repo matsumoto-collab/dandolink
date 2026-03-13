@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { vacationSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -24,8 +25,11 @@ export async function POST(request: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { dateKey, employeeIds, remarks } = await request.json();
-        if (!dateKey) return validationErrorResponse('dateKeyは必須です');
+        const body = await request.json();
+        const validation = validateRequest(vacationSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
+
+        const { dateKey, employeeIds, remarks } = validation.data;
 
         if ((!employeeIds || employeeIds.length === 0) && (!remarks || remarks.trim() === '')) {
             await prisma.vacationRecord.deleteMany({ where: { dateKey } });

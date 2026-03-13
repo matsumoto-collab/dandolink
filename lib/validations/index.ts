@@ -203,6 +203,117 @@ export function validateRequest<T>(
     return { success: true, data: result.data };
 }
 
+// ============================================
+// Invoice Schemas
+// ============================================
+
+export const updateInvoiceSchema = z.object({
+    projectMasterId: z.string().optional(),
+    estimateId: z.string().nullable().optional(),
+    invoiceNumber: z.string().max(50).optional(),
+    title: z.string().max(200).optional(),
+    items: z.array(z.unknown()).optional(),
+    subtotal: z.number().optional(),
+    tax: z.number().optional(),
+    total: z.number().optional(),
+    dueDate: z.string().optional(),
+    status: z.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']).optional(),
+    paidDate: z.string().nullable().optional(),
+    notes: z.string().max(2000).nullable().optional(),
+});
+
+// ============================================
+// Estimate Schemas
+// ============================================
+
+export const updateEstimateSchema = z.object({
+    projectMasterId: z.string().nullable().optional(),
+    customerId: z.string().nullable().optional(),
+    estimateNumber: z.string().max(50).optional(),
+    title: z.string().max(200).optional(),
+    items: z.array(z.unknown()).optional(),
+    subtotal: z.number().optional(),
+    tax: z.number().optional(),
+    total: z.number().optional(),
+    validUntil: z.string().optional(),
+    status: z.enum(['draft', 'sent', 'accepted', 'rejected']).optional(),
+    notes: z.string().max(2000).nullable().optional(),
+});
+
+// ============================================
+// Batch Assignment Schema
+// ============================================
+
+const batchUpdateItemSchema = z.object({
+    id: z.string().min(1),
+    expectedUpdatedAt: z.string().optional(),
+    data: z.object({
+        assignedEmployeeId: z.string().optional(),
+        date: z.string().optional(),
+        sortOrder: z.number().int().optional(),
+        memberCount: z.number().int().min(0).optional(),
+        workers: z.array(z.string()).optional(),
+        vehicles: z.array(z.string()).optional(),
+        meetingTime: z.string().nullable().optional(),
+        remarks: z.string().max(1000).nullable().optional(),
+        isDispatchConfirmed: z.boolean().optional(),
+        confirmedWorkerIds: z.array(z.string()).optional(),
+        confirmedVehicleIds: z.array(z.string()).optional(),
+        estimatedHours: z.number().min(0).max(24).optional(),
+    }),
+});
+
+export const batchUpdateAssignmentsSchema = z.object({
+    updates: z.array(batchUpdateItemSchema).min(1).max(200),
+});
+
+// ============================================
+// Calendar Schemas
+// ============================================
+
+const dateKeySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日付キーはYYYY-MM-DD形式で入力してください');
+
+export const cellRemarkSchema = z.object({
+    foremanId: z.string().min(1, '職長IDは必須です'),
+    dateKey: dateKeySchema,
+    text: z.string().max(500, '備考は500文字以内で入力してください').optional().nullable(),
+});
+
+export const calendarRemarkSchema = z.object({
+    dateKey: dateKeySchema,
+    text: z.string().max(500, '備考は500文字以内で入力してください').optional().nullable(),
+});
+
+export const vacationSchema = z.object({
+    dateKey: dateKeySchema,
+    employeeIds: z.array(z.string().uuid('無効な従業員IDです')).optional().default([]),
+    remarks: z.string().max(500).optional().nullable(),
+});
+
+// ============================================
+// Daily Report Schema (for API POST)
+// ============================================
+
+const dailyReportWorkItemApiSchema = z.object({
+    assignmentId: z.string().min(1),
+    startTime: z.string().nullable().optional(),
+    endTime: z.string().nullable().optional(),
+    breakMinutes: z.number().int().min(0).default(0),
+    workerIds: z.array(z.string()).optional(),
+});
+
+export const createDailyReportApiSchema = z.object({
+    foremanId: z.string().min(1, '職長IDは必須です'),
+    date: z.string().min(1, '日付は必須です'),
+    morningLoadingMinutes: z.number().int().min(0).default(0),
+    eveningLoadingMinutes: z.number().int().min(0).default(0),
+    earlyStartMinutes: z.number().int().min(0).default(0),
+    overtimeMinutes: z.number().int().min(0).default(0),
+    breakMinutes: z.number().int().min(0).default(0),
+    notes: z.string().max(2000).nullable().optional(),
+    workItems: z.array(dailyReportWorkItemApiSchema).optional(),
+});
+
 // Type exports
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

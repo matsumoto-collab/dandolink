@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { calendarRemarkSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -21,8 +22,11 @@ export async function POST(request: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { dateKey, text } = await request.json();
-        if (!dateKey) return validationErrorResponse('日付キーは必須です');
+        const body = await request.json();
+        const validation = validateRequest(calendarRemarkSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
+
+        const { dateKey, text } = validation.data;
 
         if (!text || text.trim() === '') {
             await prisma.calendarRemark.deleteMany({ where: { dateKey } });
