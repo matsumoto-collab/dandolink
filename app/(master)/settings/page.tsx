@@ -129,13 +129,13 @@ export default function SettingsPage() {
                 {/* Tabs */}
                 <div className="bg-white rounded-xl shadow-lg border border-slate-200">
                     <div className="border-b border-slate-200">
-                        <nav className="flex -mb-px overflow-x-auto scrollbar-hide">
+                        <nav className="flex flex-wrap -mb-px">
                             {tabs.map((tab) => (
                                 <button
                                     key={tab.id}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`
-                                        px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-all duration-300 whitespace-nowrap flex-shrink-0
+                                        px-3 md:px-6 py-3 md:py-4 text-xs md:text-sm font-medium border-b-2 transition-all duration-300 whitespace-nowrap
                                         ${activeTab === tab.id
                                             ? 'border-slate-700 text-slate-900 bg-slate-100'
                                             : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                     </div>
 
                     {/* Tab Content */}
-                    <div className="p-3 md:p-6">
+                    <div className="p-3 md:p-6 min-w-0 overflow-hidden">
                         {activeTab === 'members' ? (
                             // Total Members Configuration
                             <div className="max-w-md">
