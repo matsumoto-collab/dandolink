@@ -189,7 +189,7 @@ export default function ConstructionTypeSettings() {
     }
 
     return (
-        <div>
+        <div className="min-w-0 overflow-hidden">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-lg font-semibold text-slate-900">工事種別一覧</h3>
@@ -198,8 +198,8 @@ export default function ConstructionTypeSettings() {
             </div>
 
             {/* 新規追加フォーム */}
-            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center">
-                <div className="flex items-center gap-2 flex-1">
+            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center min-w-0">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                     <ColorPicker
                         selectedColor={newColor}
                         onSelect={setNewColor}
@@ -210,13 +210,13 @@ export default function ConstructionTypeSettings() {
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                        className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        placeholder="新しい工事種別を追加（例: 点検）"
+                        className="flex-1 min-w-0 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="新しい工事種別を追加"
                     />
                 </div>
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg flex-shrink-0"
                 >
                     <Plus className="w-4 h-4" />
                     追加

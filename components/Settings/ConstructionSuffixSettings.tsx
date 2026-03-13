@@ -120,7 +120,7 @@ export default function ConstructionSuffixSettings() {
     }
 
     return (
-        <div>
+        <div className="min-w-0 overflow-hidden">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-lg font-semibold text-slate-900">工事名称一覧</h3>
@@ -129,14 +129,14 @@ export default function ConstructionSuffixSettings() {
             </div>
 
             {/* 新規追加フォーム */}
-            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center">
+            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center min-w-0">
                 <input
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                    className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="新しい工事名称を追加（例: 仮設工事）"
+                    className="flex-1 min-w-0 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    placeholder="新しい工事名称を追加"
                 />
                 <button
                     onClick={handleAdd}
