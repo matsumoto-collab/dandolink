@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { createDailyReportApiSchema, validateRequest } from '@/lib/validations';
 
 const workItemSelect = {
     id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
@@ -50,8 +51,11 @@ export async function POST(request: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { foremanId, date, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, breakMinutes, notes, workItems } = await request.json();
-        if (!foremanId || !date) return validationErrorResponse('職長IDと日付は必須です');
+        const body = await request.json();
+        const validation = validateRequest(createDailyReportApiSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
+
+        const { foremanId, date, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, breakMinutes, notes, workItems } = validation.data;
 
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
@@ -71,7 +75,7 @@ export async function POST(request: NextRequest) {
             await prisma.dailyReportWorkItem.deleteMany({ where: { dailyReportId: dailyReport.id } });
             if (workItems.length > 0) {
                 await prisma.dailyReportWorkItem.createMany({
-                    data: workItems.map((item: { assignmentId: string; startTime?: string; endTime?: string; breakMinutes?: number; workerIds?: string[] }) => ({
+                    data: workItems.map((item: { assignmentId: string; startTime?: string | null; endTime?: string | null; breakMinutes?: number; workerIds?: string[] }) => ({
                         dailyReportId: dailyReport.id, assignmentId: item.assignmentId,
                         startTime: item.startTime || null, endTime: item.endTime || null,
                         breakMinutes: item.breakMinutes ?? 0,

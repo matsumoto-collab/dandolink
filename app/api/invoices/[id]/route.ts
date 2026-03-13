@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { requireManagerOrAbove, notFoundResponse, serverErrorResponse, validationErrorResponse, deleteSuccessResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
+import { updateInvoiceSchema, validateRequest } from '@/lib/validations';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -14,26 +15,26 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const body = await req.json();
 
+        const validation = validateRequest(updateInvoiceSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
+
         const existingInvoice = await prisma.invoice.findUnique({ where: { id } });
         if (!existingInvoice) return notFoundResponse('請求書');
 
+        const data = validation.data;
         const updateData: Prisma.InvoiceUpdateInput = {};
-        if (body.projectMasterId !== undefined) updateData.projectMasterId = body.projectMasterId;
-        if (body.estimateId !== undefined) updateData.estimateId = body.estimateId || null;
-        if (body.invoiceNumber !== undefined) updateData.invoiceNumber = body.invoiceNumber;
-        if (body.title !== undefined) updateData.title = body.title;
-        if (body.items !== undefined) updateData.items = JSON.stringify(body.items);
-        if (body.subtotal !== undefined) updateData.subtotal = body.subtotal;
-        if (body.tax !== undefined) updateData.tax = body.tax;
-        if (body.total !== undefined) updateData.total = body.total;
-        if (body.dueDate !== undefined) updateData.dueDate = new Date(body.dueDate);
-        if (body.status !== undefined) {
-            const VALID_STATUSES = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
-            if (!VALID_STATUSES.includes(body.status)) return validationErrorResponse(`statusは${VALID_STATUSES.join(', ')}のいずれかを指定してください`);
-            updateData.status = body.status;
-        }
-        if (body.paidDate !== undefined) updateData.paidDate = body.paidDate ? new Date(body.paidDate) : null;
-        if (body.notes !== undefined) updateData.notes = body.notes || null;
+        if (data.projectMasterId !== undefined) updateData.projectMasterId = data.projectMasterId;
+        if (data.estimateId !== undefined) updateData.estimateId = data.estimateId || null;
+        if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;
+        if (data.title !== undefined) updateData.title = data.title;
+        if (data.items !== undefined) updateData.items = JSON.stringify(data.items);
+        if (data.subtotal !== undefined) updateData.subtotal = data.subtotal;
+        if (data.tax !== undefined) updateData.tax = data.tax;
+        if (data.total !== undefined) updateData.total = data.total;
+        if (data.dueDate !== undefined) updateData.dueDate = new Date(data.dueDate);
+        if (data.status !== undefined) updateData.status = data.status;
+        if (data.paidDate !== undefined) updateData.paidDate = data.paidDate ? new Date(data.paidDate) : null;
+        if (data.notes !== undefined) updateData.notes = data.notes || null;
 
         const updatedInvoice = await prisma.invoice.update({ where: { id }, data: updateData });
         return NextResponse.json(formatInvoice(updatedInvoice));

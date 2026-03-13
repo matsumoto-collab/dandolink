@@ -55,7 +55,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (hourlyRate !== undefined) updateData.hourlyRate = hourlyRate;
         if (password) updateData.passwordHash = await bcrypt.hash(password, 10);
 
-        const updatedUser = await prisma.user.update({ where: { id }, data: updateData });
+        const updatedUser = await prisma.user.update({
+            where: { id },
+            data: updateData,
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, hourlyRate: true, createdAt: true, updatedAt: true },
+        });
         return NextResponse.json(formatUser(updatedUser));
     } catch (error) {
         return serverErrorResponse('ユーザーの更新', error);

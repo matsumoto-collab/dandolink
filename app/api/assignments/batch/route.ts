@@ -3,25 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, validationErrorResponse, conflictResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
-
-interface BatchUpdate {
-    id: string;
-    expectedUpdatedAt?: string; // 楽観的ロック用
-    data: {
-        assignedEmployeeId?: string;
-        date?: string;
-        sortOrder?: number;
-        memberCount?: number;
-        workers?: string[];
-        vehicles?: string[];
-        meetingTime?: string;
-        remarks?: string;
-        isDispatchConfirmed?: boolean;
-        confirmedWorkerIds?: string[];
-        confirmedVehicleIds?: string[];
-        estimatedHours?: number;
-    };
-}
+import { batchUpdateAssignmentsSchema, validateRequest } from '@/lib/validations';
 
 /**
  * POST /api/assignments/batch - 配置の一括更新
@@ -36,11 +18,11 @@ export async function POST(req: NextRequest) {
             return errorResponse('権限がありません', 403);
         }
 
-        const { updates } = await req.json() as { updates: BatchUpdate[] };
+        const body = await req.json();
+        const validation = validateRequest(batchUpdateAssignmentsSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
 
-        if (!updates || !Array.isArray(updates)) {
-            return validationErrorResponse('updates配列が必要です');
-        }
+        const { updates } = validation.data;
 
         // 楽観的ロック: expectedUpdatedAtが指定されている更新がある場合、先に競合チェック
         const updatesWithLock = updates.filter(u => u.expectedUpdatedAt);
