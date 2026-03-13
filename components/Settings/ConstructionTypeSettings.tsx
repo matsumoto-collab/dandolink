@@ -150,7 +150,7 @@ export default function ConstructionTypeSettings() {
                         className="fixed inset-0 z-40"
                         onClick={() => setShowColorPicker(null)}
                     />
-                    <div className="absolute z-50 top-10 left-0 p-2 bg-white rounded-xl shadow-xl border border-slate-200 grid grid-cols-2 gap-1 w-[320px]">
+                    <div className="absolute z-50 top-10 left-0 p-2 bg-white rounded-xl shadow-xl border border-slate-200 grid grid-cols-2 gap-1 w-[280px] md:w-[320px]">
                         {COLOR_PALETTE.map((color) => (
                             <button
                                 key={color}
@@ -198,23 +198,25 @@ export default function ConstructionTypeSettings() {
             </div>
 
             {/* 新規追加フォーム */}
-            <div className="mb-6 flex gap-2 items-center">
-                <ColorPicker
-                    selectedColor={newColor}
-                    onSelect={setNewColor}
-                    pickerId="new"
-                />
-                <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="新しい工事種別を追加（例: 点検）"
-                />
+            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center">
+                <div className="flex items-center gap-2 flex-1">
+                    <ColorPicker
+                        selectedColor={newColor}
+                        onSelect={setNewColor}
+                        pickerId="new"
+                    />
+                    <input
+                        type="text"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+                        className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="新しい工事種別を追加（例: 点検）"
+                    />
+                </div>
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
+                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -226,7 +228,7 @@ export default function ConstructionTypeSettings() {
                 {constructionTypes.map((item) => (
                     <div
                         key={item.id}
-                        className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+                        className="flex items-center gap-2 p-3 md:p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
                     >
                         {editingId === item.id ? (
                             <>
@@ -246,14 +248,14 @@ export default function ConstructionTypeSettings() {
                                 />
                                 <button
                                     onClick={handleSaveEdit}
-                                    className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                     title="保存"
                                 >
                                     <Check className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                                    className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                                     title="キャンセル"
                                 >
                                     <X className="w-4 h-4" />
@@ -269,7 +271,7 @@ export default function ConstructionTypeSettings() {
                                 <span className="flex-1 text-slate-900">{item.name}</span>
                                 <button
                                     onClick={() => handleEdit(item)}
-                                    className="p-2 text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                                    className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                                     title="編集"
                                 >
                                     <Edit className="w-4 h-4" />
@@ -292,7 +294,7 @@ export default function ConstructionTypeSettings() {
                                 ) : (
                                     <button
                                         onClick={() => setDeleteConfirm(item.id)}
-                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                                        className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                         title="削除"
                                     >
                                         <Trash2 className="w-4 h-4" />
