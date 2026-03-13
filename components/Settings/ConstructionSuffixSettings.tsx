@@ -129,18 +129,18 @@ export default function ConstructionSuffixSettings() {
             </div>
 
             {/* 新規追加フォーム */}
-            <div className="mb-6 flex gap-2 items-center">
+            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center">
                 <input
                     type="text"
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                     placeholder="新しい工事名称を追加（例: 仮設工事）"
                 />
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
+                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -152,7 +152,7 @@ export default function ConstructionSuffixSettings() {
                 {suffixes.map((item) => (
                     <div
                         key={item.id}
-                        className="flex items-center gap-2 p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors"
+                        className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
                     >
                         {editingId === item.id ? (
                             <>
@@ -166,14 +166,14 @@ export default function ConstructionSuffixSettings() {
                                 />
                                 <button
                                     onClick={handleSaveEdit}
-                                    className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                     title="保存"
                                 >
                                     <Check className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="p-2 text-slate-600 hover:bg-slate-100 rounded-md transition-colors"
+                                    className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                                     title="キャンセル"
                                 >
                                     <X className="w-4 h-4" />
@@ -184,7 +184,7 @@ export default function ConstructionSuffixSettings() {
                                 <span className="flex-1 text-slate-900">{item.name}</span>
                                 <button
                                     onClick={() => handleEdit(item)}
-                                    className="p-2 text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+                                    className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                                     title="編集"
                                 >
                                     <Edit className="w-4 h-4" />
@@ -207,7 +207,7 @@ export default function ConstructionSuffixSettings() {
                                 ) : (
                                     <button
                                         onClick={() => setDeleteConfirm(item.id)}
-                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-md transition-colors"
+                                        className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                         title="削除"
                                     >
                                         <Trash2 className="w-4 h-4" />

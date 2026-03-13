@@ -126,7 +126,7 @@ export default function UnitPriceMasterSettings() {
             ) : (
                 <div className="grid grid-cols-1 gap-4">
                     {filteredUnitPrices.map(item => (
-                        <div key={item.id} className="bg-white border border-slate-200 rounded-lg p-4">
+                        <div key={item.id} className="bg-white border border-slate-200 rounded-xl p-3 md:p-4">
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                     <h3 className="text-lg font-bold text-slate-900">{item.description}</h3>
@@ -141,13 +141,13 @@ export default function UnitPriceMasterSettings() {
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => handleOpenForm(item)}
-                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                                        className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                                     >
                                         <Edit className="w-4 h-4" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(item.id, item.description)}
-                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                        className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -185,7 +185,7 @@ export default function UnitPriceMasterSettings() {
                                 </div>
 
                                 {/* 単位と単価 */}
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label htmlFor="unit" className="block text-sm font-semibold text-slate-700 mb-2">
                                             単位 <span className="text-slate-500">*</span>

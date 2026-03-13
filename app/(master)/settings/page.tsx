@@ -118,8 +118,8 @@ export default function SettingsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            <div className="p-3 sm:p-6 lg:p-8">
+        <div className="h-full flex flex-col overflow-hidden bg-slate-50">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
                 {/* Header */}
                 <div className="mb-4 md:mb-8">
                     <h1 className="text-3xl font-bold text-slate-800 mb-2">マスター・設定</h1>
@@ -211,18 +211,18 @@ export default function SettingsPage() {
                                 </div>
 
                                 {/* Add New Item */}
-                                <div className="mb-6 flex gap-2">
+                                <div className="mb-6 flex flex-col md:flex-row gap-2">
                                     <input
                                         type="text"
                                         value={newItemName}
                                         onChange={(e) => setNewItemName(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                                        className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder={`新しい${getTabLabel()}を追加`}
                                     />
                                     <button
                                         onClick={handleAdd}
-                                        className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg"
+                                        className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                                     >
                                         <Plus className="w-4 h-4" />
                                         追加
@@ -248,14 +248,14 @@ export default function SettingsPage() {
                                                     />
                                                     <button
                                                         onClick={handleSaveEdit}
-                                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                                                        className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                                         title="保存"
                                                     >
                                                         <Check className="w-4 h-4" />
                                                     </button>
                                                     <button
                                                         onClick={handleCancelEdit}
-                                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                                        className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                                                         title="キャンセル"
                                                     >
                                                         <X className="w-4 h-4" />
@@ -268,7 +268,7 @@ export default function SettingsPage() {
                                                     </span>
                                                     <button
                                                         onClick={() => handleEdit(item.id, item.name)}
-                                                        className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                                                        className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                                                         title="編集"
                                                     >
                                                         <Edit className="w-4 h-4" />
@@ -291,7 +291,7 @@ export default function SettingsPage() {
                                                     ) : (
                                                         <button
                                                             onClick={() => setDeleteConfirm(item.id)}
-                                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                                                            className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
                                                             title="削除"
                                                         >
                                                             <Trash2 className="w-4 h-4" />
