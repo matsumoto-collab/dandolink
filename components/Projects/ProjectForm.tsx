@@ -838,17 +838,17 @@ export default function ProjectForm({
                     )}
                 </div>
 
-                {/* 備考 */}
+                {/* 備考（当日の配置用） */}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                        備考
+                        備考（この日の配置用）
                     </label>
                     <textarea
                         value={formData.remarks}
                         onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
                         rows={3}
                         className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        placeholder="備考を入力"
+                        placeholder="当日の備考を入力（案件マスターには保存されません）"
                     />
                 </div>
 
