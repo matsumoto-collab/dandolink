@@ -8,7 +8,7 @@ import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 interface InvoiceModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: InvoiceInput) => void;
+    onSubmit: (data: InvoiceInput) => Promise<void> | void;
     initialData?: Partial<InvoiceInput>;
 }
 
@@ -17,23 +17,25 @@ export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }:
 
     if (!isOpen) return null;
 
-    const handleSubmit = (data: InvoiceInput) => {
-        onSubmit(data);
-        onClose();
+    const handleSubmit = async (data: InvoiceInput) => {
+        await onSubmit(data);
     };
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex items-center justify-center">
+        <div className="fixed inset-0 lg:left-64 z-[70] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             {/* オーバーレイ */}
-            <div
-                className="absolute inset-0 bg-black bg-opacity-50"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block" onClick={onClose} />
 
             {/* モーダルコンテンツ */}
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div
+                ref={modalRef}
+                role="dialog"
+                aria-modal="true"
+                tabIndex={-1}
+                className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-6xl lg:mx-4 lg:max-h-[90vh]"
+            >
                 {/* ヘッダー */}
-                <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between z-10 rounded-t-lg">
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between lg:rounded-t-lg">
                     <h2 className="text-xl font-semibold text-slate-900">
                         {initialData ? '請求書編集' : '新規請求書作成'}
                     </h2>
@@ -48,7 +50,7 @@ export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }:
                 </div>
 
                 {/* コンテンツ */}
-                <div className="px-6 py-4">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 md:px-6 py-4 safe-area-bottom">
                     <InvoiceForm
                         initialData={initialData}
                         onSubmit={handleSubmit}
