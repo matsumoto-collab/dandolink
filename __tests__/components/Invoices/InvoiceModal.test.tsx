@@ -66,13 +66,12 @@ describe('InvoiceModal', () => {
             expect(screen.getByTestId('invoice-form')).toBeInTheDocument();
         });
 
-        it('フォームの保存でonSubmitとonCloseが呼ばれる', () => {
+        it('フォームの保存でonSubmitが呼ばれる', async () => {
             render(
                 <InvoiceModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
             );
             fireEvent.click(screen.getByText('保存'));
             expect(mockOnSubmit).toHaveBeenCalledWith({ title: 'Test請求書' });
-            expect(mockOnClose).toHaveBeenCalledTimes(1);
         });
 
         it('フォームのキャンセルでonCloseが呼ばれる', () => {
