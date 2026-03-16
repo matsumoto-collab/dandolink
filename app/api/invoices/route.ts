@@ -43,13 +43,31 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { projectMasterId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = body;
 
-        if (!projectMasterId || !invoiceNumber || !title) {
-            return validationErrorResponse('案件ID、請求書番号、タイトルは必須です');
+        if (!title) {
+            return validationErrorResponse('タイトルは必須です');
+        }
+
+        // 請求番号: 指定がなければサーバー側で自動採番
+        let finalInvoiceNumber = invoiceNumber;
+        if (!finalInvoiceNumber) {
+            const year = new Date().getFullYear();
+            const prefix = `I${year}`;
+            const latest = await prisma.invoice.findFirst({
+                where: { invoiceNumber: { startsWith: prefix } },
+                orderBy: { invoiceNumber: 'desc' },
+                select: { invoiceNumber: true },
+            });
+            let nextSeq = 1;
+            if (latest) {
+                const seq = parseInt(latest.invoiceNumber.replace(prefix, ''), 10);
+                if (!isNaN(seq)) nextSeq = seq + 1;
+            }
+            finalInvoiceNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
         }
 
         const newInvoice = await prisma.invoice.create({
             data: {
-                projectMasterId, estimateId: estimateId || null, invoiceNumber, title,
+                projectMasterId: projectMasterId || null, estimateId: estimateId || null, invoiceNumber: finalInvoiceNumber, title,
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
                 dueDate: dueDate ? new Date(dueDate) : new Date(), status: status || 'draft',
                 paidDate: paidDate ? new Date(paidDate) : null, notes: notes || null,

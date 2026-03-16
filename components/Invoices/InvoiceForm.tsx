@@ -48,20 +48,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
 
-    // 請求番号: 新規作成時はAPIから連番取得
+    // 請求番号: 空の場合は保存時にサーバー側で自動採番
     const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || '');
-
-    useEffect(() => {
-        if (!initialData?.invoiceNumber) {
-            fetch('/api/invoices/next-number')
-                .then(res => res.json())
-                .then(data => { if (data.nextNumber) setInvoiceNumber(data.nextNumber); })
-                .catch(() => {
-                    // フォールバック
-                    setInvoiceNumber(`I${new Date().getFullYear()}0001`);
-                });
-        }
-    }, [initialData?.invoiceNumber]);
 
     // 支払期限: デフォルト30日後
     const [dueDate, setDueDate] = useState(() => {

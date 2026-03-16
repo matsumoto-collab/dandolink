@@ -353,7 +353,7 @@ export default function EstimateHeader({
 
                 <div>
                     <label className={labelClass}>見積番号</label>
-                    <input type="text" value={estimateNumber} onChange={(e) => setEstimateNumber(e.target.value)} className={inputClass} />
+                    <input type="text" value={estimateNumber} onChange={(e) => setEstimateNumber(e.target.value)} className={inputClass} placeholder="自動採番（手動入力も可）" />
                 </div>
 
                 <div>
