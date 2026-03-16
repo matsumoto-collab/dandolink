@@ -32,13 +32,14 @@ function getDefault30DaysLater(): string {
 export default function InvoiceForm({ initialData, onSubmit, onCancel }: InvoiceFormProps) {
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
-    const { estimates } = useEstimates();
+    const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
 
     // データのフェッチ
     useEffect(() => {
         fetchProjectMasters();
         ensureDataLoaded();
-    }, [fetchProjectMasters, ensureDataLoaded]);
+        ensureEstimatesLoaded();
+    }, [fetchProjectMasters, ensureDataLoaded, ensureEstimatesLoaded]);
 
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
     const [estimateId, setEstimateId] = useState(initialData?.estimateId || '');
