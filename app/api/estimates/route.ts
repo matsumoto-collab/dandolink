@@ -43,13 +43,44 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId } = body;
 
-        if (!estimateNumber || !title) {
-            return validationErrorResponse('見積番号とタイトルは必須です');
+        if (!title) {
+            return validationErrorResponse('タイトルは必須です');
+        }
+
+        // 見積番号: 指定がなければサーバー側で自動採番
+        let finalEstimateNumber = estimateNumber;
+        if (!finalEstimateNumber) {
+            const year = new Date().getFullYear();
+            const prefix = `E${year}`;
+            const latest = await prisma.estimate.findFirst({
+                where: { estimateNumber: { startsWith: prefix } },
+                orderBy: { estimateNumber: 'desc' },
+                select: { estimateNumber: true },
+            });
+            let nextSeq = 1;
+            if (latest) {
+                const seq = parseInt(latest.estimateNumber.replace(prefix, ''), 10);
+                if (!isNaN(seq)) nextSeq = seq + 1;
+            }
+            // 旧形式(YYYY-NNNN)からの移行チェック
+            if (nextSeq === 1) {
+                const oldPrefix = `${year}-`;
+                const oldLatest = await prisma.estimate.findFirst({
+                    where: { estimateNumber: { startsWith: oldPrefix } },
+                    orderBy: { estimateNumber: 'desc' },
+                    select: { estimateNumber: true },
+                });
+                if (oldLatest) {
+                    const oldSeq = parseInt(oldLatest.estimateNumber.replace(oldPrefix, ''), 10);
+                    if (!isNaN(oldSeq)) nextSeq = oldSeq + 1;
+                }
+            }
+            finalEstimateNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
         }
 
         const newEstimate = await prisma.estimate.create({
             data: {
-                projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber, title,
+                projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber: finalEstimateNumber, title,
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
                 validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null,
             },

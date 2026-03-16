@@ -473,7 +473,7 @@ export default function InvoiceHeader({
 
                 <div>
                     <label className={labelClass}>請求番号</label>
-                    <input type="text" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className={inputClass} />
+                    <input type="text" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} className={inputClass} placeholder="自動採番（手動入力も可）" />
                 </div>
 
                 <div>

@@ -45,20 +45,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState('custom');
 
-    // 見積番号: 新規作成時はAPIから連番取得
+    // 見積番号: 空の場合は保存時にサーバー側で自動採番
     const [estimateNumber, setEstimateNumber] = useState(initialData?.estimateNumber || '');
-
-    useEffect(() => {
-        if (!initialData?.estimateNumber) {
-            fetch('/api/estimates/next-number')
-                .then(res => res.json())
-                .then(data => { if (data.nextNumber) setEstimateNumber(data.nextNumber); })
-                .catch(() => {
-                    // フォールバック
-                    setEstimateNumber(`E${new Date().getFullYear()}0001`);
-                });
-        }
-    }, [initialData?.estimateNumber]);
 
     // 有効期限: デフォルト30日後
     const [validUntil, setValidUntil] = useState(() => {
