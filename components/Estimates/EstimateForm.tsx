@@ -54,10 +54,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 .then(res => res.json())
                 .then(data => { if (data.nextNumber) setEstimateNumber(data.nextNumber); })
                 .catch(() => {
-                    // フォールバック: タイムスタンプ形式
-                    const now = new Date();
-                    const pad = (n: number) => String(n).padStart(2, '0');
-                    setEstimateNumber(`${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`);
+                    // フォールバック
+                    setEstimateNumber(`E${new Date().getFullYear()}0001`);
                 });
         }
     }, [initialData?.estimateNumber]);
