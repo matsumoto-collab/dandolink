@@ -57,8 +57,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 .then(res => res.json())
                 .then(data => { if (data.nextNumber) setInvoiceNumber(data.nextNumber); })
                 .catch(() => {
-                    // フォールバック: タイムスタンプ形式
-                    setInvoiceNumber(`INV-${Date.now()}`);
+                    // フォールバック
+                    setInvoiceNumber(`I${new Date().getFullYear()}0001`);
                 });
         }
     }, [initialData?.invoiceNumber]);
