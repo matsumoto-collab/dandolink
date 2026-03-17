@@ -12,6 +12,7 @@ interface ItemRowProps {
     onRemove: (id: string) => void;
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
+    isChild?: boolean;
 }
 
 /** 単価入力（マイナス値対応） */
@@ -46,13 +47,15 @@ function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onU
 }
 
 /** デスクトップ用テーブル行 */
-export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown }: ItemRowProps) {
+export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild }: ItemRowProps) {
     const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
 
     return (
-        <tr className="border-b border-slate-200 last:border-b-0">
+        <tr className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : ''}`}>
             <td className="px-3 py-2">
-                <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={cellInputClass} placeholder="品目・内容" />
+                <div className={isChild ? 'pl-6' : ''}>
+                    <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={cellInputClass} placeholder="品目・内容" />
+                </div>
             </td>
             <td className="px-3 py-2">
                 <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={cellInputClass} placeholder="規格" />

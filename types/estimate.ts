@@ -9,6 +9,8 @@ export interface EstimateItem {
     amount: number;       // 金額
     taxType: 'none' | 'standard'; // 税区分（なし、10%）
     notes?: string;       // 備考
+    isCategory?: boolean;       // カテゴリ行（子項目をグループ化）
+    children?: EstimateItem[];  // 子項目（isCategoryがtrueの場合）
 }
 
 // 見積書
