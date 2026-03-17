@@ -37,13 +37,24 @@ function toEstimateApiPayload(data: Partial<EstimateInput>): Record<string, unkn
     };
 }
 
-function parseInvoiceDates(invoice: Invoice & { dueDate: string | Date; paidDate?: string | Date | null; createdAt: string | Date; updatedAt: string | Date }): Invoice {
+function parseInvoiceDates(invoice: Record<string, unknown>): Invoice {
     return {
         ...invoice,
-        dueDate: new Date(invoice.dueDate),
-        paidDate: invoice.paidDate ? new Date(invoice.paidDate) : undefined,
-        createdAt: new Date(invoice.createdAt),
-        updatedAt: new Date(invoice.updatedAt),
+        projectId: (invoice.projectMasterId as string) || (invoice.projectId as string) || '',
+        dueDate: new Date(invoice.dueDate as string),
+        paidDate: invoice.paidDate ? new Date(invoice.paidDate as string) : undefined,
+        createdAt: new Date(invoice.createdAt as string),
+        updatedAt: new Date(invoice.updatedAt as string),
+    } as Invoice;
+}
+
+/** フロントのprojectIdをAPIのprojectMasterIdに変換（請求書用） */
+function toInvoiceApiPayload(data: Partial<InvoiceInput>): Record<string, unknown> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { projectId, ...rest } = data;
+    return {
+        ...rest,
+        projectMasterId: projectId,
     };
 }
 
@@ -363,7 +374,7 @@ export const useFinanceStore = create<FinanceStore>()(
             const response = await fetch('/api/invoices', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(toInvoiceApiPayload(data)),
             });
 
             if (!response.ok) {
@@ -383,7 +394,7 @@ export const useFinanceStore = create<FinanceStore>()(
             const response = await fetch(`/api/invoices/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
+                body: JSON.stringify(toInvoiceApiPayload(data)),
             });
 
             if (!response.ok) {
