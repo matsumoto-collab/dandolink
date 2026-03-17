@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GET, DELETE } from '@/app/api/project-masters/[id]/files/[fileId]/route';
+import { DELETE } from '@/app/api/project-masters/[id]/files/[fileId]/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, notFoundResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
