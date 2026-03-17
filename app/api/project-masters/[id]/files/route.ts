@@ -156,48 +156,40 @@ export async function POST(req: NextRequest, context: RouteContext) {
         let originalStoragePath: string | null = null;
 
         if (fileType === 'image') {
-            // 元画像を保存（EXIF除去のみ、リサイズなし）
-            const originalBuffer = await sharp(buffer).rotate().toBuffer();
-            originalStoragePath = `${id}/${fileId}_original.webp`;
-            const origWebp = await sharp(originalBuffer).webp({ quality: 92 }).toBuffer();
-            const { error: origError } = await supabaseAdmin.storage
-                .from(STORAGE_BUCKET)
-                .upload(originalStoragePath, origWebp, {
-                    contentType: 'image/webp',
-                    upsert: false,
-                });
-            if (origError) {
-                console.error('Original upload error:', origError);
-                originalStoragePath = null;
-            }
+            // 3種類のWebP変換を並列処理
+            const [origWebp, displayWebp, thumbWebp] = await Promise.all([
+                sharp(buffer).rotate().webp({ quality: 92 }).toBuffer(),
+                sharp(buffer).rotate().resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer(),
+                sharp(buffer).rotate().resize(200, 200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 60 }).toBuffer(),
+            ]);
 
-            // 表示用WebP変換（品質80%、最大長辺1920px）
-            uploadBuffer = await sharp(buffer)
-                .rotate()
-                .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 80 })
-                .toBuffer();
+            uploadBuffer = displayWebp;
             uploadContentType = 'image/webp';
             storagePath = `${id}/${fileId}.webp`;
-            actualFileSize = uploadBuffer.length;
-
-            // サムネイル生成（200px、品質60%）
-            const thumbBuffer = await sharp(buffer)
-                .rotate()
-                .resize(200, 200, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 60 })
-                .toBuffer();
+            actualFileSize = displayWebp.length;
+            originalStoragePath = `${id}/${fileId}_original.webp`;
             thumbnailPath = `${id}/${fileId}_thumb.webp`;
 
-            const { error: thumbError } = await supabaseAdmin.storage
-                .from(STORAGE_BUCKET)
-                .upload(thumbnailPath, thumbBuffer, {
-                    contentType: 'image/webp',
-                    upsert: false,
-                });
-            if (thumbError) {
-                console.error('Thumbnail upload error:', thumbError);
-                thumbnailPath = null; // サムネイル失敗時はオリジナルのみで続行
+            // 3ファイルを並列アップロード
+            const [origResult, displayResult, thumbResult] = await Promise.all([
+                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(originalStoragePath, origWebp, { contentType: 'image/webp', upsert: false }),
+                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(storagePath, displayWebp, { contentType: 'image/webp', upsert: false }),
+                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(thumbnailPath, thumbWebp, { contentType: 'image/webp', upsert: false }),
+            ]);
+
+            if (displayResult.error) {
+                console.error('Storage upload error:', displayResult.error);
+                const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
+                if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
+                return errorResponse('ファイルのアップロードに失敗しました', 500);
+            }
+            if (origResult.error) {
+                console.error('Original upload error:', origResult.error);
+                originalStoragePath = null;
+            }
+            if (thumbResult.error) {
+                console.error('Thumbnail upload error:', thumbResult.error);
+                thumbnailPath = null;
             }
         } else {
             uploadBuffer = buffer;
@@ -205,61 +197,33 @@ export async function POST(req: NextRequest, context: RouteContext) {
             const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
             storagePath = `${id}/${fileId}.${ext}`;
             actualFileSize = buffer.length;
-        }
 
-        // オリジナルファイルをアップロード
-        const { error: uploadError } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .upload(storagePath, uploadBuffer, {
-                contentType: uploadContentType,
-                upsert: false,
-            });
-
-        if (uploadError) {
-            console.error('Storage upload error:', uploadError);
-            // 先にアップロード済みのファイルを削除
-            const cleanupPaths = [thumbnailPath, originalStoragePath].filter(Boolean) as string[];
-            if (cleanupPaths.length > 0) {
-                await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
+            const { error: uploadError } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .upload(storagePath, uploadBuffer, { contentType: uploadContentType, upsert: false });
+            if (uploadError) {
+                console.error('Storage upload error:', uploadError);
+                return errorResponse('ファイルのアップロードに失敗しました', 500);
             }
-            return errorResponse('ファイルのアップロードに失敗しました', 500);
         }
 
-        // 署名付きURLを生成（オリジナル + サムネイル）
+        // 署名付きURLを並列生成
         const uploadedAt = new Date();
         const SIGNED_URL_TTL = 3600;
+        const expiresAt = new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000);
 
-        const { data: signedData } = await supabaseAdmin.storage
-            .from(STORAGE_BUCKET)
-            .createSignedUrl(storagePath, SIGNED_URL_TTL);
-        const newSignedUrl = signedData?.signedUrl ?? null;
-        const newExpiresAt = newSignedUrl
-            ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
-            : null;
+        const urlPaths = [storagePath, thumbnailPath, originalStoragePath].filter(Boolean) as string[];
+        const urlResults = await Promise.all(
+            urlPaths.map(p => supabaseAdmin.storage.from(STORAGE_BUCKET).createSignedUrl(p, SIGNED_URL_TTL))
+        );
+        const urlMap = new Map(urlPaths.map((p, i) => [p, urlResults[i].data?.signedUrl ?? null]));
 
-        let thumbSignedUrl: string | null = null;
-        let thumbExpiresAt: Date | null = null;
-        if (thumbnailPath) {
-            const { data: thumbData } = await supabaseAdmin.storage
-                .from(STORAGE_BUCKET)
-                .createSignedUrl(thumbnailPath, SIGNED_URL_TTL);
-            thumbSignedUrl = thumbData?.signedUrl ?? null;
-            thumbExpiresAt = thumbSignedUrl
-                ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
-                : null;
-        }
-
-        let originalSignedUrl: string | null = null;
-        let originalExpiresAt: Date | null = null;
-        if (originalStoragePath) {
-            const { data: origData } = await supabaseAdmin.storage
-                .from(STORAGE_BUCKET)
-                .createSignedUrl(originalStoragePath, SIGNED_URL_TTL);
-            originalSignedUrl = origData?.signedUrl ?? null;
-            originalExpiresAt = originalSignedUrl
-                ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
-                : null;
-        }
+        const newSignedUrl = urlMap.get(storagePath) ?? null;
+        const newExpiresAt = newSignedUrl ? expiresAt : null;
+        const thumbSignedUrl = thumbnailPath ? urlMap.get(thumbnailPath) ?? null : null;
+        const thumbExpiresAt = thumbSignedUrl ? expiresAt : null;
+        const originalSignedUrl = originalStoragePath ? urlMap.get(originalStoragePath) ?? null : null;
+        const originalExpiresAt = originalSignedUrl ? expiresAt : null;
 
         // DBにメタデータ＋URLキャッシュを保存
         const projectMasterFile = await prisma.projectMasterFile.create({

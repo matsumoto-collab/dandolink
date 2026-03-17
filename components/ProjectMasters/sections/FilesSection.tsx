@@ -78,54 +78,72 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         fetchFiles();
     }, [fetchFiles]);
 
+    const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+
     const handleUpload = async (fileList: FileList | null) => {
         if (!fileList || fileList.length === 0) return;
 
+        const rawFiles = Array.from(fileList);
         setUploading(true);
+        setUploadProgress({ done: 0, total: rawFiles.length });
+
+        // 1. 全画像を並列で事前圧縮
+        const compressed = await Promise.all(
+            rawFiles.map(async (rawFile) => {
+                if (rawFile.type.startsWith('image/')) {
+                    try {
+                        const blob = await imageCompression(rawFile, {
+                            maxSizeMB: 2,
+                            maxWidthOrHeight: 3000,
+                            useWebWorker: true,
+                        });
+                        return { file: blob, name: rawFile.name };
+                    } catch {
+                        return { file: rawFile as Blob, name: rawFile.name };
+                    }
+                }
+                return { file: rawFile as Blob, name: rawFile.name };
+            })
+        );
+
+        // 2. 3枚ずつ並列アップロード（サーバー負荷を考慮）
         let successCount = 0;
-
-        for (const rawFile of Array.from(fileList)) {
-            // 画像の場合はクライアント側で事前圧縮（アップロード高速化）
-            let fileToUpload: File | Blob = rawFile;
-            if (rawFile.type.startsWith('image/')) {
-                try {
-                    fileToUpload = await imageCompression(rawFile, {
-                        maxSizeMB: 5,
-                        maxWidthOrHeight: 4096,
-                        useWebWorker: true,
+        const CONCURRENCY = 3;
+        for (let i = 0; i < compressed.length; i += CONCURRENCY) {
+            const batch = compressed.slice(i, i + CONCURRENCY);
+            const results = await Promise.allSettled(
+                batch.map(async ({ file, name }) => {
+                    const formData = new FormData();
+                    formData.append('file', file, name);
+                    formData.append('category', activeTab);
+                    const res = await fetch(`/api/project-masters/${projectMasterId}/files`, {
+                        method: 'POST',
+                        body: formData,
                     });
-                } catch {
-                    // 圧縮失敗時は元ファイルをそのまま使用
-                }
-            }
-
-            const formData = new FormData();
-            formData.append('file', fileToUpload, rawFile.name);
-            formData.append('category', activeTab);
-
-            try {
-                const res = await fetch(`/api/project-masters/${projectMasterId}/files`, {
-                    method: 'POST',
-                    body: formData,
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    toast.error(`${rawFile.name}: ${err.error || 'アップロード失敗'}`);
-                } else {
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error || 'アップロード失敗');
+                    }
+                    return name;
+                })
+            );
+            for (const r of results) {
+                if (r.status === 'fulfilled') {
                     successCount++;
+                } else {
+                    toast.error(r.reason?.message || 'アップロードに失敗しました');
                 }
-            } catch {
-                toast.error(`${rawFile.name}: アップロードに失敗しました`);
             }
+            setUploadProgress({ done: Math.min(i + CONCURRENCY, compressed.length), total: compressed.length });
         }
 
         if (successCount > 0) {
             toast.success(`${successCount}件のファイルをアップロードしました`);
             await fetchFiles();
         }
-        // input をリセット（同じファイルを再アップロードできるよう）
         if (fileInputRef.current) fileInputRef.current.value = '';
         setUploading(false);
+        setUploadProgress(null);
     };
 
     const handleDelete = async (fileId: string, fileName: string) => {
@@ -239,7 +257,9 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 {uploading ? (
                     <div className="flex items-center justify-center gap-2 text-slate-600">
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        <span className="text-sm">アップロード中...</span>
+                        <span className="text-sm">
+                            アップロード中...{uploadProgress ? ` (${uploadProgress.done}/${uploadProgress.total})` : ''}
+                        </span>
                     </div>
                 ) : (
                     <div className="flex items-center justify-center gap-2 text-slate-500">
