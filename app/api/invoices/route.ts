@@ -41,10 +41,15 @@ export async function POST(req: NextRequest) {
         if (error) return error;
 
         const body = await req.json();
-        const { projectMasterId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = body;
+        const { projectMasterId, projectId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = body;
+
+        const resolvedProjectMasterId = projectMasterId || projectId;
 
         if (!title) {
             return validationErrorResponse('タイトルは必須です');
+        }
+        if (!resolvedProjectMasterId) {
+            return validationErrorResponse('案件の選択は必須です');
         }
 
         // 請求番号: 指定がなければサーバー側で自動採番
@@ -67,7 +72,7 @@ export async function POST(req: NextRequest) {
 
         const newInvoice = await prisma.invoice.create({
             data: {
-                projectMasterId: projectMasterId || null, estimateId: estimateId || null, invoiceNumber: finalInvoiceNumber, title,
+                projectMasterId: resolvedProjectMasterId, estimateId: estimateId || null, invoiceNumber: finalInvoiceNumber, title,
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
                 dueDate: dueDate ? new Date(dueDate) : new Date(), status: status || 'draft',
                 paidDate: paidDate ? new Date(paidDate) : null, notes: notes || null,
