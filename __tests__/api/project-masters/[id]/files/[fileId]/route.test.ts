@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { DELETE } from '@/app/api/project-masters/[id]/files/[fileId]/route';
+import { GET, DELETE } from '@/app/api/project-masters/[id]/files/[fileId]/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, notFoundResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
@@ -9,13 +9,15 @@ jest.mock('@/lib/prisma', () => ({
     },
 }));
 
-const mockStorageBucket = {
-    remove: jest.fn(),
-};
+const mockRemove = jest.fn();
+const mockCreateSignedUrl = jest.fn();
 jest.mock('@/lib/supabase-admin', () => ({
     supabaseAdmin: {
         storage: {
-            from: jest.fn().mockReturnValue(mockStorageBucket),
+            from: jest.fn(() => ({
+                remove: mockRemove,
+                createSignedUrl: mockCreateSignedUrl,
+            })),
         },
     },
     STORAGE_BUCKET: 'test-bucket',
@@ -78,12 +80,18 @@ jest.mock('next/server', () => {
         NextRequest: class NextRequest {
             url: string;
             method: string;
+            nextUrl: URL;
             constructor(url: string, init?: any) {
                 this.url = url;
                 this.method = init?.method || 'GET';
+                this.nextUrl = new URL(url);
             }
         },
-        NextResponse: MockNextResponse
+        NextResponse: {
+            ...MockNextResponse,
+            json: MockNextResponse.json,
+            redirect: (url: string) => new MockNextResponse(null, { status: 307, headers: { location: url } }),
+        }
     };
 });
 
@@ -129,14 +137,14 @@ describe('/api/project-masters/[id]/files/[fileId]', () => {
                 thumbnailPath: null, // No thumbnail
             };
             (prisma.projectMasterFile.findFirst as jest.Mock).mockResolvedValue(mockFile);
-            (mockStorageBucket.remove as jest.Mock).mockResolvedValue({ error: null });
+            (mockRemove as jest.Mock).mockResolvedValue({ error: null });
             (prisma.projectMasterFile.delete as jest.Mock).mockResolvedValue(mockFile);
 
             const req = new NextRequest('http://localhost:3000/api', { method: 'DELETE' });
             const res = await DELETE(req, mockContext) as any;
             const data = await res.json();
 
-            expect(mockStorageBucket.remove).toHaveBeenCalledWith(['pm-1/f-1.pdf']);
+            expect(mockRemove).toHaveBeenCalledWith(['pm-1/f-1.pdf']);
             expect(prisma.projectMasterFile.delete).toHaveBeenCalledWith({ where: { id: 'f-1' } });
             expect(res.status).toBe(200);
             expect(data.success).toBe(true);
@@ -149,14 +157,14 @@ describe('/api/project-masters/[id]/files/[fileId]', () => {
                 thumbnailPath: 'pm-1/f-1_thumb.webp',
             };
             (prisma.projectMasterFile.findFirst as jest.Mock).mockResolvedValue(mockFile);
-            (mockStorageBucket.remove as jest.Mock).mockResolvedValue({ error: null });
+            (mockRemove as jest.Mock).mockResolvedValue({ error: null });
             (prisma.projectMasterFile.delete as jest.Mock).mockResolvedValue(mockFile);
 
             const req = new NextRequest('http://localhost:3000/api', { method: 'DELETE' });
             const res = await DELETE(req, mockContext) as any;
             const data = await res.json();
 
-            expect(mockStorageBucket.remove).toHaveBeenCalledWith(['pm-1/f-1.webp', 'pm-1/f-1_thumb.webp']);
+            expect(mockRemove).toHaveBeenCalledWith(['pm-1/f-1.webp', 'pm-1/f-1_thumb.webp']);
             expect(prisma.projectMasterFile.delete).toHaveBeenCalledWith({ where: { id: 'f-1' } });
             expect(res.status).toBe(200);
             expect(data.success).toBe(true);
@@ -169,7 +177,7 @@ describe('/api/project-masters/[id]/files/[fileId]', () => {
                 thumbnailPath: null,
             };
             (prisma.projectMasterFile.findFirst as jest.Mock).mockResolvedValue(mockFile);
-            (mockStorageBucket.remove as jest.Mock).mockResolvedValue({ error: new Error('storage error') });
+            (mockRemove as jest.Mock).mockResolvedValue({ error: new Error('storage error') });
             
             // Should still mock delete to succeed later
             (prisma.projectMasterFile.delete as jest.Mock).mockResolvedValue(mockFile);
@@ -180,7 +188,7 @@ describe('/api/project-masters/[id]/files/[fileId]', () => {
             const req = new NextRequest('http://localhost:3000/api', { method: 'DELETE' });
             const res = await DELETE(req, mockContext) as any;
 
-            expect(mockStorageBucket.remove).toHaveBeenCalled();
+            expect(mockRemove).toHaveBeenCalled();
             expect(prisma.projectMasterFile.delete).toHaveBeenCalledWith({ where: { id: 'f-1' } });
             expect(res.status).toBe(200);
 

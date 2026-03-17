@@ -78,6 +78,23 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                     }
                 }
 
+                // 元画像URL更新
+                let originalSignedUrl = file.originalSignedUrl;
+                if (file.originalStoragePath) {
+                    const origValid = file.originalSignedUrl && file.originalSignedUrlExpiresAt &&
+                        file.originalSignedUrlExpiresAt.getTime() - now.getTime() > BUFFER_MS;
+                    if (!origValid) {
+                        const { data } = await supabaseAdmin.storage
+                            .from(STORAGE_BUCKET)
+                            .createSignedUrl(file.originalStoragePath, SIGNED_URL_TTL);
+                        originalSignedUrl = data?.signedUrl ?? null;
+                        if (originalSignedUrl) {
+                            updateData.originalSignedUrl = originalSignedUrl;
+                            updateData.originalSignedUrlExpiresAt = new Date(now.getTime() + SIGNED_URL_TTL * 1000);
+                        }
+                    }
+                }
+
                 if (Object.keys(updateData).length > 0) {
                     await prisma.projectMasterFile.update({
                         where: { id: file.id },
@@ -85,7 +102,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                     });
                 }
 
-                return { ...file, signedUrl, thumbnailSignedUrl };
+                return { ...file, signedUrl, thumbnailSignedUrl, originalSignedUrl };
             })
         );
 
@@ -136,19 +153,38 @@ export async function POST(req: NextRequest, context: RouteContext) {
         let thumbnailPath: string | null = null;
         let actualFileSize: number;
 
+        let originalStoragePath: string | null = null;
+
         if (fileType === 'image') {
-            // オリジナルをWebP変換（品質85%、最大長辺2400px）
+            // 元画像を保存（EXIF除去のみ、リサイズなし）
+            const originalBuffer = await sharp(buffer).rotate().toBuffer();
+            originalStoragePath = `${id}/${fileId}_original.webp`;
+            const origWebp = await sharp(originalBuffer).webp({ quality: 92 }).toBuffer();
+            const { error: origError } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .upload(originalStoragePath, origWebp, {
+                    contentType: 'image/webp',
+                    upsert: false,
+                });
+            if (origError) {
+                console.error('Original upload error:', origError);
+                originalStoragePath = null;
+            }
+
+            // 表示用WebP変換（品質80%、最大長辺1920px）
             uploadBuffer = await sharp(buffer)
-                .resize(2400, 2400, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 85 })
+                .rotate()
+                .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
+                .webp({ quality: 80 })
                 .toBuffer();
             uploadContentType = 'image/webp';
             storagePath = `${id}/${fileId}.webp`;
             actualFileSize = uploadBuffer.length;
 
-            // サムネイル生成（400px、品質60%）
+            // サムネイル生成（200px、品質60%）
             const thumbBuffer = await sharp(buffer)
-                .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+                .rotate()
+                .resize(200, 200, { fit: 'inside', withoutEnlargement: true })
                 .webp({ quality: 60 })
                 .toBuffer();
             thumbnailPath = `${id}/${fileId}_thumb.webp`;
@@ -181,9 +217,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         if (uploadError) {
             console.error('Storage upload error:', uploadError);
-            // サムネイルが先にアップロード済みなら削除
-            if (thumbnailPath) {
-                await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([thumbnailPath]);
+            // 先にアップロード済みのファイルを削除
+            const cleanupPaths = [thumbnailPath, originalStoragePath].filter(Boolean) as string[];
+            if (cleanupPaths.length > 0) {
+                await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
             }
             return errorResponse('ファイルのアップロードに失敗しました', 500);
         }
@@ -212,6 +249,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 : null;
         }
 
+        let originalSignedUrl: string | null = null;
+        let originalExpiresAt: Date | null = null;
+        if (originalStoragePath) {
+            const { data: origData } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .createSignedUrl(originalStoragePath, SIGNED_URL_TTL);
+            originalSignedUrl = origData?.signedUrl ?? null;
+            originalExpiresAt = originalSignedUrl
+                ? new Date(uploadedAt.getTime() + SIGNED_URL_TTL * 1000)
+                : null;
+        }
+
         // DBにメタデータ＋URLキャッシュを保存
         const projectMasterFile = await prisma.projectMasterFile.create({
             data: {
@@ -230,11 +279,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 thumbnailPath,
                 thumbnailSignedUrl: thumbSignedUrl,
                 thumbnailSignedUrlExpiresAt: thumbExpiresAt,
+                originalStoragePath,
+                originalSignedUrl,
+                originalSignedUrlExpiresAt: originalExpiresAt,
             },
         });
 
         return NextResponse.json(
-            { ...projectMasterFile, signedUrl: newSignedUrl, thumbnailSignedUrl: thumbSignedUrl },
+            { ...projectMasterFile, signedUrl: newSignedUrl, thumbnailSignedUrl: thumbSignedUrl, originalSignedUrl },
             { status: 201 }
         );
     } catch (error) {

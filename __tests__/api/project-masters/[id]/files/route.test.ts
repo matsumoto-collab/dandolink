@@ -10,15 +10,17 @@ jest.mock('@/lib/prisma', () => ({
     },
 }));
 
-const mockStorageBucket = {
-    createSignedUrl: jest.fn(),
-    upload: jest.fn(),
-    remove: jest.fn(),
-};
+const mockCreateSignedUrl = jest.fn();
+const mockUpload = jest.fn();
+const mockRemove = jest.fn();
 jest.mock('@/lib/supabase-admin', () => ({
     supabaseAdmin: {
         storage: {
-            from: jest.fn().mockReturnValue(mockStorageBucket),
+            from: jest.fn(() => ({
+                createSignedUrl: mockCreateSignedUrl,
+                upload: mockUpload,
+                remove: mockRemove,
+            })),
         },
     },
     STORAGE_BUCKET: 'test-bucket',
@@ -44,6 +46,7 @@ jest.mock('crypto', () => ({
 
 jest.mock('sharp', () => {
     const mockSharp = {
+        rotate: jest.fn().mockReturnThis(),
         resize: jest.fn().mockReturnThis(),
         webp: jest.fn().mockReturnThis(),
         toBuffer: jest.fn().mockResolvedValue(Buffer.from('mock-webp-buffer')),
@@ -132,7 +135,7 @@ describe('/api/project-masters/[id]/files', () => {
         (notFoundResponse as jest.Mock).mockImplementation((msg) => {
             return NextResponse.json({ error: `${msg}が見つかりません` }, { status: 404 });
         });
-        (mockStorageBucket.createSignedUrl as jest.Mock).mockResolvedValue({ data: { signedUrl: 'http://new-signed-url' }, error: null });
+        (mockCreateSignedUrl as jest.Mock).mockResolvedValue({ data: { signedUrl: 'http://new-signed-url' }, error: null });
     });
 
     describe('GET', () => {
@@ -166,7 +169,7 @@ describe('/api/project-masters/[id]/files', () => {
             const data = await res.json();
 
             expect(data[0].signedUrl).toBe('http://old-url');
-            expect(mockStorageBucket.createSignedUrl).not.toHaveBeenCalled();
+            expect(mockCreateSignedUrl).not.toHaveBeenCalled();
             expect(prisma.projectMasterFile.update).not.toHaveBeenCalled();
         });
 
@@ -191,7 +194,7 @@ describe('/api/project-masters/[id]/files', () => {
             const data = await res.json();
 
             expect(data[0].signedUrl).toBe('http://new-signed-url');
-            expect(mockStorageBucket.createSignedUrl).toHaveBeenCalledWith('pm-1/f-1', 3600);
+            expect(mockCreateSignedUrl).toHaveBeenCalledWith('pm-1/f-1', 3600);
             expect(prisma.projectMasterFile.update).toHaveBeenCalled();
         });
     });
@@ -253,13 +256,14 @@ describe('/api/project-masters/[id]/files', () => {
                 _formData: fd,
             } as any);
 
-            (mockStorageBucket.upload as jest.Mock).mockResolvedValue({ data: { path: 'pm-1/mock-uuid.webp' }, error: null });
+            (mockUpload as jest.Mock).mockResolvedValue({ data: { path: 'pm-1/mock-uuid.webp' }, error: null });
+            (mockCreateSignedUrl as jest.Mock).mockResolvedValue({ data: { signedUrl: 'http://signed' } });
             (prisma.projectMasterFile.create as jest.Mock).mockResolvedValue({ id: 'mock-uuid', fileName: 'test.jpg' });
 
             const res = await POST(req, mockContext) as any;
             const data = await res.json();
 
-            expect(mockStorageBucket.upload).toHaveBeenCalledTimes(2); // original and thumbnail
+            expect(mockUpload).toHaveBeenCalledTimes(3); // original, display, and thumbnail
             expect(prisma.projectMasterFile.create).toHaveBeenCalled();
             expect(res.status).toBe(201);
             expect(data.fileName).toBe('test.jpg');
@@ -283,12 +287,13 @@ describe('/api/project-masters/[id]/files', () => {
                 _formData: fd,
             } as any);
 
-            (mockStorageBucket.upload as jest.Mock).mockResolvedValue({ data: { path: 'pm-1/mock-uuid.pdf' }, error: null });
+            (mockUpload as jest.Mock).mockResolvedValue({ data: { path: 'pm-1/mock-uuid.pdf' }, error: null });
+            (mockCreateSignedUrl as jest.Mock).mockResolvedValue({ data: { signedUrl: 'http://signed' } });
             (prisma.projectMasterFile.create as jest.Mock).mockResolvedValue({ id: 'mock-uuid', fileName: 'doc.pdf' });
 
             const res = await POST(req, mockContext) as any;
 
-            expect(mockStorageBucket.upload).toHaveBeenCalledTimes(1); // PDF does not have thumbnail
+            expect(mockUpload).toHaveBeenCalledTimes(1); // PDF does not have thumbnail
             expect(prisma.projectMasterFile.create).toHaveBeenCalled();
             expect(res.status).toBe(201);
         });
