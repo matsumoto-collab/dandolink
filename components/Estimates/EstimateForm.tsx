@@ -96,14 +96,110 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     // 消費税率
     const TAX_RATE = 0.1;
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
-    const taxableAmount = items.filter(item => item.taxType === 'standard').reduce((sum, item) => sum + item.amount, 0);
+
+    /** フラット化して全項目の金額を合算（カテゴリのamountは子項目合計なので直接使用） */
+    const calcTotals = (list: EstimateItem[]) => {
+        let sub = 0;
+        let taxable = 0;
+        for (const item of list) {
+            if (item.isCategory) {
+                // カテゴリの子項目を合算
+                for (const child of item.children || []) {
+                    sub += child.amount;
+                    if (child.taxType === 'standard') taxable += child.amount;
+                }
+            } else {
+                sub += item.amount;
+                if (item.taxType === 'standard') taxable += item.amount;
+            }
+        }
+        return { sub, taxable };
+    };
+    const { sub: subtotal, taxable: taxableAmount } = calcTotals(items);
     const tax = Math.floor(taxableAmount * TAX_RATE);
     const total = subtotal + tax;
+
+    /** カテゴリのamountを子項目合計で再計算 */
+    const recalcCategoryAmount = (item: EstimateItem): EstimateItem => {
+        if (!item.isCategory) return item;
+        const childrenTotal = (item.children || []).reduce((s, c) => s + c.amount, 0);
+        return { ...item, amount: childrenTotal };
+    };
 
     // 明細操作
     const addItem = () => {
         setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
+    };
+
+    const addCategory = () => {
+        setItems([...items, {
+            id: `cat-${Date.now()}`,
+            description: '',
+            specification: '',
+            quantity: 0,
+            unit: '',
+            unitPrice: 0,
+            amount: 0,
+            taxType: 'standard',
+            notes: '',
+            isCategory: true,
+            children: [],
+        }]);
+    };
+
+    const addChildItem = (categoryId: string) => {
+        setItems(items.map(item => {
+            if (item.id === categoryId && item.isCategory) {
+                const newChild: EstimateItem = {
+                    id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                    description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '',
+                };
+                const updated = { ...item, children: [...(item.children || []), newChild] };
+                return recalcCategoryAmount(updated);
+            }
+            return item;
+        }));
+    };
+
+    const updateChildItem = (categoryId: string, childId: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
+        setItems(items.map(item => {
+            if (item.id === categoryId && item.isCategory) {
+                const updatedChildren = (item.children || []).map(child => {
+                    if (child.id === childId) {
+                        const updated = { ...child, [field]: value };
+                        if (field === 'quantity' || field === 'unitPrice') updated.amount = Math.round(updated.quantity * updated.unitPrice);
+                        return updated;
+                    }
+                    return child;
+                });
+                const updated = { ...item, children: updatedChildren };
+                return recalcCategoryAmount(updated);
+            }
+            return item;
+        }));
+    };
+
+    const removeChildItem = (categoryId: string, childId: string) => {
+        setItems(items.map(item => {
+            if (item.id === categoryId && item.isCategory) {
+                const updated = { ...item, children: (item.children || []).filter(c => c.id !== childId) };
+                return recalcCategoryAmount(updated);
+            }
+            return item;
+        }));
+    };
+
+    const moveChildItem = (categoryId: string, childIndex: number, direction: 'up' | 'down') => {
+        setItems(items.map(item => {
+            if (item.id === categoryId && item.isCategory) {
+                const children = [...(item.children || [])];
+                const swapIdx = direction === 'up' ? childIndex - 1 : childIndex + 1;
+                if (swapIdx < 0 || swapIdx >= children.length) return item;
+                [children[childIndex], children[swapIdx]] = [children[swapIdx], children[childIndex]];
+                return { ...item, children };
+            }
+            return item;
+        }));
     };
 
 
@@ -186,6 +282,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onMoveUp={moveItemUp}
                 onMoveDown={moveItemDown}
                 onAddItem={addItem}
+                onAddCategory={addCategory}
+                onAddChildItem={addChildItem}
+                onUpdateChildItem={updateChildItem}
+                onRemoveChildItem={removeChildItem}
+                onMoveChildItem={moveChildItem}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
             />
 
