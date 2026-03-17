@@ -13,9 +13,10 @@ interface ItemsEditorProps {
     onMoveDown: (index: number) => void;
     onAddItem: () => void;
     onOpenUnitPriceModal: () => void;
+    hideAddButtons?: boolean;
 }
 
-export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onOpenUnitPriceModal }: ItemsEditorProps) {
+export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem, onOpenUnitPriceModal, hideAddButtons }: ItemsEditorProps) {
     const rowProps = (item: EstimateItem, index: number) => ({
         item, index, totalItems: items.length,
         onUpdate, onRemove, onMoveUp, onMoveDown,
@@ -24,7 +25,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
     return (
         <div>
             {/* ツールバー */}
-            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            {!hideAddButtons && <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                     {/* マスターに登録 */}
                     <button
@@ -56,7 +57,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                         項目を選択して一括入力
                     </button>
                 </div>
-            </div>
+            </div>}
 
             {/* デスクトップ: テーブル表示 */}
             <div className="hidden md:block border border-slate-200 rounded-lg overflow-x-auto">
@@ -83,7 +84,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
             </div>
 
             {/* テーブル下部の行追加ボタン */}
-            <div className="mt-2 flex items-center gap-3 flex-wrap">
+            {!hideAddButtons && <div className="mt-2 flex items-center gap-3 flex-wrap">
                 <button
                     type="button"
                     onClick={onAddItem}
@@ -92,7 +93,7 @@ export default function ItemsEditor({ items, onUpdate, onRemove, onMoveUp, onMov
                     <Plus className="w-4 h-4" />
                     項目行を追加
                 </button>
-            </div>
+            </div>}
 
             {/* 操作ヒント（デスクトップのみ） */}
             <p className="hidden md:block mt-1.5 text-xs text-slate-400">

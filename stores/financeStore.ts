@@ -38,9 +38,14 @@ function toEstimateApiPayload(data: Partial<EstimateInput>): Record<string, unkn
 }
 
 function parseInvoiceDates(invoice: Record<string, unknown>): Invoice {
+    const projectMasters = invoice.projectMasters as Array<{ id: string; title: string }> | undefined;
+    const projectMasterIds = invoice.projectMasterIds as string[] | undefined;
     return {
         ...invoice,
         projectId: (invoice.projectMasterId as string) || (invoice.projectId as string) || '',
+        customerId: (invoice.customerId as string) || undefined,
+        projectMasters: projectMasters || [],
+        projectMasterIds: projectMasterIds || [],
         dueDate: new Date(invoice.dueDate as string),
         paidDate: invoice.paidDate ? new Date(invoice.paidDate as string) : undefined,
         createdAt: new Date(invoice.createdAt as string),
@@ -48,13 +53,13 @@ function parseInvoiceDates(invoice: Record<string, unknown>): Invoice {
     } as Invoice;
 }
 
-/** フロントのprojectIdをAPIのprojectMasterIdに変換（請求書用） */
+/** フロントのInvoiceInputをAPI用に変換（請求書用） */
 function toInvoiceApiPayload(data: Partial<InvoiceInput>): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { projectId, ...rest } = data;
+    const { projectId, projectMasterIds, projectMasters, ...rest } = data;
     return {
         ...rest,
-        projectMasterId: projectId,
+        projectMasterIds: projectMasterIds && projectMasterIds.length > 0 ? projectMasterIds : (projectId ? [projectId] : []),
     };
 }
 

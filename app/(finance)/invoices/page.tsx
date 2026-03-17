@@ -45,10 +45,18 @@ export default function InvoiceListPage() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-    // プロジェクト名を取得（projectMasterIdで検索）
-    const getProjectName = useCallback((projectId: string) => {
-        if (!projectId) return null;
-        const pm = projectMasters.find(p => p.id === projectId);
+    // プロジェクト名を取得（複数案件対応）
+    const getProjectName = useCallback((invoice: Invoice) => {
+        // 複数案件
+        if (invoice.projectMasters && invoice.projectMasters.length > 1) {
+            return `${invoice.projectMasters[0].title} 他${invoice.projectMasters.length - 1}件`;
+        }
+        if (invoice.projectMasters && invoice.projectMasters.length === 1) {
+            return invoice.projectMasters[0].title;
+        }
+        // レガシー
+        if (!invoice.projectId) return null;
+        const pm = projectMasters.find(p => p.id === invoice.projectId);
         return pm?.title ?? null;
     }, [projectMasters]);
 
@@ -104,7 +112,7 @@ export default function InvoiceListPage() {
             .filter(inv => {
                 const matchesSearch = inv.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
                     inv.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    (getProjectName(inv.projectId) ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                    (getProjectName(inv) ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
                 return matchesSearch && matchesStatus;
             })
@@ -282,20 +290,20 @@ export default function InvoiceListPage() {
                                     </div>
 
                                     {/* 案件名 */}
-                                    {getProjectName(invoice.projectId) ? (
+                                    {getProjectName(invoice) ? (
                                         <button
                                             onClick={() => handleOpenDetail(invoice)}
                                             className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
                                         >
-                                            {getProjectName(invoice.projectId)}
+                                            {getProjectName(invoice)}
                                         </button>
                                     ) : (
                                         <div className="text-sm text-slate-500 mb-3">案件未紐付け</div>
                                     )}
 
                                     {/* 顧客名 */}
-                                    {getCustomerName(invoice.projectId) && (
-                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(invoice.projectId)}</div>
+                                    {getCustomerName(invoice.projectId || '') && (
+                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(invoice.projectId || '')}</div>
                                     )}
 
                                     {/* 金額 */}
@@ -390,19 +398,19 @@ export default function InvoiceListPage() {
                                             </button>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            {getProjectName(invoice.projectId) ? (
+                                            {getProjectName(invoice) ? (
                                                 <button
                                                     onClick={() => handleOpenDetail(invoice)}
                                                     className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
                                                 >
-                                                    {getProjectName(invoice.projectId)}
+                                                    {getProjectName(invoice)}
                                                 </button>
                                             ) : (
                                                 <span className="text-sm text-slate-500">案件未紐付け</span>
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                                            {getCustomerName(invoice.projectId) || '−'}
+                                            {getCustomerName(invoice.projectId || '') || '−'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
@@ -470,12 +478,12 @@ export default function InvoiceListPage() {
                     isOpen={isDetailModalOpen}
                     onClose={() => { setIsDetailModalOpen(false); setSelectedInvoice(null); }}
                     invoice={selectedInvoice}
-                    project={selectedInvoice ? getProjectForInvoice(selectedInvoice.projectId) : null}
+                    project={selectedInvoice ? getProjectForInvoice(selectedInvoice.projectId || '') : null}
                     companyInfo={companyInfo}
                     onDelete={handleDelete}
                     onEdit={handleEdit}
-                    customerName={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId).name : undefined}
-                    customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId).honorific : undefined}
+                    customerName={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').name : undefined}
+                    customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').honorific : undefined}
                 />
             )}
         </div>

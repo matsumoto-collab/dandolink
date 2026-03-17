@@ -311,6 +311,7 @@ interface InvoicePDFProps {
     includeCoverPage?: boolean;
     bankAccounts?: Array<{ bankName: string; branchName: string; accountType: string; accountNumber: string }>;
     registrationNumber?: string;
+    projectMasters?: Array<{ id: string; title: string }>;
 }
 
 // Main Invoice Page
@@ -318,11 +319,33 @@ function InvoicePage({
     invoice,
     project,
     companyInfo,
+    projectMasters,
 }: Omit<InvoicePDFProps, 'includeCoverPage' | 'bankAccounts' | 'registrationNumber'>) {
     const createdDate = new Date(invoice.createdAt);
 
-    // 明細データ準備
-    const items = invoice.items.filter(item => item.description);
+    // 明細データ準備（案件ごとにグループ化）
+    const allItems = invoice.items.filter(item => item.description);
+    const hasMultipleProjects = projectMasters && projectMasters.length > 1;
+
+    // グループ化されたアイテムリスト（案件見出し行を含む）
+    type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0] };
+    const displayRows: DisplayRow[] = [];
+
+    if (hasMultipleProjects) {
+        // 案件ごとにグループ化
+        for (const pm of projectMasters!) {
+            const pmItems = allItems.filter(item => item.projectMasterId === pm.id);
+            if (pmItems.length > 0) {
+                displayRows.push({ type: 'header', title: `【${pm.title}】` });
+                pmItems.forEach(item => displayRows.push({ type: 'item', item }));
+            }
+        }
+        // projectMasterIdがないアイテム
+        const orphanItems = allItems.filter(item => !item.projectMasterId || !projectMasters!.find(pm => pm.id === item.projectMasterId));
+        orphanItems.forEach(item => displayRows.push({ type: 'item', item }));
+    } else {
+        allItems.forEach(item => displayRows.push({ type: 'item', item }));
+    }
 
     return (
         <Page size="A4" orientation="portrait" style={styles.page}>
@@ -414,39 +437,51 @@ function InvoicePage({
                     <View style={styles.cellNotes}><Text style={styles.cellTextCenter}>備考</Text></View>
                 </View>
 
-                {/* 明細行 */}
-                {items.map((item, idx) => (
-                    <View key={idx} style={idx === items.length - 1 ? styles.tableRowLast : styles.tableRow}>
-                        <View style={styles.cellCode}>
-                            <Text style={styles.cellText}></Text>
+                {/* 明細行（案件グループ対応） */}
+                {displayRows.map((row, idx) => {
+                    if (row.type === 'header') {
+                        return (
+                            <View key={`header-${idx}`} style={{ ...styles.tableRow, backgroundColor: '#f8f8f8' }}>
+                                <View style={styles.cellCode}><Text style={styles.cellText}></Text></View>
+                                <View style={{ ...styles.cellName, borderRightWidth: 0 }}>
+                                    <Text style={{ fontSize: 8, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
+                                </View>
+                                <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellNotes}><Text style={styles.cellText}></Text></View>
+                            </View>
+                        );
+                    }
+                    const item = row.item;
+                    return (
+                        <View key={idx} style={idx === displayRows.length - 1 ? styles.tableRowLast : styles.tableRow}>
+                            <View style={styles.cellCode}><Text style={styles.cellText}></Text></View>
+                            <View style={styles.cellName}>
+                                <Text style={styles.cellText}>{sanitizePdfText(item.description)}</Text>
+                            </View>
+                            <View style={styles.cellQty}>
+                                <Text style={styles.cellText}>{item.quantity > 0 ? item.quantity.toLocaleString() : ''}</Text>
+                            </View>
+                            <View style={styles.cellUnit}>
+                                <Text style={styles.cellText}>{sanitizePdfText(item.unit || '')}</Text>
+                            </View>
+                            <View style={styles.cellPrice}>
+                                <Text style={styles.cellText}>{item.unitPrice > 0 ? item.unitPrice.toLocaleString() : ''}</Text>
+                            </View>
+                            <View style={styles.cellAmount}>
+                                <Text style={styles.cellText}>{item.amount.toLocaleString()}</Text>
+                            </View>
+                            <View style={styles.cellNotes}>
+                                <Text style={styles.cellText}>{item.taxType === 'standard' ? '10%' : ''}</Text>
+                            </View>
                         </View>
-                        <View style={styles.cellName}>
-                            <Text style={styles.cellText}>{sanitizePdfText(item.description)}</Text>
-                        </View>
-                        <View style={styles.cellQty}>
-                            <Text style={styles.cellText}>
-                                {item.quantity > 0 ? item.quantity.toLocaleString() : ''}
-                            </Text>
-                        </View>
-                        <View style={styles.cellUnit}>
-                            <Text style={styles.cellText}>{sanitizePdfText(item.unit || '')}</Text>
-                        </View>
-                        <View style={styles.cellPrice}>
-                            <Text style={styles.cellText}>
-                                {item.unitPrice > 0 ? item.unitPrice.toLocaleString() : ''}
-                            </Text>
-                        </View>
-                        <View style={styles.cellAmount}>
-                            <Text style={styles.cellText}>{item.amount.toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.cellNotes}>
-                            <Text style={styles.cellText}>{item.taxType === 'standard' ? '10%' : ''}</Text>
-                        </View>
-                    </View>
-                ))}
+                    );
+                })}
 
                 {/* 空行を追加して見栄えを整える */}
-                {Array.from({ length: Math.max(0, 10 - items.length) }).map((_, idx) => (
+                {Array.from({ length: Math.max(0, 10 - displayRows.length) }).map((_, idx) => (
                     <View key={`empty-${idx}`} style={styles.tableRow}>
                         <View style={styles.cellCode}><Text style={styles.cellText}></Text></View>
                         <View style={styles.cellName}><Text style={styles.cellText}></Text></View>
@@ -506,6 +541,7 @@ export function InvoicePDF({
     invoice,
     project,
     companyInfo,
+    projectMasters,
 }: Omit<InvoicePDFProps, 'includeCoverPage' | 'bankAccounts' | 'registrationNumber'>) {
     return (
         <Document
@@ -519,6 +555,7 @@ export function InvoicePDF({
                 invoice={invoice}
                 project={project}
                 companyInfo={companyInfo}
+                projectMasters={projectMasters}
             />
         </Document>
     );

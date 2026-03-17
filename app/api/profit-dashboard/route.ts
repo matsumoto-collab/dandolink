@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
             estimates.forEach(e => { if (e.projectMasterId) estimateByProject.set(e.projectMasterId, (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)); });
 
             const revenueByProject = new Map<string, number>();
-            invoices.forEach(i => revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)));
+            invoices.forEach(i => { if (i.projectMasterId) revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)); });
 
             const profitSummaries = projectMasters.map(pm => {
                 const estimateAmount = estimateByProject.get(pm.id) || 0;
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         estimates.forEach(e => { if (e.projectMasterId) estimateByProject.set(e.projectMasterId, (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)); });
 
         const revenueByProject = new Map<string, number>();
-        invoices.forEach(i => revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)));
+        invoices.forEach(i => { if (i.projectMasterId) revenueByProject.set(i.projectMasterId, (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)); });
 
         const minuteRate = Number(settings?.laborDailyRate ?? 15000) / (settings?.standardWorkMinutes ?? 480);
         const laborCostByProject = new Map<string, number>();
