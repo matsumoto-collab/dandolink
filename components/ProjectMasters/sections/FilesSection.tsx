@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Trash2, Upload, Loader2 } from 'lucide-react';
+import { FileText, Trash2, Upload, Loader2, Download } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
@@ -34,6 +35,8 @@ interface ProjectMasterFileData {
     createdAt: string;
     signedUrl: string | null;
     thumbnailSignedUrl: string | null;
+    originalSignedUrl: string | null;
+    originalStoragePath: string | null;
 }
 
 interface FilesSectionProps {
@@ -82,8 +85,22 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         let successCount = 0;
 
         for (const rawFile of Array.from(fileList)) {
+            // 画像の場合はクライアント側で事前圧縮（アップロード高速化）
+            let fileToUpload: File | Blob = rawFile;
+            if (rawFile.type.startsWith('image/')) {
+                try {
+                    fileToUpload = await imageCompression(rawFile, {
+                        maxSizeMB: 5,
+                        maxWidthOrHeight: 4096,
+                        useWebWorker: true,
+                    });
+                } catch {
+                    // 圧縮失敗時は元ファイルをそのまま使用
+                }
+            }
+
             const formData = new FormData();
-            formData.append('file', rawFile);
+            formData.append('file', fileToUpload, rawFile.name);
             formData.append('category', activeTab);
 
             try {
@@ -134,6 +151,11 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         e.preventDefault();
         setIsDragOver(false);
         handleUpload(e.dataTransfer.files);
+    };
+
+    const handleDownload = (file: ProjectMasterFileData, quality: 'display' | 'original') => {
+        const url = `/api/project-masters/${projectMasterId}/files/${file.id}?quality=${quality}`;
+        window.open(url, '_blank');
     };
 
     const tabFiles = files.filter(f => f.category === activeTab);
@@ -302,20 +324,30 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                 </p>
                             </div>
 
-                            {/* 削除ボタン */}
-                            <button
-                                type="button"
-                                onClick={() => handleDelete(file.id, file.fileName)}
-                                disabled={deletingId === file.id}
-                                className="shrink-0 p-1.5 text-slate-400 hover:text-slate-500 hover:bg-slate-50 rounded transition-colors"
-                                title="削除"
-                            >
-                                {deletingId === file.id ? (
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                    <Trash2 className="w-4 h-4" />
-                                )}
-                            </button>
+                            {/* ダウンロード・削除ボタン */}
+                            <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                    type="button"
+                                    onClick={() => handleDownload(file, file.originalStoragePath ? 'original' : 'display')}
+                                    className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-50 rounded transition-colors"
+                                    title={file.originalStoragePath ? '元画像をダウンロード' : 'ダウンロード'}
+                                >
+                                    <Download className="w-4 h-4" />
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => handleDelete(file.id, file.fileName)}
+                                    disabled={deletingId === file.id}
+                                    className="p-1.5 text-slate-400 hover:text-slate-500 hover:bg-slate-50 rounded transition-colors"
+                                    title="削除"
+                                >
+                                    {deletingId === file.id ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-4 h-4" />
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>

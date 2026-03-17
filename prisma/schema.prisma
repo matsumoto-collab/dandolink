@@ -833,6 +833,9 @@ model ProjectMasterFile {
   thumbnailPath               String?
   thumbnailSignedUrl          String?
   thumbnailSignedUrlExpiresAt DateTime?
+  originalStoragePath         String?
+  originalSignedUrl           String?
+  originalSignedUrlExpiresAt  DateTime?
   projectMaster               ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
