@@ -3,13 +3,12 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useInvoices } from '@/hooks/useInvoices';
-import { useProjects } from '@/hooks/useProjects';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCompany } from '@/hooks/useCompany';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { exportInvoicePDFReact } from '@/utils/reactPdfGenerator';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -20,9 +19,14 @@ const InvoiceModal = dynamic(
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 
+const InvoiceDetailModal = dynamic(
+    () => import('@/components/Invoices/InvoiceDetailModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
+
 export default function InvoiceListPage() {
     const { invoices, isLoading, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
-    const { projects } = useProjects();
+    const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { companyInfo } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
 
@@ -30,27 +34,55 @@ export default function InvoiceListPage() {
     useEffect(() => {
         ensureDataLoaded();
         ensureCustomersLoaded();
-    }, [ensureDataLoaded, ensureCustomersLoaded]);
+        fetchProjectMasters();
+    }, [ensureDataLoaded, ensureCustomersLoaded, fetchProjectMasters]);
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+    const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
-    // プロジェクト名を取得（useCallbackでメモ化）
+    // プロジェクト名を取得（projectMasterIdで検索）
     const getProjectName = useCallback((projectId: string) => {
-        const project = projects.find(p => p.id === projectId);
-        return project?.title || '不明な案件';
-    }, [projects]);
+        if (!projectId) return null;
+        const pm = projectMasters.find(p => p.id === projectId);
+        return pm?.title ?? null;
+    }, [projectMasters]);
 
     // 顧客名を取得
     const getCustomerName = useCallback((projectId: string) => {
-        const project = projects.find(p => p.id === projectId);
-        if (!project?.customer) return null;
-        const c = customers.find(c => c.name === project.customer || c.shortName === project.customer);
-        return c?.shortName || c?.name || project.customer;
-    }, [projects, customers]);
+        if (!projectId) return null;
+        const pm = projectMasters.find(p => p.id === projectId);
+        if (!pm) return null;
+        // customerId があればそちらから取得
+        if (pm.customerId) {
+            const c = customers.find(c => c.id === pm.customerId);
+            return c?.shortName || c?.name || null;
+        }
+        // customerName / customerShortName から取得
+        const customerName = pm.customerName || pm.customerShortName;
+        if (!customerName) return null;
+        const c = customers.find(c => c.name === customerName || c.shortName === customerName);
+        return c?.shortName || c?.name || customerName;
+    }, [projectMasters, customers]);
+
+    // 顧客情報を取得（DetailModal用）
+    const getCustomerInfo = useCallback((projectId: string) => {
+        if (!projectId) return { name: undefined, honorific: undefined };
+        const pm = projectMasters.find(p => p.id === projectId);
+        if (!pm) return { name: undefined, honorific: undefined };
+        if (pm.customerId) {
+            const c = customers.find(c => c.id === pm.customerId);
+            return { name: c?.name, honorific: c?.honorific };
+        }
+        const customerName = pm.customerName || pm.customerShortName;
+        if (!customerName) return { name: undefined, honorific: undefined };
+        const c = customers.find(c => c.name === customerName || c.shortName === customerName);
+        return { name: c?.name || customerName, honorific: c?.honorific };
+    }, [projectMasters, customers]);
 
     // ステータスアイコンとカラー
     const getStatusInfo = (status: Invoice['status']) => {
@@ -72,7 +104,7 @@ export default function InvoiceListPage() {
             .filter(inv => {
                 const matchesSearch = inv.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
                     inv.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    getProjectName(inv.projectId).toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                    (getProjectName(inv.projectId) ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
                 return matchesSearch && matchesStatus;
             })
@@ -100,27 +132,9 @@ export default function InvoiceListPage() {
         setIsModalOpen(true);
     };
 
-    const handleDownloadPDF = async (invoice: Invoice) => {
-        if (!companyInfo) {
-            toast.error('会社情報が設定されていません');
-            return;
-        }
-        const project = projects.find(p => p.id === invoice.projectId);
-        if (!project) {
-            toast.error('関連する案件が見つかりません');
-            return;
-        }
-        // 顧客の敬称を付与
-        const customer = project.customer ? customers.find(c => c.name === project.customer || c.shortName === project.customer) : undefined;
-        const projectWithHonorific = customer ? { ...project, customerHonorific: customer.honorific } : project;
-        try {
-            toast.loading('PDFを生成中...', { id: 'pdf-generating' });
-            await exportInvoicePDFReact(invoice, projectWithHonorific, companyInfo);
-            toast.success('PDFをダウンロードしました', { id: 'pdf-generating' });
-        } catch (error) {
-            console.error('PDF generation error:', error);
-            toast.error('PDFの生成に失敗しました', { id: 'pdf-generating' });
-        }
+    const handleOpenDetail = (invoice: Invoice) => {
+        setSelectedInvoice(invoice);
+        setIsDetailModalOpen(true);
     };
 
     const handleSubmit = async (data: InvoiceInput) => {
@@ -140,6 +154,24 @@ export default function InvoiceListPage() {
             setIsSubmitting(false);
         }
     };
+
+    // DetailModal用のProject生成
+    const getProjectForInvoice = useCallback((projectId: string) => {
+        if (!projectId) return null;
+        const pm = projectMasters.find(p => p.id === projectId);
+        if (!pm) return null;
+        return {
+            id: pm.id,
+            title: pm.title,
+            startDate: new Date(),
+            category: 'construction' as const,
+            color: '#3B82F6',
+            customer: pm.customerName || pm.customerShortName || '',
+            location: pm.location || '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    }, [projectMasters]);
 
     return (
         <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
@@ -225,17 +257,13 @@ export default function InvoiceListPage() {
                                 >
                                     {/* ヘッダー: 請求番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">
-                                        <span className="text-base font-semibold text-slate-900">
+                                        <button
+                                            onClick={() => handleOpenDetail(invoice)}
+                                            className="text-base font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
+                                        >
                                             {invoice.invoiceNumber}
-                                        </span>
+                                        </button>
                                         <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleDownloadPDF(invoice)}
-                                                className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                title="PDFダウンロード"
-                                            >
-                                                <Download className="w-4 h-4" />
-                                            </button>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
                                                 className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -254,9 +282,16 @@ export default function InvoiceListPage() {
                                     </div>
 
                                     {/* 案件名 */}
-                                    <div className="text-sm text-slate-700 mb-3">
-                                        {getProjectName(invoice.projectId)}
-                                    </div>
+                                    {getProjectName(invoice.projectId) ? (
+                                        <button
+                                            onClick={() => handleOpenDetail(invoice)}
+                                            className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
+                                        >
+                                            {getProjectName(invoice.projectId)}
+                                        </button>
+                                    ) : (
+                                        <div className="text-sm text-slate-500 mb-3">案件未紐付け</div>
+                                    )}
 
                                     {/* 顧客名 */}
                                     {getCustomerName(invoice.projectId) && (
@@ -347,12 +382,24 @@ export default function InvoiceListPage() {
                                         className="hover:bg-slate-50 transition-all duration-200"
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-semibold text-slate-900">
+                                            <button
+                                                onClick={() => handleOpenDetail(invoice)}
+                                                className="text-sm font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
+                                            >
                                                 {invoice.invoiceNumber}
-                                            </span>
+                                            </button>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                                            {getProjectName(invoice.projectId)}
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {getProjectName(invoice.projectId) ? (
+                                                <button
+                                                    onClick={() => handleOpenDetail(invoice)}
+                                                    className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
+                                                >
+                                                    {getProjectName(invoice.projectId)}
+                                                </button>
+                                            ) : (
+                                                <span className="text-sm text-slate-500">案件未紐付け</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {getCustomerName(invoice.projectId) || '−'}
@@ -374,9 +421,9 @@ export default function InvoiceListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <button
-                                                onClick={() => handleDownloadPDF(invoice)}
+                                                onClick={() => handleOpenDetail(invoice)}
                                                 className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
-                                                title="PDFダウンロード"
+                                                title="PDFプレビュー"
                                             >
                                                 <Download className="w-5 h-5" />
                                             </button>
@@ -409,13 +456,28 @@ export default function InvoiceListPage() {
                 {(searchTerm || statusFilter !== 'all') && ` (${invoices.length}件中)`}
             </div>
 
-            {/* モーダル */}
+            {/* 編集モーダル */}
             <InvoiceModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 onSubmit={handleSubmit}
                 initialData={editingInvoice || undefined}
             />
+
+            {/* 詳細（PDFプレビュー）モーダル */}
+            {companyInfo && (
+                <InvoiceDetailModal
+                    isOpen={isDetailModalOpen}
+                    onClose={() => { setIsDetailModalOpen(false); setSelectedInvoice(null); }}
+                    invoice={selectedInvoice}
+                    project={selectedInvoice ? getProjectForInvoice(selectedInvoice.projectId) : null}
+                    companyInfo={companyInfo}
+                    onDelete={handleDelete}
+                    onEdit={handleEdit}
+                    customerName={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId).name : undefined}
+                    customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId).honorific : undefined}
+                />
+            )}
         </div>
     );
 }
