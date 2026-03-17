@@ -79,7 +79,7 @@ describe('/api/invoices', () => {
         });
 
         it('should return 400 validation error for missing fields', async () => {
-            const invalidBody = { ...validBody, invoiceNumber: undefined };
+            const invalidBody = { ...validBody, title: undefined };
 
             const req = new NextRequest('http://localhost:3000/api/invoices', {
                 method: 'POST',
