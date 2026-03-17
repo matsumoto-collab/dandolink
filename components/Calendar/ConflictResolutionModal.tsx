@@ -25,15 +25,15 @@ export default function ConflictResolutionModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[70] flex items-center justify-center">
+        <div className="fixed inset-0 lg:left-64 z-[70] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             {/* オーバーレイ */}
             <div
-                className="absolute inset-0 bg-black bg-opacity-50"
+                className="absolute inset-0 bg-black/50 hidden lg:block"
                 onClick={onClose}
             />
 
             {/* モーダルコンテンツ */}
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-md lg:mx-4">
                 {/* ヘッダー */}
                 <div className="bg-slate-50 border-b border-slate-200 px-6 py-4 flex items-center gap-3 rounded-t-lg">
                     <AlertTriangle className="w-6 h-6 text-slate-600" />

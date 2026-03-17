@@ -95,8 +95,9 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 bg-black/50 flex items-center justify-center z-[60] p-4">
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
+            <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={onClose} />
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-slate-200">
                     <h2 className="text-xl font-semibold text-slate-800">

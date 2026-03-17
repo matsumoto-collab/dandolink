@@ -35,15 +35,15 @@ export default function VehicleModal({ isOpen, onClose }: VehicleModalProps) {
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex items-center justify-center">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             {/* Backdrop */}
             <div
-                className="absolute inset-0 bg-black bg-opacity-50"
+                className="absolute inset-0 bg-black/50 hidden lg:block"
                 onClick={handleCancel}
             />
 
             {/* Modal */}
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-md lg:mx-4">
                 {/* Header */}
                 <div className="flex items-center justify-between p-4 border-b border-slate-200">
                     <h2 className="text-lg font-semibold text-slate-900">車両を追加</h2>
