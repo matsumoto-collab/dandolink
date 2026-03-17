@@ -58,8 +58,9 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-4">
-            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
+            <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={handleClose} />
+            <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-4xl lg:mx-4 lg:max-h-[90vh] overflow-hidden">
                 {/* ヘッダー */}
                 <div className="p-6 border-b border-slate-200">
                     <div className="flex items-center justify-between">
