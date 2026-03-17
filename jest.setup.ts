@@ -13,6 +13,12 @@ import { TextEncoder, TextDecoder } from 'util';
 // Polyfill TextEncoder/TextDecoder for Next.js
 Object.assign(global, { TextEncoder, TextDecoder });
 
+// Mock browser APIs not available in Node.js
+global.alert = jest.fn();
+global.URL.createObjectURL = jest.fn().mockReturnValue('blob:mock-url');
+global.URL.revokeObjectURL = jest.fn();
+
+
 // グローバルなモックの設定
 // Next.js Image コンポーネントのモック
 jest.mock('next/image', () => ({
@@ -123,6 +129,17 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn(),
         },
+        invoiceProjectMaster: {
+            findMany: jest.fn().mockResolvedValue([]),
+            createMany: jest.fn().mockResolvedValue({ count: 0 }),
+            deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+        },
+        billingTitle: {
+            findMany: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            aggregate: jest.fn(),
+        },
         estimate: {
             findMany: jest.fn(),
             findUnique: jest.fn(),
@@ -201,4 +218,33 @@ jest.mock('@/lib/formatters', () => ({
     formatInvoice: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
     formatUser: (item: any) => item,
     formatCustomer: (item: any) => item,
+}));
+
+// Mock lucide-react to avoid ESM transform issues in Jest
+// All icons are mocked as simple div elements with a data-testid
+jest.mock('lucide-react', () => {
+    const React = require('react');
+    const createIcon = (name: string) =>
+        function MockIcon(props: React.SVGProps<SVGSVGElement>) {
+            return React.createElement('svg', { 'data-testid': `icon-${name}`, ...props });
+        };
+
+    return new Proxy({}, {
+        get(_target, prop: string) {
+            return createIcon(prop);
+        }
+    });
+});
+
+// Mock uuid (ESM-only package that Jest cannot transform)
+jest.mock('uuid', () => ({
+    v4: () => 'mock-uuid-' + Math.random().toString(36).substring(2, 9),
+    v1: () => 'mock-uuid-v1',
+    NIL: '00000000-0000-0000-0000-000000000000',
+    validate: (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s),
+}));
+
+// Mock NotoSansJP font (large base64 file - not needed in tests)
+jest.mock('@/utils/fonts/NotoSansJP-font', () => ({
+    NotoSansJPFont: 'mock-font-data',
 }));

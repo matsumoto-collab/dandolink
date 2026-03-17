@@ -80,7 +80,8 @@ export async function generateEstimatePDFBlobReact(
 export async function exportInvoicePDFReact(
     invoice: Invoice,
     project: Project,
-    companyInfo: CompanyInfo
+    companyInfo: CompanyInfo,
+    projectMasters?: Array<{ id: string; title: string }>
 ): Promise<void> {
     try {
         const blob = await pdf(
@@ -88,6 +89,7 @@ export async function exportInvoicePDFReact(
                 invoice={invoice}
                 project={project}
                 companyInfo={companyInfo}
+                projectMasters={projectMasters || invoice.projectMasters}
             />
         ).toBlob();
 
@@ -111,7 +113,8 @@ export async function exportInvoicePDFReact(
 export async function generateInvoicePDFBlobReact(
     invoice: Invoice,
     project: Project,
-    companyInfo: CompanyInfo
+    companyInfo: CompanyInfo,
+    projectMasters?: Array<{ id: string; title: string }>
 ): Promise<string> {
     try {
         const blob = await pdf(
@@ -119,6 +122,7 @@ export async function generateInvoicePDFBlobReact(
                 invoice={invoice}
                 project={project}
                 companyInfo={companyInfo}
+                projectMasters={projectMasters || invoice.projectMasters}
             />
         ).toBlob();
 

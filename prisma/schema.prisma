@@ -34,9 +34,6 @@ model User {
 model ProjectMaster {
   id                         String              @id @default(uuid())
   title                      String
-  name                       String?
-  honorific                  String?
-  constructionSuffixId       String?
   constructionType           String              @default("other")
   status                     String              @default("active")
   location                   String?
@@ -64,6 +61,9 @@ model ProjectMaster {
   customerShortName          String?
   latitude                   Float?
   longitude                  Float?
+  constructionSuffixId       String?
+  honorific                  String?
+  name                       String?
   assignments                ProjectAssignment[]
   files                      ProjectMasterFile[]
 
@@ -88,7 +88,6 @@ model ProjectAssignment {
   meetingTime          String?
   sortOrder            Int                   @default(0)
   remarks              String?
-  dispatchRemark       String?
   confirmedWorkerIds   String?
   confirmedVehicleIds  String?
   isDispatchConfirmed  Boolean               @default(false)
@@ -96,6 +95,7 @@ model ProjectAssignment {
   updatedAt            DateTime              @updatedAt
   constructionType     String?
   estimatedHours       Float                 @default(8.0)
+  dispatchRemark       String?
   assignmentVehicles   AssignmentVehicle[]
   assignmentWorkers    AssignmentWorker[]
   dailyReportWorkItems DailyReportWorkItem[]
@@ -140,7 +140,6 @@ model Customer {
   id             String   @id @default(uuid())
   name           String
   shortName      String?
-  honorific      String   @default("御中")
   contactPersons String?
   email          String?
   phone          String?
@@ -149,6 +148,7 @@ model Customer {
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  honorific      String   @default("御中")
 
   @@index([name])
   @@index([createdAt])
@@ -199,14 +199,41 @@ model Invoice {
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
-  projectMasterId String
+  projectMasterId String?
+  customerId      String?
 
   @@index([invoiceNumber])
   @@index([projectMasterId])
+  @@index([customerId])
   @@index([status])
   @@index([dueDate])
   @@index([createdAt])
   @@index([updatedAt])
+  @@schema("public")
+}
+
+model InvoiceProjectMaster {
+  id              String @id @default(uuid())
+  invoiceId       String
+  projectMasterId String
+  sortOrder       Int    @default(0)
+
+  @@unique([invoiceId, projectMasterId])
+  @@index([invoiceId])
+  @@index([projectMasterId])
+  @@schema("public")
+}
+
+model BillingTitle {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([name])
+  @@index([sortOrder])
   @@schema("public")
 }
 
@@ -364,10 +391,10 @@ model DailyReport {
   eveningLoadingMinutes Int                   @default(0)
   earlyStartMinutes     Int                   @default(0)
   overtimeMinutes       Int                   @default(0)
-  breakMinutes          Int                   @default(0)
   notes                 String?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
+  breakMinutes          Int                   @default(0)
   workItems             DailyReportWorkItem[]
 
   @@unique([foremanId, date])
@@ -833,9 +860,9 @@ model ProjectMasterFile {
   thumbnailPath               String?
   thumbnailSignedUrl          String?
   thumbnailSignedUrlExpiresAt DateTime?
-  originalStoragePath         String?
   originalSignedUrl           String?
   originalSignedUrlExpiresAt  DateTime?
+  originalStoragePath         String?
   projectMaster               ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])

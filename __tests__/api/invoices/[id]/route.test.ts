@@ -7,15 +7,7 @@ import { requireManagerOrAbove } from '@/lib/api/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock dependencies
-jest.mock('@/lib/prisma', () => ({
-    prisma: {
-        invoice: {
-            findUnique: jest.fn(),
-            update: jest.fn(),
-            delete: jest.fn(),
-        },
-    },
-}));
+// prisma is mocked globally in jest.setup.ts
 
 jest.mock('@/lib/api/utils', () => ({
     requireManagerOrAbove: jest.fn(),

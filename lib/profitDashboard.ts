@@ -130,10 +130,12 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     // 請求書をグループ化
     const revenueByProject = new Map<string, number>();
     for (const i of invoices) {
-        revenueByProject.set(
-            i.projectMasterId,
-            (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)
-        );
+        if (i.projectMasterId) {
+            revenueByProject.set(
+                i.projectMasterId,
+                (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)
+            );
+        }
     }
 
     // システム設定から単価計算

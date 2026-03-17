@@ -3,6 +3,33 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
 
+/** 請求書に紐付く案件マスタ情報を取得 */
+async function getInvoiceProjectMasters(invoiceId: string) {
+    const links = await prisma.invoiceProjectMaster.findMany({
+        where: { invoiceId },
+        orderBy: { sortOrder: 'asc' },
+        select: { projectMasterId: true },
+    });
+    if (links.length === 0) return [];
+    const pmIds = links.map(l => l.projectMasterId);
+    const pms = await prisma.projectMaster.findMany({
+        where: { id: { in: pmIds } },
+        select: { id: true, title: true },
+    });
+    // sortOrder順を維持
+    return pmIds.map(id => pms.find(p => p.id === id)).filter(Boolean) as Array<{ id: string; title: string }>;
+}
+
+/** 請求書レスポンスにprojectMasters情報を付与 */
+async function enrichInvoice(invoice: ReturnType<typeof formatInvoice>) {
+    const projectMasters = await getInvoiceProjectMasters(invoice.id as string);
+    return {
+        ...invoice,
+        projectMasters,
+        projectMasterIds: projectMasters.map(p => p.id),
+    };
+}
+
 export async function GET(req: NextRequest) {
     try {
         const { error } = await requireAuth();
@@ -22,14 +49,16 @@ export async function GET(req: NextRequest) {
                 prisma.invoice.findMany({ skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
                 prisma.invoice.count(),
             ]);
+            const enriched = await Promise.all(invoices.map(inv => enrichInvoice(formatInvoice(inv))));
             return NextResponse.json({
-                data: invoices.map(formatInvoice),
+                data: enriched,
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const invoices = await prisma.invoice.findMany({ orderBy: { createdAt: 'desc' } });
-        return NextResponse.json(invoices.map(formatInvoice), { headers: { 'Cache-Control': 'no-store' } });
+        const enriched = await Promise.all(invoices.map(inv => enrichInvoice(formatInvoice(inv))));
+        return NextResponse.json(enriched, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求書一覧の取得', error);
     }
@@ -41,14 +70,21 @@ export async function POST(req: NextRequest) {
         if (error) return error;
 
         const body = await req.json();
-        const { projectMasterId, projectId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = body;
-
-        const resolvedProjectMasterId = projectMasterId || projectId;
+        const { projectMasterId, projectId, projectMasterIds, customerId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = body;
 
         if (!title) {
             return validationErrorResponse('タイトルは必須です');
         }
-        if (!resolvedProjectMasterId) {
+
+        // 複数案件IDの解決
+        let resolvedPmIds: string[] = [];
+        if (Array.isArray(projectMasterIds) && projectMasterIds.length > 0) {
+            resolvedPmIds = projectMasterIds;
+        } else if (projectMasterId || projectId) {
+            resolvedPmIds = [projectMasterId || projectId];
+        }
+
+        if (resolvedPmIds.length === 0) {
             return validationErrorResponse('案件の選択は必須です');
         }
 
@@ -72,14 +108,33 @@ export async function POST(req: NextRequest) {
 
         const newInvoice = await prisma.invoice.create({
             data: {
-                projectMasterId: resolvedProjectMasterId, estimateId: estimateId || null, invoiceNumber: finalInvoiceNumber, title,
-                items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
-                dueDate: dueDate ? new Date(dueDate) : new Date(), status: status || 'draft',
-                paidDate: paidDate ? new Date(paidDate) : null, notes: notes || null,
+                projectMasterId: resolvedPmIds[0], // 代表案件（後方互換）
+                customerId: customerId || null,
+                estimateId: estimateId || null,
+                invoiceNumber: finalInvoiceNumber,
+                title,
+                items: JSON.stringify(items || []),
+                subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
+                dueDate: dueDate ? new Date(dueDate) : new Date(),
+                status: status || 'draft',
+                paidDate: paidDate ? new Date(paidDate) : null,
+                notes: notes || null,
             },
         });
 
-        return NextResponse.json(formatInvoice(newInvoice));
+        // 中間テーブルに案件を登録
+        if (resolvedPmIds.length > 0) {
+            await prisma.invoiceProjectMaster.createMany({
+                data: resolvedPmIds.map((pmId, i) => ({
+                    invoiceId: newInvoice.id,
+                    projectMasterId: pmId,
+                    sortOrder: i,
+                })),
+            });
+        }
+
+        const enriched = await enrichInvoice(formatInvoice(newInvoice));
+        return NextResponse.json(enriched);
     } catch (error) {
         return serverErrorResponse('請求書の作成', error);
     }
