@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
@@ -27,17 +28,26 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
     className: string;
 }) {
     const [showDropdown, setShowDropdown] = useState(false);
-    const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 280 });
 
     const filtered = unitPriceMasters?.filter(m =>
         !item.description || m.description.toLowerCase().includes(item.description.toLowerCase())
     ) || [];
 
+    const updatePosition = useCallback(() => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 280) });
+        }
+    }, []);
+
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
-            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-                setShowDropdown(false);
-            }
+            if (inputRef.current?.contains(e.target as Node)) return;
+            if (dropdownRef.current?.contains(e.target as Node)) return;
+            setShowDropdown(false);
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -49,39 +59,51 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
         );
     }
 
+    const dropdown = showDropdown && filtered.length > 0 ? createPortal(
+        <div
+            ref={dropdownRef}
+            className="fixed z-[9999] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
+            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+        >
+            <div className="px-3 py-1.5 text-xs font-medium text-slate-400 border-b border-slate-100">単価マスター</div>
+            {filtered.map(m => (
+                <button
+                    key={m.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0"
+                    onClick={() => {
+                        onSelectMaster?.(item.id, m);
+                        setShowDropdown(false);
+                    }}
+                >
+                    <span className="font-medium text-sm text-slate-800">{m.description}</span>
+                    {m.unitPrice > 0 && <span className="text-sm text-slate-500"> | ¥{m.unitPrice.toLocaleString()}</span>}
+                </button>
+            ))}
+        </div>,
+        document.body
+    ) : null;
+
     return (
-        <div ref={containerRef} className="relative">
+        <>
             <input
+                ref={inputRef}
                 type="text"
                 value={item.description}
                 onChange={(e) => {
                     onUpdate(item.id, 'description', e.target.value);
                     setShowDropdown(true);
+                    updatePosition();
                 }}
-                onFocus={() => setShowDropdown(true)}
+                onFocus={() => {
+                    updatePosition();
+                    setShowDropdown(true);
+                }}
                 className={className}
                 placeholder="品目・内容"
             />
-            {showDropdown && filtered.length > 0 && (
-                <div className="absolute z-50 left-0 top-full mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
-                    <div className="px-3 py-1.5 text-xs font-medium text-slate-400 border-b border-slate-100">単価マスター</div>
-                    {filtered.map(m => (
-                        <button
-                            key={m.id}
-                            type="button"
-                            className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0"
-                            onClick={() => {
-                                onSelectMaster?.(item.id, m);
-                                setShowDropdown(false);
-                            }}
-                        >
-                            <span className="font-medium text-sm text-slate-800">{m.description}</span>
-                            {m.unitPrice > 0 && <span className="text-sm text-slate-500"> | ¥{m.unitPrice.toLocaleString()}</span>}
-                        </button>
-                    ))}
-                </div>
-            )}
-        </div>
+            {dropdown}
+        </>
     );
 }
 
