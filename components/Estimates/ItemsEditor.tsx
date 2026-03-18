@@ -204,9 +204,9 @@ function SortableCategoryTableRow(props: React.ComponentProps<typeof CategoryTab
 }
 
 /** カテゴリ内の子項目（ドラッグ可能） */
-function SortableChildRows({ categoryId, children, onUpdateChildItem, onRemoveChildItem, onMoveChildItem, onReorderChildItem, unitPriceMasters, onSelectMaster, sensors }: {
+function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemoveChildItem, onMoveChildItem, onReorderChildItem, unitPriceMasters, onSelectMaster, sensors }: {
     categoryId: string;
-    children: EstimateItem[];
+    childItems: EstimateItem[];
     onUpdateChildItem: NonNullable<ItemsEditorProps['onUpdateChildItem']>;
     onRemoveChildItem: NonNullable<ItemsEditorProps['onRemoveChildItem']>;
     onMoveChildItem: NonNullable<ItemsEditorProps['onMoveChildItem']>;
@@ -218,20 +218,20 @@ function SortableChildRows({ categoryId, children, onUpdateChildItem, onRemoveCh
     const handleChildDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         if (!over || active.id === over.id || !onReorderChildItem) return;
-        const oldIndex = children.findIndex(c => c.id === active.id);
-        const newIndex = children.findIndex(c => c.id === over.id);
+        const oldIndex = childItems.findIndex(c => c.id === active.id);
+        const newIndex = childItems.findIndex(c => c.id === over.id);
         if (oldIndex !== -1 && newIndex !== -1) onReorderChildItem(categoryId, oldIndex, newIndex);
     };
 
     return (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleChildDragEnd}>
-            <SortableContext items={children.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                {children.map((child, ci) => (
+            <SortableContext items={childItems.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                {childItems.map((child, ci) => (
                     <SortableItemTableRow
                         key={child.id}
                         item={child}
                         index={ci}
-                        totalItems={children.length}
+                        totalItems={childItems.length}
                         onUpdate={(id, field, value) => onUpdateChildItem(categoryId, id, field, value)}
                         onRemove={(id) => onRemoveChildItem(categoryId, id)}
                         onMoveUp={(idx) => onMoveChildItem(categoryId, idx, 'up')}
@@ -327,7 +327,7 @@ export default function ItemsEditor({
                                         {isExpanded && (
                                             <SortableChildRows
                                                 categoryId={item.id}
-                                                children={children}
+                                                childItems={children}
                                                 onUpdateChildItem={onUpdateChildItem}
                                                 onRemoveChildItem={onRemoveChildItem}
                                                 onMoveChildItem={onMoveChildItem}
