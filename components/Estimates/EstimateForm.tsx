@@ -263,6 +263,13 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         setItems(newItems);
     };
 
+    const reorderItems = (fromIndex: number, toIndex: number) => {
+        const newItems = [...items];
+        const [moved] = newItems.splice(fromIndex, 1);
+        newItems.splice(toIndex, 0, moved);
+        setItems(newItems);
+    };
+
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // 送信
@@ -302,6 +309,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onRemove={removeItem}
                 onMoveUp={moveItemUp}
                 onMoveDown={moveItemDown}
+                onReorder={reorderItems}
                 onAddItem={addItem}
                 onAddCategory={addCategory}
                 onAddChildItem={addChildItem}

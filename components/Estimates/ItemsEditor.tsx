@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster } from '@/types/unitPrice';
-import { Plus, Star, ClipboardList, PenLine, ChevronDown, ChevronRight, FolderPlus } from 'lucide-react';
+import { Plus, Star, ClipboardList, PenLine, ChevronDown, ChevronRight, FolderPlus, GripVertical } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
 interface ItemsEditorProps {
@@ -18,6 +21,7 @@ interface ItemsEditorProps {
     onUpdateChildItem?: (categoryId: string, childId: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => void;
     onRemoveChildItem?: (categoryId: string, childId: string) => void;
     onMoveChildItem?: (categoryId: string, childIndex: number, direction: 'up' | 'down') => void;
+    onReorder?: (fromIndex: number, toIndex: number) => void;
     onOpenUnitPriceModal: () => void;
     hideAddButtons?: boolean;
     unitPriceMasters?: UnitPriceMaster[];
@@ -28,6 +32,7 @@ interface ItemsEditorProps {
 function CategoryTableRow({
     item, index, totalItems, isExpanded, onToggle,
     onUpdate, onRemove, onMoveUp, onMoveDown,
+    sortableRef, sortableStyle, sortableAttributes, dragListeners,
 }: {
     item: EstimateItem; index: number; totalItems: number;
     isExpanded: boolean; onToggle: () => void;
@@ -35,10 +40,21 @@ function CategoryTableRow({
     onRemove: ItemsEditorProps['onRemove'];
     onMoveUp: ItemsEditorProps['onMoveUp'];
     onMoveDown: ItemsEditorProps['onMoveDown'];
+    sortableRef?: (node: HTMLElement | null) => void;
+    sortableStyle?: React.CSSProperties;
+    sortableAttributes?: Record<string, unknown>;
+    dragListeners?: Record<string, unknown>;
 }) {
     const { ChevronUp, ChevronDown: ChevronDownIcon, Trash2 } = require('lucide-react');
     return (
-        <tr className="border-b border-slate-200 bg-slate-50">
+        <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className="border-b border-slate-200 bg-slate-50">
+            {dragListeners && (
+                <td className="px-1 py-2 w-8">
+                    <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600" {...dragListeners}>
+                        <GripVertical className="w-4 h-4" />
+                    </button>
+                </td>
+            )}
             <td className="px-3 py-2" colSpan={6}>
                 <div className="flex items-center gap-2">
                     <button type="button" onClick={onToggle} className="p-0.5 text-slate-500 hover:text-slate-700">
@@ -158,12 +174,49 @@ function CategoryCard({
     );
 }
 
+/** ドラッグ可能なテーブル行ラッパー */
+function SortableItemTableRow(props: React.ComponentProps<typeof ItemTableRow>) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
+    return (
+        <ItemTableRow
+            {...props}
+            sortableRef={setNodeRef}
+            sortableStyle={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+            sortableAttributes={attributes as unknown as Record<string, unknown>}
+            dragListeners={listeners as unknown as Record<string, unknown>}
+        />
+    );
+}
+
+/** ドラッグ可能なカテゴリ行ラッパー */
+function SortableCategoryTableRow(props: React.ComponentProps<typeof CategoryTableRow>) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.item.id });
+    return (
+        <CategoryTableRow
+            {...props}
+            sortableRef={setNodeRef}
+            sortableStyle={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+            sortableAttributes={attributes as unknown as Record<string, unknown>}
+            dragListeners={listeners as unknown as Record<string, unknown>}
+        />
+    );
+}
+
 export default function ItemsEditor({
     items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem,
     onAddCategory, onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, onSelectMaster,
+    onReorder, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, onSelectMaster,
 }: ItemsEditorProps) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id || !onReorder) return;
+        const oldIndex = items.findIndex(i => i.id === active.id);
+        const newIndex = items.findIndex(i => i.id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) onReorder(oldIndex, newIndex);
+    };
 
     const toggleCategory = (id: string) => {
         setExpandedCategories(prev => {
@@ -197,10 +250,13 @@ export default function ItemsEditor({
             </div>}
 
             {/* デスクトップ: テーブル表示 */}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             <div className="hidden md:block border border-slate-200 rounded-lg overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
+                            <th className="w-8"></th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">項目</th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-28">規格</th>
                             <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">数量</th>
@@ -219,7 +275,7 @@ export default function ItemsEditor({
                                 const children = item.children || [];
                                 return (
                                     <React.Fragment key={item.id}>
-                                        <CategoryTableRow
+                                        <SortableCategoryTableRow
                                             item={item} index={index} totalItems={items.length}
                                             isExpanded={isExpanded} onToggle={() => toggleCategory(item.id)}
                                             onUpdate={onUpdate} onRemove={onRemove} onMoveUp={onMoveUp} onMoveDown={onMoveDown}
@@ -241,7 +297,7 @@ export default function ItemsEditor({
                                         ))}
                                         {isExpanded && (
                                             <tr className="border-b border-slate-200">
-                                                <td colSpan={9} className="px-3 py-1.5">
+                                                <td colSpan={10} className="px-3 py-1.5">
                                                     <button
                                                         type="button"
                                                         onClick={() => onAddChildItem(item.id)}
@@ -255,11 +311,13 @@ export default function ItemsEditor({
                                     </React.Fragment>
                                 );
                             }
-                            return <ItemTableRow key={item.id} {...rowProps(item, index)} />;
+                            return <SortableItemTableRow key={item.id} {...rowProps(item, index)} />;
                         })}
                     </tbody>
                 </table>
             </div>
+            </SortableContext>
+            </DndContext>
 
             {/* テーブル下部の行追加ボタン */}
             {!hideAddButtons && <div className="mt-2 flex items-center gap-3 flex-wrap">
@@ -274,7 +332,7 @@ export default function ItemsEditor({
             </div>}
 
             <p className="hidden md:block mt-1.5 text-xs text-slate-400">
-                各行はドラッグ&amp;ドロップで並び替えられます。Enter (+Shift) / Tab (+Shift) キーでセルの移動ができます。
+                各行は左端のハンドルをドラッグして並び替えられます。
             </p>
 
             {/* モバイル: カード表示 */}
