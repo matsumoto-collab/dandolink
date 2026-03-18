@@ -24,11 +24,26 @@ jest.mock('lucide-react', () => ({
     Trash2: () => <span data-testid="icon-trash" />,
 }));
 
+const mockTemplates = [
+    { id: 'tpl-frequent', name: 'よく使う項目', sortOrder: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'tpl-large', name: '大規模見積用', sortOrder: 1, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+];
+
+const mockCategories = [
+    { id: 'cat1', name: '足場工事', sortOrder: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+];
+
 describe('UnitPriceMasterSettings', () => {
     const mockEnsureDataLoaded = jest.fn();
     const mockAddUnitPrice = jest.fn();
     const mockUpdateUnitPrice = jest.fn();
     const mockDeleteUnitPrice = jest.fn();
+    const mockAddUnitPriceTemplate = jest.fn();
+    const mockUpdateUnitPriceTemplate = jest.fn();
+    const mockDeleteUnitPriceTemplate = jest.fn();
+    const mockAddUnitPriceCategory = jest.fn();
+    const mockUpdateUnitPriceCategory = jest.fn();
+    const mockDeleteUnitPriceCategory = jest.fn();
 
     const mockUnitPrices = [
         {
@@ -36,7 +51,8 @@ describe('UnitPriceMasterSettings', () => {
             description: 'Item 1',
             unit: 'm',
             unitPrice: 1000,
-            templates: ['frequent'],
+            templates: ['tpl-frequent'],
+            categoryId: 'cat1',
             notes: 'Note 1',
         },
         {
@@ -44,7 +60,7 @@ describe('UnitPriceMasterSettings', () => {
             description: 'Item 2',
             unit: 'ps',
             unitPrice: 2000,
-            templates: ['large'],
+            templates: ['tpl-large'],
             notes: '',
         },
     ];
@@ -58,7 +74,22 @@ describe('UnitPriceMasterSettings', () => {
             addUnitPrice: mockAddUnitPrice,
             updateUnitPrice: mockUpdateUnitPrice,
             deleteUnitPrice: mockDeleteUnitPrice,
+            unitPriceTemplates: mockTemplates,
+            addUnitPriceTemplate: mockAddUnitPriceTemplate,
+            updateUnitPriceTemplate: mockUpdateUnitPriceTemplate,
+            deleteUnitPriceTemplate: mockDeleteUnitPriceTemplate,
+            unitPriceCategories: mockCategories,
+            addUnitPriceCategory: mockAddUnitPriceCategory,
+            updateUnitPriceCategory: mockUpdateUnitPriceCategory,
+            deleteUnitPriceCategory: mockDeleteUnitPriceCategory,
         });
+    });
+
+    it('should render sub-tabs', () => {
+        render(<UnitPriceMasterSettings />);
+        expect(screen.getByText('単価項目')).toBeInTheDocument();
+        expect(screen.getByText('テンプレート')).toBeInTheDocument();
+        expect(screen.getByText('カテゴリ')).toBeInTheDocument();
     });
 
     it('should render unit price list', () => {
@@ -73,12 +104,11 @@ describe('UnitPriceMasterSettings', () => {
     it('should filter items by template', async () => {
         render(<UnitPriceMasterSettings />);
 
-        const filterSelect = screen.getByRole('combobox');
-        fireEvent.change(filterSelect, { target: { value: 'frequent' } });
+        const filterSelects = screen.getAllByRole('combobox');
+        // First combobox is template filter
+        fireEvent.change(filterSelects[0], { target: { value: 'tpl-frequent' } });
 
-        // Item 1 (frequent) should be visible
         expect(screen.getByText('Item 1')).toBeInTheDocument();
-        // Item 2 (large) should be hidden
         expect(screen.queryByText('Item 2')).not.toBeInTheDocument();
     });
 
@@ -89,7 +119,6 @@ describe('UnitPriceMasterSettings', () => {
 
         expect(screen.getByText('単価マスター登録')).toBeInTheDocument();
 
-        // Fill form
         fireEvent.change(screen.getByLabelText(/品目・内容/), { target: { value: 'New Item' } });
         fireEvent.change(screen.getByLabelText(/単位/), { target: { value: 'set' } });
         fireEvent.change(screen.getByLabelText(/単価/), { target: { value: '5000' } });
@@ -107,7 +136,6 @@ describe('UnitPriceMasterSettings', () => {
         const { container } = render(<UnitPriceMasterSettings />);
         fireEvent.click(screen.getByText('新規登録'));
 
-        // Click save without filling
         const form = container.querySelector('form');
         if (!form) throw new Error('Form not found');
 
@@ -125,7 +153,6 @@ describe('UnitPriceMasterSettings', () => {
 
         expect(screen.getByRole('textbox', { name: /品目・内容/ })).toHaveValue('Item 1');
 
-        // Change value
         fireEvent.change(screen.getByRole('textbox', { name: /品目・内容/ }), { target: { value: 'Updated Item' } });
         fireEvent.click(screen.getByText('保存'));
 
@@ -135,7 +162,7 @@ describe('UnitPriceMasterSettings', () => {
     });
 
     it('should delete item after confirmation', async () => {
-        window.confirm = jest.fn(() => true); // Mock confirm
+        window.confirm = jest.fn(() => true);
 
         render(<UnitPriceMasterSettings />);
 
@@ -146,14 +173,30 @@ describe('UnitPriceMasterSettings', () => {
         expect(mockDeleteUnitPrice).toHaveBeenCalledWith('up1');
     });
 
-    it('should handle template toggling', async () => {
+    it('should handle template toggling in form', async () => {
         render(<UnitPriceMasterSettings />);
         fireEvent.click(screen.getByText('新規登録'));
 
-        // Toggle 'frequent' (well-used items)
         const checkbox = screen.getByLabelText('よく使う項目');
         fireEvent.click(checkbox);
 
         expect(checkbox).toBeChecked();
+    });
+
+    it('should switch to templates tab', () => {
+        render(<UnitPriceMasterSettings />);
+        fireEvent.click(screen.getByText('テンプレート'));
+
+        expect(screen.getByText('テンプレート管理')).toBeInTheDocument();
+        expect(screen.getByText('よく使う項目')).toBeInTheDocument();
+        expect(screen.getByText('大規模見積用')).toBeInTheDocument();
+    });
+
+    it('should switch to categories tab', () => {
+        render(<UnitPriceMasterSettings />);
+        fireEvent.click(screen.getByText('カテゴリ'));
+
+        expect(screen.getByText('カテゴリ管理')).toBeInTheDocument();
+        expect(screen.getByText('足場工事')).toBeInTheDocument();
     });
 });

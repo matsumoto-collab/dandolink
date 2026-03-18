@@ -2,32 +2,231 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
-import { UnitPriceMaster, UnitPriceMasterInput, TEMPLATE_LABELS, TemplateType } from '@/types/unitPrice';
+import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceCategory } from '@/types/unitPrice';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function UnitPriceMasterSettings() {
-    const { unitPrices, ensureDataLoaded, addUnitPrice, updateUnitPrice, deleteUnitPrice } = useUnitPriceMaster();
+type SubTab = 'items' | 'templates' | 'categories';
 
-    // コンポーネント表示時にデータを読み込み
+export default function UnitPriceMasterSettings() {
+    const {
+        unitPrices, ensureDataLoaded, addUnitPrice, updateUnitPrice, deleteUnitPrice,
+        unitPriceTemplates, addUnitPriceTemplate, updateUnitPriceTemplate, deleteUnitPriceTemplate,
+        unitPriceCategories, addUnitPriceCategory, updateUnitPriceCategory, deleteUnitPriceCategory,
+    } = useUnitPriceMaster();
+
     useEffect(() => {
         ensureDataLoaded();
     }, [ensureDataLoaded]);
+
+    const [subTab, setSubTab] = useState<SubTab>('items');
+
+    return (
+        <div className="space-y-6">
+            {/* サブタブ */}
+            <div className="flex gap-2 border-b border-slate-200 pb-0">
+                {([
+                    { id: 'items' as const, label: '単価項目' },
+                    { id: 'templates' as const, label: 'テンプレート' },
+                    { id: 'categories' as const, label: 'カテゴリ' },
+                ]).map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setSubTab(tab.id)}
+                        className={`px-4 py-2 font-medium text-sm rounded-t-lg transition-colors ${
+                            subTab === tab.id
+                                ? 'bg-slate-700 text-white'
+                                : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                    >
+                        {tab.label}
+                    </button>
+                ))}
+            </div>
+
+            {subTab === 'items' && (
+                <UnitPriceItemsTab
+                    unitPrices={unitPrices}
+                    templates={unitPriceTemplates}
+                    categories={unitPriceCategories}
+                    onAdd={addUnitPrice}
+                    onUpdate={updateUnitPrice}
+                    onDelete={deleteUnitPrice}
+                />
+            )}
+            {subTab === 'templates' && (
+                <SimpleListTab
+                    title="テンプレート管理"
+                    items={unitPriceTemplates}
+                    onAdd={(name) => addUnitPriceTemplate({ name, sortOrder: unitPriceTemplates.length })}
+                    onUpdate={(id, name) => updateUnitPriceTemplate(id, { name })}
+                    onDelete={deleteUnitPriceTemplate}
+                    placeholder="例: 大規模見積用"
+                />
+            )}
+            {subTab === 'categories' && (
+                <SimpleListTab
+                    title="カテゴリ管理"
+                    items={unitPriceCategories}
+                    onAdd={(name) => addUnitPriceCategory({ name, sortOrder: unitPriceCategories.length })}
+                    onUpdate={(id, name) => updateUnitPriceCategory(id, { name })}
+                    onDelete={deleteUnitPriceCategory}
+                    placeholder="例: 足場工事"
+                />
+            )}
+        </div>
+    );
+}
+
+// ========== テンプレート・カテゴリ共通の簡易リスト管理 ==========
+function SimpleListTab({ title, items, onAdd, onUpdate, onDelete, placeholder }: {
+    title: string;
+    items: (UnitPriceTemplate | UnitPriceCategory)[];
+    onAdd: (name: string) => Promise<void>;
+    onUpdate: (id: string, name: string) => Promise<void>;
+    onDelete: (id: string) => Promise<void>;
+    placeholder: string;
+}) {
+    const [newName, setNewName] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
+
+    const handleAdd = async () => {
+        if (!newName.trim()) {
+            toast.error('名前を入力してください');
+            return;
+        }
+        try {
+            await onAdd(newName.trim());
+            setNewName('');
+            toast.success('追加しました');
+        } catch {
+            toast.error('追加に失敗しました');
+        }
+    };
+
+    const handleUpdate = async (id: string) => {
+        if (!editingName.trim()) return;
+        try {
+            await onUpdate(id, editingName.trim());
+            setEditingId(null);
+            toast.success('更新しました');
+        } catch {
+            toast.error('更新に失敗しました');
+        }
+    };
+
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`「${name}」を削除してもよろしいですか？`)) return;
+        try {
+            await onDelete(id);
+            toast.success('削除しました');
+        } catch {
+            toast.error('削除に失敗しました');
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">{title}</h3>
+
+            {/* 新規追加 */}
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                    placeholder={placeholder}
+                />
+                <button
+                    onClick={handleAdd}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium shadow-md hover:shadow-lg"
+                >
+                    <Plus className="w-4 h-4" />
+                    追加
+                </button>
+            </div>
+
+            {/* 一覧 */}
+            {items.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 rounded-xl">
+                    <p className="text-slate-500">まだ登録がありません</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {items.map(item => (
+                        <div key={item.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-3">
+                            {editingId === item.id ? (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleUpdate(item.id)}
+                                        className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        autoFocus
+                                    />
+                                    <button onClick={() => handleUpdate(item.id)} className="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">保存</button>
+                                    <button onClick={() => setEditingId(null)} className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50">取消</button>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex-1 font-medium text-slate-900">{item.name}</span>
+                                    <button
+                                        onClick={() => { setEditingId(item.id); setEditingName(item.name); }}
+                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(item.id, item.name)}
+                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ========== 単価項目タブ ==========
+function UnitPriceItemsTab({ unitPrices, templates, categories, onAdd, onUpdate, onDelete }: {
+    unitPrices: UnitPriceMaster[];
+    templates: UnitPriceTemplate[];
+    categories: UnitPriceCategory[];
+    onAdd: (data: UnitPriceMasterInput) => Promise<void>;
+    onUpdate: (id: string, data: Partial<UnitPriceMasterInput>) => Promise<void>;
+    onDelete: (id: string) => Promise<void>;
+}) {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<UnitPriceMaster | null>(null);
-    const [filterTemplate, setFilterTemplate] = useState<TemplateType | 'all'>('all');
+    const [filterTemplate, setFilterTemplate] = useState<string>('all');
+    const [filterCategory, setFilterCategory] = useState<string>('all');
 
     const [formData, setFormData] = useState<UnitPriceMasterInput>({
         description: '',
         unit: '',
         unitPrice: 0,
         templates: [],
+        categoryId: undefined,
         notes: '',
     });
 
-    const filteredUnitPrices = filterTemplate === 'all'
-        ? unitPrices
-        : unitPrices.filter(up => up.templates.includes(filterTemplate));
+    const filteredUnitPrices = unitPrices.filter(up => {
+        if (filterTemplate !== 'all' && !up.templates.includes(filterTemplate)) return false;
+        if (filterCategory !== 'all') {
+            if (filterCategory === 'none' && up.categoryId) return false;
+            if (filterCategory !== 'none' && up.categoryId !== filterCategory) return false;
+        }
+        return true;
+    });
 
     const handleOpenForm = (item?: UnitPriceMaster) => {
         if (item) {
@@ -37,6 +236,7 @@ export default function UnitPriceMasterSettings() {
                 unit: item.unit,
                 unitPrice: item.unitPrice,
                 templates: item.templates,
+                categoryId: item.categoryId,
                 notes: item.notes || '',
             });
         } else {
@@ -46,6 +246,7 @@ export default function UnitPriceMasterSettings() {
                 unit: '',
                 unitPrice: 0,
                 templates: [],
+                categoryId: undefined,
                 notes: '',
             });
         }
@@ -57,7 +258,7 @@ export default function UnitPriceMasterSettings() {
         setEditingItem(null);
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
         if (!formData.description || !formData.unit) {
@@ -65,28 +266,43 @@ export default function UnitPriceMasterSettings() {
             return;
         }
 
-        if (editingItem) {
-            updateUnitPrice(editingItem.id, formData);
-        } else {
-            addUnitPrice(formData);
+        try {
+            if (editingItem) {
+                await onUpdate(editingItem.id, formData);
+            } else {
+                await onAdd(formData);
+            }
+            handleCloseForm();
+        } catch {
+            toast.error('保存に失敗しました');
         }
-
-        handleCloseForm();
     };
 
     const handleDelete = (id: string, description: string) => {
         if (confirm(`「${description}」を削除してもよろしいですか？`)) {
-            deleteUnitPrice(id);
+            onDelete(id);
         }
     };
 
-    const toggleTemplate = (template: TemplateType) => {
+    const toggleTemplate = (templateId: string) => {
         setFormData(prev => ({
             ...prev,
-            templates: prev.templates.includes(template)
-                ? prev.templates.filter(t => t !== template)
-                : [...prev.templates, template],
+            templates: prev.templates.includes(templateId)
+                ? prev.templates.filter(t => t !== templateId)
+                : [...prev.templates, templateId],
         }));
+    };
+
+    const getCategoryName = (categoryId?: string) => {
+        if (!categoryId) return null;
+        return categories.find(c => c.id === categoryId)?.name;
+    };
+
+    const getTemplateNames = (templateIds: string[]) => {
+        return templateIds
+            .map(id => templates.find(t => t.id === id)?.name)
+            .filter(Boolean)
+            .join(', ');
     };
 
     return (
@@ -103,24 +319,40 @@ export default function UnitPriceMasterSettings() {
                 </button>
             </div>
 
-            {/* テンプレートフィルター */}
-            <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-2">テンプレートで絞り込み</label>
-                <select
-                    value={filterTemplate}
-                    onChange={(e) => setFilterTemplate(e.target.value as TemplateType | 'all')}
-                    className="px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
-                >
-                    <option value="all">全て</option>
-                    {Object.entries(TEMPLATE_LABELS).map(([key, label]) => (
-                        <option key={key} value={key}>{label}</option>
-                    ))}
-                </select>
+            {/* フィルター */}
+            <div className="flex flex-wrap gap-4">
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">テンプレートで絞り込み</label>
+                    <select
+                        value={filterTemplate}
+                        onChange={(e) => setFilterTemplate(e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                    >
+                        <option value="all">全て</option>
+                        {templates.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1">カテゴリで絞り込み</label>
+                    <select
+                        value={filterCategory}
+                        onChange={(e) => setFilterCategory(e.target.value)}
+                        className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                    >
+                        <option value="all">全て</option>
+                        <option value="none">未分類</option>
+                        {categories.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {/* 一覧 */}
             {filteredUnitPrices.length === 0 ? (
-                <div className="text-center py-12 bg-slate-50 rounded-lg">
+                <div className="text-center py-12 bg-slate-50 rounded-xl">
                     <p className="text-slate-500">単価マスターが登録されていません</p>
                 </div>
             ) : (
@@ -133,7 +365,10 @@ export default function UnitPriceMasterSettings() {
                                     <div className="mt-2 space-y-1 text-sm text-slate-600">
                                         <p>単位: {item.unit} / 単価: ¥{item.unitPrice.toLocaleString()}</p>
                                         {item.templates.length > 0 && (
-                                            <p>テンプレート: {item.templates.map(t => TEMPLATE_LABELS[t]).join(', ')}</p>
+                                            <p>テンプレート: {getTemplateNames(item.templates)}</p>
+                                        )}
+                                        {getCategoryName(item.categoryId) && (
+                                            <p>カテゴリ: {getCategoryName(item.categoryId)}</p>
                                         )}
                                         {item.notes && <p className="text-slate-500">備考: {item.notes}</p>}
                                     </div>
@@ -178,7 +413,7 @@ export default function UnitPriceMasterSettings() {
                                         type="text"
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                         placeholder="例: 足場組立"
                                         required
                                     />
@@ -195,7 +430,7 @@ export default function UnitPriceMasterSettings() {
                                             type="text"
                                             value={formData.unit}
                                             onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                             placeholder="例: 式、m、個、日"
                                             required
                                         />
@@ -209,7 +444,7 @@ export default function UnitPriceMasterSettings() {
                                             type="number"
                                             value={formData.unitPrice}
                                             onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                             placeholder="50000"
                                             required
                                             min="0"
@@ -217,24 +452,46 @@ export default function UnitPriceMasterSettings() {
                                     </div>
                                 </div>
 
+                                {/* カテゴリ */}
+                                <div>
+                                    <label htmlFor="categoryId" className="block text-sm font-semibold text-slate-700 mb-2">
+                                        カテゴリ
+                                    </label>
+                                    <select
+                                        id="categoryId"
+                                        value={formData.categoryId || ''}
+                                        onChange={(e) => setFormData({ ...formData, categoryId: e.target.value || undefined })}
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                    >
+                                        <option value="">未分類</option>
+                                        {categories.map(c => (
+                                            <option key={c.id} value={c.id}>{c.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
                                 {/* テンプレート */}
                                 <div>
                                     <label className="block text-sm font-semibold text-slate-700 mb-2">
                                         所属するテンプレート
                                     </label>
-                                    <div className="space-y-2">
-                                        {Object.entries(TEMPLATE_LABELS).map(([key, label]) => (
-                                            <label key={key} className="flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={formData.templates.includes(key as TemplateType)}
-                                                    onChange={() => toggleTemplate(key as TemplateType)}
-                                                    className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
-                                                />
-                                                <span className="text-sm text-slate-700">{label}</span>
-                                            </label>
-                                        ))}
-                                    </div>
+                                    {templates.length === 0 ? (
+                                        <p className="text-sm text-slate-500">テンプレートが登録されていません。「テンプレート」タブから追加してください。</p>
+                                    ) : (
+                                        <div className="space-y-2">
+                                            {templates.map(t => (
+                                                <label key={t.id} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.templates.includes(t.id)}
+                                                        onChange={() => toggleTemplate(t.id)}
+                                                        className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{t.name}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* 備考 */}
@@ -247,7 +504,7 @@ export default function UnitPriceMasterSettings() {
                                         value={formData.notes}
                                         onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                                         rows={3}
-                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                         placeholder="備考を入力..."
                                     />
                                 </div>
@@ -257,13 +514,13 @@ export default function UnitPriceMasterSettings() {
                                     <button
                                         type="button"
                                         onClick={handleCloseForm}
-                                        className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
+                                        className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
                                     >
                                         キャンセル
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-6 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all"
+                                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all"
                                     >
                                         保存
                                     </button>

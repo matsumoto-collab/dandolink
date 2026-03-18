@@ -12,7 +12,9 @@ export async function GET() {
         if (error) return error;
 
         const unitPrices = await prisma.unitPriceMaster.findMany({ where: { isActive: true }, orderBy: { description: 'asc' } });
-        return NextResponse.json(unitPrices.map(formatUnitPrice));
+        return NextResponse.json(unitPrices.map(formatUnitPrice), {
+            headers: { 'Cache-Control': 'no-store' },
+        });
     } catch (error) {
         return serverErrorResponse('単価マスタ取得', error);
     }
@@ -23,13 +25,20 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { description, unit, unitPrice, templates, notes } = await request.json();
+        const { description, unit, unitPrice, templates, categoryId, notes } = await request.json();
         if (!description || !unit || unitPrice === undefined || !templates) {
             return validationErrorResponse('説明、単位、単価、テンプレートは必須です');
         }
 
         const newUnitPrice = await prisma.unitPriceMaster.create({
-            data: { description, unit, unitPrice, templates: JSON.stringify(templates), notes: notes || null },
+            data: {
+                description,
+                unit,
+                unitPrice,
+                templates: JSON.stringify(templates),
+                categoryId: categoryId || null,
+                notes: notes || null,
+            },
         });
 
         return NextResponse.json(formatUnitPrice(newUnitPrice), { status: 201 });

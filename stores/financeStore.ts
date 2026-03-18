@@ -4,7 +4,7 @@ import { CompanyInfo, CompanyInfoInput } from '@/types/company';
 import { Customer, CustomerInput } from '@/types/customer';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
-import { UnitPriceMaster, UnitPriceMasterInput, TemplateType } from '@/types/unitPrice';
+import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceTemplateInput, UnitPriceCategory, UnitPriceCategoryInput } from '@/types/unitPrice';
 
 // Helper to parse dates
 function parseCustomerDates(customer: Customer & { createdAt: string | Date; updatedAt: string | Date }): Customer {
@@ -71,6 +71,10 @@ function parseUnitPriceDates(unitPrice: UnitPriceMaster & { createdAt: string | 
     };
 }
 
+function parseDates<T extends { createdAt: string | Date; updatedAt: string | Date }>(item: T): T {
+    return { ...item, createdAt: new Date(item.createdAt), updatedAt: new Date(item.updatedAt) };
+}
+
 interface FinanceState {
     // Company
     companyInfo: CompanyInfo | null;
@@ -96,6 +100,16 @@ interface FinanceState {
     unitPrices: UnitPriceMaster[];
     unitPricesLoading: boolean;
     unitPricesInitialized: boolean;
+
+    // UnitPriceTemplates
+    unitPriceTemplates: UnitPriceTemplate[];
+    unitPriceTemplatesLoading: boolean;
+    unitPriceTemplatesInitialized: boolean;
+
+    // UnitPriceCategories
+    unitPriceCategories: UnitPriceCategory[];
+    unitPriceCategoriesLoading: boolean;
+    unitPriceCategoriesInitialized: boolean;
 }
 
 interface FinanceActions {
@@ -132,7 +146,19 @@ interface FinanceActions {
     updateUnitPrice: (id: string, data: Partial<UnitPriceMasterInput>) => Promise<void>;
     deleteUnitPrice: (id: string) => Promise<void>;
     getUnitPriceById: (id: string) => UnitPriceMaster | undefined;
-    getUnitPricesByTemplate: (template: TemplateType) => UnitPriceMaster[];
+    getUnitPricesByTemplate: (templateId: string) => UnitPriceMaster[];
+
+    // UnitPriceTemplates
+    fetchUnitPriceTemplates: () => Promise<void>;
+    addUnitPriceTemplate: (data: UnitPriceTemplateInput) => Promise<void>;
+    updateUnitPriceTemplate: (id: string, data: Partial<UnitPriceTemplateInput>) => Promise<void>;
+    deleteUnitPriceTemplate: (id: string) => Promise<void>;
+
+    // UnitPriceCategories
+    fetchUnitPriceCategories: () => Promise<void>;
+    addUnitPriceCategory: (data: UnitPriceCategoryInput) => Promise<void>;
+    updateUnitPriceCategory: (id: string, data: Partial<UnitPriceCategoryInput>) => Promise<void>;
+    deleteUnitPriceCategory: (id: string) => Promise<void>;
 
     // Reset
     reset: () => void;
@@ -156,6 +182,12 @@ const initialState: FinanceState = {
     unitPrices: [],
     unitPricesLoading: false,
     unitPricesInitialized: false,
+    unitPriceTemplates: [],
+    unitPriceTemplatesLoading: false,
+    unitPriceTemplatesInitialized: false,
+    unitPriceCategories: [],
+    unitPriceCategoriesLoading: false,
+    unitPriceCategoriesInitialized: false,
 };
 
 export const useFinanceStore = create<FinanceStore>()(
@@ -503,8 +535,148 @@ export const useFinanceStore = create<FinanceStore>()(
 
         getUnitPriceById: (id: string) => get().unitPrices.find((up) => up.id === id),
 
-        getUnitPricesByTemplate: (template: TemplateType) =>
-            get().unitPrices.filter((up) => up.templates.includes(template)),
+        getUnitPricesByTemplate: (templateId: string) =>
+            get().unitPrices.filter((up) => up.templates.includes(templateId)),
+
+        // ========== UnitPriceTemplates ==========
+        fetchUnitPriceTemplates: async () => {
+            if (get().unitPriceTemplatesLoading) return;
+
+            set({ unitPriceTemplatesLoading: true });
+            try {
+                const response = await fetch('/api/master-data/unit-price-templates', { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    set({
+                        unitPriceTemplates: data.map(parseDates),
+                        unitPriceTemplatesInitialized: true,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch unit price templates:', error);
+            } finally {
+                set({ unitPriceTemplatesLoading: false });
+            }
+        },
+
+        addUnitPriceTemplate: async (data: UnitPriceTemplateInput) => {
+            const response = await fetch('/api/master-data/unit-price-templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'テンプレートの追加に失敗しました');
+            }
+
+            const newTemplate = await response.json();
+            set((state) => ({
+                unitPriceTemplates: [...state.unitPriceTemplates, parseDates(newTemplate)],
+            }));
+        },
+
+        updateUnitPriceTemplate: async (id: string, data: Partial<UnitPriceTemplateInput>) => {
+            const response = await fetch(`/api/master-data/unit-price-templates/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'テンプレートの更新に失敗しました');
+            }
+
+            const updated = await response.json();
+            set((state) => ({
+                unitPriceTemplates: state.unitPriceTemplates.map((t) => (t.id === id ? parseDates(updated) : t)),
+            }));
+        },
+
+        deleteUnitPriceTemplate: async (id: string) => {
+            const response = await fetch(`/api/master-data/unit-price-templates/${id}`, { method: 'DELETE' });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'テンプレートの削除に失敗しました');
+            }
+
+            set((state) => ({
+                unitPriceTemplates: state.unitPriceTemplates.filter((t) => t.id !== id),
+            }));
+        },
+
+        // ========== UnitPriceCategories ==========
+        fetchUnitPriceCategories: async () => {
+            if (get().unitPriceCategoriesLoading) return;
+
+            set({ unitPriceCategoriesLoading: true });
+            try {
+                const response = await fetch('/api/master-data/unit-price-categories', { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    set({
+                        unitPriceCategories: data.map(parseDates),
+                        unitPriceCategoriesInitialized: true,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch unit price categories:', error);
+            } finally {
+                set({ unitPriceCategoriesLoading: false });
+            }
+        },
+
+        addUnitPriceCategory: async (data: UnitPriceCategoryInput) => {
+            const response = await fetch('/api/master-data/unit-price-categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'カテゴリの追加に失敗しました');
+            }
+
+            const newCategory = await response.json();
+            set((state) => ({
+                unitPriceCategories: [...state.unitPriceCategories, parseDates(newCategory)],
+            }));
+        },
+
+        updateUnitPriceCategory: async (id: string, data: Partial<UnitPriceCategoryInput>) => {
+            const response = await fetch(`/api/master-data/unit-price-categories/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'カテゴリの更新に失敗しました');
+            }
+
+            const updated = await response.json();
+            set((state) => ({
+                unitPriceCategories: state.unitPriceCategories.map((c) => (c.id === id ? parseDates(updated) : c)),
+            }));
+        },
+
+        deleteUnitPriceCategory: async (id: string) => {
+            const response = await fetch(`/api/master-data/unit-price-categories/${id}`, { method: 'DELETE' });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'カテゴリの削除に失敗しました');
+            }
+
+            set((state) => ({
+                unitPriceCategories: state.unitPriceCategories.filter((c) => c.id !== id),
+            }));
+        },
 
         reset: () => set(initialState),
     }))
@@ -530,3 +702,9 @@ export const selectInvoicesInitialized = (state: FinanceStore) => state.invoices
 export const selectUnitPrices = (state: FinanceStore) => state.unitPrices;
 export const selectUnitPricesLoading = (state: FinanceStore) => state.unitPricesLoading;
 export const selectUnitPricesInitialized = (state: FinanceStore) => state.unitPricesInitialized;
+
+export const selectUnitPriceTemplates = (state: FinanceStore) => state.unitPriceTemplates;
+export const selectUnitPriceTemplatesInitialized = (state: FinanceStore) => state.unitPriceTemplatesInitialized;
+
+export const selectUnitPriceCategories = (state: FinanceStore) => state.unitPriceCategories;
+export const selectUnitPriceCategoriesInitialized = (state: FinanceStore) => state.unitPriceCategoriesInitialized;
