@@ -10,11 +10,13 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (error) return error;
 
         const { id } = await context.params;
-        const { name, sortOrder } = await request.json();
+        const { name, sortOrder, quantity, unit } = await request.json();
 
         const updateData: Record<string, unknown> = {};
         if (name !== undefined) updateData.name = name;
         if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
+        if (quantity !== undefined) updateData.quantity = quantity;
+        if (unit !== undefined) updateData.unit = unit;
 
         const updated = await prisma.unitPriceCategory.update({ where: { id }, data: updateData });
         return NextResponse.json(updated);
