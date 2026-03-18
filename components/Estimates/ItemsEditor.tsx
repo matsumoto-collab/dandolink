@@ -22,6 +22,7 @@ interface ItemsEditorProps {
     onRemoveChildItem?: (categoryId: string, childId: string) => void;
     onMoveChildItem?: (categoryId: string, childIndex: number, direction: 'up' | 'down') => void;
     onReorder?: (fromIndex: number, toIndex: number) => void;
+    onReorderChildItem?: (categoryId: string, fromIndex: number, toIndex: number) => void;
     onOpenUnitPriceModal: () => void;
     hideAddButtons?: boolean;
     unitPriceMasters?: UnitPriceMaster[];
@@ -202,10 +203,53 @@ function SortableCategoryTableRow(props: React.ComponentProps<typeof CategoryTab
     );
 }
 
+/** カテゴリ内の子項目（ドラッグ可能） */
+function SortableChildRows({ categoryId, children, onUpdateChildItem, onRemoveChildItem, onMoveChildItem, onReorderChildItem, unitPriceMasters, onSelectMaster, sensors }: {
+    categoryId: string;
+    children: EstimateItem[];
+    onUpdateChildItem: NonNullable<ItemsEditorProps['onUpdateChildItem']>;
+    onRemoveChildItem: NonNullable<ItemsEditorProps['onRemoveChildItem']>;
+    onMoveChildItem: NonNullable<ItemsEditorProps['onMoveChildItem']>;
+    onReorderChildItem?: ItemsEditorProps['onReorderChildItem'];
+    unitPriceMasters?: UnitPriceMaster[];
+    onSelectMaster?: ItemsEditorProps['onSelectMaster'];
+    sensors: ReturnType<typeof useSensors>;
+}) {
+    const handleChildDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id || !onReorderChildItem) return;
+        const oldIndex = children.findIndex(c => c.id === active.id);
+        const newIndex = children.findIndex(c => c.id === over.id);
+        if (oldIndex !== -1 && newIndex !== -1) onReorderChildItem(categoryId, oldIndex, newIndex);
+    };
+
+    return (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleChildDragEnd}>
+            <SortableContext items={children.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                {children.map((child, ci) => (
+                    <SortableItemTableRow
+                        key={child.id}
+                        item={child}
+                        index={ci}
+                        totalItems={children.length}
+                        onUpdate={(id, field, value) => onUpdateChildItem(categoryId, id, field, value)}
+                        onRemove={(id) => onRemoveChildItem(categoryId, id)}
+                        onMoveUp={(idx) => onMoveChildItem(categoryId, idx, 'up')}
+                        onMoveDown={(idx) => onMoveChildItem(categoryId, idx, 'down')}
+                        isChild
+                        unitPriceMasters={unitPriceMasters}
+                        onSelectMaster={onSelectMaster}
+                    />
+                ))}
+            </SortableContext>
+        </DndContext>
+    );
+}
+
 export default function ItemsEditor({
     items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem,
     onAddCategory, onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    onReorder, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, onSelectMaster,
+    onReorder, onReorderChildItem, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, onSelectMaster,
 }: ItemsEditorProps) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -280,21 +324,19 @@ export default function ItemsEditor({
                                             isExpanded={isExpanded} onToggle={() => toggleCategory(item.id)}
                                             onUpdate={onUpdate} onRemove={onRemove} onMoveUp={onMoveUp} onMoveDown={onMoveDown}
                                         />
-                                        {isExpanded && children.map((child, ci) => (
-                                            <ItemTableRow
-                                                key={child.id}
-                                                item={child}
-                                                index={ci}
-                                                totalItems={children.length}
-                                                onUpdate={(id, field, value) => onUpdateChildItem(item.id, id, field, value)}
-                                                onRemove={(id) => onRemoveChildItem(item.id, id)}
-                                                onMoveUp={(idx) => onMoveChildItem(item.id, idx, 'up')}
-                                                onMoveDown={(idx) => onMoveChildItem(item.id, idx, 'down')}
-                                                isChild
+                                        {isExpanded && (
+                                            <SortableChildRows
+                                                categoryId={item.id}
+                                                children={children}
+                                                onUpdateChildItem={onUpdateChildItem}
+                                                onRemoveChildItem={onRemoveChildItem}
+                                                onMoveChildItem={onMoveChildItem}
+                                                onReorderChildItem={onReorderChildItem}
                                                 unitPriceMasters={unitPriceMasters}
                                                 onSelectMaster={onSelectMaster}
+                                                sensors={sensors}
                                             />
-                                        ))}
+                                        )}
                                         {isExpanded && (
                                             <tr className="border-b border-slate-200">
                                                 <td colSpan={10} className="px-3 py-1.5">
