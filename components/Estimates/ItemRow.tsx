@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { EstimateItem } from '@/types/estimate';
+import { UnitPriceMaster } from '@/types/unitPrice';
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface ItemRowProps {
@@ -13,6 +14,75 @@ interface ItemRowProps {
     onMoveUp: (index: number) => void;
     onMoveDown: (index: number) => void;
     isChild?: boolean;
+    unitPriceMasters?: UnitPriceMaster[];
+    onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
+}
+
+/** 品目入力（単価マスター候補ドロップダウン付き） */
+function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, className }: {
+    item: EstimateItem;
+    onUpdate: ItemRowProps['onUpdate'];
+    unitPriceMasters?: UnitPriceMaster[];
+    onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
+    className: string;
+}) {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    const filtered = unitPriceMasters?.filter(m =>
+        !item.description || m.description.toLowerCase().includes(item.description.toLowerCase())
+    ) || [];
+
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+                setShowDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    if (!unitPriceMasters?.length) {
+        return (
+            <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={className} placeholder="品目・内容" />
+        );
+    }
+
+    return (
+        <div ref={containerRef} className="relative">
+            <input
+                type="text"
+                value={item.description}
+                onChange={(e) => {
+                    onUpdate(item.id, 'description', e.target.value);
+                    setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
+                className={className}
+                placeholder="品目・内容"
+            />
+            {showDropdown && filtered.length > 0 && (
+                <div className="absolute z-50 left-0 top-full mt-1 w-72 max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                    <div className="px-3 py-1.5 text-xs font-medium text-slate-400 border-b border-slate-100">単価マスター</div>
+                    {filtered.map(m => (
+                        <button
+                            key={m.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0"
+                            onClick={() => {
+                                onSelectMaster?.(item.id, m);
+                                setShowDropdown(false);
+                            }}
+                        >
+                            <span className="font-medium text-sm text-slate-800">{m.description}</span>
+                            {m.unitPrice > 0 && <span className="text-sm text-slate-500"> | ¥{m.unitPrice.toLocaleString()}</span>}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
 }
 
 /** 単価入力（マイナス値対応） */
@@ -47,14 +117,14 @@ function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onU
 }
 
 /** デスクトップ用テーブル行 */
-export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild }: ItemRowProps) {
+export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, onSelectMaster }: ItemRowProps) {
     const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
 
     return (
         <tr className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : ''}`}>
             <td className="px-3 py-2">
                 <div className={isChild ? 'pl-6' : ''}>
-                    <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={cellInputClass} placeholder="品目・内容" />
+                    <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={cellInputClass} />
                 </div>
             </td>
             <td className="px-3 py-2">
@@ -115,7 +185,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 }
 
 /** モバイル用カード */
-export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown }: ItemRowProps) {
+export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, unitPriceMasters, onSelectMaster }: ItemRowProps) {
     const mobileInputClass = "w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
     const mobileLabelClass = "block text-xs font-medium text-slate-500 mb-1";
 
@@ -140,7 +210,7 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
             {/* 品目 */}
             <div>
                 <label className={mobileLabelClass}>品目・内容</label>
-                <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={mobileInputClass} placeholder="品目・内容" />
+                <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={mobileInputClass} />
             </div>
 
             {/* 規格 */}

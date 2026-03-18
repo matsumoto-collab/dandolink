@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { EstimateItem } from '@/types/estimate';
+import { UnitPriceMaster } from '@/types/unitPrice';
 import { Plus, Star, ClipboardList, PenLine, ChevronDown, ChevronRight, FolderPlus } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
@@ -19,6 +20,8 @@ interface ItemsEditorProps {
     onMoveChildItem?: (categoryId: string, childIndex: number, direction: 'up' | 'down') => void;
     onOpenUnitPriceModal: () => void;
     hideAddButtons?: boolean;
+    unitPriceMasters?: UnitPriceMaster[];
+    onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
 }
 
 /** カテゴリ行（デスクトップ） */
@@ -80,6 +83,7 @@ function CategoryCard({
     item, index, totalItems, isExpanded, onToggle,
     onUpdate, onRemove, onMoveUp, onMoveDown,
     onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
+    unitPriceMasters, onSelectMaster,
 }: {
     item: EstimateItem; index: number; totalItems: number;
     isExpanded: boolean; onToggle: () => void;
@@ -91,6 +95,8 @@ function CategoryCard({
     onUpdateChildItem: (categoryId: string, childId: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => void;
     onRemoveChildItem: (categoryId: string, childId: string) => void;
     onMoveChildItem: (categoryId: string, childIndex: number, direction: 'up' | 'down') => void;
+    unitPriceMasters?: UnitPriceMaster[];
+    onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
 }) {
     const { ChevronUp, ChevronDown: ChevronDownIcon, Trash2 } = require('lucide-react');
     const children = item.children || [];
@@ -135,6 +141,8 @@ function CategoryCard({
                             onRemove={(id) => onRemoveChildItem(item.id, id)}
                             onMoveUp={(idx) => onMoveChildItem(item.id, idx, 'up')}
                             onMoveDown={(idx) => onMoveChildItem(item.id, idx, 'down')}
+                            unitPriceMasters={unitPriceMasters}
+                            onSelectMaster={onSelectMaster}
                         />
                     ))}
                     <button
@@ -153,7 +161,7 @@ function CategoryCard({
 export default function ItemsEditor({
     items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem,
     onAddCategory, onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    onOpenUnitPriceModal, hideAddButtons,
+    onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, onSelectMaster,
 }: ItemsEditorProps) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
@@ -168,6 +176,7 @@ export default function ItemsEditor({
     const rowProps = (item: EstimateItem, index: number) => ({
         item, index, totalItems: items.length,
         onUpdate, onRemove, onMoveUp, onMoveDown,
+        unitPriceMasters, onSelectMaster,
     });
 
     return (
@@ -226,6 +235,8 @@ export default function ItemsEditor({
                                                 onMoveUp={(idx) => onMoveChildItem(item.id, idx, 'up')}
                                                 onMoveDown={(idx) => onMoveChildItem(item.id, idx, 'down')}
                                                 isChild
+                                                unitPriceMasters={unitPriceMasters}
+                                                onSelectMaster={onSelectMaster}
                                             />
                                         ))}
                                         {isExpanded && (
@@ -281,6 +292,8 @@ export default function ItemsEditor({
                                 onUpdateChildItem={onUpdateChildItem}
                                 onRemoveChildItem={onRemoveChildItem}
                                 onMoveChildItem={onMoveChildItem}
+                                unitPriceMasters={unitPriceMasters}
+                                onSelectMaster={onSelectMaster}
                             />
                         );
                     }

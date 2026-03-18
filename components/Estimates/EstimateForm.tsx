@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
+import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
 import { EstimateInput, EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
@@ -30,12 +31,14 @@ function getDefault30DaysLater(): string {
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
+    const { unitPrices, ensureDataLoaded: ensureUnitPricesLoaded } = useUnitPriceMaster();
 
     // 案件マスターと顧客データのフェッチ
     useEffect(() => {
         fetchProjectMasters();
         ensureDataLoaded();
-    }, [fetchProjectMasters, ensureDataLoaded]);
+        ensureUnitPricesLoaded();
+    }, [fetchProjectMasters, ensureDataLoaded, ensureUnitPricesLoaded]);
 
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
     const [title, setTitle] = useState(initialData?.title || '');
@@ -211,6 +214,28 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         setIsUnitPriceModalOpen(false);
     };
 
+    const handleSelectMasterForItem = (itemId: string, master: UnitPriceMaster) => {
+        setItems(items.map(item => {
+            if (item.id === itemId) {
+                return { ...item, description: master.description, unit: master.unit, unitPrice: master.unitPrice, amount: Math.round(item.quantity * master.unitPrice) };
+            }
+            if (item.isCategory && item.children) {
+                const childMatch = item.children.find(c => c.id === itemId);
+                if (childMatch) {
+                    return {
+                        ...item,
+                        children: item.children.map(c =>
+                            c.id === itemId
+                                ? { ...c, description: master.description, unit: master.unit, unitPrice: master.unitPrice, amount: Math.round(c.quantity * master.unitPrice) }
+                                : c
+                        ),
+                    };
+                }
+            }
+            return item;
+        }));
+    };
+
     const removeItem = (id: string) => { if (items.length > 1) setItems(items.filter(item => item.id !== id)); };
 
     const updateItem = (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
@@ -284,6 +309,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onRemoveChildItem={removeChildItem}
                 onMoveChildItem={moveChildItem}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
+                unitPriceMasters={unitPrices}
+                onSelectMaster={handleSelectMasterForItem}
             />
 
             <ConditionNotes notes={notes} setNotes={setNotes} />
