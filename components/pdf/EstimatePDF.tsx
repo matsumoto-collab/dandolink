@@ -664,12 +664,12 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                 </View>
                                 <View style={styles.cellQty}>
                                     <Text style={styles.cellText}>
-                                        {!isCat && item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}
+                                        {item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}
                                     </Text>
                                 </View>
                                 <View style={styles.cellUnit}>
                                     <Text style={styles.cellText}>
-                                        {!isCat && item ? sanitizePdfText(item.unit || '') : ''}
+                                        {item ? sanitizePdfText(item.unit || '') : ''}
                                     </Text>
                                 </View>
                                 <View style={styles.cellPrice}>
@@ -746,12 +746,12 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
             </View>
             <View style={styles.cellQty}>
                 <Text style={styles.cellText}>
-                    {!isCat && item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}
+                    {item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}
                 </Text>
             </View>
             <View style={styles.cellUnit}>
                 <Text style={styles.cellText}>
-                    {!isCat && item ? sanitizePdfText(item.unit || '') : ''}
+                    {item ? sanitizePdfText(item.unit || '') : ''}
                 </Text>
             </View>
             <View style={styles.cellPrice}>
@@ -813,10 +813,10 @@ function CategoryDetailsPage({
                         <Text style={{ fontSize: 8, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
                     </View>
                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellQty}><Text style={styles.cellText}>{category.quantity && category.quantity > 0 ? category.quantity.toLocaleString() : ''}</Text></View>
+                    <View style={styles.cellUnit}><Text style={styles.cellText}>{sanitizePdfText(category.unit || '')}</Text></View>
                     <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellAmount}><Text style={styles.cellText}>{category.amount > 0 ? category.amount.toLocaleString() : ''}</Text></View>
                 </View>
 
                 {/* 子項目行 */}
