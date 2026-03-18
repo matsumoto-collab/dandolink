@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster } from '@/types/unitPrice';
-import { Trash2, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 
 interface ItemRowProps {
     item: EstimateItem;
@@ -17,6 +17,11 @@ interface ItemRowProps {
     isChild?: boolean;
     unitPriceMasters?: UnitPriceMaster[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
+    // Drag & drop
+    sortableRef?: (node: HTMLElement | null) => void;
+    sortableStyle?: React.CSSProperties;
+    sortableAttributes?: Record<string, unknown>;
+    dragListeners?: Record<string, unknown>;
 }
 
 /** 品目入力（単価マスター候補ドロップダウン付き） */
@@ -153,11 +158,18 @@ function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onU
 }
 
 /** デスクトップ用テーブル行 */
-export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, onSelectMaster }: ItemRowProps) {
+export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, onSelectMaster, sortableRef, sortableStyle, sortableAttributes, dragListeners }: ItemRowProps) {
     const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
 
     return (
-        <tr className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : ''}`}>
+        <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
+            <td className="px-1 py-2 w-8">
+                {dragListeners ? (
+                    <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600" {...dragListeners}>
+                        <GripVertical className="w-4 h-4" />
+                    </button>
+                ) : null}
+            </td>
             <td className="px-3 py-2">
                 <div className={isChild ? 'pl-6' : ''}>
                     <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={cellInputClass} />
