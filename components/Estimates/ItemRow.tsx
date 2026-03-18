@@ -30,7 +30,7 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
     const [showDropdown, setShowDropdown] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 280 });
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 280, openUp: false });
 
     const filtered = unitPriceMasters?.filter(m =>
         !item.description || m.description.toLowerCase().includes(item.description.toLowerCase())
@@ -39,7 +39,15 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
     const updatePosition = useCallback(() => {
         if (inputRef.current) {
             const rect = inputRef.current.getBoundingClientRect();
-            setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: Math.max(rect.width, 280) });
+            const maxDropdownHeight = 256; // max-h-64 = 16rem = 256px
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const openUp = spaceBelow < maxDropdownHeight && rect.top > spaceBelow;
+            setDropdownPos({
+                top: openUp ? rect.top - 4 : rect.bottom + 4,
+                left: rect.left,
+                width: Math.max(rect.width, 280),
+                openUp,
+            });
         }
     }, []);
 
@@ -63,7 +71,13 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
         <div
             ref={dropdownRef}
             className="fixed z-[9999] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
-            style={{ top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }}
+            style={{
+                left: dropdownPos.left,
+                width: dropdownPos.width,
+                ...(dropdownPos.openUp
+                    ? { bottom: window.innerHeight - dropdownPos.top, top: 'auto' }
+                    : { top: dropdownPos.top }),
+            }}
         >
             <div className="px-3 py-1.5 text-xs font-medium text-slate-400 border-b border-slate-100">単価マスター</div>
             {filtered.map(m => (
