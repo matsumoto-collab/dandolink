@@ -4,14 +4,7 @@ import userEvent from '@testing-library/user-event';
 import EstimateForm from '@/components/Estimates/EstimateForm';
 
 // lucide-react のモック
-jest.mock('lucide-react', () => ({
-    Plus: () => <svg data-testid="plus-icon" />,
-    Trash2: () => <svg data-testid="trash-icon" />,
-    ChevronUp: () => <svg data-testid="chevron-up-icon" />,
-    ChevronDown: () => <svg data-testid="chevron-down-icon" />,
-    X: () => <svg data-testid="x-icon" />,
-    Search: () => <svg data-testid="search-icon" />,
-}));
+
 
 jest.mock('react-hot-toast', () => ({
     __esModule: true,
@@ -27,10 +20,26 @@ jest.mock('@/hooks/useProjects', () => ({
     }),
 }));
 
+jest.mock('@/hooks/useProjectMasters', () => ({
+    useProjectMasters: () => ({
+        projectMasters: [],
+        fetchProjectMasters: jest.fn(),
+    }),
+}));
+
 jest.mock('@/hooks/useCustomers', () => ({
     useCustomers: () => ({
         customers: [],
         addCustomer: jest.fn(),
+        ensureDataLoaded: jest.fn(),
+    }),
+}));
+
+jest.mock('@/hooks/useUnitPriceMaster', () => ({
+    useUnitPriceMaster: () => ({
+        unitPrices: [],
+        unitPriceSpecifications: [],
+        ensureDataLoaded: jest.fn(),
     }),
 }));
 
@@ -46,10 +55,11 @@ jest.mock('@/components/Estimates/UnitPriceMasterModal', () => ({
         isOpen ? <div data-testid="unit-price-modal">Unit Price Modal</div> : null,
 }));
 
-// 合計エリア（bg-gray-50）内のテキストを取得するヘルパー
+// 合計エリアのコンテナを取得するヘルパー
 function getSummarySection() {
-    const subtotalLabel = screen.getByText('小計:');
-    return subtotalLabel.closest('.bg-gray-50') as HTMLElement;
+    const subtotalLabel = screen.getByText('小計');
+    // The summary footer parent contains 小計, 消費税, 合計
+    return subtotalLabel.closest('[class*="grid"]')?.parentElement as HTMLElement;
 }
 
 describe('EstimateForm 金額計算', () => {
@@ -64,9 +74,12 @@ describe('EstimateForm 金額計算', () => {
         const user = userEvent.setup();
         render(<EstimateForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-        const quantityInputs = screen.getAllByRole('spinbutton');
-        const quantityInput = quantityInputs[0];
-        const unitPriceInput = quantityInputs[1];
+        // デフォルト行が無いので項目行を追加
+        await user.click(screen.getByText('項目行を追加'));
+
+        // Quantity input has placeholder="数量", unit price has placeholder="単価"
+        const quantityInput = screen.getAllByPlaceholderText('数量')[0];
+        const unitPriceInput = screen.getAllByPlaceholderText('単価')[0];
 
         await user.clear(quantityInput);
         await user.type(quantityInput, quantity);
