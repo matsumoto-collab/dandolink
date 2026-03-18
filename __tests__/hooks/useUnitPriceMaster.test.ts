@@ -22,6 +22,14 @@ const mockUpdateUnitPrice = jest.fn();
 const mockDeleteUnitPrice = jest.fn();
 const mockGetUnitPriceById = jest.fn();
 const mockGetUnitPricesByTemplate = jest.fn();
+const mockFetchUnitPriceTemplates = jest.fn();
+const mockAddUnitPriceTemplate = jest.fn();
+const mockUpdateUnitPriceTemplate = jest.fn();
+const mockDeleteUnitPriceTemplate = jest.fn();
+const mockFetchUnitPriceCategories = jest.fn();
+const mockAddUnitPriceCategory = jest.fn();
+const mockUpdateUnitPriceCategory = jest.fn();
+const mockDeleteUnitPriceCategory = jest.fn();
 
 jest.mock('@/stores/financeStore', () => ({
     useFinanceStore: jest.fn((selector: any) => {
@@ -35,6 +43,20 @@ jest.mock('@/stores/financeStore', () => ({
             deleteUnitPrice: mockDeleteUnitPrice,
             getUnitPriceById: mockGetUnitPriceById,
             getUnitPricesByTemplate: mockGetUnitPricesByTemplate,
+            unitPriceTemplates: [{ id: 't1', name: 'よく使う項目' }],
+            unitPriceTemplatesLoading: false,
+            unitPriceTemplatesInitialized: false,
+            fetchUnitPriceTemplates: mockFetchUnitPriceTemplates,
+            addUnitPriceTemplate: mockAddUnitPriceTemplate,
+            updateUnitPriceTemplate: mockUpdateUnitPriceTemplate,
+            deleteUnitPriceTemplate: mockDeleteUnitPriceTemplate,
+            unitPriceCategories: [{ id: 'c1', name: '足場工事' }],
+            unitPriceCategoriesLoading: false,
+            unitPriceCategoriesInitialized: false,
+            fetchUnitPriceCategories: mockFetchUnitPriceCategories,
+            addUnitPriceCategory: mockAddUnitPriceCategory,
+            updateUnitPriceCategory: mockUpdateUnitPriceCategory,
+            deleteUnitPriceCategory: mockDeleteUnitPriceCategory,
         };
         return selector(state);
     }),
@@ -54,6 +76,8 @@ describe('useUnitPriceMaster', () => {
         expect(result.current.unitPrices).toEqual([{ id: 'up1', description: 'テスト単価' }]);
         expect(result.current.isLoading).toBe(false);
         expect(result.current.isInitialized).toBe(false);
+        expect(result.current.unitPriceTemplates).toEqual([{ id: 't1', name: 'よく使う項目' }]);
+        expect(result.current.unitPriceCategories).toEqual([{ id: 'c1', name: '足場工事' }]);
         expect(typeof result.current.ensureDataLoaded).toBe('function');
         expect(typeof result.current.addUnitPrice).toBe('function');
         expect(typeof result.current.updateUnitPrice).toBe('function');
@@ -61,7 +85,7 @@ describe('useUnitPriceMaster', () => {
         expect(typeof result.current.refreshUnitPrices).toBe('function');
     });
 
-    it('ensureDataLoaded: 認証済み＋未初期化時に fetchUnitPrices 呼び出し', async () => {
+    it('ensureDataLoaded: 認証済み＋未初期化時に全データfetch', async () => {
         const { result } = renderHook(() => useUnitPriceMaster());
 
         await act(async () => {
@@ -69,6 +93,8 @@ describe('useUnitPriceMaster', () => {
         });
 
         expect(mockFetchUnitPrices).toHaveBeenCalledTimes(1);
+        expect(mockFetchUnitPriceTemplates).toHaveBeenCalledTimes(1);
+        expect(mockFetchUnitPriceCategories).toHaveBeenCalledTimes(1);
     });
 
     it('ensureDataLoaded: 未認証時はフェッチしない', async () => {
@@ -81,6 +107,8 @@ describe('useUnitPriceMaster', () => {
         });
 
         expect(mockFetchUnitPrices).not.toHaveBeenCalled();
+        expect(mockFetchUnitPriceTemplates).not.toHaveBeenCalled();
+        expect(mockFetchUnitPriceCategories).not.toHaveBeenCalled();
 
         // Restore
         (useSession as jest.Mock).mockReturnValue(mockSession);
@@ -125,6 +153,44 @@ describe('useUnitPriceMaster', () => {
         });
 
         expect(mockFetchUnitPrices).toHaveBeenCalledTimes(1);
+    });
+
+    it('テンプレートCRUD: ストアのアクションを呼び出す', async () => {
+        const { result } = renderHook(() => useUnitPriceMaster());
+
+        await act(async () => {
+            await result.current.addUnitPriceTemplate({ name: 'テスト', sortOrder: 0 });
+        });
+        expect(mockAddUnitPriceTemplate).toHaveBeenCalled();
+
+        await act(async () => {
+            await result.current.updateUnitPriceTemplate('t1', { name: '更新' });
+        });
+        expect(mockUpdateUnitPriceTemplate).toHaveBeenCalledWith('t1', { name: '更新' });
+
+        await act(async () => {
+            await result.current.deleteUnitPriceTemplate('t1');
+        });
+        expect(mockDeleteUnitPriceTemplate).toHaveBeenCalledWith('t1');
+    });
+
+    it('カテゴリCRUD: ストアのアクションを呼び出す', async () => {
+        const { result } = renderHook(() => useUnitPriceMaster());
+
+        await act(async () => {
+            await result.current.addUnitPriceCategory({ name: 'テスト', sortOrder: 0 });
+        });
+        expect(mockAddUnitPriceCategory).toHaveBeenCalled();
+
+        await act(async () => {
+            await result.current.updateUnitPriceCategory('c1', { name: '更新' });
+        });
+        expect(mockUpdateUnitPriceCategory).toHaveBeenCalledWith('c1', { name: '更新' });
+
+        await act(async () => {
+            await result.current.deleteUnitPriceCategory('c1');
+        });
+        expect(mockDeleteUnitPriceCategory).toHaveBeenCalledWith('c1');
     });
 
     it('useRealtimeSubscription が正しいオプションで呼ばれる', () => {

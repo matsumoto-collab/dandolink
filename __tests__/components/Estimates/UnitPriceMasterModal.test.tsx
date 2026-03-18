@@ -14,13 +14,25 @@ jest.mock('lucide-react', () => ({
     X: () => <span data-testid="icon-x" />,
 }));
 
+const mockTemplates = [
+    { id: 'tpl-frequent', name: 'よく使う項目', sortOrder: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'tpl-large', name: '大規模見積用', sortOrder: 1, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'tpl-medium', name: '中規模見積用', sortOrder: 2, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+    { id: 'tpl-residential', name: '住宅見積用', sortOrder: 3, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+];
+
+const mockCategories = [
+    { id: 'cat1', name: '足場工事', sortOrder: 0, isActive: true, createdAt: new Date(), updatedAt: new Date() },
+];
+
 const mockItems = [
     {
         id: 'up1',
         description: '足場組立一式',
         unit: '式',
         unitPrice: 50000,
-        templates: ['frequent'] as const,
+        templates: ['tpl-frequent'],
+        categoryId: 'cat1',
         notes: 'テスト備考',
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -30,7 +42,8 @@ const mockItems = [
         description: 'メッシュシート',
         unit: 'm',
         unitPrice: 300,
-        templates: ['frequent'] as const,
+        templates: ['tpl-frequent'],
+        categoryId: 'cat1',
         createdAt: new Date(),
         updatedAt: new Date(),
     },
@@ -39,7 +52,7 @@ const mockItems = [
         description: '大規模足場',
         unit: '式',
         unitPrice: 200000,
-        templates: ['large'] as const,
+        templates: ['tpl-large'],
         createdAt: new Date(),
         updatedAt: new Date(),
     },
@@ -53,6 +66,8 @@ describe('UnitPriceMasterModal', () => {
         jest.clearAllMocks();
         (useUnitPriceMaster as jest.Mock).mockReturnValue({
             unitPrices: mockItems,
+            unitPriceTemplates: mockTemplates,
+            unitPriceCategories: mockCategories,
             ensureDataLoaded: jest.fn(),
         });
     });
@@ -85,7 +100,7 @@ describe('UnitPriceMasterModal', () => {
         render(
             <UnitPriceMasterModal isOpen={true} onClose={mockOnClose} onSelect={mockOnSelect} />
         );
-        // Default tab is 'frequent'
+        // Default tab is first template (frequent)
         expect(screen.getByText('足場組立一式')).toBeInTheDocument();
         expect(screen.getByText('メッシュシート')).toBeInTheDocument();
         expect(screen.getByText(/50,000/)).toBeInTheDocument();
@@ -117,6 +132,8 @@ describe('UnitPriceMasterModal', () => {
     it('should show empty state when no items match', () => {
         (useUnitPriceMaster as jest.Mock).mockReturnValue({
             unitPrices: [],
+            unitPriceTemplates: mockTemplates,
+            unitPriceCategories: [],
             ensureDataLoaded: jest.fn(),
         });
         render(
@@ -152,7 +169,6 @@ describe('UnitPriceMasterModal', () => {
         const checkboxes = screen.getAllByRole('checkbox');
         fireEvent.click(checkboxes[0]); // Select first item
 
-        // Click the add button (find via role to avoid header text match)
         const addButton = screen.getAllByRole('button').find(
             btn => btn.textContent?.match(/追加.*件/)
         );

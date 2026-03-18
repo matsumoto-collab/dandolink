@@ -300,18 +300,46 @@ model SystemSettings {
   @@schema("public")
 }
 
+model UnitPriceTemplate {
+  id        String   @id @default(uuid())
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+model UnitPriceCategory {
+  id              String            @id @default(uuid())
+  name            String
+  sortOrder       Int               @default(0)
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  unitPriceMasters UnitPriceMaster[]
+
+  @@index([sortOrder])
+  @@schema("public")
+}
+
 model UnitPriceMaster {
   id          String   @id @default(uuid())
   description String
   unit        String
   unitPrice   Decimal  @db.Decimal(12, 2)
   templates   String
+  categoryId  String?
+  category    UnitPriceCategory? @relation(fields: [categoryId], references: [id])
   notes       String?
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([description])
+  @@index([categoryId])
   @@schema("public")
 }
 

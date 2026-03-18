@@ -14,13 +14,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (error) return error;
 
         const { id } = await context.params;
-        const { description, unit, unitPrice, templates, notes } = await request.json();
+        const { description, unit, unitPrice, templates, categoryId, notes } = await request.json();
 
         const updateData: Record<string, unknown> = {};
         if (description !== undefined) updateData.description = description;
         if (unit !== undefined) updateData.unit = unit;
         if (unitPrice !== undefined) updateData.unitPrice = unitPrice;
         if (templates !== undefined) updateData.templates = JSON.stringify(templates);
+        if (categoryId !== undefined) updateData.categoryId = categoryId || null;
         if (notes !== undefined) updateData.notes = notes;
 
         const updated = await prisma.unitPriceMaster.update({ where: { id }, data: updateData });
