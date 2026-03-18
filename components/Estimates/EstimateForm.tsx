@@ -202,6 +202,18 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         }));
     };
 
+    const reorderChildItems = (categoryId: string, fromIndex: number, toIndex: number) => {
+        setItems(items.map(item => {
+            if (item.id === categoryId && item.isCategory) {
+                const children = [...(item.children || [])];
+                const [moved] = children.splice(fromIndex, 1);
+                children.splice(toIndex, 0, moved);
+                return { ...item, children };
+            }
+            return item;
+        }));
+    };
+
 
     const handleSelectFromMaster = (selectedMasters: UnitPriceMaster[]) => {
         const newItems = selectedMasters.map(master => ({
@@ -316,6 +328,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onUpdateChildItem={updateChildItem}
                 onRemoveChildItem={removeChildItem}
                 onMoveChildItem={moveChildItem}
+                onReorderChildItem={reorderChildItems}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
                 unitPriceMasters={unitPrices}
                 onSelectMaster={handleSelectMasterForItem}
