@@ -4,10 +4,14 @@ import React, { useState, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
-import { EstimateInput, EstimateItem } from '@/types/estimate';
+import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
+import { CompanyInfo } from '@/types/company';
+import { Project } from '@/types/calendar';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
+import { Eye, X } from 'lucide-react';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from './UnitPriceMasterModal';
 import EstimateHeader from './EstimateHeader';
@@ -58,6 +62,26 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [status, setStatus] = useState<EstimateInput['status']>(initialData?.status || 'draft');
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [items, setItems] = useState<EstimateItem[]>(initialData?.items || []);
+
+    // PDFプレビュー用
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [previewPdfUrl, setPreviewPdfUrl] = useState('');
+    const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+    const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+
+    // 会社情報をフェッチ（プレビュー用）
+    useEffect(() => {
+        fetch('/api/master-data/company').then(r => r.json()).then(data => {
+            if (data) setCompanyInfo(data);
+        }).catch(() => {});
+    }, []);
+
+    // プレビューURL のクリーンアップ
+    useEffect(() => {
+        return () => {
+            if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+        };
+    }, [previewPdfUrl]);
 
     // 案件選択時に情報を自動入力
     useEffect(() => {
@@ -284,6 +308,107 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // PDFプレビュー生成
+    const handlePreview = async () => {
+        if (isGeneratingPreview) return;
+        setIsGeneratingPreview(true);
+        try {
+            const { generateEstimatePDFBlobReact } = await import('@/utils/reactPdfGenerator');
+
+            // 一時的な Estimate オブジェクトを構築
+            const tempEstimate: Estimate = {
+                id: 'preview',
+                projectId: projectId || undefined,
+                customerId: customerId || undefined,
+                estimateNumber: estimateNumber || '（自動採番）',
+                title,
+                items,
+                subtotal,
+                tax,
+                total,
+                validUntil: new Date(validUntil),
+                status,
+                notes: notes || undefined,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            // Project オブジェクトを構築
+            const selectedProject = projectMasters.find(p => p.id === projectId);
+            const customer = customers.find(c => c.id === customerId);
+            const tempProject: Project = {
+                id: projectId || 'preview',
+                title: selectedProject?.title || title,
+                startDate: new Date(),
+                category: 'construction' as const,
+                color: '#3B82F6',
+                customer: customer?.name || '',
+                customerHonorific: customer?.honorific || '御中',
+                location: selectedProject?.location || '',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            const effectiveCompanyInfo: CompanyInfo = companyInfo || {
+                id: '', name: '', postalCode: '', address: '', tel: '', representative: '',
+                createdAt: new Date(), updatedAt: new Date(),
+            };
+
+            const url = await generateEstimatePDFBlobReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeCoverPage: true });
+
+            // 前回のURL をクリーンアップ
+            if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+
+            setPreviewPdfUrl(url);
+            setIsPreviewOpen(true);
+        } catch (error) {
+            console.error('プレビュー生成エラー:', error);
+            toast.error('プレビューの生成に失敗しました');
+        } finally {
+            setIsGeneratingPreview(false);
+        }
+    };
+
+    // 合計金額調整（値引き）
+    const handleAdjustTotal = (targetAmount: number) => {
+        // targetAmount は税込合計の目標値
+        // 値引き額 = (現在の税込合計 - 目標額) / 1.1（税込→税抜変換）
+        const discountAmount = Math.round((total - targetAmount) / 1.1);
+
+        if (discountAmount <= 0) {
+            toast.error('現在の合計より大きい金額は指定できません');
+            return;
+        }
+
+        // 既存の値引き項目があれば更新、なければ追加
+        const existingDiscountIdx = items.findIndex(i => !i.isCategory && i.description === '値引き');
+
+        if (existingDiscountIdx !== -1) {
+            const updated = [...items];
+            updated[existingDiscountIdx] = {
+                ...updated[existingDiscountIdx],
+                unitPrice: -discountAmount,
+                amount: -discountAmount,
+                quantity: 1,
+            };
+            setItems(updated);
+        } else {
+            setItems([...items, {
+                id: `item-discount-${Date.now()}`,
+                description: '値引き',
+                specification: '',
+                quantity: 1,
+                unit: '式',
+                unitPrice: -discountAmount,
+                amount: -discountAmount,
+                taxType: 'standard',
+                notes: '',
+            }]);
+        }
+
+        toast.success('値引きを適用しました');
+    };
+
     // 送信
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -340,13 +465,17 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
             {/* 合計エリア（sticky） */}
             <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
-                <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
+                <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustTotal={handleAdjustTotal} />
             </div>
 
             {/* ボタン */}
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 safe-area-bottom">
                 <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm">
                     キャンセル
+                </button>
+                <button type="button" onClick={handlePreview} disabled={isGeneratingPreview} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm flex items-center justify-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    {isGeneratingPreview ? '生成中...' : 'プレビュー'}
                 </button>
                 <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 active:bg-slate-900 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? '保存中...' : '保存'}
@@ -356,6 +485,29 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             <CustomerModal isOpen={isCustomerModalOpen} onClose={() => setIsCustomerModalOpen(false)}
                 onSubmit={(data) => { addCustomer(data); setIsCustomerModalOpen(false); }} title="新規顧客登録" />
             <UnitPriceMasterModal isOpen={isUnitPriceModalOpen} onClose={() => setIsUnitPriceModalOpen(false)} onSelect={handleSelectFromMaster} />
+
+            {/* PDFプレビューオーバーレイ */}
+            {isPreviewOpen && previewPdfUrl && (
+                <div className="fixed inset-0 z-[80] bg-black/70 flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+                        <h3 className="text-lg font-semibold text-slate-800">プレビュー</h3>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsPreviewOpen(false);
+                                if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+                                setPreviewPdfUrl('');
+                            }}
+                            className="p-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-auto bg-slate-100">
+                        <InlinePdfViewer url={previewPdfUrl} />
+                    </div>
+                </div>
+            )}
         </form>
     );
 }

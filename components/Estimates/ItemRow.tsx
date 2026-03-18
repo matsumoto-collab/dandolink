@@ -342,87 +342,111 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 
 /** モバイル用カード */
 export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, unitPriceMasters, unitPriceSpecifications, onSelectMaster }: ItemRowProps) {
+    const [isExpanded, setIsExpanded] = useState(!item.description);
     const mobileInputClass = "w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
     const mobileLabelClass = "block text-xs font-medium text-slate-500 mb-1";
 
+    const amountDisplay = item.amount < 0
+        ? `(${Math.abs(item.amount).toLocaleString()})`
+        : `¥${item.amount.toLocaleString()}`;
+
     return (
-        <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3 shadow-sm">
-            {/* ヘッダー: 番号 + 操作ボタン */}
-            <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">#{index + 1}</span>
-                <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-2 text-slate-500 rounded-lg active:bg-slate-100 disabled:opacity-30" aria-label="上に移動">
-                        <ChevronUp className="w-5 h-5" />
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+            {/* 折りたたみヘッダー（常に表示） */}
+            <div className="flex items-center gap-2 px-3 py-2.5">
+                <button
+                    type="button"
+                    className="flex-1 flex items-center gap-2 min-w-0 text-left"
+                    onClick={() => setIsExpanded(!isExpanded)}
+                >
+                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">#{index + 1}</span>
+                    {!isExpanded && (
+                        <span className="text-sm text-slate-700 truncate">
+                            {item.description || <span className="text-slate-400">未入力</span>}
+                            <span className="text-slate-400 mx-1">──</span>
+                            {item.quantity}{item.unit} × ¥{(item.unitPrice ?? 0).toLocaleString()} = {amountDisplay}
+                        </span>
+                    )}
+                    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-150 ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+                <div className="flex items-center gap-0.5 shrink-0">
+                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1.5 text-slate-500 rounded-lg active:bg-slate-100 disabled:opacity-30" aria-label="上に移動">
+                        <ChevronUp className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-2 text-slate-500 rounded-lg active:bg-slate-100 disabled:opacity-30" aria-label="下に移動">
-                        <ChevronDown className="w-5 h-5" />
+                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-1.5 text-slate-500 rounded-lg active:bg-slate-100 disabled:opacity-30" aria-label="下に移動">
+                        <ChevronDown className="w-4 h-4" />
                     </button>
-                    <button type="button" onClick={() => onRemove(item.id)} className="p-2 text-red-500 rounded-lg active:bg-red-50" aria-label="削除">
-                        <Trash2 className="w-5 h-5" />
+                    <button type="button" onClick={() => onRemove(item.id)} className="p-1.5 text-red-500 rounded-lg active:bg-red-50" aria-label="削除">
+                        <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
             </div>
 
-            {/* 品目 */}
-            <div>
-                <label className={mobileLabelClass}>品目・内容</label>
-                <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={mobileInputClass} />
-            </div>
+            {/* 展開エリア */}
+            <div className={`transition-all duration-150 ${isExpanded ? 'max-h-[800px] opacity-100' : 'max-h-0 opacity-0'} overflow-hidden`}>
+                <div className="px-4 pb-4 space-y-3 border-t border-slate-100 pt-3">
+                    {/* 品目 */}
+                    <div>
+                        <label className={mobileLabelClass}>品目・内容</label>
+                        <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={mobileInputClass} />
+                    </div>
 
-            {/* 規格 */}
-            <div>
-                <label className={mobileLabelClass}>規格</label>
-                <SpecificationInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} specifications={unitPriceSpecifications} className={mobileInputClass} />
-            </div>
+                    {/* 規格 */}
+                    <div>
+                        <label className={mobileLabelClass}>規格</label>
+                        <SpecificationInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} specifications={unitPriceSpecifications} className={mobileInputClass} />
+                    </div>
 
-            {/* 数量・単位・単価 - 横並び */}
-            <div className="grid grid-cols-3 gap-2">
-                <div>
-                    <label className={mobileLabelClass}>数量</label>
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        value={item.quantity === 0 ? '' : item.quantity}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '') {
-                                onUpdate(item.id, 'quantity', 0);
-                            } else if (!isNaN(Number(val))) {
-                                onUpdate(item.id, 'quantity', Number(val));
-                            }
-                        }}
-                        className={mobileInputClass}
-                        placeholder="数量"
-                    />
-                </div>
-                <div>
-                    <label className={mobileLabelClass}>単位</label>
-                    <input type="text" value={item.unit || ''} onChange={(e) => onUpdate(item.id, 'unit', e.target.value)} className={mobileInputClass} placeholder="式" />
-                </div>
-                <div>
-                    <label className={mobileLabelClass}>単価</label>
-                    <UnitPriceInput item={item} onUpdate={onUpdate} className={`${mobileInputClass}`} />
-                </div>
-            </div>
+                    {/* 数量・単位・単価 - 横並び */}
+                    <div className="grid grid-cols-3 gap-2">
+                        <div>
+                            <label className={mobileLabelClass}>数量</label>
+                            <input
+                                type="text"
+                                inputMode="decimal"
+                                value={item.quantity === 0 ? '' : item.quantity}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val === '') {
+                                        onUpdate(item.id, 'quantity', 0);
+                                    } else if (!isNaN(Number(val))) {
+                                        onUpdate(item.id, 'quantity', Number(val));
+                                    }
+                                }}
+                                className={mobileInputClass}
+                                placeholder="数量"
+                            />
+                        </div>
+                        <div>
+                            <label className={mobileLabelClass}>単位</label>
+                            <input type="text" value={item.unit || ''} onChange={(e) => onUpdate(item.id, 'unit', e.target.value)} className={mobileInputClass} placeholder="式" />
+                        </div>
+                        <div>
+                            <label className={mobileLabelClass}>単価</label>
+                            <UnitPriceInput item={item} onUpdate={onUpdate} className={`${mobileInputClass}`} />
+                        </div>
+                    </div>
 
-            {/* 金額 + 税区分 */}
-            <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-slate-500">税区分:</span>
-                    <select value={item.taxType} onChange={(e) => onUpdate(item.id, 'taxType', e.target.value as 'none' | 'standard')} className="px-2 py-1 border border-slate-300 rounded text-sm bg-white">
-                        <option value="standard">10%</option>
-                        <option value="none">なし</option>
-                    </select>
-                </div>
-                <div className={`text-lg font-bold ${item.amount < 0 ? 'text-slate-600' : 'text-slate-900'}`}>
-                    {item.amount < 0 ? `(${Math.abs(item.amount).toLocaleString()})` : `¥${item.amount.toLocaleString()}`}
-                </div>
-            </div>
+                    {/* 金額 + 税区分 */}
+                    <div className="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500">税区分:</span>
+                            <select value={item.taxType} onChange={(e) => onUpdate(item.id, 'taxType', e.target.value as 'none' | 'standard')} className="px-2 py-1 border border-slate-300 rounded text-sm bg-white">
+                                <option value="standard">10%</option>
+                                <option value="none">なし</option>
+                            </select>
+                        </div>
+                        <div className={`text-lg font-bold ${item.amount < 0 ? 'text-slate-600' : 'text-slate-900'}`}>
+                            {amountDisplay}
+                        </div>
+                    </div>
 
-            {/* 備考 */}
-            <div>
-                <label className={mobileLabelClass}>備考</label>
-                <input type="text" value={item.notes || ''} onChange={(e) => onUpdate(item.id, 'notes', e.target.value)} className={mobileInputClass} placeholder="備考" />
+                    {/* 備考 */}
+                    <div>
+                        <label className={mobileLabelClass}>備考</label>
+                        <input type="text" value={item.notes || ''} onChange={(e) => onUpdate(item.id, 'notes', e.target.value)} className={mobileInputClass} placeholder="備考" />
+                    </div>
+                </div>
             </div>
         </div>
     );
