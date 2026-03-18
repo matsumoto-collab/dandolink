@@ -5,7 +5,7 @@ import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useS
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { EstimateItem } from '@/types/estimate';
-import { UnitPriceMaster } from '@/types/unitPrice';
+import { UnitPriceMaster, UnitPriceSpecification } from '@/types/unitPrice';
 import { Plus, Star, ClipboardList, PenLine, ChevronDown, ChevronRight, FolderPlus, GripVertical } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
@@ -26,6 +26,7 @@ interface ItemsEditorProps {
     onOpenUnitPriceModal: () => void;
     hideAddButtons?: boolean;
     unitPriceMasters?: UnitPriceMaster[];
+    unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
 }
 
@@ -100,7 +101,7 @@ function CategoryCard({
     item, index, totalItems, isExpanded, onToggle,
     onUpdate, onRemove, onMoveUp, onMoveDown,
     onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    unitPriceMasters, onSelectMaster,
+    unitPriceMasters, unitPriceSpecifications, onSelectMaster,
 }: {
     item: EstimateItem; index: number; totalItems: number;
     isExpanded: boolean; onToggle: () => void;
@@ -113,6 +114,7 @@ function CategoryCard({
     onRemoveChildItem: (categoryId: string, childId: string) => void;
     onMoveChildItem: (categoryId: string, childIndex: number, direction: 'up' | 'down') => void;
     unitPriceMasters?: UnitPriceMaster[];
+    unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
 }) {
     const { ChevronUp, ChevronDown: ChevronDownIcon, Trash2 } = require('lucide-react');
@@ -159,6 +161,7 @@ function CategoryCard({
                             onMoveUp={(idx) => onMoveChildItem(item.id, idx, 'up')}
                             onMoveDown={(idx) => onMoveChildItem(item.id, idx, 'down')}
                             unitPriceMasters={unitPriceMasters}
+                            unitPriceSpecifications={unitPriceSpecifications}
                             onSelectMaster={onSelectMaster}
                         />
                     ))}
@@ -204,7 +207,7 @@ function SortableCategoryTableRow(props: React.ComponentProps<typeof CategoryTab
 }
 
 /** カテゴリ内の子項目（ドラッグ可能） */
-function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemoveChildItem, onMoveChildItem, onReorderChildItem, unitPriceMasters, onSelectMaster, sensors }: {
+function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemoveChildItem, onMoveChildItem, onReorderChildItem, unitPriceMasters, unitPriceSpecifications, onSelectMaster, sensors }: {
     categoryId: string;
     childItems: EstimateItem[];
     onUpdateChildItem: NonNullable<ItemsEditorProps['onUpdateChildItem']>;
@@ -212,6 +215,7 @@ function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemove
     onMoveChildItem: NonNullable<ItemsEditorProps['onMoveChildItem']>;
     onReorderChildItem?: ItemsEditorProps['onReorderChildItem'];
     unitPriceMasters?: UnitPriceMaster[];
+    unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: ItemsEditorProps['onSelectMaster'];
     sensors: ReturnType<typeof useSensors>;
 }) {
@@ -238,6 +242,7 @@ function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemove
                         onMoveDown={(idx) => onMoveChildItem(categoryId, idx, 'down')}
                         isChild
                         unitPriceMasters={unitPriceMasters}
+                        unitPriceSpecifications={unitPriceSpecifications}
                         onSelectMaster={onSelectMaster}
                     />
                 ))}
@@ -249,7 +254,7 @@ function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemove
 export default function ItemsEditor({
     items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem,
     onAddCategory, onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    onReorder, onReorderChildItem, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, onSelectMaster,
+    onReorder, onReorderChildItem, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, unitPriceSpecifications, onSelectMaster,
 }: ItemsEditorProps) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -273,7 +278,7 @@ export default function ItemsEditor({
     const rowProps = (item: EstimateItem, index: number) => ({
         item, index, totalItems: items.length,
         onUpdate, onRemove, onMoveUp, onMoveDown,
-        unitPriceMasters, onSelectMaster,
+        unitPriceMasters, unitPriceSpecifications, onSelectMaster,
     });
 
     return (
@@ -333,6 +338,7 @@ export default function ItemsEditor({
                                                 onMoveChildItem={onMoveChildItem}
                                                 onReorderChildItem={onReorderChildItem}
                                                 unitPriceMasters={unitPriceMasters}
+                                                unitPriceSpecifications={unitPriceSpecifications}
                                                 onSelectMaster={onSelectMaster}
                                                 sensors={sensors}
                                             />
@@ -393,6 +399,7 @@ export default function ItemsEditor({
                                 onRemoveChildItem={onRemoveChildItem}
                                 onMoveChildItem={onMoveChildItem}
                                 unitPriceMasters={unitPriceMasters}
+                                unitPriceSpecifications={unitPriceSpecifications}
                                 onSelectMaster={onSelectMaster}
                             />
                         );

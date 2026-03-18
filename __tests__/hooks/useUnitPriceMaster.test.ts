@@ -30,6 +30,11 @@ const mockFetchUnitPriceCategories = jest.fn();
 const mockAddUnitPriceCategory = jest.fn();
 const mockUpdateUnitPriceCategory = jest.fn();
 const mockDeleteUnitPriceCategory = jest.fn();
+const mockFetchUnitPriceSpecifications = jest.fn();
+const mockAddUnitPriceSpecification = jest.fn();
+const mockUpdateUnitPriceSpecification = jest.fn();
+const mockDeleteUnitPriceSpecification = jest.fn();
+const mockGetSpecificationsByMaster = jest.fn();
 
 jest.mock('@/stores/financeStore', () => ({
     useFinanceStore: jest.fn((selector: any) => {
@@ -57,6 +62,14 @@ jest.mock('@/stores/financeStore', () => ({
             addUnitPriceCategory: mockAddUnitPriceCategory,
             updateUnitPriceCategory: mockUpdateUnitPriceCategory,
             deleteUnitPriceCategory: mockDeleteUnitPriceCategory,
+            unitPriceSpecifications: [],
+            unitPriceSpecificationsLoading: false,
+            unitPriceSpecificationsInitialized: false,
+            fetchUnitPriceSpecifications: mockFetchUnitPriceSpecifications,
+            addUnitPriceSpecification: mockAddUnitPriceSpecification,
+            updateUnitPriceSpecification: mockUpdateUnitPriceSpecification,
+            deleteUnitPriceSpecification: mockDeleteUnitPriceSpecification,
+            getSpecificationsByMaster: mockGetSpecificationsByMaster,
         };
         return selector(state);
     }),
@@ -95,6 +108,7 @@ describe('useUnitPriceMaster', () => {
         expect(mockFetchUnitPrices).toHaveBeenCalledTimes(1);
         expect(mockFetchUnitPriceTemplates).toHaveBeenCalledTimes(1);
         expect(mockFetchUnitPriceCategories).toHaveBeenCalledTimes(1);
+        expect(mockFetchUnitPriceSpecifications).toHaveBeenCalledTimes(1);
     });
 
     it('ensureDataLoaded: 未認証時はフェッチしない', async () => {
@@ -109,6 +123,7 @@ describe('useUnitPriceMaster', () => {
         expect(mockFetchUnitPrices).not.toHaveBeenCalled();
         expect(mockFetchUnitPriceTemplates).not.toHaveBeenCalled();
         expect(mockFetchUnitPriceCategories).not.toHaveBeenCalled();
+        expect(mockFetchUnitPriceSpecifications).not.toHaveBeenCalled();
 
         // Restore
         (useSession as jest.Mock).mockReturnValue(mockSession);

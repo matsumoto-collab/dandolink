@@ -22,6 +22,7 @@ jest.mock('lucide-react', () => ({
     Plus: () => <span data-testid="icon-plus" />,
     Edit: () => <span data-testid="icon-edit" />,
     Trash2: () => <span data-testid="icon-trash" />,
+    Settings: () => <span data-testid="icon-settings" />,
 }));
 
 const mockTemplates = [
@@ -44,6 +45,9 @@ describe('UnitPriceMasterSettings', () => {
     const mockAddUnitPriceCategory = jest.fn();
     const mockUpdateUnitPriceCategory = jest.fn();
     const mockDeleteUnitPriceCategory = jest.fn();
+    const mockAddUnitPriceSpecification = jest.fn();
+    const mockUpdateUnitPriceSpecification = jest.fn();
+    const mockDeleteUnitPriceSpecification = jest.fn();
 
     const mockUnitPrices = [
         {
@@ -82,6 +86,10 @@ describe('UnitPriceMasterSettings', () => {
             addUnitPriceCategory: mockAddUnitPriceCategory,
             updateUnitPriceCategory: mockUpdateUnitPriceCategory,
             deleteUnitPriceCategory: mockDeleteUnitPriceCategory,
+            unitPriceSpecifications: [],
+            addUnitPriceSpecification: mockAddUnitPriceSpecification,
+            updateUnitPriceSpecification: mockUpdateUnitPriceSpecification,
+            deleteUnitPriceSpecification: mockDeleteUnitPriceSpecification,
         });
     });
 

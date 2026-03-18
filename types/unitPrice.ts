@@ -40,6 +40,19 @@ export interface UnitPriceMaster {
 // 単価マスター作成時の入力データ
 export type UnitPriceMasterInput = Omit<UnitPriceMaster, 'id' | 'createdAt' | 'updatedAt'>;
 
+// 規格（単価マスターに紐づく）
+export interface UnitPriceSpecification {
+    id: string;
+    unitPriceMasterId: string;
+    name: string;
+    sortOrder: number;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+export type UnitPriceSpecificationInput = Pick<UnitPriceSpecification, 'unitPriceMasterId' | 'name' | 'sortOrder'>;
+
 // 後方互換: 旧TemplateType（マイグレーション用）
 export type LegacyTemplateType = 'frequent' | 'large' | 'medium' | 'residential';
 export const LEGACY_TEMPLATE_NAMES: Record<LegacyTemplateType, string> = {

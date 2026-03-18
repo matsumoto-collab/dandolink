@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { EstimateItem } from '@/types/estimate';
-import { UnitPriceMaster } from '@/types/unitPrice';
+import { UnitPriceMaster, UnitPriceSpecification } from '@/types/unitPrice';
 import { Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 
 interface ItemRowProps {
@@ -16,6 +16,7 @@ interface ItemRowProps {
     onMoveDown: (index: number) => void;
     isChild?: boolean;
     unitPriceMasters?: UnitPriceMaster[];
+    unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
     // Drag & drop
     sortableRef?: (node: HTMLElement | null) => void;
@@ -157,8 +158,115 @@ function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onU
     );
 }
 
+/** 規格入力（単価マスターに紐づく候補ドロップダウン付き） */
+function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, className }: {
+    item: EstimateItem;
+    onUpdate: ItemRowProps['onUpdate'];
+    unitPriceMasters?: UnitPriceMaster[];
+    specifications?: UnitPriceSpecification[];
+    className: string;
+}) {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 220, openUp: false });
+
+    // Find the matching unit price master by description
+    const matchedMaster = unitPriceMasters?.find(m => m.description === item.description);
+    const masterSpecs = matchedMaster && specifications
+        ? specifications.filter(s => s.unitPriceMasterId === matchedMaster.id)
+        : [];
+
+    const updatePosition = useCallback(() => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            const maxH = 200;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const openUp = spaceBelow < maxH && rect.top > spaceBelow;
+            setDropdownPos({
+                top: openUp ? rect.top - 4 : rect.bottom + 4,
+                left: rect.left,
+                width: Math.max(rect.width, 220),
+                openUp,
+            });
+        }
+    }, []);
+
+    useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (inputRef.current?.contains(e.target as Node)) return;
+            if (dropdownRef.current?.contains(e.target as Node)) return;
+            setShowDropdown(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    if (masterSpecs.length === 0) {
+        return (
+            <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={className} placeholder="規格" />
+        );
+    }
+
+    const filtered = masterSpecs.filter(s =>
+        !item.specification || s.name.toLowerCase().includes((item.specification || '').toLowerCase())
+    );
+
+    const dropdown = showDropdown && filtered.length > 0 ? createPortal(
+        <div
+            ref={dropdownRef}
+            className="fixed z-[9999] max-h-[200px] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
+            style={{
+                left: dropdownPos.left,
+                width: dropdownPos.width,
+                ...(dropdownPos.openUp
+                    ? { bottom: window.innerHeight - dropdownPos.top, top: 'auto' }
+                    : { top: dropdownPos.top }),
+            }}
+        >
+            <div className="px-3 py-1.5 text-xs font-medium text-slate-400 border-b border-slate-100">規格候補</div>
+            {filtered.map(s => (
+                <button
+                    key={s.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 text-sm text-slate-800"
+                    onClick={() => {
+                        onUpdate(item.id, 'specification', s.name);
+                        setShowDropdown(false);
+                    }}
+                >
+                    {s.name}
+                </button>
+            ))}
+        </div>,
+        document.body
+    ) : null;
+
+    return (
+        <>
+            <input
+                ref={inputRef}
+                type="text"
+                value={item.specification || ''}
+                onChange={(e) => {
+                    onUpdate(item.id, 'specification', e.target.value);
+                    setShowDropdown(true);
+                    updatePosition();
+                }}
+                onFocus={() => {
+                    updatePosition();
+                    setShowDropdown(true);
+                }}
+                className={className}
+                placeholder="規格"
+            />
+            {dropdown}
+        </>
+    );
+}
+
 /** デスクトップ用テーブル行 */
-export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, onSelectMaster, sortableRef, sortableStyle, sortableAttributes, dragListeners }: ItemRowProps) {
+export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, unitPriceSpecifications, onSelectMaster, sortableRef, sortableStyle, sortableAttributes, dragListeners }: ItemRowProps) {
     const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
 
     return (
@@ -176,7 +284,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                 </div>
             </td>
             <td className="px-3 py-2">
-                <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={cellInputClass} placeholder="規格" />
+                <SpecificationInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} specifications={unitPriceSpecifications} className={cellInputClass} />
             </td>
             <td className="px-3 py-2">
                 <input
@@ -233,7 +341,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 }
 
 /** モバイル用カード */
-export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, unitPriceMasters, onSelectMaster }: ItemRowProps) {
+export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, unitPriceMasters, unitPriceSpecifications, onSelectMaster }: ItemRowProps) {
     const mobileInputClass = "w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
     const mobileLabelClass = "block text-xs font-medium text-slate-500 mb-1";
 
@@ -264,7 +372,7 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
             {/* 規格 */}
             <div>
                 <label className={mobileLabelClass}>規格</label>
-                <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={mobileInputClass} placeholder="規格" />
+                <SpecificationInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} specifications={unitPriceSpecifications} className={mobileInputClass} />
             </div>
 
             {/* 数量・単位・単価 - 横並び */}

@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
-import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceCategory } from '@/types/unitPrice';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceCategory, UnitPriceSpecification } from '@/types/unitPrice';
+import { Plus, Edit, Trash2, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type SubTab = 'items' | 'templates' | 'categories';
@@ -13,6 +13,7 @@ export default function UnitPriceMasterSettings() {
         unitPrices, ensureDataLoaded, addUnitPrice, updateUnitPrice, deleteUnitPrice,
         unitPriceTemplates, addUnitPriceTemplate, updateUnitPriceTemplate, deleteUnitPriceTemplate,
         unitPriceCategories, addUnitPriceCategory, updateUnitPriceCategory, deleteUnitPriceCategory,
+        unitPriceSpecifications, addUnitPriceSpecification, updateUnitPriceSpecification, deleteUnitPriceSpecification,
     } = useUnitPriceMaster();
 
     useEffect(() => {
@@ -49,9 +50,13 @@ export default function UnitPriceMasterSettings() {
                     unitPrices={unitPrices}
                     templates={unitPriceTemplates}
                     categories={unitPriceCategories}
+                    specifications={unitPriceSpecifications}
                     onAdd={addUnitPrice}
                     onUpdate={updateUnitPrice}
                     onDelete={deleteUnitPrice}
+                    onAddSpec={addUnitPriceSpecification}
+                    onUpdateSpec={updateUnitPriceSpecification}
+                    onDeleteSpec={deleteUnitPriceSpecification}
                 />
             )}
             {subTab === 'templates' && (
@@ -196,19 +201,122 @@ function SimpleListTab({ title, items, onAdd, onUpdate, onDelete, placeholder }:
     );
 }
 
+// ========== 規格管理パネル（単価項目ごと） ==========
+function SpecificationsPanel({ unitPriceMasterId, specifications, onAdd, onUpdate, onDelete }: {
+    unitPriceMasterId: string;
+    specifications: UnitPriceSpecification[];
+    onAdd: (data: { unitPriceMasterId: string; name: string; sortOrder: number }) => Promise<void>;
+    onUpdate: (id: string, data: { name: string }) => Promise<void>;
+    onDelete: (id: string) => Promise<void>;
+}) {
+    const specs = specifications.filter(s => s.unitPriceMasterId === unitPriceMasterId);
+    const [newName, setNewName] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
+
+    const handleAdd = async () => {
+        if (!newName.trim()) return;
+        try {
+            await onAdd({ unitPriceMasterId, name: newName.trim(), sortOrder: specs.length });
+            setNewName('');
+            toast.success('規格を追加しました');
+        } catch {
+            toast.error('追加に失敗しました');
+        }
+    };
+
+    const handleUpdate = async (id: string) => {
+        if (!editingName.trim()) return;
+        try {
+            await onUpdate(id, { name: editingName.trim() });
+            setEditingId(null);
+        } catch {
+            toast.error('更新に失敗しました');
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        try {
+            await onDelete(id);
+        } catch {
+            toast.error('削除に失敗しました');
+        }
+    };
+
+    return (
+        <div className="mt-3 pl-4 border-l-2 border-slate-200">
+            <p className="text-xs font-semibold text-slate-500 mb-2">規格一覧</p>
+            {specs.length > 0 && (
+                <div className="space-y-1 mb-2">
+                    {specs.map(spec => (
+                        <div key={spec.id} className="flex items-center gap-2 text-sm">
+                            {editingId === spec.id ? (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleUpdate(spec.id)}
+                                        className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+                                        autoFocus
+                                    />
+                                    <button onClick={() => handleUpdate(spec.id)} className="text-xs px-2 py-1 bg-slate-700 text-white rounded">保存</button>
+                                    <button onClick={() => setEditingId(null)} className="text-xs px-2 py-1 border border-slate-300 rounded">取消</button>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex-1 text-slate-700">{spec.name}</span>
+                                    <button onClick={() => { setEditingId(spec.id); setEditingName(spec.name); }} className="p-1 text-slate-400 hover:text-slate-600">
+                                        <Edit className="w-3 h-3" />
+                                    </button>
+                                    <button onClick={() => handleDelete(spec.id)} className="p-1 text-slate-400 hover:text-slate-600">
+                                        <Trash2 className="w-3 h-3" />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+            <div className="flex gap-2">
+                <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                    className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    placeholder="新しい規格を追加..."
+                />
+                <button
+                    onClick={handleAdd}
+                    disabled={!newName.trim()}
+                    className="px-2 py-1 bg-slate-700 text-white rounded-lg text-xs hover:bg-slate-600 disabled:opacity-50"
+                >
+                    追加
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ========== 単価項目タブ ==========
-function UnitPriceItemsTab({ unitPrices, templates, categories, onAdd, onUpdate, onDelete }: {
+function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, onAdd, onUpdate, onDelete, onAddSpec, onUpdateSpec, onDeleteSpec }: {
     unitPrices: UnitPriceMaster[];
     templates: UnitPriceTemplate[];
     categories: UnitPriceCategory[];
+    specifications: UnitPriceSpecification[];
     onAdd: (data: UnitPriceMasterInput) => Promise<void>;
     onUpdate: (id: string, data: Partial<UnitPriceMasterInput>) => Promise<void>;
     onDelete: (id: string) => Promise<void>;
+    onAddSpec: (data: { unitPriceMasterId: string; name: string; sortOrder: number }) => Promise<void>;
+    onUpdateSpec: (id: string, data: { name: string }) => Promise<void>;
+    onDeleteSpec: (id: string) => Promise<void>;
 }) {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<UnitPriceMaster | null>(null);
     const [filterTemplate, setFilterTemplate] = useState<string>('all');
     const [filterCategory, setFilterCategory] = useState<string>('all');
+    const [expandedSpecId, setExpandedSpecId] = useState<string | null>(null);
 
     const [formData, setFormData] = useState<UnitPriceMasterInput>({
         description: '',
@@ -305,6 +413,10 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, onAdd, onUpdate,
             .join(', ');
     };
 
+    const getSpecCount = (unitPriceMasterId: string) => {
+        return specifications.filter(s => s.unitPriceMasterId === unitPriceMasterId).length;
+    };
+
     return (
         <div className="space-y-6">
             {/* ヘッダー */}
@@ -375,6 +487,18 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, onAdd, onUpdate,
                                 </div>
                                 <div className="flex gap-2">
                                     <button
+                                        onClick={() => setExpandedSpecId(expandedSpecId === item.id ? null : item.id)}
+                                        className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors relative"
+                                        title="規格管理"
+                                    >
+                                        <Settings className="w-4 h-4" />
+                                        {getSpecCount(item.id) > 0 && (
+                                            <span className="absolute -top-1 -right-1 bg-slate-600 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">
+                                                {getSpecCount(item.id)}
+                                            </span>
+                                        )}
+                                    </button>
+                                    <button
                                         onClick={() => handleOpenForm(item)}
                                         className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
                                     >
@@ -388,6 +512,15 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, onAdd, onUpdate,
                                     </button>
                                 </div>
                             </div>
+                            {expandedSpecId === item.id && (
+                                <SpecificationsPanel
+                                    unitPriceMasterId={item.id}
+                                    specifications={specifications}
+                                    onAdd={onAddSpec}
+                                    onUpdate={onUpdateSpec}
+                                    onDelete={onDeleteSpec}
+                                />
+                            )}
                         </div>
                     ))}
                 </div>

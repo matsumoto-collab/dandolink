@@ -68,6 +68,7 @@ describe('UnitPriceMasterModal', () => {
             unitPrices: mockItems,
             unitPriceTemplates: mockTemplates,
             unitPriceCategories: mockCategories,
+            unitPriceSpecifications: [],
             ensureDataLoaded: jest.fn(),
         });
     });
@@ -134,6 +135,7 @@ describe('UnitPriceMasterModal', () => {
             unitPrices: [],
             unitPriceTemplates: mockTemplates,
             unitPriceCategories: [],
+            unitPriceSpecifications: [],
             ensureDataLoaded: jest.fn(),
         });
         render(
