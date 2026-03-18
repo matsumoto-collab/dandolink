@@ -326,20 +326,36 @@ model UnitPriceCategory {
 }
 
 model UnitPriceMaster {
-  id          String   @id @default(uuid())
-  description String
-  unit        String
-  unitPrice   Decimal  @db.Decimal(12, 2)
-  templates   String
-  categoryId  String?
-  category    UnitPriceCategory? @relation(fields: [categoryId], references: [id])
-  notes       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  description    String
+  unit           String
+  unitPrice      Decimal  @db.Decimal(12, 2)
+  templates      String
+  categoryId     String?
+  category       UnitPriceCategory? @relation(fields: [categoryId], references: [id])
+  notes          String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  specifications UnitPriceSpecification[]
 
   @@index([description])
   @@index([categoryId])
+  @@schema("public")
+}
+
+model UnitPriceSpecification {
+  id                String          @id @default(uuid())
+  unitPriceMasterId String
+  unitPriceMaster   UnitPriceMaster @relation(fields: [unitPriceMasterId], references: [id])
+  name              String
+  sortOrder         Int             @default(0)
+  isActive          Boolean         @default(true)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([unitPriceMasterId])
+  @@index([sortOrder])
   @@schema("public")
 }
 

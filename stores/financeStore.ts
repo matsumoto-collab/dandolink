@@ -4,7 +4,7 @@ import { CompanyInfo, CompanyInfoInput } from '@/types/company';
 import { Customer, CustomerInput } from '@/types/customer';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
-import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceTemplateInput, UnitPriceCategory, UnitPriceCategoryInput } from '@/types/unitPrice';
+import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceTemplateInput, UnitPriceCategory, UnitPriceCategoryInput, UnitPriceSpecification, UnitPriceSpecificationInput } from '@/types/unitPrice';
 
 // Helper to parse dates
 function parseCustomerDates(customer: Customer & { createdAt: string | Date; updatedAt: string | Date }): Customer {
@@ -110,6 +110,11 @@ interface FinanceState {
     unitPriceCategories: UnitPriceCategory[];
     unitPriceCategoriesLoading: boolean;
     unitPriceCategoriesInitialized: boolean;
+
+    // UnitPriceSpecifications
+    unitPriceSpecifications: UnitPriceSpecification[];
+    unitPriceSpecificationsLoading: boolean;
+    unitPriceSpecificationsInitialized: boolean;
 }
 
 interface FinanceActions {
@@ -160,6 +165,13 @@ interface FinanceActions {
     updateUnitPriceCategory: (id: string, data: Partial<UnitPriceCategoryInput>) => Promise<void>;
     deleteUnitPriceCategory: (id: string) => Promise<void>;
 
+    // UnitPriceSpecifications
+    fetchUnitPriceSpecifications: () => Promise<void>;
+    addUnitPriceSpecification: (data: UnitPriceSpecificationInput) => Promise<void>;
+    updateUnitPriceSpecification: (id: string, data: Partial<UnitPriceSpecificationInput>) => Promise<void>;
+    deleteUnitPriceSpecification: (id: string) => Promise<void>;
+    getSpecificationsByMaster: (unitPriceMasterId: string) => UnitPriceSpecification[];
+
     // Reset
     reset: () => void;
 }
@@ -188,6 +200,9 @@ const initialState: FinanceState = {
     unitPriceCategories: [],
     unitPriceCategoriesLoading: false,
     unitPriceCategoriesInitialized: false,
+    unitPriceSpecifications: [],
+    unitPriceSpecificationsLoading: false,
+    unitPriceSpecificationsInitialized: false,
 };
 
 export const useFinanceStore = create<FinanceStore>()(
@@ -678,6 +693,79 @@ export const useFinanceStore = create<FinanceStore>()(
             }));
         },
 
+        // ========== UnitPriceSpecifications ==========
+        fetchUnitPriceSpecifications: async () => {
+            if (get().unitPriceSpecificationsLoading) return;
+
+            set({ unitPriceSpecificationsLoading: true });
+            try {
+                const response = await fetch('/api/master-data/unit-price-specifications', { cache: 'no-store' });
+                if (response.ok) {
+                    const data = await response.json();
+                    set({
+                        unitPriceSpecifications: data.map(parseDates),
+                        unitPriceSpecificationsInitialized: true,
+                    });
+                }
+            } catch (error) {
+                console.error('Failed to fetch unit price specifications:', error);
+            } finally {
+                set({ unitPriceSpecificationsLoading: false });
+            }
+        },
+
+        addUnitPriceSpecification: async (data: UnitPriceSpecificationInput) => {
+            const response = await fetch('/api/master-data/unit-price-specifications', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '規格の追加に失敗しました');
+            }
+
+            const newSpec = await response.json();
+            set((state) => ({
+                unitPriceSpecifications: [...state.unitPriceSpecifications, parseDates(newSpec)],
+            }));
+        },
+
+        updateUnitPriceSpecification: async (id: string, data: Partial<UnitPriceSpecificationInput>) => {
+            const response = await fetch(`/api/master-data/unit-price-specifications/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '規格の更新に失敗しました');
+            }
+
+            const updated = await response.json();
+            set((state) => ({
+                unitPriceSpecifications: state.unitPriceSpecifications.map((s) => (s.id === id ? parseDates(updated) : s)),
+            }));
+        },
+
+        deleteUnitPriceSpecification: async (id: string) => {
+            const response = await fetch(`/api/master-data/unit-price-specifications/${id}`, { method: 'DELETE' });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || '規格の削除に失敗しました');
+            }
+
+            set((state) => ({
+                unitPriceSpecifications: state.unitPriceSpecifications.filter((s) => s.id !== id),
+            }));
+        },
+
+        getSpecificationsByMaster: (unitPriceMasterId: string) =>
+            get().unitPriceSpecifications.filter((s) => s.unitPriceMasterId === unitPriceMasterId),
+
         reset: () => set(initialState),
     }))
 );
@@ -708,3 +796,6 @@ export const selectUnitPriceTemplatesInitialized = (state: FinanceStore) => stat
 
 export const selectUnitPriceCategories = (state: FinanceStore) => state.unitPriceCategories;
 export const selectUnitPriceCategoriesInitialized = (state: FinanceStore) => state.unitPriceCategoriesInitialized;
+
+export const selectUnitPriceSpecifications = (state: FinanceStore) => state.unitPriceSpecifications;
+export const selectUnitPriceSpecificationsInitialized = (state: FinanceStore) => state.unitPriceSpecificationsInitialized;
