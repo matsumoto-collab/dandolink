@@ -31,7 +31,7 @@ function getDefault30DaysLater(): string {
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
-    const { unitPrices, unitPriceSpecifications, ensureDataLoaded: ensureUnitPricesLoaded } = useUnitPriceMaster();
+    const { unitPrices, unitPriceCategories, unitPriceSpecifications, ensureDataLoaded: ensureUnitPricesLoaded } = useUnitPriceMaster();
 
     // 案件マスターと顧客データのフェッチ
     useEffect(() => {
@@ -331,6 +331,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 onReorderChildItem={reorderChildItems}
                 onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
                 unitPriceMasters={unitPrices}
+                unitPriceCategories={unitPriceCategories}
                 unitPriceSpecifications={unitPriceSpecifications}
                 onSelectMaster={handleSelectMasterForItem}
             />
