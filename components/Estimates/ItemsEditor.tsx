@@ -167,7 +167,7 @@ function CategoryTableRow({
                     </button>
                 </td>
             )}
-            <td className="px-3 py-2" colSpan={3}>
+            <td className="px-3 py-2" colSpan={2}>
                 <div className="flex items-center gap-2">
                     <button type="button" onClick={onToggle} className="p-0.5 text-slate-500 hover:text-slate-700">
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -208,7 +208,7 @@ function CategoryTableRow({
                     placeholder="単位"
                 />
             </td>
-            <td className="px-3 py-2"></td>
+            <td className="px-3 py-2" colSpan={2}></td>
             <td className="px-3 py-2">
                 <div className="text-right font-bold text-slate-800">
                     ¥{item.amount.toLocaleString()}
