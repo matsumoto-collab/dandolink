@@ -70,14 +70,194 @@ export default function UnitPriceMasterSettings() {
                 />
             )}
             {subTab === 'categories' && (
-                <SimpleListTab
-                    title="カテゴリ管理"
-                    items={unitPriceCategories}
-                    onAdd={(name) => addUnitPriceCategory({ name, sortOrder: unitPriceCategories.length })}
-                    onUpdate={(id, name) => updateUnitPriceCategory(id, { name })}
+                <CategoryListTab
+                    categories={unitPriceCategories}
+                    onAdd={addUnitPriceCategory}
+                    onUpdate={updateUnitPriceCategory}
                     onDelete={deleteUnitPriceCategory}
-                    placeholder="例: 足場工事"
                 />
+            )}
+        </div>
+    );
+}
+
+// ========== カテゴリ管理（数量・単位付き） ==========
+function CategoryListTab({ categories, onAdd, onUpdate, onDelete }: {
+    categories: UnitPriceCategory[];
+    onAdd: (data: { name: string; sortOrder: number; quantity?: number; unit?: string }) => Promise<void>;
+    onUpdate: (id: string, data: { name?: string; quantity?: number; unit?: string }) => Promise<void>;
+    onDelete: (id: string) => Promise<void>;
+}) {
+    const [newName, setNewName] = useState('');
+    const [newQuantity, setNewQuantity] = useState('');
+    const [newUnit, setNewUnit] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
+    const [editingQuantity, setEditingQuantity] = useState('');
+    const [editingUnit, setEditingUnit] = useState('');
+
+    const handleAdd = async () => {
+        if (!newName.trim()) {
+            toast.error('カテゴリ名を入力してください');
+            return;
+        }
+        try {
+            await onAdd({
+                name: newName.trim(),
+                sortOrder: categories.length,
+                ...(newQuantity && { quantity: Number(newQuantity) }),
+                ...(newUnit.trim() && { unit: newUnit.trim() }),
+            });
+            setNewName('');
+            setNewQuantity('');
+            setNewUnit('');
+            toast.success('追加しました');
+        } catch {
+            toast.error('追加に失敗しました');
+        }
+    };
+
+    const handleUpdate = async (id: string) => {
+        if (!editingName.trim()) return;
+        try {
+            await onUpdate(id, {
+                name: editingName.trim(),
+                quantity: editingQuantity ? Number(editingQuantity) : undefined,
+                unit: editingUnit.trim() || undefined,
+            });
+            setEditingId(null);
+            toast.success('更新しました');
+        } catch {
+            toast.error('更新に失敗しました');
+        }
+    };
+
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`「${name}」を削除してもよろしいですか？`)) return;
+        try {
+            await onDelete(id);
+            toast.success('削除しました');
+        } catch {
+            toast.error('削除に失敗しました');
+        }
+    };
+
+    const startEdit = (cat: UnitPriceCategory) => {
+        setEditingId(cat.id);
+        setEditingName(cat.name);
+        setEditingQuantity(cat.quantity ? String(cat.quantity) : '');
+        setEditingUnit(cat.unit || '');
+    };
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-slate-900">カテゴリ管理</h3>
+
+            {/* 新規追加 */}
+            <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                    <label className="block text-xs text-slate-500 mb-1">カテゴリ名</label>
+                    <input
+                        type="text"
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                        placeholder="例: 足場工事"
+                    />
+                </div>
+                <div className="w-20">
+                    <label className="block text-xs text-slate-500 mb-1">数量</label>
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        value={newQuantity}
+                        onChange={(e) => setNewQuantity(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                        placeholder="1"
+                    />
+                </div>
+                <div className="w-20">
+                    <label className="block text-xs text-slate-500 mb-1">単位</label>
+                    <input
+                        type="text"
+                        value={newUnit}
+                        onChange={(e) => setNewUnit(e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                        placeholder="式"
+                    />
+                </div>
+                <button
+                    onClick={handleAdd}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium shadow-md hover:shadow-lg"
+                >
+                    <Plus className="w-4 h-4" />
+                    追加
+                </button>
+            </div>
+
+            {/* 一覧 */}
+            {categories.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 rounded-xl">
+                    <p className="text-slate-500">まだ登録がありません</p>
+                </div>
+            ) : (
+                <div className="space-y-2">
+                    {categories.map(cat => (
+                        <div key={cat.id} className="flex items-center gap-3 bg-white border border-slate-200 rounded-xl p-3">
+                            {editingId === cat.id ? (
+                                <>
+                                    <input
+                                        type="text"
+                                        value={editingName}
+                                        onChange={(e) => setEditingName(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleUpdate(cat.id)}
+                                        className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        autoFocus
+                                    />
+                                    <input
+                                        type="text"
+                                        inputMode="decimal"
+                                        value={editingQuantity}
+                                        onChange={(e) => setEditingQuantity(e.target.value)}
+                                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-center"
+                                        placeholder="数量"
+                                    />
+                                    <input
+                                        type="text"
+                                        value={editingUnit}
+                                        onChange={(e) => setEditingUnit(e.target.value)}
+                                        className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-center"
+                                        placeholder="単位"
+                                    />
+                                    <button onClick={() => handleUpdate(cat.id)} className="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">保存</button>
+                                    <button onClick={() => setEditingId(null)} className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50">取消</button>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex-1 font-medium text-slate-900">{cat.name}</span>
+                                    {(cat.quantity || cat.unit) && (
+                                        <span className="text-sm text-slate-500">
+                                            {cat.quantity != null && cat.quantity > 0 ? cat.quantity : ''}{cat.unit ? ` ${cat.unit}` : ''}
+                                        </span>
+                                    )}
+                                    <button
+                                        onClick={() => startEdit(cat)}
+                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(cat.id, cat.name)}
+                                        className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
             )}
         </div>
     );

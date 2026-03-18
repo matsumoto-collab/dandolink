@@ -16,13 +16,15 @@ export type UnitPriceTemplateInput = Pick<UnitPriceTemplate, 'name' | 'sortOrder
 export interface UnitPriceCategory {
     id: string;
     name: string;
+    quantity?: number;
+    unit?: string;
     sortOrder: number;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
 }
 
-export type UnitPriceCategoryInput = Pick<UnitPriceCategory, 'name' | 'sortOrder'>;
+export type UnitPriceCategoryInput = Pick<UnitPriceCategory, 'name' | 'sortOrder'> & { quantity?: number; unit?: string };
 
 // 単価マスター
 export interface UnitPriceMaster {

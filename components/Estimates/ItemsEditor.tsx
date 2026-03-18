@@ -33,9 +33,10 @@ interface ItemsEditorProps {
 }
 
 /** カテゴリ名入力（単価マスターカテゴリ候補ドロップダウン付き） */
-function CategoryNameInput({ value, onChange, categories, className, placeholder }: {
+function CategoryNameInput({ value, onChange, onSelectCategory, categories, className, placeholder }: {
     value: string;
     onChange: (value: string) => void;
+    onSelectCategory?: (cat: UnitPriceCategory) => void;
     categories?: UnitPriceCategory[];
     className: string;
     placeholder: string;
@@ -98,10 +99,16 @@ function CategoryNameInput({ value, onChange, categories, className, placeholder
                     className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 text-sm font-medium text-slate-800"
                     onClick={() => {
                         onChange(c.name);
+                        onSelectCategory?.(c);
                         setShowDropdown(false);
                     }}
                 >
-                    {c.name}
+                    <span>{c.name}</span>
+                    {(c.quantity || c.unit) && (
+                        <span className="text-slate-400 ml-2">
+                            {c.quantity != null && c.quantity > 0 ? c.quantity : ''}{c.unit ? ` ${c.unit}` : ''}
+                        </span>
+                    )}
                 </button>
             ))}
         </div>,
@@ -160,7 +167,7 @@ function CategoryTableRow({
                     </button>
                 </td>
             )}
-            <td className="px-3 py-2" colSpan={6}>
+            <td className="px-3 py-2" colSpan={3}>
                 <div className="flex items-center gap-2">
                     <button type="button" onClick={onToggle} className="p-0.5 text-slate-500 hover:text-slate-700">
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -168,12 +175,40 @@ function CategoryTableRow({
                     <CategoryNameInput
                         value={item.description}
                         onChange={(v) => onUpdate(item.id, 'description', v)}
+                        onSelectCategory={(cat) => {
+                            if (cat.quantity) onUpdate(item.id, 'quantity', cat.quantity);
+                            if (cat.unit) onUpdate(item.id, 'unit', cat.unit);
+                        }}
                         categories={unitPriceCategories}
                         className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 font-medium"
                         placeholder="カテゴリ名（例: 仮設工事）"
                     />
                 </div>
             </td>
+            <td className="px-3 py-2">
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={item.quantity === 0 ? '' : item.quantity}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') onUpdate(item.id, 'quantity', 0);
+                        else if (!isNaN(Number(val))) onUpdate(item.id, 'quantity', Number(val));
+                    }}
+                    className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    placeholder="数量"
+                />
+            </td>
+            <td className="px-3 py-2">
+                <input
+                    type="text"
+                    value={item.unit || ''}
+                    onChange={(e) => onUpdate(item.id, 'unit', e.target.value)}
+                    className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    placeholder="単位"
+                />
+            </td>
+            <td className="px-3 py-2"></td>
             <td className="px-3 py-2">
                 <div className="text-right font-bold text-slate-800">
                     ¥{item.amount.toLocaleString()}
@@ -235,6 +270,10 @@ function CategoryCard({
                     <CategoryNameInput
                         value={item.description}
                         onChange={(v) => onUpdate(item.id, 'description', v)}
+                        onSelectCategory={(cat) => {
+                            if (cat.quantity) onUpdate(item.id, 'quantity', cat.quantity);
+                            if (cat.unit) onUpdate(item.id, 'unit', cat.unit);
+                        }}
                         categories={unitPriceCategories}
                         className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium"
                         placeholder="カテゴリ名"
@@ -244,6 +283,34 @@ function CategoryCard({
                     <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-2 text-slate-500 disabled:opacity-30"><ChevronUp className="w-5 h-5" /></button>
                     <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-2 text-slate-500 disabled:opacity-30"><ChevronDownIcon className="w-5 h-5" /></button>
                     <button type="button" onClick={() => onRemove(item.id)} className="p-2 text-red-500"><Trash2 className="w-5 h-5" /></button>
+                </div>
+            </div>
+            {/* 数量・単位 */}
+            <div className="px-4 py-2 border-t border-slate-200 flex items-center gap-3">
+                <div className="flex-1">
+                    <label className="block text-xs text-slate-500 mb-0.5">数量</label>
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '') onUpdate(item.id, 'quantity', 0);
+                            else if (!isNaN(Number(val))) onUpdate(item.id, 'quantity', Number(val));
+                        }}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                        placeholder="数量"
+                    />
+                </div>
+                <div className="flex-1">
+                    <label className="block text-xs text-slate-500 mb-0.5">単位</label>
+                    <input
+                        type="text"
+                        value={item.unit || ''}
+                        onChange={(e) => onUpdate(item.id, 'unit', e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
+                        placeholder="式"
+                    />
                 </div>
             </div>
             {/* 合計 */}

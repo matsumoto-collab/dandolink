@@ -24,13 +24,18 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name, sortOrder } = await request.json();
+        const { name, sortOrder, quantity, unit } = await request.json();
         if (!name) {
             return validationErrorResponse('カテゴリ名は必須です');
         }
 
         const category = await prisma.unitPriceCategory.create({
-            data: { name, sortOrder: sortOrder ?? 0 },
+            data: {
+                name,
+                sortOrder: sortOrder ?? 0,
+                ...(quantity !== undefined && { quantity }),
+                ...(unit !== undefined && { unit }),
+            },
         });
 
         return NextResponse.json(category, { status: 201 });
