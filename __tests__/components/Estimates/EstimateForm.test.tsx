@@ -49,6 +49,14 @@ jest.mock('@/hooks/useCustomers', () => ({
     }),
 }));
 
+jest.mock('@/hooks/useUnitPriceMaster', () => ({
+    useUnitPriceMaster: () => ({
+        unitPrices: [],
+        unitPriceSpecifications: [],
+        ensureDataLoaded: jest.fn(),
+    }),
+}));
+
 // モーダルコンポーネントのモック
 jest.mock('@/components/Customers/CustomerModal', () => ({
     __esModule: true,
