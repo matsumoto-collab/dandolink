@@ -4,14 +4,7 @@ import userEvent from '@testing-library/user-event';
 import EstimateForm from '@/components/Estimates/EstimateForm';
 
 // lucide-react のモック
-jest.mock('lucide-react', () => ({
-    Plus: () => <svg data-testid="plus-icon" />,
-    Trash2: () => <svg data-testid="trash-icon" />,
-    ChevronUp: () => <svg data-testid="chevron-up-icon" />,
-    ChevronDown: () => <svg data-testid="chevron-down-icon" />,
-    X: () => <svg data-testid="x-icon" />,
-    Search: () => <svg data-testid="search-icon" />,
-}));
+
 
 // react-hot-toast のモック
 jest.mock('react-hot-toast', () => ({
@@ -26,6 +19,16 @@ jest.mock('react-hot-toast', () => ({
 void jest.requireMock('react-hot-toast').default;
 
 // hooks のモック
+jest.mock('@/hooks/useProjectMasters', () => ({
+    useProjectMasters: () => ({
+        projectMasters: [
+            { id: 'proj-1', title: 'テスト現場A', customerName: '株式会社テスト' },
+            { id: 'proj-2', title: 'テスト現場B', customerName: '株式会社サンプル' },
+        ],
+        fetchProjectMasters: jest.fn(),
+    }),
+}));
+
 jest.mock('@/hooks/useProjects', () => ({
     useProjects: () => ({
         projects: [
@@ -42,6 +45,7 @@ jest.mock('@/hooks/useCustomers', () => ({
             { id: 'cust-2', name: '株式会社サンプル', shortName: 'サンプル' },
         ],
         addCustomer: jest.fn(),
+        ensureDataLoaded: jest.fn(),
     }),
 }));
 
@@ -82,7 +86,7 @@ describe('EstimateForm', () => {
         it('案件選択ドロップダウンが表示される', () => {
             render(<EstimateForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-            expect(screen.getByText('案件（オプション）')).toBeInTheDocument();
+            expect(screen.getAllByText(/案件を選択/).length).toBeGreaterThanOrEqual(1);
         });
 
         it('ステータス選択が表示される', () => {
@@ -103,20 +107,20 @@ describe('EstimateForm', () => {
         it('初期状態で1行の明細が表示される', () => {
             render(<EstimateForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-            // 明細セクションがあることを確認
-            expect(screen.getByText('明細')).toBeInTheDocument();
+            // 項目行のヘッダーがあることを確認
+            expect(screen.getByText('項目')).toBeInTheDocument();
         });
 
         it('行追加ボタンで行を追加できる', async () => {
             const user = userEvent.setup();
             render(<EstimateForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-            const addButton = screen.getByRole('button', { name: '行追加' });
+            const addButton = screen.getByText('項目行を追加');
             await user.click(addButton);
 
-            // 削除ボタンが2つになっていることを確認（2行あるため）
-            const deleteButtons = screen.getAllByTestId('trash-icon');
-            expect(deleteButtons.length).toBeGreaterThanOrEqual(2);
+            // 2行目が追加されたことを確認
+            const descInputs = screen.getAllByPlaceholderText('品目・内容');
+            expect(descInputs.length).toBeGreaterThanOrEqual(2);
         });
     });
 
@@ -131,21 +135,11 @@ describe('EstimateForm', () => {
     });
 
     describe('案件選択', () => {
-        it('案件一覧がドロップダウンに表示される', () => {
+        it('案件選択UIが表示される', () => {
             render(<EstimateForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
 
-            // 案件選択オプションを確認
-            expect(screen.getByRole('option', { name: /案件を選択/ })).toBeInTheDocument();
-            // テスト現場Aを含むオプションが存在することを確認
-            expect(screen.getByRole('option', { name: /テスト現場A/ })).toBeInTheDocument();
-        });
-    });
-
-    describe('タイトルテンプレート', () => {
-        it('テンプレート選択が表示される', () => {
-            render(<EstimateForm onSubmit={mockOnSubmit} onCancel={mockOnCancel} />);
-
-            expect(screen.getByText('タイトルテンプレート')).toBeInTheDocument();
+            // カスタムドロップダウンのプレースホルダーテキストを確認
+            expect(screen.getByText(/選択してください/)).toBeInTheDocument();
         });
     });
 

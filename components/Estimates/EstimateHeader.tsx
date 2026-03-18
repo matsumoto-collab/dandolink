@@ -4,21 +4,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
 import { formatDateKey } from '@/utils/employeeUtils';
 
-interface TitleTemplate {
-    id: string;
-    label: string;
-    format: string;
-}
-
-const TITLE_TEMPLATES: TitleTemplate[] = [
-    { id: 'custom', label: 'カスタム（手動入力）', format: '' },
-    { id: 'sama_kasetsu', label: '○○様 仮設工事', format: '{siteName}様 仮設工事' },
-    { id: 'samatei_kasetsu', label: '○○様邸 仮設工事', format: '{siteName}様邸 仮設工事' },
-    { id: 'sama_shinchiku', label: '○○様 新築工事', format: '{siteName}様 新築工事' },
-    { id: 'samatei_shinchiku', label: '○○様邸 新築工事', format: '{siteName}様邸 新築工事' },
-    { id: 'genba', label: '○○現場 仮設工事', format: '{siteName} 仮設工事' },
-    { id: 'mitsumori', label: '○○ 見積書', format: '{siteName} 見積書' },
-];
 
 function SearchableProjectSelect({
     value,
@@ -295,8 +280,6 @@ interface EstimateHeaderProps {
     setProjectId: (v: string) => void;
     estimateNumber: string;
     setEstimateNumber: (v: string) => void;
-    selectedTemplate: string;
-    setSelectedTemplate: (v: string) => void;
     title: string;
     setTitle: (v: string) => void;
     siteName: string;
@@ -315,7 +298,6 @@ interface EstimateHeaderProps {
 export default function EstimateHeader({
     projectId, setProjectId,
     estimateNumber, setEstimateNumber,
-    selectedTemplate, setSelectedTemplate,
     title, setTitle,
     siteName, setSiteName,
     customerId, setCustomerId,
@@ -324,15 +306,6 @@ export default function EstimateHeader({
     projects, customers,
     onOpenCustomerModal,
 }: EstimateHeaderProps) {
-    const handleTemplateChange = (templateId: string) => {
-        setSelectedTemplate(templateId);
-        const template = TITLE_TEMPLATES.find(t => t.id === templateId);
-        if (template && template.format && siteName) {
-            const generatedTitle = template.format.replace('{siteName}', siteName);
-            setTitle(generatedTitle);
-        }
-    };
-
     const inputClass = "w-full px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm";
     const labelClass = "block text-sm font-semibold text-slate-700 mb-1.5";
 
@@ -357,21 +330,11 @@ export default function EstimateHeader({
                 </div>
 
                 <div>
-                    <label className={labelClass}>タイトルテンプレート</label>
-                    <select value={selectedTemplate} onChange={(e) => handleTemplateChange(e.target.value)} className={inputClass}>
-                        {TITLE_TEMPLATES.map(template => (
-                            <option key={template.id} value={template.id}>{template.label}</option>
-                        ))}
-                    </select>
-                    <p className="text-xs text-slate-500 mt-1">テンプレートを選択すると、現場名を使ってタイトルが自動生成されます</p>
-                </div>
-
-                <div>
                     <label className={labelClass}>タイトル <span className="text-slate-500">*</span></label>
                     <input
                         type="text"
                         value={title}
-                        onChange={(e) => { setTitle(e.target.value); setSelectedTemplate('custom'); }}
+                        onChange={(e) => setTitle(e.target.value)}
                         className={inputClass}
                         required
                         placeholder="例: ○○現場 見積書"

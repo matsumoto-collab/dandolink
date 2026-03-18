@@ -43,7 +43,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [customerId, setCustomerId] = useState(initialData?.customerId || '');
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
-    const [selectedTemplate, setSelectedTemplate] = useState('custom');
 
     // 見積番号: 空の場合は保存時にサーバー側で自動採番
     const [estimateNumber, setEstimateNumber] = useState(initialData?.estimateNumber || '');
@@ -265,7 +264,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             <EstimateHeader
                 projectId={projectId} setProjectId={setProjectId}
                 estimateNumber={estimateNumber} setEstimateNumber={setEstimateNumber}
-                selectedTemplate={selectedTemplate} setSelectedTemplate={setSelectedTemplate}
                 title={title} setTitle={setTitle}
                 siteName={siteName} setSiteName={setSiteName}
                 customerId={customerId} setCustomerId={setCustomerId}
