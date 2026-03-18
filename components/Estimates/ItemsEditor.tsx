@@ -5,7 +5,8 @@ import { DndContext, closestCenter, DragEndEvent, PointerSensor, useSensor, useS
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { EstimateItem } from '@/types/estimate';
-import { UnitPriceMaster, UnitPriceSpecification } from '@/types/unitPrice';
+import { UnitPriceMaster, UnitPriceCategory, UnitPriceSpecification } from '@/types/unitPrice';
+import { createPortal } from 'react-dom';
 import { Plus, Star, ClipboardList, PenLine, ChevronDown, ChevronRight, FolderPlus, GripVertical } from 'lucide-react';
 import { ItemTableRow, ItemCard } from './ItemRow';
 
@@ -26,14 +27,115 @@ interface ItemsEditorProps {
     onOpenUnitPriceModal: () => void;
     hideAddButtons?: boolean;
     unitPriceMasters?: UnitPriceMaster[];
+    unitPriceCategories?: UnitPriceCategory[];
     unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
+}
+
+/** カテゴリ名入力（単価マスターカテゴリ候補ドロップダウン付き） */
+function CategoryNameInput({ value, onChange, categories, className, placeholder }: {
+    value: string;
+    onChange: (value: string) => void;
+    categories?: UnitPriceCategory[];
+    className: string;
+    placeholder: string;
+}) {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+    const dropdownRef = React.useRef<HTMLDivElement>(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 250, openUp: false });
+
+    const filtered = (categories || []).filter(c =>
+        !value || c.name.toLowerCase().includes(value.toLowerCase())
+    );
+
+    const updatePosition = React.useCallback(() => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            const maxH = 200;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const openUp = spaceBelow < maxH && rect.top > spaceBelow;
+            setDropdownPos({
+                top: openUp ? rect.top - 4 : rect.bottom + 4,
+                left: rect.left,
+                width: Math.max(rect.width, 250),
+                openUp,
+            });
+        }
+    }, []);
+
+    React.useEffect(() => {
+        function handleClickOutside(e: MouseEvent) {
+            if (inputRef.current?.contains(e.target as Node)) return;
+            if (dropdownRef.current?.contains(e.target as Node)) return;
+            setShowDropdown(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    if (!categories?.length) {
+        return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={className} placeholder={placeholder} />;
+    }
+
+    const dropdown = showDropdown && filtered.length > 0 ? createPortal(
+        <div
+            ref={dropdownRef}
+            className="fixed z-[9999] max-h-[200px] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
+            style={{
+                left: dropdownPos.left,
+                width: dropdownPos.width,
+                ...(dropdownPos.openUp
+                    ? { bottom: window.innerHeight - dropdownPos.top, top: 'auto' }
+                    : { top: dropdownPos.top }),
+            }}
+        >
+            <div className="px-3 py-1.5 text-xs font-medium text-slate-400 border-b border-slate-100">カテゴリ候補</div>
+            {filtered.map(c => (
+                <button
+                    key={c.id}
+                    type="button"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0 text-sm font-medium text-slate-800"
+                    onClick={() => {
+                        onChange(c.name);
+                        setShowDropdown(false);
+                    }}
+                >
+                    {c.name}
+                </button>
+            ))}
+        </div>,
+        document.body
+    ) : null;
+
+    return (
+        <>
+            <input
+                ref={inputRef}
+                type="text"
+                value={value}
+                onChange={(e) => {
+                    onChange(e.target.value);
+                    setShowDropdown(true);
+                    updatePosition();
+                }}
+                onFocus={() => {
+                    updatePosition();
+                    setShowDropdown(true);
+                }}
+                className={className}
+                placeholder={placeholder}
+            />
+            {dropdown}
+        </>
+    );
 }
 
 /** カテゴリ行（デスクトップ） */
 function CategoryTableRow({
     item, index, totalItems, isExpanded, onToggle,
     onUpdate, onRemove, onMoveUp, onMoveDown,
+    unitPriceCategories,
     sortableRef, sortableStyle, sortableAttributes, dragListeners,
 }: {
     item: EstimateItem; index: number; totalItems: number;
@@ -42,6 +144,7 @@ function CategoryTableRow({
     onRemove: ItemsEditorProps['onRemove'];
     onMoveUp: ItemsEditorProps['onMoveUp'];
     onMoveDown: ItemsEditorProps['onMoveDown'];
+    unitPriceCategories?: UnitPriceCategory[];
     sortableRef?: (node: HTMLElement | null) => void;
     sortableStyle?: React.CSSProperties;
     sortableAttributes?: Record<string, unknown>;
@@ -62,10 +165,10 @@ function CategoryTableRow({
                     <button type="button" onClick={onToggle} className="p-0.5 text-slate-500 hover:text-slate-700">
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
-                    <input
-                        type="text"
+                    <CategoryNameInput
                         value={item.description}
-                        onChange={(e) => onUpdate(item.id, 'description', e.target.value)}
+                        onChange={(v) => onUpdate(item.id, 'description', v)}
+                        categories={unitPriceCategories}
                         className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 font-medium"
                         placeholder="カテゴリ名（例: 仮設工事）"
                     />
@@ -101,7 +204,7 @@ function CategoryCard({
     item, index, totalItems, isExpanded, onToggle,
     onUpdate, onRemove, onMoveUp, onMoveDown,
     onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    unitPriceMasters, unitPriceSpecifications, onSelectMaster,
+    unitPriceMasters, unitPriceCategories, unitPriceSpecifications, onSelectMaster,
 }: {
     item: EstimateItem; index: number; totalItems: number;
     isExpanded: boolean; onToggle: () => void;
@@ -114,6 +217,7 @@ function CategoryCard({
     onRemoveChildItem: (categoryId: string, childId: string) => void;
     onMoveChildItem: (categoryId: string, childIndex: number, direction: 'up' | 'down') => void;
     unitPriceMasters?: UnitPriceMaster[];
+    unitPriceCategories?: UnitPriceCategory[];
     unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
 }) {
@@ -128,10 +232,10 @@ function CategoryCard({
                     <button type="button" onClick={onToggle} className="p-1 text-slate-500">
                         {isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
                     </button>
-                    <input
-                        type="text"
+                    <CategoryNameInput
                         value={item.description}
-                        onChange={(e) => onUpdate(item.id, 'description', e.target.value)}
+                        onChange={(v) => onUpdate(item.id, 'description', v)}
+                        categories={unitPriceCategories}
                         className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium"
                         placeholder="カテゴリ名"
                     />
@@ -254,7 +358,7 @@ function SortableChildRows({ categoryId, childItems, onUpdateChildItem, onRemove
 export default function ItemsEditor({
     items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem,
     onAddCategory, onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
-    onReorder, onReorderChildItem, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, unitPriceSpecifications, onSelectMaster,
+    onReorder, onReorderChildItem, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, unitPriceCategories, unitPriceSpecifications, onSelectMaster,
 }: ItemsEditorProps) {
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -328,6 +432,7 @@ export default function ItemsEditor({
                                             item={item} index={index} totalItems={items.length}
                                             isExpanded={isExpanded} onToggle={() => toggleCategory(item.id)}
                                             onUpdate={onUpdate} onRemove={onRemove} onMoveUp={onMoveUp} onMoveDown={onMoveDown}
+                                            unitPriceCategories={unitPriceCategories}
                                         />
                                         {isExpanded && (
                                             <SortableChildRows
@@ -399,6 +504,7 @@ export default function ItemsEditor({
                                 onRemoveChildItem={onRemoveChildItem}
                                 onMoveChildItem={onMoveChildItem}
                                 unitPriceMasters={unitPriceMasters}
+                                unitPriceCategories={unitPriceCategories}
                                 unitPriceSpecifications={unitPriceSpecifications}
                                 onSelectMaster={onSelectMaster}
                             />
