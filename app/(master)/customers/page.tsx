@@ -5,7 +5,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { Customer, CustomerInput } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { Button } from '@/components/ui/Button';
-import { Plus, Search, Edit, Trash2, User, Mail, Phone, MapPin } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function CustomersPage() {
@@ -116,8 +116,8 @@ export default function CustomersPage() {
                 </Button>
             </div>
 
-            {/* 顧客一覧（リスト形式） */}
-            <div className="flex-1 overflow-y-auto space-y-3">
+            {/* モバイルカードビュー */}
+            <div className="md:hidden flex-1 overflow-y-auto space-y-3">
                 {!isInitialized || isLoading ? (
                     <div className="flex items-center justify-center py-12">
                         <div className="animate-spin w-8 h-8 border-4 border-slate-500 border-t-transparent rounded-full"></div>
@@ -142,67 +142,31 @@ export default function CustomersPage() {
                             key={customer.id}
                             className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
                         >
-                            <div className="p-3 md:p-4">
-                                <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                                    {/* メイン情報 */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="text-base md:text-lg font-bold text-slate-800">{customer.name}</h3>
-                                            {customer.shortName && (
-                                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
-                                                    {customer.shortName}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center gap-3 md:gap-4 mt-1 text-sm text-slate-600 flex-wrap">
-                                            {customer.contactPersons && customer.contactPersons.length > 0 && (
-                                                <span className="flex items-center gap-1">
-                                                    <User className="w-3.5 h-3.5" />
-                                                    {customer.contactPersons.map(cp => cp.name).join(', ')}
-                                                </span>
-                                            )}
-                                            {customer.email && (
-                                                <span className="flex items-center gap-1">
-                                                    <Mail className="w-3.5 h-3.5" />
-                                                    {customer.email}
-                                                </span>
-                                            )}
-                                            {customer.phone && (
-                                                <span className="flex items-center gap-1">
-                                                    <Phone className="w-3.5 h-3.5" />
-                                                    {customer.phone}
-                                                </span>
-                                            )}
-                                            {customer.address && (
-                                                <span className="flex items-center gap-1">
-                                                    <MapPin className="w-3.5 h-3.5" />
-                                                    {customer.address}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* PC: アクションボタン */}
-                                    <div className="hidden md:flex items-center gap-2">
-                                        <button
-                                            onClick={() => handleEditClick(customer)}
-                                            className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                            title="編集"
-                                        >
-                                            <Edit className="w-5 h-5" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDeleteCustomer(customer.id, customer.name)}
-                                            className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                            title="削除"
-                                        >
-                                            <Trash2 className="w-5 h-5" />
-                                        </button>
-                                    </div>
+                            <div className="p-3">
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <h3 className="text-base font-bold text-slate-800">{customer.name}</h3>
+                                    {customer.shortName && (
+                                        <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
+                                            {customer.shortName}
+                                        </span>
+                                    )}
                                 </div>
-
+                                <div className="flex items-center gap-3 text-sm text-slate-600 flex-wrap">
+                                    {customer.contactPersons && customer.contactPersons.length > 0 && (
+                                        <span className="flex items-center gap-1">
+                                            <User className="w-3.5 h-3.5" />
+                                            {customer.contactPersons.map(cp => cp.name).join(', ')}
+                                        </span>
+                                    )}
+                                    {customer.phone && (
+                                        <span className="flex items-center gap-1">
+                                            <Phone className="w-3.5 h-3.5" />
+                                            {customer.phone}
+                                        </span>
+                                    )}
+                                </div>
                                 {/* モバイル: アクションボタン行 */}
-                                <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                                <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                                     <button
                                         onClick={() => handleEditClick(customer)}
                                         className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -213,6 +177,7 @@ export default function CustomersPage() {
                                     <button
                                         onClick={() => handleDeleteCustomer(customer.id, customer.name)}
                                         className="flex items-center justify-center gap-1.5 py-2.5 px-3 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                        title="削除"
                                     >
                                         <Trash2 className="w-4 h-4" />
                                     </button>
@@ -221,6 +186,104 @@ export default function CustomersPage() {
                         </div>
                     ))
                 )}
+            </div>
+
+            {/* デスクトップテーブルビュー */}
+            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+                <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-100 sticky top-0 z-10">
+                        <tr>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                顧客名
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                略称
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                担当者
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                メール
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                電話
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                住所
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                操作
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-200">
+                        {!isInitialized || isLoading ? (
+                            [...Array(5)].map((_, i) => (
+                                <tr key={i} className="animate-pulse">
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-36"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16 ml-auto"></div></td>
+                                </tr>
+                            ))
+                        ) : filteredCustomers.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    {searchQuery ? '該当する顧客が見つかりません' : '顧客が登録されていません'}
+                                </td>
+                            </tr>
+                        ) : (
+                            filteredCustomers.map((customer) => (
+                                <tr
+                                    key={customer.id}
+                                    className="hover:bg-slate-50 transition-all duration-200"
+                                >
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className="text-sm font-semibold text-slate-900">
+                                            {customer.name}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        {customer.shortName || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        {customer.contactPersons && customer.contactPersons.length > 0
+                                            ? customer.contactPersons.map(cp => cp.name).join(', ')
+                                            : '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        {customer.email || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        {customer.phone || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate">
+                                        {customer.address || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button
+                                            onClick={() => handleEditClick(customer)}
+                                            className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
+                                            title="編集"
+                                        >
+                                            <Edit className="w-5 h-5" />
+                                        </button>
+                                        <button
+                                            onClick={() => handleDeleteCustomer(customer.id, customer.name)}
+                                            className="text-slate-600 hover:text-slate-700 transition-colors"
+                                            title="削除"
+                                        >
+                                            <Trash2 className="w-5 h-5" />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
             </div>
 
             {/* モーダル */}
