@@ -37,17 +37,7 @@ jest.mock('@/components/ProjectMaster/ProjectMasterDetailModal', () => ({
 }));
 
 // Mock icons
-jest.mock('lucide-react', () => ({
-    Plus: () => <span data-testid="icon-plus" />,
-    Search: () => <span data-testid="icon-search" />,
-    Edit: () => <span data-testid="icon-edit" />,
-    Trash2: () => <span data-testid="icon-trash" />,
-    Calendar: () => <span data-testid="icon-calendar" />,
-    ChevronDown: () => <span data-testid="icon-chevron-down" />,
-    ChevronUp: () => <span data-testid="icon-chevron-up" />,
-    MapPin: () => <span data-testid="icon-map-pin" />,
-    Building: () => <span data-testid="icon-building" />,
-}));
+
 
 const mockProjectMasters = [
     {
@@ -92,7 +82,8 @@ describe('ProjectMasterListPage', () => {
         render(<ProjectMasterListPage />);
         expect(screen.getByText('案件一覧')).toBeInTheDocument();
         // Default filter is 'active', so only Master Project 1 should be visible
-        expect(screen.getByText('Master Project 1')).toBeInTheDocument();
+        // Both mobile card and desktop table views render, so use getAllByText
+        expect(screen.getAllByText('Master Project 1').length).toBeGreaterThanOrEqual(1);
         expect(screen.queryByText('Master Project 2')).not.toBeInTheDocument();
     });
 
@@ -107,19 +98,20 @@ describe('ProjectMasterListPage', () => {
         })!;
 
         // Default is active
-        expect(screen.getByText('Master Project 1')).toBeInTheDocument();
+        // Both mobile card and desktop table views render, so use getAllByText
+        expect(screen.getAllByText('Master Project 1').length).toBeGreaterThanOrEqual(1);
         expect(screen.queryByText('Master Project 2')).not.toBeInTheDocument();
 
         // Change to all
         fireEvent.change(statusSelect, { target: { value: 'all' } });
-        expect(screen.getByText('Master Project 1')).toBeInTheDocument();
-        expect(screen.getByText('Master Project 2')).toBeInTheDocument();
+        expect(screen.getAllByText('Master Project 1').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('Master Project 2').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should open create modal', () => {
         render(<ProjectMasterListPage />);
         // The button has text split across elements (icon + text)
-        const createBtn = screen.getByTestId('icon-plus').closest('button');
+        const createBtn = screen.getByTestId('icon-Plus').closest('button');
         fireEvent.click(createBtn!);
         expect(screen.getByTestId('project-master-create-modal')).toBeInTheDocument();
         expect(screen.getByText('Create Modal')).toBeInTheDocument();
@@ -127,7 +119,8 @@ describe('ProjectMasterListPage', () => {
 
     it('should open detail modal on card click', () => {
         render(<ProjectMasterListPage />);
-        fireEvent.click(screen.getByText('Master Project 1'));
+        // Both mobile and desktop views render the title; click the first one
+        fireEvent.click(screen.getAllByText('Master Project 1')[0]);
         expect(screen.getByTestId('project-master-detail-modal')).toBeInTheDocument();
     });
 
