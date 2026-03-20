@@ -299,8 +299,8 @@ export default function ProjectMasterListPage() {
                     </div>
                 </div>
 
-                {/* List */}
-                <div className="flex-1 overflow-y-auto space-y-3">
+                {/* モバイルカードビュー */}
+                <div className="md:hidden flex-1 overflow-y-auto space-y-3">
                     {isLoading ? (
                         <div className="flex items-center justify-center py-12">
                             <div className="animate-spin w-8 h-8 border-4 border-slate-500 border-t-transparent rounded-full"></div>
@@ -314,82 +314,44 @@ export default function ProjectMasterListPage() {
                         paginatedMasters.map((pm) => (
                             <div
                                 key={pm.id}
-                                className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
+                                className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow cursor-pointer"
+                                onClick={() => openDetailModal(pm)}
                             >
-                                {/* カード表示（クリックで詳細モーダルを開く） */}
-                                <div
-                                    className="p-3 md:p-4 cursor-pointer"
-                                    onClick={() => openDetailModal(pm)}
-                                >
-                                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-                                        {/* メイン情報 */}
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <h3 className="text-base md:text-lg font-bold text-slate-800">{pm.title}</h3>
-                                                {pm.constructionContent && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
-                                                        {getConstructionContentLabel(pm.constructionContent)}
-                                                    </span>
-                                                )}
-                                                {pm.status === 'completed' && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
-                                                        完了
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex items-center gap-3 md:gap-4 mt-1 text-sm text-slate-600 flex-wrap">
-                                                {pm.customerName && (
-                                                    <span className="flex items-center gap-1">
-                                                        <Building className="w-3.5 h-3.5" />
-                                                        {pm.customerName}
-                                                    </span>
-                                                )}
-                                                {(pm.prefecture || pm.city || pm.location) && (
-                                                    <span className="flex items-center gap-1">
-                                                        <MapPin className="w-3.5 h-3.5" />
-                                                        {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
-                                                    </span>
-                                                )}
-                                                <span className="flex items-center gap-1 text-slate-500">
-                                                    <Calendar className="w-3.5 h-3.5" />
-                                                    <span className="text-sm">{pm.assignmentCount ?? 0}件の配置</span>
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* PC: アクションボタン */}
-                                        {!isForeman2 && (
-                                            <div className="hidden md:flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => openEditModal(pm)}
-                                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                    title="編集"
-                                                >
-                                                    <Edit className="w-5 h-5" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleArchive(pm)}
-                                                    className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${pm.status === 'active'
-                                                        ? 'bg-slate-100 text-slate-700 hover:bg-green-200'
-                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                                                        }`}
-                                                >
-                                                    {pm.status === 'active' ? '完了にする' : '再開する'}
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(pm.id)}
-                                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
-                                                    title="削除"
-                                                >
-                                                    <Trash2 className="w-5 h-5" />
-                                                </button>
-                                            </div>
+                                <div className="p-3">
+                                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                                        <h3 className="text-base font-bold text-slate-800">{pm.title}</h3>
+                                        {pm.constructionContent && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
+                                                {getConstructionContentLabel(pm.constructionContent)}
+                                            </span>
+                                        )}
+                                        {pm.status === 'completed' && (
+                                            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
+                                                完了
+                                            </span>
                                         )}
                                     </div>
-
+                                    <div className="flex items-center gap-3 text-sm text-slate-600 flex-wrap">
+                                        {pm.customerName && (
+                                            <span className="flex items-center gap-1">
+                                                <Building className="w-3.5 h-3.5" />
+                                                {pm.customerName}
+                                            </span>
+                                        )}
+                                        {(pm.prefecture || pm.city || pm.location) && (
+                                            <span className="flex items-center gap-1">
+                                                <MapPin className="w-3.5 h-3.5" />
+                                                {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
+                                            </span>
+                                        )}
+                                        <span className="flex items-center gap-1 text-slate-500">
+                                            <Calendar className="w-3.5 h-3.5" />
+                                            {pm.assignmentCount ?? 0}件の配置
+                                        </span>
+                                    </div>
                                     {/* モバイル: アクションボタン行 */}
                                     {!isForeman2 && (
-                                        <div className="flex md:hidden items-center gap-2 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
+                                        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => openEditModal(pm)}
                                                 className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -418,6 +380,122 @@ export default function ProjectMasterListPage() {
                             </div>
                         ))
                     )}
+                </div>
+
+                {/* デスクトップテーブルビュー */}
+                <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-100 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    現場名
+                                </th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    工事内容
+                                </th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    元請会社
+                                </th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    所在地
+                                </th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    配置数
+                                </th>
+                                {!isForeman2 && (
+                                    <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                        操作
+                                    </th>
+                                )}
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200">
+                            {isLoading ? (
+                                [...Array(5)].map((_, i) => (
+                                    <tr key={i} className="animate-pulse">
+                                        <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                                        {!isForeman2 && <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24 ml-auto"></div></td>}
+                                    </tr>
+                                ))
+                            ) : filteredMasters.length === 0 ? (
+                                <tr>
+                                    <td colSpan={isForeman2 ? 5 : 6} className="px-6 py-12 text-center text-slate-500">
+                                        {searchTerm || filterStatus !== 'all' ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
+                                    </td>
+                                </tr>
+                            ) : (
+                                paginatedMasters.map((pm) => (
+                                    <tr
+                                        key={pm.id}
+                                        className="hover:bg-slate-50 transition-all duration-200 cursor-pointer"
+                                        onClick={() => openDetailModal(pm)}
+                                    >
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-semibold text-slate-900">
+                                                    {pm.title}
+                                                </span>
+                                                {pm.status === 'completed' && (
+                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
+                                                        完了
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {pm.constructionContent ? (
+                                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
+                                                    {getConstructionContentLabel(pm.constructionContent)}
+                                                </span>
+                                            ) : (
+                                                <span className="text-sm text-slate-400">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {pm.customerName || '-'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {[pm.prefecture, pm.city].filter(Boolean).join(' ') || '-'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                            {pm.assignmentCount ?? 0}件の配置
+                                        </td>
+                                        {!isForeman2 && (
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                                <button
+                                                    onClick={() => openEditModal(pm)}
+                                                    className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
+                                                    title="編集"
+                                                >
+                                                    <Edit className="w-5 h-5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleArchive(pm)}
+                                                    className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors mr-4 ${pm.status === 'active'
+                                                        ? 'bg-slate-100 text-slate-700 hover:bg-green-200'
+                                                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                                        }`}
+                                                >
+                                                    {pm.status === 'active' ? '完了にする' : '再開する'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(pm.id)}
+                                                    className="text-slate-600 hover:text-slate-700 transition-colors"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
                 </div>
 
                 {/* Pagination Controls */}
