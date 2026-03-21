@@ -331,6 +331,7 @@ model UnitPriceMaster {
   id             String   @id @default(uuid())
   description    String
   unit           String
+  quantity       Float?
   unitPrice      Decimal  @db.Decimal(12, 2)
   templates      String
   categoryId     String?

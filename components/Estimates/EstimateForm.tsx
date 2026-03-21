@@ -240,11 +240,14 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
 
     const handleSelectFromMaster = (selectedMasters: UnitPriceMaster[]) => {
-        const newItems = selectedMasters.map(master => ({
-            id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            description: master.description, specification: '', quantity: 1, unit: master.unit,
-            unitPrice: master.unitPrice, amount: Math.round(1 * master.unitPrice), taxType: 'standard' as const, notes: '',
-        }));
+        const newItems = selectedMasters.map(master => {
+            const qty = master.quantity ?? 1;
+            return {
+                id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                description: master.description, specification: '', quantity: qty, unit: master.unit,
+                unitPrice: master.unitPrice, amount: Math.round(qty * master.unitPrice), taxType: 'standard' as const, notes: '',
+            };
+        });
         const nonEmptyItems = items.filter(item => item.description.trim() !== '' || item.unitPrice > 0);
         setItems([...nonEmptyItems, ...newItems]);
         setIsUnitPriceModalOpen(false);

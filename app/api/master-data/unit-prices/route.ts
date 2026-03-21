@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { description, unit, unitPrice, templates, categoryId, notes } = await request.json();
+        const { description, unit, unitPrice, quantity, templates, categoryId, notes } = await request.json();
         if (!description || !unit || unitPrice === undefined || !templates) {
             return validationErrorResponse('説明、単位、単価、テンプレートは必須です');
         }
@@ -34,6 +34,7 @@ export async function POST(request: NextRequest) {
             data: {
                 description,
                 unit,
+                quantity: quantity ?? null,
                 unitPrice,
                 templates: JSON.stringify(templates),
                 categoryId: categoryId || null,
