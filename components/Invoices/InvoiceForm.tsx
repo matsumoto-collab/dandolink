@@ -302,18 +302,17 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title) { toast.error('タイトルは必須です'); return; }
-        if (selectedProjectIds.length === 0) { toast.error('案件を選択してください'); return; }
         if (allItems.length === 0) { toast.error('明細を1つ以上入力してください'); return; }
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
             const data: InvoiceInput = {
-                projectId: selectedProjectIds[0],
-                projectMasterIds: selectedProjectIds,
+                projectId: selectedProjectIds[0] || undefined,
+                projectMasterIds: selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
                 customerId,
                 invoiceNumber,
                 title,
-                items: allItems,
+                items: allItems.map(item => item.projectMasterId === '_none' ? { ...item, projectMasterId: undefined } : item),
                 subtotal,
                 tax,
                 total,
@@ -450,9 +449,90 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 );
             })}
 
+            {/* 案件なしの明細セクション */}
             {selectedProjectIds.length === 0 && (
-                <div className="text-center py-8 text-slate-500 border border-dashed border-slate-300 rounded-xl">
-                    <p>顧客を選択し、案件にチェックを入れてください</p>
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <h3 className="text-sm font-semibold text-slate-800">明細</h3>
+                            <div className="flex flex-wrap gap-2">
+                                <div className="relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBillingDropdownPmId(billingDropdownPmId === '_none' ? null : '_none')}
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                    >
+                                        <List className="w-3.5 h-3.5" />
+                                        請求項目から追加
+                                    </button>
+                                    {billingDropdownPmId === '_none' && billingTitles.length > 0 && (
+                                        <div className="absolute right-0 z-50 mt-1 w-64 bg-white border border-slate-300 rounded-lg shadow-lg">
+                                            <ul className="max-h-48 overflow-y-auto py-1">
+                                                {billingTitles.map(bt => (
+                                                    <li
+                                                        key={bt.id}
+                                                        className="px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm"
+                                                        onClick={() => {
+                                                            addFromBillingTitle('_none', bt);
+                                                            setBillingDropdownPmId(null);
+                                                        }}
+                                                    >
+                                                        {bt.name}
+                                                        {(bt.quantity != null || bt.unit) && (
+                                                            <span className="ml-1 text-slate-400">
+                                                                ({bt.quantity != null && bt.quantity}{bt.unit && ` ${bt.unit}`})
+                                                            </span>
+                                                        )}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setUnitPriceTargetPmId('_none');
+                                        setIsUnitPriceModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    単価マスタ
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => addEmptyItem('_none')}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    行追加
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-4">
+                        {(itemsByProject['_none'] || []).length === 0 ? (
+                            <p className="text-sm text-slate-500 text-center py-4">
+                                明細がありません。上のボタンから追加してください。
+                            </p>
+                        ) : (
+                            <ItemsEditor
+                                items={itemsByProject['_none'] || []}
+                                onUpdate={(id, field, value) => updateItem('_none', id, field as string, value)}
+                                onRemove={(id) => removeItem('_none', id)}
+                                onMoveUp={(index) => moveItemUp('_none', index)}
+                                onMoveDown={(index) => moveItemDown('_none', index)}
+                                onReorder={(fromIndex, toIndex) => reorderItems('_none', fromIndex, toIndex)}
+                                onReorderChildItem={(parentId, fromIndex, toIndex) => reorderChildItems('_none', parentId, fromIndex, toIndex)}
+                                onAddItem={() => addEmptyItem('_none')}
+                                onOpenUnitPriceModal={() => {
+                                    setUnitPriceTargetPmId('_none');
+                                    setIsUnitPriceModalOpen(true);
+                                }}
+                                hideAddButtons={true}
+                            />
+                        )}
+                    </div>
                 </div>
             )}
 
