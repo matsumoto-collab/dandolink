@@ -99,6 +99,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
                     <div className="flex items-center justify-between">
                         <h3 className="text-xl font-bold text-slate-900">単価マスターから項目を追加</h3>
                         <button
+                            type="button"
                             onClick={handleClose}
                             className="p-2 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
                         >
@@ -113,6 +114,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
                         <div className="flex gap-2 overflow-x-auto">
                             {unitPriceTemplates.map(t => (
                                 <button
+                                    type="button"
                                     key={t.id}
                                     onClick={() => {
                                         setSelectedTemplateId(t.id);
@@ -188,12 +190,14 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
                         </div>
                         <div className="flex gap-3">
                             <button
+                                type="button"
                                 onClick={handleClose}
                                 className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-100 transition-colors"
                             >
                                 キャンセル
                             </button>
                             <button
+                                type="button"
                                 onClick={handleAdd}
                                 disabled={selectedItems.size === 0}
                                 className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
