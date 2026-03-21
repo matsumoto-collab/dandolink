@@ -227,6 +227,8 @@ model InvoiceProjectMaster {
 model BillingTitle {
   id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   name      String
+  quantity  Float?
+  unit      String?
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

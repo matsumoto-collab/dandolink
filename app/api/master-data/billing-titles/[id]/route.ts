@@ -13,9 +13,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
         const body = await request.json();
-        const { name, sortOrder } = body;
+        const { name, quantity, unit, sortOrder } = body;
 
-        const updateData: { name?: string; sortOrder?: number } = {};
+        const updateData: Record<string, unknown> = {};
 
         if (name !== undefined) {
             if (typeof name !== 'string' || !name.trim()) {
@@ -27,9 +27,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             updateData.name = name.trim();
         }
 
-        if (sortOrder !== undefined) {
-            updateData.sortOrder = sortOrder;
-        }
+        if (quantity !== undefined) updateData.quantity = quantity ?? null;
+        if (unit !== undefined) updateData.unit = unit || null;
+        if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
 
         const title = await prisma.billingTitle.update({
             where: { id },
