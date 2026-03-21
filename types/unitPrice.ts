@@ -31,6 +31,7 @@ export interface UnitPriceMaster {
     id: string;
     description: string;    // 品目・内容
     unit: string;          // 単位（例: 式、m、個、日）
+    quantity?: number;     // 数量
     unitPrice: number;     // 単価
     templates: string[];   // 所属するテンプレートID（複数可）
     categoryId?: string;   // カテゴリID

@@ -501,6 +501,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
     const [formData, setFormData] = useState<UnitPriceMasterInput>({
         description: '',
         unit: '',
+        quantity: undefined,
         unitPrice: 0,
         templates: [],
         categoryId: undefined,
@@ -522,6 +523,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
             setFormData({
                 description: item.description,
                 unit: item.unit,
+                quantity: item.quantity,
                 unitPrice: item.unitPrice,
                 templates: item.templates,
                 categoryId: item.categoryId,
@@ -532,6 +534,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
             setFormData({
                 description: '',
                 unit: '',
+                quantity: undefined,
                 unitPrice: 0,
                 templates: [],
                 categoryId: undefined,
@@ -655,7 +658,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
                                 <div className="flex-1">
                                     <h3 className="text-lg font-bold text-slate-900">{item.description}</h3>
                                     <div className="mt-2 space-y-1 text-sm text-slate-600">
-                                        <p>単位: {item.unit} / 単価: ¥{item.unitPrice.toLocaleString()}</p>
+                                        <p>{item.quantity != null && `数量: ${item.quantity} / `}単位: {item.unit} / 単価: ¥{item.unitPrice.toLocaleString()}</p>
                                         {item.templates.length > 0 && (
                                             <p>テンプレート: {getTemplateNames(item.templates)}</p>
                                         )}
@@ -732,8 +735,22 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
                                     />
                                 </div>
 
-                                {/* 単位と単価 */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {/* 数量・単位・単価 */}
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label htmlFor="quantity" className="block text-sm font-semibold text-slate-700 mb-2">
+                                            数量
+                                        </label>
+                                        <input
+                                            id="quantity"
+                                            type="number"
+                                            value={formData.quantity ?? ''}
+                                            onChange={(e) => setFormData({ ...formData, quantity: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
+                                            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                            placeholder="例: 1"
+                                            step="any"
+                                        />
+                                    </div>
                                     <div>
                                         <label htmlFor="unit" className="block text-sm font-semibold text-slate-700 mb-2">
                                             単位 <span className="text-slate-500">*</span>

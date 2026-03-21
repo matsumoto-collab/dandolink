@@ -195,18 +195,21 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     // 単価マスタから追加
     const handleSelectFromMaster = (selectedMasters: UnitPriceMaster[]) => {
         const pmId = unitPriceTargetPmId;
-        const newItems: InvoiceItem[] = selectedMasters.map(master => ({
+        const newItems: InvoiceItem[] = selectedMasters.map(master => {
+            const qty = master.quantity ?? 1;
+            return {
             id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             description: master.description,
             specification: '',
-            quantity: 1,
+            quantity: qty,
             unit: master.unit,
             unitPrice: master.unitPrice,
-            amount: Math.round(1 * master.unitPrice),
+            amount: Math.round(qty * master.unitPrice),
             taxType: 'standard' as const,
             notes: '',
             projectMasterId: pmId,
-        }));
+        };
+        });
         setItemsByProject(prev => {
             const existing = prev[pmId] || [];
             const nonEmpty = existing.filter(item => item.description.trim() !== '' || item.unitPrice > 0);
