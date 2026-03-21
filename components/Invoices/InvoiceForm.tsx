@@ -257,6 +257,30 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         });
     };
 
+    const reorderItems = (pmId: string, fromIndex: number, toIndex: number) => {
+        setItemsByProject(prev => {
+            const items = [...(prev[pmId] || [])];
+            const [moved] = items.splice(fromIndex, 1);
+            items.splice(toIndex, 0, moved);
+            return { ...prev, [pmId]: items };
+        });
+    };
+
+    const reorderChildItems = (pmId: string, parentId: string, fromIndex: number, toIndex: number) => {
+        setItemsByProject(prev => {
+            const items = (prev[pmId] || []).map(item => {
+                if (item.id === parentId && item.children) {
+                    const children = [...item.children];
+                    const [moved] = children.splice(fromIndex, 1);
+                    children.splice(toIndex, 0, moved);
+                    return { ...item, children };
+                }
+                return item;
+            });
+            return { ...prev, [pmId]: items };
+        });
+    };
+
     // 全明細をフラット化
     const allItems = React.useMemo(() => {
         return Object.values(itemsByProject).flat();
@@ -407,6 +431,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                     onRemove={(id) => removeItem(pmId, id)}
                                     onMoveUp={(index) => moveItemUp(pmId, index)}
                                     onMoveDown={(index) => moveItemDown(pmId, index)}
+                                    onReorder={(fromIndex, toIndex) => reorderItems(pmId, fromIndex, toIndex)}
+                                    onReorderChildItem={(parentId, fromIndex, toIndex) => reorderChildItems(pmId, parentId, fromIndex, toIndex)}
                                     onAddItem={() => addEmptyItem(pmId)}
                                     onOpenUnitPriceModal={() => {
                                         setUnitPriceTargetPmId(pmId);
