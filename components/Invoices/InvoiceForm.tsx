@@ -154,12 +154,13 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
     // 請求項目マスタから追加
     const addFromBillingTitle = useCallback((pmId: string, bt: BillingTitle) => {
+        const qty = bt.quantity ?? 1;
         const newItem: InvoiceItem = {
             id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             description: bt.name,
             specification: '',
-            quantity: 1,
-            unit: '式',
+            quantity: qty,
+            unit: bt.unit || '式',
             unitPrice: 0,
             amount: 0,
             taxType: 'standard',

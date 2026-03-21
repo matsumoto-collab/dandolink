@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name } = await request.json();
+        const { name, quantity, unit } = await request.json();
         const validatedName = validateStringField(name, '名前', 100);
         if (validatedName instanceof NextResponse) return validatedName;
 
@@ -37,6 +37,8 @@ export async function POST(request: NextRequest) {
         const title = await prisma.billingTitle.create({
             data: {
                 name: validatedName,
+                quantity: quantity ?? null,
+                unit: unit || null,
                 sortOrder: nextSortOrder,
             },
         });

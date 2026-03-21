@@ -3,20 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-
-interface BillingTitle {
-    id: string;
-    name: string;
-    sortOrder: number;
-    isActive: boolean;
-}
+import { BillingTitle } from '@/types/invoice';
 
 export default function BillingTitleSettings() {
     const [titles, setTitles] = useState<BillingTitle[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
-    const [editingName, setEditingName] = useState('');
-    const [newName, setNewName] = useState('');
+    const [editingData, setEditingData] = useState({ name: '', quantity: '' as string, unit: '' });
+    const [newData, setNewData] = useState({ name: '', quantity: '' as string, unit: '' });
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     const fetchData = async () => {
@@ -39,18 +33,22 @@ export default function BillingTitleSettings() {
     }, []);
 
     const handleAdd = async () => {
-        if (!newName.trim()) return;
+        if (!newData.name.trim()) return;
 
         try {
             const res = await fetch('/api/master-data/billing-titles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName.trim() }),
+                body: JSON.stringify({
+                    name: newData.name.trim(),
+                    quantity: newData.quantity ? parseFloat(newData.quantity) : null,
+                    unit: newData.unit.trim() || null,
+                }),
             });
 
             if (res.ok) {
                 toast.success('請求項目を追加しました');
-                setNewName('');
+                setNewData({ name: '', quantity: '', unit: '' });
                 fetchData();
             } else {
                 toast.error('追加に失敗しました');
@@ -62,23 +60,30 @@ export default function BillingTitleSettings() {
 
     const handleEdit = (item: BillingTitle) => {
         setEditingId(item.id);
-        setEditingName(item.name);
+        setEditingData({
+            name: item.name,
+            quantity: item.quantity != null ? String(item.quantity) : '',
+            unit: item.unit || '',
+        });
     };
 
     const handleSaveEdit = async () => {
-        if (!editingName.trim() || !editingId) return;
+        if (!editingData.name.trim() || !editingId) return;
 
         try {
             const res = await fetch(`/api/master-data/billing-titles/${editingId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: editingName.trim() }),
+                body: JSON.stringify({
+                    name: editingData.name.trim(),
+                    quantity: editingData.quantity ? parseFloat(editingData.quantity) : null,
+                    unit: editingData.unit.trim() || null,
+                }),
             });
 
             if (res.ok) {
                 toast.success('請求項目を更新しました');
                 setEditingId(null);
-                setEditingName('');
                 fetchData();
             } else {
                 toast.error('更新に失敗しました');
@@ -90,7 +95,6 @@ export default function BillingTitleSettings() {
 
     const handleCancelEdit = () => {
         setEditingId(null);
-        setEditingName('');
     };
 
     const handleDelete = async (id: string) => {
@@ -124,20 +128,46 @@ export default function BillingTitleSettings() {
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-lg font-semibold text-slate-900">請求項目一覧</h3>
-                    <p className="text-sm text-slate-500 mt-1">請求書の明細に使用する項目名を管理します（例: 外部足場組立・解体一式）</p>
+                    <p className="text-sm text-slate-500 mt-1">請求書の明細に使用する項目を管理します（例: 外部足場組立・解体一式）</p>
                 </div>
             </div>
 
             {/* 新規追加フォーム */}
-            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-center min-w-0">
-                <input
-                    type="text"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
-                    className="flex-1 min-w-0 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="新しい請求項目を追加（例: 外部足場組立・解体一式）"
-                />
+            <div className="mb-6 flex flex-col md:flex-row gap-2 md:items-end min-w-0">
+                <div className="flex-1 min-w-0">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">名称</label>
+                    <input
+                        type="text"
+                        value={newData.name}
+                        onChange={(e) => setNewData({ ...newData, name: e.target.value })}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                        className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="例: 外部足場組立・解体一式"
+                    />
+                </div>
+                <div className="w-24">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">数量</label>
+                    <input
+                        type="number"
+                        value={newData.quantity}
+                        onChange={(e) => setNewData({ ...newData, quantity: e.target.value })}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                        className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="1"
+                        step="any"
+                    />
+                </div>
+                <div className="w-24">
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">単位</label>
+                    <input
+                        type="text"
+                        value={newData.unit}
+                        onChange={(e) => setNewData({ ...newData, unit: e.target.value })}
+                        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                        className="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="式"
+                    />
+                </div>
                 <button
                     onClick={handleAdd}
                     className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
@@ -158,11 +188,28 @@ export default function BillingTitleSettings() {
                             <>
                                 <input
                                     type="text"
-                                    value={editingName}
-                                    onChange={(e) => setEditingName(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                    value={editingData.name}
+                                    onChange={(e) => setEditingData({ ...editingData, name: e.target.value })}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
                                     className="flex-1 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                                     autoFocus
+                                />
+                                <input
+                                    type="number"
+                                    value={editingData.quantity}
+                                    onChange={(e) => setEditingData({ ...editingData, quantity: e.target.value })}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                    className="w-20 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    placeholder="数量"
+                                    step="any"
+                                />
+                                <input
+                                    type="text"
+                                    value={editingData.unit}
+                                    onChange={(e) => setEditingData({ ...editingData, unit: e.target.value })}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                    className="w-20 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    placeholder="単位"
                                 />
                                 <button
                                     onClick={handleSaveEdit}
@@ -181,7 +228,14 @@ export default function BillingTitleSettings() {
                             </>
                         ) : (
                             <>
-                                <span className="flex-1 text-slate-900">{item.name}</span>
+                                <span className="flex-1 text-slate-900">
+                                    {item.name}
+                                    {(item.quantity != null || item.unit) && (
+                                        <span className="ml-2 text-sm text-slate-500">
+                                            ({item.quantity != null && `${item.quantity}`}{item.quantity != null && item.unit && ' '}{item.unit && item.unit})
+                                        </span>
+                                    )}
+                                </span>
                                 <button
                                     onClick={() => handleEdit(item)}
                                     className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"

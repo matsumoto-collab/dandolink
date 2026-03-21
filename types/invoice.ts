@@ -1,5 +1,15 @@
 import { EstimateItem } from './estimate';
 
+// 請求項目マスター
+export interface BillingTitle {
+    id: string;
+    name: string;
+    quantity?: number;
+    unit?: string;
+    sortOrder: number;
+    isActive: boolean;
+}
+
 // 請求書の明細項目（EstimateItemを拡張、案件グループ管理用）
 export interface InvoiceItem extends EstimateItem {
     projectMasterId?: string; // どの案件に属する明細か
@@ -30,11 +40,3 @@ export interface Invoice {
 
 // 請求書作成時の入力データ
 export type InvoiceInput = Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>;
-
-// 請求項目マスタ
-export interface BillingTitle {
-    id: string;
-    name: string;
-    sortOrder: number;
-    isActive: boolean;
-}
