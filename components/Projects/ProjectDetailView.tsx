@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
+import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import { ExternalLink } from 'lucide-react';
 
 const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
@@ -345,6 +346,16 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             画像フォルダ
                         </label>
                         <ProjectMasterFilesView projectMasterId={project.projectMasterId} />
+                    </div>
+                )}
+
+                {/* 作業履歴 */}
+                {project.projectMasterId && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            作業履歴
+                        </label>
+                        <WorkHistoryDisplay projectMasterId={project.projectMasterId} />
                     </div>
                 )}
             </div>
