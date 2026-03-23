@@ -362,11 +362,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             // サーバーから返った updatedAt でストアを更新（楽観的ロック対策）
             const responseData = await response.json();
             if (responseData.results) {
-                const updatedMap = new Map<string, Date>(responseData.results.map((r: { id: string; updatedAt: string }) => [r.id, new Date(r.updatedAt)]));
+                const updatedMap = new Map<string, { updatedAt: Date; updatedBy: string | null }>(responseData.results.map((r: { id: string; updatedAt: string; updatedBy?: string | null }) => [r.id, { updatedAt: new Date(r.updatedAt), updatedBy: r.updatedBy ?? null }]));
                 set((state) => ({
                     assignments: state.assignments.map((a) => {
-                        const newUpdatedAt = updatedMap.get(a.id);
-                        return newUpdatedAt ? { ...a, updatedAt: newUpdatedAt } : a;
+                        const updated = updatedMap.get(a.id);
+                        return updated ? { ...a, updatedAt: updated.updatedAt, updatedBy: updated.updatedBy ?? undefined } : a;
                     }),
                 }));
             }

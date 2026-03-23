@@ -39,10 +39,12 @@ export default function LastUpdatedLabel({ updatedAt, updatedBy }: LastUpdatedLa
 
   if (!updatedAt) return null;
 
-  const formatted = new Date(updatedAt).toLocaleDateString('ja-JP', {
+  const formatted = new Date(updatedAt).toLocaleString('ja-JP', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 
   return (
