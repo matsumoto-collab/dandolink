@@ -16,20 +16,20 @@ import { toReiwa, sanitizePdfText } from './styles';
 
 // ===== Color Palette (same as EstimatePDF) =====
 const COLORS = {
-    navy: '#1a365d',
-    navyLight: '#2c5282',
-    headerBg: '#1a365d',
+    navy: '#222222',
+    navyLight: '#444444',
+    headerBg: '#333333',
     headerText: '#ffffff',
-    infoBg: '#f0f4f8',
-    zebraStripe: '#f8fafc',
-    borderDark: '#2d3748',
-    borderLight: '#cbd5e0',
-    borderMedium: '#a0aec0',
-    textPrimary: '#1a202c',
-    textSecondary: '#4a5568',
-    red: '#e53e3e',
+    infoBg: '#f5f5f5',
+    zebraStripe: '#fafafa',
+    borderDark: '#333333',
+    borderLight: '#d4d4d4',
+    borderMedium: '#a3a3a3',
+    textPrimary: '#1a1a1a',
+    textSecondary: '#525252',
+    red: '#dc2626',
     white: '#ffffff',
-    totalBg: '#edf2f7',
+    totalBg: '#f0f0f0',
 };
 
 // ===== Styles =====
@@ -65,7 +65,6 @@ const styles = StyleSheet.create({
     invoiceNoText: {
         fontSize: 9,
         color: COLORS.textSecondary,
-        width: '25%',
     },
     titleCenter: {
         width: '50%',
@@ -158,7 +157,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderWidth: 1.5,
         borderColor: COLORS.navy,
-        width: '60%',
+        width: '55%',
     },
     amountLabelBox: {
         backgroundColor: COLORS.navy,
@@ -189,23 +188,14 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     amountDetailArea: {
-        width: '38%',
-        paddingLeft: 15,
+        width: '42%',
+        paddingLeft: 10,
         justifyContent: 'center',
     },
-    amountDetailRow: {
-        flexDirection: 'row',
-        marginVertical: 1,
-    },
-    amountDetailLabel: {
+    amountDetailText: {
         fontSize: 9,
-        width: 70,
-        color: COLORS.textSecondary,
-    },
-    amountDetailValue: {
-        fontSize: 9,
-        flex: 1,
         textAlign: 'right',
+        marginVertical: 1,
     },
 
     // ===== Info Table =====
@@ -401,7 +391,7 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        width: 485,
+        width: 455,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -520,16 +510,15 @@ function CoverPage({
             {/* Top accent bar */}
             <View style={styles.accentBar} fixed />
 
-            {/* Top row: 請求No (left), Title (center), Date (right) */}
+            {/* Top row: Title (center), Date + No (right) */}
             <View style={styles.topRow}>
-                <View style={{ width: '25%' }}>
-                    <Text style={styles.invoiceNoText}>請求No. {invoice.invoiceNumber}</Text>
-                </View>
+                <View style={{ width: '25%' }} />
                 <View style={styles.titleCenter}>
                     <Text style={styles.titleText}>請 求 書</Text>
                 </View>
                 <View style={styles.dateRight}>
                     <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>請求日　{toReiwa(createdDate)}</Text>
+                    <Text style={[styles.invoiceNoText, { marginTop: 2 }]}>請求No. {invoice.invoiceNumber}</Text>
                 </View>
             </View>
 
@@ -548,7 +537,7 @@ function CoverPage({
                         </>
                     )}
                     {(() => {
-                        const fullName = `${project.customer || ''} ${project.customerHonorific || '御中'}`;
+                        const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
@@ -597,14 +586,8 @@ function CoverPage({
                     </View>
                 </View>
                 <View style={styles.amountDetailArea}>
-                    <View style={styles.amountDetailRow}>
-                        <Text style={styles.amountDetailLabel}>小計</Text>
-                        <Text style={styles.amountDetailValue}>¥{invoice.subtotal.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.amountDetailRow}>
-                        <Text style={styles.amountDetailLabel}>消費税額(10%)</Text>
-                        <Text style={styles.amountDetailValue}>¥{invoice.tax.toLocaleString()}</Text>
-                    </View>
+                    <Text style={styles.amountDetailText}>小計　¥{invoice.subtotal.toLocaleString()}</Text>
+                    <Text style={styles.amountDetailText}>消費税額(10%)　¥{invoice.tax.toLocaleString()}</Text>
                 </View>
             </View>
 
