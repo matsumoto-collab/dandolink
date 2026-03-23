@@ -10,7 +10,7 @@ interface RemarksRowProps {
 }
 
 export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowProps) {
-    const { getRemarks, setRemarks, getVacationEmployees, addVacationEmployee, removeVacationEmployee } = useVacation();
+    const { vacations, getRemarks, setRemarks, addVacationEmployee, removeVacationEmployee } = useVacation();
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [tempValues, setTempValues] = useState<{ [key: string]: string }>({});
 
@@ -58,7 +58,7 @@ export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowPro
                 const isSunday = day.dayOfWeek === 0;
                 const isEditing = editingCell === dateKey;
                 const remarkText = isEditing ? (tempValues[dateKey] ?? '') : getRemarks(dateKey);
-                const vacationEmployeeIds = getVacationEmployees(dateKey);
+                const vacationEmployeeIds = vacations[dateKey]?.employeeIds || [];
 
                 return (
                     <div
