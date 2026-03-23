@@ -678,7 +678,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. 1</Text>
             </View>
         </Page>
@@ -748,7 +748,7 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
 
 // ===== カテゴリ内訳明細ページ =====
 function CategoryDetailsPage({
-    category, estimate, companyInfo, pageNo, title: estimateTitle,
+    category, estimate, companyInfo: _companyInfo, pageNo, title: estimateTitle,
 }: {
     category: Estimate['items'][0];
     estimate: Estimate;
@@ -827,7 +827,7 @@ function CategoryDetailsPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. {pageNo}</Text>
             </View>
         </Page>
@@ -836,7 +836,7 @@ function CategoryDetailsPage({
 
 // ===== フラット項目用のDetailsPage（カテゴリなしの場合、または表紙なしの場合） =====
 function FlatDetailsPage({
-    estimate, companyInfo, pageNo,
+    estimate, companyInfo: _companyInfo, pageNo,
 }: {
     estimate: Estimate;
     companyInfo: CompanyInfo;
@@ -918,7 +918,7 @@ function FlatDetailsPage({
             </View>
 
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. {pageNo}</Text>
             </View>
         </Page>

@@ -741,7 +741,7 @@ function CoverPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. 1</Text>
             </View>
         </Page>
@@ -751,7 +751,7 @@ function CoverPage({
 // ===== Details Page Component =====
 function DetailsPage({
     invoice,
-    companyInfo,
+    companyInfo: _companyInfo,
     projectMasters,
 }: {
     invoice: Invoice;
@@ -936,7 +936,7 @@ function DetailsPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}>{companyInfo.name}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. 2</Text>
             </View>
         </Page>
