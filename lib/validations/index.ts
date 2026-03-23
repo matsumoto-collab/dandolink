@@ -295,7 +295,7 @@ export const calendarRemarkSchema = z.object({
 
 export const vacationSchema = z.object({
     dateKey: dateKeySchema,
-    employeeIds: z.array(z.string().uuid('無効な従業員IDです')).optional().default([]),
+    employeeIds: z.array(z.string().min(1, '無効な従業員IDです')).optional().default([]),
     remarks: z.string().max(500).optional().nullable(),
 });
 
