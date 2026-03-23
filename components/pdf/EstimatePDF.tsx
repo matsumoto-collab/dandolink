@@ -200,11 +200,10 @@ const styles = StyleSheet.create({
 
     // ===== Info Table =====
     infoTable: {
-        flexDirection: 'row',
         marginBottom: 12,
     },
     infoLeft: {
-        width: '60%',
+        width: '100%',
         borderWidth: 0.5,
         borderColor: COLORS.borderMedium,
     },
@@ -588,19 +587,21 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                         </View>
                     </View>
                 </View>
+            </View>
 
-                {/* Remarks */}
-                <View style={styles.remarksArea}>
+            {/* Remarks (if any) */}
+            {estimate.notes && (
+                <View style={[styles.remarksArea, { width: '100%', marginLeft: 0, marginBottom: 12 }]}>
                     <View style={styles.remarksHeader}>
                         <Text style={styles.remarksHeaderText}>備考</Text>
                     </View>
                     <View style={styles.remarksBody}>
                         <Text style={styles.remarksText}>
-                            {estimate.notes ? sanitizePdfText(estimate.notes) : ''}
+                            {sanitizePdfText(estimate.notes)}
                         </Text>
                     </View>
                 </View>
-            </View>
+            )}
 
             {/* Inline Details Table on Cover Page — トップレベル項目のみ表示 */}
             <View style={styles.table}>

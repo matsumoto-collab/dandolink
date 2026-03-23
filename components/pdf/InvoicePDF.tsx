@@ -198,11 +198,10 @@ const styles = StyleSheet.create({
 
     // ===== Info Table =====
     infoTable: {
-        flexDirection: 'row',
         marginBottom: 12,
     },
     infoLeft: {
-        width: '60%',
+        width: '100%',
         borderWidth: 0.5,
         borderColor: COLORS.borderMedium,
     },
@@ -629,19 +628,21 @@ function CoverPage({
                         </View>
                     </View>
                 </View>
+            </View>
 
-                {/* Remarks */}
-                <View style={styles.remarksArea}>
+            {/* Remarks (if any) */}
+            {invoice.notes && (
+                <View style={[styles.remarksArea, { width: '100%', marginLeft: 0, marginBottom: 12 }]}>
                     <View style={styles.remarksHeader}>
                         <Text style={styles.remarksHeaderText}>備考</Text>
                     </View>
                     <View style={styles.remarksBody}>
                         <Text style={styles.remarksText}>
-                            {invoice.notes ? sanitizePdfText(invoice.notes) : ''}
+                            {sanitizePdfText(invoice.notes)}
                         </Text>
                     </View>
                 </View>
-            </View>
+            )}
 
             {/* Inline Details Table on Cover Page */}
             <View style={styles.table}>
