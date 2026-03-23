@@ -35,6 +35,7 @@ export interface DailyReport {
     workItems: DailyReportWorkItem[];
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;
 }
 
 export interface DailyReportInput {

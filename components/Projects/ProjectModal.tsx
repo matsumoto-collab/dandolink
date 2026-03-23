@@ -8,6 +8,7 @@ import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { FileText } from 'lucide-react';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 
 interface ProjectModalProps {
@@ -94,7 +95,10 @@ export default function ProjectModal({
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-semibold text-slate-900">{modalTitle}</h2>
+                        <div>
+                            <h2 className="text-xl font-semibold text-slate-900">{modalTitle}</h2>
+                            {initialData && <LastUpdatedLabel updatedAt={initialData.updatedAt} updatedBy={initialData.updatedBy} />}
+                        </div>
                         {otherEditingUsers.length > 0 && (
                             <EditingIndicator users={otherEditingUsers} />
                         )}

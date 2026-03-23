@@ -9,7 +9,7 @@ interface RouteContext { params: Promise<{ id: string }>; }
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireManagerOrAbove();
+        const { session, error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await context.params;
@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (!existingEstimate) return notFoundResponse('見積');
 
         const data = validation.data;
-        const updateData: Prisma.EstimateUpdateInput = {};
+        const updateData: Prisma.EstimateUpdateInput = { updatedBy: session!.user.id };
         if (data.projectMasterId !== undefined) updateData.projectMasterId = data.projectMasterId || null;
         if (data.customerId !== undefined) updateData.customerId = data.customerId || null;
         if (data.estimateNumber !== undefined) updateData.estimateNumber = data.estimateNumber;

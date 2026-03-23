@@ -12,6 +12,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 // モーダルを遅延読み込み
 const InvoiceModal = dynamic(
@@ -321,6 +322,7 @@ export default function InvoiceListPage() {
                                             期限: {formatDate(invoice.dueDate, 'short')}
                                         </span>
                                     </div>
+                                    <LastUpdatedLabel updatedAt={invoice.updatedAt} updatedBy={invoice.updatedBy} />
                                 </div>
                             );
                         })}

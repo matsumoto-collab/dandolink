@@ -86,6 +86,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;
         if (body.createdBy !== undefined) updateData.createdBy = stringifyJsonField(body.createdBy);
+        updateData.updatedBy = session!.user.id;
 
         const projectMaster = await prisma.projectMaster.update({ where: { id }, data: updateData });
         return NextResponse.json(formatProjectMaster(projectMaster));

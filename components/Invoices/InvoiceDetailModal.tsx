@@ -8,6 +8,7 @@ const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 interface InvoiceDetailModalProps {
     isOpen: boolean;
@@ -126,6 +127,7 @@ export default function InvoiceDetailModal({
                             <h2 className="text-xl font-semibold text-slate-800">
                                 {effectiveProject.title}
                             </h2>
+                            <LastUpdatedLabel updatedAt={invoice.updatedAt} updatedBy={invoice.updatedBy} />
                         </div>
                         <div className="flex items-center gap-2">
                             <button

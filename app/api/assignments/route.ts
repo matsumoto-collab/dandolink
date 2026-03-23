@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
                 confirmedWorkerIds: stringifyJsonField(confirmedWorkerIds), confirmedVehicleIds: stringifyJsonField(confirmedVehicleIds),
                 constructionType: constructionType || null,
                 estimatedHours: estimatedHours ?? 8.0,
+                updatedBy: session!.user.id,
 
                 assignmentWorkers: {
                     create: Array.isArray(workers) ? workers.map((w: string) => ({ workerName: w })) : [],

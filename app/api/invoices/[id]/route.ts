@@ -25,7 +25,7 @@ async function getInvoiceProjectMasters(invoiceId: string) {
 
 export async function PATCH(req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireManagerOrAbove();
+        const { session, error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await context.params;
@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (!existingInvoice) return notFoundResponse('請求書');
 
         const data = validation.data;
-        const updateData: Prisma.InvoiceUpdateInput = {};
+        const updateData: Prisma.InvoiceUpdateInput = { updatedBy: session!.user.id };
         if (data.projectMasterId !== undefined) updateData.projectMasterId = data.projectMasterId;
         if (data.estimateId !== undefined) updateData.estimateId = data.estimateId || null;
         if (data.invoiceNumber !== undefined) updateData.invoiceNumber = data.invoiceNumber;

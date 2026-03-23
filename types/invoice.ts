@@ -33,10 +33,11 @@ export interface Invoice {
     notes?: string;
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;
     // 複数案件対応
     projectMasterIds?: string[];
     projectMasters?: Array<{ id: string; title: string }>;
 }
 
 // 請求書作成時の入力データ
-export type InvoiceInput = Omit<Invoice, 'id' | 'createdAt' | 'updatedAt'>;
+export type InvoiceInput = Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'updatedBy'>;

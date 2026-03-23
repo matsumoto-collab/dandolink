@@ -91,6 +91,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.confirmedVehicleIds !== undefined) updateData.confirmedVehicleIds = stringifyJsonField(body.confirmedVehicleIds);
         if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;
         if (body.estimatedHours !== undefined) updateData.estimatedHours = body.estimatedHours;
+        updateData.updatedBy = session!.user.id;
 
         // workers/vehiclesが更新される場合、リレーションテーブルも同期
         if (body.workers !== undefined) {

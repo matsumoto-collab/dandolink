@@ -12,6 +12,7 @@ import { Plus, Search, Trash2, Clock, Calendar, ChevronUp, ChevronDown, Chevrons
 import Loading from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 // モーダルを遅延読み込み
 const DailyReportModal = dynamic(
@@ -335,6 +336,7 @@ export default function DailyReportPage() {
                                             {report.earlyStartMinutes > 0 && <span>早出 {formatMinutes(report.earlyStartMinutes)}</span>}
                                             {report.overtimeMinutes > 0 && <span>残業 {formatMinutes(report.overtimeMinutes)}</span>}
                                         </div>
+                                        <LastUpdatedLabel updatedAt={report.updatedAt} updatedBy={report.updatedBy} />
                                     </div>
 
                                     {/* デスクトップ表示 */}

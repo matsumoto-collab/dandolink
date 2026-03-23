@@ -124,6 +124,7 @@ export async function POST(req: NextRequest) {
                 contractAmount: contractAmount || null, scaffoldingSpec: scaffoldingSpec || undefined,
                 description: description || null, remarks: remarks || null,
                 createdBy: stringifyJsonField(createdBy),
+                updatedBy: session!.user.id,
             },
         });
 

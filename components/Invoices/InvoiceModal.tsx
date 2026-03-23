@@ -4,12 +4,13 @@ import React from 'react';
 import InvoiceForm from './InvoiceForm';
 import { InvoiceInput } from '@/types/invoice';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 interface InvoiceModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: InvoiceInput) => Promise<void> | void;
-    initialData?: Partial<InvoiceInput>;
+    initialData?: Partial<InvoiceInput> & { updatedAt?: Date | string; updatedBy?: string };
 }
 
 export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }: InvoiceModalProps) {
@@ -36,9 +37,12 @@ export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }:
             >
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between lg:rounded-t-lg">
-                    <h2 className="text-xl font-semibold text-slate-900">
-                        {initialData ? '請求書編集' : '新規請求書作成'}
-                    </h2>
+                    <div>
+                        <h2 className="text-xl font-semibold text-slate-900">
+                            {initialData ? '請求書編集' : '新規請求書作成'}
+                        </h2>
+                        {initialData && <LastUpdatedLabel updatedAt={initialData.updatedAt} updatedBy={initialData.updatedBy} />}
+                    </div>
                     <button
                         onClick={onClose}
                         className="text-slate-400 hover:text-slate-600 transition-colors"

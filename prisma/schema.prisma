@@ -42,6 +42,7 @@ model ProjectMaster {
   createdBy                  String?
   createdAt                  DateTime            @default(now())
   updatedAt                  DateTime            @updatedAt
+  updatedBy                  String?
   area                       Float?
   areaRemarks                String?
   city                       String?
@@ -93,6 +94,7 @@ model ProjectAssignment {
   isDispatchConfirmed  Boolean               @default(false)
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
+  updatedBy            String?
   constructionType     String?
   estimatedHours       Float                 @default(8.0)
   dispatchRemark       String?
@@ -148,6 +150,7 @@ model Customer {
   notes          String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  updatedBy      String?
   honorific      String   @default("御中")
 
   @@index([name])
@@ -170,6 +173,7 @@ model Estimate {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  updatedBy       String?
   projectMasterId String?
   customerId      String?
 
@@ -199,6 +203,7 @@ model Invoice {
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
+  updatedBy       String?
   projectMasterId String?
   customerId      String?
 
@@ -443,6 +448,7 @@ model DailyReport {
   notes                 String?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
+  updatedBy             String?
   breakMinutes          Int                   @default(0)
   workItems             DailyReportWorkItem[]
 

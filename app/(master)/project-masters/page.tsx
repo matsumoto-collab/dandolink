@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 
@@ -349,6 +350,7 @@ export default function ProjectMasterListPage() {
                                             {pm.assignmentCount ?? 0}件の配置
                                         </span>
                                     </div>
+                                    <LastUpdatedLabel updatedAt={pm.updatedAt} updatedBy={pm.updatedBy} />
                                     {/* モバイル: アクションボタン行 */}
                                     {!isForeman2 && (
                                         <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100" onClick={(e) => e.stopPropagation()}>

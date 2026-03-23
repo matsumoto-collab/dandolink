@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { error } = await requireManagerOrAbove();
+        const { session, error } = await requireManagerOrAbove();
         if (error) return error;
 
         const body = await req.json();
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
                 projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber: finalEstimateNumber, title,
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
                 validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null,
+                updatedBy: session!.user.id,
             },
         });
 

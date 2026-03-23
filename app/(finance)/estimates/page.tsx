@@ -15,6 +15,7 @@ import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Load
 import { useCalendarStore } from '@/stores/calendarStore';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 // 大きなモーダルコンポーネントを遅延読み込み
 const ProjectModal = dynamic(
@@ -350,6 +351,7 @@ export default function EstimateListPage() {
                                             有効期限: {formatDate(estimate.validUntil, 'short')}
                                         </span>
                                     </div>
+                                    <LastUpdatedLabel updatedAt={estimate.updatedAt} updatedBy={estimate.updatedBy} />
                                 </div>
                             );
                         })}

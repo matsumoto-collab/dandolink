@@ -7,6 +7,7 @@ import CustomerModal from '@/components/Customers/CustomerModal';
 import { Button } from '@/components/ui/Button';
 import { Plus, Search, Edit, Trash2, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 export default function CustomersPage() {
     const { customers, isLoading, isInitialized, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -165,6 +166,7 @@ export default function CustomersPage() {
                                         </span>
                                     )}
                                 </div>
+                                <LastUpdatedLabel updatedAt={customer.updatedAt} updatedBy={customer.updatedBy} />
                                 {/* モバイル: アクションボタン行 */}
                                 <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
                                     <button

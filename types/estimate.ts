@@ -29,7 +29,8 @@ export interface Estimate {
     notes?: string;
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;
 }
 
 // 見積書作成時の入力データ
-export type EstimateInput = Omit<Estimate, 'id' | 'createdAt' | 'updatedAt'>;
+export type EstimateInput = Omit<Estimate, 'id' | 'createdAt' | 'updatedAt' | 'updatedBy'>;

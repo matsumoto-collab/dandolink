@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
                         remarks: a.remarks || null,
                         constructionType: a.constructionType || null,
                         estimatedHours: a.estimatedHours ?? 8.0,
+                        updatedBy: session!.user.id,
                         assignmentWorkers: {
                             create: Array.isArray(a.workers)
                                 ? a.workers.map((w: string) => ({ workerName: w }))

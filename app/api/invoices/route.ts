@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const { error } = await requireManagerOrAbove();
+        const { session, error } = await requireManagerOrAbove();
         if (error) return error;
 
         const body = await req.json();
@@ -119,6 +119,7 @@ export async function POST(req: NextRequest) {
                 status: status || 'draft',
                 paidDate: paidDate ? new Date(paidDate) : null,
                 notes: notes || null,
+                updatedBy: session!.user.id,
             },
         });
 

@@ -14,6 +14,7 @@ import { Project } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
 import dynamic from 'next/dynamic';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -143,6 +144,7 @@ export default function EstimateDetailPage() {
                             <h1 className="text-2xl font-bold text-slate-800">
                                 {project.title}
                             </h1>
+                            <LastUpdatedLabel updatedAt={estimate.updatedAt} updatedBy={estimate.updatedBy} />
                         </div>
                     </div>
                     <button

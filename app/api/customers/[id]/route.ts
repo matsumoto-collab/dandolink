@@ -28,7 +28,7 @@ export async function PATCH(
     { params }: { params: { id: string } }
 ) {
     try {
-        const { error } = await requireManagerOrAbove();
+        const { session, error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = params;
@@ -59,6 +59,7 @@ export async function PATCH(
         if (fax !== undefined) updateData.fax = fax || null;
         if (address !== undefined) updateData.address = address || null;
         if (notes !== undefined) updateData.notes = notes || null;
+        updateData.updatedBy = session!.user.id;
 
         const updated = await prisma.customer.update({
             where: { id },

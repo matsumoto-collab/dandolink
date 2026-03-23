@@ -20,6 +20,7 @@ export interface Customer {
     notes?: string;            // 備考
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;
 }
 
 // 顧客作成時の入力データ

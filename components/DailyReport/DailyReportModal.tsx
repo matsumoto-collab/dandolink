@@ -10,6 +10,7 @@ import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, Che
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 interface DailyReportModalProps {
     isOpen: boolean;
@@ -322,9 +323,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]">
                 {/* Header */}
                 <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-slate-200">
-                    <h2 className="text-xl font-semibold text-slate-800">
-                        {selectedReport && !isEditMode ? '日報詳細' : '日報入力'}
-                    </h2>
+                    <div>
+                        <h2 className="text-xl font-semibold text-slate-800">
+                            {selectedReport && !isEditMode ? '日報詳細' : '日報入力'}
+                        </h2>
+                        {selectedReport && <LastUpdatedLabel updatedAt={selectedReport.updatedAt} updatedBy={selectedReport.updatedBy} />}
+                    </div>
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-slate-100 rounded-lg transition-colors"

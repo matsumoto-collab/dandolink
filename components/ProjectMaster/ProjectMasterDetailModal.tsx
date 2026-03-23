@@ -8,6 +8,7 @@ import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
 import { ProjectMasterForm, ProjectMasterFormData, WorkDateEntry, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { ConstructionTypeMaster } from '@/types/calendar';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 
 interface ProjectMasterDetailModalProps {
@@ -157,6 +158,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                         {pm.customerName && (
                             <p className="text-sm text-slate-500 truncate">{pm.customerName}</p>
                         )}
+                        <LastUpdatedLabel updatedAt={pm.updatedAt} updatedBy={pm.updatedBy} />
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                         {!readOnly && (

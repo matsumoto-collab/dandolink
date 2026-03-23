@@ -4,12 +4,13 @@ import React from 'react';
 import EstimateForm from './EstimateForm';
 import { EstimateInput } from '@/types/estimate';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 
 interface EstimateModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSubmit: (data: EstimateInput) => Promise<void> | void;
-    initialData?: Partial<EstimateInput>;
+    initialData?: Partial<EstimateInput> & { updatedAt?: Date | string; updatedBy?: string };
 }
 
 export default function EstimateModal({ isOpen, onClose, onSubmit, initialData }: EstimateModalProps) {
@@ -36,9 +37,12 @@ export default function EstimateModal({ isOpen, onClose, onSubmit, initialData }
             >
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between lg:rounded-t-lg">
-                    <h2 className="text-xl font-semibold text-slate-900">
-                        {initialData ? '見積書編集' : '新規見積書作成'}
-                    </h2>
+                    <div>
+                        <h2 className="text-xl font-semibold text-slate-900">
+                            {initialData ? '見積書編集' : '新規見積書作成'}
+                        </h2>
+                        {initialData && <LastUpdatedLabel updatedAt={initialData.updatedAt} updatedBy={initialData.updatedBy} />}
+                    </div>
                     <button
                         onClick={onClose}
                         className="text-slate-400 hover:text-slate-600 transition-colors"

@@ -179,6 +179,7 @@ export interface ProjectMaster {
     createdBy?: string | string[];   // 案件担当者
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;              // 最終更新者ID
     // リレーション（optional）
     assignments?: ProjectAssignment[];
     assignmentCount?: number;          // 配置件数（一覧表示用）
@@ -209,6 +210,7 @@ export interface ProjectAssignment {
 
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;
 }
 
 // カレンダー表示用：ProjectAssignmentからCalendarEventへの変換時の型
@@ -233,6 +235,7 @@ export interface Project extends CalendarEvent {
     constructionSuffixId?: string;
     createdAt: Date;
     updatedAt: Date;
+    updatedBy?: string;
     createdBy?: string | string[];
     sortOrder?: number;
     assemblyDuration?: number;
