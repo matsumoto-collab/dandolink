@@ -387,8 +387,8 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        // No(25) + Name(170) + Spec(150) + Qty(45) + Unit(35) + Price(60) = 485
-        width: 485,
+        // No(25) + Name(170) + Spec(150) + Qty(45) + Unit(35) + Price(60) = 485 → 少し縮めて金額に余裕
+        width: 455,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
