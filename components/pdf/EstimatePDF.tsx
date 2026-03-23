@@ -194,19 +194,10 @@ const styles = StyleSheet.create({
         paddingLeft: 10,
         justifyContent: 'center',
     },
-    amountDetailRow: {
-        flexDirection: 'row',
-        marginVertical: 1,
-        justifyContent: 'space-between',
-    },
-    amountDetailLabel: {
-        fontSize: 9,
-        color: COLORS.textSecondary,
-        marginRight: 5,
-    },
-    amountDetailValue: {
+    amountDetailText: {
         fontSize: 9,
         textAlign: 'right',
+        marginVertical: 1,
     },
 
     // ===== Info Table =====
@@ -550,14 +541,8 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     </View>
                 </View>
                 <View style={styles.amountDetailArea}>
-                    <View style={styles.amountDetailRow}>
-                        <Text style={styles.amountDetailLabel}>小計</Text>
-                        <Text style={styles.amountDetailValue}>¥{estimate.subtotal.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.amountDetailRow}>
-                        <Text style={styles.amountDetailLabel}>消費税額(10%)</Text>
-                        <Text style={styles.amountDetailValue}>¥{estimate.tax.toLocaleString()}</Text>
-                    </View>
+                    <Text style={styles.amountDetailText}>小計　¥{estimate.subtotal.toLocaleString()}</Text>
+                    <Text style={styles.amountDetailText}>消費税額(10%)　¥{estimate.tax.toLocaleString()}</Text>
                 </View>
             </View>
 
