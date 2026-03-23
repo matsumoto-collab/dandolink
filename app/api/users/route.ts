@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
  * POST /api/users - ユーザー作成
  */
 export async function POST(req: NextRequest) {
-    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.auth);
+    const rateLimitError = await applyRateLimit(req, RATE_LIMITS.api);
     if (rateLimitError) return rateLimitError;
 
     try {
