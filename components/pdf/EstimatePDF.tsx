@@ -197,19 +197,16 @@ const styles = StyleSheet.create({
     amountDetailRow: {
         flexDirection: 'row',
         marginVertical: 1,
-        flexWrap: 'nowrap',
+        justifyContent: 'space-between',
     },
     amountDetailLabel: {
         fontSize: 9,
-        width: 60,
         color: COLORS.textSecondary,
+        marginRight: 5,
     },
     amountDetailValue: {
         fontSize: 9,
-        flex: 1,
         textAlign: 'right',
-        flexShrink: 0,
-        flexWrap: 'nowrap',
     },
 
     // ===== Info Table =====
