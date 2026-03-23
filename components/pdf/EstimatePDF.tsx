@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     // ===== Amount Section =====
     amountSection: {
         marginBottom: 12,
-        width: '60%',
+        width: '100%',
     },
     amountMainRow: {
         flexDirection: 'row',
@@ -464,32 +464,15 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             {/* Top accent bar */}
             <View style={styles.accentBar} fixed />
 
-            {/* Top row: Title (center), Date + No (right) */}
-            <View style={styles.topRow}>
-                <View style={{ width: '25%' }} />
-                <View style={styles.titleCenter}>
-                    <Text style={styles.titleText}>御 見 積 書</Text>
-                </View>
-                <View style={styles.dateRight}>
-                    <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>見積日　{toReiwa(createdDate)}</Text>
-                    <Text style={[styles.estimateNoText, { marginTop: 2 }]}>見積No. {estimate.estimateNumber}</Text>
-                </View>
+            {/* Title center */}
+            <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 15 }}>
+                <Text style={styles.titleText}>御 見 積 書</Text>
             </View>
 
-            {/* Header: Customer (left) + Company (right) */}
+            {/* Main header: Left (customer + greeting + amount) / Right (date + No + company) */}
             <View style={styles.coverHeader}>
-                {/* Left: Customer */}
+                {/* Left side */}
                 <View style={styles.customerArea}>
-                    {project.location && (
-                        <>
-                            <Text style={styles.postalCode}>
-                                {project.location.match(/〒[\d-]+/) ? project.location.match(/〒[\d-]+/)?.[0] : ''}
-                            </Text>
-                            <Text style={styles.addressText}>
-                                {project.location.replace(/〒[\d-]+\s*/, '')}
-                            </Text>
-                        </>
-                    )}
                     {(() => {
                         const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
@@ -497,25 +480,39 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
                     })()}
                     <Text style={styles.greetingText}>下記の通り御見積り申し上げます。</Text>
+
+                    {/* Amount Section */}
+                    <View style={[styles.amountSection, { marginTop: 12 }]}>
+                        <View style={styles.amountMainRow}>
+                            <Text style={styles.amountLabel}>合計金額</Text>
+                            <Text style={styles.amountValue}>¥{estimate.total.toLocaleString()}</Text>
+                            <Text style={styles.amountTaxNote}>（税込）</Text>
+                        </View>
+                        <View style={styles.amountSubRow}>
+                            <Text style={styles.amountSubLabel}>小計</Text>
+                            <Text style={styles.amountSubValue}>¥{estimate.subtotal.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.amountSubRow}>
+                            <Text style={styles.amountSubLabel}>消費税額(10%)</Text>
+                            <Text style={styles.amountSubValue}>¥{estimate.tax.toLocaleString()}</Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Right: Company Info + Seal */}
+                {/* Right side */}
                 <View style={styles.rightArea}>
-                    <View style={styles.companyRow}>
+                    <Text style={{ fontSize: 10, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
+                    <Text style={[styles.estimateNoText, { marginTop: 2, textAlign: 'right' }]}>見積No. {estimate.estimateNumber}</Text>
+
+                    <View style={[styles.companyRow, { marginTop: 10 }]}>
                         <View style={styles.companyInfoBlock}>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
                             )}
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
-                            <Text style={styles.companyText}>
-                                〒{companyInfo.postalCode}
-                            </Text>
-                            <Text style={styles.companyText}>
-                                {companyInfo.address}
-                            </Text>
-                            <Text style={styles.companyText}>
-                                TEL：{companyInfo.tel}　FAX：{companyInfo.fax || ''}
-                            </Text>
+                            <Text style={styles.companyText}>〒{companyInfo.postalCode}</Text>
+                            <Text style={styles.companyText}>{companyInfo.address}</Text>
+                            <Text style={styles.companyText}>TEL：{companyInfo.tel}　FAX：{companyInfo.fax || ''}</Text>
                             {companyInfo.email && (
                                 <Text style={styles.companyText}>{companyInfo.email}</Text>
                             )}
@@ -524,23 +521,6 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                             <Image src={companyInfo.sealImage} style={styles.stampBox} />
                         )}
                     </View>
-                </View>
-            </View>
-
-            {/* Amount Section */}
-            <View style={styles.amountSection}>
-                <View style={styles.amountMainRow}>
-                    <Text style={styles.amountLabel}>合計金額</Text>
-                    <Text style={styles.amountValue}>¥{estimate.total.toLocaleString()}</Text>
-                    <Text style={styles.amountTaxNote}>（税込）</Text>
-                </View>
-                <View style={styles.amountSubRow}>
-                    <Text style={styles.amountSubLabel}>小計</Text>
-                    <Text style={styles.amountSubValue}>¥{estimate.subtotal.toLocaleString()}</Text>
-                </View>
-                <View style={styles.amountSubRow}>
-                    <Text style={styles.amountSubLabel}>消費税額(10%)</Text>
-                    <Text style={styles.amountSubValue}>¥{estimate.tax.toLocaleString()}</Text>
                 </View>
             </View>
 

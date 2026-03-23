@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
     // ===== Amount Section =====
     amountSection: {
         marginBottom: 12,
-        width: '60%',
+        width: '100%',
     },
     amountMainRow: {
         flexDirection: 'row',
@@ -508,32 +508,15 @@ function CoverPage({
             {/* Top accent bar */}
             <View style={styles.accentBar} fixed />
 
-            {/* Top row: Title (center), Date + No (right) */}
-            <View style={styles.topRow}>
-                <View style={{ width: '25%' }} />
-                <View style={styles.titleCenter}>
-                    <Text style={styles.titleText}>請 求 書</Text>
-                </View>
-                <View style={styles.dateRight}>
-                    <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>請求日　{toReiwa(createdDate)}</Text>
-                    <Text style={[styles.invoiceNoText, { marginTop: 2 }]}>請求No. {invoice.invoiceNumber}</Text>
-                </View>
+            {/* Title center */}
+            <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 15 }}>
+                <Text style={styles.titleText}>請 求 書</Text>
             </View>
 
-            {/* Header: Customer (left) + Company (right) */}
+            {/* Main header: Left (customer + greeting + amount) / Right (date + No + company) */}
             <View style={styles.coverHeader}>
-                {/* Left: Customer */}
+                {/* Left side */}
                 <View style={styles.customerArea}>
-                    {project.location && (
-                        <>
-                            <Text style={styles.postalCode}>
-                                {project.location.match(/〒[\d-]+/) ? project.location.match(/〒[\d-]+/)?.[0] : ''}
-                            </Text>
-                            <Text style={styles.addressText}>
-                                {project.location.replace(/〒[\d-]+\s*/, '')}
-                            </Text>
-                        </>
-                    )}
                     {(() => {
                         const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
@@ -545,11 +528,31 @@ function CoverPage({
                         平素は格別のご高配を賜り、厚く御礼申し上げます。{'\n'}
                         下記の通りご請求申し上げます。
                     </Text>
+
+                    {/* Amount Section */}
+                    <View style={[styles.amountSection, { marginTop: 12 }]}>
+                        <View style={styles.amountMainRow}>
+                            <Text style={styles.amountLabel}>合計金額</Text>
+                            <Text style={styles.amountValue}>¥{invoice.total.toLocaleString()}</Text>
+                            <Text style={styles.amountTaxNote}>（税込）</Text>
+                        </View>
+                        <View style={styles.amountSubRow}>
+                            <Text style={styles.amountSubLabel}>小計</Text>
+                            <Text style={styles.amountSubValue}>¥{invoice.subtotal.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.amountSubRow}>
+                            <Text style={styles.amountSubLabel}>消費税額(10%)</Text>
+                            <Text style={styles.amountSubValue}>¥{invoice.tax.toLocaleString()}</Text>
+                        </View>
+                    </View>
                 </View>
 
-                {/* Right: Company Info + Seal */}
+                {/* Right side */}
                 <View style={styles.rightArea}>
-                    <View style={styles.companyRow}>
+                    <Text style={{ fontSize: 10, color: COLORS.textSecondary, textAlign: 'right' }}>請求日　{toReiwa(createdDate)}</Text>
+                    <Text style={[styles.invoiceNoText, { marginTop: 2, textAlign: 'right' }]}>請求No. {invoice.invoiceNumber}</Text>
+
+                    <View style={[styles.companyRow, { marginTop: 10 }]}>
                         <View style={styles.companyInfoBlock}>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
@@ -569,23 +572,6 @@ function CoverPage({
                             <Image src={companyInfo.sealImage} style={styles.stampBox} />
                         )}
                     </View>
-                </View>
-            </View>
-
-            {/* Amount Section */}
-            <View style={styles.amountSection}>
-                <View style={styles.amountMainRow}>
-                    <Text style={styles.amountLabel}>合計金額</Text>
-                    <Text style={styles.amountValue}>¥{invoice.total.toLocaleString()}</Text>
-                    <Text style={styles.amountTaxNote}>（税込）</Text>
-                </View>
-                <View style={styles.amountSubRow}>
-                    <Text style={styles.amountSubLabel}>小計</Text>
-                    <Text style={styles.amountSubValue}>¥{invoice.subtotal.toLocaleString()}</Text>
-                </View>
-                <View style={styles.amountSubRow}>
-                    <Text style={styles.amountSubLabel}>消費税額(10%)</Text>
-                    <Text style={styles.amountSubValue}>¥{invoice.tax.toLocaleString()}</Text>
                 </View>
             </View>
 
