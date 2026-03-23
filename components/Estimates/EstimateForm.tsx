@@ -372,14 +372,13 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         }
     };
 
-    // 合計金額調整（値引き）
-    const handleAdjustTotal = (targetAmount: number) => {
-        // targetAmount は税込合計の目標値
-        // 値引き額 = (現在の税込合計 - 目標額) / 1.1（税込→税抜変換）
-        const discountAmount = Math.round((total - targetAmount) / 1.1);
+    // 小計金額調整（値引き）
+    const handleAdjustSubtotal = (targetSubtotal: number) => {
+        // targetSubtotal は税別小計の目標値
+        const discountAmount = subtotal - targetSubtotal;
 
         if (discountAmount <= 0) {
-            toast.error('現在の合計より大きい金額は指定できません');
+            toast.error('現在の小計より大きい金額は指定できません');
             return;
         }
 
@@ -468,7 +467,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
             {/* 合計エリア（sticky） */}
             <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
-                <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustTotal={handleAdjustTotal} />
+                <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustSubtotal={handleAdjustSubtotal} />
             </div>
 
             {/* ボタン */}

@@ -718,7 +718,7 @@ function CoverPage({
                                         {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                                     </Text>
                                 </View>
-                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
                             </View>
                         );
                     }
@@ -885,7 +885,7 @@ function DetailsPage({
                                         {item ? formatAmount(item.amount, isNegative) : ''}
                                     </Text>
                                 </View>
-                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
                             </View>
                         );
                     }

@@ -6,12 +6,12 @@ interface SummaryFooterProps {
     subtotal: number;
     tax: number;
     total: number;
-    onAdjustTotal?: (targetAmount: number) => void;
+    onAdjustSubtotal?: (targetAmount: number) => void;
 }
 
 type AdjustMode = 'target' | 'rate';
 
-export default function SummaryFooter({ subtotal, tax, total, onAdjustTotal }: SummaryFooterProps) {
+export default function SummaryFooter({ subtotal, tax, total, onAdjustSubtotal }: SummaryFooterProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [mode, setMode] = useState<AdjustMode>('target');
     const [targetInput, setTargetInput] = useState('');
@@ -21,20 +21,20 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustTotal }: S
         if (mode === 'target') {
             const target = parseInt(targetInput.replace(/,/g, ''), 10);
             if (isNaN(target) || target < 0) return { targetAmount: 0, discount: 0 };
-            return { targetAmount: target, discount: total - target };
+            return { targetAmount: target, discount: subtotal - target };
         } else {
             const rate = parseFloat(rateInput);
             if (isNaN(rate) || rate <= 0 || rate > 100) return { targetAmount: 0, discount: 0 };
-            const disc = Math.floor(total * rate / 100);
-            return { targetAmount: total - disc, discount: disc };
+            const disc = Math.floor(subtotal * rate / 100);
+            return { targetAmount: subtotal - disc, discount: disc };
         }
-    }, [mode, targetInput, rateInput, total]);
+    }, [mode, targetInput, rateInput, subtotal]);
 
     const isValid = discount > 0 && targetAmount >= 0;
 
     const handleApply = () => {
-        if (!isValid || !onAdjustTotal) return;
-        onAdjustTotal(targetAmount);
+        if (!isValid || !onAdjustSubtotal) return;
+        onAdjustSubtotal(targetAmount);
         setIsOpen(false);
         setTargetInput('');
         setRateInput('');
@@ -52,19 +52,9 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustTotal }: S
                 {/* 小計 */}
                 <div className="flex flex-col items-start px-4 first:pl-0">
                     <span className="text-xs text-slate-500 mb-0.5">小計</span>
-                    <span className="text-base font-semibold text-slate-800">¥{subtotal.toLocaleString()}</span>
-                </div>
-                {/* 消費税 */}
-                <div className="flex flex-col items-start px-4">
-                    <span className="text-xs text-slate-500 mb-0.5">消費税</span>
-                    <span className="text-base font-semibold text-slate-800">¥{tax.toLocaleString()}</span>
-                </div>
-                {/* 合計 */}
-                <div className="flex flex-col items-start px-4">
-                    <span className="text-xs text-slate-500 mb-0.5">合計</span>
                     <div className="flex items-center gap-2">
-                        <span className="text-base font-bold text-slate-700">¥{total.toLocaleString()}</span>
-                        {onAdjustTotal && (
+                        <span className="text-base font-semibold text-slate-800">¥{subtotal.toLocaleString()}</span>
+                        {onAdjustSubtotal && (
                             <button
                                 type="button"
                                 onClick={() => setIsOpen(!isOpen)}
@@ -74,6 +64,16 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustTotal }: S
                             </button>
                         )}
                     </div>
+                </div>
+                {/* 消費税 */}
+                <div className="flex flex-col items-start px-4">
+                    <span className="text-xs text-slate-500 mb-0.5">消費税</span>
+                    <span className="text-base font-semibold text-slate-800">¥{tax.toLocaleString()}</span>
+                </div>
+                {/* 合計 */}
+                <div className="flex flex-col items-start px-4">
+                    <span className="text-xs text-slate-500 mb-0.5">合計</span>
+                    <span className="text-base font-bold text-slate-700">¥{total.toLocaleString()}</span>
                 </div>
             </div>
 
@@ -119,7 +119,7 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustTotal }: S
                                 inputMode="numeric"
                                 value={targetInput}
                                 onChange={(e) => setTargetInput(e.target.value.replace(/[^0-9,]/g, ''))}
-                                placeholder={total.toLocaleString()}
+                                placeholder={subtotal.toLocaleString()}
                                 className="flex-1 text-base py-2.5 px-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm outline-none"
                             />
                         </div>

@@ -655,7 +655,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                         {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                                     </Text>
                                 </View>
-                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
                             </View>
                         );
                     }
@@ -741,7 +741,7 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
                     {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                 </Text>
             </View>
-            <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+            <View style={styles.cellRemarks}><Text style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
         </View>
     );
 }
