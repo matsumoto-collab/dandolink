@@ -266,23 +266,25 @@ const styles = StyleSheet.create({
     // ===== Details Table =====
     table: {
         width: '100%',
-        borderWidth: 0.5,
+        borderWidth: 1,
         borderColor: COLORS.borderDark,
     },
     tableHeader: {
         flexDirection: 'row',
-        borderBottomWidth: 0.5,
+        borderBottomWidth: 1,
         borderBottomColor: COLORS.borderDark,
         minHeight: 18,
     },
     tableRow: {
         flexDirection: 'row',
-        borderBottomWidth: 0.3,
-        borderBottomColor: COLORS.borderLight,
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderMedium,
         minHeight: 20,
     },
     tableRowLast: {
         flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderMedium,
         minHeight: 20,
     },
     projectHeaderRow: {
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     cellNo: {
         width: 15,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'center',
@@ -304,21 +306,21 @@ const styles = StyleSheet.create({
     cellName: {
         width: 130,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellSpec: {
         width: 130,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellQty: {
         width: 40,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
@@ -326,7 +328,7 @@ const styles = StyleSheet.create({
     cellUnit: {
         width: 30,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'center',
@@ -334,7 +336,7 @@ const styles = StyleSheet.create({
     cellPrice: {
         width: 55,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
@@ -342,7 +344,7 @@ const styles = StyleSheet.create({
     cellAmount: {
         width: 65,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
@@ -388,7 +390,7 @@ const styles = StyleSheet.create({
     totalLabelCell: {
         width: 315,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
@@ -402,7 +404,7 @@ const styles = StyleSheet.create({
     totalAmountCell: {
         width: 65,
         padding: 3,
-        borderRightWidth: 0.3,
+        borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
