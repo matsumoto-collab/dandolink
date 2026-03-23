@@ -48,7 +48,7 @@ interface WeeklyCalendarProps {
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
     const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
-    const { totalMembers } = useMasterData();
+    const { totalMembers, updateTotalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
     const { getProjectMasterById } = useProjectMasters();
@@ -338,11 +338,13 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         await updateProjectWithConflictHandling(projectId, updates);
     }, [updateProjectWithConflictHandling, projectsRef]);
 
-    // カード上の人数変更
-    const handleMemberCountChange = useCallback(async (eventId: string, newCount: number) => {
-        const projectId = eventId.replace(/-assembly$/, '').replace(/-demolition$/, '');
-        await updateProjectWithConflictHandling(projectId, { memberCount: newCount });
-    }, [updateProjectWithConflictHandling]);
+    // 総メンバー数の+/-調整
+    const handleTotalMembersChange = useCallback(async (delta: number) => {
+        const newCount = totalMembers + delta;
+        if (newCount >= 0) {
+            await updateTotalMembers(newCount);
+        }
+    }, [totalMembers, updateTotalMembers]);
 
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
@@ -407,7 +409,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     moveForeman={isReadOnly ? undefined : moveForeman}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
-                    handleMemberCountChange={isReadOnly ? undefined : handleMemberCountChange}
+                    handleTotalMembersChange={isReadOnly ? undefined : handleTotalMembersChange}
                 />
             )}
 

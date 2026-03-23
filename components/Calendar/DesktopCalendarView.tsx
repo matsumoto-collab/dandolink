@@ -42,7 +42,7 @@ interface DesktopCalendarViewProps {
     moveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
-    handleMemberCountChange?: (eventId: string, newCount: number) => void;
+    handleTotalMembersChange?: (delta: number) => void;
 }
 
 export default function DesktopCalendarView({
@@ -73,7 +73,7 @@ export default function DesktopCalendarView({
     moveForeman,
     handleOpenDispatchModal,
     handleCopyEvent,
-    handleMemberCountChange,
+    handleTotalMembersChange,
 }: DesktopCalendarViewProps) {
     return (
         <DndContext
@@ -120,8 +120,26 @@ export default function DesktopCalendarView({
                             {/* 未割り当て行 */}
                             <div className="flex border-b-2 border-slate-400 bg-slate-100 h-9">
                                 <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-400 shadow-md">
-                                    <div className="w-32 h-full flex items-center justify-center">
-                                        <span className="text-xs font-bold text-slate-700 tracking-wide truncate">{'残り人数'}</span>
+                                    <div className="w-32 h-full flex items-center justify-center gap-1">
+                                        {handleTotalMembersChange && (
+                                            <button
+                                                onClick={() => handleTotalMembersChange(-1)}
+                                                className="w-5 h-5 flex items-center justify-center rounded bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold leading-none"
+                                                title="総メンバー数を減らす"
+                                            >
+                                                −
+                                            </button>
+                                        )}
+                                        <span className="text-xs font-bold text-slate-700 tracking-wide">{totalMembers}人</span>
+                                        {handleTotalMembersChange && (
+                                            <button
+                                                onClick={() => handleTotalMembersChange(1)}
+                                                className="w-5 h-5 flex items-center justify-center rounded bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold leading-none"
+                                                title="総メンバー数を増やす"
+                                            >
+                                                +
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                                 {weekDays.map((day, index) => {
@@ -170,7 +188,6 @@ export default function DesktopCalendarView({
                                     projects={projects}
                                     isReadOnly={isReadOnly}
                                     onCopyEvent={isReadOnly ? undefined : handleCopyEvent}
-                                    onMemberCountChange={isReadOnly ? undefined : handleMemberCountChange}
                                     getEditingUsers={getEditingUsers}
                                 />
                             ))}
