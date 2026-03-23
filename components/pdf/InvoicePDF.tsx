@@ -150,52 +150,50 @@ const styles = StyleSheet.create({
 
     // ===== Amount Section =====
     amountSection: {
-        flexDirection: 'row',
         marginBottom: 12,
+        width: '100%',
     },
-    amountBox: {
+    amountMainRow: {
         flexDirection: 'row',
-        borderWidth: 1.5,
-        borderColor: COLORS.navy,
-        width: '55%',
-    },
-    amountLabelBox: {
-        backgroundColor: COLORS.navy,
-        paddingVertical: 10,
-        paddingHorizontal: 14,
-        justifyContent: 'center',
+        alignItems: 'baseline',
+        borderBottomWidth: 1.5,
+        borderBottomColor: COLORS.textPrimary,
+        paddingBottom: 4,
+        marginBottom: 2,
     },
     amountLabel: {
         fontSize: 12,
-        color: COLORS.headerText,
         fontWeight: 'bold',
-    },
-    amountValueBox: {
-        flex: 1,
-        paddingVertical: 8,
-        paddingHorizontal: 15,
-        alignItems: 'flex-end',
-        justifyContent: 'center',
+        width: '30%',
     },
     amountValue: {
-        fontSize: 22,
+        fontSize: 18,
         fontWeight: 'bold',
-        color: COLORS.navy,
+        textAlign: 'center',
+        width: '45%',
     },
     amountTaxNote: {
-        fontSize: 8,
-        color: COLORS.textSecondary,
-        marginTop: 2,
-    },
-    amountDetailArea: {
-        width: '42%',
-        paddingLeft: 10,
-        justifyContent: 'center',
-    },
-    amountDetailText: {
         fontSize: 9,
-        textAlign: 'right',
-        marginVertical: 1,
+        color: COLORS.textSecondary,
+        width: '25%',
+    },
+    amountSubRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderLight,
+        borderBottomStyle: 'dashed',
+        paddingVertical: 2,
+    },
+    amountSubLabel: {
+        fontSize: 9,
+        color: COLORS.textSecondary,
+        width: '30%',
+        textAlign: 'center',
+    },
+    amountSubValue: {
+        fontSize: 9,
+        width: '45%',
+        textAlign: 'center',
     },
 
     // ===== Info Table =====
@@ -576,18 +574,18 @@ function CoverPage({
 
             {/* Amount Section */}
             <View style={styles.amountSection}>
-                <View style={styles.amountBox}>
-                    <View style={styles.amountLabelBox}>
-                        <Text style={styles.amountLabel}>ご請求額</Text>
-                    </View>
-                    <View style={styles.amountValueBox}>
-                        <Text style={styles.amountValue}>¥{invoice.total.toLocaleString()}</Text>
-                        <Text style={styles.amountTaxNote}>（税込）</Text>
-                    </View>
+                <View style={styles.amountMainRow}>
+                    <Text style={styles.amountLabel}>合計金額</Text>
+                    <Text style={styles.amountValue}>¥{invoice.total.toLocaleString()}</Text>
+                    <Text style={styles.amountTaxNote}>（税込）</Text>
                 </View>
-                <View style={styles.amountDetailArea}>
-                    <Text style={styles.amountDetailText}>小計　¥{invoice.subtotal.toLocaleString()}</Text>
-                    <Text style={styles.amountDetailText}>消費税額(10%)　¥{invoice.tax.toLocaleString()}</Text>
+                <View style={styles.amountSubRow}>
+                    <Text style={styles.amountSubLabel}>小計</Text>
+                    <Text style={styles.amountSubValue}>¥{invoice.subtotal.toLocaleString()}</Text>
+                </View>
+                <View style={styles.amountSubRow}>
+                    <Text style={styles.amountSubLabel}>消費税額(10%)</Text>
+                    <Text style={styles.amountSubValue}>¥{invoice.tax.toLocaleString()}</Text>
                 </View>
             </View>
 
