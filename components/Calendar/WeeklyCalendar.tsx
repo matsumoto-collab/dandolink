@@ -340,12 +340,15 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     }, [updateProjectWithConflictHandling, projectsRef]);
 
     // 日別メンバー調整
-    const getMemberAdjustment = useCalendarStore((state) => state.getMemberAdjustment);
+    const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
     const setMemberAdjustment = useCalendarStore((state) => state.setMemberAdjustment);
-    const handleMemberAdjustmentChange = useCallback(async (dateKey: string, delta: number) => {
-        const current = getMemberAdjustment(dateKey);
-        await setMemberAdjustment(dateKey, current + delta);
-    }, [getMemberAdjustment, setMemberAdjustment]);
+    const getMemberAdjustmentCb = useCallback((dateKey: string) => {
+        return memberAdjustments[dateKey] || 0;
+    }, [memberAdjustments]);
+    const handleMemberAdjustmentChange = useCallback((dateKey: string, delta: number) => {
+        const current = memberAdjustments[dateKey] || 0;
+        setMemberAdjustment(dateKey, current + delta); // fire-and-forget
+    }, [memberAdjustments, setMemberAdjustment]);
 
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
@@ -410,7 +413,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     moveForeman={isReadOnly ? undefined : moveForeman}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
-                    getMemberAdjustment={getMemberAdjustment}
+                    getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                 />
             )}
