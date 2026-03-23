@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner';
+export type UserRole = 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner' | 'support';
 
 export interface Permission {
     resource: string;

@@ -75,7 +75,9 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 dataToSave.hourlyRate = formData.hourlyRate !== '' ? Number(formData.hourlyRate) : undefined;
             }
 
-            if (mode === 'create') {
+            if (formData.role === 'support') {
+                // 応援は名前・時給・ロールのみ
+            } else if (mode === 'create') {
                 dataToSave.username = formData.username;
                 dataToSave.password = formData.password;
             } else if (formData.password) {
@@ -121,38 +123,27 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 {/* Form */}
                 <form onSubmit={handleSubmit} className="p-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Username */}
+                        {/* Role - moved to top so support hides fields below */}
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
-                                ユーザー名 <span className="text-slate-500">*</span>
+                            <label htmlFor="role" className="block text-sm font-medium text-slate-700 mb-2">
+                                ロール <span className="text-slate-500">*</span>
                             </label>
-                            <input
-                                id="username"
-                                type="text"
-                                value={formData.username}
-                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent disabled:bg-slate-100"
-                                required
-                                disabled={mode === 'edit'}
-                            />
-                            {mode === 'edit' && (
-                                <p className="mt-1 text-xs text-slate-500">ユーザー名は変更できません</p>
-                            )}
-                        </div>
-
-                        {/* Email */}
-                        <div>
-                            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
-                                メールアドレス <span className="text-slate-500">*</span>
-                            </label>
-                            <input
-                                id="email"
-                                type="email"
-                                value={formData.email}
-                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            <select
+                                id="role"
+                                value={formData.role}
+                                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
                                 className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                 required
-                            />
+                                disabled={mode === 'edit' && user?.role === 'support'}
+                            >
+                                <option value="admin">管理者</option>
+                                <option value="manager">マネージャー</option>
+                                <option value="foreman1">職長1（全般操作可）</option>
+                                <option value="foreman2">職長2（自班のみ操作可）</option>
+                                <option value="worker">職方（自班のみ表示）</option>
+                                <option value="partner">協力会社（閲覧のみ）</option>
+                                <option value="support">応援（ログイン不可）</option>
+                            </select>
                         </div>
 
                         {/* Display Name */}
@@ -170,7 +161,46 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                             />
                         </div>
 
-                        {/* Password */}
+                        {/* Username - hidden for support */}
+                        {formData.role !== 'support' && (
+                        <div>
+                            <label htmlFor="username" className="block text-sm font-medium text-slate-700 mb-2">
+                                ユーザー名 <span className="text-slate-500">*</span>
+                            </label>
+                            <input
+                                id="username"
+                                type="text"
+                                value={formData.username}
+                                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent disabled:bg-slate-100"
+                                required
+                                disabled={mode === 'edit'}
+                            />
+                            {mode === 'edit' && (
+                                <p className="mt-1 text-xs text-slate-500">ユーザー名は変更できません</p>
+                            )}
+                        </div>
+                        )}
+
+                        {/* Email - hidden for support */}
+                        {formData.role !== 'support' && (
+                        <div>
+                            <label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+                                メールアドレス <span className="text-slate-500">*</span>
+                            </label>
+                            <input
+                                id="email"
+                                type="email"
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                required
+                            />
+                        </div>
+                        )}
+
+                        {/* Password - hidden for support */}
+                        {formData.role !== 'support' && (
                         <div>
                             <label htmlFor="password" className="block text-sm font-medium text-slate-700 mb-2">
                                 パスワード {mode === 'create' && <span className="text-slate-500">*</span>}
@@ -185,27 +215,17 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                 placeholder={mode === 'edit' ? '変更する場合のみ入力' : ''}
                             />
                         </div>
+                        )}
 
-                        {/* Role */}
-                        <div>
-                            <label htmlFor="role" className="block text-sm font-medium text-slate-700 mb-2">
-                                ロール <span className="text-slate-500">*</span>
-                            </label>
-                            <select
-                                id="role"
-                                value={formData.role}
-                                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
-                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                                required
-                            >
-                                <option value="admin">管理者</option>
-                                <option value="manager">マネージャー</option>
-                                <option value="foreman1">職長1（全般操作可）</option>
-                                <option value="foreman2">職長2（自班のみ操作可）</option>
-                                <option value="worker">職方（自班のみ表示）</option>
-                                <option value="partner">協力会社（閲覧のみ）</option>
-                            </select>
-                        </div>
+                        {formData.role === 'support' && (
+                            <div className="md:col-span-2">
+                                <p className="text-sm text-slate-500 bg-slate-50 p-3 rounded-lg">
+                                    応援メンバーはログインできません。手配確定時のメンバー選択に表示されます。
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Role is now at the top of the form */}
 
                         {/* Active Status */}
                         <div className="flex items-center">

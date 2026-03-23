@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { canManageUsers } from '@/utils/permissions';
-import { createUserSchema, validateRequest } from '@/lib/validations';
+import { createUserSchema, createSupportUserSchema, validateRequest } from '@/lib/validations';
 import { requireAuth, parseJsonField, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 
 /**
@@ -70,6 +70,35 @@ export async function POST(req: NextRequest) {
         if (!canManageUsers(session!.user)) return errorResponse('権限がありません', 403);
 
         const body = await req.json();
+
+        // 応援ユーザーは名前と時給のみで作成可能
+        if (body.role === 'support') {
+            const validation = validateRequest(createSupportUserSchema, body);
+            if (!validation.success) {
+                return validationErrorResponse(validation.error!, validation.details);
+            }
+            const { displayName, hourlyRate } = validation.data;
+            const uniqueId = `support_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+            const newUser = await prisma.user.create({
+                data: {
+                    username: uniqueId,
+                    email: `${uniqueId}@support.local`,
+                    displayName,
+                    passwordHash: '!nologin',
+                    role: 'SUPPORT',
+                    hourlyRate: hourlyRate != null ? hourlyRate : null,
+                    isActive: true,
+                },
+            });
+            return NextResponse.json({
+                id: newUser.id, username: newUser.username, email: newUser.email, displayName: newUser.displayName,
+                role: newUser.role.toLowerCase(),
+                assignedProjects: [],
+                hourlyRate: newUser.hourlyRate ? Number(newUser.hourlyRate) : null,
+                isActive: newUser.isActive, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt,
+            });
+        }
+
         const validation = validateRequest(createUserSchema, body);
         if (!validation.success) {
             return validationErrorResponse(validation.error!, validation.details);

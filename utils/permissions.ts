@@ -63,6 +63,15 @@ const ROLE_PERMISSIONS = {
         users: [],
         assignments: ['view'], // 自分のみ表示
     },
+    support: {
+        projects: [],
+        estimates: [],
+        invoices: [],
+        customers: [],
+        settings: [],
+        users: [],
+        assignments: [], // ログイン不可 — 手配メンバー選択にのみ表示
+    },
 } as const;
 
 /**
@@ -157,6 +166,8 @@ export function getRoleDisplayName(role: string): string {
             return '職方';
         case 'partner':
             return '協力会社';
+        case 'support':
+            return '応援';
         default:
             return role;
     }

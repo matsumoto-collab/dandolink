@@ -25,7 +25,7 @@ export const phoneSchema = z
 // User Schemas
 // ============================================
 
-export const userRoleSchema = z.enum(['admin', 'manager', 'foreman1', 'foreman2', 'worker', 'partner']);
+export const userRoleSchema = z.enum(['admin', 'manager', 'foreman1', 'foreman2', 'worker', 'partner', 'support']);
 
 export const createUserSchema = z.object({
     username: z
@@ -41,6 +41,15 @@ export const createUserSchema = z.object({
     password: passwordSchema,
     role: userRoleSchema,
     assignedProjects: z.array(z.string()).optional(),
+    hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
+});
+
+export const createSupportUserSchema = z.object({
+    displayName: z
+        .string()
+        .min(1, '表示名は必須です')
+        .max(100, '表示名は100文字以内で入力してください'),
+    role: z.literal('support'),
     hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
 });
 
