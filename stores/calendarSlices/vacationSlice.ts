@@ -4,18 +4,26 @@ import { sendBroadcast } from '@/lib/broadcastChannel';
 type VacationSlice = Pick<CalendarState, 'vacations' | 'vacationsLoading' | 'vacationsInitialized'> &
     Pick<CalendarActions, 'fetchVacations' | 'getVacationEmployees' | 'setVacationEmployees' | 'addVacationEmployee' | 'removeVacationEmployee' | 'getVacationRemarks' | 'setVacationRemarks'>;
 
+// 自身の保存操作中にRealtime/Broadcastによる再fetchを抑止するフラグ
+let savingVacation = false;
+
 export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => ({
     vacations: {},
     vacationsLoading: false,
     vacationsInitialized: false,
 
     fetchVacations: async () => {
+        // 自身の保存操作中は再fetchをスキップ（楽観的更新を上書きしない）
+        if (savingVacation) return;
         set({ vacationsLoading: true });
         try {
             const response = await fetch('/api/calendar/vacations', { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
-                set({ vacations: data, vacationsInitialized: true });
+                // 保存中にfetchが走った場合は無視
+                if (!savingVacation) {
+                    set({ vacations: data, vacationsInitialized: true });
+                }
             }
         } catch (error) {
             console.error('Failed to fetch vacations:', error);
@@ -37,6 +45,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                 [dateKey]: { employeeIds, remarks: currentRemarks },
             },
         }));
+        savingVacation = true;
         try {
             const res = await fetch('/api/calendar/vacations', {
                 method: 'POST',
@@ -53,6 +62,9 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                     [dateKey]: previousVacation || { employeeIds: [], remarks: '' },
                 },
             }));
+        } finally {
+            // Realtime通知が落ち着くまで少し待ってからフラグを解除
+            setTimeout(() => { savingVacation = false; }, 1000);
         }
     },
 
@@ -81,6 +93,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                 [dateKey]: { employeeIds: currentEmployees, remarks },
             },
         }));
+        savingVacation = true;
         try {
             const res = await fetch('/api/calendar/vacations', {
                 method: 'POST',
@@ -97,6 +110,8 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                     [dateKey]: previousVacation || { employeeIds: [], remarks: '' },
                 },
             }));
+        } finally {
+            setTimeout(() => { savingVacation = false; }, 1000);
         }
     },
 });
