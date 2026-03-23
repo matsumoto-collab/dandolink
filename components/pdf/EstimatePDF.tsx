@@ -67,7 +67,6 @@ const styles = StyleSheet.create({
     estimateNoText: {
         fontSize: 9,
         color: COLORS.textSecondary,
-        width: '25%',
     },
     titleCenter: {
         width: '50%',
