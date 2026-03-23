@@ -338,6 +338,12 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         await updateProjectWithConflictHandling(projectId, updates);
     }, [updateProjectWithConflictHandling, projectsRef]);
 
+    // カード上の人数変更
+    const handleMemberCountChange = useCallback(async (eventId: string, newCount: number) => {
+        const projectId = eventId.replace(/-assembly$/, '').replace(/-demolition$/, '');
+        await updateProjectWithConflictHandling(projectId, { memberCount: newCount });
+    }, [updateProjectWithConflictHandling]);
+
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
         return (
@@ -401,6 +407,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     moveForeman={isReadOnly ? undefined : moveForeman}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
+                    handleMemberCountChange={isReadOnly ? undefined : handleMemberCountChange}
                 />
             )}
 

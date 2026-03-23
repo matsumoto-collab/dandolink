@@ -42,6 +42,7 @@ interface DesktopCalendarViewProps {
     moveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
+    handleMemberCountChange?: (eventId: string, newCount: number) => void;
 }
 
 export default function DesktopCalendarView({
@@ -72,6 +73,7 @@ export default function DesktopCalendarView({
     moveForeman,
     handleOpenDispatchModal,
     handleCopyEvent,
+    handleMemberCountChange,
 }: DesktopCalendarViewProps) {
     return (
         <DndContext
@@ -168,6 +170,7 @@ export default function DesktopCalendarView({
                                     projects={projects}
                                     isReadOnly={isReadOnly}
                                     onCopyEvent={isReadOnly ? undefined : handleCopyEvent}
+                                    onMemberCountChange={isReadOnly ? undefined : handleMemberCountChange}
                                     getEditingUsers={getEditingUsers}
                                 />
                             ))}

@@ -24,6 +24,7 @@ interface EmployeeRowComponentProps {
     isReadOnly?: boolean;
     onCopyEvent?: (eventId: string) => void;
     getEditingUsers?: (assignmentId: string) => EditingUser[];
+    onMemberCountChange?: (eventId: string, newCount: number) => void;
 }
 
 export default function EmployeeRowComponent({
@@ -43,6 +44,7 @@ export default function EmployeeRowComponent({
     isReadOnly = false,
     onCopyEvent,
     getEditingUsers,
+    onMemberCountChange,
 }: EmployeeRowComponentProps) {
 
     const handleDelete = () => {
@@ -151,6 +153,7 @@ export default function EmployeeRowComponent({
                                     canDispatch={canDispatch}
                                     disabled={isReadOnly}
                                     onCopy={onCopyEvent ? () => onCopyEvent(event.id) : undefined}
+                                    onMemberCountChange={onMemberCountChange ? (count: number) => onMemberCountChange(event.id, count) : undefined}
                                     editingUsers={getEditingUsers?.(projectId)}
                                 />
                             );

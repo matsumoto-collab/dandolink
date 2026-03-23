@@ -17,6 +17,7 @@ interface DraggableEventCardProps {
     canDispatch?: boolean;
     disabled?: boolean;
     onCopy?: () => void;
+    onMemberCountChange?: (newCount: number) => void;
 }
 
 export default function DraggableEventCard({
@@ -31,6 +32,7 @@ export default function DraggableEventCard({
     canDispatch = false,
     disabled = false,
     onCopy,
+    onMemberCountChange,
     editingUsers = [],
 }: DraggableEventCardProps) {
     const hasOtherEditors = editingUsers.length > 0;
@@ -124,12 +126,40 @@ export default function DraggableEventCard({
                             {/* 3段目: 人数 + 時間 */}
                             <div className="flex items-center gap-1 mt-0.5 text-slate-700">
                                 {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && (
-                                    <>
+                                    <div className="flex items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                                         </svg>
-                                        <span>{event.memberCount ?? event.workers?.length ?? 0}人</span>
-                                    </>
+                                        {onMemberCountChange ? (
+                                            <>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const current = event.memberCount ?? event.workers?.length ?? 0;
+                                                        if (current > 0) onMemberCountChange(current - 1);
+                                                    }}
+                                                    className="w-4 h-4 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold leading-none"
+                                                    title="人数を減らす"
+                                                >
+                                                    −
+                                                </button>
+                                                <span className="min-w-[1.2rem] text-center">{event.memberCount ?? event.workers?.length ?? 0}人</span>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const current = event.memberCount ?? event.workers?.length ?? 0;
+                                                        onMemberCountChange(current + 1);
+                                                    }}
+                                                    className="w-4 h-4 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-bold leading-none"
+                                                    title="人数を増やす"
+                                                >
+                                                    +
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <span>{event.memberCount ?? event.workers?.length ?? 0}人</span>
+                                        )}
+                                    </div>
                                 )}
                                 {event.estimatedHours != null && (
                                     <>
