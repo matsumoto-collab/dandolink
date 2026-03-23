@@ -16,20 +16,20 @@ import { toReiwa, sanitizePdfText } from './styles';
 
 // ===== Color Palette =====
 const COLORS = {
-    navy: '#1a365d',
-    navyLight: '#2c5282',
-    headerBg: '#1a365d',
+    navy: '#222222',
+    navyLight: '#444444',
+    headerBg: '#333333',
     headerText: '#ffffff',
-    infoBg: '#f0f4f8',
-    zebraStripe: '#f8fafc',
-    borderDark: '#2d3748',
-    borderLight: '#cbd5e0',
-    borderMedium: '#a0aec0',
-    textPrimary: '#1a202c',
-    textSecondary: '#4a5568',
-    red: '#e53e3e',
+    infoBg: '#f5f5f5',
+    zebraStripe: '#fafafa',
+    borderDark: '#333333',
+    borderLight: '#d4d4d4',
+    borderMedium: '#a3a3a3',
+    textPrimary: '#1a1a1a',
+    textSecondary: '#525252',
+    red: '#dc2626',
     white: '#ffffff',
-    totalBg: '#edf2f7',
+    totalBg: '#f0f0f0',
 };
 
 // ===== Styles =====
