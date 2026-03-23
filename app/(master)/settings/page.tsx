@@ -35,7 +35,7 @@ export default function SettingsPage() {
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
         const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'users'; label: string; count: number | null }> = [
-            { id: 'vehicles' as const, label: '車両管理', count: vehicles.length },
+            { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
             { id: 'constructionSuffixes' as const, label: '工事名称', count: null },
@@ -49,7 +49,7 @@ export default function SettingsPage() {
         }
 
         return baseTabs;
-    }, [isUserAdmin, vehicles.length]);
+    }, [isUserAdmin]);
 
     const handleAdd = () => {
         if (!newItemName.trim()) return;
