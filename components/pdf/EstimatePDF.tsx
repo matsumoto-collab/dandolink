@@ -354,6 +354,7 @@ const styles = StyleSheet.create({
         fontSize: 8,
         color: COLORS.textSecondary,
         textAlign: 'center',
+        width: '100%',
     },
     cellText: {
         fontSize: 8,
@@ -391,19 +392,10 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     totalSubtotalLabel: {
-        width: 30,
+        width: 85,
         padding: 3,
-        borderRightWidth: 0.3,
-        borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
-        alignItems: 'center',
-    },
-    totalPriceCell: {
-        width: 55,
-        padding: 3,
-        borderRightWidth: 0.3,
-        borderRightColor: COLORS.borderMedium,
-        justifyContent: 'center',
+        alignItems: 'flex-end',
     },
     totalAmountCell: {
         width: 65,
@@ -674,7 +666,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
-                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
+
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
                     </View>
@@ -823,7 +815,7 @@ function CategoryDetailsPage({
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
-                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
+
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{category.amount.toLocaleString()}</Text>
                     </View>
@@ -891,7 +883,7 @@ function FlatDetailsPage({
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
-                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
+
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.subtotal.toLocaleString()}</Text>
                     </View>
@@ -902,7 +894,7 @@ function FlatDetailsPage({
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>消費税</Text>
                     </View>
-                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
+
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.tax.toLocaleString()}</Text>
                     </View>
@@ -913,7 +905,7 @@ function FlatDetailsPage({
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={{ ...styles.totalLabelText, fontSize: 10 }}>合計</Text>
                     </View>
-                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
+
                     <View style={styles.totalAmountCell}>
                         <Text style={{ ...styles.totalAmountText, fontSize: 10 }}>
                             {estimate.total.toLocaleString()}
