@@ -273,33 +273,24 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: COLORS.headerBg,
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 22,
+        minHeight: 18,
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.3,
         borderBottomColor: COLORS.borderLight,
-        minHeight: 17,
-    },
-    tableRowZebra: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.3,
-        borderBottomColor: COLORS.borderLight,
-        minHeight: 17,
-        backgroundColor: COLORS.zebraStripe,
+        minHeight: 20,
     },
     tableRowLast: {
         flexDirection: 'row',
-        minHeight: 17,
+        minHeight: 20,
     },
 
-    // Column styles (portrait A4 = ~525pt usable width)
-    // No.(25) + Name(170) + Spec(150) + Qty(45) + Unit(35) + Price(60) + Amount(70) = 555 ≈ usable
+    // Column styles — No(15) + Name(130) + Spec(130) + Qty(40) + Unit(30) + Price(55) + Amount(65) + Remarks(flex)
     cellNo: {
-        width: 25,
+        width: 15,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -307,21 +298,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellName: {
-        width: 170,
+        width: 130,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellSpec: {
-        width: 150,
+        width: 130,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellQty: {
-        width: 45,
+        width: 40,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -329,7 +320,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     cellUnit: {
-        width: 35,
+        width: 30,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -337,7 +328,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellPrice: {
-        width: 60,
+        width: 55,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -345,18 +336,24 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     cellAmount: {
+        width: 65,
+        padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+    },
+    cellRemarks: {
         flex: 1,
         padding: 3,
         justifyContent: 'center',
-        alignItems: 'flex-end',
     },
 
     // Header cell text
     headerCellText: {
         fontSize: 8,
-        color: COLORS.headerText,
+        color: COLORS.textSecondary,
         textAlign: 'center',
-        fontWeight: 'bold',
     },
     cellText: {
         fontSize: 8,
@@ -385,19 +382,40 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        // No(25) + Name(170) + Spec(150) + Qty(45) + Unit(35) + Price(60) = 485 → 少し縮めて金額に余裕
-        width: 455,
+        // No(15)+Name(130)+Spec(130)+Qty(40) = 315, then Unit shows 小計
+        width: 315,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
-    totalAmountCell: {
-        flex: 1,
+    totalSubtotalLabel: {
+        width: 30,
         padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    totalPriceCell: {
+        width: 55,
+        padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
+        justifyContent: 'center',
+    },
+    totalAmountCell: {
+        width: 65,
+        padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
+    },
+    totalRemarksCell: {
+        flex: 1,
+        padding: 3,
     },
     totalLabelText: {
         fontSize: 9,
@@ -586,30 +604,30 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             <View style={styles.table}>
                 {/* Header */}
                 <View style={styles.tableHeader}>
-                    <View style={styles.cellNo}><Text style={styles.headerCellText}>No.</Text></View>
+                    <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
                     <View style={styles.cellSpec}><Text style={styles.headerCellText}>規格</Text></View>
                     <View style={styles.cellQty}><Text style={styles.headerCellText}>数量</Text></View>
                     <View style={styles.cellUnit}><Text style={styles.headerCellText}>単位</Text></View>
                     <View style={styles.cellPrice}><Text style={styles.headerCellText}>単価</Text></View>
                     <View style={styles.cellAmount}><Text style={styles.headerCellText}>金額</Text></View>
+                    <View style={styles.cellRemarks}><Text style={styles.headerCellText}>備考</Text></View>
                 </View>
 
-                {/* Body Rows — トップレベル項目のみ（カテゴリはamount集計で1行表示） */}
+                {/* Body Rows */}
                 {(() => {
-                    const topItems = estimate.items; // トップレベルのみ（childrenは展開しない）
+                    const topItems = estimate.items;
                     const maxRows = 15;
                     const rows = [];
 
                     for (let i = 0; i < maxRows; i++) {
                         const item = i < topItems.length ? topItems[i] : null;
-                        const isZebra = i % 2 === 1;
                         const isLast = i === maxRows - 1;
                         const isNegative = item ? item.amount < 0 : false;
                         const isCat = item?.isCategory;
 
                         rows.push(
-                            <View key={i} style={isLast ? styles.tableRowLast : (isZebra ? styles.tableRowZebra : styles.tableRow)}>
+                            <View key={i} style={isLast ? styles.tableRowLast : styles.tableRow}>
                                 <View style={styles.cellNo}>
                                     <Text style={styles.cellTextCenter}>{item ? i + 1 : ''}</Text>
                                 </View>
@@ -643,6 +661,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                         {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                                     </Text>
                                 </View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                             </View>
                         );
                     }
@@ -651,12 +670,15 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
 
                 {/* Subtotal */}
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 
@@ -673,25 +695,25 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
 function TableHeader() {
     return (
         <View style={styles.tableHeader}>
-            <View style={styles.cellNo}><Text style={styles.headerCellText}>No.</Text></View>
+            <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
             <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
             <View style={styles.cellSpec}><Text style={styles.headerCellText}>規格</Text></View>
             <View style={styles.cellQty}><Text style={styles.headerCellText}>数量</Text></View>
             <View style={styles.cellUnit}><Text style={styles.headerCellText}>単位</Text></View>
             <View style={styles.cellPrice}><Text style={styles.headerCellText}>単価</Text></View>
             <View style={styles.cellAmount}><Text style={styles.headerCellText}>金額</Text></View>
+            <View style={styles.cellRemarks}><Text style={styles.headerCellText}>備考</Text></View>
         </View>
     );
 }
 
 // ===== 内訳テーブル行 =====
 function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['items'][0] | null; isLast: boolean }) {
-    const isZebra = idx % 2 === 1;
     const isNegative = item ? item.amount < 0 : false;
     const isCat = item?.isCategory;
 
     return (
-        <View style={isLast ? styles.tableRowLast : (isZebra ? styles.tableRowZebra : styles.tableRow)}>
+        <View style={isLast ? styles.tableRowLast : styles.tableRow}>
             <View style={styles.cellNo}>
                 <Text style={styles.cellTextCenter}>{item ? idx + 1 : ''}</Text>
             </View>
@@ -725,6 +747,7 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
                     {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                 </Text>
             </View>
+            <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
         </View>
     );
 }
@@ -766,11 +789,11 @@ function CategoryDetailsPage({
                 <TableHeader />
 
                 {/* カテゴリ名行（1行目） */}
-                <View style={{ ...styles.tableRow, backgroundColor: COLORS.infoBg }}>
+                <View style={styles.tableRow}>
                     <View style={styles.cellNo}>
                         <Text style={styles.cellTextCenter}>1</Text>
                     </View>
-                    <View style={{ ...styles.cellName, width: 170 }}>
+                    <View style={styles.cellName}>
                         <Text style={{ fontSize: 8, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
                     </View>
                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
@@ -778,6 +801,7 @@ function CategoryDetailsPage({
                     <View style={styles.cellUnit}><Text style={styles.cellText}>{sanitizePdfText(category.unit || '')}</Text></View>
                     <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellAmount}><Text style={styles.cellText}>{category.amount > 0 ? category.amount.toLocaleString() : ''}</Text></View>
+                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                 </View>
 
                 {/* 子項目行 */}
@@ -795,12 +819,15 @@ function CategoryDetailsPage({
 
                 {/* Subtotal */}
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{category.amount.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 
@@ -860,30 +887,39 @@ function FlatDetailsPage({
                 })()}
 
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.subtotal.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>消費税</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.tax.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
-                <View style={styles.totalRowFinal}>
-                    <View style={styles.totalLabelCell}>
-                        <Text style={{ ...styles.totalLabelText, fontSize: 10, color: COLORS.navy }}>合計</Text>
+                <View style={styles.totalRow}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
+                        <Text style={{ ...styles.totalLabelText, fontSize: 10 }}>合計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
-                        <Text style={{ ...styles.totalAmountText, fontSize: 10, color: COLORS.navy }}>
+                        <Text style={{ ...styles.totalAmountText, fontSize: 10 }}>
                             {estimate.total.toLocaleString()}
                         </Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 

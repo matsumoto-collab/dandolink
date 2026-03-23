@@ -271,39 +271,30 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: 'row',
-        backgroundColor: COLORS.headerBg,
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 22,
+        minHeight: 18,
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.3,
         borderBottomColor: COLORS.borderLight,
-        minHeight: 17,
-    },
-    tableRowZebra: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.3,
-        borderBottomColor: COLORS.borderLight,
-        minHeight: 17,
-        backgroundColor: COLORS.zebraStripe,
+        minHeight: 20,
     },
     tableRowLast: {
         flexDirection: 'row',
-        minHeight: 17,
+        minHeight: 20,
     },
     projectHeaderRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.3,
         borderBottomColor: COLORS.borderLight,
-        minHeight: 18,
-        backgroundColor: COLORS.infoBg,
+        minHeight: 20,
     },
 
     // Column styles
     cellNo: {
-        width: 25,
+        width: 15,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -311,21 +302,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellName: {
-        width: 170,
+        width: 130,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellSpec: {
-        width: 150,
+        width: 130,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellQty: {
-        width: 45,
+        width: 40,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -333,7 +324,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     cellUnit: {
-        width: 35,
+        width: 30,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -341,7 +332,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     cellPrice: {
-        width: 60,
+        width: 55,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
@@ -349,18 +340,24 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     cellAmount: {
+        width: 65,
+        padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+    },
+    cellRemarks: {
         flex: 1,
         padding: 3,
         justifyContent: 'center',
-        alignItems: 'flex-end',
     },
 
     // Header cell text
     headerCellText: {
         fontSize: 8,
-        color: COLORS.headerText,
+        color: COLORS.textSecondary,
         textAlign: 'center',
-        fontWeight: 'bold',
     },
     cellText: {
         fontSize: 8,
@@ -386,21 +383,41 @@ const styles = StyleSheet.create({
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
         minHeight: 22,
-        backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        width: 455,
+        width: 315,
         padding: 3,
         borderRightWidth: 0.3,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
-    totalAmountCell: {
-        flex: 1,
+    totalSubtotalLabel: {
+        width: 30,
         padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    totalPriceCell: {
+        width: 55,
+        padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
+        justifyContent: 'center',
+    },
+    totalAmountCell: {
+        width: 65,
+        padding: 3,
+        borderRightWidth: 0.3,
+        borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
+    },
+    totalRemarksCell: {
+        flex: 1,
+        padding: 3,
     },
     totalLabelText: {
         fontSize: 9,
@@ -633,19 +650,19 @@ function CoverPage({
             <View style={styles.table}>
                 {/* Header */}
                 <View style={styles.tableHeader}>
-                    <View style={styles.cellNo}><Text style={styles.headerCellText}>No.</Text></View>
+                    <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
                     <View style={styles.cellSpec}><Text style={styles.headerCellText}>仕様</Text></View>
                     <View style={styles.cellQty}><Text style={styles.headerCellText}>数量</Text></View>
                     <View style={styles.cellUnit}><Text style={styles.headerCellText}>単位</Text></View>
                     <View style={styles.cellPrice}><Text style={styles.headerCellText}>単価</Text></View>
                     <View style={styles.cellAmount}><Text style={styles.headerCellText}>金額</Text></View>
+                    <View style={styles.cellRemarks}><Text style={styles.headerCellText}>備考</Text></View>
                 </View>
 
                 {/* Body Rows */}
                 {(() => {
                     const rows = [];
-                    let zebraIdx = 0;
 
                     for (let i = 0; i < maxRows; i++) {
                         const row = i < displayRows.length ? displayRows[i] : null;
@@ -654,13 +671,14 @@ function CoverPage({
                             rows.push(
                                 <View key={`header-${i}`} style={styles.projectHeaderRow}>
                                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
-                                    <View style={{ ...styles.cellName, width: 320 }}>
-                                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: COLORS.navy }}>{sanitizePdfText(row.title)}</Text>
+                                    <View style={{ ...styles.cellName, width: 260 }}>
+                                        <Text style={{ fontSize: 8, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
                                     </View>
                                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                                 </View>
                             );
                             continue;
@@ -668,13 +686,11 @@ function CoverPage({
 
                         const item = row && row.type === 'item' ? row.item : null;
                         const idx = row && row.type === 'item' ? row.index : 0;
-                        const isZebra = zebraIdx % 2 === 1;
                         const isLast = i === maxRows - 1;
                         const isNegative = item ? item.amount < 0 : false;
-                        zebraIdx++;
 
                         rows.push(
-                            <View key={i} style={isLast ? styles.tableRowLast : (isZebra ? styles.tableRowZebra : styles.tableRow)}>
+                            <View key={i} style={isLast ? styles.tableRowLast : styles.tableRow}>
                                 <View style={styles.cellNo}>
                                     <Text style={styles.cellTextCenter}>{item ? idx : ''}</Text>
                                 </View>
@@ -708,6 +724,7 @@ function CoverPage({
                                         {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                                     </Text>
                                 </View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                             </View>
                         );
                     }
@@ -716,12 +733,15 @@ function CoverPage({
 
                 {/* Subtotal */}
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{invoice.subtotal.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 
@@ -797,19 +817,19 @@ function DetailsPage({
             <View style={styles.table}>
                 {/* Header */}
                 <View style={styles.tableHeader}>
-                    <View style={styles.cellNo}><Text style={styles.headerCellText}>No.</Text></View>
+                    <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
                     <View style={styles.cellSpec}><Text style={styles.headerCellText}>仕様</Text></View>
                     <View style={styles.cellQty}><Text style={styles.headerCellText}>数量</Text></View>
                     <View style={styles.cellUnit}><Text style={styles.headerCellText}>単位</Text></View>
                     <View style={styles.cellPrice}><Text style={styles.headerCellText}>単価</Text></View>
                     <View style={styles.cellAmount}><Text style={styles.headerCellText}>金額</Text></View>
+                    <View style={styles.cellRemarks}><Text style={styles.headerCellText}>備考</Text></View>
                 </View>
 
                 {/* Body Rows */}
                 {(() => {
                     const rows = [];
-                    let zebraIdx = 0;
 
                     for (let i = 0; i < maxRows; i++) {
                         const row = i < displayRows.length ? displayRows[i] : null;
@@ -818,13 +838,14 @@ function DetailsPage({
                             rows.push(
                                 <View key={`header-${i}`} style={styles.projectHeaderRow}>
                                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
-                                    <View style={{ ...styles.cellName, width: 320 }}>
-                                        <Text style={{ fontSize: 8, fontWeight: 'bold', color: COLORS.navy }}>{sanitizePdfText(row.title)}</Text>
+                                    <View style={{ ...styles.cellName, width: 260 }}>
+                                        <Text style={{ fontSize: 8, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
                                     </View>
                                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                                 </View>
                             );
                             continue;
@@ -832,13 +853,11 @@ function DetailsPage({
 
                         const item = row && row.type === 'item' ? row.item : null;
                         const idx = row && row.type === 'item' ? row.index : 0;
-                        const isZebra = zebraIdx % 2 === 1;
                         const isLast = i === maxRows - 1;
                         const isNegative = item ? item.amount < 0 : false;
-                        zebraIdx++;
 
                         rows.push(
-                            <View key={i} style={isLast ? styles.tableRowLast : (isZebra ? styles.tableRowZebra : styles.tableRow)}>
+                            <View key={i} style={isLast ? styles.tableRowLast : styles.tableRow}>
                                 <View style={styles.cellNo}>
                                     <Text style={styles.cellTextCenter}>{item ? idx : ''}</Text>
                                 </View>
@@ -872,6 +891,7 @@ function DetailsPage({
                                         {item ? formatAmount(item.amount, isNegative) : ''}
                                     </Text>
                                 </View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                             </View>
                         );
                     }
@@ -880,34 +900,43 @@ function DetailsPage({
 
                 {/* Subtotal Row */}
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{invoice.subtotal.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
 
                 {/* Tax Row */}
                 <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>消費税</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{invoice.tax.toLocaleString()}</Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
 
                 {/* Total Row */}
-                <View style={styles.totalRowFinal}>
-                    <View style={styles.totalLabelCell}>
-                        <Text style={{ ...styles.totalLabelText, fontSize: 10, color: COLORS.navy }}>合計</Text>
+                <View style={styles.totalRow}>
+                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.totalSubtotalLabel}>
+                        <Text style={{ ...styles.totalLabelText, fontSize: 10 }}>合計</Text>
                     </View>
+                    <View style={styles.totalPriceCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalAmountCell}>
-                        <Text style={{ ...styles.totalAmountText, fontSize: 10, color: COLORS.navy }}>
+                        <Text style={{ ...styles.totalAmountText, fontSize: 10 }}>
                             {invoice.total.toLocaleString()}
                         </Text>
                     </View>
+                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
             </View>
 
