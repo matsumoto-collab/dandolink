@@ -127,6 +127,10 @@ export interface CalendarState {
     cellRemarks: { [key: string]: string };
     cellRemarksLoading: boolean;
     cellRemarksInitialized: boolean;
+
+    // Member Adjustments (per-day extra/reduced members)
+    memberAdjustments: { [dateKey: string]: number };
+    memberAdjustmentsInitialized: boolean;
 }
 
 export interface CalendarActions {
@@ -185,6 +189,11 @@ export interface CalendarActions {
     fetchCellRemarks: () => Promise<void>;
     getCellRemark: (foremanId: string, dateKey: string) => string;
     setCellRemark: (foremanId: string, dateKey: string, text: string) => Promise<void>;
+
+    // Member Adjustments (per-day)
+    fetchMemberAdjustments: () => Promise<void>;
+    getMemberAdjustment: (dateKey: string) => number;
+    setMemberAdjustment: (dateKey: string, adjustment: number) => Promise<void>;
 
     // Reset
     reset: () => void;

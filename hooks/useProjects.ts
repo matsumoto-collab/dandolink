@@ -36,6 +36,7 @@ export function useProjects() {
     const getProjectByIdStore = useCalendarStore((state) => state.getProjectById);
     const getCalendarEventsStore = useCalendarStore((state) => state.getCalendarEvents);
     const fetchCellRemarksStore = useCalendarStore((state) => state.fetchCellRemarks);
+    const fetchMemberAdjustmentsStore = useCalendarStore((state) => state.fetchMemberAdjustments);
     const upsertAssignmentStore = useCalendarStore((state) => state.upsertAssignment);
     const removeAssignmentByIdStore = useCalendarStore((state) => state.removeAssignmentById);
     const updateProjectMasterInAssignmentsStore = useCalendarStore((state) => state.updateProjectMasterInAssignments);
@@ -78,11 +79,14 @@ export function useProjects() {
         await fetchAssignmentsStore(startStr, endStr);
 
         // Fetch cell remarks if not initialized
-        // Note: Currently fetching all remarks. In the future, this should be filtered by date range.
         if (!useCalendarStore.getState().cellRemarksInitialized) {
             fetchCellRemarksStore();
         }
-    }, [fetchAssignmentsStore, fetchCellRemarksStore]);
+        // Fetch member adjustments if not initialized
+        if (!useCalendarStore.getState().memberAdjustmentsInitialized) {
+            fetchMemberAdjustmentsStore();
+        }
+    }, [fetchAssignmentsStore, fetchCellRemarksStore, fetchMemberAdjustmentsStore]);
 
     // 単一配置をAPIから取得してstoreに差し込む（Realtime incremental sync用）
     const fetchAndUpsertAssignment = useCallback(async (id: string) => {
@@ -225,6 +229,9 @@ export function useProjects() {
             }),
             onBroadcast('cell_remark_updated', () => {
                 useCalendarStore.getState().fetchCellRemarks();
+            }),
+            onBroadcast('member_adjustment_updated', () => {
+                useCalendarStore.getState().fetchMemberAdjustments();
             }),
         ];
 

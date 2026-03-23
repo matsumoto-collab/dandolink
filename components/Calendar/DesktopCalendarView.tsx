@@ -42,7 +42,8 @@ interface DesktopCalendarViewProps {
     moveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
-    handleTotalMembersChange?: (delta: number) => void;
+    getMemberAdjustment?: (dateKey: string) => number;
+    onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
 }
 
 export default function DesktopCalendarView({
@@ -73,7 +74,8 @@ export default function DesktopCalendarView({
     moveForeman,
     handleOpenDispatchModal,
     handleCopyEvent,
-    handleTotalMembersChange,
+    getMemberAdjustment,
+    onMemberAdjustmentChange,
 }: DesktopCalendarViewProps) {
     return (
         <DndContext
@@ -120,26 +122,8 @@ export default function DesktopCalendarView({
                             {/* 未割り当て行 */}
                             <div className="flex border-b-2 border-slate-400 bg-slate-100 h-9">
                                 <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-400 shadow-md">
-                                    <div className="w-32 h-full flex items-center justify-center gap-1">
-                                        {handleTotalMembersChange && (
-                                            <button
-                                                onClick={() => handleTotalMembersChange(-1)}
-                                                className="w-5 h-5 flex items-center justify-center rounded bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold leading-none"
-                                                title="総メンバー数を減らす"
-                                            >
-                                                −
-                                            </button>
-                                        )}
-                                        <span className="text-xs font-bold text-slate-700 tracking-wide">{totalMembers}人</span>
-                                        {handleTotalMembersChange && (
-                                            <button
-                                                onClick={() => handleTotalMembersChange(1)}
-                                                className="w-5 h-5 flex items-center justify-center rounded bg-slate-300 hover:bg-slate-400 text-slate-700 text-xs font-bold leading-none"
-                                                title="総メンバー数を増やす"
-                                            >
-                                                +
-                                            </button>
-                                        )}
+                                    <div className="w-32 h-full flex items-center justify-center">
+                                        <span className="text-xs font-bold text-slate-700 tracking-wide truncate">残り人数</span>
                                     </div>
                                 </div>
                                 {weekDays.map((day, index) => {
@@ -157,11 +141,32 @@ export default function DesktopCalendarView({
                                     let assignedCount = 0;
                                     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                                     const vacationCount = getVacationEmployees(dateKey).length;
-                                    const remainingCount = totalMembers - assignedCount - vacationCount;
+                                    const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
+                                    const remainingCount = totalMembers + adjustment - assignedCount - vacationCount;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1.5 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
-                                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingCount > 0 ? 'bg-slate-600' : remainingCount === 0 ? 'bg-slate-400' : 'bg-slate-700'}`}>{remainingCount}人</span>
+                                        <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
+                                            {onMemberAdjustmentChange && (
+                                                <button
+                                                    onClick={() => onMemberAdjustmentChange(dateKey, -1)}
+                                                    className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold leading-none"
+                                                    title="人数を減らす"
+                                                >
+                                                    −
+                                                </button>
+                                            )}
+                                            <span className={`inline-block px-1.5 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingCount > 0 ? 'bg-slate-600' : remainingCount === 0 ? 'bg-slate-400' : 'bg-slate-700'}`}>
+                                                {remainingCount}人
+                                            </span>
+                                            {onMemberAdjustmentChange && (
+                                                <button
+                                                    onClick={() => onMemberAdjustmentChange(dateKey, 1)}
+                                                    className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-bold leading-none"
+                                                    title="人数を増やす"
+                                                >
+                                                    +
+                                                </button>
+                                            )}
                                         </div>
                                     );
                                 })}

@@ -10,6 +10,7 @@ import { useProjects, ConflictUpdateError } from '@/hooks/useProjects';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
@@ -48,7 +49,7 @@ interface WeeklyCalendarProps {
 export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
     const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
-    const { totalMembers, updateTotalMembers } = useMasterData();
+    const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
     const { getProjectMasterById } = useProjectMasters();
@@ -338,13 +339,13 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
         await updateProjectWithConflictHandling(projectId, updates);
     }, [updateProjectWithConflictHandling, projectsRef]);
 
-    // 総メンバー数の+/-調整
-    const handleTotalMembersChange = useCallback(async (delta: number) => {
-        const newCount = totalMembers + delta;
-        if (newCount >= 0) {
-            await updateTotalMembers(newCount);
-        }
-    }, [totalMembers, updateTotalMembers]);
+    // 日別メンバー調整
+    const getMemberAdjustment = useCalendarStore((state) => state.getMemberAdjustment);
+    const setMemberAdjustment = useCalendarStore((state) => state.setMemberAdjustment);
+    const handleMemberAdjustmentChange = useCallback(async (dateKey: string, delta: number) => {
+        const current = getMemberAdjustment(dateKey);
+        await setMemberAdjustment(dateKey, current + delta);
+    }, [getMemberAdjustment, setMemberAdjustment]);
 
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
@@ -409,7 +410,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     moveForeman={isReadOnly ? undefined : moveForeman}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
-                    handleTotalMembersChange={isReadOnly ? undefined : handleTotalMembersChange}
+                    getMemberAdjustment={getMemberAdjustment}
+                    onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                 />
             )}
 

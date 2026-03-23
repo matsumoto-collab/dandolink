@@ -9,6 +9,7 @@ import { createAssignmentSlice } from './calendarSlices/assignmentSlice';
 import { createVacationSlice } from './calendarSlices/vacationSlice';
 import { createRemarkSlice } from './calendarSlices/remarkSlice';
 import { createCellRemarkSlice } from './calendarSlices/cellRemarkSlice';
+import { createMemberAdjustmentSlice } from './calendarSlices/memberAdjustmentSlice';
 
 const initialState: CalendarState = {
     projectMasters: [],
@@ -34,6 +35,8 @@ const initialState: CalendarState = {
     cellRemarks: {},
     cellRemarksLoading: false,
     cellRemarksInitialized: false,
+    memberAdjustments: {},
+    memberAdjustmentsInitialized: false,
 };
 
 export const useCalendarStore = create<CalendarStore>()(
@@ -45,6 +48,7 @@ export const useCalendarStore = create<CalendarStore>()(
         ...createVacationSlice(...a),
         ...createRemarkSlice(...a),
         ...createCellRemarkSlice(...a),
+        ...createMemberAdjustmentSlice(...a),
         reset: () => a[0](initialState),
     }))
 );
