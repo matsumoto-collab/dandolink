@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderWidth: 1.5,
         borderColor: COLORS.navy,
-        width: '60%',
+        width: '55%',
     },
     amountLabelBox: {
         backgroundColor: COLORS.navy,
@@ -191,23 +191,26 @@ const styles = StyleSheet.create({
         marginTop: 2,
     },
     amountDetailArea: {
-        width: '38%',
-        paddingLeft: 15,
+        width: '42%',
+        paddingLeft: 10,
         justifyContent: 'center',
     },
     amountDetailRow: {
         flexDirection: 'row',
         marginVertical: 1,
+        flexWrap: 'nowrap',
     },
     amountDetailLabel: {
         fontSize: 9,
-        width: 70,
+        width: 60,
         color: COLORS.textSecondary,
     },
     amountDetailValue: {
         fontSize: 9,
         flex: 1,
         textAlign: 'right',
+        flexShrink: 0,
+        flexWrap: 'nowrap',
     },
 
     // ===== Info Table =====
@@ -476,16 +479,15 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
             {/* Top accent bar */}
             <View style={styles.accentBar} fixed />
 
-            {/* Top row: 見積No (left), Title (center), Date (right) */}
+            {/* Top row: Title (center), Date + No (right) */}
             <View style={styles.topRow}>
-                <View style={{ width: '25%' }}>
-                    <Text style={styles.estimateNoText}>見積No. {estimate.estimateNumber}</Text>
-                </View>
+                <View style={{ width: '25%' }} />
                 <View style={styles.titleCenter}>
                     <Text style={styles.titleText}>御 見 積 書</Text>
                 </View>
                 <View style={styles.dateRight}>
                     <Text style={{ fontSize: 10, color: COLORS.textSecondary }}>見積日　{toReiwa(createdDate)}</Text>
+                    <Text style={[styles.estimateNoText, { marginTop: 2 }]}>見積No. {estimate.estimateNumber}</Text>
                 </View>
             </View>
 
@@ -504,7 +506,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                         </>
                     )}
                     {(() => {
-                        const fullName = `${project.customer || ''} ${project.customerHonorific || '御中'}`;
+                        const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
