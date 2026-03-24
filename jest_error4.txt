@@ -1,0 +1,23 @@
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead.
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead.
+FAIL __tests__/api/master-data/construction-suffixes/route.test.ts
+  ● Test suite failed to run
+
+    ReferenceError: Cannot access 'MockNextResponse' before initialization
+
+    [0m [90m 46 |[39m             }
+     [90m 47 |[39m         }[33m,[39m
+    [31m[1m>[22m[39m[90m 48 |[39m         [33mNextResponse[39m[33m:[39m [33mMockNextResponse[39m
+     [90m    |[39m                       [31m[1m^[22m[39m
+     [90m 49 |[39m     }[33m;[39m
+     [90m 50 |[39m })[33m;[39m
+     [90m 51 |[39m[0m
+
+      at MockNextResponse (__tests__/api/master-data/construction-suffixes/route.test.ts:48:23)
+      at Object.<anonymous> (__tests__/api/master-data/construction-suffixes/route.test.ts:41:17)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        6.123 s
+Ran all test suites matching __tests__/api/master-data/construction-suffixes/route.test.ts.

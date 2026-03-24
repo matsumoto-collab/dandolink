@@ -94,4 +94,110 @@ describe('lib/auth', () => {
         const result = await authorize({ username: 'testuser', password: 'password' });
         expect(result.assignedProjects).toBeUndefined();
     });
+
+    describe('callbacks', () => {
+        const { jwt, session } = authOptions.callbacks as any;
+
+        describe('jwt', () => {
+            it('初回ログイン時はuserの情報をtokenにセットする', async () => {
+                const token = {};
+                const user = {
+                    id: '1',
+                    username: 'test',
+                    role: 'admin',
+                    assignedProjects: ['p1'],
+                    isActive: true,
+                };
+
+                const result = await jwt({ token, user });
+
+                expect(result.id).toBe('1');
+                expect(result.username).toBe('test');
+                expect(result.role).toBe('admin');
+                expect(result.assignedProjects).toEqual(['p1']);
+                expect(result.isActive).toBe(true);
+                expect(result.lastDbCheck).toBeDefined();
+            });
+
+            it('DBチェックの時間が経過していない場合はそのまま返す', async () => {
+                const token = {
+                    id: '1',
+                    lastDbCheck: Date.now() - 1000,
+                };
+
+                const result = await jwt({ token });
+
+                expect(prisma.user.findUnique).not.toHaveBeenCalled();
+                expect(result).toBe(token);
+            });
+
+            it('DBチェック時間が経過し、ユーザーが無効な場合はisActiveをfalseにする', async () => {
+                const token = {
+                    id: '1',
+                    lastDbCheck: Date.now() - 400000,
+                    isActive: true,
+                };
+                (prisma.user.findUnique as jest.Mock).mockResolvedValue({ isActive: false });
+
+                const result = await jwt({ token });
+
+                expect(prisma.user.findUnique).toHaveBeenCalledWith({
+                    where: { id: '1' },
+                    select: { isActive: true, role: true },
+                });
+                expect(result.isActive).toBe(false);
+            });
+
+            it('DBチェック時間が経過し、ユーザーが有効な場合は情報を更新する', async () => {
+                 const token = {
+                    id: '1',
+                    lastDbCheck: Date.now() - 400000,
+                    isActive: true,
+                    role: 'user',
+                };
+                const oldCheck = token.lastDbCheck;
+                (prisma.user.findUnique as jest.Mock).mockResolvedValue({ isActive: true, role: 'ADMIN' });
+
+                const result = await jwt({ token });
+
+                expect(result.isActive).toBe(true);
+                expect(result.role).toBe('admin');
+                expect(result.lastDbCheck).toBeGreaterThan(oldCheck);
+            });
+
+            it('DBチェックでエラーが発生した場合は既存のトークン状態を維持する', async () => {
+                const token = {
+                    id: '1',
+                    lastDbCheck: Date.now() - 400000,
+                    isActive: true,
+                };
+                (prisma.user.findUnique as jest.Mock).mockRejectedValue(new Error('DB Error'));
+
+                const result = await jwt({ token });
+
+                expect(result.isActive).toBe(true); // 維持される
+            });
+        });
+
+        describe('session', () => {
+            it('tokenの情報をsession.userにセットする', async () => {
+                const sessionInput = { user: {} };
+                const token = {
+                    id: '1',
+                    username: 'test',
+                    role: 'admin',
+                    assignedProjects: ['p1'],
+                    isActive: true,
+                };
+
+                const result = await session({ session: sessionInput, token });
+
+                expect(result.user.id).toBe('1');
+                expect(result.user.username).toBe('test');
+                expect(result.user.role).toBe('admin');
+                expect(result.user.assignedProjects).toEqual(['p1']);
+                expect(result.user.isActive).toBe(true);
+            });
+        });
+    });
 });

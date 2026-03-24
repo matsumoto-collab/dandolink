@@ -20,6 +20,7 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn(),
     parseJsonField: (val: any) => typeof val === 'string' ? JSON.parse(val) : val,
     validationErrorResponse: jest.fn().mockImplementation((msg) => NextResponse.json({ error: msg }, { status: 400 })),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
@@ -40,6 +41,8 @@ describe('/api/master-data/unit-prices', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        const { requireManagerOrAbove } = require('@/lib/api/utils');
+        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
     });
 
     describe('GET', () => {
@@ -108,6 +111,8 @@ describe('/api/master-data/unit-prices/[id]', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        const { requireManagerOrAbove } = require('@/lib/api/utils');
+        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
     });
 
     describe('PATCH', () => {

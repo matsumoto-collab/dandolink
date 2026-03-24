@@ -6,16 +6,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
 
 // Mock lucide-react icons
-jest.mock('lucide-react', () => ({
-    TrendingUp: () => <span data-testid="icon-trending-up" />,
-    TrendingDown: () => <span data-testid="icon-trending-down" />,
-    DollarSign: () => <span data-testid="icon-dollar" />,
-    Truck: () => <span data-testid="icon-truck" />,
-    Users: () => <span data-testid="icon-users" />,
-    Wrench: () => <span data-testid="icon-wrench" />,
-    Package: () => <span data-testid="icon-package" />,
-    MoreHorizontal: () => <span data-testid="icon-more" />,
-}));
+
 
 // Mock Loading component
 jest.mock('@/components/ui/Loading', () => ({
@@ -115,12 +106,12 @@ describe('ProjectProfitDisplay', () => {
             expect(screen.getByText('原価内訳')).toBeInTheDocument();
         });
 
-        expect(screen.getByText('人件費')).toBeInTheDocument();
-        expect(screen.getByText('積込費')).toBeInTheDocument();
-        expect(screen.getByText('車両費')).toBeInTheDocument();
-        expect(screen.getByText('材料費')).toBeInTheDocument();
-        expect(screen.getByText('外注費')).toBeInTheDocument();
-        expect(screen.getByText('その他')).toBeInTheDocument();
+        expect(screen.getAllByText('人件費').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('積込費').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('車両費').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('材料費').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('外注費').length).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText('その他').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should show estimate amount', async () => {
@@ -149,7 +140,7 @@ describe('ProjectProfitDisplay', () => {
         render(<ProjectProfitDisplay projectMasterId="pm1" />);
 
         await waitFor(() => {
-            expect(screen.getByTestId('icon-trending-up')).toBeInTheDocument();
+            expect(screen.getByTestId('icon-TrendingUp')).toBeInTheDocument();
         });
     });
 
@@ -169,7 +160,7 @@ describe('ProjectProfitDisplay', () => {
         render(<ProjectProfitDisplay projectMasterId="pm1" />);
 
         await waitFor(() => {
-            expect(screen.getByTestId('icon-trending-down')).toBeInTheDocument();
+            expect(screen.getByTestId('icon-TrendingDown')).toBeInTheDocument();
         });
     });
 

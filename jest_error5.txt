@@ -1,0 +1,23 @@
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead.
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead.
+FAIL __tests__/api/master-data/construction-suffixes/route.test.ts
+  ● Test suite failed to run
+
+    ReferenceError: Response is not defined
+
+    [0m [90m 22 |[39m
+     [90m 23 |[39m jest[33m.[39mmock([32m'next/server'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 24 |[39m     [36mclass[39m [33mMockNextResponse[39m [36mextends[39m [33mResponse[39m {
+     [90m    |[39m                                    [31m[1m^[22m[39m
+     [90m 25 |[39m         [36mstatic[39m json(body[33m:[39m any[33m,[39m init[33m?[39m[33m:[39m any) {
+     [90m 26 |[39m             [36mreturn[39m [36mnew[39m [33mMockNextResponse[39m([33mJSON[39m[33m.[39mstringify(body)[33m,[39m {
+     [90m 27 |[39m                 status[33m:[39m init[33m?[39m[33m.[39mstatus [33m||[39m [35m200[39m[33m,[39m[0m
+
+      at Response (__tests__/api/master-data/construction-suffixes/route.test.ts:24:36)
+      at Object.<anonymous> (__tests__/api/master-data/construction-suffixes/route.test.ts:49:17)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        8.328 s
+Ran all test suites matching __tests__/api/master-data/construction-suffixes/route.test.ts.

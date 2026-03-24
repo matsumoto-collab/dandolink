@@ -3,11 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { Button, IconButton, ButtonGroup } from '@/components/ui/Button';
 
 // lucide-react のモック
-jest.mock('lucide-react', () => ({
-    Loader2: ({ className }: { className?: string }) => (
-        <svg data-testid="loader-icon" className={className} />
-    ),
-}));
+
 
 describe('Button', () => {
     describe('基本レンダリング', () => {
@@ -47,7 +43,7 @@ describe('Button', () => {
             render(<Button variant="outline">詳細</Button>);
             const button = screen.getByRole('button');
             expect(button).toHaveClass('bg-transparent');
-            expect(button).toHaveClass('border-slate-300');
+            expect(button).toHaveClass('border-slate-200');
         });
 
         it('ghostバリアントが正しく適用される', () => {
@@ -78,7 +74,7 @@ describe('Button', () => {
     describe('ローディング状態', () => {
         it('isLoadingがtrueの時ローディングアイコンを表示する', () => {
             render(<Button isLoading>送信中</Button>);
-            expect(screen.getByTestId('loader-icon')).toBeInTheDocument();
+            expect(screen.getByTestId('icon-Loader2')).toBeInTheDocument();
         });
 
         it('isLoadingがtrueの時ボタンがdisabledになる', () => {

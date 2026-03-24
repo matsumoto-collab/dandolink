@@ -1,0 +1,24 @@
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead.
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead.
+FAIL __tests__/api/calendar/cell-remarks/route.test.ts
+  ● Test suite failed to run
+
+    ReferenceError: Request is not defined
+
+    [0m [90m 22 |[39m
+     [90m 23 |[39m describe([32m'/api/calendar/cell-remarks'[39m[33m,[39m () [33m=>[39m {
+    [31m[1m>[22m[39m[90m 24 |[39m     beforeEach(() [33m=>[39m {
+     [90m    |[39m                 [31m[1m^[22m[39m
+     [90m 25 |[39m         jest[33m.[39mclearAllMocks()[33m;[39m
+     [90m 26 |[39m         (requireAuth [36mas[39m jest[33m.[39m[33mMock[39m)[33m.[39mmockResolvedValue({ error[33m:[39m [36mnull[39m })[33m;[39m
+     [90m 27 |[39m     })[33m;[39m[0m
+
+      at Object.Request (node_modules/next/src/server/web/spec-extension/request.ts:15:34)
+      at Object.<anonymous> (node_modules/next/server.js:2:16)
+      at Object.<anonymous> (__tests__/api/calendar/cell-remarks/route.test.ts:24:17)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total
+Snapshots:   0 total
+Time:        5.895 s
+Ran all test suites matching __tests__/api/calendar/cell-remarks/route.test.ts.

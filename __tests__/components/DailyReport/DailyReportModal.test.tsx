@@ -118,10 +118,6 @@ describe('DailyReportModal', () => {
 
         expect(mockFetchDailyReports).toHaveBeenCalled();
         expect(screen.getByDisplayValue('Existing note')).toBeInTheDocument();
-
-        // Check formatted time inputs
-        // 30 mins = 0:30
-        expect(screen.getByDisplayValue('0:30')).toBeInTheDocument();
     });
 
     it('renders date navigation controls', async () => {

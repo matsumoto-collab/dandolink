@@ -89,7 +89,7 @@ describe('/api/users/[id]', () => {
         const updateBody = {
             displayName: 'Updated Name',
             role: 'manager',
-            password: 'NewPassword1',
+            password: 'NewPassword1!@',
         };
         const createReq = (body: any) => new NextRequest(`http://localhost:3000/api/users/${mockId}`, {
             method: 'PATCH',
@@ -104,7 +104,7 @@ describe('/api/users/[id]', () => {
             await res.json();
 
             expect(res.status).toBe(200);
-            expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword1', 10);
+            expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword1!@', 10);
             expect(prisma.user.update).toHaveBeenCalled();
         });
 

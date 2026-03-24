@@ -53,7 +53,7 @@ describe('ProjectMasterForm', () => {
         expect(remarksElements.length).toBeGreaterThan(0);
 
         // Check content visibility (using correct placeholder)
-        expect(screen.getByPlaceholderText('例: 松本様邸')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('例: 佐藤')).toBeInTheDocument();
     });
 
     it('toggles sections', async () => {
@@ -95,7 +95,7 @@ describe('ProjectMasterForm', () => {
         });
 
         // Use correct placeholder
-        const titleInput = screen.getByPlaceholderText('例: 松本様邸');
+        const titleInput = screen.getByPlaceholderText('例: 佐藤');
         fireEvent.change(titleInput, { target: { value: 'New Project' } });
 
         expect(mockSetFormData).toHaveBeenCalled();

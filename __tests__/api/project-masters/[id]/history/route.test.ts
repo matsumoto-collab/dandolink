@@ -44,6 +44,9 @@ describe('/api/project-masters/[id]/history', () => {
         vehicles: '[]',
         isDispatchConfirmed: true,
         remarks: 'Done',
+        constructionType: null,
+        memberCount: 3,
+        dailyReportWorkItems: [],
         createdAt: new Date('2023-09-30'),
     };
 

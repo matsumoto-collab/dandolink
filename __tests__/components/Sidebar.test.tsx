@@ -3,23 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import Sidebar from '@/components/Sidebar';
 
 // lucide-react モック
-jest.mock('lucide-react', () => ({
-    Home: () => <svg data-testid="home-icon" />,
-    Briefcase: () => <svg data-testid="briefcase-icon" />,
-    FileText: () => <svg data-testid="filetext-icon" />,
-    FileSpreadsheet: () => <svg data-testid="filespreadsheet-icon" />,
-    Receipt: () => <svg data-testid="receipt-icon" />,
-    ShoppingCart: () => <svg data-testid="shoppingcart-icon" />,
-    Users: () => <svg data-testid="users-icon" />,
-    Building: () => <svg data-testid="building-icon" />,
-    Settings: () => <svg data-testid="settings-icon" />,
-    HelpCircle: () => <svg data-testid="help-icon" />,
-    LogOut: () => <svg data-testid="logout-icon" />,
-    ChevronRight: () => <svg data-testid="chevron-icon" />,
-    User: () => <svg data-testid="user-icon" />,
-    X: () => <svg data-testid="x-icon" />,
-    BarChart3: () => <svg data-testid="barchart-icon" />,
-}));
+
 
 // next-auth モック
 const mockSignOut = jest.fn();

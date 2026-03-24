@@ -81,7 +81,7 @@ describe('rate-limit', () => {
         it('should use default config when not provided', async () => {
             const result = await checkRateLimit('test-user-4');
             expect(result.success).toBe(true);
-            expect(result.limit).toBe(100);
+            expect(result.limit).toBe(300);
         });
 
         it('should track different identifiers separately', async () => {
@@ -114,7 +114,7 @@ describe('rate-limit', () => {
 
     describe('RATE_LIMITS presets', () => {
         it('should have api preset', () => {
-            expect(RATE_LIMITS.api.limit).toBe(100);
+            expect(RATE_LIMITS.api.limit).toBe(300);
             expect(RATE_LIMITS.api.windowMs).toBe(60000);
         });
 

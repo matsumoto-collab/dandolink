@@ -12,14 +12,7 @@ jest.mock('@/stores/masterStore');
 jest.mock('react-hot-toast');
 
 // Mock Lucide icons to avoid rendering issues if any (optional, but good practice)
-jest.mock('lucide-react', () => ({
-    Trash2: () => <span data-testid="icon-trash" />,
-    Edit: () => <span data-testid="icon-edit" />,
-    Plus: () => <span data-testid="icon-plus" />,
-    Check: () => <span data-testid="icon-check" />,
-    X: () => <span data-testid="icon-x" />,
-    GripVertical: () => <span data-testid="icon-grip" />,
-}));
+
 
 describe('ConstructionTypeSettings', () => {
     const mockRefreshMasterData = jest.fn();
@@ -169,7 +162,7 @@ describe('ConstructionTypeSettings', () => {
         fireEvent.click(deleteButtons[0]);
 
         // Confirm
-        const confirmButton = screen.getByText('削除', { selector: 'button.bg-red-600' });
+        const confirmButton = screen.getByText('削除', { selector: 'button.bg-slate-700' });
         fireEvent.click(confirmButton);
 
         await waitFor(() => {

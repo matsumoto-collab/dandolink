@@ -72,10 +72,9 @@ describe('/api/users', () => {
             username: 'newuser',
             email: 'new@example.com',
             displayName: 'New User',
-            password: 'password123',
+            password: 'Password123!@#',
             role: 'manager',
-            assignedProjects: [],
-            passwordConfirm: 'password123'
+            assignedProjects: []
         };
 
         it('should create a user', async () => {
@@ -101,7 +100,7 @@ describe('/api/users', () => {
 
             expect(res.status).toBe(200);
             expect(prisma.user.create).toHaveBeenCalled();
-            expect(bcrypt.hash).toHaveBeenCalledWith('password123', 10);
+            expect(bcrypt.hash).toHaveBeenCalledWith('Password123!@#', 10);
         });
 
         it('should return 400 validation error', async () => {

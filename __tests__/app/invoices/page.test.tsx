@@ -21,6 +21,12 @@ jest.mock('@/hooks/useDebounce', () => ({
 // Mock hooks
 jest.mock('@/hooks/useInvoices');
 jest.mock('@/hooks/useProjects');
+jest.mock('@/hooks/useCustomers', () => ({
+    useCustomers: () => ({
+        customers: [],
+        ensureDataLoaded: jest.fn(),
+    }),
+}));
 
 // Mock the reactPdfGenerator to avoid ESM import issues
 jest.mock('@/utils/reactPdfGenerator', () => ({
@@ -45,19 +51,7 @@ jest.mock('next/dynamic', () => () => {
 });
 
 // Mock icons
-jest.mock('lucide-react', () => ({
-    Plus: () => <span data-testid="icon-plus" />,
-    Search: () => <span data-testid="icon-search" />,
-    Edit: () => <span data-testid="icon-edit" />,
-    Trash2: () => <span data-testid="icon-trash" />,
-    FileText: () => <span data-testid="icon-file-text" />,
-    CheckCircle: () => <span data-testid="icon-check-circle" />,
-    Clock: () => <span data-testid="icon-clock" />,
-    AlertCircle: () => <span data-testid="icon-alert-circle" />,
-    Loader2: () => <span data-testid="icon-loader" />,
-    Filter: () => <span data-testid="icon-filter" />,
-    Download: () => <span data-testid="icon-download" />,
-}));
+
 
 const mockInvoices = [
     {
@@ -105,6 +99,7 @@ describe('InvoiceListPage', () => {
         (useInvoices as jest.Mock).mockReturnValue({
             invoices: mockInvoices,
             isLoading: false,
+            isInitialized: true,
             ensureDataLoaded: jest.fn(),
             addInvoice: mockAddInvoice,
             updateInvoice: mockUpdateInvoice,
@@ -156,6 +151,7 @@ describe('InvoiceListPage', () => {
         (useInvoices as jest.Mock).mockReturnValue({
             invoices: [],
             isLoading: true,
+            isInitialized: false,
             ensureDataLoaded: jest.fn(),
             addInvoice: jest.fn(),
             updateInvoice: jest.fn(),

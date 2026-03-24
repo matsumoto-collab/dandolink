@@ -30,6 +30,7 @@ const config = {
         '^@/(.*)$': '<rootDir>/$1',
     },
 
+
     // カバレッジ設定
     collectCoverageFrom: [
         'app/**/*.{ts,tsx}',

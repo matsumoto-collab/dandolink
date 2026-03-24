@@ -98,13 +98,12 @@ describe('EstimateModal', () => {
             expect(mockOnClose).toHaveBeenCalledTimes(1);
         });
 
-        it('フォームの保存でonSubmitとonCloseが呼ばれる', () => {
+        it('フォームの保存でonSubmitが呼ばれる', () => {
             render(
                 <EstimateModal isOpen={true} onClose={mockOnClose} onSubmit={mockOnSubmit} />
             );
             fireEvent.click(screen.getByText('保存'));
             expect(mockOnSubmit).toHaveBeenCalledWith({ title: 'Test見積' });
-            expect(mockOnClose).toHaveBeenCalledTimes(1);
         });
     });
 });

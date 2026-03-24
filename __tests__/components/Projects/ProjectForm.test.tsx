@@ -4,14 +4,7 @@ import userEvent from '@testing-library/user-event';
 import ProjectForm from '@/components/Projects/ProjectForm';
 
 // lucide-react のモック
-jest.mock('lucide-react', () => ({
-    Plus: () => <svg data-testid="plus-icon" />,
-    User: () => <svg data-testid="user-icon" />,
-    Search: () => <svg data-testid="search-icon" />,
-    Loader2: ({ className }: { className?: string }) => (
-        <svg data-testid="loader-icon" className={className} />
-    ),
-}));
+
 
 // react-hot-toast のモック
 jest.mock('react-hot-toast', () => ({
@@ -87,7 +80,7 @@ describe('ProjectForm', () => {
             await waitForApiLoad();
 
             expect(screen.getByText(/現場名/)).toBeInTheDocument();
-            expect(screen.getByPlaceholderText('例: 帝人')).toBeInTheDocument();
+            expect(screen.getByPlaceholderText('例: 佐藤')).toBeInTheDocument();
         });
 
         it('工事種別チェックボックスが表示される', async () => {
@@ -161,16 +154,18 @@ describe('ProjectForm', () => {
             );
             await waitForApiLoad();
 
-            await user.type(screen.getByPlaceholderText('例: 帝人'), 'テスト現場');
+            await user.type(screen.getByPlaceholderText('例: 佐藤'), 'テスト現場');
 
             // 組立をチェック（initialDataで設定済みだが念のためクリック）
             await user.click(screen.getByText('組立'));
 
             await user.click(screen.getByRole('button', { name: '保存' }));
 
+            // Form requires customerId; since initial customer is set and unchanged,
+            // submission should succeed with composed title
             expect(mockOnSubmit).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    title: 'テスト現場',
+                    name: 'テスト現場',
                     constructionType: 'assembly',
                 })
             );

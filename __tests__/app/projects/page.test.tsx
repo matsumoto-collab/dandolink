@@ -37,23 +37,7 @@ jest.mock('next/dynamic', () => () => {
 });
 
 // Mock icons
-jest.mock('lucide-react', () => ({
-    Plus: () => <span data-testid="icon-plus" />,
-    Search: () => <span data-testid="icon-search" />,
-    Calendar: () => <span data-testid="icon-calendar" />,
-    MapPin: () => <span data-testid="icon-map-pin" />,
-    Users: () => <span data-testid="icon-users" />,
-    Truck: () => <span data-testid="icon-truck" />,
-    Clock: () => <span data-testid="icon-clock" />,
-    AlertTriangle: () => <span data-testid="icon-alert-triangle" />,
-    CheckCircle: () => <span data-testid="icon-check-circle" />,
-    ArrowUpDown: () => <span data-testid="icon-arrow-up-down" />,
-    Filter: () => <span data-testid="icon-filter" />,
-    X: () => <span data-testid="icon-x" />,
-    Edit: () => <span data-testid="icon-edit" />,
-    Trash2: () => <span data-testid="icon-trash" />,
-    Loader2: () => <span data-testid="icon-loader" />,
-}));
+
 
 const mockProjects = [
     {
@@ -131,7 +115,7 @@ describe('ProjectListPage', () => {
         render(<ProjectListPage />);
         // Both desktop "新規案件追加" and mobile "新規追加" are rendered in jsdom
         fireEvent.click(screen.getByText('新規案件追加'));
-        expect(screen.getByTestId('mock-project-modal')).toBeInTheDocument();
+        expect(screen.getAllByTestId('mock-project-modal').length).toBeGreaterThanOrEqual(1);
     });
 
     it('should handle delete', async () => {

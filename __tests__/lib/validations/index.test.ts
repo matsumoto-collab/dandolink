@@ -132,7 +132,7 @@ describe('Validation Schemas', () => {
             username: 'testuser',
             email: 'test@example.com',
             displayName: 'テストユーザー',
-            password: 'Password123',
+            password: 'Password123!',
             role: 'worker' as const,
         };
 
@@ -264,11 +264,11 @@ describe('Validation Schemas', () => {
             expect(result.success).toBe(true);
         });
 
-        it('should require title', () => {
+        it('should accept without title (title defaults to empty string)', () => {
             const result = createProjectMasterSchema.safeParse({
                 constructionType: 'assembly',
             });
-            expect(result.success).toBe(false);
+            expect(result.success).toBe(true);
         });
 
         it('should validate postal code format', () => {
@@ -437,7 +437,7 @@ describe('Validation Schemas', () => {
                 username: 'testuser',
                 email: 'test@example.com',
                 displayName: 'テスト',
-                password: 'Password123',
+                password: 'Password123!',
                 role: 'worker',
             });
             expect(result.success).toBe(true);

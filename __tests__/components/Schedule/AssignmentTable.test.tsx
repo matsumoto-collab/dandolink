@@ -10,18 +10,17 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 // Mock hooks
 jest.mock('@/hooks/useProjects');
 jest.mock('@/hooks/useCalendarDisplay');
+jest.mock('@/hooks/useMasterData', () => ({
+    useMasterData: () => ({
+        constructionTypes: [
+            { id: 'assembly', name: '組立', color: '#4CAF50' },
+            { id: 'demolition', name: '解体', color: '#F44336' },
+        ],
+    }),
+}));
 
 // Mock icons
-jest.mock('lucide-react', () => ({
-    ChevronLeft: () => <span data-testid="icon-left" />,
-    ChevronRight: () => <span data-testid="icon-right" />,
-    Clock: () => <span data-testid="icon-clock" />,
-    MapPin: () => <span data-testid="icon-mappin" />,
-    Users: () => <span data-testid="icon-users" />,
-    Truck: () => <span data-testid="icon-truck" />,
-    CheckCircle: () => <span data-testid="icon-check" />,
-    CalendarDays: () => <span data-testid="icon-calendar-days" />,
-}));
+
 
 // Mock employeeUtils
 jest.mock('@/utils/employeeUtils', () => ({
@@ -74,6 +73,8 @@ describe('AssignmentTable', () => {
 
         (useProjects as jest.Mock).mockReturnValue({
             projects: mockProjects,
+            fetchForDateRange: jest.fn(),
+            updateProject: jest.fn(),
         });
 
         (useCalendarDisplay as jest.Mock).mockReturnValue({
@@ -178,7 +179,7 @@ describe('AssignmentTable', () => {
         });
 
         // Click previous day button (ChevronLeft)
-        const prevButtons = screen.getAllByTestId('icon-left');
+        const prevButtons = screen.getAllByTestId('icon-ChevronLeft');
         fireEvent.click(prevButtons[0].closest('button')!);
 
         // Date should change (projects may not match the new date)
@@ -203,17 +204,17 @@ describe('AssignmentTable', () => {
             ...mockProjects[0],
             confirmedWorkerIds: ['worker1'],
         }];
-        (useProjects as jest.Mock).mockReturnValue({ projects: workerProjects });
+        (useProjects as jest.Mock).mockReturnValue({ projects: workerProjects, fetchForDateRange: jest.fn(), updateProject: jest.fn() });
 
         render(<AssignmentTable userRole="worker" userTeamId="worker1" />);
 
         await waitFor(() => {
-            expect(screen.getByText('あなたの担当現場 班')).toBeInTheDocument();
+            expect(screen.getByText(/あなたの担当現場/)).toBeInTheDocument();
         });
     });
 
     it('should show empty state for worker with no assignments', async () => {
-        (useProjects as jest.Mock).mockReturnValue({ projects: [] });
+        (useProjects as jest.Mock).mockReturnValue({ projects: [], fetchForDateRange: jest.fn(), updateProject: jest.fn() });
 
         render(<AssignmentTable userRole="worker" userTeamId="worker1" />);
 
@@ -223,7 +224,7 @@ describe('AssignmentTable', () => {
     });
 
     it('should show empty state for foreman with no projects', async () => {
-        (useProjects as jest.Mock).mockReturnValue({ projects: [] });
+        (useProjects as jest.Mock).mockReturnValue({ projects: [], fetchForDateRange: jest.fn(), updateProject: jest.fn() });
 
         render(<AssignmentTable />);
 

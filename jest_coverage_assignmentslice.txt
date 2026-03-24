@@ -1,0 +1,336 @@
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead.
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead.
+PASS __tests__/stores/calendarSlices/assignmentSlice.test.ts
+  assignmentSlice
+    fetchAssignments
+      √ 正常に手配データを取得できる (3 ms)
+      √ 取得失敗時にエラーログが出力され、状態が更新される (1 ms)
+      √ 例外発生時にエラーログを出力する
+    addProject
+      √ projectMasterIdがあり、workSchedulesがない場合、正常に割り当てを作成する (2 ms)
+      √ projectMasterIdがなく、新規マスター作成およびworkSchedules一括作成を行う (1 ms)
+      √ projectMasterIdがなく、既存マスターが見つかり更新を行う
+      √ 一括作成(batch-create)でエラー配列以外が返された場合Errorを投げる (31 ms)
+      √ 一括作成APIでエラーが返された場合Errorを投げる (1 ms)
+      √ 単発作成APIでエラーが返された場合Errorを投げる (1 ms)
+    updateProject
+      √ 正常に更新できる (1 ms)
+      √ 409 Conflictエラー時にConflictUpdateErrorをスローする
+      √ 既存のprojectMaster更新を伴う変更で、APIエラーが発生した場合Errorを投げる
+      √ 担当者変更等のisMoving=true時の処理検証 (1 ms)
+      √ 単発更新APIでエラーが返された場合例外を投げる (1 ms)
+    updateProjects (batch update)
+      √ 正常に複数更新できる
+      √ 409 Conflictエラー時にConflictUpdateErrorをスローしてロールバック (1 ms)
+      √ APIエラー時にErrorを投げてロールバック (1 ms)
+    deleteProject
+      √ 正常に削除できる
+      √ 削除APIエラー時に例外を投げる
+    Other getters and setters
+      √ getCalendarEvents, getProjects (1 ms)
+      √ upsertAssignment
+      √ getProjectById (1 ms)
+      √ removeAssignmentById
+      √ updateProjectMasterInAssignments
+
+------------------------------------------------|---------|----------|---------|---------|-------------------
+File                                            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+------------------------------------------------|---------|----------|---------|---------|-------------------
+All files                                       |    2.56 |     2.41 |    2.23 |    2.42 |                   
+ app                                            |       0 |      100 |       0 |       0 |                   
+  global-error.tsx                              |       0 |      100 |       0 |       0 | 3-24              
+  layout.tsx                                    |       0 |      100 |       0 |       0 | 2-43              
+ app/(calendar)                                 |       0 |        0 |       0 |       0 |                   
+  layout.tsx                                    |       0 |      100 |       0 |       0 | 1-3               
+  page.tsx                                      |       0 |        0 |       0 |       0 | 1-12              
+ app/(calendar)/daily-reports                   |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-401             
+ app/(finance)                                  |       0 |      100 |       0 |       0 |                   
+  layout.tsx                                    |       0 |      100 |       0 |       0 | 1-3               
+ app/(finance)/estimates                        |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-550             
+ app/(finance)/estimates/[id]                   |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-276             
+ app/(finance)/invoices                         |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-415             
+ app/(master)                                   |       0 |      100 |       0 |       0 |                   
+  layout.tsx                                    |       0 |      100 |       0 |       0 | 1-3               
+ app/(master)/customers                         |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-184             
+ app/(master)/project-masters                   |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-437             
+ app/(master)/projects                          |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-395             
+ app/(master)/settings                          |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-293             
+ app/(standalone)/login                         |       0 |        0 |       0 |       0 |                   
+  page.tsx                                      |       0 |        0 |       0 |       0 | 3-107             
+ app/(standalone)/profit-dashboard              |       0 |        0 |       0 |       0 |                   
+  loading.tsx                                   |       0 |      100 |       0 |       0 | 1-60              
+  page.tsx                                      |       0 |        0 |       0 |       0 | 1-32              
+ app/(standalone)/profit-dashboard/components   |       0 |        0 |       0 |       0 |                   
+  ProfitCharts.tsx                              |       0 |        0 |       0 |       0 | 3-172             
+  ProfitDashboardClient.tsx                     |       0 |        0 |       0 |       0 | 3-288             
+  ProfitDashboardWrapper.tsx                    |       0 |        0 |       0 |       0 | 3-24              
+ app/api/assignments                            |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-97              
+ app/api/assignments/[id]                       |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-136             
+ app/api/assignments/batch                      |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-100             
+ app/api/assignments/batch-create               |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-102             
+ app/api/auth/[...nextauth]                     |       0 |      100 |     100 |       0 |                   
+  route.ts                                      |       0 |      100 |     100 |       0 | 1-6               
+ app/api/calendar/cell-remarks                  |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 2-68              
+ app/api/calendar/members                       |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-20              
+ app/api/calendar/remarks                       |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-35              
+ app/api/calendar/vacations                     |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-43              
+ app/api/customers                              |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-109             
+ app/api/customers/[id]                         |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-104             
+ app/api/daily-reports                          |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-87              
+ app/api/daily-reports/[id]                     |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-43              
+ app/api/dispatch/foremen                       |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-23              
+ app/api/dispatch/workers                       |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-23              
+ app/api/estimates                              |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-60              
+ app/api/estimates/[id]                         |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-56              
+ app/api/estimates/next-number                  |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-30              
+ app/api/init-db                                |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-38              
+ app/api/invoices                               |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-61              
+ app/api/invoices/[id]                          |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-57              
+ app/api/master-data                            |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-20              
+ app/api/master-data/company                    |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-39              
+ app/api/master-data/construction-suffixes      |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-45              
+ app/api/master-data/construction-suffixes/[id] |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-57              
+ app/api/master-data/construction-types         |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-67              
+ app/api/master-data/construction-types/[id]    |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-61              
+ app/api/master-data/settings                   |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-33              
+ app/api/master-data/unit-prices                |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-37              
+ app/api/master-data/unit-prices/[id]           |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-42              
+ app/api/master-data/vehicles                   |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-29              
+ app/api/master-data/vehicles/[id]              |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-36              
+ app/api/master-data/workers                    |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-34              
+ app/api/master-data/workers/[id]               |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-45              
+ app/api/profit-dashboard                       |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-141             
+ app/api/project-masters                        |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-132             
+ app/api/project-masters/[id]                   |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-107             
+ app/api/project-masters/[id]/files             |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-241             
+ app/api/project-masters/[id]/files/[fileId]    |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-42              
+ app/api/project-masters/[id]/history           |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-65              
+ app/api/project-masters/[id]/profit            |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-114             
+ app/api/system-settings/foremen                |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-35              
+ app/api/user-settings                          |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-31              
+ app/api/users                                  |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-107             
+ app/api/users/[id]                             |       0 |        0 |       0 |       0 |                   
+  route.ts                                      |       0 |        0 |       0 |       0 | 1-77              
+ app/providers                                  |       0 |      100 |       0 |       0 |                   
+  CalendarProviders.tsx                         |       0 |      100 |       0 |       0 | 9                 
+  FinanceProviders.tsx                          |       0 |      100 |       0 |       0 | 8                 
+  MasterProviders.tsx                           |       0 |      100 |       0 |       0 | 7                 
+ components                                     |       0 |        0 |       0 |       0 |                   
+  AuthProvider.tsx                              |       0 |      100 |       0 |       0 | 3-5               
+  ErrorBoundary.tsx                             |       0 |        0 |       0 |       0 | 3-112             
+  Header.tsx                                    |       0 |        0 |       0 |       0 | 3-13              
+  LocationPicker.tsx                            |       0 |        0 |       0 |       0 | 3-45              
+  MainContent.tsx                               |       0 |        0 |       0 |       0 | 3-135             
+  ProjectMasterSearchModal.tsx                  |       0 |        0 |       0 |       0 | 3-140             
+  ProjectSearchModal.tsx                        |       0 |        0 |       0 |       0 | 3-182             
+  Sidebar.tsx                                   |       0 |        0 |       0 |       0 | 3-235             
+  VehicleModal.tsx                              |       0 |        0 |       0 |       0 | 3-68              
+ components/Calendar                            |       0 |        0 |       0 |       0 |                   
+  CalendarHeader.tsx                            |       0 |      100 |       0 |       0 | 1-13              
+  CellRemarkInput.tsx                           |       0 |        0 |       0 |       0 | 2-117             
+  ConflictResolutionModal.tsx                   |       0 |        0 |       0 |       0 | 3-94              
+  CopyAssignmentModal.tsx                       |       0 |        0 |       0 |       0 | 3-171             
+  DayColumn.tsx                                 |       0 |        0 |       0 |       0 | 1-53              
+  DesktopCalendarView.tsx                       |       0 |        0 |       0 |       0 | 3-154             
+  DispatchConfirmModal.tsx                      |       0 |        0 |       0 |       0 | 3-294             
+  DraggableEventCard.tsx                        |       0 |        0 |       0 |       0 | 1-209             
+  DroppableCell.tsx                             |       0 |        0 |       0 |       0 | 1-37              
+  EditingIndicator.tsx                          |       0 |        0 |       0 |       0 | 3-17              
+  EmployeeRowComponent.tsx                      |       0 |        0 |       0 |       0 | 1-153             
+  EventCard.tsx                                 |       0 |        0 |       0 |       0 | 1-153             
+  ForemanSelector.tsx                           |       0 |        0 |       0 |       0 | 1-59              
+  MobileCalendarView.tsx                        |       0 |        0 |       0 |       0 | 3-721             
+  MobileDayView.tsx                             |       0 |        0 |       0 |       0 | 3-141             
+  ProjectSelectionModal.tsx                     |       0 |        0 |       0 |       0 | 3-18              
+  RemarksRow.tsx                                |       0 |        0 |       0 |       0 | 1-96              
+  VacationSelector.tsx                          |       0 |        0 |       0 |       0 | 1-114             
+  WeeklyCalendar.tsx                            |       0 |        0 |       0 |       0 | 3-464             
+ components/Customers                           |       0 |        0 |       0 |       0 |                   
+  CustomerForm.tsx                              |       0 |        0 |       0 |       0 | 3-259             
+  CustomerModal.tsx                             |       0 |        0 |       0 |       0 | 3-26              
+ components/DailyReport                         |       0 |        0 |       0 |       0 |                   
+  DailyReportDetailView.tsx                     |       0 |        0 |       0 |       0 | 3-247             
+  DailyReportForm.tsx                           |       0 |        0 |       0 |       0 | 3-368             
+  DailyReportModal.tsx                          |       0 |        0 |       0 |       0 | 3-748             
+ components/Estimates                           |       0 |        0 |       0 |       0 |                   
+  ConditionNotes.tsx                            |       0 |        0 |       0 |       0 | 3-65              
+  EstimateDetailModal.tsx                       |       0 |        0 |       0 |       0 | 3-231             
+  EstimateForm.tsx                              |       0 |        0 |       0 |       0 | 3-225             
+  EstimateHeader.tsx                            |       0 |        0 |       0 |       0 | 3-424             
+  EstimateModal.tsx                             |       0 |        0 |       0 |       0 | 3-21              
+  ItemRow.tsx                                   |       0 |        0 |       0 |       0 | 3-202             
+  ItemsEditor.tsx                               |       0 |      100 |       0 |       0 | 3-105             
+  SummaryFooter.tsx                             |       0 |      100 |       0 |       0 | 3-11              
+  UnitPriceMasterModal.tsx                      |       0 |        0 |       0 |       0 | 3-116             
+ components/Invoices                            |       0 |        0 |       0 |       0 |                   
+  InvoiceForm.tsx                               |       0 |        0 |       0 |       0 | 3-340             
+  InvoiceModal.tsx                              |       0 |        0 |       0 |       0 | 3-22              
+ components/ProjectMaster                       |       0 |        0 |       0 |       0 |                   
+  ProjectMasterCreateModal.tsx                  |       0 |        0 |       0 |       0 | 3-127             
+  ProjectMasterDetailModal.tsx                  |       0 |        0 |       0 |       0 | 3-233             
+  ProjectMasterDetailPanel.tsx                  |       0 |        0 |       0 |       0 | 3-81              
+  ProjectMasterFilesView.tsx                    |       0 |        0 |       0 |       0 | 3-218             
+  ProjectProfitChart.tsx                        |       0 |        0 |       0 |       0 | 3-95              
+  ProjectProfitDisplay.tsx                      |       0 |        0 |       0 |       0 | 3-189             
+  WorkHistoryDisplay.tsx                        |       0 |        0 |       0 |       0 | 3-108             
+ components/ProjectMasters                      |       0 |        0 |       0 |       0 |                   
+  ProjectMasterForm.tsx                         |       0 |        0 |       0 |       0 | 3-158             
+ components/ProjectMasters/common               |       0 |        0 |       0 |       0 |                   
+  CollapsibleSection.tsx                        |       0 |        0 |       0 |       0 | 3-13              
+  FormField.tsx                                 |       0 |        0 |       0 |       0 | 3-11              
+ components/ProjectMasters/sections             |       0 |        0 |       0 |       0 |                   
+  AddressSection.tsx                            |       0 |        0 |       0 |       0 | 3-275             
+  BasicInfoSection.tsx                          |       0 |        0 |       0 |       0 | 3-316             
+  ConstructionSection.tsx                       |       0 |        0 |       0 |       0 | 3-457             
+  FilesSection.tsx                              |       0 |        0 |       0 |       0 | 3-338             
+  RemarksSection.tsx                            |       0 |      100 |       0 |       0 | 3-15              
+  ScaffoldingSection.tsx                        |       0 |        0 |       0 |       0 | 3-279             
+ components/Projects                            |       0 |        0 |       0 |       0 |                   
+  MultiDayScheduleEditor.tsx                    |       0 |        0 |       0 |       0 | 3-385             
+  ProjectDetailView.tsx                         |       0 |        0 |       0 |       0 | 3-277             
+  ProjectForm.tsx                               |       0 |        0 |       0 |       0 | 3-859             
+  ProjectModal.tsx                              |       0 |        0 |       0 |       0 | 3-148             
+ components/Schedule                            |       0 |        0 |       0 |       0 |                   
+  AssignmentTable.tsx                           |       0 |        0 |       0 |       0 | 3-636             
+  ScheduleViewTabs.tsx                          |       0 |        0 |       0 |       0 | 3-63              
+ components/Settings                            |       0 |        0 |       0 |       0 |                   
+  CompanyInfoSettings.tsx                       |       0 |        0 |       0 |       0 | 3-304             
+  ConstructionSuffixSettings.tsx                |       0 |        0 |       0 |       0 | 3-209             
+  ConstructionTypeSettings.tsx                  |       0 |        0 |       0 |       0 | 3-294             
+  UnitPriceMasterSettings.tsx                   |       0 |        0 |       0 |       0 | 3-248             
+  UserManagement.tsx                            |       0 |        0 |       0 |       0 | 3-410             
+  UserModal.tsx                                 |       0 |        0 |       0 |       0 | 3-235             
+ components/pdf                                 |       0 |        0 |       0 |       0 |                   
+  EstimatePDF.tsx                               |       0 |        0 |       0 |       0 | 3-893             
+  InvoicePDF.tsx                                |       0 |        0 |       0 |       0 | 3-527             
+  styles.ts                                     |       0 |        0 |       0 |       0 | 1-126             
+ components/ui                                  |       0 |        0 |       0 |       0 |                   
+  Button.tsx                                    |       0 |        0 |       0 |       0 | 3-211             
+  ImageLightbox.tsx                             |       0 |        0 |       0 |       0 | 3-150             
+  InlinePdfViewer.tsx                           |       0 |        0 |       0 |       0 | 3-289             
+  Loading.tsx                                   |       0 |        0 |       0 |       0 | 3-126             
+  PdfViewer.tsx                                 |       0 |        0 |       0 |       0 | 3-380             
+ contexts                                       |       0 |        0 |       0 |       0 |                   
+  AssignmentContext.tsx                         |       0 |        0 |       0 |       0 | 3-296             
+  NavigationContext.tsx                         |       0 |        0 |       0 |       0 | 3-53              
+  ProfitDashboardContext.tsx                    |       0 |        0 |       0 |       0 | 3-120             
+ hooks                                          |       0 |        0 |       0 |       0 |                   
+  useAssignmentPresence.ts                      |       0 |        0 |       0 |       0 | 3-143             
+  useCalendar.ts                                |       0 |        0 |       0 |       0 | 1-79              
+  useCalendarDisplay.ts                         |       0 |        0 |       0 |       0 | 3-70              
+  useCalendarModals.ts                          |       0 |        0 |       0 |       0 | 1-195             
+  useCompany.ts                                 |       0 |        0 |       0 |       0 | 3-77              
+  useCustomerSearch.ts                          |       0 |        0 |       0 |       0 | 1-35              
+  useCustomers.ts                               |       0 |        0 |       0 |       0 | 3-63              
+  useDailyReports.ts                            |       0 |        0 |       0 |       0 | 3-90              
+  useDebounce.ts                                |       0 |      100 |       0 |       0 | 1-24              
+  useDragAndDrop.ts                             |       0 |        0 |       0 |       0 | 1-183             
+  useEstimates.ts                               |       0 |        0 |       0 |       0 | 3-64              
+  useInvoices.ts                                |       0 |        0 |       0 |       0 | 3-84              
+  useIsMobile.ts                                |       0 |        0 |       0 |       0 | 3-50              
+  useLocalStorage.ts                            |       0 |        0 |       0 |       0 | 1-50              
+  useMasterData.ts                              |       0 |        0 |       0 |       0 | 3-48              
+  useMediaQuery.ts                              |       0 |      100 |       0 |       0 | 3-17              
+  useModalKeyboard.ts                           |       0 |        0 |       0 |       0 | 1-27              
+  usePostalCodeAutofill.ts                      |       0 |        0 |       0 |       0 | 1-34              
+  useProjectMasters.ts                          |       0 |        0 |       0 |       0 | 3-85              
+  useProjects.ts                                |       0 |        0 |       0 |       0 | 3-405             
+  useRealtimeSubscription.ts                    |       0 |        0 |       0 |       0 | 1-142             
+  useRemarks.ts                                 |       0 |        0 |       0 |       0 | 3-59              
+  useUnitPriceMaster.ts                         |       0 |        0 |       0 |       0 | 3-64              
+  useVacation.ts                                |       0 |        0 |       0 |       0 | 3-84              
+ lib                                            |       0 |        0 |       0 |       0 |                   
+  auth.ts                                       |       0 |        0 |       0 |       0 | 2-132             
+  broadcastChannel.ts                           |       0 |        0 |       0 |       0 | 13-57             
+  formatters.ts                                 |       0 |        0 |       0 |       0 | 6-163             
+  json-utils.ts                                 |       0 |        0 |       0 |       0 | 9-40              
+  prisma.ts                                     |       0 |        0 |     100 |       0 | 1-12              
+  profitDashboard.ts                            |       0 |        0 |       0 |       0 | 1-247             
+  rate-limit.ts                                 |       0 |        0 |       0 |       0 | 1-122             
+  supabase-admin.ts                             |       0 |        0 |     100 |       0 | 1-14              
+  supabase.ts                                   |       0 |        0 |       0 |       0 | 1-24              
+ lib/api                                        |       0 |        0 |       0 |       0 |                   
+  utils.ts                                      |       0 |        0 |       0 |       0 | 1-320             
+ lib/validations                                |       0 |        0 |       0 |       0 |                   
+  index.ts                                      |       0 |        0 |       0 |       0 | 1-203             
+ stores                                         |    8.51 |        0 |    0.83 |   11.69 |                   
+  calendarStore.ts                              |   45.71 |      100 |       5 |   93.93 | 48-53             
+  financeStore.ts                               |       0 |        0 |       0 |       0 | 1-516             
+  index.ts                                      |       0 |      100 |     100 |       0 | 2-4               
+  masterStore.ts                                |       0 |        0 |       0 |       0 | 1-242             
+ stores/calendarSlices                          |   45.15 |    45.23 |   49.55 |    44.5 |                   
+  assignmentSlice.ts                            |   89.74 |    71.91 |   97.91 |   96.05 | 56-65             
+  cellRemarkSlice.ts                            |   18.18 |        0 |      20 |   10.52 | 14-54             
+  dailyReportSlice.ts                           |    9.67 |        0 |    8.33 |    7.54 | 14-106            
+  foremanSlice.ts                               |    5.63 |        0 |    7.14 |    3.27 | 14-122            
+  projectMasterSlice.ts                         |    9.61 |        0 |    8.33 |    6.81 | 14-96             
+  remarkSlice.ts                                |      20 |        0 |      20 |   11.76 | 13-48             
+  types.ts                                      |   89.47 |    61.29 |      75 |   89.47 | 34-35             
+  vacationSlice.ts                              |    9.09 |        0 |    7.69 |    5.71 | 13-94             
+ utils                                          |    1.51 |        0 |    1.96 |    1.58 |                   
+  costCalculation.ts                            |       0 |        0 |       0 |       0 | 33-106            
+  dateUtils.ts                                  |    1.61 |        0 |       0 |    1.66 | 75-250            
+  employeeUtils.ts                              |   21.42 |        0 |      10 |   22.22 | 8-45,61-78        
+  pdfGenerator.ts                               |       0 |        0 |       0 |       0 | 3-671             
+  permissions.ts                                |       0 |        0 |       0 |       0 | 11-161            
+  reactPdfGenerator.tsx                         |       0 |        0 |       0 |       0 | 3-128             
+ utils/fonts                                    |       0 |      100 |       0 |       0 |                   
+  NotoSansJP-font.ts                            |       0 |      100 |     100 |       0 | 3                 
+  japanese.ts                                   |       0 |      100 |       0 |       0 | 16-46             
+------------------------------------------------|---------|----------|---------|---------|-------------------
+Test Suites: 1 passed, 1 total
+Tests:       24 passed, 24 total
+Snapshots:   0 total
+Time:        17.611 s
+Ran all test suites matching __tests__/stores/calendarSlices/assignmentSlice.test.ts.

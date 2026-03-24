@@ -514,7 +514,7 @@ describe('calendarStore', () => {
                 ]
             });
 
-            (global.fetch as jest.Mock).mockResolvedValue({ ok: true });
+            (global.fetch as jest.Mock).mockResolvedValue({ ok: true, json: async () => ({}) });
 
             await act(async () => {
                 await useCalendarStore.getState().updateProjects([

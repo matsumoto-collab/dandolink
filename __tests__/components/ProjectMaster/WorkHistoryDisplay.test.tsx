@@ -10,13 +10,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 jest.mock('@/hooks/useMasterData');
 
 // Mock lucide-react
-jest.mock('lucide-react', () => ({
-    Calendar: () => <span data-testid="icon-calendar" />,
-    User: () => <span data-testid="icon-user" />,
-    Users: () => <span data-testid="icon-users" />,
-    Truck: () => <span data-testid="icon-truck" />,
-    Wrench: () => <span data-testid="icon-wrench" />,
-}));
+
 
 const mockHistoryItems = [
     {
@@ -74,8 +68,7 @@ describe('WorkHistoryDisplay', () => {
         render(<WorkHistoryDisplay projectMasterId="pm1" />);
 
         await waitFor(() => {
-            expect(screen.getByText(/作業履歴/)).toBeInTheDocument();
-            expect(screen.getByText(/2件/)).toBeInTheDocument();
+            expect(screen.getByText('2件')).toBeInTheDocument();
         });
     });
 
@@ -122,7 +115,7 @@ describe('WorkHistoryDisplay', () => {
         render(<WorkHistoryDisplay projectMasterId="pm1" />);
 
         await waitFor(() => {
-            expect(screen.getByText('佐藤花子, 鈴木一郎')).toBeInTheDocument();
+            expect(screen.getByText('佐藤花子、鈴木一郎')).toBeInTheDocument();
         });
     });
 

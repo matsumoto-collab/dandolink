@@ -64,7 +64,10 @@ describe('/api/assignments/batch', () => {
 
         expect(res.status).toBe(200);
         expect(prisma.$transaction).toHaveBeenCalled();
-        expect(await res.json()).toEqual({ success: true, count: 2 });
+        const json = await res.json();
+        expect(json.success).toBe(true);
+        expect(json.count).toBe(2);
+        expect(json.results).toHaveLength(2);
     });
 
     it('should handle optimistic locking success', async () => {

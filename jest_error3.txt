@@ -1,0 +1,81 @@
+[@sentry/nextjs] DEPRECATION WARNING: disableLogger is deprecated and will be removed in a future version. Use webpack.treeshake.removeDebugLogging instead.
+[@sentry/nextjs] DEPRECATION WARNING: automaticVercelMonitors is deprecated and will be removed in a future version. Use webpack.automaticVercelMonitors instead.
+FAIL __tests__/api/master-data/construction-suffixes/route.test.ts
+  /api/master-data/construction-suffixes
+    GET
+      √ 認証エラーの場合はエラーレスポンスを返す (3 ms)
+      √ 有効な工事名称一覧を取得して返す (1 ms)
+      √ 取得時に例外が発生した場合は500を返す (1 ms)
+    POST
+      √ 認証エラーの場合はエラーレスポンスを返す
+      × 名前のバリデーションエラーの場合はそのレスポンスを返す (4 ms)
+      × 正常に工事名称を作成して返す (2 ms)
+      × 既存データがない場合の新規作成でのソート順対応 (1 ms)
+      √ 作成時に例外が発生した場合は500を返す
+
+  ● /api/master-data/construction-suffixes › POST › 名前のバリデーションエラーの場合はそのレスポンスを返す
+
+    expect(received).toBe(expected) // Object.is equality
+
+    - Expected  - 2
+    + Received  + 2
+
+      Response1 {
+    -   "body": "{\"error\":\"invalid\"}",
+    +   "body": "{\"error\":\"Server Error\"}",
+        "headers": Map {},
+    -   "status": 400,
+    +   "status": 500,
+      }
+
+    [0m [90m 133 |[39m
+     [90m 134 |[39m             [36mconst[39m res [33m=[39m [36mawait[39m [33mPOST[39m(req)[33m;[39m
+    [31m[1m>[22m[39m[90m 135 |[39m             expect(res)[33m.[39mtoBe(validationErrorResponse)[33m;[39m
+     [90m     |[39m                         [31m[1m^[22m[39m
+     [90m 136 |[39m         })[33m;[39m
+     [90m 137 |[39m
+     [90m 138 |[39m         it([32m'正常に工事名称を作成して返す'[39m[33m,[39m [36masync[39m () [33m=>[39m {[0m
+
+      at Object.toBe (__tests__/api/master-data/construction-suffixes/route.test.ts:135:25)
+
+  ● /api/master-data/construction-suffixes › POST › 正常に工事名称を作成して返す
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: {"_max": {"sortOrder": true}}
+
+    Number of calls: 0
+
+    [0m [90m 151 |[39m             [36mconst[39m data [33m=[39m [36mawait[39m res[33m.[39mjson()[33m;[39m
+     [90m 152 |[39m
+    [31m[1m>[22m[39m[90m 153 |[39m             expect(prisma[33m.[39mconstructionSuffix[33m.[39maggregate)[33m.[39mtoHaveBeenCalledWith({ _max[33m:[39m { sortOrder[33m:[39m [36mtrue[39m } })[33m;[39m
+     [90m     |[39m                                                         [31m[1m^[22m[39m
+     [90m 154 |[39m             expect(prisma[33m.[39mconstructionSuffix[33m.[39mcreate)[33m.[39mtoHaveBeenCalledWith({
+     [90m 155 |[39m                 data[33m:[39m { name[33m:[39m [32m'新規工事'[39m[33m,[39m sortOrder[33m:[39m [35m6[39m }[33m,[39m
+     [90m 156 |[39m             })[33m;[39m[0m
+
+      at Object.toHaveBeenCalledWith (__tests__/api/master-data/construction-suffixes/route.test.ts:153:57)
+
+  ● /api/master-data/construction-suffixes › POST › 既存データがない場合の新規作成でのソート順対応
+
+    expect(jest.fn()).toHaveBeenCalledWith(...expected)
+
+    Expected: ObjectContaining {"data": {"name": "新規工事", "sortOrder": 0}}
+
+    Number of calls: 0
+
+    [0m [90m 172 |[39m             [36mawait[39m [33mPOST[39m(req)[33m;[39m
+     [90m 173 |[39m
+    [31m[1m>[22m[39m[90m 174 |[39m             expect(prisma[33m.[39mconstructionSuffix[33m.[39mcreate)[33m.[39mtoHaveBeenCalledWith(expect[33m.[39mobjectContaining({
+     [90m     |[39m                                                      [31m[1m^[22m[39m
+     [90m 175 |[39m                 data[33m:[39m { name[33m:[39m [32m'新規工事'[39m[33m,[39m sortOrder[33m:[39m [35m0[39m }[33m,[39m
+     [90m 176 |[39m             }))[33m;[39m
+     [90m 177 |[39m         })[33m;[39m[0m
+
+      at Object.toHaveBeenCalledWith (__tests__/api/master-data/construction-suffixes/route.test.ts:174:54)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 5 passed, 8 total
+Snapshots:   0 total
+Time:        6.158 s
+Ran all test suites matching __tests__/api/master-data/construction-suffixes/route.test.ts.

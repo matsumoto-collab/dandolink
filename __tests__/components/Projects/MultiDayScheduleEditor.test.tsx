@@ -17,10 +17,7 @@ jest.mock('react-hot-toast', () => ({
 }));
 
 // Mock icons
-jest.mock('lucide-react', () => ({
-    Plus: () => <span data-testid="icon-plus" />,
-    X: () => <span data-testid="icon-x" />,
-}));
+
 
 describe('MultiDayScheduleEditor', () => {
     const mockOnChange = jest.fn();
@@ -197,7 +194,7 @@ describe('MultiDayScheduleEditor', () => {
         expect(mockOnChange).toHaveBeenCalledWith([]);
     });
 
-    it('should update schedule member count', () => {
+    it('should update schedule member count via stepper', () => {
         const existingSchedules: DailySchedule[] = [
             { date: new Date('2024-01-08'), memberCount: 3, workers: [], trucks: [], remarks: '', sortOrder: 0 },
         ];
@@ -210,11 +207,14 @@ describe('MultiDayScheduleEditor', () => {
             />
         );
 
-        const numberInput = screen.getByDisplayValue('3');
-        fireEvent.change(numberInput, { target: { value: '5' } });
+        // Find the schedule's member count display ("3") and click the adjacent + button
+        const memberCountSpan = screen.getByText('3');
+        const stepperContainer = memberCountSpan.parentElement!;
+        const plusButton = stepperContainer.querySelector('button:last-child')!;
+        fireEvent.click(plusButton);
 
         expect(mockOnChange).toHaveBeenCalledWith([
-            expect.objectContaining({ memberCount: 5 }),
+            expect.objectContaining({ memberCount: 4 }),
         ]);
     });
 });

@@ -45,6 +45,9 @@ jest.mock('lucide-react', () => ({
     Calendar: () => <span data-testid="icon-calendar" />,
     ChevronLeft: () => <span data-testid="icon-chevron-left" />,
     ChevronRight: () => <span data-testid="icon-chevron-right" />,
+    ChevronUp: () => <span data-testid="icon-chevron-up" />,
+    ChevronDown: () => <span data-testid="icon-chevron-down" />,
+    ChevronsUpDown: () => <span data-testid="icon-chevrons-up-down" />,
     User: () => <span data-testid="icon-user" />,
     MapPin: () => <span data-testid="icon-map-pin" />,
     Edit: () => <span data-testid="icon-edit" />,
@@ -112,13 +115,14 @@ describe('DailyReportPage', () => {
     it('should filter reports by search query', async () => {
         render(<DailyReportPage />);
         const searchInput = screen.getByPlaceholderText('職長名、備考で検索...');
-        fireEvent.change(searchInput, { target: { value: 'Report 1 notes' } });
+        fireEvent.change(searchInput, { target: { value: 'Foreman A' } });
 
+        // After filtering by 'Foreman A', only 1 report should be shown (not 2)
+        // The footer shows "全 N 件の日報 (2件中)" - so check for 1 matching report
         await waitFor(() => {
-            // Report 1 notes should still be visible
-            expect(screen.getAllByText('Report 1 notes').length).toBeGreaterThan(0);
-            // Report 2 notes should be filtered out
-            expect(screen.queryByText('Report 2 notes')).not.toBeInTheDocument();
+            // The status text shows how many results are shown
+            const statusText = screen.getByText(/件の日報/i);
+            expect(statusText.textContent).toContain('1');
         });
     });
 

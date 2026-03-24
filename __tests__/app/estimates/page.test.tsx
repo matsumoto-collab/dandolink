@@ -52,6 +52,11 @@ jest.mock('lucide-react', () => ({
     Loader2: () => <span data-testid="icon-loader" />,
     Filter: () => <span data-testid="icon-filter" />,
     Download: () => <span data-testid="icon-download" />,
+    Copy: () => <span data-testid="icon-copy" />,
+    Link2Off: () => <span data-testid="icon-link2off" />,
+    ChevronsUpDown: () => <span data-testid="icon-chevrons-up-down" />,
+    ChevronUp: () => <span data-testid="icon-chevron-up" />,
+    ChevronDown: () => <span data-testid="icon-chevron-down" />,
 }));
 
 const mockEstimates = [

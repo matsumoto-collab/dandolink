@@ -84,8 +84,8 @@ describe('/api/project-masters', () => {
             }));
         });
 
-        it('should return 400 validation error for missing title', async () => {
-            const invalidBody = { ...validBody, title: undefined };
+        it('should return 400 validation error for invalid postalCode', async () => {
+            const invalidBody = { ...validBody, postalCode: 'invalid' };
 
             const req = new NextRequest('http://localhost:3000/api/project-masters', {
                 method: 'POST',
