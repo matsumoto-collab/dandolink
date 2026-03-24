@@ -970,6 +970,81 @@ model custom_oauth_providers {
   @@schema("auth")
 }
 
+// ========================
+// 材料管理モデル
+// ========================
+
+model MaterialCategory {
+  id        String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  sortOrder Int            @default(0)
+  isActive  Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @default(now()) @updatedAt
+  items     MaterialItem[]
+
+  @@index([name])
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+model MaterialItem {
+  id               String                    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  categoryId       String
+  name             String
+  spec             String?
+  unit             String                    @default("本")
+  sortOrder        Int                       @default(0)
+  isActive         Boolean                   @default(true)
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @default(now()) @updatedAt
+  category         MaterialCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  requisitionItems MaterialRequisitionItem[]
+
+  @@index([categoryId])
+  @@index([sortOrder])
+  @@schema("public")
+}
+
+model MaterialRequisition {
+  id              String                    @id @default(uuid())
+  projectMasterId String
+  date            DateTime
+  foremanId       String
+  foremanName     String                    @default("")
+  type            String                    @default("出庫")
+  status          String                    @default("draft")
+  vehicleInfo     String?
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+  items           MaterialRequisitionItem[]
+
+  @@index([projectMasterId])
+  @@index([date])
+  @@index([foremanId])
+  @@index([status])
+  @@schema("public")
+}
+
+model MaterialRequisitionItem {
+  id             String               @id @default(uuid())
+  requisitionId  String
+  materialItemId String
+  quantity       Int                  @default(0)
+  vehicleLabel   String?
+  notes          String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  requisition    MaterialRequisition  @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  materialItem   MaterialItem         @relation(fields: [materialItemId], references: [id])
+
+  @@index([requisitionId])
+  @@index([materialItemId])
+  @@schema("public")
+}
+
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model Manager {
   id        String   @id

@@ -46,6 +46,9 @@ const ProfitDashboardWrapper = dynamic(() => import('@/app/(standalone)/profit-d
 const CompanyInfoSettings = dynamic(() => import('@/components/Settings/CompanyInfoSettings'), {
     loading: () => <LoadingSpinner />,
 });
+const MaterialRequisitionPage = dynamic(() => import('@/components/Materials/MaterialRequisitionPage'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -127,6 +130,9 @@ export default function MainContent() {
 
             case 'partners':
                 return <PlaceholderPage title="協力会社" />;
+
+            case 'materials':
+                return <MaterialRequisitionPage />;
 
             case 'customers':
                 return <CustomersPage />;

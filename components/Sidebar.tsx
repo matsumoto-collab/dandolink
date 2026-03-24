@@ -19,12 +19,13 @@ import {
     ChevronRight,
     X,
     BarChart3,
+    Package,
 } from 'lucide-react';
 
 interface NavItem {
     name: string;
     icon: React.ElementType;
-    page: 'schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'partners' | 'customers' | 'company' | 'settings';
+    page: 'schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'partners' | 'customers' | 'company' | 'settings';
 }
 
 interface NavSection {
@@ -39,6 +40,7 @@ const navigationSections: NavSection[] = [
             { name: 'スケジュール管理', icon: Home, page: 'schedule' },
             { name: '案件一覧', icon: Briefcase, page: 'project-masters' },
             { name: '日報一覧', icon: FileText, page: 'reports' },
+            { name: '材料出庫伝票', icon: Package, page: 'materials' },
         ],
     },
     {

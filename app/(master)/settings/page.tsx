@@ -9,6 +9,7 @@ import UserManagement from '@/components/Settings/UserManagement';
 import ConstructionTypeSettings from '@/components/Settings/ConstructionTypeSettings';
 import ConstructionSuffixSettings from '@/components/Settings/ConstructionSuffixSettings';
 import BillingTitleSettings from '@/components/Settings/BillingTitleSettings';
+import MaterialMasterSettings from '@/components/Settings/MaterialMasterSettings';
 import toast from 'react-hot-toast';
 
 export default function SettingsPage() {
@@ -22,7 +23,7 @@ export default function SettingsPage() {
         updateTotalMembers,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'users'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'materials' | 'users'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [newItemName, setNewItemName] = useState('');
@@ -34,13 +35,14 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'users'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'materials' | 'users'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
             { id: 'constructionSuffixes' as const, label: '工事名称', count: null },
             { id: 'billingTitles' as const, label: '請求項目', count: null },
             { id: 'unitprices' as const, label: '単価マスター', count: null },
+            { id: 'materials' as const, label: '材料マスター', count: null },
         ];
 
         // Add user management tab if user is admin
@@ -203,6 +205,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'billingTitles' ? (
                             // 請求項目マスター
                             <BillingTitleSettings />
+                        ) : activeTab === 'materials' ? (
+                            // 材料マスター
+                            <MaterialMasterSettings />
                         ) : activeTab === 'unitprices' ? (
                             // 単価マスター
                             <UnitPriceMasterSettings />

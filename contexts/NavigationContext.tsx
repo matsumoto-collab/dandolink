@@ -13,6 +13,7 @@ export type PageType =
     | 'partners'         // 協力会社
     | 'customers'        // 顧客管理
     | 'company'          // 自社情報
+    | 'materials'        // 材料出庫伝票
     | 'settings';        // 設定
 
 interface NavigationContextType {
