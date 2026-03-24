@@ -46,8 +46,13 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
         if (inputRef.current) {
             const rect = inputRef.current.getBoundingClientRect();
             const maxDropdownHeight = 256; // max-h-64 = 16rem = 256px
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const openUp = spaceBelow < maxDropdownHeight && rect.top > spaceBelow;
+            // Use visualViewport to account for on-screen keyboard on iOS/iPad
+            const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+            const viewportOffsetTop = window.visualViewport?.offsetTop ?? 0;
+            const visibleBottom = viewportOffsetTop + viewportHeight;
+            const spaceBelow = visibleBottom - rect.bottom;
+            const spaceAbove = rect.top - viewportOffsetTop;
+            const openUp = spaceBelow < maxDropdownHeight && spaceAbove > spaceBelow;
             setDropdownPos({
                 top: openUp ? rect.top - 4 : rect.bottom + 4,
                 left: rect.left,
@@ -67,19 +72,41 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Reposition dropdown when keyboard opens/closes on iOS/iPad
+    useEffect(() => {
+        if (!showDropdown) return;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const onResize = () => updatePosition();
+        vv.addEventListener('resize', onResize);
+        vv.addEventListener('scroll', onResize);
+        return () => {
+            vv.removeEventListener('resize', onResize);
+            vv.removeEventListener('scroll', onResize);
+        };
+    }, [showDropdown, updatePosition]);
+
     if (!unitPriceMasters?.length) {
         return (
             <input type="text" value={item.description} onChange={(e) => onUpdate(item.id, 'description', e.target.value)} className={className} placeholder="品目・内容" />
         );
     }
 
+    const vvHeight = window.visualViewport?.height ?? window.innerHeight;
+    const vvOffsetTop = window.visualViewport?.offsetTop ?? 0;
+    const availableSpace = dropdownPos.openUp
+        ? dropdownPos.top - vvOffsetTop - 8
+        : (vvOffsetTop + vvHeight) - dropdownPos.top - 8;
+    const dropdownMaxH = Math.min(256, Math.max(120, availableSpace));
+
     const dropdown = showDropdown && filtered.length > 0 ? createPortal(
         <div
             ref={dropdownRef}
-            className="fixed z-[9999] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
+            className="fixed z-[9999] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
             style={{
                 left: dropdownPos.left,
                 width: dropdownPos.width,
+                maxHeight: dropdownMaxH,
                 ...(dropdownPos.openUp
                     ? { bottom: window.innerHeight - dropdownPos.top, top: 'auto' }
                     : { top: dropdownPos.top }),
@@ -181,8 +208,13 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
         if (inputRef.current) {
             const rect = inputRef.current.getBoundingClientRect();
             const maxH = 200;
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const openUp = spaceBelow < maxH && rect.top > spaceBelow;
+            // Use visualViewport to account for on-screen keyboard on iOS/iPad
+            const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+            const viewportOffsetTop = window.visualViewport?.offsetTop ?? 0;
+            const visibleBottom = viewportOffsetTop + viewportHeight;
+            const spaceBelow = visibleBottom - rect.bottom;
+            const spaceAbove = rect.top - viewportOffsetTop;
+            const openUp = spaceBelow < maxH && spaceAbove > spaceBelow;
             setDropdownPos({
                 top: openUp ? rect.top - 4 : rect.bottom + 4,
                 left: rect.left,
@@ -202,6 +234,20 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Reposition dropdown when keyboard opens/closes on iOS/iPad
+    useEffect(() => {
+        if (!showDropdown) return;
+        const vv = window.visualViewport;
+        if (!vv) return;
+        const onResize = () => updatePosition();
+        vv.addEventListener('resize', onResize);
+        vv.addEventListener('scroll', onResize);
+        return () => {
+            vv.removeEventListener('resize', onResize);
+            vv.removeEventListener('scroll', onResize);
+        };
+    }, [showDropdown, updatePosition]);
+
     if (masterSpecs.length === 0) {
         return (
             <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={className} placeholder="規格" />
@@ -212,13 +258,21 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
         !item.specification || s.name.toLowerCase().includes((item.specification || '').toLowerCase())
     );
 
+    const specVvHeight = window.visualViewport?.height ?? window.innerHeight;
+    const specVvOffsetTop = window.visualViewport?.offsetTop ?? 0;
+    const specAvailable = dropdownPos.openUp
+        ? dropdownPos.top - specVvOffsetTop - 8
+        : (specVvOffsetTop + specVvHeight) - dropdownPos.top - 8;
+    const specDropdownMaxH = Math.min(200, Math.max(120, specAvailable));
+
     const dropdown = showDropdown && filtered.length > 0 ? createPortal(
         <div
             ref={dropdownRef}
-            className="fixed z-[9999] max-h-[200px] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
+            className="fixed z-[9999] overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg"
             style={{
                 left: dropdownPos.left,
                 width: dropdownPos.width,
+                maxHeight: specDropdownMaxH,
                 ...(dropdownPos.openUp
                     ? { bottom: window.innerHeight - dropdownPos.top, top: 'auto' }
                     : { top: dropdownPos.top }),
