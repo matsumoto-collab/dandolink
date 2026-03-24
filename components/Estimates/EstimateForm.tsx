@@ -429,6 +429,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     return (
+        <>
         <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6">
             <EstimateHeader
                 projectId={projectId} setProjectId={setProjectId}
@@ -484,10 +485,6 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 </button>
             </div>
 
-            <CustomerModal isOpen={isCustomerModalOpen} onClose={() => setIsCustomerModalOpen(false)}
-                onSubmit={(data) => { addCustomer(data); setIsCustomerModalOpen(false); }} title="新規顧客登録" />
-            <UnitPriceMasterModal isOpen={isUnitPriceModalOpen} onClose={() => setIsUnitPriceModalOpen(false)} onSelect={handleSelectFromMaster} />
-
             {/* PDFプレビューオーバーレイ */}
             {isPreviewOpen && previewPdfUrl && (
                 <div className="fixed inset-0 z-[80] bg-black/70 flex flex-col">
@@ -511,5 +508,10 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 </div>
             )}
         </form>
+
+        <CustomerModal isOpen={isCustomerModalOpen} onClose={() => setIsCustomerModalOpen(false)}
+            onSubmit={async (data) => { await addCustomer(data); setIsCustomerModalOpen(false); }} title="新規顧客登録" />
+        <UnitPriceMasterModal isOpen={isUnitPriceModalOpen} onClose={() => setIsUnitPriceModalOpen(false)} onSelect={handleSelectFromMaster} />
+        </>
     );
 }
