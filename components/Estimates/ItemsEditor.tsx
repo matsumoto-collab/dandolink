@@ -472,7 +472,7 @@ export default function ItemsEditor({
             {/* デスクトップ: テーブル表示 */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="hidden md:block border border-slate-200 rounded-lg overflow-x-auto">
+            <div className="hidden lg:block border border-slate-200 rounded-lg overflow-x-auto">
                 <table className="w-full min-w-[800px]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
@@ -551,12 +551,12 @@ export default function ItemsEditor({
                 )}
             </div>}
 
-            <p className="hidden md:block mt-1.5 text-xs text-slate-400">
+            <p className="hidden lg:block mt-1.5 text-xs text-slate-400">
                 各行は左端のハンドルをドラッグして並び替えられます。
             </p>
 
             {/* モバイル: カード表示 */}
-            <div className="md:hidden space-y-3 mt-3">
+            <div className="lg:hidden space-y-3 mt-3">
                 {items.map((item, index) => {
                     if (item.isCategory && onAddChildItem && onUpdateChildItem && onRemoveChildItem && onMoveChildItem) {
                         return (
