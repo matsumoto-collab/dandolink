@@ -32,6 +32,8 @@ interface MobileCalendarViewProps {
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
     handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
+    getMemberAdjustment?: (dateKey: string) => number;
+    onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
 }
 
 interface ActionSheetState {
@@ -66,6 +68,8 @@ export default function MobileCalendarView({
     handleOpenDispatchModal,
     handleCopyEvent,
     handleMoveToCell,
+    getMemberAdjustment,
+    onMemberAdjustmentChange,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
@@ -310,20 +314,37 @@ export default function MobileCalendarView({
                             let assignedCount = 0;
                             byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                             const vacationCount = getVacationEmployees(dateKey).length;
-                            const remaining = totalMembers - assignedCount - vacationCount;
+                            const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
+                            const remaining = totalMembers + adjustment - assignedCount - vacationCount;
                             return (
                                 <div
                                     key={dateKey}
-                                    className={`flex-shrink-0 border-r border-slate-200 flex items-center justify-center ${
+                                    className={`flex-shrink-0 border-r border-slate-200 flex items-center justify-center gap-0.5 ${
                                         isSat ? 'bg-slate-50/30' : isSun ? 'bg-slate-50/30' : ''
                                     }`}
                                     style={{ width: COL_W }}
                                 >
+                                    {onMemberAdjustmentChange && (
+                                        <button
+                                            onClick={() => onMemberAdjustmentChange(dateKey, -1)}
+                                            className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded bg-slate-200 active:bg-slate-300 text-slate-600 text-[10px] font-bold leading-none"
+                                        >
+                                            −
+                                        </button>
+                                    )}
                                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${
                                         remaining > 0 ? 'bg-slate-500' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-700'
                                     }`}>
                                         {remaining}人
                                     </span>
+                                    {onMemberAdjustmentChange && (
+                                        <button
+                                            onClick={() => onMemberAdjustmentChange(dateKey, 1)}
+                                            className="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded bg-slate-200 active:bg-slate-300 text-slate-600 text-[10px] font-bold leading-none"
+                                        >
+                                            +
+                                        </button>
+                                    )}
                                 </div>
                             );
                         })}

@@ -383,6 +383,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
+                    getMemberAdjustment={getMemberAdjustmentCb}
+                    onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                 />
             ) : (
                 <DesktopCalendarView
