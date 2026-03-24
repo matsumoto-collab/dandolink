@@ -37,7 +37,7 @@ export default function EstimateDetailModal({
 }: EstimateDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
-    const [includeDetails, setIncludeDetails] = useState(true);
+    const [includeDetails, setIncludeDetails] = useState(false);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // projectがnullの場合はestimateからダミーのProjectを作成（useMemoでメモ化）
