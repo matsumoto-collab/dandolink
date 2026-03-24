@@ -9,6 +9,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import { useCalendarStore } from '@/stores/calendarStore';
 
 
 interface DispatchUser {
@@ -30,6 +31,7 @@ export default function DispatchConfirmModal({
 }: DispatchConfirmModalProps) {
     const { vehicles } = useMasterData();
     const { projects, updateProject } = useProjects();
+    const allForemen = useCalendarStore((state) => state.allForemen);
 
     // ユーザーデータの状態
     const [workers, setWorkers] = useState<DispatchUser[]>([]);
@@ -83,8 +85,8 @@ export default function DispatchConfirmModal({
         fetchUsers();
     }, [isOpen]);
 
-    // 同日の他案件で使用中のワーカーと車両を取得
-    const { usedWorkerIds, usedVehicleIds } = useMemo(() => {
+    // 同日の他案件で使用中のワーカーと車両を取得（どの班で使われているか）
+    const { workerTeamMap, vehicleTeamMap } = useMemo(() => {
         const dateKey = formatDateKey(project.startDate);
         const sameDayProjects = projects.filter(p =>
             p.id !== project.id &&
@@ -92,19 +94,30 @@ export default function DispatchConfirmModal({
             p.isDispatchConfirmed
         );
 
-        const usedWorkers = new Set<string>();
-        const usedVehicles = new Set<string>();
+        const workerMap = new Map<string, string[]>();
+        const vehicleMap = new Map<string, string[]>();
 
         sameDayProjects.forEach(p => {
-            p.confirmedWorkerIds?.forEach(id => usedWorkers.add(id));
-            p.confirmedVehicleIds?.forEach(id => usedVehicles.add(id));
+            const foreman = allForemen.find(f => f.id === p.assignedEmployeeId);
+            const teamName = foreman ? `${foreman.displayName}班` : '他班';
+
+            p.confirmedWorkerIds?.forEach(id => {
+                const teams = workerMap.get(id) || [];
+                if (!teams.includes(teamName)) teams.push(teamName);
+                workerMap.set(id, teams);
+            });
+            p.confirmedVehicleIds?.forEach(id => {
+                const teams = vehicleMap.get(id) || [];
+                if (!teams.includes(teamName)) teams.push(teamName);
+                vehicleMap.set(id, teams);
+            });
         });
 
         return {
-            usedWorkerIds: usedWorkers,
-            usedVehicleIds: usedVehicles,
+            workerTeamMap: workerMap,
+            vehicleTeamMap: vehicleMap,
         };
-    }, [projects, project.id, project.startDate]);
+    }, [projects, project.id, project.startDate, allForemen]);
 
     const handleWorkerToggle = (workerId: string) => {
         setSelectedWorkerIds(prev =>
@@ -225,29 +238,26 @@ export default function DispatchConfirmModal({
                                         </p>
                                     ) : (
                                         workers.map(worker => {
-                                            const isUsed = usedWorkerIds.has(worker.id);
+                                            const teams = workerTeamMap.get(worker.id);
                                             const isSelected = selectedWorkerIds.includes(worker.id);
 
                                             return (
                                                 <label
                                                     key={worker.id}
-                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
-                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                        : isSelected
-                                                            ? 'bg-slate-50 border border-slate-300'
-                                                            : 'hover:bg-slate-50'
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected
+                                                        ? 'bg-slate-50 border border-slate-300'
+                                                        : 'hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     <input
                                                         type="checkbox"
                                                         checked={isSelected}
-                                                        disabled={isUsed}
-                                                        onChange={() => !isUsed && handleWorkerToggle(worker.id)}
-                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 disabled:opacity-50"
+                                                        onChange={() => handleWorkerToggle(worker.id)}
+                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
                                                     />
                                                     <span className="text-sm">
                                                         {worker.displayName}
-                                                        {isUsed && <span className="text-xs ml-1">(使用中)</span>}
+                                                        {teams && <span className="text-xs ml-1 text-slate-400">({teams.join('、')})</span>}
                                                     </span>
                                                 </label>
                                             );
@@ -274,29 +284,26 @@ export default function DispatchConfirmModal({
                                         </p>
                                     ) : (
                                         vehicles.map(vehicle => {
-                                            const isUsed = usedVehicleIds.has(vehicle.id);
+                                            const teams = vehicleTeamMap.get(vehicle.id);
                                             const isSelected = selectedVehicleIds.includes(vehicle.id);
 
                                             return (
                                                 <label
                                                     key={vehicle.id}
-                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isUsed
-                                                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                                                        : isSelected
-                                                            ? 'bg-slate-50 border border-slate-300'
-                                                            : 'hover:bg-slate-50'
+                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected
+                                                        ? 'bg-slate-50 border border-slate-300'
+                                                        : 'hover:bg-slate-50'
                                                         }`}
                                                 >
                                                     <input
                                                         type="checkbox"
                                                         checked={isSelected}
-                                                        disabled={isUsed}
-                                                        onChange={() => !isUsed && handleVehicleToggle(vehicle.id)}
-                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 disabled:opacity-50"
+                                                        onChange={() => handleVehicleToggle(vehicle.id)}
+                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
                                                     />
                                                     <span className="text-sm">
                                                         {vehicle.name}
-                                                        {isUsed && <span className="text-xs ml-1">(使用中)</span>}
+                                                        {teams && <span className="text-xs ml-1 text-slate-400">({teams.join('、')})</span>}
                                                     </span>
                                                 </label>
                                             );
