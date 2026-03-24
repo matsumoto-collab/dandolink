@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
             return validationErrorResponse(validation.error!, validation.details);
         }
 
-        const { name, shortName, honorific, contactPersons, email, phone, fax, address, notes } = validation.data;
+        const { name, shortName, honorific, contactPersons, email, phone, fax, postalCode, address, notes } = validation.data;
 
         const newCustomer = await prisma.customer.create({
             data: {
@@ -99,6 +99,7 @@ export async function POST(req: NextRequest) {
                 email: email || null,
                 phone: phone || null,
                 fax: fax || null,
+                postalCode: postalCode || null,
                 address: address || null,
                 notes: notes || null,
                 updatedBy: session!.user.id,

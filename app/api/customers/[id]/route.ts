@@ -47,7 +47,7 @@ export async function PATCH(
         }
 
         // 更新データを構築
-        const { name, shortName, honorific, contactPersons, email, phone, fax, address, notes } = validation.data;
+        const { name, shortName, honorific, contactPersons, email, phone, fax, postalCode, address, notes } = validation.data;
         const updateData: Record<string, unknown> = {};
 
         if (name !== undefined) updateData.name = name;
@@ -57,6 +57,7 @@ export async function PATCH(
         if (email !== undefined) updateData.email = email || null;
         if (phone !== undefined) updateData.phone = phone || null;
         if (fax !== undefined) updateData.fax = fax || null;
+        if (postalCode !== undefined) updateData.postalCode = postalCode || null;
         if (address !== undefined) updateData.address = address || null;
         if (notes !== undefined) updateData.notes = notes || null;
         updateData.updatedBy = session!.user.id;

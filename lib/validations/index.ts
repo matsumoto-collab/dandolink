@@ -89,6 +89,7 @@ export const createCustomerSchema = z.object({
     email: z.string().email('有効なメールアドレスを入力してください').or(z.literal('')).optional().nullable(),
     phone: phoneSchema,
     fax: phoneSchema,
+    postalCode: z.string().max(10, '郵便番号は10文字以内で入力してください').optional().nullable(),
     address: z.string().max(500, '住所は500文字以内で入力してください').optional().nullable(),
     notes: z.string().max(2000, '備考は2000文字以内で入力してください').optional().nullable(),
 });

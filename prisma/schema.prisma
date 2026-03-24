@@ -146,6 +146,7 @@ model Customer {
   email          String?
   phone          String?
   fax            String?
+  postalCode     String?
   address        String?
   notes          String?
   createdAt      DateTime @default(now())
@@ -320,14 +321,14 @@ model UnitPriceTemplate {
 }
 
 model UnitPriceCategory {
-  id              String            @id @default(uuid())
-  name            String
-  quantity        Float?
-  unit            String?
-  sortOrder       Int               @default(0)
-  isActive        Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  id               String            @id @default(uuid())
+  name             String
+  quantity         Float?
+  unit             String?
+  sortOrder        Int               @default(0)
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   unitPriceMasters UnitPriceMaster[]
 
   @@index([sortOrder])
@@ -335,18 +336,18 @@ model UnitPriceCategory {
 }
 
 model UnitPriceMaster {
-  id             String   @id @default(uuid())
+  id             String                   @id @default(uuid())
   description    String
   unit           String
   quantity       Float?
-  unitPrice      Decimal  @db.Decimal(12, 2)
+  unitPrice      Decimal                  @db.Decimal(12, 2)
   templates      String
   categoryId     String?
-  category       UnitPriceCategory? @relation(fields: [categoryId], references: [id])
+  category       UnitPriceCategory?       @relation(fields: [categoryId], references: [id])
   notes          String?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  isActive       Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
   specifications UnitPriceSpecification[]
 
   @@index([description])

@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { CustomerInput, ContactPerson } from '@/types/customer';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { usePostalCodeAutofill } from '@/hooks/usePostalCodeAutofill';
 
 interface CustomerFormProps {
     initialData?: Partial<CustomerInput>;
@@ -20,9 +21,53 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
         email: initialData?.email || '',
         phone: initialData?.phone || '',
         fax: initialData?.fax || '',
+        postalCode: initialData?.postalCode || '',
         address: initialData?.address || '',
         notes: initialData?.notes || '',
     });
+    const { fetchAddress } = usePostalCodeAutofill();
+    const [isSearchingAddress, setIsSearchingAddress] = useState(false);
+
+    const handlePostalCodeSearch = async () => {
+        if (!formData.postalCode) return;
+        setIsSearchingAddress(true);
+        try {
+            const result = await fetchAddress(formData.postalCode);
+            if (result) {
+                setFormData(prev => ({
+                    ...prev,
+                    address: result.prefecture + result.city,
+                }));
+            } else {
+                toast.error('該当する住所が見つかりません');
+            }
+        } finally {
+            setIsSearchingAddress(false);
+        }
+    };
+
+    const handlePostalCodeChange = (value: string) => {
+        // ハイフン自動挿入: 3桁入力後に自動で-を付ける
+        const digits = value.replace(/[^0-9]/g, '');
+        let formatted = digits;
+        if (digits.length > 3) {
+            formatted = digits.slice(0, 3) + '-' + digits.slice(3, 7);
+        }
+        setFormData({ ...formData, postalCode: formatted });
+
+        // 7桁揃ったら自動検索
+        if (digits.length === 7) {
+            setIsSearchingAddress(true);
+            fetchAddress(digits).then(result => {
+                if (result) {
+                    setFormData(prev => ({
+                        ...prev,
+                        address: result.prefecture + result.city,
+                    }));
+                }
+            }).finally(() => setIsSearchingAddress(false));
+        }
+    };
 
     // 担当者を追加
     const addContactPerson = () => {
@@ -217,6 +262,33 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                         placeholder="例: 03-1234-5679"
                     />
+                </div>
+            </div>
+
+            {/* 郵便番号 */}
+            <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    郵便番号
+                </label>
+                <div className="flex gap-2">
+                    <input
+                        type="text"
+                        value={formData.postalCode}
+                        onChange={(e) => handlePostalCodeChange(e.target.value)}
+                        className="w-40 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="例: 123-4567"
+                        maxLength={8}
+                        inputMode="numeric"
+                    />
+                    <button
+                        type="button"
+                        onClick={handlePostalCodeSearch}
+                        disabled={isSearchingAddress || !formData.postalCode}
+                        className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50 flex items-center gap-1 text-sm"
+                    >
+                        <Search className="w-4 h-4" />
+                        {isSearchingAddress ? '検索中...' : '住所検索'}
+                    </button>
                 </div>
             </div>
 

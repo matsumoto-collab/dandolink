@@ -16,6 +16,7 @@ export interface Customer {
     email?: string;            // 代表メールアドレス
     phone?: string;            // 代表電話番号
     fax?: string;              // FAX番号
+    postalCode?: string;       // 郵便番号
     address?: string;          // 住所
     notes?: string;            // 備考
     createdAt: Date;
