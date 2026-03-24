@@ -472,7 +472,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             </div>
 
             {/* ボタン */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 mb-6 safe-area-bottom">
+            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 mb-8 safe-area-bottom">
                 <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm">
                     キャンセル
                 </button>
