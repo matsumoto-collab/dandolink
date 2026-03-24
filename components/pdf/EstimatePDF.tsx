@@ -462,11 +462,11 @@ interface EstimatePDFProps {
     estimate: Estimate;
     project: Project;
     companyInfo: CompanyInfo;
-    includeCoverPage?: boolean;
+    includeDetails?: boolean;
 }
 
 // ===== Cover Page Component =====
-function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeCoverPage'>) {
+function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeDetails'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
@@ -926,7 +926,7 @@ function FlatDetailsPage({
 }
 
 // ===== Main Estimate PDF Document =====
-export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage = true }: EstimatePDFProps) {
+export function EstimatePDF({ estimate, project, companyInfo, includeDetails = true }: EstimatePDFProps) {
     const categories = estimate.items.filter(item => item.isCategory && (item.children || []).length > 0);
     const hasCategories = categories.length > 0;
     const estimateTitle = project.title || estimate.title;
@@ -939,29 +939,29 @@ export function EstimatePDF({ estimate, project, companyInfo, includeCoverPage =
             keywords="見積書, estimate"
             creator="DandoLink"
         >
-            {includeCoverPage && (
-                <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
-            )}
+            <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
 
-            {hasCategories ? (
-                /* カテゴリごとに内訳明細ページを生成 */
-                categories.map((cat, idx) => (
-                    <CategoryDetailsPage
-                        key={cat.id}
-                        category={cat}
+            {includeDetails && (
+                hasCategories ? (
+                    /* カテゴリごとに内訳明細ページを生成 */
+                    categories.map((cat, idx) => (
+                        <CategoryDetailsPage
+                            key={cat.id}
+                            category={cat}
+                            estimate={estimate}
+                            companyInfo={companyInfo}
+                            pageNo={idx + 2}
+                            title={estimateTitle}
+                        />
+                    ))
+                ) : (
+                    /* カテゴリなし: 従来通りフラットな明細ページ */
+                    <FlatDetailsPage
                         estimate={estimate}
                         companyInfo={companyInfo}
-                        pageNo={includeCoverPage ? idx + 2 : idx + 1}
-                        title={estimateTitle}
+                        pageNo={2}
                     />
-                ))
-            ) : (
-                /* カテゴリなし: 従来通りフラットな明細ページ */
-                <FlatDetailsPage
-                    estimate={estimate}
-                    companyInfo={companyInfo}
-                    pageNo={includeCoverPage ? 2 : 1}
-                />
+                )
             )}
         </Document>
     );

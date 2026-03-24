@@ -37,7 +37,7 @@ export default function EstimateDetailModal({
 }: EstimateDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
-    const [includeCoverPage, setIncludeCoverPage] = useState(true);
+    const [includeDetails, setIncludeDetails] = useState(true);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // projectがnullの場合はestimateからダミーのProjectを作成（useMemoでメモ化）
@@ -69,7 +69,7 @@ export default function EstimateDetailModal({
             const generatePDF = async () => {
                 try {
                     const { generateEstimatePDFBlobReact } = await loadPdfGenerator();
-                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { includeCoverPage });
+                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { includeDetails });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -85,12 +85,12 @@ export default function EstimateDetailModal({
                 URL.revokeObjectURL(currentUrl);
             }
         };
-    }, [isOpen, estimate, effectiveProject, companyInfo, includeCoverPage]);
+    }, [isOpen, estimate, effectiveProject, companyInfo, includeDetails]);
 
     const handleDownload = async () => {
         if (estimate && companyInfo) {
             const { exportEstimatePDFReact } = await loadPdfGenerator();
-            await exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { includeCoverPage });
+            await exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { includeDetails });
         }
     };
 
@@ -206,11 +206,11 @@ export default function EstimateDetailModal({
                         <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
                             <input
                                 type="checkbox"
-                                checked={includeCoverPage}
-                                onChange={(e) => setIncludeCoverPage(e.target.checked)}
+                                checked={includeDetails}
+                                onChange={(e) => setIncludeDetails(e.target.checked)}
                                 className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
                             />
-                            表紙を含める
+                            内訳明細書を含める
                         </label>
                     </div>
                 </div>

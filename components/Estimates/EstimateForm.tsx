@@ -357,7 +357,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 createdAt: new Date(), updatedAt: new Date(),
             };
 
-            const url = await generateEstimatePDFBlobReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeCoverPage: true });
+            const url = await generateEstimatePDFBlobReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeDetails: true });
 
             // 前回のURL をクリーンアップ
             if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);

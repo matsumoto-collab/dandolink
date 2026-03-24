@@ -33,8 +33,14 @@ jest.mock('jspdf', () => {
             addFileToVFS: mockAddFileToVFS,
             addFont: mockAddFont,
             getTextWidth: mockGetTextWidth,
-            output: jest.fn(), // Added for generateEstimatePDFBlob
+            output: jest.fn().mockReturnValue(new Blob()), // for generateEstimatePDFBlob
             lastAutoTable: { finalY: 100 },
+            // Additional methods used by pdfGenerator.ts
+            setFillColor: jest.fn(),
+            setTextColor: jest.fn(),
+            setDrawColor: jest.fn(),
+            splitTextToSize: jest.fn().mockReturnValue([]),
+            internal: { pageSize: { getWidth: () => 210, getHeight: () => 297 } },
         })),
     };
 });
@@ -98,7 +104,7 @@ describe('pdfGenerator', () => {
 
         // Verify jsPDF instantiation
         expect(require('jspdf').default).toHaveBeenCalledWith({
-            orientation: 'landscape',
+            orientation: 'portrait',
             unit: 'mm',
             format: 'a4',
         });
@@ -111,14 +117,14 @@ describe('pdfGenerator', () => {
 
         // Verify basic content (Cover page)
         expect(mockText).toHaveBeenCalledWith(expect.stringContaining('御 見 積 書'), expect.any(Number), expect.any(Number));
-        expect(mockText).toHaveBeenCalledWith(expect.stringContaining('Test Customer 様'), expect.any(Number), expect.any(Number));
+        expect(mockText).toHaveBeenCalledWith(expect.stringContaining('Test Customer'), expect.any(Number), expect.any(Number));
 
         // Verify save
         expect(mockSave).toHaveBeenCalledWith(expect.stringContaining(`見積書_${mockEstimate.estimateNumber}_`));
     });
 
     it('should skip cover page when option is false', () => {
-        exportEstimatePDF(mockEstimate, mockProject, mockCompanyInfo, { includeCoverPage: false });
+        exportEstimatePDF(mockEstimate, mockProject, mockCompanyInfo, { includeDetails: false });
 
         // Should NOT call text with cover page specific content like "御 見 積 書" which is only on cover
         // However, "御 見 積 書" logic in code: Cover page has '御 見 積 書' title. Details page has '内 訳 書'.

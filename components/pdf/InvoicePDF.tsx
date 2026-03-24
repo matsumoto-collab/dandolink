@@ -464,7 +464,7 @@ interface InvoicePDFProps {
     invoice: Invoice;
     project: Project;
     companyInfo: CompanyInfo;
-    includeCoverPage?: boolean;
+    includeDetails?: boolean;
     bankAccounts?: Array<{ bankName: string; branchName: string; accountType: string; accountNumber: string }>;
     registrationNumber?: string;
     projectMasters?: Array<{ id: string; title: string }>;
@@ -476,7 +476,7 @@ function CoverPage({
     project,
     companyInfo,
     projectMasters,
-}: Omit<InvoicePDFProps, 'includeCoverPage' | 'bankAccounts' | 'registrationNumber'>) {
+}: Omit<InvoicePDFProps, 'includeDetails' | 'bankAccounts' | 'registrationNumber'>) {
     const createdDate = new Date(invoice.createdAt);
     const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
 
@@ -949,7 +949,7 @@ export function InvoicePDF({
     project,
     companyInfo,
     projectMasters,
-}: Omit<InvoicePDFProps, 'includeCoverPage' | 'bankAccounts' | 'registrationNumber'>) {
+}: Omit<InvoicePDFProps, 'includeDetails' | 'bankAccounts' | 'registrationNumber'>) {
     return (
         <Document
             title={`請求書 ${invoice.invoiceNumber}`}

@@ -24,7 +24,7 @@ const COLORS = {
 
 // PDF生成オプション
 interface PDFOptions {
-    includeCoverPage: boolean;
+    includeDetails: boolean;
 }
 
 // 西暦を令和に変換
@@ -43,7 +43,7 @@ export function exportEstimatePDF(
     estimate: Estimate,
     project: Project,
     companyInfo: CompanyInfo,
-    options: PDFOptions = { includeCoverPage: true }
+    options: PDFOptions = { includeDetails: true }
 ): void {
     try {
         const doc = new jsPDF({
@@ -67,13 +67,13 @@ export function exportEstimatePDF(
         });
 
         // 表紙を生成
-        if (options.includeCoverPage) {
-            generateCoverPage(doc, estimate, project, companyInfo);
-            doc.addPage();
-        }
+        generateCoverPage(doc, estimate, project, companyInfo);
 
         // 内訳書を生成
-        generateDetailsPage(doc, estimate);
+        if (options.includeDetails) {
+            doc.addPage();
+            generateDetailsPage(doc, estimate);
+        }
 
         // PDFをダウンロード
         const fileName = `見積書_${estimate.estimateNumber}_${new Date().getTime()}.pdf`;
@@ -90,7 +90,7 @@ export function generateEstimatePDFBlob(
     estimate: Estimate,
     project: Project,
     companyInfo: CompanyInfo,
-    options: PDFOptions = { includeCoverPage: true }
+    options: PDFOptions = { includeDetails: true }
 ): Promise<string> {
     return new Promise((resolve, reject) => {
         try {
@@ -111,12 +111,12 @@ export function generateEstimatePDFBlob(
                 author: companyInfo.name,
             });
 
-            if (options.includeCoverPage) {
-                generateCoverPage(doc, estimate, project, companyInfo);
-                doc.addPage();
-            }
+            generateCoverPage(doc, estimate, project, companyInfo);
 
-            generateDetailsPage(doc, estimate);
+            if (options.includeDetails) {
+                doc.addPage();
+                generateDetailsPage(doc, estimate);
+            }
 
             const pdfBlob = doc.output('blob');
             const url = URL.createObjectURL(pdfBlob);

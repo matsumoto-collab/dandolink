@@ -12,7 +12,7 @@ import { CompanyInfo } from '@/types/company';
 import '@/components/pdf/styles';
 
 interface EstimatePDFOptions {
-    includeCoverPage?: boolean;
+    includeDetails?: boolean;
 }
 
 /**
@@ -22,7 +22,7 @@ export async function exportEstimatePDFReact(
     estimate: Estimate,
     project: Project,
     companyInfo: CompanyInfo,
-    options: EstimatePDFOptions = { includeCoverPage: true }
+    options: EstimatePDFOptions = { includeDetails: true }
 ): Promise<void> {
     try {
         const blob = await pdf(
@@ -30,7 +30,7 @@ export async function exportEstimatePDFReact(
                 estimate={estimate}
                 project={project}
                 companyInfo={companyInfo}
-                includeCoverPage={options.includeCoverPage}
+                includeDetails={options.includeDetails}
             />
         ).toBlob();
 
@@ -55,7 +55,7 @@ export async function generateEstimatePDFBlobReact(
     estimate: Estimate,
     project: Project,
     companyInfo: CompanyInfo,
-    options: EstimatePDFOptions = { includeCoverPage: true }
+    options: EstimatePDFOptions = { includeDetails: true }
 ): Promise<string> {
     try {
         const blob = await pdf(
@@ -63,7 +63,7 @@ export async function generateEstimatePDFBlobReact(
                 estimate={estimate}
                 project={project}
                 companyInfo={companyInfo}
-                includeCoverPage={options.includeCoverPage}
+                includeDetails={options.includeDetails}
             />
         ).toBlob();
 
