@@ -321,7 +321,7 @@ export default function DispatchConfirmModal({
                 </div>
 
                 {/* フッター */}
-                <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50 safe-area-bottom">
+                <div className="flex-shrink-0 flex items-center justify-between px-6 pt-4 pb-6 border-t border-slate-200 bg-slate-50 safe-area-bottom">
                     <div>
                         {project.isDispatchConfirmed && (
                             <button

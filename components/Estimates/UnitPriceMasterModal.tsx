@@ -183,7 +183,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
                 </div>
 
                 {/* フッター */}
-                <div className="p-6 border-t border-slate-200 bg-slate-50">
+                <div className="px-6 pt-4 pb-6 border-t border-slate-200 bg-slate-50">
                     <div className="flex items-center justify-between">
                         <div className="text-sm text-slate-600">
                             選択中: <span className="font-bold text-slate-900">{selectedItems.size}件</span>
