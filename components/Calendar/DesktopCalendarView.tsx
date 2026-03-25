@@ -5,7 +5,6 @@ import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, 
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
-import CalendarHeader from './CalendarHeader';
 import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
@@ -23,12 +22,6 @@ interface DesktopCalendarViewProps {
     totalMembers: number;
     getVacationEmployees: (dateKey: string) => string[];
     getEditingUsers: (assignmentId: string) => EditingUser[];
-    // Navigation
-    goToPreviousWeek: () => void;
-    goToNextWeek: () => void;
-    goToPreviousDay: () => void;
-    goToNextDay: () => void;
-    goToToday: () => void;
     // DnD
     handleDragStart: (event: DragStartEvent) => void;
     handleDragOver: (event: DragOverEvent) => void;
@@ -58,11 +51,6 @@ export default function DesktopCalendarView({
     totalMembers,
     getVacationEmployees,
     getEditingUsers,
-    goToPreviousWeek,
-    goToNextWeek,
-    goToPreviousDay,
-    goToNextDay,
-    goToToday,
     handleDragStart,
     handleDragOver,
     handleDragEnd,
@@ -86,15 +74,6 @@ export default function DesktopCalendarView({
             onDragCancel={isReadOnly ? undefined : handleDragCancel}
         >
             <div className="calendar-container h-full flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
-                <CalendarHeader
-                    weekDays={weekDays}
-                    onPreviousWeek={goToPreviousWeek}
-                    onNextWeek={goToNextWeek}
-                    onPreviousDay={goToPreviousDay}
-                    onNextDay={goToNextDay}
-                    onToday={goToToday}
-                />
-
                 <div className="flex-1 overflow-auto bg-slate-50">
                     <div className="flex flex-col min-w-full">
                         {/* ヘッダー行: 日付と曜日 + 残り人数行 を1つのstickyコンテナにまとめる */}

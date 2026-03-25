@@ -41,12 +41,21 @@ const ProjectSelectionModal = dynamic(() => import('./ProjectSelectionModal'), {
 });
 const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'));
 
+export interface CalendarNavigation {
+    goToPreviousWeek: () => void;
+    goToNextWeek: () => void;
+    goToPreviousDay: () => void;
+    goToNextDay: () => void;
+    goToToday: () => void;
+}
+
 interface WeeklyCalendarProps {
     partnerMode?: boolean;
     partnerId?: string;
+    onNavigationReady?: (nav: CalendarNavigation) => void;
 }
 
-export default function WeeklyCalendar({ partnerMode = false, partnerId }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
     const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { totalMembers } = useMasterData();
@@ -170,6 +179,13 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
     }, [updateProject]);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday } = useCalendar(events);
+
+    // ナビゲーション関数を親に公開
+    useEffect(() => {
+        if (onNavigationReady) {
+            onNavigationReady({ goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday });
+        }
+    }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday]);
 
     // 表示週の前後1週間のデータをフェッチ
     useEffect(() => {
@@ -399,11 +415,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId }: Weekl
                     totalMembers={totalMembers}
                     getVacationEmployees={getVacationEmployees}
                     getEditingUsers={getEditingUsers}
-                    goToPreviousWeek={goToPreviousWeek}
-                    goToNextWeek={goToNextWeek}
-                    goToPreviousDay={goToPreviousDay}
-                    goToNextDay={goToNextDay}
-                    goToToday={goToToday}
                     handleDragStart={handleDragStart}
                     handleDragOver={handleDragOver}
                     handleDragEnd={handleDragEnd}

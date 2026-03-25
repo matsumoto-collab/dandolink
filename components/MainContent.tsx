@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useSession } from 'next-auth/react';
@@ -66,6 +66,16 @@ export default function MainContent() {
     const { activePage } = useNavigation();
     const { data: session } = useSession();
     const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
+    const [calendarNav, setCalendarNav] = useState<{
+        goToPreviousWeek: () => void;
+        goToNextWeek: () => void;
+        goToPreviousDay: () => void;
+        goToNextDay: () => void;
+        goToToday: () => void;
+    } | null>(null);
+    const handleNavigationReady = useCallback((nav: typeof calendarNav) => {
+        setCalendarNav(nav);
+    }, []);
 
     const userRole = session?.user?.role;
     const userId = session?.user?.id;
@@ -96,10 +106,15 @@ export default function MainContent() {
                         <ScheduleViewTabs
                             activeView={scheduleView}
                             onViewChange={setScheduleView}
+                            onToday={calendarNav?.goToToday}
+                            onPreviousWeek={calendarNav?.goToPreviousWeek}
+                            onNextWeek={calendarNav?.goToNextWeek}
+                            onPreviousDay={calendarNav?.goToPreviousDay}
+                            onNextDay={calendarNav?.goToNextDay}
                         />
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
-                                <WeeklyCalendar />
+                                <WeeklyCalendar onNavigationReady={handleNavigationReady} />
                             ) : (
                                 <AssignmentTable />
                             )}
