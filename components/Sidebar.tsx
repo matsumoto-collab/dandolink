@@ -208,7 +208,7 @@ export default function Sidebar() {
                         .filter((section): section is NavSection => section !== null)
                         .map((section, sectionIndex) => (
                             <div key={section.title} className={sectionIndex > 0 ? 'mt-8' : ''}>
-                                <h3 className="px-3 mb-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                                <h3 className="px-3 mb-3 text-[13px] font-semibold text-slate-400 tracking-wider">
                                     {section.title}
                                 </h3>
                                 <ul className="space-y-1.5">
