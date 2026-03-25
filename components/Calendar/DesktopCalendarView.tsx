@@ -211,7 +211,7 @@ export default function DesktopCalendarView({
 
             {/* 保存中オーバーレイ */}
             {isSaving && (
-                <div className="fixed inset-0 lg:left-64 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
+                <div className="fixed inset-0 lg:left-48 z-[55] flex items-center justify-center bg-black/30 pointer-events-none">
                     <div className="bg-white rounded-lg px-6 py-4 shadow-xl flex items-center gap-3 pointer-events-auto">
                         <div className="w-5 h-5 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
                         <span className="text-sm font-medium text-slate-700">案件を保存中...</span>

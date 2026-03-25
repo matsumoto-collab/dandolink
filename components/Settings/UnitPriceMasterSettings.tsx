@@ -711,7 +711,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
 
             {/* 登録・編集フォームモーダル */}
             {isFormOpen && (
-                <div className="fixed inset-0 lg:left-64 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
+                <div className="fixed inset-0 lg:left-48 bg-black bg-opacity-50 flex items-center justify-center z-[60] p-2 md:p-4">
                     <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-4 md:p-6">
                             <h3 className="text-xl font-bold text-slate-900 mb-4">

@@ -153,7 +153,7 @@ export default function MainContent() {
             left-0 right-0 pt-16
 
             /* Desktop: Offset by sidebar width, no top padding */
-            lg:left-64 lg:pt-0 lg:right-0
+            lg:left-48 lg:pt-0 lg:right-0
 
             pwa-main-safe
         ">

@@ -91,7 +91,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
     const hasTemplates = unitPriceTemplates.length > 0;
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
+        <div className="fixed inset-0 lg:left-48 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={handleClose} />
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-4xl lg:mx-4 lg:max-h-[90vh] overflow-hidden">
                 {/* ヘッダー */}

@@ -26,7 +26,7 @@ export default function CustomerModal({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 lg:left-64 z-[70] flex flex-col items-center justify-start pt-[4.5rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
+        <div className="fixed inset-0 lg:left-48 z-[70] flex flex-col items-center justify-start pt-[4.5rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             <div className="absolute inset-0 bg-black/50 hidden lg:block" onClick={onClose} />
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]">
                 {/* ヘッダー */}

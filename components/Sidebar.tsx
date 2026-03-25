@@ -122,7 +122,7 @@ export default function Sidebar() {
                 className={`
                     fixed left-0 top-0 h-dvh bg-gradient-to-b from-slate-950 to-slate-900
                     border-r border-slate-800/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
-                    w-64 pwa-sidebar-safe
+                    w-48 pwa-sidebar-safe
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
                     lg:translate-x-0
                 `}
