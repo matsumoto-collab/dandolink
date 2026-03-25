@@ -80,7 +80,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
     useEffect(() => {
         const fetchManagers = async () => {
             try {
-                const res = await fetch('/api/users?role=manager,admin');
+                const res = await fetch('/api/users');
                 if (res.ok) {
                     const data = await res.json();
                     const map: Record<string, string> = {};
@@ -176,12 +176,12 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             {isLoadingManagers ? (
                                 <span className="text-sm text-slate-500">読み込み中...</span>
                             ) : (
-                                managers.map((manager, index) => (
+                                managers.filter(manager => managerMap[manager]).map((manager, index) => (
                                     <span
                                         key={index}
                                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700"
                                     >
-                                        {managerMap[manager] || manager}
+                                        {managerMap[manager]}
                                     </span>
                                 ))
                             )}
@@ -232,12 +232,12 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                             {isLoadingWorkers ? (
                                 <span className="text-sm text-slate-500">読み込み中...</span>
                             ) : (
-                                project.confirmedWorkerIds.map((id) => (
+                                project.confirmedWorkerIds.filter(id => workerMap[id]).map((id) => (
                                     <span
                                         key={id}
                                         className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
                                     >
-                                        {workerMap[id] || id}
+                                        {workerMap[id]}
                                     </span>
                                 ))
                             )}
