@@ -449,7 +449,7 @@ export default function ProjectForm({
             // 複数日スケジュール
             workSchedules: workSchedules,
             color: color,
-            remarks: formData.remarks || undefined,
+            remarks: formData.remarks ?? '',
             estimatedHours: formData.estimatedHours,
         };
 
