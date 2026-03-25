@@ -156,11 +156,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
         let originalStoragePath: string | null = null;
 
         if (fileType === 'image') {
-            // 3種類のWebP変換を並列処理
+            // 回転済みバッファを1回だけ作成し、各サイズ変換はそこから派生
+            const rotated = sharp(buffer).rotate();
+            const rotatedBuffer = await rotated.toBuffer();
             const [origWebp, displayWebp, thumbWebp] = await Promise.all([
-                sharp(buffer).rotate().webp({ quality: 92 }).toBuffer(),
-                sharp(buffer).rotate().resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 80 }).toBuffer(),
-                sharp(buffer).rotate().resize(200, 200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 60 }).toBuffer(),
+                sharp(rotatedBuffer).webp({ quality: 90, effort: 2 }).toBuffer(),
+                sharp(rotatedBuffer).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78, effort: 2 }).toBuffer(),
+                sharp(rotatedBuffer).resize(200, 200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 50, effort: 0 }).toBuffer(),
             ]);
 
             uploadBuffer = displayWebp;

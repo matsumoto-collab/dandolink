@@ -87,15 +87,16 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         setUploading(true);
         setUploadProgress({ done: 0, total: rawFiles.length });
 
-        // 1. 全画像を並列で事前圧縮
+        // 1. 全画像を並列で事前圧縮（サーバーでsharp処理するのでサイズ削減のみ）
         const compressed = await Promise.all(
             rawFiles.map(async (rawFile) => {
-                if (rawFile.type.startsWith('image/')) {
+                if (rawFile.type.startsWith('image/') && rawFile.size > 3 * 1024 * 1024) {
                     try {
                         const blob = await imageCompression(rawFile, {
-                            maxSizeMB: 2,
+                            maxSizeMB: 3,
                             maxWidthOrHeight: 3000,
                             useWebWorker: true,
+                            initialQuality: 0.9,
                         });
                         return { file: blob, name: rawFile.name };
                     } catch {
@@ -106,9 +107,10 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
             })
         );
 
-        // 2. 3枚ずつ並列アップロード（サーバー負荷を考慮）
+        // 2. 5枚ずつ並列アップロード
         let successCount = 0;
-        const CONCURRENCY = 3;
+        let doneCount = 0;
+        const CONCURRENCY = 5;
         for (let i = 0; i < compressed.length; i += CONCURRENCY) {
             const batch = compressed.slice(i, i + CONCURRENCY);
             const results = await Promise.allSettled(
@@ -124,22 +126,31 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                         const err = await res.json();
                         throw new Error(err.error || 'アップロード失敗');
                     }
-                    return name;
+                    const data = await res.json();
+                    doneCount++;
+                    setUploadProgress({ done: doneCount, total: compressed.length });
+                    return data as ProjectMasterFileData;
                 })
             );
+            const newFiles: ProjectMasterFileData[] = [];
             for (const r of results) {
                 if (r.status === 'fulfilled') {
                     successCount++;
+                    newFiles.push(r.value);
                 } else {
+                    doneCount++;
+                    setUploadProgress({ done: doneCount, total: compressed.length });
                     toast.error(r.reason?.message || 'アップロードに失敗しました');
                 }
             }
-            setUploadProgress({ done: Math.min(i + CONCURRENCY, compressed.length), total: compressed.length });
+            // サーバーレスポンスを直接stateに追加（再fetchなし）
+            if (newFiles.length > 0) {
+                setFiles(prev => [...newFiles, ...prev]);
+            }
         }
 
         if (successCount > 0) {
             toast.success(`${successCount}件のファイルをアップロードしました`);
-            await fetchFiles();
         }
         if (fileInputRef.current) fileInputRef.current.value = '';
         setUploading(false);
