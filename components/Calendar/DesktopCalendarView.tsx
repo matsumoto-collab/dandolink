@@ -102,7 +102,7 @@ export default function DesktopCalendarView({
                             {/* 日付・曜日ヘッダー行 */}
                             <div className="flex border-b-2 border-slate-300 bg-slate-100">
                                 <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-300 shadow-md">
-                                    <div className="w-32 h-8 flex items-center justify-center font-bold text-slate-700 text-xs tracking-wide">職長</div>
+                                    <div className="w-24 xl:w-32 h-8 flex items-center justify-center font-bold text-slate-700 text-xs tracking-wide">職長</div>
                                 </div>
                                 {weekDays.map((day, index) => {
                                     const dayOfWeekString = getDayOfWeekString(day.date, 'short');
@@ -112,7 +112,7 @@ export default function DesktopCalendarView({
                                     const combinedDate = `${dateString}(${dayOfWeekString})`;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-slate-700' : ''}`}>
+                                        <div key={index} className={`flex-1 min-w-[110px] xl:min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-slate-700' : ''}`}>
                                             <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>{combinedDate}</div>
                                         </div>
                                     );
@@ -122,7 +122,7 @@ export default function DesktopCalendarView({
                             {/* 未割り当て行 */}
                             <div className="flex border-b-2 border-slate-400 bg-slate-100 h-9">
                                 <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-400 shadow-md">
-                                    <div className="w-32 h-full flex items-center justify-center">
+                                    <div className="w-24 xl:w-32 h-full flex items-center justify-center">
                                         <span className="text-xs font-bold text-slate-700 tracking-wide truncate">残り人数</span>
                                     </div>
                                 </div>
@@ -145,7 +145,7 @@ export default function DesktopCalendarView({
                                     const remainingCount = totalMembers + adjustment - assignedCount - vacationCount;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
+                                        <div key={index} className={`flex-1 min-w-[110px] xl:min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
                                             {onMemberAdjustmentChange && (
                                                 <button
                                                     onClick={() => onMemberAdjustmentChange(dateKey, -1)}
