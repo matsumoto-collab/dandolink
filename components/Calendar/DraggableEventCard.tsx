@@ -62,7 +62,7 @@ export default function DraggableEventCard({
             className={`
         mb-1 p-1 rounded-lg
         transition-colors duration-150
-        text-xs relative overflow-hidden
+        text-[11px] relative overflow-hidden
         ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}
         ${isDragging ? 'shadow-lg z-50 opacity-90' : 'shadow-sm hover:brightness-105'}
       `}
