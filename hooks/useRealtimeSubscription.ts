@@ -22,75 +22,66 @@ export function useRealtimeSubscription({
 }: UseRealtimeSubscriptionOptions) {
     const channelRef = useRef<RealtimeChannel | null>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-    const isSetupRef = useRef(false);
 
-    const handleDataChange = useCallback((payload: RealtimePayload) => {
-        if (debounceMs > 0) {
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-            }
-            timeoutRef.current = setTimeout(() => {
-                onDataChange(payload);
-            }, debounceMs);
-        } else {
-            onDataChange(payload);
-        }
-    }, [onDataChange, debounceMs]);
+    // コールバックをrefで保持し、チャンネル再接続を防ぐ
+    const onDataChangeRef = useRef(onDataChange);
+    onDataChangeRef.current = onDataChange;
 
     useEffect(() => {
         if (!enabled) {
-            // Disable subscription if not enabled
             if (channelRef.current) {
                 supabase.removeChannel(channelRef.current);
                 channelRef.current = null;
-                isSetupRef.current = false;
             }
             return;
         }
 
-        const setupSubscription = () => {
-            if (isSetupRef.current) return;
+        // Clean up existing channel if any
+        if (channelRef.current) {
+            supabase.removeChannel(channelRef.current);
+        }
 
-            // Clean up existing channel if any
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
-            }
+        try {
+            const channel = supabase.channel(channelName)
+                .on(
+                    'postgres_changes',
+                    { event: '*', schema: 'public', table },
+                    (payload: RealtimePayload) => {
+                        if (debounceMs > 0) {
+                            if (timeoutRef.current) {
+                                clearTimeout(timeoutRef.current);
+                            }
+                            timeoutRef.current = setTimeout(() => {
+                                onDataChangeRef.current(payload);
+                            }, debounceMs);
+                        } else {
+                            onDataChangeRef.current(payload);
+                        }
+                    }
+                )
+                .subscribe();
 
-            try {
-                const channel = supabase.channel(channelName)
-                    .on(
-                        'postgres_changes',
-                        { event: '*', schema: 'public', table },
-                        handleDataChange
-                    )
-                    .subscribe();
-
-                channelRef.current = channel;
-                isSetupRef.current = true;
-            } catch (error) {
-                console.error(`[Realtime] Failed to setup ${channelName} subscription:`, error);
-            }
-        };
-
-        setupSubscription();
+            channelRef.current = channel;
+        } catch (error) {
+            console.error(`[Realtime] Failed to setup ${channelName} subscription:`, error);
+        }
 
         return () => {
             if (channelRef.current) {
                 supabase.removeChannel(channelRef.current);
                 channelRef.current = null;
-                isSetupRef.current = false;
             }
             if (timeoutRef.current) {
                 clearTimeout(timeoutRef.current);
             }
         };
-    }, [enabled, channelName, table, handleDataChange]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [enabled, channelName, table, debounceMs]);
 
     const reset = useCallback(() => {
         if (channelRef.current) {
             supabase.removeChannel(channelRef.current);
             channelRef.current = null;
-            isSetupRef.current = false;
         }
     }, []);
 
