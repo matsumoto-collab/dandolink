@@ -122,7 +122,7 @@ export default function DraggableEventCard({
                             )}
 
                             {/* 3段目: 人数 + 時間 */}
-                            <div className="flex items-center gap-1 mt-0.5 text-slate-700">
+                            <div className="flex items-center gap-1 mt-0.5 text-slate-700 whitespace-nowrap">
                                 {((event.memberCount != null) || (event.workers && event.workers.length > 0)) && (
                                     <>
                                         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
