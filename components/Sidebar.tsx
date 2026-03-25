@@ -4,27 +4,12 @@ import React, { useState } from 'react';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession, signOut } from 'next-auth/react';
 import {
-    Home,
-    Briefcase,
-    FileText,
-    FileSpreadsheet,
-    Receipt,
-    ShoppingCart,
-    Users,
-    Building,
-    Landmark,
-    Settings,
-    HelpCircle,
-    LogOut,
     ChevronRight,
     X,
-    BarChart3,
-    Package,
 } from 'lucide-react';
 
 interface NavItem {
     name: string;
-    icon: React.ElementType;
     page: 'schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'partners' | 'customers' | 'company' | 'settings';
 }
 
@@ -37,28 +22,28 @@ const navigationSections: NavSection[] = [
     {
         title: '業務管理',
         items: [
-            { name: 'スケジュール管理', icon: Home, page: 'schedule' },
-            { name: '案件一覧', icon: Briefcase, page: 'project-masters' },
-            { name: '日報一覧', icon: FileText, page: 'reports' },
-            { name: '材料出庫伝票', icon: Package, page: 'materials' },
+            { name: 'スケジュール管理', page: 'schedule' },
+            { name: '案件一覧', page: 'project-masters' },
+            { name: '日報一覧', page: 'reports' },
+            { name: '材料出庫伝票', page: 'materials' },
         ],
     },
     {
         title: '書類・経理',
         items: [
-            { name: '見積書', icon: FileSpreadsheet, page: 'estimates' },
-            { name: '請求書', icon: Receipt, page: 'invoices' },
-            { name: '発注書', icon: ShoppingCart, page: 'orders' },
-            { name: '利益ダッシュボード', icon: BarChart3, page: 'profit-dashboard' },
+            { name: '見積書', page: 'estimates' },
+            { name: '請求書', page: 'invoices' },
+            { name: '発注書', page: 'orders' },
+            { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
     },
     {
         title: 'マスター・設定',
         items: [
-            { name: '協力会社', icon: Users, page: 'partners' },
-            { name: '顧客管理', icon: Building, page: 'customers' },
-            { name: '自社情報', icon: Landmark, page: 'company' },
-            { name: '設定', icon: Settings, page: 'settings' },
+            { name: '協力会社', page: 'partners' },
+            { name: '顧客管理', page: 'customers' },
+            { name: '自社情報', page: 'company' },
+            { name: '設定', page: 'settings' },
         ],
     },
 ];
@@ -228,7 +213,6 @@ export default function Sidebar() {
                                 </h3>
                                 <ul className="space-y-1.5">
                                     {section.items.map((item) => {
-                                        const Icon = item.icon;
                                         const isActive = activePage === item.page;
 
                                         return (
@@ -236,14 +220,13 @@ export default function Sidebar() {
                                                 <button
                                                     onClick={() => handleNavigation(item.page)}
                                                     className={`
-                                                    nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                                                    nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium
                                                     ${isActive
                                                             ? 'bg-teal-700/90 text-white shadow-md shadow-teal-900/30 border-l-2 border-teal-400'
                                                             : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200 border-l-2 border-transparent'
                                                         }
                                                 `}
                                                 >
-                                                    <Icon className={`w-5 h-5 ${isActive ? 'text-teal-200' : 'text-slate-500'}`} />
                                                     <span className="flex-1 text-left">{item.name}</span>
                                                     {isActive && <ChevronRight className="w-4 h-4 text-teal-200" />}
                                                 </button>
@@ -257,15 +240,13 @@ export default function Sidebar() {
 
                 {/* Utility Area */}
                 <div className="flex-shrink-0 border-t border-slate-800/50 p-3 space-y-1">
-                    <button className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
-                        <HelpCircle className="w-5 h-5 text-slate-500" />
+                    <button className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
                         <span>ヘルプ</span>
                     </button>
                     <button
                         onClick={handleLogout}
-                        className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-950/30 hover:text-slate-300"
+                        className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-red-950/30 hover:text-slate-300"
                     >
-                        <LogOut className="w-5 h-5" />
                         <span>ログアウト</span>
                     </button>
                 </div>
