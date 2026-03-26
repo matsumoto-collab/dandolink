@@ -506,9 +506,9 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                             <Image src={companyInfo.logoImage} style={{ height: 35, objectFit: 'contain' }} />
                         </View>
                     )}
-                    {/* Company name + license + representative (with seal on right) */}
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
-                        <View style={{ alignItems: 'flex-end', flex: 1 }}>
+                    {/* Company name + license + representative with seal overlaid */}
+                    <View style={{ position: 'relative' }}>
+                        <View style={{ alignItems: 'flex-end', paddingRight: 0 }}>
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
@@ -519,11 +519,12 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                                 </Text>
                             )}
                         </View>
+                        {/* Seal image overlaid on top-right */}
                         {companyInfo.sealImage && (
-                            <Image src={companyInfo.sealImage} style={styles.stampBox} />
+                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: -5, right: -5, width: 50, height: 50 }} />
                         )}
                     </View>
-                    {/* Address, TEL/FAX, email, 担当 — full width right-aligned */}
+                    {/* Address, TEL/FAX, email, 担当 */}
                     <View style={{ alignItems: 'flex-end' }}>
                         <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
                         <Text style={styles.companyText}>TEL　{companyInfo.tel}　　FAX　{companyInfo.fax || ''}</Text>
