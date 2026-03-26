@@ -99,15 +99,15 @@ export default function CompanyInfoSettings() {
     }
 
     return (
-        <div className="h-full flex flex-col overflow-hidden">
+        <div>
             {/* ヘッダー */}
-            <div className="flex-shrink-0 mb-3 md:mb-6">
+            <div className="mb-3 md:mb-6">
                 <h1 className="text-3xl font-bold text-slate-800 mb-2">会社情報設定</h1>
                 <p className="text-slate-600">自社の基本情報・口座情報を管理します</p>
             </div>
 
-            {/* スクロール可能なコンテンツ */}
-            <div className="flex-1 overflow-y-auto overscroll-contain space-y-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+            {/* コンテンツ */}
+            <div className="space-y-6 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
 
             {/* 基本情報 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -391,7 +391,7 @@ export default function CompanyInfoSettings() {
                 </button>
             </div>
 
-            </div>{/* スクロールコンテンツ end */}
+            </div>
         </div>
     );
 }
