@@ -499,17 +499,32 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                 </View>
 
                 <View style={styles.rightArea}>
-                    <View style={[styles.companyRow, { marginTop: 0 }]}>
-                        <View style={styles.companyInfoBlock}>
+                    {/* Logo + Seal side by side */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
+                        <View style={{ alignItems: 'center', flex: 1 }}>
+                            {companyInfo.logoImage && (
+                                <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain' }} />
+                            )}
+                            <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
                             )}
-                            <Text style={styles.companyName}>{companyInfo.name}</Text>
-                            <Text style={styles.companyText}>〒{companyInfo.postalCode}</Text>
-                            <Text style={styles.companyText}>{companyInfo.address}</Text>
+                            {(companyInfo.representativeTitle || companyInfo.representative) && (
+                                <Text style={styles.companyText}>
+                                    {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
+                                </Text>
+                            )}
+                            <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
                             <Text style={styles.companyText}>TEL：{companyInfo.tel}　FAX：{companyInfo.fax || ''}</Text>
                             {companyInfo.email && (
                                 <Text style={styles.companyText}>{companyInfo.email}</Text>
+                            )}
+                            {companyInfo.contactPerson && (
+                                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginTop: 2 }}>
+                                    <Text style={{ fontSize: 7.5, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderDark, paddingBottom: 1 }}>
+                                        担当　{companyInfo.contactPerson}
+                                    </Text>
+                                </View>
                             )}
                         </View>
                         {companyInfo.sealImage && (

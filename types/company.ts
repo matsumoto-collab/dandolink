@@ -16,8 +16,10 @@ export interface CompanyInfo {
     representativeTitle?: string; // 肩書
     representative: string;       // 氏名
     sealImage?: string;           // 会社印（Base64）
+    logoImage?: string;           // 会社ロゴ（Base64）
     licenseNumber?: string;
     registrationNumber?: string;
+    contactPerson?: string;       // 担当者名
     bankAccounts?: BankAccount[];
     createdAt: Date;
     updatedAt: Date;
@@ -33,7 +35,9 @@ export interface CompanyInfoInput {
     representativeTitle?: string;
     representative: string;
     sealImage?: string;
+    logoImage?: string;
     licenseNumber?: string;
     registrationNumber?: string;
+    contactPerson?: string;
     bankAccounts?: BankAccount[];
 }

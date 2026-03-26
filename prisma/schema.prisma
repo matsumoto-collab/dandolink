@@ -386,6 +386,8 @@ model CompanyInfo {
   registrationNumber  String?
   bankAccounts        Json?
   representativeTitle String?
+  logoImage           String?
+  contactPerson       String?
 
   @@schema("public")
 }

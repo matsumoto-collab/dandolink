@@ -18,8 +18,10 @@ export default function CompanyInfoSettings() {
         representativeTitle: '',
         representative: '',
         sealImage: '',
+        logoImage: '',
         licenseNumber: '',
         registrationNumber: '',
+        contactPerson: '',
         bankAccounts: [] as BankAccount[],
     });
     const [saving, setSaving] = useState(false);
@@ -40,8 +42,10 @@ export default function CompanyInfoSettings() {
                 representativeTitle: companyInfo.representativeTitle || '',
                 representative: companyInfo.representative || '',
                 sealImage: companyInfo.sealImage || '',
+                logoImage: companyInfo.logoImage || '',
                 licenseNumber: companyInfo.licenseNumber || '',
                 registrationNumber: companyInfo.registrationNumber || '',
+                contactPerson: companyInfo.contactPerson || '',
                 bankAccounts: companyInfo.bankAccounts || [],
             });
         }
@@ -189,6 +193,17 @@ export default function CompanyInfoSettings() {
                         className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
+                <div>
+                    <label htmlFor="contactPerson" className="block text-sm font-medium text-slate-700 mb-1">担当者名</label>
+                    <input
+                        id="contactPerson"
+                        type="text"
+                        value={formData.contactPerson}
+                        onChange={(e) => handleChange('contactPerson', e.target.value)}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder="例：山田 太郎"
+                    />
+                </div>
             </div>
 
             {/* 許可番号・登録番号 */}
@@ -216,6 +231,47 @@ export default function CompanyInfoSettings() {
                             className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
                             placeholder="例：T8500001018289"
                         />
+                    </div>
+                </div>
+            </div>
+
+            {/* 会社ロゴ */}
+            <div className="border-t pt-4">
+                <h4 className="text-md font-medium text-slate-800 mb-3">会社ロゴ</h4>
+                <div className="flex items-start gap-4">
+                    {formData.logoImage && (
+                        <div className="border border-slate-300 rounded-md p-2 bg-white">
+                            <img src={formData.logoImage} alt="会社ロゴ" className="h-16 object-contain" />
+                        </div>
+                    )}
+                    <div className="flex-1">
+                        <label htmlFor="logoImage" className="sr-only">会社ロゴ</label>
+                        <input
+                            id="logoImage"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => {
+                                        handleChange('logoImage', reader.result as string);
+                                    };
+                                    reader.readAsDataURL(file);
+                                }
+                            }}
+                            className="text-sm"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">PNG/JPG推奨、背景透過PNG推奨</p>
+                        {formData.logoImage && (
+                            <button
+                                type="button"
+                                onClick={() => handleChange('logoImage', '')}
+                                className="text-xs text-slate-500 mt-1 hover:underline"
+                            >
+                                削除
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
