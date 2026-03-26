@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
 
     // Left: Customer + amount
     customerArea: {
-        width: '48%',
+        width: '42%',
     },
     customerName: {
         fontSize: 13,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
 
     // Right: Date + Company
     rightArea: {
-        width: '45%',
+        width: '55%',
         alignItems: 'flex-end',
     },
     estimateNoText: {
@@ -501,7 +501,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                 <View style={styles.rightArea}>
                     {/* Logo + Seal side by side */}
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
-                        <View style={{ alignItems: 'center', flex: 1 }}>
+                        <View style={{ alignItems: 'flex-end', flex: 1 }}>
                             {companyInfo.logoImage && (
                                 <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain' }} />
                             )}
