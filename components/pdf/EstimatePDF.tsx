@@ -504,7 +504,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                     <View style={{ position: 'relative' }}>
                         {/* Seal image overlaid on top-right */}
                         {companyInfo.sealImage && (
-                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: -5, right: -5, width: 50, height: 50 }} />
+                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 36, right: 10, width: 50, height: 50 }} />
                         )}
                         {/* 全テキストを左揃えで統一し、ブロックごと右寄せ */}
                         <View style={{ alignSelf: 'flex-end' }}>
