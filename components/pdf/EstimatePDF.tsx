@@ -741,7 +741,7 @@ function CategoryDetailsPage({
     title: string;
 }) {
     const children = category.children || [];
-    const maxRows = 25;
+    const maxRows = 23;
 
     return (
         <Page size="A4" orientation="landscape" style={styles.page}>
@@ -749,7 +749,7 @@ function CategoryDetailsPage({
             <View style={styles.detailsHeader}>
                 <Text style={styles.detailsTitle}>内 訳 明 細 書</Text>
                 <Text style={styles.detailsSubInfo}>
-                    見積番号：{estimate.estimateNumber}
+                    見積No. {estimate.estimateNumber}
                 </Text>
             </View>
 
@@ -817,7 +817,7 @@ function FlatDetailsPage({
     companyInfo: CompanyInfo;
     pageNo: number;
 }) {
-    const maxRows = 25;
+    const maxRows = 23;
 
     const flatItems: Estimate['items'] = [];
     for (const item of estimate.items) {
@@ -835,7 +835,7 @@ function FlatDetailsPage({
             <View style={styles.detailsHeader}>
                 <Text style={styles.detailsTitle}>見積内訳明細書</Text>
                 <Text style={styles.detailsSubInfo}>
-                    見積番号：{estimate.estimateNumber}
+                    見積No. {estimate.estimateNumber}
                 </Text>
             </View>
 
