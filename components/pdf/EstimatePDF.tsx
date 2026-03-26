@@ -506,9 +506,14 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                             <Image src={companyInfo.logoImage} style={{ height: 35, objectFit: 'contain' }} />
                         </View>
                     )}
-                    {/* Company name + license + representative with seal overlaid */}
+                    {/* Company info block with seal overlaid */}
                     <View style={{ position: 'relative' }}>
-                        <View style={{ alignItems: 'flex-end', paddingRight: 0 }}>
+                        {/* Seal image overlaid on top-right */}
+                        {companyInfo.sealImage && (
+                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: -5, right: -5, width: 50, height: 50 }} />
+                        )}
+                        {/* All text right-aligned as a block */}
+                        <View style={{ alignItems: 'flex-end' }}>
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
@@ -518,24 +523,18 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                                     {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
                                 </Text>
                             )}
+                            {/* 住所以下 — 印鑑と被らないようmarginTop追加 */}
+                            <Text style={[styles.companyText, { marginTop: 8 }]}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
+                            <Text style={styles.companyText}>TEL　{companyInfo.tel}　　FAX　{companyInfo.fax || ''}</Text>
+                            {companyInfo.email && (
+                                <Text style={styles.companyText}>e-mail　{companyInfo.email}</Text>
+                            )}
+                            {creatorName && (
+                                <Text style={{ fontSize: 7.5, marginTop: 2, textAlign: 'right' }}>
+                                    担当　{creatorName}
+                                </Text>
+                            )}
                         </View>
-                        {/* Seal image overlaid on top-right */}
-                        {companyInfo.sealImage && (
-                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: -5, right: -5, width: 50, height: 50 }} />
-                        )}
-                    </View>
-                    {/* Address, TEL/FAX, email, 担当 */}
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
-                        <Text style={styles.companyText}>TEL　{companyInfo.tel}　　FAX　{companyInfo.fax || ''}</Text>
-                        {companyInfo.email && (
-                            <Text style={styles.companyText}>e-mail　{companyInfo.email}</Text>
-                        )}
-                        {creatorName && (
-                            <Text style={{ fontSize: 7.5, marginTop: 2, textAlign: 'right' }}>
-                                担当　{creatorName}
-                            </Text>
-                        )}
                     </View>
                 </View>
             </View>
