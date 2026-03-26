@@ -512,8 +512,8 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                         {companyInfo.sealImage && (
                             <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: -5, right: -5, width: 50, height: 50 }} />
                         )}
-                        {/* All text right-aligned as a block */}
-                        <View style={{ alignItems: 'flex-end' }}>
+                        {/* 全テキストを左揃えで統一し、ブロックごと右寄せ */}
+                        <View style={{ alignSelf: 'flex-end' }}>
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
@@ -523,14 +523,14 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                                     {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
                                 </Text>
                             )}
-                            {/* 住所以下 — 印鑑と被らないようmarginTop追加 */}
+                            {/* 住所以下 — 印鑑と被らないよう下げる */}
                             <Text style={[styles.companyText, { marginTop: 8 }]}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
                             <Text style={styles.companyText}>TEL　{companyInfo.tel}　　FAX　{companyInfo.fax || ''}</Text>
                             {companyInfo.email && (
                                 <Text style={styles.companyText}>e-mail　{companyInfo.email}</Text>
                             )}
                             {creatorName && (
-                                <Text style={{ fontSize: 7.5, marginTop: 2, textAlign: 'right' }}>
+                                <Text style={{ fontSize: 7.5, marginTop: 2 }}>
                                     担当　{creatorName}
                                 </Text>
                             )}
