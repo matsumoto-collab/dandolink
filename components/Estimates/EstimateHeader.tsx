@@ -284,6 +284,8 @@ interface EstimateHeaderProps {
     setTitle: (v: string) => void;
     siteName: string;
     setSiteName: (v: string) => void;
+    location: string;
+    setLocation: (v: string) => void;
     customerId: string;
     setCustomerId: (v: string) => void;
     validUntil: string;
@@ -300,6 +302,7 @@ export default function EstimateHeader({
     estimateNumber, setEstimateNumber,
     title, setTitle,
     siteName, setSiteName,
+    location, setLocation,
     customerId, setCustomerId,
     validUntil, setValidUntil,
     status, setStatus,
@@ -347,6 +350,11 @@ export default function EstimateHeader({
                 <div>
                     <label className={labelClass}>現場名</label>
                     <input type="text" value={siteName} onChange={(e) => setSiteName(e.target.value)} className={inputClass} placeholder="案件を選択するか手動で入力" />
+                </div>
+
+                <div>
+                    <label className={labelClass}>現場住所</label>
+                    <input type="text" value={location} onChange={(e) => setLocation(e.target.value)} className={inputClass} placeholder="案件を選択すると自動入力されます" />
                 </div>
 
                 <div>

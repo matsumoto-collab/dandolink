@@ -50,6 +50,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
     const [title, setTitle] = useState(initialData?.title || '');
     const [siteName, setSiteName] = useState('');
+    const [location, setLocation] = useState('');
     const [customerId, setCustomerId] = useState(initialData?.customerId || '');
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
@@ -92,6 +93,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             const selectedProject = projectMasters.find(p => p.id === projectId);
             if (selectedProject) {
                 setSiteName(selectedProject.title || '');
+                setLocation(selectedProject.location || '');
                 // 案件マスターに顧客IDが保持されている場合は直接セットする
                 if (selectedProject.customerId) {
                     setCustomerId(selectedProject.customerId);
@@ -350,7 +352,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 color: '#3B82F6',
                 customer: customer?.name || '',
                 customerHonorific: customer?.honorific || '御中',
-                location: selectedProject?.location || '',
+                location: location || '',
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -444,6 +446,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 status={status} setStatus={(v) => setStatus(v as EstimateInput['status'])}
                 projects={projectOptions} customers={customers}
                 onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
+                location={location} setLocation={setLocation}
             />
 
             <ItemsEditor
