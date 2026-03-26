@@ -24,13 +24,14 @@ export async function PATCH(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name, postalCode, address, tel, fax, email, representativeTitle, representative, sealImage, licenseNumber, registrationNumber, bankAccounts } = await request.json();
+        const { name, postalCode, address, tel, fax, email, representativeTitle, representative, sealImage, logoImage, licenseNumber, registrationNumber, contactPerson, bankAccounts } = await request.json();
 
         const data = {
             name, postalCode, address, tel,
             fax: fax || null, email: email || null, representativeTitle: representativeTitle || null,
-            representative, sealImage: sealImage || null, licenseNumber: licenseNumber || null,
-            registrationNumber: registrationNumber || null, bankAccounts: bankAccounts || null,
+            representative, sealImage: sealImage || null, logoImage: logoImage || null,
+            licenseNumber: licenseNumber || null, registrationNumber: registrationNumber || null,
+            contactPerson: contactPerson || null, bankAccounts: bankAccounts || null,
         };
 
         const company = await prisma.companyInfo.upsert({ where: { id: 'default' }, update: data, create: { id: 'default', ...data } });

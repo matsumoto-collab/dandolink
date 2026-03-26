@@ -500,12 +500,6 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                 </View>
 
                 <View style={styles.rightArea}>
-                    {/* Logo */}
-                    {companyInfo.logoImage && (
-                        <View style={{ alignItems: 'center', marginBottom: 3 }}>
-                            <Image src={companyInfo.logoImage} style={{ height: 35, objectFit: 'contain' }} />
-                        </View>
-                    )}
                     {/* Company info block with seal overlaid */}
                     <View style={{ position: 'relative' }}>
                         {/* Seal image overlaid on top-right */}
@@ -514,6 +508,10 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                         )}
                         {/* 全テキストを左揃えで統一し、ブロックごと右寄せ */}
                         <View style={{ alignSelf: 'flex-end' }}>
+                            {/* Logo — 会社名の上 */}
+                            {companyInfo.logoImage && (
+                                <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain' }} />
+                            )}
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
