@@ -446,10 +446,11 @@ interface EstimatePDFProps {
     project: Project;
     companyInfo: CompanyInfo;
     includeDetails?: boolean;
+    creatorName?: string;
 }
 
 // ===== Cover Page Component (Landscape) =====
-function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeDetails'>) {
+function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<EstimatePDFProps, 'includeDetails'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
@@ -519,10 +520,10 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                             {companyInfo.email && (
                                 <Text style={styles.companyText}>{companyInfo.email}</Text>
                             )}
-                            {companyInfo.contactPerson && (
+                            {creatorName && (
                                 <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginTop: 2 }}>
                                     <Text style={{ fontSize: 7.5, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderDark, paddingBottom: 1 }}>
-                                        担当　{companyInfo.contactPerson}
+                                        担当　{creatorName}
                                     </Text>
                                 </View>
                             )}
@@ -908,7 +909,7 @@ function FlatDetailsPage({
 }
 
 // ===== Main Estimate PDF Document =====
-export function EstimatePDF({ estimate, project, companyInfo, includeDetails = true }: EstimatePDFProps) {
+export function EstimatePDF({ estimate, project, companyInfo, includeDetails = true, creatorName }: EstimatePDFProps) {
     const categories = estimate.items.filter(item => item.isCategory && (item.children || []).length > 0);
     const hasCategories = categories.length > 0;
     const estimateTitle = project.title || estimate.title;
@@ -921,7 +922,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
             keywords="見積書, estimate"
             creator="DandoLink"
         >
-            <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} />
+            <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} creatorName={creatorName} />
 
             {includeDetails && (
                 hasCategories ? (

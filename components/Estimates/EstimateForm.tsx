@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
@@ -33,6 +34,8 @@ function getDefault30DaysLater(): string {
 }
 
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
+    const { data: session } = useSession();
+    const creatorName = session?.user?.name || '';
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
     const { unitPrices, unitPriceCategories, unitPriceSpecifications, ensureDataLoaded: ensureUnitPricesLoaded } = useUnitPriceMaster();
@@ -357,7 +360,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 createdAt: new Date(), updatedAt: new Date(),
             };
 
-            const url = await generateEstimatePDFBlobReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeDetails: true });
+            const url = await generateEstimatePDFBlobReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeDetails: true, creatorName });
 
             // 前回のURL をクリーンアップ
             if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);

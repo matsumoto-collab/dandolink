@@ -8,6 +8,7 @@ import { useCompany } from '@/hooks/useCompany';
 // PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { ArrowLeft, FileDown, Printer, Trash2, Edit, ExternalLink } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
@@ -27,6 +28,8 @@ export default function EstimateDetailPage() {
     const { estimates, ensureDataLoaded: ensureEstimatesLoaded, updateEstimate, deleteEstimate } = useEstimates();
     const { projects } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
+    const { data: session } = useSession();
+    const creatorName = session?.user?.name || '';
 
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
@@ -48,7 +51,7 @@ export default function EstimateDetailPage() {
             const generatePDF = async () => {
                 try {
                     const { generateEstimatePDFBlobReact } = await loadPdfGenerator();
-                    const url = await generateEstimatePDFBlobReact(estimate, project, companyInfo);
+                    const url = await generateEstimatePDFBlobReact(estimate, project, companyInfo, { creatorName });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -66,12 +69,12 @@ export default function EstimateDetailPage() {
                 URL.revokeObjectURL(currentUrl);
             }
         };
-    }, [estimate, project, companyInfo]);
+    }, [estimate, project, companyInfo, creatorName]);
 
     const handleDownload = async () => {
         if (estimate && project && companyInfo) {
             const { exportEstimatePDFReact } = await loadPdfGenerator();
-            exportEstimatePDFReact(estimate, project, companyInfo);
+            exportEstimatePDFReact(estimate, project, companyInfo, { creatorName });
         }
     };
 

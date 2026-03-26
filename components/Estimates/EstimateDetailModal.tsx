@@ -7,6 +7,7 @@ import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { X, FileDown, Printer, Trash2, Edit, FolderOpen } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 
@@ -35,6 +36,8 @@ export default function EstimateDetailModal({
     customerName,
     customerHonorific,
 }: EstimateDetailModalProps) {
+    const { data: session } = useSession();
+    const creatorName = session?.user?.name || '';
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
     const [includeDetails, setIncludeDetails] = useState(false);
@@ -69,7 +72,7 @@ export default function EstimateDetailModal({
             const generatePDF = async () => {
                 try {
                     const { generateEstimatePDFBlobReact } = await loadPdfGenerator();
-                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { includeDetails });
+                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { includeDetails, creatorName });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -90,7 +93,7 @@ export default function EstimateDetailModal({
     const handleDownload = async () => {
         if (estimate && companyInfo) {
             const { exportEstimatePDFReact } = await loadPdfGenerator();
-            await exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { includeDetails });
+            await exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { includeDetails, creatorName });
         }
     };
 

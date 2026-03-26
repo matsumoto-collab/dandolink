@@ -13,6 +13,7 @@ import '@/components/pdf/styles';
 
 interface EstimatePDFOptions {
     includeDetails?: boolean;
+    creatorName?: string;
 }
 
 /**
@@ -31,6 +32,7 @@ export async function exportEstimatePDFReact(
                 project={project}
                 companyInfo={companyInfo}
                 includeDetails={options.includeDetails}
+                creatorName={options.creatorName}
             />
         ).toBlob();
 
@@ -64,6 +66,7 @@ export async function generateEstimatePDFBlobReact(
                 project={project}
                 companyInfo={companyInfo}
                 includeDetails={options.includeDetails}
+                creatorName={options.creatorName}
             />
         ).toBlob();
 
