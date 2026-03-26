@@ -32,99 +32,125 @@ const COLORS = {
     totalBg: '#f0f0f0',
 };
 
-// ===== Styles =====
+// ===== Styles (Landscape A4) =====
 const styles = StyleSheet.create({
-    // Page
+    // Page — landscape
     page: {
         fontFamily: 'NotoSansJP',
-        fontSize: 9,
-        paddingTop: 30,
-        paddingBottom: 30,
-        paddingHorizontal: 35,
+        fontSize: 7.5,
+        paddingTop: 20,
+        paddingBottom: 20,
+        paddingHorizontal: 30,
         backgroundColor: COLORS.white,
         color: COLORS.textPrimary,
     },
 
-    // ===== Cover Page =====
     // Top accent bar
     accentBar: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        height: 4,
+        height: 3,
         backgroundColor: COLORS.navy,
     },
 
-    // Top row: estimateNo (left), title (center), date (right)
-    topRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-end',
-        marginTop: 10,
-        marginBottom: 12,
-    },
-    estimateNoText: {
-        fontSize: 9,
-        color: COLORS.textSecondary,
-    },
+    // ===== Title =====
     titleCenter: {
-        width: '50%',
         alignItems: 'center',
+        marginTop: 4,
+        marginBottom: 8,
     },
-    dateRight: {
-        width: '25%',
-        alignItems: 'flex-end',
-    },
-
-    // Header row: customer left, company right
-    coverHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 15,
-    },
-
-    // Left: Customer info
-    customerArea: {
-        width: '48%',
-    },
-    postalCode: {
-        fontSize: 9,
-        color: COLORS.textSecondary,
-        marginBottom: 2,
-    },
-    addressText: {
-        fontSize: 9,
-        color: COLORS.textSecondary,
-        marginBottom: 6,
-    },
-    customerName: {
-        fontSize: 16,
+    titleText: {
+        fontSize: 18,
+        letterSpacing: 10,
         fontWeight: 'bold',
-        paddingBottom: 4,
-        borderBottomWidth: 1.5,
+        color: COLORS.navy,
+        paddingBottom: 3,
+        borderBottomWidth: 2,
         borderBottomColor: COLORS.navy,
     },
 
+    // ===== Header row: customer left, company right =====
+    coverHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 8,
+    },
+
+    // Left: Customer + amount
+    customerArea: {
+        width: '48%',
+    },
+    customerName: {
+        fontSize: 13,
+        fontWeight: 'bold',
+        paddingBottom: 3,
+        borderBottomWidth: 1.5,
+        borderBottomColor: COLORS.navy,
+    },
     greetingText: {
-        fontSize: 9,
-        marginTop: 10,
+        fontSize: 7.5,
+        marginTop: 5,
         color: COLORS.textSecondary,
     },
 
-    // Right: Company
+    // Amount
+    amountSection: {
+        marginTop: 6,
+        width: '100%',
+    },
+    amountMainRow: {
+        flexDirection: 'row',
+        alignItems: 'baseline',
+        borderBottomWidth: 1.5,
+        borderBottomColor: COLORS.textPrimary,
+        paddingBottom: 2,
+        marginBottom: 1,
+    },
+    amountLabel: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        width: '25%',
+    },
+    amountValue: {
+        fontSize: 15,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        width: '45%',
+    },
+    amountTaxNote: {
+        fontSize: 7.5,
+        color: COLORS.textSecondary,
+        width: '30%',
+    },
+    amountSubRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderLight,
+        borderBottomStyle: 'dashed',
+        paddingVertical: 1,
+    },
+    amountSubLabel: {
+        fontSize: 7.5,
+        color: COLORS.textSecondary,
+        width: '25%',
+        textAlign: 'center',
+    },
+    amountSubValue: {
+        fontSize: 7.5,
+        width: '45%',
+        textAlign: 'center',
+    },
+
+    // Right: Date + Company
     rightArea: {
         width: '45%',
         alignItems: 'flex-end',
     },
-    titleText: {
-        fontSize: 22,
-        letterSpacing: 10,
-        fontWeight: 'bold',
-        color: COLORS.navy,
-        paddingBottom: 4,
-        borderBottomWidth: 2,
-        borderBottomColor: COLORS.navy,
+    estimateNoText: {
+        fontSize: 7.5,
+        color: COLORS.textSecondary,
     },
     companyRow: {
         flexDirection: 'row',
@@ -134,74 +160,26 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     companyName: {
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: 'bold',
-        marginBottom: 3,
+        marginBottom: 2,
         letterSpacing: 1,
     },
     companyText: {
-        fontSize: 8,
+        fontSize: 7,
         color: COLORS.textSecondary,
         marginBottom: 1,
         textAlign: 'right',
     },
     stampBox: {
-        width: 50,
-        height: 50,
+        width: 45,
+        height: 45,
     },
 
-    // ===== Amount Section =====
-    amountSection: {
-        marginBottom: 12,
-        width: '100%',
-    },
-    amountMainRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        borderBottomWidth: 1.5,
-        borderBottomColor: COLORS.textPrimary,
-        paddingBottom: 4,
-        marginBottom: 2,
-    },
-    amountLabel: {
-        fontSize: 12,
-        fontWeight: 'bold',
-        width: '30%',
-    },
-    amountValue: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        width: '45%',
-    },
-    amountTaxNote: {
-        fontSize: 9,
-        color: COLORS.textSecondary,
-        width: '25%',
-    },
-    amountSubRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-        borderBottomStyle: 'dashed',
-        paddingVertical: 2,
-    },
-    amountSubLabel: {
-        fontSize: 9,
-        color: COLORS.textSecondary,
-        width: '30%',
-        textAlign: 'center',
-    },
-    amountSubValue: {
-        fontSize: 9,
-        width: '45%',
-        textAlign: 'center',
-    },
-
-    // ===== Info Table =====
+    // ===== Info Table + Remarks =====
     infoTable: {
         flexDirection: 'row',
-        marginBottom: 12,
+        marginBottom: 6,
     },
     infoLeft: {
         width: '60%',
@@ -212,32 +190,35 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderLight,
-        minHeight: 20,
+        minHeight: 14,
     },
     infoRowLast: {
         flexDirection: 'row',
-        minHeight: 20,
+        minHeight: 14,
     },
     infoLabelCell: {
-        width: 70,
+        width: 55,
         backgroundColor: COLORS.infoBg,
-        padding: 4,
+        paddingHorizontal: 3,
+        paddingVertical: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderLight,
         justifyContent: 'center',
     },
     infoLabelText: {
-        fontSize: 9,
+        fontSize: 7.5,
         color: COLORS.textSecondary,
     },
     infoValueCell: {
         flex: 1,
-        padding: 4,
+        paddingHorizontal: 3,
+        paddingVertical: 2,
         justifyContent: 'center',
     },
     infoValueText: {
-        fontSize: 9,
+        fontSize: 7.5,
     },
+
     remarksArea: {
         width: '38%',
         marginLeft: '2%',
@@ -246,23 +227,24 @@ const styles = StyleSheet.create({
     },
     remarksHeader: {
         backgroundColor: COLORS.infoBg,
-        padding: 4,
+        paddingHorizontal: 3,
+        paddingVertical: 2,
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderLight,
     },
     remarksHeaderText: {
-        fontSize: 9,
+        fontSize: 7.5,
         color: COLORS.textSecondary,
         textAlign: 'center',
     },
     remarksBody: {
         flex: 1,
-        padding: 5,
+        padding: 3,
     },
     remarksText: {
-        fontSize: 8,
+        fontSize: 7,
         color: COLORS.textSecondary,
-        lineHeight: 1.5,
+        lineHeight: 1.4,
     },
 
     // ===== Details Table =====
@@ -275,71 +257,72 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 18,
+        minHeight: 15,
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 20,
+        minHeight: 16,
     },
     tableRowLast: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 20,
+        minHeight: 16,
     },
 
-    // Column styles — No(15) + Name(130) + Spec(130) + Qty(40) + Unit(30) + Price(55) + Amount(65) + Remarks(flex)
+    // Column styles for landscape — wider page
+    // No(18) + Name(180) + Spec(180) + Qty(50) + Unit(35) + Price(65) + Amount(80) + Remarks(flex)
     cellNo: {
-        width: 15,
-        padding: 3,
+        width: 18,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'center',
     },
     cellName: {
-        width: 130,
-        padding: 3,
+        width: 180,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellSpec: {
-        width: 130,
-        padding: 3,
+        width: 180,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellQty: {
-        width: 40,
-        padding: 3,
+        width: 50,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
     cellUnit: {
-        width: 30,
-        padding: 3,
+        width: 35,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'center',
     },
     cellPrice: {
-        width: 55,
-        padding: 3,
+        width: 65,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
     cellAmount: {
-        width: 65,
-        padding: 3,
+        width: 80,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -347,26 +330,26 @@ const styles = StyleSheet.create({
     },
     cellRemarks: {
         flex: 1,
-        padding: 3,
+        padding: 2,
         justifyContent: 'center',
     },
 
-    // Header cell text
+    // Cell text
     headerCellText: {
-        fontSize: 8,
+        fontSize: 7,
         color: COLORS.textSecondary,
         textAlign: 'center',
         width: '100%',
     },
     cellText: {
-        fontSize: 8,
+        fontSize: 7,
     },
     cellTextCenter: {
-        fontSize: 8,
+        fontSize: 7,
         textAlign: 'center',
     },
     cellTextRed: {
-        fontSize: 8,
+        fontSize: 7,
         color: COLORS.red,
     },
 
@@ -375,33 +358,33 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 20,
+        minHeight: 16,
     },
     totalRowFinal: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 22,
+        minHeight: 18,
         backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        // No(15)+Name(130)+Spec(130)+Qty(40) = 315, then Unit shows 小計
-        width: 315,
-        padding: 3,
+        // No(18)+Name(180)+Spec(180)+Qty(50) = 428
+        width: 428,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
     totalSubtotalLabel: {
-        width: 85,
-        padding: 3,
+        width: 100,
+        padding: 2,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
     totalAmountCell: {
-        width: 65,
-        padding: 3,
+        width: 80,
+        padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -409,15 +392,15 @@ const styles = StyleSheet.create({
     },
     totalRemarksCell: {
         flex: 1,
-        padding: 3,
+        padding: 2,
     },
     totalLabelText: {
-        fontSize: 9,
+        fontSize: 8,
         fontWeight: 'bold',
         color: COLORS.textSecondary,
     },
     totalAmountText: {
-        fontSize: 9,
+        fontSize: 8,
         fontWeight: 'bold',
     },
 
@@ -426,34 +409,34 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 10,
-        marginTop: 5,
+        marginBottom: 8,
+        marginTop: 4,
     },
     detailsTitle: {
-        fontSize: 16,
+        fontSize: 14,
         letterSpacing: 8,
         color: COLORS.navy,
         fontWeight: 'bold',
-        paddingBottom: 3,
+        paddingBottom: 2,
         borderBottomWidth: 1.5,
         borderBottomColor: COLORS.navy,
     },
     detailsSubInfo: {
-        fontSize: 9,
+        fontSize: 8,
         color: COLORS.textSecondary,
     },
 
     // Footer
     footer: {
         position: 'absolute',
-        bottom: 15,
-        left: 35,
-        right: 35,
+        bottom: 10,
+        left: 30,
+        right: 30,
         flexDirection: 'row',
         justifyContent: 'space-between',
     },
     footerText: {
-        fontSize: 7,
+        fontSize: 6,
         color: COLORS.borderMedium,
     },
 });
@@ -465,36 +448,33 @@ interface EstimatePDFProps {
     includeDetails?: boolean;
 }
 
-// ===== Cover Page Component =====
+// ===== Cover Page Component (Landscape) =====
 function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'includeDetails'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
     const monthsDiff = Math.ceil((validUntilDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24 * 30));
 
     return (
-        <Page size="A4" orientation="portrait" style={styles.page}>
-            {/* Top accent bar */}
+        <Page size="A4" orientation="landscape" style={styles.page}>
             <View style={styles.accentBar} fixed />
 
-            {/* Title center */}
-            <View style={{ alignItems: 'center', marginTop: 10, marginBottom: 15 }}>
+            {/* Title */}
+            <View style={styles.titleCenter}>
                 <Text style={styles.titleText}>御 見 積 書</Text>
             </View>
 
-            {/* Main header: Left (customer + greeting + amount) / Right (date + No + company) */}
+            {/* Header: Left (customer + amount) / Right (date + company) */}
             <View style={styles.coverHeader}>
-                {/* Left side */}
                 <View style={styles.customerArea}>
                     {(() => {
                         const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
-                        const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
+                        const fontSize = len <= 12 ? 13 : len <= 16 ? 11 : len <= 20 ? 10 : 9;
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
                     })()}
                     <Text style={styles.greetingText}>下記の通り御見積り申し上げます。</Text>
 
-                    {/* Amount Section */}
-                    <View style={[styles.amountSection, { marginTop: 12 }]}>
+                    <View style={styles.amountSection}>
                         <View style={styles.amountMainRow}>
                             <Text style={styles.amountLabel}>合計金額</Text>
                             <Text style={styles.amountValue}>¥{estimate.total.toLocaleString()}</Text>
@@ -511,12 +491,11 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     </View>
                 </View>
 
-                {/* Right side */}
                 <View style={styles.rightArea}>
-                    <Text style={{ fontSize: 10, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
-                    <Text style={[styles.estimateNoText, { marginTop: 2, textAlign: 'right' }]}>見積No. {estimate.estimateNumber}</Text>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
+                    <Text style={[styles.estimateNoText, { marginTop: 1, textAlign: 'right' }]}>見積No. {estimate.estimateNumber}</Text>
 
-                    <View style={[styles.companyRow, { marginTop: 10 }]}>
+                    <View style={[styles.companyRow, { marginTop: 6 }]}>
                         <View style={styles.companyInfoBlock}>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
@@ -581,7 +560,6 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     </View>
                 </View>
 
-                {/* Remarks */}
                 <View style={styles.remarksArea}>
                     <View style={styles.remarksHeader}>
                         <Text style={styles.remarksHeaderText}>備考</Text>
@@ -594,9 +572,8 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                 </View>
             </View>
 
-            {/* Inline Details Table on Cover Page — トップレベル項目のみ表示 */}
+            {/* Details Table */}
             <View style={styles.table}>
-                {/* Header */}
                 <View style={styles.tableHeader}>
                     <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
@@ -608,7 +585,6 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     <View style={styles.cellRemarks}><Text style={styles.headerCellText}>備考</Text></View>
                 </View>
 
-                {/* Body Rows */}
                 {(() => {
                     const topItems = estimate.items;
                     const maxRows = 15;
@@ -626,7 +602,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                                     <Text style={styles.cellTextCenter}>{item ? i + 1 : ''}</Text>
                                 </View>
                                 <View style={styles.cellName}>
-                                    <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 8, fontWeight: 'bold' } : styles.cellText)}>
+                                    <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 7, fontWeight: 'bold' } : styles.cellText)}>
                                         {item ? sanitizePdfText(item.description || '') : ''}
                                     </Text>
                                 </View>
@@ -668,7 +644,6 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
-
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
                     </View>
@@ -712,7 +687,7 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
                 <Text style={styles.cellTextCenter}>{item ? idx + 1 : ''}</Text>
             </View>
             <View style={styles.cellName}>
-                <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 8, fontWeight: 'bold' } : styles.cellText)}>
+                <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 7, fontWeight: 'bold' } : styles.cellText)}>
                     {item ? sanitizePdfText(item.description || '') : ''}
                 </Text>
             </View>
@@ -760,10 +735,9 @@ function CategoryDetailsPage({
     const maxRows = 25;
 
     return (
-        <Page size="A4" orientation="portrait" style={styles.page}>
+        <Page size="A4" orientation="landscape" style={styles.page}>
             <View style={styles.accentBar} fixed />
 
-            {/* Header */}
             <View style={styles.detailsHeader}>
                 <Text style={styles.detailsTitle}>内 訳 明 細 書</Text>
                 <Text style={styles.detailsSubInfo}>
@@ -771,24 +745,21 @@ function CategoryDetailsPage({
                 </Text>
             </View>
 
-            {/* 工事名称 */}
-            <View style={{ marginBottom: 8 }}>
-                <Text style={{ fontSize: 9, color: COLORS.textSecondary }}>
+            <View style={{ marginBottom: 6 }}>
+                <Text style={{ fontSize: 8, color: COLORS.textSecondary }}>
                     工事名称: {sanitizePdfText(estimateTitle)}
                 </Text>
             </View>
 
-            {/* Table */}
             <View style={styles.table}>
                 <TableHeader />
 
-                {/* カテゴリ名行（1行目） */}
                 <View style={styles.tableRow}>
                     <View style={styles.cellNo}>
                         <Text style={styles.cellTextCenter}>1</Text>
                     </View>
                     <View style={styles.cellName}>
-                        <Text style={{ fontSize: 8, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
+                        <Text style={{ fontSize: 7, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
                     </View>
                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellQty}><Text style={styles.cellText}>{category.quantity && category.quantity > 0 ? category.quantity.toLocaleString() : ''}</Text></View>
@@ -798,7 +769,6 @@ function CategoryDetailsPage({
                     <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                 </View>
 
-                {/* 子項目行 */}
                 {(() => {
                     const rows = [];
                     const totalRows = Math.max(children.length, maxRows - 1);
@@ -811,13 +781,11 @@ function CategoryDetailsPage({
                     return rows;
                 })()}
 
-                {/* Subtotal */}
                 <View style={styles.totalRow}>
                     <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
-
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>¥{category.amount.toLocaleString()}</Text>
                     </View>
@@ -825,7 +793,6 @@ function CategoryDetailsPage({
                 </View>
             </View>
 
-            {/* Footer */}
             <View style={styles.footer} fixed>
                 <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. {pageNo}</Text>
@@ -834,7 +801,7 @@ function CategoryDetailsPage({
     );
 }
 
-// ===== フラット項目用のDetailsPage（カテゴリなしの場合、または表紙なしの場合） =====
+// ===== フラット項目用のDetailsPage =====
 function FlatDetailsPage({
     estimate, companyInfo: _companyInfo, pageNo,
 }: {
@@ -844,7 +811,6 @@ function FlatDetailsPage({
 }) {
     const maxRows = 25;
 
-    // フラット化: カテゴリはそのまま1行 + 子項目も展開
     const flatItems: Estimate['items'] = [];
     for (const item of estimate.items) {
         flatItems.push(item);
@@ -856,7 +822,7 @@ function FlatDetailsPage({
     }
 
     return (
-        <Page size="A4" orientation="portrait" style={styles.page}>
+        <Page size="A4" orientation="landscape" style={styles.page}>
             <View style={styles.accentBar} fixed />
 
             <View style={styles.detailsHeader}>
@@ -885,7 +851,6 @@ function FlatDetailsPage({
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
-
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.subtotal.toLocaleString()}</Text>
                     </View>
@@ -896,7 +861,6 @@ function FlatDetailsPage({
                     <View style={styles.totalSubtotalLabel}>
                         <Text style={styles.totalLabelText}>消費税</Text>
                     </View>
-
                     <View style={styles.totalAmountCell}>
                         <Text style={styles.totalAmountText}>{estimate.tax.toLocaleString()}</Text>
                     </View>
@@ -905,11 +869,10 @@ function FlatDetailsPage({
                 <View style={styles.totalRow}>
                     <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalSubtotalLabel}>
-                        <Text style={{ ...styles.totalLabelText, fontSize: 10 }}>合計</Text>
+                        <Text style={{ ...styles.totalLabelText, fontSize: 9 }}>合計</Text>
                     </View>
-
                     <View style={styles.totalAmountCell}>
-                        <Text style={{ ...styles.totalAmountText, fontSize: 10 }}>
+                        <Text style={{ ...styles.totalAmountText, fontSize: 9 }}>
                             {estimate.total.toLocaleString()}
                         </Text>
                     </View>
@@ -943,7 +906,6 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
 
             {includeDetails && (
                 hasCategories ? (
-                    /* カテゴリごとに内訳明細ページを生成 */
                     categories.map((cat, idx) => (
                         <CategoryDetailsPage
                             key={cat.id}
@@ -955,7 +917,6 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
                         />
                     ))
                 ) : (
-                    /* カテゴリなし: 従来通りフラットな明細ページ */
                     <FlatDetailsPage
                         estimate={estimate}
                         companyInfo={companyInfo}
