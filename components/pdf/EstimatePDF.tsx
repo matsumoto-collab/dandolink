@@ -458,12 +458,19 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
         <Page size="A4" orientation="landscape" style={styles.page}>
             <View style={styles.accentBar} fixed />
 
-            {/* Title */}
-            <View style={styles.titleCenter}>
-                <Text style={styles.titleText}>御 見 積 書</Text>
+            {/* Title row: title center, date/No right */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 8 }}>
+                <View style={{ width: '25%' }} />
+                <View style={{ alignItems: 'center' }}>
+                    <Text style={styles.titleText}>御 見 積 書</Text>
+                </View>
+                <View style={{ width: '25%', alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
+                    <Text style={[styles.estimateNoText, { marginTop: 1, textAlign: 'right' }]}>見積No. {estimate.estimateNumber}</Text>
+                </View>
             </View>
 
-            {/* Header: Left (customer + amount) / Right (date + company) */}
+            {/* Header: Left (customer + amount) / Right (company) */}
             <View style={styles.coverHeader}>
                 <View style={styles.customerArea}>
                     {(() => {
@@ -492,10 +499,7 @@ function CoverPage({ estimate, project, companyInfo }: Omit<EstimatePDFProps, 'i
                 </View>
 
                 <View style={styles.rightArea}>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
-                    <Text style={[styles.estimateNoText, { marginTop: 1, textAlign: 'right' }]}>見積No. {estimate.estimateNumber}</Text>
-
-                    <View style={[styles.companyRow, { marginTop: 6 }]}>
+                    <View style={[styles.companyRow, { marginTop: 0 }]}>
                         <View style={styles.companyInfoBlock}>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
