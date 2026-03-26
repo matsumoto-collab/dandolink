@@ -65,7 +65,7 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         category: 'construction',
         color,
         description: assignment.projectMaster?.description,
-        location: assignment.projectMaster?.location,
+        location: [assignment.projectMaster?.prefecture, assignment.projectMaster?.city, assignment.projectMaster?.location].filter(Boolean).join(''),
         customer: assignment.projectMaster?.customerShortName || assignment.projectMaster?.customerName,
         memberCount: assignment.memberCount,
         estimatedHours: assignment.estimatedHours ?? 8.0,

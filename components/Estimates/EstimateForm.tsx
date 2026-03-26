@@ -93,7 +93,8 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             const selectedProject = projectMasters.find(p => p.id === projectId);
             if (selectedProject) {
                 setSiteName(selectedProject.title || '');
-                setLocation(selectedProject.location || '');
+                const fullAddress = [selectedProject.prefecture, selectedProject.city, selectedProject.location].filter(Boolean).join('');
+                setLocation(fullAddress);
                 // 案件マスターに顧客IDが保持されている場合は直接セットする
                 if (selectedProject.customerId) {
                     setCustomerId(selectedProject.customerId);
@@ -109,10 +110,10 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         setCustomerId(customer?.id || '');
                     }
                 }
-                if (!title) setTitle(`${selectedProject.title} 見積書`);
+                setTitle(`${selectedProject.title} 見積書`);
             }
         }
-    }, [projectId, projectMasters, customers, title]);
+    }, [projectId, projectMasters, customers]);
 
     // EstimateHeader 用の案件リスト
     const projectOptions = React.useMemo(() => {
