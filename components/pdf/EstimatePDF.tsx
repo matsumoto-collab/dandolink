@@ -500,12 +500,15 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                 </View>
 
                 <View style={styles.rightArea}>
-                    {/* Logo + Seal side by side */}
+                    {/* Logo */}
+                    {companyInfo.logoImage && (
+                        <View style={{ alignItems: 'center', marginBottom: 3 }}>
+                            <Image src={companyInfo.logoImage} style={{ height: 35, objectFit: 'contain' }} />
+                        </View>
+                    )}
+                    {/* Company name + license + representative (with seal on right) */}
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'flex-end' }}>
                         <View style={{ alignItems: 'flex-end', flex: 1 }}>
-                            {companyInfo.logoImage && (
-                                <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain' }} />
-                            )}
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
                                 <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
@@ -515,21 +518,22 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                                     {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
                                 </Text>
                             )}
-                            <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
-                            <Text style={styles.companyText}>TEL：{companyInfo.tel}　FAX：{companyInfo.fax || ''}</Text>
-                            {companyInfo.email && (
-                                <Text style={styles.companyText}>{companyInfo.email}</Text>
-                            )}
-                            {creatorName && (
-                                <View style={{ flexDirection: 'row', justifyContent: 'flex-end', width: '100%', marginTop: 2 }}>
-                                    <Text style={{ fontSize: 7.5, borderBottomWidth: 0.5, borderBottomColor: COLORS.borderDark, paddingBottom: 1 }}>
-                                        担当　{creatorName}
-                                    </Text>
-                                </View>
-                            )}
                         </View>
                         {companyInfo.sealImage && (
                             <Image src={companyInfo.sealImage} style={styles.stampBox} />
+                        )}
+                    </View>
+                    {/* Address, TEL/FAX, email, 担当 — full width right-aligned */}
+                    <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={styles.companyText}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
+                        <Text style={styles.companyText}>TEL　{companyInfo.tel}　　FAX　{companyInfo.fax || ''}</Text>
+                        {companyInfo.email && (
+                            <Text style={styles.companyText}>e-mail　{companyInfo.email}</Text>
+                        )}
+                        {creatorName && (
+                            <Text style={{ fontSize: 7.5, marginTop: 2, textAlign: 'right' }}>
+                                担当　{creatorName}
+                            </Text>
                         )}
                     </View>
                 </View>
