@@ -509,8 +509,10 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                             <X className="w-6 h-6" />
                         </button>
                     </div>
-                    <div className="flex-1 overflow-auto bg-slate-100">
-                        <InlinePdfViewer url={previewPdfUrl} />
+                    <div className="flex-1 overflow-auto bg-slate-100 flex justify-center">
+                        <div className="w-full max-w-[calc(100vw-256px)] h-full">
+                            <InlinePdfViewer url={previewPdfUrl} />
+                        </div>
                     </div>
                 </div>
             )}
