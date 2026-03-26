@@ -45,16 +45,6 @@ const styles = StyleSheet.create({
         color: COLORS.textPrimary,
     },
 
-    // Top accent bar
-    accentBar: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 3,
-        backgroundColor: COLORS.navy,
-    },
-
     // ===== Title =====
     titleCenter: {
         alignItems: 'center',
@@ -62,13 +52,10 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     titleText: {
-        fontSize: 16,
-        letterSpacing: 10,
+        fontSize: 20,
+        letterSpacing: 12,
         fontWeight: 'bold',
         color: COLORS.navy,
-        paddingBottom: 3,
-        borderBottomWidth: 2,
-        borderBottomColor: COLORS.navy,
     },
 
     // ===== Header row: customer left, company right =====
@@ -83,7 +70,7 @@ const styles = StyleSheet.create({
         width: 280,
     },
     customerName: {
-        fontSize: 11,
+        fontSize: 14,
         fontWeight: 'bold',
         paddingBottom: 3,
         borderBottomWidth: 1.5,
@@ -93,6 +80,7 @@ const styles = StyleSheet.create({
         fontSize: 8.5,
         marginTop: 5,
         color: COLORS.textSecondary,
+        lineHeight: 1.6,
     },
 
     // Amount
@@ -109,12 +97,12 @@ const styles = StyleSheet.create({
         marginBottom: 1,
     },
     amountLabel: {
-        fontSize: 8.5,
+        fontSize: 10,
         fontWeight: 'bold',
         width: '30%',
     },
     amountValue: {
-        fontSize: 12,
+        fontSize: 14,
         fontWeight: 'bold',
         textAlign: 'center',
         width: '40%',
@@ -132,13 +120,13 @@ const styles = StyleSheet.create({
         paddingVertical: 1,
     },
     amountSubLabel: {
-        fontSize: 8.5,
+        fontSize: 9.5,
         color: COLORS.textSecondary,
         width: '30%',
         textAlign: 'center',
     },
     amountSubValue: {
-        fontSize: 8.5,
+        fontSize: 9.5,
         width: '40%',
         textAlign: 'center',
     },
@@ -457,7 +445,6 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
 
     return (
         <Page size="A4" orientation="landscape" style={styles.page}>
-            <View style={styles.accentBar} fixed />
 
             {/* Title row: title center, date/No right */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 8 }}>
@@ -477,10 +464,10 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                     {(() => {
                         const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
-                        const fontSize = len <= 12 ? 11 : len <= 16 ? 10 : len <= 20 ? 9 : 8.5;
+                        const fontSize = len <= 12 ? 14 : len <= 16 ? 12 : len <= 20 ? 11 : 10;
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
                     })()}
-                    <Text style={styles.greetingText}>下記の通り御見積り申し上げます。</Text>
+                    <Text style={styles.greetingText}>{'いつもお世話になっております。\n下記の通り御見積書をお送りいたしますので、\nご検討のほどよろしくお願いいたします。'}</Text>
 
                     <View style={styles.amountSection}>
                         <View style={styles.amountMainRow}>
@@ -508,9 +495,9 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                         )}
                         {/* 全テキストを左揃えで統一し、ブロックごと右寄せ */}
                         <View style={{ alignSelf: 'flex-end' }}>
-                            {/* Logo — 会社名の上 */}
+                            {/* Logo — 会社名の上、左端揃え */}
                             {companyInfo.logoImage && (
-                                <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain' }} />
+                                <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain', alignSelf: 'flex-start' }} />
                             )}
                             <Text style={styles.companyName}>{companyInfo.name}</Text>
                             {companyInfo.licenseNumber && (
@@ -758,7 +745,6 @@ function CategoryDetailsPage({
 
     return (
         <Page size="A4" orientation="landscape" style={styles.page}>
-            <View style={styles.accentBar} fixed />
 
             <View style={styles.detailsHeader}>
                 <Text style={styles.detailsTitle}>内 訳 明 細 書</Text>
@@ -845,7 +831,6 @@ function FlatDetailsPage({
 
     return (
         <Page size="A4" orientation="landscape" style={styles.page}>
-            <View style={styles.accentBar} fixed />
 
             <View style={styles.detailsHeader}>
                 <Text style={styles.detailsTitle}>見積内訳明細書</Text>
