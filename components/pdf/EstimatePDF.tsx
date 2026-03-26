@@ -257,26 +257,26 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 1,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 15,
+        minHeight: 18,
     },
     tableRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 16,
+        minHeight: 20,
     },
     tableRowLast: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 16,
+        minHeight: 20,
     },
 
     // Column styles for landscape — wider page
     // No(18) + Name(180) + Spec(180) + Qty(50) + Unit(35) + Price(65) + Amount(80) + Remarks(flex)
     cellNo: {
-        width: 18,
-        padding: 2,
+        width: 20,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -284,21 +284,21 @@ const styles = StyleSheet.create({
     },
     cellName: {
         width: 180,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellSpec: {
         width: 180,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
     },
     cellQty: {
         width: 50,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -306,7 +306,7 @@ const styles = StyleSheet.create({
     },
     cellUnit: {
         width: 35,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
     },
     cellPrice: {
         width: 65,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     },
     cellAmount: {
         width: 80,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -330,26 +330,26 @@ const styles = StyleSheet.create({
     },
     cellRemarks: {
         flex: 1,
-        padding: 2,
+        padding: 3,
         justifyContent: 'center',
     },
 
     // Cell text
     headerCellText: {
-        fontSize: 7,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
         textAlign: 'center',
         width: '100%',
     },
     cellText: {
-        fontSize: 7,
+        fontSize: 8.5,
     },
     cellTextCenter: {
-        fontSize: 7,
+        fontSize: 8.5,
         textAlign: 'center',
     },
     cellTextRed: {
-        fontSize: 7,
+        fontSize: 8.5,
         color: COLORS.red,
     },
 
@@ -358,19 +358,19 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 16,
+        minHeight: 20,
     },
     totalRowFinal: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 18,
+        minHeight: 22,
         backgroundColor: COLORS.totalBg,
     },
     totalLabelCell: {
-        // No(18)+Name(180)+Spec(180)+Qty(50) = 428
-        width: 428,
-        padding: 2,
+        // No(20)+Name(180)+Spec(180)+Qty(50) = 430
+        width: 430,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -378,13 +378,13 @@ const styles = StyleSheet.create({
     },
     totalSubtotalLabel: {
         width: 100,
-        padding: 2,
+        padding: 3,
         justifyContent: 'center',
         alignItems: 'flex-end',
     },
     totalAmountCell: {
         width: 80,
-        padding: 2,
+        padding: 3,
         borderRightWidth: 0.5,
         borderRightColor: COLORS.borderMedium,
         justifyContent: 'center',
@@ -392,15 +392,15 @@ const styles = StyleSheet.create({
     },
     totalRemarksCell: {
         flex: 1,
-        padding: 2,
+        padding: 3,
     },
     totalLabelText: {
-        fontSize: 8,
+        fontSize: 9,
         fontWeight: 'bold',
         color: COLORS.textSecondary,
     },
     totalAmountText: {
-        fontSize: 8,
+        fontSize: 9,
         fontWeight: 'bold',
     },
 
@@ -609,7 +609,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
 
                 {(() => {
                     const topItems = estimate.items;
-                    const maxRows = 15;
+                    const maxRows = 12;
                     const rows = [];
 
                     for (let i = 0; i < maxRows; i++) {
