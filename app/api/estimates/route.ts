@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
         if (error) return error;
 
         const body = await req.json();
-        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId } = body;
+        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId, location } = body;
 
         if (!title) {
             return validationErrorResponse('タイトルは必須です');
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
             data: {
                 projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber: finalEstimateNumber, title,
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
-                validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null,
+                validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null, location: location || null,
                 updatedBy: session!.user.id,
             },
         });

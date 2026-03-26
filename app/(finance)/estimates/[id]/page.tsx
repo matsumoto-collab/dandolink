@@ -51,7 +51,8 @@ export default function EstimateDetailPage() {
             const generatePDF = async () => {
                 try {
                     const { generateEstimatePDFBlobReact } = await loadPdfGenerator();
-                    const url = await generateEstimatePDFBlobReact(estimate, project, companyInfo, { creatorName });
+                    const effectiveProject = estimate.location ? { ...project, location: estimate.location } : project;
+                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { creatorName });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -74,7 +75,8 @@ export default function EstimateDetailPage() {
     const handleDownload = async () => {
         if (estimate && project && companyInfo) {
             const { exportEstimatePDFReact } = await loadPdfGenerator();
-            exportEstimatePDFReact(estimate, project, companyInfo, { creatorName });
+            const effectiveProject = estimate.location ? { ...project, location: estimate.location } : project;
+            exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { creatorName });
         }
     };
 

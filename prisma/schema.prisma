@@ -172,6 +172,7 @@ model Estimate {
   validUntil      DateTime
   status          String   @default("draft")
   notes           String?
+  location        String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   updatedBy       String?

@@ -27,6 +27,7 @@ export interface Estimate {
     validUntil: Date;
     status: 'draft' | 'sent' | 'approved' | 'rejected';
     notes?: string;
+    location?: string;
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string;

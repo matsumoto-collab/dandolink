@@ -50,7 +50,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
     const [title, setTitle] = useState(initialData?.title || '');
     const [siteName, setSiteName] = useState('');
-    const [location, setLocation] = useState('');
+    const [location, setLocation] = useState(initialData?.location || '');
     const [customerId, setCustomerId] = useState(initialData?.customerId || '');
     const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
@@ -426,7 +426,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         try {
             const data: EstimateInput = {
                 projectId: projectId || undefined, customerId: customerId || undefined, estimateNumber, title, items, subtotal, tax, total,
-                validUntil: new Date(validUntil), status, notes: notes || undefined,
+                validUntil: new Date(validUntil), status, notes: notes || undefined, location: location || undefined,
             };
             await onSubmit(data);
         } finally {

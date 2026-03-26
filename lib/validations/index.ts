@@ -248,6 +248,7 @@ export const updateEstimateSchema = z.object({
     validUntil: z.string().optional(),
     status: z.enum(['draft', 'sent', 'accepted', 'rejected']).optional(),
     notes: z.string().max(2000).nullable().optional(),
+    location: z.string().max(500).nullable().optional(),
 });
 
 // ============================================

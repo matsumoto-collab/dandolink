@@ -60,7 +60,7 @@ export default function EstimateDetailModal({
             color: '#3B82F6',
             customer: customerName || '',
             customerHonorific: customerHonorific || '御中',
-            location: '',
+            location: estimate?.location || '',
             createdAt: estimate?.createdAt || new Date(),
             updatedAt: estimate?.updatedAt || new Date(),
         };
