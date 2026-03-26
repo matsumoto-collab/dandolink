@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     titleText: {
-        fontSize: 18,
+        fontSize: 16,
         letterSpacing: 10,
         fontWeight: 'bold',
         color: COLORS.navy,
@@ -80,17 +80,17 @@ const styles = StyleSheet.create({
 
     // Left: Customer + amount
     customerArea: {
-        flex: 1,
+        width: 280,
     },
     customerName: {
-        fontSize: 13,
+        fontSize: 11,
         fontWeight: 'bold',
         paddingBottom: 3,
         borderBottomWidth: 1.5,
         borderBottomColor: COLORS.navy,
     },
     greetingText: {
-        fontSize: 7.5,
+        fontSize: 8.5,
         marginTop: 5,
         color: COLORS.textSecondary,
     },
@@ -109,18 +109,18 @@ const styles = StyleSheet.create({
         marginBottom: 1,
     },
     amountLabel: {
-        fontSize: 10,
+        fontSize: 8.5,
         fontWeight: 'bold',
-        width: '25%',
+        width: '30%',
     },
     amountValue: {
-        fontSize: 15,
+        fontSize: 12,
         fontWeight: 'bold',
         textAlign: 'center',
-        width: '45%',
+        width: '40%',
     },
     amountTaxNote: {
-        fontSize: 7.5,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
         width: '30%',
     },
@@ -132,14 +132,14 @@ const styles = StyleSheet.create({
         paddingVertical: 1,
     },
     amountSubLabel: {
-        fontSize: 7.5,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
-        width: '25%',
+        width: '30%',
         textAlign: 'center',
     },
     amountSubValue: {
-        fontSize: 7.5,
-        width: '45%',
+        fontSize: 8.5,
+        width: '40%',
         textAlign: 'center',
     },
 
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
         alignItems: 'flex-end',
     },
     estimateNoText: {
-        fontSize: 7.5,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
     },
     companyRow: {
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
         letterSpacing: 1,
     },
     companyText: {
-        fontSize: 7,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
         marginBottom: 1,
         textAlign: 'right',
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     infoLabelText: {
-        fontSize: 7.5,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
     },
     infoValueCell: {
@@ -216,7 +216,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     infoValueText: {
-        fontSize: 7.5,
+        fontSize: 8.5,
     },
 
     remarksArea: {
@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
         borderBottomColor: COLORS.borderLight,
     },
     remarksHeaderText: {
-        fontSize: 7.5,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
         textAlign: 'center',
     },
@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
         padding: 3,
     },
     remarksText: {
-        fontSize: 7,
+        fontSize: 8.5,
         color: COLORS.textSecondary,
         lineHeight: 1.4,
     },
@@ -466,7 +466,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                     <Text style={styles.titleText}>御 見 積 書</Text>
                 </View>
                 <View style={{ width: '25%', alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
+                    <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, textAlign: 'right' }}>見積日　{toReiwa(createdDate)}</Text>
                     <Text style={[styles.estimateNoText, { marginTop: 1, textAlign: 'right' }]}>見積No. {estimate.estimateNumber}</Text>
                 </View>
             </View>
@@ -477,7 +477,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                     {(() => {
                         const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
                         const len = fullName.length;
-                        const fontSize = len <= 12 ? 13 : len <= 16 ? 11 : len <= 20 ? 10 : 9;
+                        const fontSize = len <= 12 ? 11 : len <= 16 ? 10 : len <= 20 ? 9 : 8.5;
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
                     })()}
                     <Text style={styles.greetingText}>下記の通り御見積り申し上げます。</Text>
