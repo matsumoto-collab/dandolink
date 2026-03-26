@@ -80,7 +80,7 @@ const styles = StyleSheet.create({
 
     // Left: Customer + amount
     customerArea: {
-        width: '42%',
+        width: '38%',
     },
     customerName: {
         fontSize: 13,
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
 
     // Right: Date + Company
     rightArea: {
-        width: '55%',
+        width: '60%',
         alignItems: 'flex-end',
     },
     estimateNoText: {
