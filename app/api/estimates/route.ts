@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatEstimate } from '@/lib/formatters';
+import { createEstimateSchema, validateRequest } from '@/lib/validations';
 
 export async function GET(req: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);
@@ -41,11 +42,9 @@ export async function POST(req: NextRequest) {
         if (error) return error;
 
         const body = await req.json();
-        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId, location } = body;
-
-        if (!title) {
-            return validationErrorResponse('タイトルは必須です');
-        }
+        const validation = validateRequest(createEstimateSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
+        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId, location } = validation.data;
 
         // 見積番号: 指定がなければサーバー側で自動採番
         let finalEstimateNumber = estimateNumber;

@@ -196,7 +196,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
         } else {
             uploadBuffer = buffer;
             uploadContentType = file.type;
-            const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+            const ALLOWED_EXTENSIONS = ['pdf'];
+            const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+            if (!ALLOWED_EXTENSIONS.includes(ext)) {
+                return errorResponse('対応していないファイル拡張子です', 400);
+            }
             storagePath = `${id}/${fileId}.${ext}`;
             actualFileSize = buffer.length;
 

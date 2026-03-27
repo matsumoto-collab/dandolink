@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
+import { createInvoiceSchema, validateRequest } from '@/lib/validations';
 
 /** 請求書に紐付く案件マスタ情報を取得 */
 async function getInvoiceProjectMasters(invoiceId: string) {
@@ -32,7 +33,7 @@ async function enrichInvoice(invoice: ReturnType<typeof formatInvoice>) {
 
 export async function GET(req: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);
@@ -70,18 +71,16 @@ export async function POST(req: NextRequest) {
         if (error) return error;
 
         const body = await req.json();
-        const { projectMasterId, projectId, projectMasterIds, customerId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = body;
-
-        if (!title) {
-            return validationErrorResponse('タイトルは必須です');
-        }
+        const validation = validateRequest(createInvoiceSchema, body);
+        if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
+        const { projectMasterId, projectId, projectMasterIds, customerId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = validation.data;
 
         // 複数案件IDの解決
         let resolvedPmIds: string[] = [];
         if (Array.isArray(projectMasterIds) && projectMasterIds.length > 0) {
             resolvedPmIds = projectMasterIds;
         } else if (projectMasterId || projectId) {
-            resolvedPmIds = [projectMasterId || projectId];
+            resolvedPmIds = [(projectMasterId || projectId) as string];
         }
 
         if (resolvedPmIds.length === 0) {

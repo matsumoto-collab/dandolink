@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, validationErrorResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
 import { createDailyReportApiSchema, validateRequest } from '@/lib/validations';
 
 const workItemSelect = {
@@ -17,7 +17,7 @@ const reportSelect = {
 
 export async function GET(request: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
 
         const { searchParams } = new URL(request.url);
@@ -27,7 +27,18 @@ export async function GET(request: NextRequest) {
         const endDate = searchParams.get('endDate');
 
         const where: Record<string, unknown> = {};
-        if (foremanId) where.foremanId = foremanId;
+
+        // ロールベースフィルタリング: foreman2, worker, partner は自分の日報のみ
+        const role = session!.user.role;
+        if (role === 'foreman2' || role === 'worker' || role === 'partner') {
+            where.foremanId = session!.user.id;
+            // 他人のforemanIdが指定された場合は拒否
+            if (foremanId && foremanId !== session!.user.id) {
+                return errorResponse('権限がありません', 403);
+            }
+        } else if (foremanId) {
+            where.foremanId = foremanId;
+        }
 
         if (date) {
             const targetDate = new Date(date);

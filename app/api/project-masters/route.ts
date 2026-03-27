@@ -10,7 +10,7 @@ import { formatProjectMaster } from '@/lib/formatters';
  */
 export async function GET(req: NextRequest) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
 
         const { searchParams } = new URL(req.url);
@@ -21,6 +21,17 @@ export async function GET(req: NextRequest) {
 
         const ALLOWED_STATUSES = ['active', 'completed', 'cancelled'] as const;
         const where: Record<string, unknown> = {};
+
+        // ロールベースフィルタリング: foreman2, worker, partner はアサイン済み案件のみ
+        const role = session!.user.role;
+        if (role === 'foreman2' || role === 'worker' || role === 'partner') {
+            const assignedPmIds = await prisma.projectAssignment.findMany({
+                where: { assignedEmployeeId: session!.user.id },
+                select: { projectMasterId: true },
+                distinct: ['projectMasterId'],
+            });
+            where.id = { in: assignedPmIds.map(a => a.projectMasterId) };
+        }
         if (status) {
             if (!ALLOWED_STATUSES.includes(status as typeof ALLOWED_STATUSES[number])) {
                 return validationErrorResponse('無効なステータス値です');
