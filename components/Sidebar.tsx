@@ -10,7 +10,7 @@ import {
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'partners' | 'customers' | 'company' | 'settings';
+    page: 'schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'settings';
 }
 
 interface NavSection {
@@ -25,7 +25,14 @@ const navigationSections: NavSection[] = [
             { name: 'スケジュール管理', page: 'schedule' },
             { name: '案件一覧', page: 'project-masters' },
             { name: '日報一覧', page: 'reports' },
-            { name: '材料出庫伝票', page: 'materials' },
+        ],
+    },
+    {
+        title: '材料管理',
+        items: [
+            { name: '在庫管理', page: 'inventory' },
+            { name: '出庫伝票', page: 'materials' },
+            { name: '積込リスト', page: 'loading-list' },
         ],
     },
     {
@@ -182,26 +189,30 @@ export default function Sidebar() {
                 <nav className="flex-1 overflow-y-auto py-6 px-3">
                     {navigationSections
                         .map(section => {
-                            // workerまたはpartnerロールの場合、スケジュール管理のみ表示
-                            if (session?.user?.role === 'worker' || session?.user?.role === 'partner') {
+                            // workerロール: スケジュール + 積込リスト
+                            if (session?.user?.role === 'worker') {
+                                if (section.title === '業務管理') {
+                                    return { ...section, items: section.items.filter(item => item.page === 'schedule') };
+                                }
+                                if (section.title === '材料管理') {
+                                    return { ...section, items: section.items.filter(item => item.page === 'loading-list' || item.page === 'inventory') };
+                                }
+                                return null;
+                            }
+                            // partnerロール: スケジュールのみ
+                            if (session?.user?.role === 'partner') {
                                 if (section.title !== '業務管理') return null;
                                 const filteredItems = section.items.filter(item => item.page === 'schedule');
                                 if (filteredItems.length === 0) return null;
                                 return { ...section, items: filteredItems };
                             }
-                            // 職長1: 業務管理のみ（スケジュール・案件一覧・日報一覧）
-                            if (session?.user?.role === 'foreman1') {
-                                if (section.title !== '業務管理') return null;
-                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports');
-                                if (filteredItems.length === 0) return null;
-                                return { ...section, items: filteredItems };
-                            }
-                            // 職長2: 業務管理のみ（スケジュール・案件一覧・日報一覧）
-                            if (session?.user?.role === 'foreman2') {
-                                if (section.title !== '業務管理') return null;
-                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports');
-                                if (filteredItems.length === 0) return null;
-                                return { ...section, items: filteredItems };
+                            // 職長1/2: 業務管理 + 材料管理
+                            if (session?.user?.role === 'foreman1' || session?.user?.role === 'foreman2') {
+                                if (section.title === '業務管理') {
+                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports') };
+                                }
+                                if (section.title === '材料管理') return section;
+                                return null;
                             }
                             return section;
                         })

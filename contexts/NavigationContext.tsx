@@ -14,6 +14,8 @@ export type PageType =
     | 'customers'        // 顧客管理
     | 'company'          // 自社情報
     | 'materials'        // 材料出庫伝票
+    | 'inventory'        // 在庫管理
+    | 'loading-list'     // 積込リスト
     | 'settings';        // 設定
 
 interface NavigationContextType {

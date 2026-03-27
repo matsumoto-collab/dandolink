@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { X, Edit, ArrowLeft, FileText } from 'lucide-react';
+
+const MaterialsSection = lazy(() => import('@/components/ProjectMasters/sections/MaterialsSection'));
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
@@ -72,6 +74,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
 export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, readOnly }: ProjectMasterDetailModalProps) {
     const isOpen = pm !== null;
     const [mode, setMode] = useState<'view' | 'edit'>('view');
+    const [activeTab, setActiveTab] = useState<'detail' | 'materials'>('detail');
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
     const constructionTypes = useMasterStore(selectConstructionTypes);
@@ -79,6 +82,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     useEffect(() => {
         if (pm) {
             setMode(initialEditMode ? 'edit' : 'view');
+            setActiveTab('detail');
             setFormData(initFormDataFromPm(pm, constructionTypes));
             setShowUnsavedConfirm(false);
         }
@@ -198,6 +202,25 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                     </div>
                 </div>
 
+                {/* タブ */}
+                {!isEditMode && (
+                    <div className="flex-shrink-0 border-b border-slate-200 px-4 md:px-6 flex gap-1">
+                        {(['detail', 'materials'] as const).map(tab => (
+                            <button
+                                key={tab}
+                                onClick={() => setActiveTab(tab)}
+                                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                                    activeTab === tab
+                                        ? 'border-teal-600 text-teal-700'
+                                        : 'border-transparent text-slate-500 hover:text-slate-700'
+                                }`}
+                            >
+                                {tab === 'detail' ? '詳細' : '材料表'}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
                 {/* コンテンツ */}
                 <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     {isEditMode ? (
@@ -209,6 +232,10 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             isEdit={true}
                             projectMasterId={pm.id}
                         />
+                    ) : activeTab === 'materials' ? (
+                        <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500"></div></div>}>
+                            <MaterialsSection projectMasterId={pm.id} />
+                        </Suspense>
                     ) : (
                         <ProjectMasterDetailPanel pm={pm} hideFinancials={readOnly} />
                     )}

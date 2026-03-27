@@ -75,5 +75,64 @@ export interface MaterialRequisitionItemInput {
 
 // カテゴリ付き品目（UI用）
 export interface MaterialCategoryWithItems extends MaterialCategory {
-    items: MaterialItem[];
+    items: MaterialItemWithStock[];
+}
+
+// 在庫数付き材料品目
+export interface MaterialItemWithStock extends MaterialItem {
+    stockQuantity: number;
+}
+
+// 在庫取引履歴
+export interface InventoryTransaction {
+    id: string;
+    materialItemId: string;
+    quantity: number;
+    type: 'initial' | 'dispatch' | 'return' | 'adjustment';
+    referenceId: string | null;
+    referenceType: string | null;
+    notes: string | null;
+    createdBy: string | null;
+    createdAt: string;
+    materialItem?: MaterialItem;
+}
+
+// 案件別材料表
+export interface ProjectMaterialItem {
+    id: string;
+    projectMasterId: string;
+    materialItemId: string;
+    requiredQuantity: number;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    materialItem?: MaterialItem;
+}
+
+// 積込リスト
+export interface LoadingListResponse {
+    date: string;
+    vehicleId: string;
+    vehicleName: string;
+    projects: { id: string; title: string }[];
+    items: LoadingListItem[];
+}
+
+export interface LoadingListItem {
+    materialItemId: string;
+    categoryName: string;
+    materialName: string;
+    spec: string | null;
+    unit: string;
+    totalQuantity: number;
+    isChecked: boolean;
+    checkedBy: string | null;
+    breakdown: LoadingListBreakdown[];
+}
+
+export interface LoadingListBreakdown {
+    projectMasterId: string;
+    projectTitle: string;
+    quantity: number;
+    isChecked: boolean;
 }

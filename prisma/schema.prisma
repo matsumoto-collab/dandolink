@@ -67,6 +67,7 @@ model ProjectMaster {
   name                       String?
   assignments                ProjectAssignment[]
   files                      ProjectMasterFile[]
+  projectMaterialItems       ProjectMaterialItem[]
 
   @@index([title])
   @@index([customerId])
@@ -1002,10 +1003,63 @@ model MaterialItem {
   createdAt        DateTime                  @default(now())
   updatedAt        DateTime                  @default(now()) @updatedAt
   category         MaterialCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  stockQuantity    Int                       @default(0)
   requisitionItems MaterialRequisitionItem[]
+  inventoryTransactions InventoryTransaction[]
+  projectMaterialItems  ProjectMaterialItem[]
 
   @@index([categoryId])
   @@index([sortOrder])
+  @@schema("public")
+}
+
+model InventoryTransaction {
+  id             String       @id @default(uuid())
+  materialItemId String
+  quantity       Int
+  type           String
+  referenceId    String?
+  referenceType  String?
+  notes          String?
+  createdBy      String?
+  createdAt      DateTime     @default(now())
+  materialItem   MaterialItem @relation(fields: [materialItemId], references: [id])
+
+  @@index([materialItemId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+model ProjectMaterialItem {
+  id               String        @id @default(uuid())
+  projectMasterId  String
+  materialItemId   String
+  requiredQuantity Int           @default(0)
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  projectMaster    ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  materialItem     MaterialItem  @relation(fields: [materialItemId], references: [id])
+
+  @@unique([projectMasterId, materialItemId])
+  @@index([projectMasterId])
+  @@schema("public")
+}
+
+model LoadingCheckItem {
+  id              String    @id @default(uuid())
+  date            DateTime  @db.Date
+  vehicleId       String
+  materialItemId  String
+  projectMasterId String
+  isChecked       Boolean   @default(false)
+  checkedBy       String?
+  checkedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([date, vehicleId, materialItemId, projectMasterId])
+  @@index([date, vehicleId])
   @@schema("public")
 }
 

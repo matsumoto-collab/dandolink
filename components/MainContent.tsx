@@ -49,6 +49,12 @@ const CompanyInfoSettings = dynamic(() => import('@/components/Settings/CompanyI
 const MaterialRequisitionPage = dynamic(() => import('@/components/Materials/MaterialRequisitionPage'), {
     loading: () => <LoadingSpinner />,
 });
+const InventoryPage = dynamic(() => import('@/components/Materials/InventoryPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const LoadingListPage = dynamic(() => import('@/components/Materials/LoadingListPage'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -148,6 +154,12 @@ export default function MainContent() {
 
             case 'materials':
                 return <MaterialRequisitionPage />;
+
+            case 'inventory':
+                return <InventoryPage />;
+
+            case 'loading-list':
+                return <LoadingListPage />;
 
             case 'customers':
                 return <CustomersPage />;

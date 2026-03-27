@@ -40,11 +40,20 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { error } = await requireAuth();
+        const { error, session } = await requireAuth();
         if (error) return error;
 
         const { id } = await params;
         const body = await request.json();
+
+        // Get current requisition to check status transition
+        const current = await prisma.materialRequisition.findUnique({
+            where: { id },
+            include: { items: true },
+        });
+        if (!current) {
+            return NextResponse.json({ error: '伝票が見つかりません' }, { status: 404 });
+        }
 
         const data: Record<string, unknown> = {};
         if (body.status !== undefined) data.status = body.status;
@@ -76,6 +85,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             await prisma.materialRequisition.update({
                 where: { id },
                 data,
+            });
+        }
+
+        // 在庫連動: ステータスが loaded に変更された場合
+        const isNewlyLoaded = body.status === 'loaded' && current.status !== 'loaded';
+        if (isNewlyLoaded) {
+            const reqItems = await prisma.materialRequisitionItem.findMany({
+                where: { requisitionId: id },
+            });
+
+            const isReturn = current.type === '返却';
+
+            await prisma.$transaction(async (tx) => {
+                for (const item of reqItems) {
+                    const qty = isReturn ? item.quantity : -item.quantity;
+                    await tx.materialItem.update({
+                        where: { id: item.materialItemId },
+                        data: { stockQuantity: { increment: qty } },
+                    });
+                    await tx.inventoryTransaction.create({
+                        data: {
+                            materialItemId: item.materialItemId,
+                            quantity: qty,
+                            type: isReturn ? 'return' : 'dispatch',
+                            referenceId: id,
+                            referenceType: 'requisition',
+                            createdBy: session?.user?.id || null,
+                        },
+                    });
+                }
             });
         }
 
