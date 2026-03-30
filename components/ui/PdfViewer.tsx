@@ -194,8 +194,8 @@ export function PdfViewer({ url, fileName, onClose }: PdfViewerProps) {
                                 wheel={{ step: 0.15 }}
                             >
                                 <TransformComponent
-                                    wrapperStyle={{ width: '100%', height: '100%', cursor: 'grab' }}
-                                    contentStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                    wrapperStyle={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'grab' }}
+                                    contentStyle={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                                 >
                                     <div className="bg-white shadow-lg">
                                         <PdfPage
