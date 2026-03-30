@@ -314,8 +314,8 @@ function CoverPage({
         <Page size="A4" orientation="portrait" style={styles.page}>
 
             {/* 1段目: 〒住所(左) + 御請求書タイトル(右) */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 10 }}>
-                <View style={{ width: '45%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8, marginBottom: 8 }}>
+                <View style={{ width: '45%', paddingLeft: 15 }}>
                     {extra.customerPostalCode && (
                         <Text style={{ fontSize: 9, marginBottom: 1 }}>〒 {extra.customerPostalCode}</Text>
                     )}
@@ -333,7 +333,7 @@ function CoverPage({
             {/* 2段目: 顧客名(左) + 会社情報(右) — 横並び */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 {/* 左: 顧客名 */}
-                <View style={{ width: '42%' }}>
+                <View style={{ width: '42%', paddingLeft: 20 }}>
                     {(() => {
                         const len = customerFullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
@@ -360,6 +360,22 @@ function CoverPage({
                                     {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
                                 </Text>
                             )}
+                            <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, marginTop: 8, marginBottom: 1 }}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
+
+                            {companyInfo.registrationNumber && (
+                                <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, marginTop: 6, marginBottom: 1 }}>登録番号：{companyInfo.registrationNumber}</Text>
+                            )}
+
+                            {bankAccounts.length > 0 && (
+                                <View style={{ marginTop: 6 }}>
+                                    <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, marginBottom: 2 }}>お振込先：</Text>
+                                    {bankAccounts.map((ba, i) => (
+                                        <Text key={i} style={{ fontSize: 8.5, color: COLORS.textSecondary, marginBottom: 1 }}>
+                                            {ba.bankName} {ba.branchName}（{ba.accountType}）{ba.accountNumber}
+                                        </Text>
+                                    ))}
+                                </View>
+                            )}
                         </View>
                     </View>
                 </View>
@@ -384,10 +400,8 @@ function CoverPage({
                 </View>
             </View>
 
-            {/* 4段目: 件名テーブル(左) + 〒住所・登録番号・振込先(右) — 横並び */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                {/* 左: 件名テーブル */}
-                <View style={{ width: '55%', borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
+            {/* 4段目: 件名テーブル */}
+            <View style={{ width: '60%', borderWidth: 0.5, borderColor: COLORS.borderMedium, marginBottom: 6 }}>
                 {[
                     { label: '件名', value: project.title || invoice.title },
                     { label: '現場住所', value: project.location || '' },
@@ -404,27 +418,6 @@ function CoverPage({
                         </View>
                     </View>
                 ))}
-                </View>
-
-                {/* 右: 〒住所・登録番号・お振込先 */}
-                <View style={{ width: '42%', paddingLeft: 10 }}>
-                    <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 4 }}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
-
-                    {companyInfo.registrationNumber && (
-                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 4 }}>登録番号：{companyInfo.registrationNumber}</Text>
-                    )}
-
-                    {bankAccounts.length > 0 && (
-                        <View>
-                            <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 2 }}>お振込先：</Text>
-                            {bankAccounts.map((ba, i) => (
-                                <Text key={i} style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
-                                    {ba.bankName} {ba.branchName}（{ba.accountType}）{ba.accountNumber}
-                                </Text>
-                            ))}
-                        </View>
-                    )}
-                </View>
             </View>
 
             {/* Details Table */}
@@ -524,8 +517,7 @@ function CoverPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>{customerFullName}</Text>
-                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>請求No. {invoice.invoiceNumber}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. 1</Text>
             </View>
         </Page>
@@ -535,17 +527,14 @@ function CoverPage({
 // ===== Details Page Component =====
 function DetailsPage({
     invoice,
-    project,
     projectMasters,
 }: {
     invoice: Invoice;
-    project: Project;
     projectMasters?: Array<{ id: string; title: string }>;
 }) {
     const maxRows = 25;
     const allItems = invoice.items.filter(item => item.description);
     const hasMultipleProjects = projectMasters && projectMasters.length > 1;
-    const customerFullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
 
     type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0]; index: number };
     const displayRows: DisplayRow[] = [];
@@ -715,8 +704,7 @@ function DetailsPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>{customerFullName}</Text>
-                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>請求No. {invoice.invoiceNumber}</Text>
+                <Text style={styles.footerText}></Text>
                 <Text style={styles.footerText}>No. 2</Text>
             </View>
         </Page>
@@ -746,7 +734,6 @@ export function InvoicePDF({
             />
             <DetailsPage
                 invoice={invoice}
-                project={project}
                 projectMasters={projectMasters}
             />
         </Document>
