@@ -1,11 +1,13 @@
 'use client';
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { ProjectMaster } from '@/types/calendar';
 import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
+
+const SYNC_DEBOUNCE_MS = 500;
 
 // Re-export types for backward compatibility
 export type { ProjectMaster } from '@/types/calendar';
@@ -51,36 +53,56 @@ export function useProjectMasters() {
         await deleteProjectMasterStore(id);
     }, [deleteProjectMasterStore]);
 
+    // デバウンス付きフェッチ: 連続イベントをまとめて1回のフェッチにする
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const debouncedFetch = useCallback(() => {
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+        debounceTimerRef.current = setTimeout(() => {
+            fetchProjectMastersStore();
+        }, SYNC_DEBOUNCE_MS);
+    }, [fetchProjectMastersStore]);
+
+    // クリーンアップ
+    useEffect(() => {
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, []);
+
     // Supabase Realtime subscription (WAL fallback)
     useRealtimeSubscription({
         table: 'ProjectMaster',
         channelName: 'project-masters-changes-zustand',
-        onDataChange: () => fetchProjectMastersStore(),
+        onDataChange: () => debouncedFetch(),
         enabled: status === 'authenticated',
     });
 
     // Browser event listener for cross-context sync
     useEffect(() => {
         const handleProjectMasterCreated = () => {
-            fetchProjectMastersStore();
+            debouncedFetch();
         };
 
         window.addEventListener('projectMasterCreated', handleProjectMasterCreated);
         return () => {
             window.removeEventListener('projectMasterCreated', handleProjectMasterCreated);
         };
-    }, [fetchProjectMastersStore]);
+    }, [debouncedFetch]);
 
     // Broadcast受信: 別デバイスからの即時通知
     useEffect(() => {
         if (status !== 'authenticated') return;
         initBroadcastChannel();
         const cleanups = [
-            onBroadcast('project_master_updated', () => fetchProjectMastersStore()),
-            onBroadcast('project_master_deleted', () => fetchProjectMastersStore()),
+            onBroadcast('project_master_updated', () => debouncedFetch()),
+            onBroadcast('project_master_deleted', () => debouncedFetch()),
         ];
         return () => cleanups.forEach(c => c());
-    }, [status, fetchProjectMastersStore]);
+    }, [status, debouncedFetch]);
 
     return {
         projectMasters,
