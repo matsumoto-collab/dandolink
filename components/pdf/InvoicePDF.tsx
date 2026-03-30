@@ -313,19 +313,13 @@ function CoverPage({
     return (
         <Page size="A4" orientation="portrait" style={styles.page}>
 
-            {/* Top section: customer address + title + date */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 6 }}>
-                {/* Left: customer postal code + address */}
+            {/* 1段目: 住所(左) + 御請求書タイトル(右) */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 10 }}>
                 <View style={{ width: '45%' }}>
-                    {extra.customerPostalCode && (
-                        <Text style={{ fontSize: 9, marginBottom: 2 }}>〒 {extra.customerPostalCode}</Text>
-                    )}
                     {extra.customerAddress && (
-                        <Text style={{ fontSize: 9, marginBottom: 6 }}>{extra.customerAddress}</Text>
+                        <Text style={{ fontSize: 9 }}>{extra.customerAddress}</Text>
                     )}
                 </View>
-
-                {/* Center + Right: title and date */}
                 <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.titleText}>御 請 求 書</Text>
                     <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 4, textAlign: 'right' }}>請求日　{toReiwa(createdDate)}</Text>
@@ -333,23 +327,24 @@ function CoverPage({
                 </View>
             </View>
 
-            {/* Customer name */}
-            <View style={{ marginBottom: 4 }}>
-                {(() => {
-                    const len = customerFullName.length;
-                    const fontSize = len <= 12 ? 14 : len <= 16 ? 12 : len <= 20 ? 11 : 10;
-                    return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy }}>{customerFullName}</Text>;
-                })()}
-            </View>
+            {/* 2段目: 顧客名(左) + 会社情報(右) — 横並び */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                {/* 左: 顧客名 */}
+                <View style={{ width: '42%' }}>
+                    {(() => {
+                        const len = customerFullName.length;
+                        const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
+                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy }}>{customerFullName}</Text>;
+                    })()}
+                </View>
 
-            {/* Company info section (right-aligned) */}
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
-                <View style={{ position: 'relative', width: '55%' }}>
+                {/* 右: 会社情報 */}
+                <View style={{ width: '52%', position: 'relative' }}>
                     {companyInfo.sealImage && (
-                        <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 20, right: 0, width: 45, height: 45 }} />
+                        <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 10, right: 0, width: 45, height: 45 }} />
                     )}
                     {companyInfo.logoImage && (
-                        <Image src={companyInfo.logoImage} style={{ height: 30, marginBottom: 2, objectFit: 'contain', alignSelf: 'flex-start' }} />
+                        <Image src={companyInfo.logoImage} style={{ height: 28, marginBottom: 2, objectFit: 'contain', alignSelf: 'flex-start' }} />
                     )}
                     <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2, letterSpacing: 1 }}>{companyInfo.name}</Text>
                     {companyInfo.licenseNumber && (
@@ -362,12 +357,10 @@ function CoverPage({
                     )}
                     <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginTop: 4, marginBottom: 1 }}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
 
-                    {/* 登録番号 */}
                     {companyInfo.registrationNumber && (
                         <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginTop: 6, marginBottom: 1 }}>登録番号：{companyInfo.registrationNumber}</Text>
                     )}
 
-                    {/* お振込先 */}
                     {bankAccounts.length > 0 && (
                         <View style={{ marginTop: 6 }}>
                             <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 2 }}>お振込先：</Text>
@@ -381,20 +374,22 @@ function CoverPage({
                 </View>
             </View>
 
-            {/* 合計金額セクション */}
-            <View style={{ width: 230, marginBottom: 10, marginTop: 6 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', borderBottomWidth: 1.5, borderBottomColor: COLORS.textPrimary, paddingBottom: 2, marginBottom: 1 }}>
-                    <Text style={{ fontSize: 10, fontWeight: 'bold', width: '30%' }}>合計金額</Text>
-                    <Text style={{ fontSize: 14, fontWeight: 'bold', textAlign: 'center', width: '40%' }}>¥{invoice.total.toLocaleString()}</Text>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: '30%' }}>（税込）</Text>
+            {/* 3段目: 合計金額セクション（左寄せ、テーブル形式） */}
+            <View style={{ width: 260, marginBottom: 8, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', borderBottomWidth: 1, borderBottomColor: COLORS.borderDark, paddingVertical: 3, paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 11, fontWeight: 'bold', width: 80 }}>合計金額</Text>
+                    <Text style={{ fontSize: 16, fontWeight: 'bold', flex: 1, textAlign: 'center' }}>¥{invoice.total.toLocaleString()}</Text>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 40 }}>（税込）</Text>
                 </View>
-                <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, borderBottomStyle: 'dashed', paddingVertical: 1 }}>
-                    <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, width: '30%', textAlign: 'center' }}>小計</Text>
-                    <Text style={{ fontSize: 8.5, width: '40%', textAlign: 'center' }}>¥{invoice.subtotal.toLocaleString()}</Text>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, paddingVertical: 2, paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 80, paddingLeft: 10 }}>小計</Text>
+                    <Text style={{ fontSize: 8, flex: 1, textAlign: 'center' }}>¥{invoice.subtotal.toLocaleString()}</Text>
+                    <View style={{ width: 40 }} />
                 </View>
-                <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, borderBottomStyle: 'dashed', paddingVertical: 1 }}>
-                    <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, width: '30%', textAlign: 'center' }}>消費税額(10%)</Text>
-                    <Text style={{ fontSize: 8.5, width: '40%', textAlign: 'center' }}>¥{invoice.tax.toLocaleString()}</Text>
+                <View style={{ flexDirection: 'row', paddingVertical: 2, paddingHorizontal: 4 }}>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 80, paddingLeft: 10 }}>消費税額(10%)</Text>
+                    <Text style={{ fontSize: 8, flex: 1, textAlign: 'center' }}>¥{invoice.tax.toLocaleString()}</Text>
+                    <View style={{ width: 40 }} />
                 </View>
             </View>
 
