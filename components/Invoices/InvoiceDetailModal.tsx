@@ -20,6 +20,8 @@ interface InvoiceDetailModalProps {
     onEdit: (invoice: Invoice) => void;
     customerName?: string;
     customerHonorific?: string;
+    customerPostalCode?: string;
+    customerAddress?: string;
 }
 
 export default function InvoiceDetailModal({
@@ -32,16 +34,20 @@ export default function InvoiceDetailModal({
     onEdit,
     customerName,
     customerHonorific,
+    customerPostalCode,
+    customerAddress,
 }: InvoiceDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     const effectiveProject: Project = useMemo(() => {
         if (project) {
-            const patched = { ...project };
+            const patched = { ...project } as Project & { customerPostalCode?: string; customerAddress?: string };
             if (!patched.customer && customerName) patched.customer = customerName;
             if (!patched.customerHonorific && customerHonorific) patched.customerHonorific = customerHonorific;
-            return patched;
+            if (customerPostalCode) patched.customerPostalCode = customerPostalCode;
+            if (customerAddress) patched.customerAddress = customerAddress;
+            return patched as unknown as Project;
         }
         return {
             id: invoice?.id || '',
@@ -52,10 +58,12 @@ export default function InvoiceDetailModal({
             customer: customerName || '',
             customerHonorific: customerHonorific || '御中',
             location: '',
+            customerPostalCode: customerPostalCode || '',
+            customerAddress: customerAddress || '',
             createdAt: invoice?.createdAt || new Date(),
             updatedAt: invoice?.updatedAt || new Date(),
-        };
-    }, [project, invoice?.id, invoice?.title, invoice?.createdAt, invoice?.updatedAt, customerName, customerHonorific]);
+        } as Project;
+    }, [project, invoice?.id, invoice?.title, invoice?.createdAt, invoice?.updatedAt, customerName, customerHonorific, customerPostalCode, customerAddress]);
 
     useEffect(() => {
         let currentUrl = '';

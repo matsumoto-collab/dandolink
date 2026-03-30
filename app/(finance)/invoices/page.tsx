@@ -80,17 +80,17 @@ export default function InvoiceListPage() {
 
     // 顧客情報を取得（DetailModal用）
     const getCustomerInfo = useCallback((projectId: string) => {
-        if (!projectId) return { name: undefined, honorific: undefined };
+        if (!projectId) return { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
         const pm = projectMasters.find(p => p.id === projectId);
-        if (!pm) return { name: undefined, honorific: undefined };
+        if (!pm) return { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
         if (pm.customerId) {
             const c = customers.find(c => c.id === pm.customerId);
-            return { name: c?.name, honorific: c?.honorific };
+            return { name: c?.name, honorific: c?.honorific, postalCode: c?.postalCode, address: c?.address };
         }
         const customerName = pm.customerName || pm.customerShortName;
-        if (!customerName) return { name: undefined, honorific: undefined };
+        if (!customerName) return { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
         const c = customers.find(c => c.name === customerName || c.shortName === customerName);
-        return { name: c?.name || customerName, honorific: c?.honorific };
+        return { name: c?.name || customerName, honorific: c?.honorific, postalCode: c?.postalCode, address: c?.address };
     }, [projectMasters, customers]);
 
     // ステータスアイコンとカラー
@@ -486,6 +486,8 @@ export default function InvoiceListPage() {
                     onEdit={handleEdit}
                     customerName={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').name : undefined}
                     customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').honorific : undefined}
+                    customerPostalCode={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').postalCode : undefined}
+                    customerAddress={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').address : undefined}
                 />
             )}
         </div>

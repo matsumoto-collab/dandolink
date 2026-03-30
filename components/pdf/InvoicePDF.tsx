@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
         fontFamily: 'NotoSansJP',
         fontSize: 8,
         paddingTop: 25,
-        paddingBottom: 25,
+        paddingBottom: 40,
         paddingHorizontal: 30,
         backgroundColor: COLORS.white,
         color: COLORS.textPrimary,
@@ -52,205 +52,7 @@ const styles = StyleSheet.create({
         color: COLORS.navy,
     },
 
-    // ===== Header row =====
-    coverHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: 8,
-    },
-
-    // Left: Customer + amount
-    customerArea: {
-        width: 230,
-    },
-    customerName: {
-        fontSize: 13,
-        fontWeight: 'bold',
-        paddingBottom: 3,
-        borderBottomWidth: 1.5,
-        borderBottomColor: COLORS.navy,
-    },
-    customerAddress: {
-        fontSize: 8,
-        color: COLORS.textSecondary,
-        marginTop: 4,
-        paddingBottom: 2,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-    },
-
-    // Amount
-    amountSection: {
-        marginTop: 8,
-        width: '100%',
-    },
-    amountMainRow: {
-        flexDirection: 'row',
-        alignItems: 'baseline',
-        borderBottomWidth: 1.5,
-        borderBottomColor: COLORS.textPrimary,
-        paddingBottom: 2,
-        marginBottom: 1,
-    },
-    amountLabel: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        width: '30%',
-    },
-    amountValue: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        textAlign: 'center',
-        width: '40%',
-    },
-    amountTaxNote: {
-        fontSize: 8,
-        color: COLORS.textSecondary,
-        width: '30%',
-    },
-    amountSubRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-        borderBottomStyle: 'dashed',
-        paddingVertical: 1,
-    },
-    amountSubLabel: {
-        fontSize: 8.5,
-        color: COLORS.textSecondary,
-        width: '30%',
-        textAlign: 'center',
-    },
-    amountSubValue: {
-        fontSize: 8.5,
-        width: '40%',
-        textAlign: 'center',
-    },
-
-    // Right: Company
-    rightArea: {
-        flex: 1,
-        alignItems: 'flex-end',
-    },
-    invoiceNoText: {
-        fontSize: 8,
-        color: COLORS.textSecondary,
-    },
-    companyName: {
-        fontSize: 10,
-        fontWeight: 'bold',
-        marginBottom: 2,
-        letterSpacing: 1,
-    },
-    companyText: {
-        fontSize: 7.5,
-        color: COLORS.textSecondary,
-        marginBottom: 1,
-    },
-
-    // ===== Info Table + Remarks =====
-    infoTable: {
-        flexDirection: 'row',
-        marginBottom: 6,
-    },
-    infoLeft: {
-        width: '60%',
-        borderWidth: 0.5,
-        borderColor: COLORS.borderMedium,
-    },
-    infoRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-        minHeight: 16,
-    },
-    infoRowLast: {
-        flexDirection: 'row',
-        minHeight: 16,
-    },
-    infoLabelCell: {
-        width: 55,
-        backgroundColor: COLORS.infoBg,
-        paddingHorizontal: 3,
-        paddingVertical: 2,
-        borderRightWidth: 0.5,
-        borderRightColor: COLORS.borderLight,
-        justifyContent: 'center',
-    },
-    infoLabelText: {
-        fontSize: 8,
-        color: COLORS.textSecondary,
-    },
-    infoValueCell: {
-        flex: 1,
-        paddingHorizontal: 3,
-        paddingVertical: 2,
-        justifyContent: 'center',
-    },
-    infoValueText: {
-        fontSize: 8,
-    },
-
-    remarksArea: {
-        width: '38%',
-        marginLeft: '2%',
-        borderWidth: 0.5,
-        borderColor: COLORS.borderMedium,
-    },
-    remarksHeader: {
-        backgroundColor: COLORS.infoBg,
-        paddingHorizontal: 3,
-        paddingVertical: 2,
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderLight,
-    },
-    remarksHeaderText: {
-        fontSize: 8,
-        color: COLORS.textSecondary,
-        textAlign: 'center',
-    },
-    remarksBody: {
-        flex: 1,
-        padding: 3,
-    },
-    remarksText: {
-        fontSize: 7.5,
-        color: COLORS.textSecondary,
-        lineHeight: 1.4,
-    },
-
-    // ===== Details Table =====
-    table: {
-        width: '100%',
-        borderWidth: 1,
-        borderColor: COLORS.borderDark,
-    },
-    tableHeader: {
-        flexDirection: 'row',
-        borderBottomWidth: 1,
-        borderBottomColor: COLORS.borderDark,
-        minHeight: 16,
-    },
-    tableRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderMedium,
-        minHeight: 18,
-    },
-    tableRowLast: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.5,
-        borderBottomColor: COLORS.borderMedium,
-        minHeight: 18,
-    },
-    projectHeaderRow: {
-        flexDirection: 'row',
-        borderBottomWidth: 0.3,
-        borderBottomColor: COLORS.borderLight,
-        minHeight: 18,
-    },
-
-    // Column styles for portrait
+    // Column styles for portrait table
     cellNo: {
         width: 18,
         padding: 2,
@@ -310,7 +112,6 @@ const styles = StyleSheet.create({
         padding: 2,
         justifyContent: 'center',
     },
-
     headerCellText: {
         fontSize: 7.5,
         color: COLORS.textSecondary,
@@ -328,8 +129,30 @@ const styles = StyleSheet.create({
         fontSize: 7.5,
         color: COLORS.red,
     },
-
-    // Total section
+    tableHeader: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.borderDark,
+        minHeight: 16,
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderMedium,
+        minHeight: 18,
+    },
+    tableRowLast: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: COLORS.borderMedium,
+        minHeight: 18,
+    },
+    projectHeaderRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.3,
+        borderBottomColor: COLORS.borderLight,
+        minHeight: 18,
+    },
     totalRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
@@ -337,7 +160,6 @@ const styles = StyleSheet.create({
         minHeight: 18,
     },
     totalLabelCell: {
-        // No(18)+Name(120)+Spec(100)+Qty(35) = 273
         width: 273,
         padding: 2,
         borderRightWidth: 0.5,
@@ -373,6 +195,30 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
 
+    // Info table
+    infoLabelCell: {
+        width: 55,
+        backgroundColor: COLORS.infoBg,
+        paddingHorizontal: 3,
+        paddingVertical: 2,
+        borderRightWidth: 0.5,
+        borderRightColor: COLORS.borderLight,
+        justifyContent: 'center',
+    },
+    infoLabelText: {
+        fontSize: 8,
+        color: COLORS.textSecondary,
+    },
+    infoValueCell: {
+        flex: 1,
+        paddingHorizontal: 3,
+        paddingVertical: 2,
+        justifyContent: 'center',
+    },
+    infoValueText: {
+        fontSize: 8,
+    },
+
     // Footer
     footer: {
         position: 'absolute',
@@ -381,6 +227,7 @@ const styles = StyleSheet.create({
         right: 30,
         flexDirection: 'row',
         justifyContent: 'space-between',
+        alignItems: 'flex-end',
     },
     footerText: {
         fontSize: 6,
@@ -398,7 +245,12 @@ interface InvoicePDFProps {
     projectMasters?: Array<{ id: string; title: string }>;
 }
 
-// ===== Cover Page Component (Portrait — matches EstimatePDF layout) =====
+// Helper: get extra fields from project (cast)
+function getExtra(project: Project): { customerPostalCode?: string; customerAddress?: string } {
+    return project as unknown as { customerPostalCode?: string; customerAddress?: string };
+}
+
+// ===== Cover Page Component =====
 function CoverPage({
     invoice,
     project,
@@ -407,6 +259,7 @@ function CoverPage({
 }: Omit<InvoicePDFProps, 'includeDetails' | 'bankAccounts' | 'registrationNumber'>) {
     const createdDate = new Date(invoice.createdAt);
     const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
+    const extra = getExtra(project);
 
     // 明細データ準備
     const allItems = invoice.items.filter(item => item.description);
@@ -452,136 +305,121 @@ function CoverPage({
         return toReiwa(dueDate);
     })();
 
+    const customerFullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
+
+    // Bank accounts from companyInfo
+    const bankAccounts = companyInfo.bankAccounts || [];
+
     return (
         <Page size="A4" orientation="portrait" style={styles.page}>
 
-            {/* Title row: title center, date/No right */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 10 }}>
-                <View style={{ width: '25%' }} />
-                <View style={{ alignItems: 'center' }}>
+            {/* Top section: customer address + title + date */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 6 }}>
+                {/* Left: customer postal code + address */}
+                <View style={{ width: '45%' }}>
+                    {extra.customerPostalCode && (
+                        <Text style={{ fontSize: 9, marginBottom: 2 }}>〒 {extra.customerPostalCode}</Text>
+                    )}
+                    {extra.customerAddress && (
+                        <Text style={{ fontSize: 9, marginBottom: 6 }}>{extra.customerAddress}</Text>
+                    )}
+                </View>
+
+                {/* Center + Right: title and date */}
+                <View style={{ alignItems: 'flex-end' }}>
                     <Text style={styles.titleText}>御 請 求 書</Text>
-                </View>
-                <View style={{ width: '25%', alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, textAlign: 'right' }}>請求日　{toReiwa(createdDate)}</Text>
-                    <Text style={[styles.invoiceNoText, { marginTop: 1, textAlign: 'right' }]}>請求No. {invoice.invoiceNumber}</Text>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 4, textAlign: 'right' }}>請求日　{toReiwa(createdDate)}</Text>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 1, textAlign: 'right' }}>請求No. {invoice.invoiceNumber}</Text>
                 </View>
             </View>
 
-            {/* Header: Left (customer + amount) / Right (company) */}
-            <View style={styles.coverHeader}>
-                <View style={styles.customerArea}>
-                    {(() => {
-                        const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
-                        const len = fullName.length;
-                        const fontSize = len <= 12 ? 13 : len <= 16 ? 11 : len <= 20 ? 10 : 9;
-                        return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
-                    })()}
-                    <Text style={styles.customerAddress}>{(project as unknown as Record<string, string>).customerAddress || ''}</Text>
-
-                    <View style={styles.amountSection}>
-                        <View style={styles.amountMainRow}>
-                            <Text style={styles.amountLabel}>合計金額</Text>
-                            <Text style={styles.amountValue}>¥{invoice.total.toLocaleString()}</Text>
-                            <Text style={styles.amountTaxNote}>（税込）</Text>
-                        </View>
-                        <View style={styles.amountSubRow}>
-                            <Text style={styles.amountSubLabel}>小計</Text>
-                            <Text style={styles.amountSubValue}>¥{invoice.subtotal.toLocaleString()}</Text>
-                        </View>
-                        <View style={styles.amountSubRow}>
-                            <Text style={styles.amountSubLabel}>消費税額(10%)</Text>
-                            <Text style={styles.amountSubValue}>¥{invoice.tax.toLocaleString()}</Text>
-                        </View>
-                    </View>
-                </View>
-
-                <View style={styles.rightArea}>
-                    <View style={{ position: 'relative' }}>
-                        {companyInfo.sealImage && (
-                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 30, right: 5, width: 45, height: 45 }} />
-                        )}
-                        <View style={{ alignSelf: 'flex-end' }}>
-                            {companyInfo.logoImage && (
-                                <Image src={companyInfo.logoImage} style={{ height: 30, marginBottom: 2, objectFit: 'contain', alignSelf: 'flex-start' }} />
-                            )}
-                            <Text style={styles.companyName}>{companyInfo.name}</Text>
-                            {companyInfo.licenseNumber && (
-                                <Text style={styles.companyText}>{companyInfo.licenseNumber}</Text>
-                            )}
-                            {(companyInfo.representativeTitle || companyInfo.representative) && (
-                                <Text style={styles.companyText}>
-                                    {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
-                                </Text>
-                            )}
-                            <Text style={[styles.companyText, { marginTop: 6 }]}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
-                            <Text style={styles.companyText}>TEL　{companyInfo.tel}　　FAX　{companyInfo.fax || ''}</Text>
-                            {companyInfo.email && (
-                                <Text style={styles.companyText}>e-mail　{companyInfo.email}</Text>
-                            )}
-                        </View>
-                    </View>
-                </View>
+            {/* Customer name */}
+            <View style={{ marginBottom: 4 }}>
+                {(() => {
+                    const len = customerFullName.length;
+                    const fontSize = len <= 12 ? 14 : len <= 16 ? 12 : len <= 20 ? 11 : 10;
+                    return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy }}>{customerFullName}</Text>;
+                })()}
             </View>
 
-            {/* Info Table + Remarks */}
-            <View style={styles.infoTable}>
-                <View style={styles.infoLeft}>
-                    <View style={styles.infoRow}>
-                        <View style={styles.infoLabelCell}>
-                            <Text style={styles.infoLabelText}>件名</Text>
-                        </View>
-                        <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>{project.title || invoice.title}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <View style={styles.infoLabelCell}>
-                            <Text style={styles.infoLabelText}>現場住所</Text>
-                        </View>
-                        <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>{project.location || ''}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <View style={styles.infoLabelCell}>
-                            <Text style={styles.infoLabelText}>有効期限</Text>
-                        </View>
-                        <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>{paymentTermText}</Text>
-                        </View>
-                    </View>
-                    <View style={styles.infoRow}>
-                        <View style={styles.infoLabelCell}>
-                            <Text style={styles.infoLabelText}>工期</Text>
-                        </View>
-                        <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}></Text>
-                        </View>
-                    </View>
-                    <View style={styles.infoRowLast}>
-                        <View style={styles.infoLabelCell}>
-                            <Text style={styles.infoLabelText}>支払条件</Text>
-                        </View>
-                        <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>従来通り</Text>
-                        </View>
-                    </View>
-                </View>
-
-                <View style={styles.remarksArea}>
-                    <View style={styles.remarksHeader}>
-                        <Text style={styles.remarksHeaderText}>備考</Text>
-                    </View>
-                    <View style={styles.remarksBody}>
-                        <Text style={styles.remarksText}>
-                            {invoice.notes ? sanitizePdfText(invoice.notes) : ''}
+            {/* Company info section (right-aligned) */}
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 10 }}>
+                <View style={{ position: 'relative', width: '55%' }}>
+                    {companyInfo.sealImage && (
+                        <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 20, right: 0, width: 45, height: 45 }} />
+                    )}
+                    {companyInfo.logoImage && (
+                        <Image src={companyInfo.logoImage} style={{ height: 30, marginBottom: 2, objectFit: 'contain', alignSelf: 'flex-start' }} />
+                    )}
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2, letterSpacing: 1 }}>{companyInfo.name}</Text>
+                    {companyInfo.licenseNumber && (
+                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>{companyInfo.licenseNumber}</Text>
+                    )}
+                    {(companyInfo.representativeTitle || companyInfo.representative) && (
+                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
+                            {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
                         </Text>
-                    </View>
+                    )}
+                    <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginTop: 4, marginBottom: 1 }}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
+
+                    {/* 登録番号 */}
+                    {companyInfo.registrationNumber && (
+                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginTop: 6, marginBottom: 1 }}>登録番号：{companyInfo.registrationNumber}</Text>
+                    )}
+
+                    {/* お振込先 */}
+                    {bankAccounts.length > 0 && (
+                        <View style={{ marginTop: 6 }}>
+                            <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 2 }}>お振込先：</Text>
+                            {bankAccounts.map((ba, i) => (
+                                <Text key={i} style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
+                                    {ba.bankName} {ba.branchName}（{ba.accountType}）{ba.accountNumber}
+                                </Text>
+                            ))}
+                        </View>
+                    )}
                 </View>
+            </View>
+
+            {/* 合計金額セクション */}
+            <View style={{ width: 230, marginBottom: 10, marginTop: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', borderBottomWidth: 1.5, borderBottomColor: COLORS.textPrimary, paddingBottom: 2, marginBottom: 1 }}>
+                    <Text style={{ fontSize: 10, fontWeight: 'bold', width: '30%' }}>合計金額</Text>
+                    <Text style={{ fontSize: 14, fontWeight: 'bold', textAlign: 'center', width: '40%' }}>¥{invoice.total.toLocaleString()}</Text>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: '30%' }}>（税込）</Text>
+                </View>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, borderBottomStyle: 'dashed', paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, width: '30%', textAlign: 'center' }}>小計</Text>
+                    <Text style={{ fontSize: 8.5, width: '40%', textAlign: 'center' }}>¥{invoice.subtotal.toLocaleString()}</Text>
+                </View>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, borderBottomStyle: 'dashed', paddingVertical: 1 }}>
+                    <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, width: '30%', textAlign: 'center' }}>消費税額(10%)</Text>
+                    <Text style={{ fontSize: 8.5, width: '40%', textAlign: 'center' }}>¥{invoice.tax.toLocaleString()}</Text>
+                </View>
+            </View>
+
+            {/* Info Table (件名, 現場住所, 有効期限, 工期, 支払条件) */}
+            <View style={{ width: '60%', borderWidth: 0.5, borderColor: COLORS.borderMedium, marginBottom: 6 }}>
+                {[
+                    { label: '件名', value: project.title || invoice.title },
+                    { label: '現場住所', value: project.location || '' },
+                    { label: '有効期限', value: paymentTermText },
+                    { label: '工期', value: '' },
+                    { label: '支払条件', value: '従来通り' },
+                ].map((row, i, arr) => (
+                    <View key={i} style={{ flexDirection: 'row', borderBottomWidth: i < arr.length - 1 ? 0.5 : 0, borderBottomColor: COLORS.borderLight, minHeight: 16 }}>
+                        <View style={styles.infoLabelCell}>
+                            <Text style={styles.infoLabelText}>{row.label}</Text>
+                        </View>
+                        <View style={styles.infoValueCell}>
+                            <Text style={styles.infoValueText}>{row.value}</Text>
+                        </View>
+                    </View>
+                ))}
             </View>
 
             {/* Details Table */}
-            <View style={styles.table}>
+            <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark }}>
                 <View style={styles.tableHeader}>
                     <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
@@ -677,7 +515,8 @@ function CoverPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}></Text>
+                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>{customerFullName}</Text>
+                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>請求No. {invoice.invoiceNumber}</Text>
                 <Text style={styles.footerText}>No. 1</Text>
             </View>
         </Page>
@@ -687,15 +526,17 @@ function CoverPage({
 // ===== Details Page Component =====
 function DetailsPage({
     invoice,
+    project,
     projectMasters,
 }: {
     invoice: Invoice;
-    companyInfo: CompanyInfo;
+    project: Project;
     projectMasters?: Array<{ id: string; title: string }>;
 }) {
     const maxRows = 25;
     const allItems = invoice.items.filter(item => item.description);
     const hasMultipleProjects = projectMasters && projectMasters.length > 1;
+    const customerFullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
 
     type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0]; index: number };
     const displayRows: DisplayRow[] = [];
@@ -743,7 +584,7 @@ function DetailsPage({
             </View>
 
             {/* Table */}
-            <View style={styles.table}>
+            <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark }}>
                 <View style={styles.tableHeader}>
                     <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
@@ -865,7 +706,8 @@ function DetailsPage({
 
             {/* Footer */}
             <View style={styles.footer} fixed>
-                <Text style={styles.footerText}></Text>
+                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>{customerFullName}</Text>
+                <Text style={{ fontSize: 7, color: COLORS.textSecondary }}>請求No. {invoice.invoiceNumber}</Text>
                 <Text style={styles.footerText}>No. 2</Text>
             </View>
         </Page>
@@ -895,7 +737,7 @@ export function InvoicePDF({
             />
             <DetailsPage
                 invoice={invoice}
-                companyInfo={companyInfo}
+                project={project}
                 projectMasters={projectMasters}
             />
         </Document>
