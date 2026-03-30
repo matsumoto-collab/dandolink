@@ -315,7 +315,7 @@ function CoverPage({
 
             {/* 1段目: 〒住所(左) + 御請求書タイトル(右) */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 12, marginBottom: 4 }}>
-                <View style={{ width: '45%', paddingLeft: 30 }}>
+                <View style={{ width: '45%', paddingLeft: 40 }}>
                     {extra.customerPostalCode && (
                         <Text style={{ fontSize: 11, marginBottom: 1 }}>〒 {extra.customerPostalCode}</Text>
                     )}
@@ -333,11 +333,11 @@ function CoverPage({
             {/* 2段目: 顧客名+合計金額+件名(左) + 会社情報(右) — 横並び */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 {/* 左: 顧客名 + 合計金額 + 件名 */}
-                <View style={{ width: '50%', paddingLeft: 30 }}>
+                <View style={{ width: '50%', paddingLeft: 40 }}>
                     {(() => {
                         const len = customerFullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
-                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 10 }}>{customerFullName}</Text>;
+                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 40 }}>{customerFullName}</Text>;
                     })()}
 
                     {/* 合計金額セクション */}
