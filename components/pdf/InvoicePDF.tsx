@@ -315,12 +315,12 @@ function CoverPage({
 
             {/* 1段目: 〒住所(左) + 御請求書タイトル(右) */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 12, marginBottom: 4 }}>
-                <View style={{ width: '45%', paddingLeft: 25 }}>
+                <View style={{ width: '45%', paddingLeft: 30 }}>
                     {extra.customerPostalCode && (
-                        <Text style={{ fontSize: 9, marginBottom: 1 }}>〒 {extra.customerPostalCode}</Text>
+                        <Text style={{ fontSize: 16, marginBottom: 1 }}>〒 {extra.customerPostalCode}</Text>
                     )}
                     {extra.customerAddress && (
-                        <Text style={{ fontSize: 9 }}>{extra.customerAddress}</Text>
+                        <Text style={{ fontSize: 16 }}>{extra.customerAddress}</Text>
                     )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
