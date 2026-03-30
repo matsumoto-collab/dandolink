@@ -330,15 +330,54 @@ function CoverPage({
                 </View>
             </View>
 
-            {/* 2段目: 顧客名(左) + 会社情報(右) — 横並び */}
+            {/* 2段目: 顧客名+合計金額+件名(左) + 会社情報(右) — 横並び */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                {/* 左: 顧客名 */}
-                <View style={{ width: '42%', paddingLeft: 30 }}>
+                {/* 左: 顧客名 + 合計金額 + 件名 */}
+                <View style={{ width: '50%', paddingLeft: 30 }}>
                     {(() => {
                         const len = customerFullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
-                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy }}>{customerFullName}</Text>;
+                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 10 }}>{customerFullName}</Text>;
                     })()}
+
+                    {/* 合計金額セクション */}
+                    <View style={{ width: 240, marginBottom: 8, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'baseline', borderBottomWidth: 1, borderBottomColor: COLORS.borderDark, paddingVertical: 3, paddingHorizontal: 4 }}>
+                            <Text style={{ fontSize: 11, fontWeight: 'bold', width: 80 }}>合計金額</Text>
+                            <Text style={{ fontSize: 16, fontWeight: 'bold', flex: 1, textAlign: 'center' }}>¥{invoice.total.toLocaleString()}</Text>
+                            <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 40 }}>（税込）</Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, paddingVertical: 2, paddingHorizontal: 4 }}>
+                            <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 80, paddingLeft: 10 }}>小計</Text>
+                            <Text style={{ fontSize: 8, flex: 1, textAlign: 'center' }}>¥{invoice.subtotal.toLocaleString()}</Text>
+                            <View style={{ width: 40 }} />
+                        </View>
+                        <View style={{ flexDirection: 'row', paddingVertical: 2, paddingHorizontal: 4 }}>
+                            <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 80, paddingLeft: 10 }}>消費税額(10%)</Text>
+                            <Text style={{ fontSize: 8, flex: 1, textAlign: 'center' }}>¥{invoice.tax.toLocaleString()}</Text>
+                            <View style={{ width: 40 }} />
+                        </View>
+                    </View>
+
+                    {/* 件名テーブル */}
+                    <View style={{ width: 240, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
+                {[
+                    { label: '件名', value: project.title || invoice.title },
+                    { label: '現場住所', value: project.location || '' },
+                    { label: '有効期限', value: paymentTermText },
+                    { label: '工期', value: '' },
+                    { label: '支払条件', value: '従来通り' },
+                ].map((row, i, arr) => (
+                    <View key={i} style={{ flexDirection: 'row', borderBottomWidth: i < arr.length - 1 ? 0.5 : 0, borderBottomColor: COLORS.borderLight, minHeight: 16 }}>
+                        <View style={styles.infoLabelCell}>
+                            <Text style={styles.infoLabelText}>{row.label}</Text>
+                        </View>
+                        <View style={styles.infoValueCell}>
+                            <Text style={styles.infoValueText}>{row.value}</Text>
+                        </View>
+                    </View>
+                ))}
+                    </View>
                 </View>
 
                 {/* 右: 会社情報（見積書と同じスタイル） */}
@@ -379,45 +418,6 @@ function CoverPage({
                         </View>
                     </View>
                 </View>
-            </View>
-
-            {/* 3段目: 合計金額セクション（左寄せ、テーブル形式） */}
-            <View style={{ width: 260, marginBottom: 8, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', borderBottomWidth: 1, borderBottomColor: COLORS.borderDark, paddingVertical: 3, paddingHorizontal: 4 }}>
-                    <Text style={{ fontSize: 11, fontWeight: 'bold', width: 80 }}>合計金額</Text>
-                    <Text style={{ fontSize: 16, fontWeight: 'bold', flex: 1, textAlign: 'center' }}>¥{invoice.total.toLocaleString()}</Text>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 40 }}>（税込）</Text>
-                </View>
-                <View style={{ flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderLight, paddingVertical: 2, paddingHorizontal: 4 }}>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 80, paddingLeft: 10 }}>小計</Text>
-                    <Text style={{ fontSize: 8, flex: 1, textAlign: 'center' }}>¥{invoice.subtotal.toLocaleString()}</Text>
-                    <View style={{ width: 40 }} />
-                </View>
-                <View style={{ flexDirection: 'row', paddingVertical: 2, paddingHorizontal: 4 }}>
-                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, width: 80, paddingLeft: 10 }}>消費税額(10%)</Text>
-                    <Text style={{ fontSize: 8, flex: 1, textAlign: 'center' }}>¥{invoice.tax.toLocaleString()}</Text>
-                    <View style={{ width: 40 }} />
-                </View>
-            </View>
-
-            {/* 4段目: 件名テーブル */}
-            <View style={{ width: '60%', borderWidth: 0.5, borderColor: COLORS.borderMedium, marginBottom: 6 }}>
-                {[
-                    { label: '件名', value: project.title || invoice.title },
-                    { label: '現場住所', value: project.location || '' },
-                    { label: '有効期限', value: paymentTermText },
-                    { label: '工期', value: '' },
-                    { label: '支払条件', value: '従来通り' },
-                ].map((row, i, arr) => (
-                    <View key={i} style={{ flexDirection: 'row', borderBottomWidth: i < arr.length - 1 ? 0.5 : 0, borderBottomColor: COLORS.borderLight, minHeight: 16 }}>
-                        <View style={styles.infoLabelCell}>
-                            <Text style={styles.infoLabelText}>{row.label}</Text>
-                        </View>
-                        <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>{row.value}</Text>
-                        </View>
-                    </View>
-                ))}
             </View>
 
             {/* Details Table */}
