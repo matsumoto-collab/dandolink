@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Minus, Plus, Save, History, Package } from 'lucide-react';
+import { Minus, Plus, Save, History, Package, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { InventoryTransaction } from '@/types/material';
 
@@ -17,12 +17,22 @@ export default function InventoryPage() {
     const [historyItemId, setHistoryItemId] = useState<string | null>(null);
     const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         if (!isCategoriesInitialized) fetchCategories();
     }, [isCategoriesInitialized, fetchCategories]);
 
     const isManager = session?.user?.role === 'admin' || session?.user?.role === 'manager';
+
+    const toggleCategory = (catId: string) => {
+        setExpandedCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(catId)) next.delete(catId);
+            else next.add(catId);
+            return next;
+        });
+    };
 
     const enterEditMode = () => {
         const quantities: Record<string, number> = {};
@@ -183,14 +193,25 @@ export default function InventoryPage() {
                             {categories.map(cat => (
                                 <React.Fragment key={cat.id}>
                                     {/* Category header row */}
-                                    <tr className="bg-slate-50/70">
-                                        <td colSpan={6} className="px-4 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                            {cat.name}
-                                            <span className="ml-2 font-normal text-slate-400">({cat.items.length}品目)</span>
+                                    <tr
+                                        className="bg-slate-50/70 cursor-pointer hover:bg-slate-100/70 select-none"
+                                        onClick={() => toggleCategory(cat.id)}
+                                    >
+                                        <td colSpan={6} className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                            <div className="flex items-center gap-1.5">
+                                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedCategories.has(cat.id) ? 'rotate-90' : ''}`} />
+                                                {cat.name}
+                                                <span className="ml-1 font-normal text-slate-400">({cat.items.length}品目)</span>
+                                                {!expandedCategories.has(cat.id) && (
+                                                    <span className="ml-2 font-normal text-slate-400">
+                                                        — 在庫合計: {cat.items.reduce((s, i) => s + (i.stockQuantity ?? 0), 0)}
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                     {/* Items */}
-                                    {cat.items.map(item => {
+                                    {expandedCategories.has(cat.id) && cat.items.map(item => {
                                         const qty = editMode ? (editQuantities[item.id] ?? 0) : (item.stockQuantity ?? 0);
                                         const original = item.stockQuantity ?? 0;
                                         const hasChanged = editMode && qty !== original;
