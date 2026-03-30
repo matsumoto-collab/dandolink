@@ -113,20 +113,20 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     headerCellText: {
-        fontSize: 7.5,
+        fontSize: 9,
         color: COLORS.textSecondary,
         textAlign: 'center',
         width: '100%',
     },
     cellText: {
-        fontSize: 7.5,
+        fontSize: 9,
     },
     cellTextCenter: {
-        fontSize: 7.5,
+        fontSize: 9,
         textAlign: 'center',
     },
     cellTextRed: {
-        fontSize: 7.5,
+        fontSize: 9,
         color: COLORS.red,
     },
     tableHeader: {
@@ -139,25 +139,25 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 18,
+        minHeight: 20,
     },
     tableRowLast: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 18,
+        minHeight: 20,
     },
     projectHeaderRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.3,
         borderBottomColor: COLORS.borderLight,
-        minHeight: 18,
+        minHeight: 20,
     },
     totalRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderDark,
-        minHeight: 18,
+        minHeight: 20,
     },
     totalLabelCell: {
         width: 273,
@@ -292,7 +292,7 @@ function CoverPage({
         });
     }
 
-    const maxRows = 15;
+    const maxRows = 20;
 
     // 支払期限の表示
     const paymentTermText = (() => {
@@ -443,7 +443,7 @@ function CoverPage({
                                 <View key={`header-${i}`} style={styles.projectHeaderRow}>
                                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
                                     <View style={{ ...styles.cellName, width: 220 }}>
-                                        <Text style={{ fontSize: 7.5, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
+                                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
                                     </View>
                                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
@@ -604,7 +604,7 @@ function DetailsPage({
                                 <View key={`header-${i}`} style={styles.projectHeaderRow}>
                                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
                                     <View style={{ ...styles.cellName, width: 220 }}>
-                                        <Text style={{ fontSize: 7.5, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
+                                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
                                     </View>
                                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
