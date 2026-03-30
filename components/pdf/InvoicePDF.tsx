@@ -314,8 +314,8 @@ function CoverPage({
         <Page size="A4" orientation="portrait" style={styles.page}>
 
             {/* 1段目: 〒住所(左) + 御請求書タイトル(右) */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 8, marginBottom: 8 }}>
-                <View style={{ width: '45%', paddingLeft: 15 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 12, marginBottom: 4 }}>
+                <View style={{ width: '45%', paddingLeft: 25 }}>
                     {extra.customerPostalCode && (
                         <Text style={{ fontSize: 9, marginBottom: 1 }}>〒 {extra.customerPostalCode}</Text>
                     )}
@@ -333,7 +333,7 @@ function CoverPage({
             {/* 2段目: 顧客名(左) + 会社情報(右) — 横並び */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 {/* 左: 顧客名 */}
-                <View style={{ width: '42%', paddingLeft: 20 }}>
+                <View style={{ width: '42%', paddingLeft: 30 }}>
                     {(() => {
                         const len = customerFullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
