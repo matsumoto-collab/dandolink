@@ -341,23 +341,27 @@ function CoverPage({
                     })()}
                 </View>
 
-                {/* 右: 会社情報（ロゴ・社名・許可番号・代表者のみ） */}
-                <View style={{ width: '52%', position: 'relative' }}>
-                    {companyInfo.sealImage && (
-                        <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 10, right: 0, width: 45, height: 45 }} />
-                    )}
-                    {companyInfo.logoImage && (
-                        <Image src={companyInfo.logoImage} style={{ height: 28, marginBottom: 2, objectFit: 'contain', alignSelf: 'flex-start' }} />
-                    )}
-                    <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2, letterSpacing: 1 }}>{companyInfo.name}</Text>
-                    {companyInfo.licenseNumber && (
-                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>{companyInfo.licenseNumber}</Text>
-                    )}
-                    {(companyInfo.representativeTitle || companyInfo.representative) && (
-                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
-                            {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
-                        </Text>
-                    )}
+                {/* 右: 会社情報（見積書と同じスタイル） */}
+                <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                    <View style={{ position: 'relative' }}>
+                        {companyInfo.sealImage && (
+                            <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 36, right: 10, width: 50, height: 50 }} />
+                        )}
+                        <View style={{ alignSelf: 'flex-end' }}>
+                            {companyInfo.logoImage && (
+                                <Image src={companyInfo.logoImage} style={{ height: 35, marginBottom: 3, objectFit: 'contain', alignSelf: 'flex-start' }} />
+                            )}
+                            <Text style={{ fontSize: 10, fontWeight: 'bold', marginBottom: 2, letterSpacing: 1 }}>{companyInfo.name}</Text>
+                            {companyInfo.licenseNumber && (
+                                <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, marginBottom: 1, textAlign: 'right' }}>{companyInfo.licenseNumber}</Text>
+                            )}
+                            {(companyInfo.representativeTitle || companyInfo.representative) && (
+                                <Text style={{ fontSize: 8.5, color: COLORS.textSecondary, marginBottom: 1, textAlign: 'right' }}>
+                                    {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
+                                </Text>
+                            )}
+                        </View>
+                    </View>
                 </View>
             </View>
 
