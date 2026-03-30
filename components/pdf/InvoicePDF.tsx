@@ -313,9 +313,12 @@ function CoverPage({
     return (
         <Page size="A4" orientation="portrait" style={styles.page}>
 
-            {/* 1段目: 住所(左) + 御請求書タイトル(右) */}
+            {/* 1段目: 〒住所(左) + 御請求書タイトル(右) */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 10 }}>
                 <View style={{ width: '45%' }}>
+                    {extra.customerPostalCode && (
+                        <Text style={{ fontSize: 9, marginBottom: 1 }}>〒 {extra.customerPostalCode}</Text>
+                    )}
                     {extra.customerAddress && (
                         <Text style={{ fontSize: 9 }}>{extra.customerAddress}</Text>
                     )}
@@ -328,7 +331,7 @@ function CoverPage({
             </View>
 
             {/* 2段目: 顧客名(左) + 会社情報(右) — 横並び */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
                 {/* 左: 顧客名 */}
                 <View style={{ width: '42%' }}>
                     {(() => {
@@ -338,7 +341,7 @@ function CoverPage({
                     })()}
                 </View>
 
-                {/* 右: 会社情報 */}
+                {/* 右: 会社情報（ロゴ・社名・許可番号・代表者のみ） */}
                 <View style={{ width: '52%', position: 'relative' }}>
                     {companyInfo.sealImage && (
                         <Image src={companyInfo.sealImage} style={{ position: 'absolute', top: 10, right: 0, width: 45, height: 45 }} />
@@ -354,22 +357,6 @@ function CoverPage({
                         <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
                             {companyInfo.representativeTitle ? `${companyInfo.representativeTitle}　` : ''}{companyInfo.representative}
                         </Text>
-                    )}
-                    <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginTop: 4, marginBottom: 1 }}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
-
-                    {companyInfo.registrationNumber && (
-                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginTop: 6, marginBottom: 1 }}>登録番号：{companyInfo.registrationNumber}</Text>
-                    )}
-
-                    {bankAccounts.length > 0 && (
-                        <View style={{ marginTop: 6 }}>
-                            <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 2 }}>お振込先：</Text>
-                            {bankAccounts.map((ba, i) => (
-                                <Text key={i} style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
-                                    {ba.bankName} {ba.branchName}（{ba.accountType}）{ba.accountNumber}
-                                </Text>
-                            ))}
-                        </View>
                     )}
                 </View>
             </View>
@@ -393,8 +380,10 @@ function CoverPage({
                 </View>
             </View>
 
-            {/* Info Table (件名, 現場住所, 有効期限, 工期, 支払条件) */}
-            <View style={{ width: '60%', borderWidth: 0.5, borderColor: COLORS.borderMedium, marginBottom: 6 }}>
+            {/* 4段目: 件名テーブル(左) + 〒住所・登録番号・振込先(右) — 横並び */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                {/* 左: 件名テーブル */}
+                <View style={{ width: '55%', borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
                 {[
                     { label: '件名', value: project.title || invoice.title },
                     { label: '現場住所', value: project.location || '' },
@@ -411,6 +400,27 @@ function CoverPage({
                         </View>
                     </View>
                 ))}
+                </View>
+
+                {/* 右: 〒住所・登録番号・お振込先 */}
+                <View style={{ width: '42%', paddingLeft: 10 }}>
+                    <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 4 }}>〒{companyInfo.postalCode}　{companyInfo.address}</Text>
+
+                    {companyInfo.registrationNumber && (
+                        <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 4 }}>登録番号：{companyInfo.registrationNumber}</Text>
+                    )}
+
+                    {bankAccounts.length > 0 && (
+                        <View>
+                            <Text style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 2 }}>お振込先：</Text>
+                            {bankAccounts.map((ba, i) => (
+                                <Text key={i} style={{ fontSize: 7.5, color: COLORS.textSecondary, marginBottom: 1 }}>
+                                    {ba.bankName} {ba.branchName}（{ba.accountType}）{ba.accountNumber}
+                                </Text>
+                            ))}
+                        </View>
+                    )}
+                </View>
             </View>
 
             {/* Details Table */}
