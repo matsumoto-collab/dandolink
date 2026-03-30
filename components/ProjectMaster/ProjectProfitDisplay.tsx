@@ -23,6 +23,7 @@ interface ProfitData {
     projectTitle: string;
     revenue: number;
     estimateAmount: number;
+    estimateCostTotal: number | null;
     costBreakdown: CostBreakdown;
     grossProfit: number;
     profitMargin: number;
@@ -80,7 +81,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
         );
     }
 
-    const { costBreakdown, grossProfit, profitMargin, revenue, estimateAmount } = profitData;
+    const { costBreakdown, grossProfit, profitMargin, revenue, estimateAmount, estimateCostTotal } = profitData;
     const isProfit = grossProfit >= 0;
 
     return (
@@ -105,8 +106,18 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
                     {/* 原価 */}
                     <div className="bg-slate-50 rounded-lg p-4">
-                        <div className="text-sm text-slate-600 font-medium">原価合計</div>
+                        <div className="text-sm text-slate-600 font-medium">原価合計（実績）</div>
                         <div className="text-2xl font-bold text-slate-700">{formatCurrency(costBreakdown.totalCost)}</div>
+                        {estimateCostTotal != null && (
+                            <div className="text-xs mt-1">
+                                <span className="text-slate-500">見積原価: {formatCurrency(estimateCostTotal)}</span>
+                                {costBreakdown.totalCost > 0 && (
+                                    <span className={`ml-1 font-medium ${costBreakdown.totalCost > estimateCostTotal ? 'text-red-500' : 'text-emerald-500'}`}>
+                                        ({costBreakdown.totalCost > estimateCostTotal ? '+' : ''}{formatCurrency(costBreakdown.totalCost - estimateCostTotal)})
+                                    </span>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* 粗利 */}

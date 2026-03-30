@@ -9,6 +9,7 @@ export interface EstimateItem {
     amount: number;       // 金額
     taxType: 'none' | 'standard'; // 税区分（なし、10%）
     notes?: string;       // 備考
+    costAmount?: number | null; // 原価金額（予算書用）
     isCategory?: boolean;       // カテゴリ行（子項目をグループ化）
     children?: EstimateItem[];  // 子項目（isCategoryがtrueの場合）
 }
@@ -28,6 +29,7 @@ export interface Estimate {
     status: 'draft' | 'sent' | 'approved' | 'rejected';
     notes?: string;
     location?: string;
+    costTotal?: number | null;
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string;

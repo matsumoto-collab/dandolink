@@ -6,10 +6,12 @@ import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
+import { EstimateItem } from '@/types/estimate';
 import { X, FileDown, Printer, Trash2, Edit, FolderOpen } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
+import BudgetTab from './BudgetTab';
 
 interface EstimateDetailModalProps {
     isOpen: boolean;
@@ -19,6 +21,7 @@ interface EstimateDetailModalProps {
     companyInfo: CompanyInfo;
     onDelete: (id: string) => void;
     onEdit: (estimate: Estimate) => void;
+    onUpdateEstimate?: (id: string, data: { items: EstimateItem[]; costTotal: number | null }) => void;
     onCreateProject?: () => void;
     customerName?: string;
     customerHonorific?: string;
@@ -32,6 +35,7 @@ export default function EstimateDetailModal({
     companyInfo,
     onDelete,
     onEdit,
+    onUpdateEstimate,
     onCreateProject,
     customerName,
     customerHonorific,
@@ -42,6 +46,37 @@ export default function EstimateDetailModal({
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
     const [includeDetails, setIncludeDetails] = useState(false);
     const modalRef = useModalKeyboard(isOpen, onClose);
+
+    // 予算書用: 項目別原価のローカルstate
+    const [budgetItems, setBudgetItems] = useState<EstimateItem[]>([]);
+    useEffect(() => {
+        if (estimate) setBudgetItems(estimate.items);
+    }, [estimate]);
+
+    const handleUpdateCostAmount = (itemId: string, costAmount: number | null, childId?: string) => {
+        setBudgetItems(prev => {
+            const updated = prev.map(item => {
+                if (childId && item.id === itemId && item.children) {
+                    return { ...item, children: item.children.map(c => c.id === childId ? { ...c, costAmount } : c) };
+                }
+                if (!childId && item.id === itemId) {
+                    return { ...item, costAmount };
+                }
+                return item;
+            });
+            // 自動保存: 項目別原価合計を計算してAPI更新
+            if (onUpdateEstimate && estimate) {
+                let sum = 0; let hasAny = false;
+                for (const it of updated) {
+                    if (it.isCategory && it.children) {
+                        for (const c of it.children) { if (c.costAmount != null) { sum += c.costAmount; hasAny = true; } }
+                    } else { if (it.costAmount != null) { sum += it.costAmount; hasAny = true; } }
+                }
+                onUpdateEstimate(estimate.id, { items: updated, costTotal: hasAny ? sum : estimate.costTotal ?? null });
+            }
+            return updated;
+        });
+    };
 
     // projectがnullの場合はestimateからダミーのProjectを作成（useMemoでメモ化）
     const effectiveProject: Project = useMemo(() => {
@@ -256,11 +291,12 @@ export default function EstimateDetailModal({
                             </div>
                         )
                     ) : (
-                        <div className="flex items-center justify-center h-full">
-                            <div className="text-center text-slate-500">
-                                <p className="text-lg">予算書機能は今後実装予定です</p>
-                            </div>
-                        </div>
+                        <BudgetTab
+                            items={budgetItems}
+                            onUpdateCostAmount={handleUpdateCostAmount}
+                            total={estimate.total}
+                            costTotal={estimate.costTotal ?? null}
+                        />
                     )}
                 </div>
 

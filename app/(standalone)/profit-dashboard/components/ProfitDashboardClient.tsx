@@ -17,6 +17,7 @@ export interface SerializedProjectProfit {
     status: string;
     assignmentCount: number;
     estimateAmount: number;
+    estimateCostTotal: number | null;
     revenue: number;
     laborCost: number;
     loadingCost: number;
@@ -241,8 +242,20 @@ export default function ProfitDashboardClient({ projects, summary, currentStatus
                                                     </div>
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3 text-right text-slate-600">
-                                                {formatCurrency(project.totalCost)}
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="text-slate-600">
+                                                    {formatCurrency(project.totalCost)}
+                                                </div>
+                                                {project.estimateCostTotal != null && (
+                                                    <div className="text-xs text-slate-400">
+                                                        見積: {formatCurrency(project.estimateCostTotal)}
+                                                        {project.totalCost > 0 && (
+                                                            <span className={`ml-1 ${project.totalCost > project.estimateCostTotal ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                                ({project.totalCost > project.estimateCostTotal ? '+' : ''}{formatCurrency(project.totalCost - project.estimateCostTotal)})
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="px-4 py-3 text-right">
                                                 <span className={`font-medium ${project.grossProfit >= 0 ? 'text-slate-800' : 'text-slate-400'}`}>

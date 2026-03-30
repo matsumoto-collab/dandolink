@@ -43,7 +43,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         const [settings, estimates, invoices, allVehicles] = await Promise.all([
             prisma.systemSettings.findFirst(),
-            prisma.estimate.findMany({ where: { projectMasterId: id } }),
+            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, costTotal: true } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
         ]);
@@ -54,6 +54,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const vehicleRateMap = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
 
         const estimateAmount = estimates.reduce((sum, e) => sum + Number(e.total), 0);
+        const estimateCostTotal = estimates.some(e => e.costTotal != null)
+            ? estimates.reduce((sum, e) => sum + (e.costTotal ?? 0), 0)
+            : null;
         const revenue = invoices.reduce((sum, i) => sum + Number(i.total), 0);
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
@@ -106,7 +109,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const profitMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
 
         return NextResponse.json({
-            projectMasterId: id, projectTitle: projectMaster.title, revenue, estimateAmount,
+            projectMasterId: id, projectTitle: projectMaster.title, revenue, estimateAmount, estimateCostTotal,
             costBreakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
             grossProfit, profitMargin,
         });

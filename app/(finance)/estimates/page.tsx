@@ -377,6 +377,9 @@ export default function EstimateListPage() {
                                 金額
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                粗利率
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 ステータス
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -399,6 +402,7 @@ export default function EstimateListPage() {
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-14"></div></td>
                                     <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-16"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
@@ -407,7 +411,7 @@ export default function EstimateListPage() {
                             ))
                         ) : filteredEstimates.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '見積書が登録されていません'}
                                 </td>
                             </tr>
@@ -455,6 +459,17 @@ export default function EstimateListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
                                             ¥{estimate.total.toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            {estimate.costTotal != null && estimate.total > 0 ? (
+                                                (() => {
+                                                    const rate = ((estimate.total - estimate.costTotal) / estimate.total) * 100;
+                                                    const color = rate < 0 ? 'bg-red-100 text-red-700' : rate < 15 ? 'bg-yellow-100 text-yellow-700' : rate < 30 ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700';
+                                                    return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>{rate.toFixed(1)}%</span>;
+                                                })()
+                                            ) : (
+                                                <span className="text-xs text-slate-400">未設定</span>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
@@ -539,6 +554,11 @@ export default function EstimateListPage() {
                     onEdit={(estimate) => {
                         setEditingEstimate(estimate);
                         setIsModalOpen(true);
+                    }}
+                    onUpdateEstimate={async (id, data) => {
+                        try {
+                            await updateEstimate(id, { items: data.items, costTotal: data.costTotal } as Partial<EstimateInput>);
+                        } catch (e) { console.error('予算書の保存に失敗:', e); }
                     }}
                     onCreateProject={selectedEstimate ? () => handleCreateProjectFromEstimate(selectedEstimate) : undefined}
                 />

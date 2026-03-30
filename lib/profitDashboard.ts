@@ -8,6 +8,7 @@ export interface ProjectProfit {
     status: string;
     assignmentCount: number;
     estimateAmount: number;
+    estimateCostTotal: number | null;
     revenue: number;
     laborCost: number;
     loadingCost: number;
@@ -71,7 +72,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         // 見積書
         prisma.estimate.findMany({
             where: { projectMasterId: { in: projectIds } },
-            select: { projectMasterId: true, total: true },
+            select: { projectMasterId: true, total: true, costTotal: true },
         }),
         // 請求書
         prisma.invoice.findMany({
@@ -118,12 +119,20 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
 
     // 見積書をグループ化
     const estimateByProject = new Map<string, number>();
+    const estimateCostByProject = new Map<string, number | null>();
     for (const e of estimates) {
         if (e.projectMasterId) {
             estimateByProject.set(
                 e.projectMasterId,
                 (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)
             );
+            // 見積原価: 複数見積がある場合は合算（null同士はnullのまま）
+            if (e.costTotal != null) {
+                estimateCostByProject.set(
+                    e.projectMasterId,
+                    (estimateCostByProject.get(e.projectMasterId) || 0) + e.costTotal
+                );
+            }
         }
     }
 
@@ -202,6 +211,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     // 結果を組み立て
     const profitSummaries: ProjectProfit[] = projectMasters.map(pm => {
         const estimateAmount = estimateByProject.get(pm.id) || 0;
+        const estimateCostTotal = estimateCostByProject.get(pm.id) ?? null;
         const revenue = revenueByProject.get(pm.id) || 0;
         const laborCost = laborCostByProject.get(pm.id) || 0;
         const loadingCost = loadingCostByProject.get(pm.id) || 0;
@@ -221,6 +231,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
             status: pm.status,
             assignmentCount: pm._count.assignments,
             estimateAmount,
+            estimateCostTotal,
             revenue,
             laborCost,
             loadingCost,

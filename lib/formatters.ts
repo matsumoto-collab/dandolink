@@ -57,6 +57,7 @@ export interface RawEstimate {
     subtotal?: unknown;
     tax?: unknown;
     total?: unknown;
+    costTotal?: number | null;
     [key: string]: unknown;
 }
 
@@ -147,6 +148,7 @@ export function formatEstimate(estimate: RawEstimate) {
         subtotal: Number(estimate.subtotal || 0),
         tax: Number(estimate.tax || 0),
         total: Number(estimate.total || 0),
+        costTotal: estimate.costTotal ?? null,
         items: parseJsonField<unknown[]>(estimate.items, []),
         validUntil: estimate.validUntil.toISOString(),
         createdAt: estimate.createdAt.toISOString(),

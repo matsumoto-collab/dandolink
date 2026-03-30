@@ -267,6 +267,7 @@ export const createEstimateSchema = z.object({
     status: z.enum(['draft', 'sent', 'accepted', 'rejected']).optional().default('draft'),
     notes: z.string().max(2000).nullable().optional(),
     location: z.string().max(500).nullable().optional(),
+    costTotal: z.number().int().nullable().optional(),
 });
 
 export const updateEstimateSchema = z.object({
@@ -282,6 +283,7 @@ export const updateEstimateSchema = z.object({
     status: z.enum(['draft', 'sent', 'accepted', 'rejected']).optional(),
     notes: z.string().max(2000).nullable().optional(),
     location: z.string().max(500).nullable().optional(),
+    costTotal: z.number().int().nullable().optional(),
 });
 
 // ============================================

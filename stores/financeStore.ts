@@ -21,6 +21,7 @@ function parseEstimateDates(estimate: any): Estimate {
         ...estimate,
         // API returns projectMasterId, frontend uses projectId
         projectId: estimate.projectId ?? estimate.projectMasterId ?? undefined,
+        costTotal: estimate.costTotal ?? null,
         validUntil: new Date(estimate.validUntil),
         createdAt: new Date(estimate.createdAt),
         updatedAt: new Date(estimate.updatedAt),
@@ -34,6 +35,7 @@ function toEstimateApiPayload(data: Partial<EstimateInput>): Record<string, unkn
     return {
         ...rest,
         projectMasterId: projectId,
+        costTotal: rest.costTotal ?? null,
     };
 }
 

@@ -11,6 +11,7 @@ interface ProjectProfit {
     status: string;
     assignmentCount: number;
     estimateAmount: number;
+    estimateCostTotal: number | null;
     revenue: number;
     laborCost: number;
     loadingCost: number;

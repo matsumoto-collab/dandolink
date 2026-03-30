@@ -35,6 +35,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (data.status !== undefined) updateData.status = data.status;
         if (data.notes !== undefined) updateData.notes = data.notes || null;
         if (data.location !== undefined) updateData.location = data.location || null;
+        if (data.costTotal !== undefined) updateData.costTotal = data.costTotal;
 
         const updatedEstimate = await prisma.estimate.update({ where: { id }, data: updateData });
         return NextResponse.json(formatEstimate(updatedEstimate));

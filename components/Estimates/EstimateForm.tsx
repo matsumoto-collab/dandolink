@@ -66,6 +66,23 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const [status, setStatus] = useState<EstimateInput['status']>(initialData?.status || 'draft');
     const [notes, setNotes] = useState(initialData?.notes || '');
     const [items, setItems] = useState<EstimateItem[]>(initialData?.items || []);
+    const [costTotal, setCostTotal] = useState<number | null>(initialData?.costTotal ?? null);
+
+    // 項目別原価が1つでもあればcostTotalはロック（自動計算）
+    const { costTotalLocked, itemsCostSum } = React.useMemo(() => {
+        let sum = 0; let hasAny = false;
+        for (const item of items) {
+            if (item.isCategory && item.children) {
+                for (const c of item.children) { if (c.costAmount != null) { sum += c.costAmount; hasAny = true; } }
+            } else { if (item.costAmount != null) { sum += item.costAmount; hasAny = true; } }
+        }
+        return { costTotalLocked: hasAny, itemsCostSum: hasAny ? sum : null };
+    }, [items]);
+
+    // 項目別原価があればcostTotalを同期
+    React.useEffect(() => {
+        if (itemsCostSum != null) setCostTotal(itemsCostSum);
+    }, [itemsCostSum]);
 
     // PDFプレビュー用
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -426,7 +443,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         try {
             const data: EstimateInput = {
                 projectId: projectId || undefined, customerId: customerId || undefined, estimateNumber, title, items, subtotal, tax, total,
-                validUntil: new Date(validUntil), status, notes: notes || undefined, location: location || undefined,
+                validUntil: new Date(validUntil), status, notes: notes || undefined, location: location || undefined, costTotal,
             };
             await onSubmit(data);
         } finally {
@@ -475,7 +492,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
             {/* 合計エリア（sticky） */}
             <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
-                <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustSubtotal={handleAdjustSubtotal} />
+                <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustSubtotal={handleAdjustSubtotal} costTotal={costTotal} onCostTotalChange={setCostTotal} costTotalLocked={costTotalLocked} />
             </div>
 
             {/* ボタン */}
