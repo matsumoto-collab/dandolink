@@ -337,11 +337,11 @@ function CoverPage({
                     {(() => {
                         const len = customerFullName.length;
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
-                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 40 }}>{customerFullName}</Text>;
+                        return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 55 }}>{customerFullName}</Text>;
                     })()}
 
                     {/* 合計金額セクション */}
-                    <View style={{ width: 240, marginBottom: 8, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
+                    <View style={{ width: 260, marginBottom: 8, marginLeft: -40, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
                         <View style={{ flexDirection: 'row', alignItems: 'baseline', borderBottomWidth: 1, borderBottomColor: COLORS.borderDark, paddingVertical: 3, paddingHorizontal: 4 }}>
                             <Text style={{ fontSize: 11, fontWeight: 'bold', width: 80 }}>合計金額</Text>
                             <Text style={{ fontSize: 16, fontWeight: 'bold', flex: 1, textAlign: 'center' }}>¥{invoice.total.toLocaleString()}</Text>
@@ -360,7 +360,7 @@ function CoverPage({
                     </View>
 
                     {/* 件名テーブル */}
-                    <View style={{ width: 240, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
+                    <View style={{ width: 260, marginLeft: -40, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
                 {[
                     { label: '件名', value: project.title || invoice.title },
                     { label: '現場住所', value: project.location || '' },
