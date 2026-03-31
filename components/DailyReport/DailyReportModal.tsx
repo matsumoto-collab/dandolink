@@ -25,7 +25,7 @@ interface DailyReportModalProps {
 export default function DailyReportModal({ isOpen, onClose, initialDate, foremanId, selectedReport, onSaved, onDelete }: DailyReportModalProps) {
     const { data: session } = useSession();
     const { saveDailyReport, getDailyReportByForemanAndDate, fetchDailyReports } = useDailyReports();
-    const { projects } = useProjects();
+    const { projects, fetchForDateRange } = useProjects();
     const { allForemen } = useCalendarDisplay();
 
     const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
@@ -87,6 +87,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         };
         fetchWorkers();
     }, [isOpen]);
+
+    // モーダルが開いた時・日付変更時にアサインメントを取得
+    useEffect(() => {
+        if (!isOpen) return;
+        fetchForDateRange(selectedDate, selectedDate);
+    }, [isOpen, selectedDate, fetchForDateRange]);
 
     // モーダルが開いたときの初期化（foremanId設定）
     useEffect(() => {
