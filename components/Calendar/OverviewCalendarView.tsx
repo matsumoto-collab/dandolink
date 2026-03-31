@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { CalendarEvent, EmployeeRow, WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import { getDayOfWeekString } from '@/utils/dateUtils';
@@ -38,6 +38,73 @@ export default function OverviewCalendarView({
     getVacationEmployees,
     getMemberAdjustment,
 }: OverviewCalendarViewProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const contentRef = useRef<HTMLDivElement>(null);
+    // Use refs to avoid stale closure issues in touch handlers
+    const scaleRef = useRef(1);
+    const originRef = useRef({ x: 0, y: 0 });
+
+    const applyTransform = useCallback(() => {
+        const el = contentRef.current;
+        if (!el) return;
+        const s = scaleRef.current;
+        const o = originRef.current;
+        el.style.transform = `scale(${s})`;
+        el.style.transformOrigin = `${o.x}px ${o.y}px`;
+    }, []);
+
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        let startDistance = 0;
+        let startScale = 1;
+
+        const getDistance = (t: TouchList) => {
+            const dx = t[0].clientX - t[1].clientX;
+            const dy = t[0].clientY - t[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        };
+
+        const onTouchStart = (e: TouchEvent) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                startDistance = getDistance(e.touches);
+                startScale = scaleRef.current;
+                // Set origin to midpoint of the two fingers relative to content
+                const rect = container.getBoundingClientRect();
+                originRef.current = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left + container.scrollLeft,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top + container.scrollTop,
+                };
+            }
+        };
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                const dist = getDistance(e.touches);
+                const newScale = Math.max(0.5, Math.min(4, startScale * (dist / startDistance)));
+                scaleRef.current = newScale;
+                applyTransform();
+            }
+        };
+
+        const onTouchEnd = () => {
+            // no-op, keep current scale
+        };
+
+        container.addEventListener('touchstart', onTouchStart, { passive: false });
+        container.addEventListener('touchmove', onTouchMove, { passive: false });
+        container.addEventListener('touchend', onTouchEnd);
+
+        return () => {
+            container.removeEventListener('touchstart', onTouchStart);
+            container.removeEventListener('touchmove', onTouchMove);
+            container.removeEventListener('touchend', onTouchEnd);
+        };
+    }, [applyTransform]);
+
     return (
         <div className="h-full flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
             {/* Header */}
@@ -45,97 +112,103 @@ export default function OverviewCalendarView({
                 <span className="text-xs text-slate-500">俯瞰ビュー（閲覧専用 / ピンチで拡大縮小）</span>
             </div>
 
-            {/* Scrollable content - touch-action: auto allows native pinch zoom */}
-            <div className="flex-1 overflow-auto" style={{ touchAction: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <table className="w-full border-collapse table-fixed">
-                    <colgroup>
-                        <col style={{ width: '42px' }} />
-                        {weekDays.map((_, i) => (
-                            <col key={i} style={{ width: `${(100 - 4) / 7}%` }} />
-                        ))}
-                    </colgroup>
-                    {/* Header */}
-                    <thead className="sticky top-0 z-10">
-                        <tr className="bg-slate-100">
-                            <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '42px' }}>
-                                職長
-                            </th>
-                            {weekDays.map((day, i) => {
-                                const dayStr = getDayOfWeekString(day.date, 'short');
-                                const d = day.date.getDate();
-                                const isSat = day.dayOfWeek === 6;
-                                const isSun = day.dayOfWeek === 0;
-                                return (
-                                    <th
-                                        key={i}
-                                        className={`text-[8px] font-bold border border-slate-300 px-0 py-0.5 ${
-                                            day.isToday ? 'bg-slate-700 text-white' :
-                                            isSat ? 'bg-blue-50 text-blue-700' :
-                                            isSun ? 'bg-rose-50 text-rose-700' :
-                                            'text-slate-700'
-                                        }`}
-                                    >
-                                        {d}({dayStr})
-                                    </th>
-                                );
-                            })}
-                        </tr>
-                        {/* Remaining members row */}
-                        <tr className="bg-white">
-                            <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '42px' }}>
-                                残り
-                            </td>
-                            {weekDays.map((day, i) => {
-                                const dateKey = formatDateKey(day.date);
-                                const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned');
-                                const byForeman = new Map<string, number[]>();
-                                dayEvents.forEach(e => {
-                                    const key = e.assignedEmployeeId!;
-                                    if (!byForeman.has(key)) byForeman.set(key, []);
-                                    byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
-                                });
-                                let assigned = 0;
-                                byForeman.forEach(counts => { assigned += Math.max(...counts); });
-                                const vacation = getVacationEmployees(dateKey).length;
-                                const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                                const remaining = totalMembers + adj - assigned - vacation;
-                                return (
-                                    <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
-                                        <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-slate-700' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>
-                                            {remaining}人
-                                        </span>
-                                    </td>
-                                );
-                            })}
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {employeeRows.map((row) => (
-                            <tr key={row.employeeId} className="border-b border-slate-200">
-                                <td className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap" style={{ width: '42px' }}>
-                                    {row.employeeName}
-                                </td>
+            {/* Scrollable + pinch-zoomable content */}
+            <div
+                ref={containerRef}
+                className="flex-1 overflow-auto"
+                style={{ touchAction: 'pan-x pan-y' }}
+            >
+                <div ref={contentRef} style={{ transformOrigin: '0 0' }}>
+                    <table className="w-full border-collapse table-fixed">
+                        <colgroup>
+                            <col style={{ width: '42px' }} />
+                            {weekDays.map((_, i) => (
+                                <col key={i} style={{ width: `${(100 - 4) / 7}%` }} />
+                            ))}
+                        </colgroup>
+                        {/* Header */}
+                        <thead className="sticky top-0 z-10">
+                            <tr className="bg-slate-100">
+                                <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '42px' }}>
+                                    職長
+                                </th>
                                 {weekDays.map((day, i) => {
-                                    const cellEvents = getEventsForDate(row, day.date);
+                                    const dayStr = getDayOfWeekString(day.date, 'short');
+                                    const d = day.date.getDate();
                                     const isSat = day.dayOfWeek === 6;
                                     const isSun = day.dayOfWeek === 0;
                                     return (
-                                        <td
+                                        <th
                                             key={i}
-                                            className={`border border-slate-200 px-px py-px align-top ${
-                                                isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
+                                            className={`text-[8px] font-bold border border-slate-300 px-0 py-0.5 ${
+                                                day.isToday ? 'bg-slate-700 text-white' :
+                                                isSat ? 'bg-blue-50 text-blue-700' :
+                                                isSun ? 'bg-rose-50 text-rose-700' :
+                                                'text-slate-700'
                                             }`}
                                         >
-                                            {cellEvents.map((event) => (
-                                                <MiniCard key={event.id} event={event} />
-                                            ))}
+                                            {d}({dayStr})
+                                        </th>
+                                    );
+                                })}
+                            </tr>
+                            {/* Remaining members row */}
+                            <tr className="bg-white">
+                                <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '42px' }}>
+                                    残り
+                                </td>
+                                {weekDays.map((day, i) => {
+                                    const dateKey = formatDateKey(day.date);
+                                    const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned');
+                                    const byForeman = new Map<string, number[]>();
+                                    dayEvents.forEach(e => {
+                                        const key = e.assignedEmployeeId!;
+                                        if (!byForeman.has(key)) byForeman.set(key, []);
+                                        byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
+                                    });
+                                    let assigned = 0;
+                                    byForeman.forEach(counts => { assigned += Math.max(...counts); });
+                                    const vacation = getVacationEmployees(dateKey).length;
+                                    const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
+                                    const remaining = totalMembers + adj - assigned - vacation;
+                                    return (
+                                        <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
+                                            <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-slate-700' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>
+                                                {remaining}人
+                                            </span>
                                         </td>
                                     );
                                 })}
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {employeeRows.map((row) => (
+                                <tr key={row.employeeId} className="border-b border-slate-200">
+                                    <td className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap" style={{ width: '42px' }}>
+                                        {row.employeeName}
+                                    </td>
+                                    {weekDays.map((day, i) => {
+                                        const cellEvents = getEventsForDate(row, day.date);
+                                        const isSat = day.dayOfWeek === 6;
+                                        const isSun = day.dayOfWeek === 0;
+                                        return (
+                                            <td
+                                                key={i}
+                                                className={`border border-slate-200 px-px py-px align-top ${
+                                                    isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
+                                                }`}
+                                            >
+                                                {cellEvents.map((event) => (
+                                                    <MiniCard key={event.id} event={event} />
+                                                ))}
+                                            </td>
+                                        );
+                                    })}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
     );
