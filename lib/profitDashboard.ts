@@ -68,7 +68,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     const projectIds = projectMasters.map(pm => pm.id);
 
     // 全クエリを並列実行
-    const [estimates, invoices, settings, workItems, assignments, vehicles] = await Promise.all([
+    const [estimates, invoices, settings, workItems, assignments, vehicles, allUsers, allWorkers] = await Promise.all([
         // 見積書
         prisma.estimate.findMany({
             where: { projectMasterId: { in: projectIds } },
@@ -115,6 +115,14 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         prisma.vehicle.findMany({
             select: { id: true, dailyRate: true },
         }),
+        // ユーザー時給
+        prisma.user.findMany({
+            select: { id: true, hourlyRate: true },
+        }),
+        // 応援ワーカー時給
+        prisma.worker.findMany({
+            select: { id: true, hourlyRate: true },
+        }),
     ]);
 
     // 見積書をグループ化
@@ -147,10 +155,21 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         }
     }
 
-    // システム設定から単価計算
+    // システム設定から単価計算（個別時給未設定時のフォールバック）
     const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
     const standardWorkMinutes = settings?.standardWorkMinutes ?? 480;
-    const minuteRate = laborDailyRate / standardWorkMinutes;
+    const defaultMinuteRate = laborDailyRate / standardWorkMinutes;
+
+    // ユーザー/応援ごとの分単価マップ（hourlyRate / 60）
+    const minuteRateMap = new Map<string, number>();
+    for (const u of allUsers) {
+        minuteRateMap.set(u.id, u.hourlyRate ? Number(u.hourlyRate) / 60 : defaultMinuteRate);
+    }
+    for (const w of allWorkers) {
+        if (!minuteRateMap.has(w.id)) {
+            minuteRateMap.set(w.id, w.hourlyRate ? Number(w.hourlyRate) / 60 : defaultMinuteRate);
+        }
+    }
 
     // 日報データをプロジェクトごとに集計
     const laborCostByProject = new Map<string, number>();
@@ -159,7 +178,11 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     for (const item of workItems) {
         const projectId = item.assignment.projectMasterId;
         const workers = parseJsonField<string[]>(item.assignment.workers, []);
-        const workerCount = item.assignment.memberCount || workers.length || 1;
+
+        // ワーカーごとの分単価合計
+        const sumMinuteRate = workers.length > 0
+            ? workers.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
+            : (item.assignment.memberCount || 1) * defaultMinuteRate;
 
         // startTime/endTimeから作業分数を計算
         let workMinutes = 0;
@@ -170,7 +193,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         }
 
         // 人件費
-        const laborCost = Math.round(workMinutes * workerCount * minuteRate);
+        const laborCost = Math.round(workMinutes * sumMinuteRate);
         laborCostByProject.set(
             projectId,
             (laborCostByProject.get(projectId) || 0) + laborCost
@@ -179,7 +202,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         // 積込費
         if (item.dailyReport) {
             const loadingMinutes = item.dailyReport.morningLoadingMinutes + item.dailyReport.eveningLoadingMinutes;
-            const loadingCost = Math.round(loadingMinutes * 0.5 * workerCount * minuteRate);
+            const loadingCost = Math.round(loadingMinutes * 0.5 * sumMinuteRate);
             loadingCostByProject.set(
                 projectId,
                 (loadingCostByProject.get(projectId) || 0) + loadingCost
