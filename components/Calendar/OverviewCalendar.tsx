@@ -31,7 +31,7 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
     const { projects, fetchForDateRange, isInitialized, forceRefreshRange } = useProjects();
     const { totalMembers } = useMasterData();
     const { getVacationEmployees } = useVacation();
-    const { allForemen, isLoading: isCalendarLoading } = useCalendarDisplay();
+    const { displayedForemanIds, allForemen, isLoading: isCalendarLoading } = useCalendarDisplay();
 
     const [isMounted, setIsMounted] = useState(false);
     const events: CalendarEvent[] = useMemo(() => projects as CalendarEvent[], [projects]);
@@ -69,11 +69,14 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
         return () => clearInterval(intervalId);
     }, [status, isMounted, currentDate, forceRefreshRange]);
 
-    // Show ALL foremen (not just displayed ones) for the overview
+    // Use displayedForemanIds order (same as calendar tab)
     const employeeRows = useMemo(() => {
-        const allEmployees: Employee[] = allForemen.map(f => ({ id: f.id, name: f.displayName }));
-        return generateEmployeeRows(allEmployees, events, weekDays);
-    }, [events, weekDays, allForemen]);
+        const employees: Employee[] = displayedForemanIds
+            .map(id => allForemen.find(f => f.id === id))
+            .filter((f): f is typeof allForemen[0] => f !== undefined)
+            .map(f => ({ id: f.id, name: f.displayName }));
+        return generateEmployeeRows(employees, events, weekDays);
+    }, [events, weekDays, displayedForemanIds, allForemen]);
 
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
     const getMemberAdjustmentCb = useCallback((dateKey: string) => {
