@@ -19,11 +19,11 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
     const activeIndex = TABS.findIndex(t => t.key === activeView);
 
     return (
-        <div className="flex items-center mb-2">
-            <div className="relative inline-flex bg-slate-100 rounded-lg p-0.5">
+        <div className="flex justify-center mb-2">
+            <div className="relative inline-flex bg-slate-100 rounded-xl p-0.5 sm:p-1">
                 {/* Sliding highlight */}
                 <div
-                    className="absolute top-0.5 bottom-0.5 bg-gradient-to-r from-slate-700 to-slate-600 rounded-md shadow-md transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+                    className="absolute top-0.5 sm:top-1 bottom-0.5 sm:bottom-1 bg-gradient-to-r from-slate-700 to-slate-600 rounded-lg shadow-md transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
                     style={{
                         width: `calc(${100 / TABS.length}% - 3px)`,
                         transform: `translateX(calc(${activeIndex * 100}% + ${activeIndex * 3}px))`,
@@ -37,8 +37,8 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
                             onClick={() => onViewChange(tab.key)}
                             className={`
                                 relative z-10 whitespace-nowrap
-                                px-2.5 py-1 sm:px-4 sm:py-1.5
-                                text-[11px] sm:text-sm font-medium rounded-md
+                                px-3.5 py-1.5 sm:px-5 sm:py-2
+                                text-xs sm:text-sm font-medium rounded-lg
                                 transition-colors duration-300
                                 ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
                             `}
