@@ -3,7 +3,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { CalendarEvent, EmployeeRow, WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
-import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
+import { getDayOfWeekString } from '@/utils/dateUtils';
 
 interface OverviewCalendarViewProps {
     weekDays: WeekDay[];
@@ -17,13 +17,13 @@ interface OverviewCalendarViewProps {
 function MiniCard({ event }: { event: CalendarEvent }) {
     return (
         <div
-            className="rounded px-0.5 py-px mb-px overflow-hidden"
+            className="rounded px-0.5 py-px mb-px overflow-hidden max-w-full"
             style={{ backgroundColor: event.color || '#e2e8f0' }}
         >
-            <div className="text-[7px] leading-[9px] font-medium text-slate-800 truncate">
+            <div className="text-[6px] leading-[7px] font-medium text-slate-800 truncate">
                 {(event as any).name || event.title}
             </div>
-            <div className="text-[6px] leading-[8px] text-slate-600 truncate">
+            <div className="text-[5px] leading-[7px] text-slate-600 truncate">
                 {event.customer || ''}
             </div>
         </div>
@@ -145,42 +145,42 @@ export default function OverviewCalendarView({
                         minWidth: scale < 1 ? `${100 / scale}%` : '100%',
                     }}
                 >
-                    <table className="w-full border-collapse table-fixed" style={{ minWidth: '700px' }}>
+                    <table className="w-full border-collapse table-fixed">
                         <colgroup>
-                            <col className="w-[60px]" />
+                            <col style={{ width: '42px' }} />
                             {weekDays.map((_, i) => (
-                                <col key={i} />
+                                <col key={i} style={{ width: `${(100 - 4) / 7}%` }} />
                             ))}
                         </colgroup>
                         {/* Header */}
                         <thead className="sticky top-0 z-10">
                             <tr className="bg-slate-100">
-                                <th className="text-[9px] font-bold text-slate-700 border border-slate-300 px-1 py-0.5 sticky left-0 z-20 bg-slate-100">
+                                <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '42px' }}>
                                     職長
                                 </th>
                                 {weekDays.map((day, i) => {
                                     const dayStr = getDayOfWeekString(day.date, 'short');
-                                    const dateStr = formatDate(day.date, 'short');
+                                    const d = day.date.getDate();
                                     const isSat = day.dayOfWeek === 6;
                                     const isSun = day.dayOfWeek === 0;
                                     return (
                                         <th
                                             key={i}
-                                            className={`text-[9px] font-bold border border-slate-300 px-1 py-0.5 ${
+                                            className={`text-[8px] font-bold border border-slate-300 px-0 py-0.5 ${
                                                 day.isToday ? 'bg-slate-700 text-white' :
                                                 isSat ? 'bg-blue-50 text-blue-700' :
                                                 isSun ? 'bg-rose-50 text-rose-700' :
                                                 'text-slate-700'
                                             }`}
                                         >
-                                            {dateStr}({dayStr})
+                                            {d}({dayStr})
                                         </th>
                                     );
                                 })}
                             </tr>
                             {/* Remaining members row */}
                             <tr className="bg-white">
-                                <td className="text-[8px] font-bold text-slate-600 border border-slate-300 px-1 py-0.5 text-center sticky left-0 z-20 bg-white">
+                                <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '42px' }}>
                                     残り
                                 </td>
                                 {weekDays.map((day, i) => {
@@ -198,7 +198,7 @@ export default function OverviewCalendarView({
                                     const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
                                     const remaining = totalMembers + adj - assigned - vacation;
                                     return (
-                                        <td key={i} className="text-center border border-slate-300 px-1 py-0.5">
+                                        <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
                                             <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-slate-700' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>
                                                 {remaining}人
                                             </span>
@@ -210,7 +210,7 @@ export default function OverviewCalendarView({
                         <tbody>
                             {employeeRows.map((row) => (
                                 <tr key={row.employeeId} className="border-b border-slate-200">
-                                    <td className="text-[8px] font-semibold text-slate-700 border border-slate-200 px-1 py-0.5 text-center sticky left-0 z-10 bg-white whitespace-nowrap">
+                                    <td className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap" style={{ width: '42px' }}>
                                         {row.employeeName}
                                     </td>
                                     {weekDays.map((day, i) => {
@@ -220,7 +220,7 @@ export default function OverviewCalendarView({
                                         return (
                                             <td
                                                 key={i}
-                                                className={`border border-slate-200 px-0.5 py-0.5 align-top ${
+                                                className={`border border-slate-200 px-px py-px align-top ${
                                                     isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
                                                 }`}
                                             >
