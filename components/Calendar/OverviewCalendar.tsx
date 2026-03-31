@@ -99,6 +99,11 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
             totalMembers={totalMembers}
             getVacationEmployees={getVacationEmployees}
             getMemberAdjustment={getMemberAdjustmentCb}
+            goToPreviousWeek={goToPreviousWeek}
+            goToNextWeek={goToNextWeek}
+            goToPreviousDay={goToPreviousDay}
+            goToNextDay={goToNextDay}
+            goToToday={goToToday}
         />
     );
 }

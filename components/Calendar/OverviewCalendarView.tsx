@@ -12,6 +12,12 @@ interface OverviewCalendarViewProps {
     totalMembers: number;
     getVacationEmployees: (dateKey: string) => string[];
     getMemberAdjustment?: (dateKey: string) => number;
+    // Navigation
+    goToPreviousWeek?: () => void;
+    goToNextWeek?: () => void;
+    goToPreviousDay?: () => void;
+    goToNextDay?: () => void;
+    goToToday?: () => void;
 }
 
 function MiniCard({ event }: { event: CalendarEvent }) {
@@ -37,6 +43,11 @@ export default function OverviewCalendarView({
     totalMembers,
     getVacationEmployees,
     getMemberAdjustment,
+    goToPreviousWeek,
+    goToNextWeek,
+    goToPreviousDay,
+    goToNextDay,
+    goToToday: _goToToday,
 }: OverviewCalendarViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -107,9 +118,29 @@ export default function OverviewCalendarView({
 
     return (
         <div className="h-full flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-            {/* Header */}
-            <div className="px-3 py-1 bg-slate-50 border-b border-slate-200 flex-shrink-0">
-                <span className="text-xs text-slate-500">俯瞰ビュー（閲覧専用 / ピンチで拡大縮小）</span>
+            {/* Header with nav */}
+            <div className="px-2 py-1 bg-slate-50 border-b border-slate-200 flex-shrink-0 flex items-center justify-between">
+                {goToPreviousWeek && goToPreviousDay ? (
+                    <div className="flex items-center">
+                        <button onClick={goToPreviousWeek} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1週間前">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                        </button>
+                        <button onClick={goToPreviousDay} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1日前">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                        </button>
+                    </div>
+                ) : <div />}
+                <span className="text-xs text-slate-500">俯瞰ビュー（ピンチで拡大縮小）</span>
+                {goToNextDay && goToNextWeek ? (
+                    <div className="flex items-center">
+                        <button onClick={goToNextDay} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1日後">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                        </button>
+                        <button onClick={goToNextWeek} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1週間後">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                        </button>
+                    </div>
+                ) : <div />}
             </div>
 
             {/* Scrollable + pinch-zoomable content */}

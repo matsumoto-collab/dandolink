@@ -37,6 +37,13 @@ interface DesktopCalendarViewProps {
     handleCopyEvent?: (eventId: string) => void;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
+    // Navigation
+    goToPreviousWeek?: () => void;
+    goToNextWeek?: () => void;
+    goToPreviousDay?: () => void;
+    goToNextDay?: () => void;
+    goToToday?: () => void;
+    weekLabel?: string;
 }
 
 export default function DesktopCalendarView({
@@ -64,6 +71,12 @@ export default function DesktopCalendarView({
     handleCopyEvent,
     getMemberAdjustment,
     onMemberAdjustmentChange,
+    goToPreviousWeek,
+    goToNextWeek,
+    goToPreviousDay,
+    goToNextDay,
+    goToToday,
+    weekLabel,
 }: DesktopCalendarViewProps) {
     return (
         <DndContext
@@ -73,6 +86,35 @@ export default function DesktopCalendarView({
             onDragEnd={isReadOnly ? undefined : handleDragEnd}
             onDragCancel={isReadOnly ? undefined : handleDragCancel}
         >
+            {/* ── ナビゲーション ── */}
+            {goToPreviousWeek && goToNextWeek && goToToday && (
+                <div className="flex-shrink-0 bg-white border border-slate-200 rounded-lg shadow-sm mb-2 px-4 py-1.5 flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                        <button onClick={goToPreviousWeek} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1週間前">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                        </button>
+                        {goToPreviousDay && (
+                            <button onClick={goToPreviousDay} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1日前">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                            </button>
+                        )}
+                    </div>
+                    <button onClick={goToToday} className="font-bold text-sm text-slate-800 px-3 py-1 rounded-lg hover:bg-slate-100 transition-colors">
+                        {weekLabel || '今週'}
+                    </button>
+                    <div className="flex items-center gap-1">
+                        {goToNextDay && (
+                            <button onClick={goToNextDay} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1日後">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                            </button>
+                        )}
+                        <button onClick={goToNextWeek} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1週間後">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="calendar-container h-full flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
                 <div className="flex-1 overflow-auto bg-slate-50">
                     <div className="flex flex-col min-w-full">

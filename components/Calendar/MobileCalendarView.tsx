@@ -24,6 +24,8 @@ interface MobileCalendarViewProps {
     // Navigation
     goToPreviousWeek: () => void;
     goToNextWeek: () => void;
+    goToPreviousDay: () => void;
+    goToNextDay: () => void;
     goToToday: () => void;
     // Event handlers
     handleEventClick: (eventId: string) => void;
@@ -61,6 +63,8 @@ export default function MobileCalendarView({
     getEditingUsers,
     goToPreviousWeek,
     goToNextWeek,
+    goToPreviousDay,
+    goToNextDay,
     goToToday,
     handleEventClick,
     handleCellClick,
@@ -191,15 +195,28 @@ export default function MobileCalendarView({
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden">
 
-            {/* ── 週ナビゲーション ── */}
-            <div className={`flex-shrink-0 bg-white border-b border-slate-200 px-3 ${isLandscape ? 'py-0.5' : 'py-2'}`}>
+            {/* ── ナビゲーション ── */}
+            <div className={`flex-shrink-0 bg-white border-b border-slate-200 px-2 ${isLandscape ? 'py-0.5' : 'py-1.5'}`}>
                 <div className="flex items-center justify-between">
-                    <button
-                        onClick={goToPreviousWeek}
-                        className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-1' : 'p-2'}`}
-                    >
-                        <ChevronLeft className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                    </button>
+                    {/* Left: back buttons (week << , day <) */}
+                    <div className="flex items-center">
+                        <button
+                            onClick={goToPreviousWeek}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            aria-label="1週間前"
+                        >
+                            <svg className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
+                        </button>
+                        <button
+                            onClick={goToPreviousDay}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            aria-label="1日前"
+                        >
+                            <ChevronLeft className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                        </button>
+                    </div>
+
+                    {/* Center: week label + today + remarks toggle */}
                     <div className="flex items-center gap-2">
                         <button
                             onClick={goToToday}
@@ -217,12 +234,24 @@ export default function MobileCalendarView({
                             </button>
                         )}
                     </div>
-                    <button
-                        onClick={goToNextWeek}
-                        className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-1' : 'p-2'}`}
-                    >
-                        <ChevronRight className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
-                    </button>
+
+                    {/* Right: forward buttons (day > , week >>) */}
+                    <div className="flex items-center">
+                        <button
+                            onClick={goToNextDay}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            aria-label="1日後"
+                        >
+                            <ChevronRight className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} />
+                        </button>
+                        <button
+                            onClick={goToNextWeek}
+                            className={`rounded-lg hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                            aria-label="1週間後"
+                        >
+                            <svg className={`text-slate-600 ${isLandscape ? 'w-4 h-4' : 'w-5 h-5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 

@@ -392,6 +392,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     getEditingUsers={getEditingUsers}
                     goToPreviousWeek={goToPreviousWeek}
                     goToNextWeek={goToNextWeek}
+                    goToPreviousDay={goToPreviousDay}
+                    goToNextDay={goToNextDay}
                     goToToday={goToToday}
                     handleEventClick={isForeman2 ? handleForeman2EventClick : handleEventClick}
                     handleCellClick={isReadOnly ? undefined : handleCellClick}
@@ -428,6 +430,11 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
+                    goToPreviousWeek={goToPreviousWeek}
+                    goToNextWeek={goToNextWeek}
+                    goToPreviousDay={goToPreviousDay}
+                    goToNextDay={goToNextDay}
+                    goToToday={goToToday}
                 />
             )}
 

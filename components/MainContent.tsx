@@ -115,11 +115,6 @@ export default function MainContent() {
                         <ScheduleViewTabs
                             activeView={scheduleView}
                             onViewChange={setScheduleView}
-                            onToday={calendarNav?.goToToday}
-                            onPreviousWeek={calendarNav?.goToPreviousWeek}
-                            onNextWeek={calendarNav?.goToNextWeek}
-                            onPreviousDay={calendarNav?.goToPreviousDay}
-                            onNextDay={calendarNav?.goToNextDay}
                         />
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
