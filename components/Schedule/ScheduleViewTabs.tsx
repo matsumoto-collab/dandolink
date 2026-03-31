@@ -2,7 +2,7 @@
 
 import React from 'react';
 
-export type ScheduleView = 'calendar' | 'assignment';
+export type ScheduleView = 'calendar' | 'overview' | 'assignment';
 
 interface ScheduleViewTabsProps {
     activeView: ScheduleView;
@@ -23,6 +23,15 @@ function CalendarIcon({ className }: { className?: string }) {
     );
 }
 
+// Overview/grid icon (mini)
+function GridIcon({ className }: { className?: string }) {
+    return (
+        <svg className={className} viewBox="0 0 20 20" fill="currentColor" width="1em" height="1em">
+            <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zm0 8a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zm6-6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zm2 6a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2h-2z" />
+        </svg>
+    );
+}
+
 // List/clipboard icon (mini)
 function ClipboardIcon({ className }: { className?: string }) {
     return (
@@ -33,9 +42,15 @@ function ClipboardIcon({ className }: { className?: string }) {
     );
 }
 
+const TABS: { key: ScheduleView; label: string; icon: React.FC<{ className?: string }> }[] = [
+    { key: 'calendar', label: 'カレンダー', icon: CalendarIcon },
+    { key: 'overview', label: '一覧', icon: GridIcon },
+    { key: 'assignment', label: '手配表', icon: ClipboardIcon },
+];
+
 export default function ScheduleViewTabs({ activeView, onViewChange, onToday, onPreviousWeek, onNextWeek, onPreviousDay, onNextDay }: ScheduleViewTabsProps) {
-    const isAssignment = activeView === 'assignment';
     const showNav = onToday && onPreviousWeek && onNextWeek && onPreviousDay && onNextDay;
+    const activeIndex = TABS.findIndex(t => t.key === activeView);
 
     return (
         <div className="flex items-center justify-between mb-2">
@@ -43,42 +58,32 @@ export default function ScheduleViewTabs({ activeView, onViewChange, onToday, on
             <div className="relative inline-flex bg-slate-100 rounded-xl p-1 lg:p-1.5">
                 {/* Sliding highlight */}
                 <div
-                    className={`
-                        absolute top-1 lg:top-1.5 bottom-1 lg:bottom-1.5
-                        w-[calc(50%-4px)] lg:w-[calc(50%-6px)]
-                        bg-gradient-to-r from-slate-700 to-slate-600 rounded-lg shadow-md
-                        transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]
-                        ${isAssignment ? 'translate-x-[calc(100%+4px)] lg:translate-x-[calc(100%+6px)]' : 'translate-x-0'}
-                    `}
+                    className="absolute top-1 lg:top-1.5 bottom-1 lg:bottom-1.5 bg-gradient-to-r from-slate-700 to-slate-600 rounded-lg shadow-md transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
+                    style={{
+                        width: `calc(${100 / TABS.length}% - ${TABS.length === 3 ? '5px' : '4px'})`,
+                        transform: `translateX(calc(${activeIndex * 100}% + ${activeIndex * (TABS.length === 3 ? 5 : 4)}px))`,
+                    }}
                 />
-                {/* Calendar button */}
-                <button
-                    onClick={() => onViewChange('calendar')}
-                    className={`
-                        relative z-10 flex items-center gap-1.5 lg:gap-2
-                        px-3.5 py-1.5 lg:px-5 lg:py-2
-                        text-xs lg:text-sm font-medium rounded-lg
-                        transition-colors duration-300
-                        ${!isAssignment ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
-                    `}
-                >
-                    <CalendarIcon className="text-[14px] lg:text-[16px]" />
-                    カレンダー
-                </button>
-                {/* Assignment button */}
-                <button
-                    onClick={() => onViewChange('assignment')}
-                    className={`
-                        relative z-10 flex items-center gap-1.5 lg:gap-2
-                        px-3.5 py-1.5 lg:px-5 lg:py-2
-                        text-xs lg:text-sm font-medium rounded-lg
-                        transition-colors duration-300
-                        ${isAssignment ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
-                    `}
-                >
-                    <ClipboardIcon className="text-[14px] lg:text-[16px]" />
-                    手配表
-                </button>
+                {TABS.map((tab) => {
+                    const Icon = tab.icon;
+                    const isActive = activeView === tab.key;
+                    return (
+                        <button
+                            key={tab.key}
+                            onClick={() => onViewChange(tab.key)}
+                            className={`
+                                relative z-10 flex items-center gap-1 lg:gap-2
+                                px-3 py-1.5 lg:px-4 lg:py-2
+                                text-xs lg:text-sm font-medium rounded-lg
+                                transition-colors duration-300
+                                ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
+                            `}
+                        >
+                            <Icon className="text-[14px] lg:text-[16px]" />
+                            {tab.label}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Right: navigation buttons */}

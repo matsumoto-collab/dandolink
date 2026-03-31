@@ -19,6 +19,9 @@ function LoadingSpinner() {
 const WeeklyCalendar = dynamic(() => import('./Calendar/WeeklyCalendar'), {
     loading: () => <LoadingSpinner />,
 });
+const OverviewCalendar = dynamic(() => import('./Calendar/OverviewCalendar'), {
+    loading: () => <LoadingSpinner />,
+});
 const AssignmentTable = dynamic(() => import('./Schedule/AssignmentTable'), {
     loading: () => <LoadingSpinner />,
 });
@@ -121,6 +124,8 @@ export default function MainContent() {
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
                                 <WeeklyCalendar onNavigationReady={handleNavigationReady} />
+                            ) : scheduleView === 'overview' ? (
+                                <OverviewCalendar onNavigationReady={handleNavigationReady} />
                             ) : (
                                 <AssignmentTable />
                             )}
