@@ -25,8 +25,8 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
                 <div
                     className="absolute top-0.5 sm:top-1 bottom-0.5 sm:bottom-1 bg-gradient-to-r from-slate-700 to-slate-600 rounded-lg shadow-md transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
                     style={{
-                        width: `calc(${100 / TABS.length}% - 3px)`,
-                        transform: `translateX(calc(${activeIndex * 100}% + ${activeIndex * 3}px))`,
+                        width: `calc(${100 / TABS.length}%)`,
+                        transform: `translateX(${activeIndex * 100}%)`,
                     }}
                 />
                 {TABS.map((tab) => {

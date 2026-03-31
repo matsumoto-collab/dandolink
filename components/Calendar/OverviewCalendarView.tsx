@@ -152,15 +152,15 @@ export default function OverviewCalendarView({
                 <div ref={contentRef} style={{ transformOrigin: '0 0' }}>
                     <table className="w-full border-collapse table-fixed">
                         <colgroup>
-                            <col style={{ width: '42px' }} />
+                            <col style={{ width: '60px' }} />
                             {weekDays.map((_, i) => (
-                                <col key={i} style={{ width: `${(100 - 4) / 7}%` }} />
+                                <col key={i} />
                             ))}
                         </colgroup>
                         {/* Header */}
                         <thead className="sticky top-0 z-10">
                             <tr className="bg-slate-100">
-                                <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '42px' }}>
+                                <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '60px' }}>
                                     職長
                                 </th>
                                 {weekDays.map((day, i) => {
@@ -185,7 +185,7 @@ export default function OverviewCalendarView({
                             </tr>
                             {/* Remaining members row */}
                             <tr className="bg-white">
-                                <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '42px' }}>
+                                <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '60px' }}>
                                     残り
                                 </td>
                                 {weekDays.map((day, i) => {
@@ -215,7 +215,7 @@ export default function OverviewCalendarView({
                         <tbody>
                             {employeeRows.map((row) => (
                                 <tr key={row.employeeId} className="border-b border-slate-200">
-                                    <td className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap" style={{ width: '42px' }}>
+                                    <td className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap" style={{ width: '60px' }}>
                                         {row.employeeName}
                                     </td>
                                     {weekDays.map((day, i) => {
