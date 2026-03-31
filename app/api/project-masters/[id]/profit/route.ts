@@ -26,6 +26,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                             select: {
                                 startTime: true,
                                 endTime: true,
+                                breakMinutes: true,
+                                workerIds: true,
                                 dailyReport: {
                                     select: {
                                         id: true,
@@ -41,11 +43,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         });
         if (!projectMaster) return notFoundResponse('案件');
 
-        // 全アサインメントに含まれるworker IDを収集
-        const allWorkerIds = new Set<string>();
+        // 全workItemのworkerIds + assignment.workersからworker IDを収集
+        const allWorkerIdSet = new Set<string>();
         for (const assignment of projectMaster.assignments) {
             const workers = parseJsonField<string[]>(assignment.workers, []);
-            workers.forEach(wid => allWorkerIds.add(wid));
+            workers.forEach(wid => allWorkerIdSet.add(wid));
+            for (const workItem of assignment.dailyReportWorkItems) {
+                workItem.workerIds.forEach(wid => allWorkerIdSet.add(wid));
+            }
         }
 
         const [settings, estimates, invoices, allVehicles, allUsers, allWorkers] = await Promise.all([
@@ -53,8 +58,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, costTotal: true } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
-            prisma.user.findMany({ where: { id: { in: [...allWorkerIds] } }, select: { id: true, hourlyRate: true } }),
-            prisma.worker.findMany({ where: { id: { in: [...allWorkerIds] } }, select: { id: true, hourlyRate: true } }),
+            prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
+            prisma.worker.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
         ]);
 
         const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
@@ -82,39 +87,44 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
 
-        // N+1回避: 各workItemの作業分数を事前計算
-        const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null): number => {
+        const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null, breakMins: number): number => {
             if (!startTime || !endTime) return 0;
             const [sh, sm] = startTime.split(':').map(Number);
             const [eh, em] = endTime.split(':').map(Number);
-            return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+            return Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - breakMins);
         };
 
-        // 各dailyReport配下の全workItemの合計作業分数を計算
+        // 各dailyReport配下の全workItemの合計作業分数を計算（積込費按分用）
         const reportTotalsMap = new Map<string, number>();
         for (const assignment of projectMaster.assignments) {
             for (const workItem of assignment.dailyReportWorkItems) {
                 if (workItem.dailyReport) {
                     const reportId = workItem.dailyReport.id;
-                    const mins = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime);
+                    const mins = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime, workItem.breakMinutes);
                     reportTotalsMap.set(reportId, (reportTotalsMap.get(reportId) || 0) + mins);
                 }
             }
         }
 
         for (const assignment of projectMaster.assignments) {
-            const workers = parseJsonField<string[]>(assignment.workers, []);
             const vehicles = parseJsonField<string[]>(assignment.vehicles, []);
             vehicles.forEach(vid => { vehicleCost += vehicleRateMap.get(vid) || 0; });
 
-            // ワーカーごとの分単価合計（未登録ワーカーはデフォルト）
-            const sumMinuteRate = workers.length > 0
-                ? workers.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
-                : defaultMinuteRate;
-
             for (const workItem of assignment.dailyReportWorkItems) {
-                const workMinutes = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime);
+                const workMinutes = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime, workItem.breakMinutes);
+
+                // 日報workItemのworkerIdsを優先、なければassignment.workersにフォールバック
+                const workerIds = workItem.workerIds.length > 0
+                    ? workItem.workerIds
+                    : parseJsonField<string[]>(assignment.workers, []);
+
+                // ワーカーごとの分単価合計
+                const sumMinuteRate = workerIds.length > 0
+                    ? workerIds.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
+                    : defaultMinuteRate;
+
                 laborCost += Math.round(workMinutes * sumMinuteRate);
+
                 if (workItem.dailyReport) {
                     const totalWorkMinutes = reportTotalsMap.get(workItem.dailyReport.id) || 0;
                     if (totalWorkMinutes > 0) {
@@ -142,4 +152,3 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         return serverErrorResponse('利益計算', error);
     }
 }
-

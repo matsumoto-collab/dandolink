@@ -91,6 +91,8 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
             select: {
                 startTime: true,
                 endTime: true,
+                breakMinutes: true,
+                workerIds: true,
                 dailyReport: {
                     select: {
                         morningLoadingMinutes: true,
@@ -177,19 +179,23 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
 
     for (const item of workItems) {
         const projectId = item.assignment.projectMasterId;
-        const workers = parseJsonField<string[]>(item.assignment.workers, []);
+
+        // 日報workItemのworkerIdsを優先、なければassignment.workersにフォールバック
+        const workerIds = item.workerIds.length > 0
+            ? item.workerIds
+            : parseJsonField<string[]>(item.assignment.workers, []);
 
         // ワーカーごとの分単価合計
-        const sumMinuteRate = workers.length > 0
-            ? workers.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
+        const sumMinuteRate = workerIds.length > 0
+            ? workerIds.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
             : (item.assignment.memberCount || 1) * defaultMinuteRate;
 
-        // startTime/endTimeから作業分数を計算
+        // startTime/endTimeから作業分数を計算（休憩時間を差し引き）
         let workMinutes = 0;
         if (item.startTime && item.endTime) {
             const [sh, sm] = item.startTime.split(':').map(Number);
             const [eh, em] = item.endTime.split(':').map(Number);
-            workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+            workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (item.breakMinutes || 0));
         }
 
         // 人件費
