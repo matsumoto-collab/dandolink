@@ -16,19 +16,9 @@ const TABS: { key: ScheduleView; label: string }[] = [
 ];
 
 export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleViewTabsProps) {
-    const activeIndex = TABS.findIndex(t => t.key === activeView);
-
     return (
         <div className="flex justify-center mb-2">
-            <div className="relative inline-flex bg-slate-100 rounded-xl p-0.5 sm:p-1">
-                {/* Sliding highlight */}
-                <div
-                    className="absolute top-0.5 sm:top-1 bottom-0.5 sm:bottom-1 bg-gradient-to-r from-slate-700 to-slate-600 rounded-lg shadow-md transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1)]"
-                    style={{
-                        width: `calc(${100 / TABS.length}%)`,
-                        transform: `translateX(${activeIndex * 100}%)`,
-                    }}
-                />
+            <div className="inline-flex bg-slate-100 rounded-xl p-0.5 sm:p-1 gap-0.5">
                 {TABS.map((tab) => {
                     const isActive = activeView === tab.key;
                     return (
@@ -36,11 +26,13 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
                             key={tab.key}
                             onClick={() => onViewChange(tab.key)}
                             className={`
-                                relative z-10 whitespace-nowrap
-                                px-3.5 py-1.5 sm:px-5 sm:py-2
+                                whitespace-nowrap
+                                px-4 py-1.5 sm:px-5 sm:py-2
                                 text-xs sm:text-sm font-medium rounded-lg
-                                transition-colors duration-300
-                                ${isActive ? 'text-white' : 'text-slate-500 hover:text-slate-700'}
+                                transition-all duration-300
+                                ${isActive
+                                    ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md'
+                                    : 'text-slate-500 hover:text-slate-700'}
                             `}
                         >
                             {tab.label}
