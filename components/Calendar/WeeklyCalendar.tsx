@@ -187,30 +187,37 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         }
     }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday]);
 
-    // 表示週の前後1週間のデータをフェッチ
+    // 表示週の前後1週間のデータをフェッチ（デバウンス付き：週連打時に中間週のフェッチをスキップ）
+    const fetchTimerRef = useRef<NodeJS.Timeout | null>(null);
     useEffect(() => {
         if (status === 'authenticated' && isMounted) {
-            const weekStart = new Date(currentDate);
-            const weekEnd = addDays(weekStart, 6);
-            const rangeStart = addDays(weekStart, -7);
-            const rangeEnd = addDays(weekEnd, 7);
-            fetchForDateRange(rangeStart, rangeEnd);
+            if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current);
+            fetchTimerRef.current = setTimeout(() => {
+                const weekStart = new Date(currentDate);
+                const weekEnd = addDays(weekStart, 6);
+                const rangeStart = addDays(weekStart, -7);
+                const rangeEnd = addDays(weekEnd, 7);
+                fetchForDateRange(rangeStart, rangeEnd);
+            }, 300);
         }
+        return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
     // ポーリング: 5秒ごとに最新データを再取得（Supabase Realtime broadcast の補完）
-    // broadcast が届かなかった場合のフォールバック
+    // currentDateをrefで参照し、インターバルの再作成を防ぐ
+    const currentDateRef = useRef(currentDate);
+    currentDateRef.current = currentDate;
     useEffect(() => {
         if (status !== 'authenticated' || !isMounted) return;
         const intervalId = setInterval(() => {
-            const weekStart = new Date(currentDate);
+            const weekStart = new Date(currentDateRef.current);
             const weekEnd = addDays(weekStart, 6);
             const rangeStart = addDays(weekStart, -7);
             const rangeEnd = addDays(weekEnd, 7);
             forceRefreshRange(rangeStart, rangeEnd);
         }, 5000);
         return () => clearInterval(intervalId);
-    }, [status, isMounted, currentDate, forceRefreshRange]);
+    }, [status, isMounted, forceRefreshRange]);
 
     // projectsの参照をrefで保持（クロージャの古い値問題を回避）
     const projectsRef = useRef(projects);
