@@ -611,7 +611,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                                     <Text style={styles.cellTextCenter}>{item ? i + 1 : ''}</Text>
                                 </View>
                                 <View style={styles.cellName}>
-                                    <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 7, fontWeight: 'bold' } : styles.cellText)}>
+                                    <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 8.5, fontWeight: 'bold' } : styles.cellText)}>
                                         {item ? sanitizePdfText(item.description || '') : ''}
                                     </Text>
                                 </View>
@@ -696,7 +696,7 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
                 <Text style={styles.cellTextCenter}>{item ? idx + 1 : ''}</Text>
             </View>
             <View style={styles.cellName}>
-                <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 7, fontWeight: 'bold' } : styles.cellText)}>
+                <Text style={isNegative ? styles.cellTextRed : (isCat ? { fontSize: 8.5, fontWeight: 'bold' } : styles.cellText)}>
                     {item ? sanitizePdfText(item.description || '') : ''}
                 </Text>
             </View>
