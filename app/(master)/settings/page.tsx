@@ -16,19 +16,27 @@ export default function SettingsPage() {
     const { data: session } = useSession();
     const {
         vehicles,
-        totalMembers,
+        memberCountHistory,
         addVehicle,
         updateVehicle,
         deleteVehicle,
-        updateTotalMembers,
+        addMemberCountEntry,
+        updateMemberCountEntry,
+        deleteMemberCountEntry,
     } = useMasterData();
 
     const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'materials' | 'users'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [newItemName, setNewItemName] = useState('');
-    const [newTotalMembers, setNewTotalMembers] = useState(totalMembers.toString());
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+    // Member count history form state
+    const [newMemberDate, setNewMemberDate] = useState('');
+    const [newMemberCount, setNewMemberCount] = useState('');
+    const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
+    const [editingMemberDate, setEditingMemberDate] = useState('');
+    const [editingMemberCount, setEditingMemberCount] = useState('');
 
     // Check if user is admin
     const isUserAdmin = session?.user?.role === 'admin';
@@ -95,12 +103,40 @@ export default function SettingsPage() {
         setDeleteConfirm(null);
     };
 
-    const handleSaveTotalMembers = () => {
-        const count = parseInt(newTotalMembers);
-        if (!isNaN(count) && count > 0) {
-            updateTotalMembers(count);
-            toast.success('総メンバー数を更新しました');
+    const handleAddMemberCount = async () => {
+        const count = parseInt(newMemberCount);
+        if (!newMemberDate || isNaN(count) || count < 1) {
+            toast.error('適用開始日と人数（1以上）を入力してください');
+            return;
         }
+        // Check for duplicate date
+        const exists = memberCountHistory.some(e => e.startDate.slice(0, 10) === newMemberDate);
+        if (exists) {
+            toast.error('同じ日付の設定が既に存在します');
+            return;
+        }
+        await addMemberCountEntry(newMemberDate, count);
+        setNewMemberDate('');
+        setNewMemberCount('');
+        toast.success('メンバー数設定を追加しました');
+    };
+
+    const handleUpdateMemberCount = async () => {
+        if (!editingMemberId) return;
+        const count = parseInt(editingMemberCount);
+        if (!editingMemberDate || isNaN(count) || count < 1) {
+            toast.error('適用開始日と人数（1以上）を入力してください');
+            return;
+        }
+        await updateMemberCountEntry(editingMemberId, editingMemberDate, count);
+        setEditingMemberId(null);
+        toast.success('メンバー数設定を更新しました');
+    };
+
+    const handleDeleteMemberCount = async (id: string) => {
+        await deleteMemberCountEntry(id);
+        setDeleteConfirm(null);
+        toast.success('メンバー数設定を削除しました');
     };
 
     const getCurrentItems = () => {
@@ -163,37 +199,110 @@ export default function SettingsPage() {
                 <div className="bg-white rounded-xl shadow-lg border border-slate-200">
                     <div className="p-3 md:p-6 min-w-0 overflow-hidden">
                         {activeTab === 'members' ? (
-                            // Total Members Configuration
-                            <div className="max-w-md">
-                                <h3 className="text-lg font-semibold text-slate-900 mb-4">総メンバー数の設定</h3>
-                                <div className="bg-slate-100 border border-slate-200 rounded-xl p-4 mb-4">
-                                    <p className="text-sm text-slate-700">
-                                        現在の設定: <span className="font-bold text-xl">{totalMembers}</span>人
-                                    </p>
+                            // Member Count History Configuration
+                            <div className="max-w-lg">
+                                <h3 className="text-lg font-semibold text-slate-900 mb-2">総メンバー数の設定</h3>
+                                <p className="text-sm text-slate-500 mb-4">適用開始日ごとにメンバー数を設定できます。入退社による人数変更を期間で管理します。</p>
+
+                                {/* History List */}
+                                <div className="space-y-2 mb-6">
+                                    {memberCountHistory.map((entry) => (
+                                        <div key={entry.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                                            {editingMemberId === entry.id ? (
+                                                <>
+                                                    <input
+                                                        type="date"
+                                                        value={editingMemberDate}
+                                                        onChange={(e) => setEditingMemberDate(e.target.value)}
+                                                        className="px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                                    />
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={editingMemberCount}
+                                                        onChange={(e) => setEditingMemberCount(e.target.value)}
+                                                        className="w-20 px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                                    />
+                                                    <span className="text-sm text-slate-600">人</span>
+                                                    <button onClick={handleUpdateMemberCount} className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl" title="保存">
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                    <button onClick={() => setEditingMemberId(null)} className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl" title="キャンセル">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <span className="flex-1 text-slate-900 text-sm">
+                                                        <span className="font-medium">{entry.startDate.slice(0, 10)}</span>
+                                                        <span className="mx-2 text-slate-400">〜</span>
+                                                        <span className="font-bold text-lg">{entry.count}</span>
+                                                        <span className="text-slate-600">人</span>
+                                                    </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingMemberId(entry.id);
+                                                            setEditingMemberDate(entry.startDate.slice(0, 10));
+                                                            setEditingMemberCount(entry.count.toString());
+                                                        }}
+                                                        className="p-2 text-slate-700 hover:bg-slate-100 rounded-xl"
+                                                        title="編集"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    {deleteConfirm === entry.id ? (
+                                                        <div className="flex gap-1">
+                                                            <button onClick={() => handleDeleteMemberCount(entry.id)} className="px-3 py-1 text-xs bg-slate-700 text-white rounded-xl hover:bg-slate-800">削除</button>
+                                                            <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-xl hover:bg-slate-400">キャンセル</button>
+                                                        </div>
+                                                    ) : (
+                                                        <button
+                                                            onClick={() => setDeleteConfirm(entry.id)}
+                                                            className="p-2 text-slate-600 hover:bg-slate-50 rounded-xl"
+                                                            title="削除"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                </>
+                                            )}
+                                        </div>
+                                    ))}
+                                    {memberCountHistory.length === 0 && (
+                                        <div className="text-center py-8 text-slate-500">メンバー数設定がありません</div>
+                                    )}
                                 </div>
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                                            新しい人数
-                                        </label>
-                                        <div className="flex gap-2">
+
+                                {/* Add New Entry */}
+                                <div className="border-t border-slate-200 pt-4">
+                                    <h4 className="text-sm font-medium text-slate-700 mb-3">変更を追加</h4>
+                                    <div className="flex flex-col sm:flex-row gap-2">
+                                        <input
+                                            type="date"
+                                            value={newMemberDate}
+                                            onChange={(e) => setNewMemberDate(e.target.value)}
+                                            className="px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                            placeholder="適用開始日"
+                                        />
+                                        <div className="flex gap-2 items-center">
                                             <input
                                                 type="number"
                                                 min="1"
-                                                value={newTotalMembers}
-                                                onChange={(e) => setNewTotalMembers(e.target.value)}
-                                                className="flex-1 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                placeholder="人数を入力"
+                                                value={newMemberCount}
+                                                onChange={(e) => setNewMemberCount(e.target.value)}
+                                                className="w-24 px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
+                                                placeholder="人数"
                                             />
-                                            <span className="flex items-center text-slate-600">人</span>
+                                            <span className="text-sm text-slate-600">人</span>
                                         </div>
+                                        <button
+                                            onClick={handleAddMemberCount}
+                                            className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm"
+                                        >
+                                            <Plus className="w-4 h-4" />
+                                            追加
+                                        </button>
                                     </div>
-                                    <button
-                                        onClick={handleSaveTotalMembers}
-                                        className="w-full px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
-                                    >
-                                        保存
-                                    </button>
                                 </div>
                             </div>
                         ) : activeTab === 'constructionTypes' ? (

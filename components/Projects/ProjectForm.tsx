@@ -81,7 +81,7 @@ export default function ProjectForm({
     isSaving = false,
 }: ProjectFormProps) {
     const { projects } = useProjects();
-    const { vehicles: mockVehicles, constructionTypes, totalMembers: TOTAL_MEMBERS } = useMasterData();
+    const { vehicles: mockVehicles, constructionTypes, getTotalMembersForDate } = useMasterData();
     const { getForemanName, allForemen } = useCalendarDisplay();
 
     // 工事名称マスタ
@@ -259,9 +259,9 @@ export default function ProjectForm({
             .reduce((sum, p) => sum + (p.workers?.length || 0), 0);
         usedMembers += unassignedUsed;
 
-        // 総メンバー数（マスターデータから取得）
-        return TOTAL_MEMBERS - usedMembers;
-    }, [projects, initialData, defaultDate, TOTAL_MEMBERS]);
+        // 総メンバー数（マスターデータから日付ベースで取得）
+        return getTotalMembersForDate(dateKey) - usedMembers;
+    }, [projects, initialData, defaultDate, getTotalMembersForDate]);
 
     // 複数日スケジュール用：日付ごとの既存配置マップ
     const existingDayMap = useMemo(() => {
@@ -674,7 +674,7 @@ export default function ProjectForm({
                                     foremen={allForemen}
                                     vehicles={mockVehicles}
                                     existingDayMap={existingDayMap}
-                                    totalMembers={TOTAL_MEMBERS}
+                                    getTotalMembersForDate={getTotalMembersForDate}
                                 />
                             </div>
                         </div>
@@ -731,7 +731,7 @@ export default function ProjectForm({
                         onChange={(e) => setFormData({ ...formData, memberCount: parseInt(e.target.value) })}
                         className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-slate-100"
                     >
-                        {Array.from({ length: Math.min(availableMembers + formData.memberCount, TOTAL_MEMBERS) + 1 }, (_, i) => (
+                        {Array.from({ length: Math.min(availableMembers + formData.memberCount, getTotalMembersForDate(formatDateKey(initialData?.startDate || defaultDate || new Date()))) + 1 }, (_, i) => (
                             <option key={i} value={i}>
                                 {i}人
                             </option>

@@ -19,7 +19,7 @@ interface DesktopCalendarViewProps {
     isReadOnly: boolean;
     canDispatch: boolean;
     isSaving: boolean;
-    totalMembers: number;
+    getTotalMembersForDate: (dateStr: string) => number;
     getVacationEmployees: (dateKey: string) => string[];
     getEditingUsers: (assignmentId: string) => EditingUser[];
     // DnD
@@ -55,7 +55,7 @@ export default function DesktopCalendarView({
     isReadOnly,
     canDispatch,
     isSaving,
-    totalMembers,
+    getTotalMembersForDate,
     getVacationEmployees,
     getEditingUsers,
     handleDragStart,
@@ -163,7 +163,7 @@ export default function DesktopCalendarView({
                                     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                                     const vacationCount = getVacationEmployees(dateKey).length;
                                     const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                                    const remainingCount = totalMembers + adjustment - assignedCount - vacationCount;
+                                    const remainingCount = getTotalMembersForDate(dateKey) + adjustment - assignedCount - vacationCount;
 
                                     return (
                                         <div key={index} className={`flex-1 min-w-[110px] xl:min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>

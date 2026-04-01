@@ -311,6 +311,18 @@ model SystemSettings {
   @@schema("public")
 }
 
+model MemberCountHistory {
+  id        String   @id @default(uuid())
+  startDate DateTime @db.Date
+  count     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([startDate])
+  @@index([startDate])
+  @@schema("public")
+}
+
 model UnitPriceTemplate {
   id        String   @id @default(uuid())
   name      String

@@ -44,7 +44,7 @@ interface MultiDayScheduleEditorProps {
     foremen?: ForemanOption[];
     vehicles?: VehicleOption[];
     existingDayMap?: Record<string, DayExistingInfo[]>;
-    totalMembers?: number;
+    getTotalMembersForDate?: (dateStr: string) => number;
 }
 
 export default function MultiDayScheduleEditor({
@@ -54,7 +54,7 @@ export default function MultiDayScheduleEditor({
     foremen = [],
     vehicles = [],
     existingDayMap = {},
-    totalMembers = 0,
+    getTotalMembersForDate,
 }: MultiDayScheduleEditorProps) {
     const [mode, setMode] = useState<'range' | 'individual'>('range');
     const [rangeStart, setRangeStart] = useState('');
@@ -125,7 +125,8 @@ export default function MultiDayScheduleEditor({
         });
         let used = 0;
         byForeman.forEach(v => { used += v; });
-        return totalMembers - used;
+        const total = getTotalMembersForDate ? getTotalMembersForDate(key) : 0;
+        return total - used;
     };
 
     const getExistingForDate = (date: Date): DayExistingInfo[] => {

@@ -29,7 +29,7 @@ interface OverviewCalendarProps {
 export default function OverviewCalendar({ onNavigationReady }: OverviewCalendarProps) {
     const { status } = useSession();
     const { projects, fetchForDateRange, isInitialized, forceRefreshRange } = useProjects();
-    const { totalMembers } = useMasterData();
+    const { getTotalMembersForDate } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, allForemen, isLoading: isCalendarLoading } = useCalendarDisplay();
 
@@ -96,7 +96,7 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
             weekDays={weekDays}
             events={events}
             employeeRows={employeeRows}
-            totalMembers={totalMembers}
+            getTotalMembersForDate={getTotalMembersForDate}
             getVacationEmployees={getVacationEmployees}
             getMemberAdjustment={getMemberAdjustmentCb}
             goToPreviousWeek={goToPreviousWeek}

@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useMasterStore } from '@/stores/masterStore';
 
 // Re-export types for backward compatibility
-export type { Vehicle, MasterData } from '@/stores/masterStore';
+export type { Vehicle, MasterData, MemberCountHistoryEntry } from '@/stores/masterStore';
 
 // This hook wraps the Zustand store and handles initialization/realtime
 export function useMasterData() {
@@ -15,6 +15,7 @@ export function useMasterData() {
     const vehicles = useMasterStore((state) => state.vehicles);
     const constructionTypes = useMasterStore((state) => state.constructionTypes);
     const totalMembers = useMasterStore((state) => state.totalMembers);
+    const memberCountHistory = useMasterStore((state) => state.memberCountHistory);
     const isLoading = useMasterStore((state) => state.isLoading);
     const isInitialized = useMasterStore((state) => state.isInitialized);
 
@@ -24,7 +25,10 @@ export function useMasterData() {
     const addVehicle = useMasterStore((state) => state.addVehicle);
     const updateVehicle = useMasterStore((state) => state.updateVehicle);
     const deleteVehicle = useMasterStore((state) => state.deleteVehicle);
-    const updateTotalMembers = useMasterStore((state) => state.updateTotalMembers);
+    const addMemberCountEntry = useMasterStore((state) => state.addMemberCountEntry);
+    const updateMemberCountEntry = useMasterStore((state) => state.updateMemberCountEntry);
+    const deleteMemberCountEntry = useMasterStore((state) => state.deleteMemberCountEntry);
+    const getTotalMembersForDate = useMasterStore((state) => state.getTotalMembersForDate);
     const setupRealtimeSubscription = useMasterStore((state) => state.setupRealtimeSubscription);
 
     // Initialize data when authenticated
@@ -50,6 +54,7 @@ export function useMasterData() {
         vehicles,
         constructionTypes,
         totalMembers,
+        memberCountHistory,
         isLoading,
 
         // Vehicle operations
@@ -57,8 +62,11 @@ export function useMasterData() {
         updateVehicle,
         deleteVehicle,
 
-        // Total members
-        updateTotalMembers,
+        // Member count history
+        addMemberCountEntry,
+        updateMemberCountEntry,
+        deleteMemberCountEntry,
+        getTotalMembersForDate,
 
         // Refresh
         refreshMasterData,

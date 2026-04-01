@@ -14,11 +14,18 @@ export interface Manager {
     name: string;
 }
 
+export interface MemberCountHistoryEntry {
+    id: string;
+    startDate: string; // ISO date string
+    count: number;
+}
+
 export interface MasterData {
     vehicles: Vehicle[];
     managers: Manager[];
     constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
+    memberCountHistory: MemberCountHistoryEntry[];
 }
 
 interface MasterState {
@@ -26,6 +33,7 @@ interface MasterState {
     vehicles: Vehicle[];
     constructionTypes: ConstructionTypeMaster[];
     totalMembers: number;
+    memberCountHistory: MemberCountHistoryEntry[];
 
     // Status
     isLoading: boolean;
@@ -45,8 +53,12 @@ interface MasterActions {
     updateVehicle: (id: string, name: string) => Promise<void>;
     deleteVehicle: (id: string) => Promise<void>;
 
-    // Total members
-    updateTotalMembers: (count: number) => Promise<void>;
+    // Member count history
+    fetchMemberCountHistory: () => Promise<void>;
+    addMemberCountEntry: (startDate: string, count: number) => Promise<void>;
+    updateMemberCountEntry: (id: string, startDate: string, count: number) => Promise<void>;
+    deleteMemberCountEntry: (id: string) => Promise<void>;
+    getTotalMembersForDate: (dateStr: string) => number;
 
     // Realtime
     setupRealtimeSubscription: () => Promise<void>;
@@ -62,6 +74,7 @@ const initialState: MasterState = {
     vehicles: [],
     constructionTypes: [],
     totalMembers: 20,
+    memberCountHistory: [],
     isLoading: false,
     isInitialized: false,
     _realtimeChannels: [],
@@ -77,14 +90,20 @@ export const useMasterStore = create<MasterStore>()(
             set({ isLoading: true });
             try {
                 // Fetch master data and construction types in parallel
-                const [masterResponse, constructionTypesResponse] = await Promise.all([
+                const [masterResponse, constructionTypesResponse, historyResponse] = await Promise.all([
                     fetch('/api/master-data', { cache: 'no-store' }),
                     fetch('/api/master-data/construction-types', { cache: 'no-store' }),
+                    fetch('/api/master-data/member-count-history', { cache: 'no-store' }),
                 ]);
 
                 let constructionTypes: ConstructionTypeMaster[] = [];
                 if (constructionTypesResponse.ok) {
                     constructionTypes = await constructionTypesResponse.json();
+                }
+
+                let memberCountHistory: MemberCountHistoryEntry[] = [];
+                if (historyResponse.ok) {
+                    memberCountHistory = await historyResponse.json();
                 }
 
                 if (masterResponse.ok) {
@@ -93,6 +112,7 @@ export const useMasterStore = create<MasterStore>()(
                         vehicles: data.vehicles || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
+                        memberCountHistory,
                         isInitialized: true,
                     });
                 }
@@ -106,14 +126,20 @@ export const useMasterStore = create<MasterStore>()(
         refreshMasterData: async () => {
             // Force refresh without checking isLoading
             try {
-                const [masterResponse, constructionTypesResponse] = await Promise.all([
+                const [masterResponse, constructionTypesResponse, historyResponse] = await Promise.all([
                     fetch('/api/master-data', { cache: 'no-store' }),
                     fetch('/api/master-data/construction-types', { cache: 'no-store' }),
+                    fetch('/api/master-data/member-count-history', { cache: 'no-store' }),
                 ]);
 
                 let constructionTypes: ConstructionTypeMaster[] = [];
                 if (constructionTypesResponse.ok) {
                     constructionTypes = await constructionTypesResponse.json();
+                }
+
+                let memberCountHistory: MemberCountHistoryEntry[] = [];
+                if (historyResponse.ok) {
+                    memberCountHistory = await historyResponse.json();
                 }
 
                 if (masterResponse.ok) {
@@ -122,6 +148,7 @@ export const useMasterStore = create<MasterStore>()(
                         vehicles: data.vehicles || [],
                         constructionTypes,
                         totalMembers: data.totalMembers || 20,
+                        memberCountHistory,
                         isInitialized: true,
                     });
                 }
@@ -167,16 +194,67 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
-        // Total members
-        updateTotalMembers: async (count: number) => {
-            const response = await fetch('/api/master-data/settings', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ totalMembers: count }),
-            });
-            if (response.ok) {
-                set({ totalMembers: count });
+        // Member count history
+        fetchMemberCountHistory: async () => {
+            try {
+                const res = await fetch('/api/master-data/member-count-history', { cache: 'no-store' });
+                if (res.ok) {
+                    const history: MemberCountHistoryEntry[] = await res.json();
+                    set({ memberCountHistory: history });
+                }
+            } catch (error) {
+                console.error('Failed to fetch member count history:', error);
             }
+        },
+
+        addMemberCountEntry: async (startDate: string, count: number) => {
+            const res = await fetch('/api/master-data/member-count-history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ startDate, count }),
+            });
+            if (res.ok) {
+                await get().fetchMemberCountHistory();
+            }
+        },
+
+        updateMemberCountEntry: async (id: string, startDate: string, count: number) => {
+            const res = await fetch('/api/master-data/member-count-history', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, startDate, count }),
+            });
+            if (res.ok) {
+                await get().fetchMemberCountHistory();
+            }
+        },
+
+        deleteMemberCountEntry: async (id: string) => {
+            const res = await fetch('/api/master-data/member-count-history', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id }),
+            });
+            if (res.ok) {
+                await get().fetchMemberCountHistory();
+            }
+        },
+
+        getTotalMembersForDate: (dateStr: string) => {
+            const history = get().memberCountHistory;
+            if (history.length === 0) return get().totalMembers;
+            // history is sorted by startDate asc
+            // Find the latest entry whose startDate <= dateStr
+            let result = history[0].count;
+            for (const entry of history) {
+                const entryDate = entry.startDate.slice(0, 10);
+                if (entryDate <= dateStr) {
+                    result = entry.count;
+                } else {
+                    break;
+                }
+            }
+            return result;
         },
 
         // Realtime subscription
@@ -187,7 +265,7 @@ export const useMasterStore = create<MasterStore>()(
             try {
                 const { supabase } = await import('@/lib/supabase');
                 const channels: RealtimeChannel[] = [];
-                const tables = ['Vehicle', 'SystemSettings', 'ConstructionType'];
+                const tables = ['Vehicle', 'SystemSettings', 'ConstructionType', 'MemberCountHistory'];
 
                 tables.forEach(table => {
                     const channel = supabase
@@ -238,5 +316,7 @@ export const useMasterStore = create<MasterStore>()(
 export const selectVehicles = (state: MasterStore) => state.vehicles;
 export const selectConstructionTypes = (state: MasterStore) => state.constructionTypes;
 export const selectTotalMembers = (state: MasterStore) => state.totalMembers;
+export const selectMemberCountHistory = (state: MasterStore) => state.memberCountHistory;
+export const selectGetTotalMembersForDate = (state: MasterStore) => state.getTotalMembersForDate;
 export const selectIsLoading = (state: MasterStore) => state.isLoading;
 export const selectIsInitialized = (state: MasterStore) => state.isInitialized;

@@ -18,7 +18,7 @@ interface MobileCalendarViewProps {
     isReadOnly: boolean;
     canDispatch: boolean;
     isSaving: boolean;
-    totalMembers: number;
+    getTotalMembersForDate: (dateStr: string) => number;
     getVacationEmployees: (dateKey: string) => string[];
     getEditingUsers: (assignmentId: string) => EditingUser[];
     // Navigation
@@ -58,7 +58,7 @@ export default function MobileCalendarView({
     isReadOnly,
     canDispatch,
     isSaving,
-    totalMembers,
+    getTotalMembersForDate,
     getVacationEmployees,
     getEditingUsers,
     goToPreviousWeek,
@@ -344,7 +344,7 @@ export default function MobileCalendarView({
                             byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                             const vacationCount = getVacationEmployees(dateKey).length;
                             const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                            const remaining = totalMembers + adjustment - assignedCount - vacationCount;
+                            const remaining = getTotalMembersForDate(dateKey) + adjustment - assignedCount - vacationCount;
                             return (
                                 <div
                                     key={dateKey}

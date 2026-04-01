@@ -9,7 +9,7 @@ interface OverviewCalendarViewProps {
     weekDays: WeekDay[];
     events: CalendarEvent[];
     employeeRows: EmployeeRow[];
-    totalMembers: number;
+    getTotalMembersForDate: (dateStr: string) => number;
     getVacationEmployees: (dateKey: string) => string[];
     getMemberAdjustment?: (dateKey: string) => number;
     // Navigation
@@ -40,7 +40,7 @@ export default function OverviewCalendarView({
     weekDays,
     events,
     employeeRows,
-    totalMembers,
+    getTotalMembersForDate,
     getVacationEmployees,
     getMemberAdjustment,
     goToPreviousWeek,
@@ -201,7 +201,7 @@ export default function OverviewCalendarView({
                                     byForeman.forEach(counts => { assigned += Math.max(...counts); });
                                     const vacation = getVacationEmployees(dateKey).length;
                                     const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                                    const remaining = totalMembers + adj - assigned - vacation;
+                                    const remaining = getTotalMembersForDate(dateKey) + adj - assigned - vacation;
                                     return (
                                         <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
                                             <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-slate-700' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>

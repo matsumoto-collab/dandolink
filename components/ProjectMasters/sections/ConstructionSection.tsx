@@ -6,7 +6,7 @@ import { FormField } from '../common/FormField';
 import { ProjectMasterFormData, WorkDateEntry } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useMasterStore, selectTotalMembers, selectConstructionTypes } from '@/stores/masterStore';
+import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { ConstructionTypeMaster, ProjectAssignment } from '@/types/calendar';
 
 interface ConstructionSectionProps {
@@ -43,14 +43,16 @@ function DateConflictList({
     assignments,
     getForemanName,
     displayedForemanIds,
-    totalMembers,
+    getTotalMembersForDate,
+    dateStr,
     vacationCount,
     isLoading,
 }: {
     assignments: ProjectAssignment[];
     getForemanName: (id: string) => string;
     displayedForemanIds: string[];
-    totalMembers: number;
+    getTotalMembersForDate: (dateStr: string) => number;
+    dateStr: string;
     vacationCount: number;
     isLoading: boolean;
 }) {
@@ -71,6 +73,7 @@ function DateConflictList({
     });
     let assignedCount = 0;
     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
+    const totalMembers = getTotalMembersForDate(dateStr);
     const remaining = totalMembers > 0 ? totalMembers - assignedCount - vacationCount : null;
 
     const sorted = [...assignments].sort((a, b) => {
@@ -212,7 +215,7 @@ function WorkDateRow({
     constructionTypes,
     allForemen,
     displayedForemanIds,
-    totalMembers,
+    getTotalMembersForDate,
     getVacationEmployees,
     getForemanName,
     onChange,
@@ -223,7 +226,7 @@ function WorkDateRow({
     constructionTypes: ConstructionTypeMaster[];
     allForemen: { id: string; displayName: string }[];
     displayedForemanIds: string[];
-    totalMembers: number;
+    getTotalMembersForDate: (dateStr: string) => number;
     getVacationEmployees: (date: string) => string[];
     getForemanName: (id: string) => string;
     onChange: (updated: WorkDateEntry) => void;
@@ -295,7 +298,8 @@ function WorkDateRow({
                         assignments={assignments}
                         getForemanName={getForemanName}
                         displayedForemanIds={displayedForemanIds}
-                        totalMembers={totalMembers}
+                        getTotalMembersForDate={getTotalMembersForDate}
+                        dateStr={entry.date}
                         vacationCount={getVacationEmployees(entry.date).length}
                         isLoading={isLoading}
                     />
@@ -316,7 +320,7 @@ function WorkDateRow({
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
     const { getForemanName, allForemen, displayedForemanIds } = useCalendarDisplay();
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
-    const totalMembers = useMasterStore(selectTotalMembers);
+    const getTotalMembersForDate = useMasterStore(state => state.getTotalMembersForDate);
     const constructionTypes = useMasterStore(selectConstructionTypes);
 
     // constructionTypes ロード後にデフォルト種別を自動セット（全行が未設定の場合のみ）
@@ -400,7 +404,7 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                             constructionTypes={constructionTypes}
                             allForemen={allForemen}
                             displayedForemanIds={displayedForemanIds}
-                            totalMembers={totalMembers}
+                            getTotalMembersForDate={getTotalMembersForDate}
                             getVacationEmployees={getVacationEmployees}
                             getForemanName={getForemanName}
                             onChange={updated => updateWorkDate(entry.id, updated)}
