@@ -195,7 +195,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const addChildItem = (categoryId: string) => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === categoryId && item.isCategory) {
                 const newChild: EstimateItem = {
                     id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -209,7 +209,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const updateChildItem = (categoryId: string, childId: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === categoryId && item.isCategory) {
                 const updatedChildren = (item.children || []).map(child => {
                     if (child.id === childId) {
@@ -227,7 +227,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const removeChildItem = (categoryId: string, childId: string) => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === categoryId && item.isCategory) {
                 const updated = { ...item, children: (item.children || []).filter(c => c.id !== childId) };
                 return recalcCategoryAmount(updated);
@@ -237,7 +237,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const moveChildItem = (categoryId: string, childIndex: number, direction: 'up' | 'down') => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === categoryId && item.isCategory) {
                 const children = [...(item.children || [])];
                 const swapIdx = direction === 'up' ? childIndex - 1 : childIndex + 1;
@@ -250,7 +250,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const reorderChildItems = (categoryId: string, fromIndex: number, toIndex: number) => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === categoryId && item.isCategory) {
                 const children = [...(item.children || [])];
                 const [moved] = children.splice(fromIndex, 1);
@@ -277,7 +277,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     };
 
     const handleSelectMasterForItem = (itemId: string, master: UnitPriceMaster) => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === itemId) {
                 return { ...item, description: master.description, unit: master.unit, unitPrice: master.unitPrice, amount: Math.round(item.quantity * master.unitPrice) };
             }
@@ -298,10 +298,10 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         }));
     };
 
-    const removeItem = (id: string) => { if (items.length > 1) setItems(items.filter(item => item.id !== id)); };
+    const removeItem = (id: string) => { setItems(prev => prev.length > 1 ? prev.filter(item => item.id !== id) : prev); };
 
     const updateItem = (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
-        setItems(items.map(item => {
+        setItems(prev => prev.map(item => {
             if (item.id === id) {
                 const updated = { ...item, [field]: value };
                 if (field === 'quantity' || field === 'unitPrice') updated.amount = Math.round(updated.quantity * updated.unitPrice);
