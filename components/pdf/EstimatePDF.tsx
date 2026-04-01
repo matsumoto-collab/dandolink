@@ -767,7 +767,7 @@ function CategoryDetailsPage({
                         <Text style={styles.cellTextCenter}></Text>
                     </View>
                     <View style={styles.cellName}>
-                        <Text style={{ fontSize: 7.5, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
+                        <Text style={{ fontSize: 8.5, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
                     </View>
                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellQty}><Text style={styles.cellText}>{category.quantity && category.quantity > 0 ? category.quantity.toLocaleString() : ''}</Text></View>
