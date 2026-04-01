@@ -764,10 +764,10 @@ function CategoryDetailsPage({
 
                 <View style={styles.tableRow}>
                     <View style={styles.cellNo}>
-                        <Text style={styles.cellTextCenter}>1</Text>
+                        <Text style={styles.cellTextCenter}></Text>
                     </View>
                     <View style={styles.cellName}>
-                        <Text style={{ fontSize: 7, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
+                        <Text style={{ fontSize: 7.5, fontWeight: 'bold' }}>{sanitizePdfText(category.description)}</Text>
                     </View>
                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellQty}><Text style={styles.cellText}>{category.quantity && category.quantity > 0 ? category.quantity.toLocaleString() : ''}</Text></View>
@@ -783,7 +783,7 @@ function CategoryDetailsPage({
                     for (let i = 0; i < totalRows && i < maxRows - 1; i++) {
                         const child = i < children.length ? children[i] : null;
                         rows.push(
-                            <TableItemRow key={i} idx={i + 1} item={child} isLast={i === totalRows - 1} />
+                            <TableItemRow key={i} idx={i} item={child} isLast={i === totalRows - 1} />
                         );
                     }
                     return rows;
