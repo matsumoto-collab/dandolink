@@ -503,18 +503,18 @@ export default function ItemsEditor({
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
             <div className="hidden lg:block border border-slate-200 rounded-lg overflow-x-auto">
-                <table className="w-full min-w-[900px]">
+                <table className="min-w-[1200px]">
                     <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
                             <th className="w-8"></th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">項目</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-40">規格</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-60">項目</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-56">規格</th>
                             <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">数量</th>
                             <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">単位</th>
                             <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 w-28">単価</th>
                             <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-24">税率</th>
                             <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600 w-28">金額</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-40">備考</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-56">備考</th>
                             <th className="px-3 py-2 text-center text-xs font-semibold text-slate-600 w-20">操作</th>
                         </tr>
                     </thead>
