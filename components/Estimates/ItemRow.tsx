@@ -148,6 +148,7 @@ function DescriptionInput({ item, onUpdate, unitPriceMasters, onSelectMaster, cl
                 }}
                 className={className}
                 placeholder="品目・内容"
+                style={{ imeMode: 'active' }}
             />
             {dropdown}
         </>
@@ -181,6 +182,7 @@ function UnitPriceInput({ item, onUpdate, className }: { item: EstimateItem; onU
             }}
             className={`${className} ${item.unitPrice < 0 ? 'text-red-600' : ''}`}
             placeholder="単価"
+            style={{ imeMode: 'inactive' }}
         />
     );
 }
@@ -250,7 +252,7 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
 
     if (masterSpecs.length === 0) {
         return (
-            <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={className} placeholder="規格" />
+            <input type="text" value={item.specification || ''} onChange={(e) => onUpdate(item.id, 'specification', e.target.value)} className={className} placeholder="規格" style={{ imeMode: 'active' }} />
         );
     }
 
@@ -313,6 +315,7 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
                 }}
                 className={className}
                 placeholder="規格"
+                style={{ imeMode: 'active' }}
             />
             {dropdown}
         </>
@@ -355,10 +358,11 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                     }}
                     className={cellInputClass}
                     placeholder="数量"
+                    style={{ imeMode: 'inactive' }}
                 />
             </td>
             <td className="px-3 py-2">
-                <input type="text" value={item.unit || ''} onChange={(e) => onUpdate(item.id, 'unit', e.target.value)} className={cellInputClass} placeholder="式、m、個" />
+                <input type="text" value={item.unit || ''} onChange={(e) => onUpdate(item.id, 'unit', e.target.value)} className={cellInputClass} placeholder="式、m、個" style={{ imeMode: 'active' }} />
             </td>
             <td className="px-3 py-2">
                 <UnitPriceInput item={item} onUpdate={onUpdate} className={cellInputClass} />
@@ -375,7 +379,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                 </div>
             </td>
             <td className="px-3 py-2">
-                <input type="text" value={item.notes || ''} onChange={(e) => onUpdate(item.id, 'notes', e.target.value)} className={cellInputClass} placeholder="備考" />
+                <input type="text" value={item.notes || ''} onChange={(e) => onUpdate(item.id, 'notes', e.target.value)} className={cellInputClass} placeholder="備考" style={{ imeMode: 'active' }} />
             </td>
             <td className="px-3 py-2">
                 <div className="flex items-center justify-center gap-1">
