@@ -167,32 +167,35 @@ function CategoryTableRow({
                     </button>
                 </td>
             )}
-            <td className="px-3 py-2" colSpan={2}>
+            <td className="px-3 py-2">
                 <div className="flex items-center gap-2">
                     <button type="button" onClick={onToggle} className="p-0.5 text-slate-500 hover:text-slate-700">
                         {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
                     </button>
-                    <CategoryNameInput
-                        value={item.description}
-                        onChange={(v) => onUpdate(item.id, 'description', v)}
-                        onSelectCategory={(cat) => {
-                            if (cat.quantity) onUpdate(item.id, 'quantity', cat.quantity);
-                            if (cat.unit) onUpdate(item.id, 'unit', cat.unit);
-                        }}
-                        categories={unitPriceCategories}
-                        className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 font-medium"
-                        placeholder="カテゴリ名（例: 仮設工事）"
-                    />
-                    <select
-                        value={item.categoryType || 'detail'}
-                        onChange={(e) => onUpdate(item.id, 'categoryType', e.target.value as 'inline' | 'detail')}
-                        className="px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 bg-white"
-                    >
-                        <option value="detail">内訳明細書</option>
-                        <option value="inline">表紙に展開</option>
-                    </select>
+                    <div className="flex-1 min-w-0">
+                        <CategoryNameInput
+                            value={item.description}
+                            onChange={(v) => onUpdate(item.id, 'description', v)}
+                            onSelectCategory={(cat) => {
+                                if (cat.quantity) onUpdate(item.id, 'quantity', cat.quantity);
+                                if (cat.unit) onUpdate(item.id, 'unit', cat.unit);
+                            }}
+                            categories={unitPriceCategories}
+                            className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 font-medium"
+                            placeholder="カテゴリ名（例: 仮設工事）"
+                        />
+                        <select
+                            value={item.categoryType || 'detail'}
+                            onChange={(e) => onUpdate(item.id, 'categoryType', e.target.value as 'inline' | 'detail')}
+                            className="mt-1 px-2 py-0.5 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 bg-white"
+                        >
+                            <option value="detail">内訳明細書</option>
+                            <option value="inline">表紙に展開</option>
+                        </select>
+                    </div>
                 </div>
             </td>
+            <td className="px-3 py-2"></td>
             <td className="px-3 py-2">
                 <input
                     type="text"
