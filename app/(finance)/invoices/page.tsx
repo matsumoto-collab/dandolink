@@ -9,7 +9,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, Download } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
@@ -262,17 +262,15 @@ export default function InvoiceListPage() {
                             return (
                                 <div
                                     key={invoice.id}
-                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer"
+                                    onClick={() => handleOpenDetail(invoice)}
                                 >
                                     {/* ヘッダー: 請求番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">
-                                        <button
-                                            onClick={() => handleOpenDetail(invoice)}
-                                            className="text-base font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
-                                        >
+                                        <span className="text-base font-semibold text-slate-600">
                                             {invoice.invoiceNumber}
-                                        </button>
-                                        <div className="flex gap-2">
+                                        </span>
+                                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
                                                 className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -292,12 +290,9 @@ export default function InvoiceListPage() {
 
                                     {/* 案件名 */}
                                     {getProjectName(invoice) ? (
-                                        <button
-                                            onClick={() => handleOpenDetail(invoice)}
-                                            className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
-                                        >
+                                        <div className="text-sm text-slate-700 mb-3">
                                             {getProjectName(invoice)}
-                                        </button>
+                                        </div>
                                     ) : (
                                         <div className="text-sm text-slate-500 mb-3">案件未紐付け</div>
                                     )}
@@ -389,24 +384,19 @@ export default function InvoiceListPage() {
                                 return (
                                     <tr
                                         key={invoice.id}
-                                        className="hover:bg-slate-50 transition-all duration-200"
+                                        className="hover:bg-slate-50 transition-all duration-200 cursor-pointer"
+                                        onClick={() => handleOpenDetail(invoice)}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                onClick={() => handleOpenDetail(invoice)}
-                                                className="text-sm font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
-                                            >
+                                            <span className="text-sm font-semibold text-slate-600">
                                                 {invoice.invoiceNumber}
-                                            </button>
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {getProjectName(invoice) ? (
-                                                <button
-                                                    onClick={() => handleOpenDetail(invoice)}
-                                                    className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
-                                                >
+                                                <span className="text-sm text-slate-700">
                                                     {getProjectName(invoice)}
-                                                </button>
+                                                </span>
                                             ) : (
                                                 <span className="text-sm text-slate-500">案件未紐付け</span>
                                             )}
@@ -429,14 +419,7 @@ export default function InvoiceListPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {formatDate(invoice.createdAt, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleOpenDetail(invoice)}
-                                                className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
-                                                title="PDFプレビュー"
-                                            >
-                                                <Download className="w-5 h-5" />
-                                            </button>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
                                                 className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
