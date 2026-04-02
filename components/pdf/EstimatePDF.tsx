@@ -447,7 +447,7 @@ function flattenItemsForCover(items: Estimate['items']): Estimate['items'] {
     for (const item of items) {
         if (item.isCategory && item.categoryType === 'inline') {
             // カテゴリ名を太字ヘッダー行として追加（金額なし）
-            result.push({ ...item, amount: 0, children: undefined });
+            result.push({ ...item, children: undefined });
             // 子項目を通常行として展開
             for (const child of (item.children || [])) {
                 result.push(child);
