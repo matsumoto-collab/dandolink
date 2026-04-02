@@ -28,15 +28,16 @@ const InvoiceDetailModal = dynamic(
 export default function InvoiceListPage() {
     const { invoices, isLoading, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
-    const { companyInfo } = useCompany();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
 
     // ページ表示時にデータを読み込み
     useEffect(() => {
         ensureDataLoaded();
+        ensureCompanyLoaded();
         ensureCustomersLoaded();
         fetchProjectMasters();
-    }, [ensureDataLoaded, ensureCustomersLoaded, fetchProjectMasters]);
+    }, [ensureDataLoaded, ensureCompanyLoaded, ensureCustomersLoaded, fetchProjectMasters]);
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
