@@ -441,12 +441,14 @@ interface EstimatePDFProps {
 /**
  * inlineカテゴリの子項目を表紙用にフラット展開する。
  * detailカテゴリはそのまま1行（従来通り）。
+ * 注意: inlineカテゴリヘッダー行はisCategoryフラグを保持するが、
+ *       金額は表示用に残す（小計計算時はsumFlatItemsで除外される）
  */
 function flattenItemsForCover(items: Estimate['items']): Estimate['items'] {
     const result: Estimate['items'] = [];
     for (const item of items) {
         if (item.isCategory && item.categoryType === 'inline') {
-            // カテゴリ名を太字ヘッダー行として追加（金額なし）
+            // カテゴリ名を太字ヘッダー行として追加（金額表示あり、childrenなし）
             result.push({ ...item, children: undefined });
             // 子項目を通常行として展開
             for (const child of (item.children || [])) {
@@ -457,6 +459,19 @@ function flattenItemsForCover(items: Estimate['items']): Estimate['items'] {
         }
     }
     return result;
+}
+
+/**
+ * フラット展開済みアイテムの小計を計算する。
+ * inlineカテゴリヘッダー行（isCategory=true, children=undefined）は
+ * 子項目と二重加算になるため除外する。
+ */
+function sumFlatItems(flatItems: Estimate['items']): number {
+    return flatItems.reduce((sum, item) => {
+        // inlineカテゴリヘッダー行はスキップ（子項目の金額で既に加算済み）
+        if (item.isCategory && item.categoryType === 'inline' && !item.children) return sum;
+        return sum + (item.amount || 0);
+    }, 0);
 }
 
 function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<EstimatePDFProps, 'includeDetails'>) {
@@ -672,7 +687,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                 {(() => {
                     const coverItems = flattenItemsForCover(estimate.items);
                     const pageItems = coverItems.slice(0, 12);
-                    const pageSubtotal = pageItems.reduce((sum, it) => sum + (it.amount || 0), 0);
+                    const pageSubtotal = sumFlatItems(pageItems);
                     return (
                         <View style={styles.totalRow}>
                             <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
@@ -716,13 +731,13 @@ function CoverContinuationPages({
 
     // 表紙1ページ目(12行)の小計
     const coverFirstPageItems = flatCoverItems.slice(0, COVER_MAX_ROWS);
-    const coverFirstPageSubtotal = coverFirstPageItems.reduce((sum, it) => sum + (it.amount || 0), 0);
+    const coverFirstPageSubtotal = sumFlatItems(coverFirstPageItems);
 
     for (let p = 0; p < totalPages; p++) {
         const pageItems = overflowItems.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
         // 累計小計: 1ページ目の小計 + 続きページのここまでの全項目
         const continuationItemsUpToHere = overflowItems.slice(0, (p + 1) * ROWS_PER_PAGE);
-        const cumulativeSubtotal = coverFirstPageSubtotal + continuationItemsUpToHere.reduce((sum, it) => sum + (it.amount || 0), 0);
+        const cumulativeSubtotal = coverFirstPageSubtotal + sumFlatItems(continuationItemsUpToHere);
 
         pages.push(
             <Page key={p} size="A4" orientation="landscape" style={styles.page}>
