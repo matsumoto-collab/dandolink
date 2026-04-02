@@ -668,17 +668,24 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                     return rows;
                 })()}
 
-                {/* Subtotal */}
-                <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.totalSubtotalLabel}>
-                        <Text style={styles.totalLabelText}>小計</Text>
-                    </View>
-                    <View style={styles.totalAmountCell}>
-                        <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
-                </View>
+                {/* Subtotal — 表紙1ページ目は最初の12行分の小計 */}
+                {(() => {
+                    const coverItems = flattenItemsForCover(estimate.items);
+                    const pageItems = coverItems.slice(0, 12);
+                    const pageSubtotal = pageItems.reduce((sum, it) => sum + (it.amount || 0), 0);
+                    return (
+                        <View style={styles.totalRow}>
+                            <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                            <View style={styles.totalSubtotalLabel}>
+                                <Text style={styles.totalLabelText}>小計</Text>
+                            </View>
+                            <View style={styles.totalAmountCell}>
+                                <Text style={styles.totalAmountText}>¥{pageSubtotal.toLocaleString()}</Text>
+                            </View>
+                            <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+                        </View>
+                    );
+                })()}
             </View>
 
             {/* Footer */}
@@ -707,9 +714,15 @@ function CoverContinuationPages({
     const totalPages = Math.ceil(overflowItems.length / ROWS_PER_PAGE);
     const pages = [];
 
+    // 表紙1ページ目(12行)の小計
+    const coverFirstPageItems = flatCoverItems.slice(0, COVER_MAX_ROWS);
+    const coverFirstPageSubtotal = coverFirstPageItems.reduce((sum, it) => sum + (it.amount || 0), 0);
+
     for (let p = 0; p < totalPages; p++) {
         const pageItems = overflowItems.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
-        const isLastPage = p === totalPages - 1;
+        // 累計小計: 1ページ目の小計 + 続きページのここまでの全項目
+        const continuationItemsUpToHere = overflowItems.slice(0, (p + 1) * ROWS_PER_PAGE);
+        const cumulativeSubtotal = coverFirstPageSubtotal + continuationItemsUpToHere.reduce((sum, it) => sum + (it.amount || 0), 0);
 
         pages.push(
             <Page key={p} size="A4" orientation="landscape" style={styles.page}>
@@ -741,20 +754,16 @@ function CoverContinuationPages({
                         return rows;
                     })()}
 
-                    {isLastPage && (
-                        <>
-                            <View style={styles.totalRow}>
-                                <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
-                                <View style={styles.totalSubtotalLabel}>
-                                    <Text style={styles.totalLabelText}>小計</Text>
-                                </View>
-                                <View style={styles.totalAmountCell}>
-                                    <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
-                                </View>
-                                <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
-                            </View>
-                        </>
-                    )}
+                    <View style={styles.totalRow}>
+                        <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                        <View style={styles.totalSubtotalLabel}>
+                            <Text style={styles.totalLabelText}>小計</Text>
+                        </View>
+                        <View style={styles.totalAmountCell}>
+                            <Text style={styles.totalAmountText}>¥{cumulativeSubtotal.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+                    </View>
                 </View>
 
                 <View style={styles.footer} fixed>
