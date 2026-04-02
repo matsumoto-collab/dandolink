@@ -275,20 +275,18 @@ export default function EstimateListPage() {
                             return (
                                 <div
                                     key={estimate.id}
-                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
+                                    className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow cursor-pointer"
+                                    onClick={() => {
+                                        setSelectedEstimate(estimate);
+                                        setIsDetailModalOpen(true);
+                                    }}
                                 >
                                     {/* ヘッダー: 見積番号とアクション */}
                                     <div className="flex items-start justify-between mb-3">
-                                        <button
-                                            onClick={() => {
-                                                setSelectedEstimate(estimate);
-                                                setIsDetailModalOpen(true);
-                                            }}
-                                            className="text-base font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
-                                        >
+                                        <span className="text-base font-semibold text-slate-600">
                                             {estimate.estimateNumber}
-                                        </button>
-                                        <div className="flex gap-1">
+                                        </span>
+                                        <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleCopy(estimate)}
                                                 className="p-2 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
@@ -315,15 +313,9 @@ export default function EstimateListPage() {
 
                                     {/* 案件名 */}
                                     {getProjectName(estimate.projectId ?? '') ? (
-                                        <button
-                                            onClick={() => {
-                                                setSelectedEstimate(estimate);
-                                                setIsDetailModalOpen(true);
-                                            }}
-                                            className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors mb-3 block text-left"
-                                        >
+                                        <div className="text-sm text-slate-700 mb-3">
                                             {getProjectName(estimate.projectId ?? '')}
-                                        </button>
+                                        </div>
                                     ) : (
                                         <div className="flex items-center gap-1 mb-3">
                                             <Link2Off className="w-3.5 h-3.5 text-slate-400" />
@@ -423,30 +415,22 @@ export default function EstimateListPage() {
                                 return (
                                     <tr
                                         key={estimate.id}
-                                        className="hover:bg-slate-50 transition-all duration-200"
+                                        className="hover:bg-slate-50 transition-all duration-200 cursor-pointer"
+                                        onClick={() => {
+                                            setSelectedEstimate(estimate);
+                                            setIsDetailModalOpen(true);
+                                        }}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <button
-                                                onClick={() => {
-                                                    setSelectedEstimate(estimate);
-                                                    setIsDetailModalOpen(true);
-                                                }}
-                                                className="text-sm font-semibold text-slate-600 hover:text-slate-700 hover:underline transition-colors"
-                                            >
+                                            <span className="text-sm font-semibold text-slate-600">
                                                 {estimate.estimateNumber}
-                                            </button>
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {getProjectName(estimate.projectId ?? '') ? (
-                                                <button
-                                                    onClick={() => {
-                                                        setSelectedEstimate(estimate);
-                                                        setIsDetailModalOpen(true);
-                                                    }}
-                                                    className="text-sm text-slate-700 hover:text-slate-600 hover:underline transition-colors"
-                                                >
+                                                <span className="text-sm text-slate-700">
                                                     {getProjectName(estimate.projectId ?? '')}
-                                                </button>
+                                                </span>
                                             ) : (
                                                 <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
                                                     <Link2Off className="w-3.5 h-3.5" />
@@ -483,7 +467,7 @@ export default function EstimateListPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {formatDate(estimate.createdAt, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleCopy(estimate)}
                                                 className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
