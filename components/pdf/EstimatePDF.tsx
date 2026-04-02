@@ -561,7 +561,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                             <Text style={styles.infoLabelText}>現場住所</Text>
                         </View>
                         <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>{project.location || ''}</Text>
+                            <Text style={styles.infoValueText}>{sanitizePdfText(estimate.location || project.location || '')}</Text>
                         </View>
                     </View>
                     <View style={styles.infoRow}>
