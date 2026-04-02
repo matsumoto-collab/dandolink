@@ -657,7 +657,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                                     </Text>
                                 </View>
                                 <View style={styles.cellAmount}>
-                                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
+                                    <Text style={isNegative ? styles.cellTextRed : (isCat ? { ...styles.cellText, fontWeight: 'bold' } : styles.cellText)}>
                                         {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                                     </Text>
                                 </View>
@@ -820,7 +820,7 @@ function TableItemRow({ idx, item, isLast }: { idx: number; item: Estimate['item
                 </Text>
             </View>
             <View style={styles.cellAmount}>
-                <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
+                <Text style={isNegative ? styles.cellTextRed : (isCat ? { ...styles.cellText, fontWeight: 'bold' } : styles.cellText)}>
                     {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
                 </Text>
             </View>
