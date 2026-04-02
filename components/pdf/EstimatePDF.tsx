@@ -810,14 +810,14 @@ function CategoryDetailsPage({
 }
 
 // ===== フラット項目用のDetailsPage =====
-function FlatDetailsPage({
-    estimate, companyInfo: _companyInfo, pageNo,
+function FlatDetailsPages({
+    estimate, companyInfo: _companyInfo, startPageNo,
 }: {
     estimate: Estimate;
     companyInfo: CompanyInfo;
-    pageNo: number;
+    startPageNo: number;
 }) {
-    const maxRows = 17;
+    const ROWS_PER_PAGE = 20;
 
     const flatItems: Estimate['items'] = [];
     for (const item of estimate.items) {
@@ -829,77 +829,94 @@ function FlatDetailsPage({
         }
     }
 
-    return (
-        <Page size="A4" orientation="landscape" style={styles.page}>
+    const totalPages = Math.max(1, Math.ceil(flatItems.length / ROWS_PER_PAGE));
+    const pages = [];
 
-            <View style={styles.detailsHeader}>
-                <Text style={styles.detailsTitle}>見積内訳明細書</Text>
-                <Text style={styles.detailsSubInfo}>
-                    見積No. {estimate.estimateNumber}
-                </Text>
-            </View>
+    for (let p = 0; p < totalPages; p++) {
+        const pageItems = flatItems.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+        const isLastPage = p === totalPages - 1;
+        const rowCount = isLastPage ? Math.max(pageItems.length, ROWS_PER_PAGE) : ROWS_PER_PAGE;
 
-            <View style={styles.table} wrap={false}>
-                <TableHeader />
-
-                {(() => {
-                    const rows = [];
-                    for (let i = 0; i < maxRows; i++) {
-                        const item = i < flatItems.length ? flatItems[i] : null;
-                        rows.push(
-                            <TableItemRow key={i} idx={i} item={item} isLast={i === maxRows - 1} />
-                        );
-                    }
-                    return rows;
-                })()}
-
-                <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.totalSubtotalLabel}>
-                        <Text style={styles.totalLabelText}>小計</Text>
-                    </View>
-                    <View style={styles.totalAmountCell}>
-                        <Text style={styles.totalAmountText}>{estimate.subtotal.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+        pages.push(
+            <Page key={p} size="A4" orientation="landscape" style={styles.page}>
+                <View style={styles.detailsHeader}>
+                    <Text style={styles.detailsTitle}>見積内訳明細書</Text>
+                    <Text style={styles.detailsSubInfo}>
+                        見積No. {estimate.estimateNumber}
+                    </Text>
                 </View>
-                <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.totalSubtotalLabel}>
-                        <Text style={styles.totalLabelText}>消費税</Text>
-                    </View>
-                    <View style={styles.totalAmountCell}>
-                        <Text style={styles.totalAmountText}>{estimate.tax.toLocaleString()}</Text>
-                    </View>
-                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
-                </View>
-                <View style={styles.totalRow}>
-                    <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.totalSubtotalLabel}>
-                        <Text style={{ ...styles.totalLabelText, fontSize: 9 }}>合計</Text>
-                    </View>
-                    <View style={styles.totalAmountCell}>
-                        <Text style={{ ...styles.totalAmountText, fontSize: 9 }}>
-                            {estimate.total.toLocaleString()}
-                        </Text>
-                    </View>
-                    <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
-                </View>
-            </View>
 
-            <View style={styles.footer} fixed>
-                <Text style={styles.footerText}></Text>
-                <Text style={styles.footerText}>No. {pageNo}</Text>
-            </View>
-        </Page>
-    );
+                <View style={styles.table} wrap={false}>
+                    <TableHeader />
+
+                    {(() => {
+                        const rows = [];
+                        for (let i = 0; i < rowCount; i++) {
+                            const item = i < pageItems.length ? pageItems[i] : null;
+                            rows.push(
+                                <TableItemRow key={i} idx={p * ROWS_PER_PAGE + i} item={item} isLast={i === rowCount - 1} />
+                            );
+                        }
+                        return rows;
+                    })()}
+
+                    {isLastPage && (
+                        <>
+                            <View style={styles.totalRow}>
+                                <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.totalSubtotalLabel}>
+                                    <Text style={styles.totalLabelText}>小計</Text>
+                                </View>
+                                <View style={styles.totalAmountCell}>
+                                    <Text style={styles.totalAmountText}>{estimate.subtotal.toLocaleString()}</Text>
+                                </View>
+                                <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+                            </View>
+                            <View style={styles.totalRow}>
+                                <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.totalSubtotalLabel}>
+                                    <Text style={styles.totalLabelText}>消費税</Text>
+                                </View>
+                                <View style={styles.totalAmountCell}>
+                                    <Text style={styles.totalAmountText}>{estimate.tax.toLocaleString()}</Text>
+                                </View>
+                                <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+                            </View>
+                            <View style={styles.totalRow}>
+                                <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.totalSubtotalLabel}>
+                                    <Text style={{ ...styles.totalLabelText, fontSize: 9 }}>合計</Text>
+                                </View>
+                                <View style={styles.totalAmountCell}>
+                                    <Text style={{ ...styles.totalAmountText, fontSize: 9 }}>
+                                        {estimate.total.toLocaleString()}
+                                    </Text>
+                                </View>
+                                <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+                            </View>
+                        </>
+                    )}
+                </View>
+
+                <View style={styles.footer} fixed>
+                    <Text style={styles.footerText}></Text>
+                    <Text style={styles.footerText}>No. {startPageNo + p}</Text>
+                </View>
+            </Page>
+        );
+    }
+
+    return <>{pages}</>;
 }
 
 // ===== Main Estimate PDF Document =====
 export function EstimatePDF({ estimate, project, companyInfo, includeDetails = true, creatorName }: EstimatePDFProps) {
+    const COVER_MAX_ROWS = 12;
     const categories = estimate.items.filter(item => item.isCategory && (item.children || []).length > 0);
     const hasCategories = categories.length > 0;
     const estimateTitle = project.title || estimate.title;
+    // 表紙に収まらない項目がある場合は内訳明細書を強制表示
+    const needsDetails = includeDetails || estimate.items.length > COVER_MAX_ROWS;
 
     return (
         <Document
@@ -911,7 +928,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
         >
             <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} creatorName={creatorName} />
 
-            {includeDetails && (
+            {needsDetails && (
                 hasCategories ? (
                     categories.map((cat, idx) => (
                         <CategoryDetailsPage
@@ -924,10 +941,10 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
                         />
                     ))
                 ) : (
-                    <FlatDetailsPage
+                    <FlatDetailsPages
                         estimate={estimate}
                         companyInfo={companyInfo}
-                        pageNo={2}
+                        startPageNo={2}
                     />
                 )
             )}
