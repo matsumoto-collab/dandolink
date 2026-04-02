@@ -31,6 +31,7 @@ export interface Estimate {
     notes?: string;
     location?: string;
     costTotal?: number | null;
+    constructionPeriod?: string | null;
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string;

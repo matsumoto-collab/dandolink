@@ -268,6 +268,7 @@ export const createEstimateSchema = z.object({
     notes: z.string().max(2000).nullable().optional(),
     location: z.string().max(500).nullable().optional(),
     costTotal: z.number().int().nullable().optional(),
+    constructionPeriod: z.string().max(200).nullable().optional(),
 });
 
 export const updateEstimateSchema = z.object({
@@ -284,6 +285,7 @@ export const updateEstimateSchema = z.object({
     notes: z.string().max(2000).nullable().optional(),
     location: z.string().max(500).nullable().optional(),
     costTotal: z.number().int().nullable().optional(),
+    constructionPeriod: z.string().max(200).nullable().optional(),
 });
 
 // ============================================

@@ -577,7 +577,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                             <Text style={styles.infoLabelText}>工期</Text>
                         </View>
                         <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}></Text>
+                            <Text style={styles.infoValueText}>{estimate.constructionPeriod ? sanitizePdfText(estimate.constructionPeriod) : ''}</Text>
                         </View>
                     </View>
                     <View style={styles.infoRowLast}>

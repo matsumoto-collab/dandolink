@@ -292,6 +292,8 @@ interface EstimateHeaderProps {
     setValidUntil: (v: string) => void;
     status: string;
     setStatus: (v: string) => void;
+    constructionPeriod: string;
+    setConstructionPeriod: (v: string) => void;
     projects: { id: string; title: string; customer?: string | null }[];
     customers: Customer[];
     onOpenCustomerModal: () => void;
@@ -306,6 +308,7 @@ export default function EstimateHeader({
     customerId, setCustomerId,
     validUntil, setValidUntil,
     status, setStatus,
+    constructionPeriod, setConstructionPeriod,
     projects, customers,
     onOpenCustomerModal,
 }: EstimateHeaderProps) {
@@ -387,6 +390,17 @@ export default function EstimateHeader({
                             }
                         }}
                         className={inputClass}
+                    />
+                </div>
+
+                <div>
+                    <label className={labelClass}>工期</label>
+                    <input
+                        type="text"
+                        value={constructionPeriod}
+                        onChange={(e) => setConstructionPeriod(e.target.value)}
+                        className={inputClass}
+                        placeholder="例: 令和8年4月〜令和8年5月"
                     />
                 </div>
 

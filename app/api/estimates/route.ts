@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const validation = validateRequest(createEstimateSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
-        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId, location, costTotal } = validation.data;
+        const { projectMasterId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, customerId, location, costTotal, constructionPeriod } = validation.data;
 
         // 見積番号: 指定がなければサーバー側で自動採番
         let finalEstimateNumber = estimateNumber;
@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
                 items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
                 validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null, location: location || null,
                 costTotal: costTotal ?? null,
+                constructionPeriod: constructionPeriod || null,
                 updatedBy: session!.user.id,
             },
         });

@@ -65,6 +65,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     });
     const [status, setStatus] = useState<EstimateInput['status']>(initialData?.status || 'draft');
     const [notes, setNotes] = useState(initialData?.notes || '');
+    const [constructionPeriod, setConstructionPeriod] = useState(initialData?.constructionPeriod || '');
     const [items, setItems] = useState<EstimateItem[]>(initialData?.items || []);
     const [costTotal, setCostTotal] = useState<number | null>(initialData?.costTotal ?? null);
 
@@ -445,6 +446,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             const data: EstimateInput = {
                 projectId: projectId || undefined, customerId: customerId || undefined, estimateNumber, title, items, subtotal, tax, total,
                 validUntil: new Date(validUntil), status, notes: notes || undefined, location: location || undefined, costTotal,
+                constructionPeriod: constructionPeriod || undefined,
             };
             await onSubmit(data);
         } finally {
@@ -466,6 +468,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 projects={projectOptions} customers={customers}
                 onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
                 location={location} setLocation={setLocation}
+                constructionPeriod={constructionPeriod} setConstructionPeriod={setConstructionPeriod}
             />
 
             <ItemsEditor
