@@ -456,7 +456,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     return (
         <>
-        <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6">
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === 'Enter' && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-5 md:space-y-6">
             <EstimateHeader
                 projectId={projectId} setProjectId={setProjectId}
                 estimateNumber={estimateNumber} setEstimateNumber={setEstimateNumber}
