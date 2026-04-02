@@ -669,6 +669,83 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
     );
 }
 
+// ===== 表紙続きページ（13行目以降の項目） =====
+function CoverContinuationPages({
+    estimate, project, startPageNo,
+}: {
+    estimate: Estimate;
+    project: Project;
+    startPageNo: number;
+}) {
+    const COVER_MAX_ROWS = 12;
+    const ROWS_PER_PAGE = 20;
+    const overflowItems = estimate.items.slice(COVER_MAX_ROWS);
+    if (overflowItems.length === 0) return null;
+
+    const totalPages = Math.ceil(overflowItems.length / ROWS_PER_PAGE);
+    const pages = [];
+
+    for (let p = 0; p < totalPages; p++) {
+        const pageItems = overflowItems.slice(p * ROWS_PER_PAGE, (p + 1) * ROWS_PER_PAGE);
+        const isLastPage = p === totalPages - 1;
+
+        pages.push(
+            <Page key={p} size="A4" orientation="landscape" style={styles.page}>
+                <View style={styles.detailsHeader}>
+                    <Text style={styles.detailsTitle}>御 見 積 書</Text>
+                    <Text style={styles.detailsSubInfo}>
+                        見積No. {estimate.estimateNumber}
+                    </Text>
+                </View>
+
+                <View style={{ marginBottom: 4 }}>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary }}>
+                        現場名: {sanitizePdfText(project.title || estimate.title)}
+                    </Text>
+                </View>
+
+                <View style={styles.table} wrap={false}>
+                    <TableHeader />
+
+                    {(() => {
+                        const rows = [];
+                        for (let i = 0; i < ROWS_PER_PAGE; i++) {
+                            const item = i < pageItems.length ? pageItems[i] : null;
+                            const globalIdx = COVER_MAX_ROWS + p * ROWS_PER_PAGE + i;
+                            rows.push(
+                                <TableItemRow key={i} idx={globalIdx} item={item} isLast={i === ROWS_PER_PAGE - 1} />
+                            );
+                        }
+                        return rows;
+                    })()}
+
+                    {isLastPage && (
+                        <>
+                            <View style={styles.totalRow}>
+                                <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.totalSubtotalLabel}>
+                                    <Text style={styles.totalLabelText}>小計</Text>
+                                </View>
+                                <View style={styles.totalAmountCell}>
+                                    <Text style={styles.totalAmountText}>¥{estimate.subtotal.toLocaleString()}</Text>
+                                </View>
+                                <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
+                            </View>
+                        </>
+                    )}
+                </View>
+
+                <View style={styles.footer} fixed>
+                    <Text style={styles.footerText}></Text>
+                    <Text style={styles.footerText}>No. {startPageNo + p}</Text>
+                </View>
+            </Page>
+        );
+    }
+
+    return <>{pages}</>;
+}
+
 // ===== 内訳テーブル共通ヘッダー =====
 function TableHeader() {
     return (
@@ -915,8 +992,9 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
     const categories = estimate.items.filter(item => item.isCategory && (item.children || []).length > 0);
     const hasCategories = categories.length > 0;
     const estimateTitle = project.title || estimate.title;
-    // 表紙に収まらない項目がある場合は内訳明細書を強制表示
-    const needsDetails = includeDetails || estimate.items.length > COVER_MAX_ROWS;
+    const hasOverflow = estimate.items.length > COVER_MAX_ROWS;
+    const coverContinuationPages = hasOverflow ? Math.ceil((estimate.items.length - COVER_MAX_ROWS) / 20) : 0;
+    const detailsStartPage = 2 + coverContinuationPages;
 
     return (
         <Document
@@ -928,7 +1006,15 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
         >
             <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} creatorName={creatorName} />
 
-            {needsDetails && (
+            {hasOverflow && (
+                <CoverContinuationPages
+                    estimate={estimate}
+                    project={project}
+                    startPageNo={2}
+                />
+            )}
+
+            {includeDetails && (
                 hasCategories ? (
                     categories.map((cat, idx) => (
                         <CategoryDetailsPage
@@ -936,7 +1022,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
                             category={cat}
                             estimate={estimate}
                             companyInfo={companyInfo}
-                            pageNo={idx + 2}
+                            pageNo={detailsStartPage + idx}
                             title={estimateTitle}
                         />
                     ))
@@ -944,7 +1030,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
                     <FlatDetailsPages
                         estimate={estimate}
                         companyInfo={companyInfo}
-                        startPageNo={2}
+                        startPageNo={detailsStartPage}
                     />
                 )
             )}
