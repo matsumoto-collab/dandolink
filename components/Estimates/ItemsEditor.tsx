@@ -195,7 +195,15 @@ function CategoryTableRow({
                     </div>
                 </div>
             </td>
-            <td className="px-3 py-2"></td>
+            <td className="px-3 py-2">
+                <input
+                    type="text"
+                    value={item.specification || ''}
+                    onChange={(e) => onUpdate(item.id, 'specification', e.target.value)}
+                    className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
+                    placeholder="規格"
+                />
+            </td>
             <td className="px-3 py-2">
                 <input
                     type="text"
