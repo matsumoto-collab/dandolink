@@ -38,8 +38,8 @@ const styles = StyleSheet.create({
     page: {
         fontFamily: 'NotoSansJP',
         fontSize: 7.5,
-        paddingTop: 20,
-        paddingBottom: 20,
+        paddingTop: 14,
+        paddingBottom: 14,
         paddingHorizontal: 30,
         backgroundColor: COLORS.white,
         color: COLORS.textPrimary,
@@ -48,8 +48,8 @@ const styles = StyleSheet.create({
     // ===== Title =====
     titleCenter: {
         alignItems: 'center',
-        marginTop: 4,
-        marginBottom: 8,
+        marginTop: 2,
+        marginBottom: 4,
     },
     titleText: {
         fontSize: 20,
@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
     coverHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 8,
+        marginBottom: 4,
     },
 
     // Left: Customer + amount
@@ -77,15 +77,15 @@ const styles = StyleSheet.create({
         borderBottomColor: COLORS.navy,
     },
     greetingText: {
-        fontSize: 8.5,
-        marginTop: 5,
+        fontSize: 8,
+        marginTop: 3,
         color: COLORS.textSecondary,
-        lineHeight: 1.6,
+        lineHeight: 1.4,
     },
 
     // Amount
     amountSection: {
-        marginTop: 6,
+        marginTop: 4,
         width: '100%',
     },
     amountMainRow: {
@@ -167,7 +167,7 @@ const styles = StyleSheet.create({
     // ===== Info Table + Remarks =====
     infoTable: {
         flexDirection: 'row',
-        marginBottom: 6,
+        marginBottom: 4,
     },
     infoLeft: {
         width: '60%',
@@ -251,13 +251,13 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 20,
+        minHeight: 18,
     },
     tableRowLast: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: COLORS.borderMedium,
-        minHeight: 20,
+        minHeight: 18,
     },
 
     // Column styles for landscape — wider page
@@ -447,7 +447,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
         <Page size="A4" orientation="landscape" style={styles.page}>
 
             {/* Title row: title center, date/No right */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 4, marginBottom: 8 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 2, marginBottom: 4 }}>
                 <View style={{ width: '25%' }} />
                 <View style={{ alignItems: 'center' }}>
                     <Text style={styles.titleText}>御 見 積 書</Text>
@@ -582,7 +582,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
             </View>
 
             {/* Details Table */}
-            <View style={styles.table}>
+            <View style={styles.table} wrap={false}>
                 <View style={styles.tableHeader}>
                     <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
