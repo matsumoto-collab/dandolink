@@ -741,7 +741,7 @@ function CategoryDetailsPage({
     title: string;
 }) {
     const children = category.children || [];
-    const maxRows = 20;
+    const maxRows = 18;
 
     return (
         <Page size="A4" orientation="landscape" style={styles.page}>
@@ -759,7 +759,7 @@ function CategoryDetailsPage({
                 </Text>
             </View>
 
-            <View style={styles.table}>
+            <View style={styles.table} wrap={false}>
                 <TableHeader />
 
                 <View style={styles.tableRow}>
@@ -817,7 +817,7 @@ function FlatDetailsPage({
     companyInfo: CompanyInfo;
     pageNo: number;
 }) {
-    const maxRows = 20;
+    const maxRows = 17;
 
     const flatItems: Estimate['items'] = [];
     for (const item of estimate.items) {
@@ -839,7 +839,7 @@ function FlatDetailsPage({
                 </Text>
             </View>
 
-            <View style={styles.table}>
+            <View style={styles.table} wrap={false}>
                 <TableHeader />
 
                 {(() => {

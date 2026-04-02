@@ -165,7 +165,7 @@ export default function EstimateDetailModal({
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-6xl lg:mx-4 lg:max-h-[90vh]"
+                className="relative bg-white flex flex-col w-full h-full lg:h-[90vh] lg:rounded-lg lg:shadow-xl lg:max-w-6xl lg:mx-4"
             >
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 lg:rounded-t-lg">

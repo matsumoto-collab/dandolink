@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
+import { useEstimates } from '@/hooks/useEstimates';
 import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
@@ -21,6 +22,7 @@ const EstimateModal = dynamic(
 
 export default function ProjectMasterListPage() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
+    const { addEstimate } = useEstimates();
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
@@ -198,21 +200,13 @@ export default function ProjectMasterListPage() {
 
     const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
         try {
-            const res = await fetch('/api/estimates', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ...data,
-                    validUntil: data.validUntil instanceof Date ? data.validUntil.toISOString() : data.validUntil,
-                }),
-            });
-            if (!res.ok) throw new Error('Failed to create estimate');
+            await addEstimate(data);
             setIsEstimateModalOpen(false);
             toast.success('見積書を作成しました');
         } catch {
             toast.error('見積書の作成に失敗しました');
         }
-    }, []);
+    }, [addEstimate]);
 
     const openDetailModal = (pm: ProjectMaster) => {
         setDetailPm(pm);
