@@ -502,9 +502,9 @@ export default function ItemsEditor({
             {/* デスクトップ: テーブル表示 */}
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-            <div className="hidden lg:block border border-slate-200 rounded-lg overflow-x-auto">
+            <div className="hidden lg:block border border-slate-200 rounded-lg overflow-auto max-h-[180px]">
                 <table className="min-w-[1400px]">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                         <tr>
                             <th className="w-8"></th>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600 w-80">項目</th>
