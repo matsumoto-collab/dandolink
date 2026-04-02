@@ -324,7 +324,7 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
 
 /** デスクトップ用テーブル行 */
 export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, unitPriceSpecifications, onSelectMaster, sortableRef, sortableStyle, sortableAttributes, dragListeners }: ItemRowProps) {
-    const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500";
+    const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 text-xs";
 
     return (
         <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
