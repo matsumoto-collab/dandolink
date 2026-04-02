@@ -11,6 +11,7 @@ export interface EstimateItem {
     notes?: string;       // 備考
     costAmount?: number | null; // 原価金額（予算書用）
     isCategory?: boolean;       // カテゴリ行（子項目をグループ化）
+    categoryType?: 'inline' | 'detail';  // inline=表紙展開, detail=内訳明細書（デフォルト: detail）
     children?: EstimateItem[];  // 子項目（isCategoryがtrueの場合）
 }
 

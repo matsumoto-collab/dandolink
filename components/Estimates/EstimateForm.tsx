@@ -190,6 +190,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             taxType: 'standard',
             notes: '',
             isCategory: true,
+            categoryType: 'detail',
             children: [],
         }]);
     };

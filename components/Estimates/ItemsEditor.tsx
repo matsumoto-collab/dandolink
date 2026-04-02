@@ -183,6 +183,14 @@ function CategoryTableRow({
                         className="flex-1 px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 font-medium"
                         placeholder="カテゴリ名（例: 仮設工事）"
                     />
+                    <select
+                        value={item.categoryType || 'detail'}
+                        onChange={(e) => onUpdate(item.id, 'categoryType', e.target.value as 'inline' | 'detail')}
+                        className="px-2 py-1 text-xs border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 bg-white"
+                    >
+                        <option value="detail">内訳明細書</option>
+                        <option value="inline">表紙に展開</option>
+                    </select>
                 </div>
             </td>
             <td className="px-3 py-2">
@@ -284,6 +292,17 @@ function CategoryCard({
                     <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-2 text-slate-500 disabled:opacity-30"><ChevronDownIcon className="w-5 h-5" /></button>
                     <button type="button" onClick={() => onRemove(item.id)} className="p-2 text-red-500"><Trash2 className="w-5 h-5" /></button>
                 </div>
+            </div>
+            {/* 表示形式 */}
+            <div className="px-4 py-2 border-t border-slate-200">
+                <select
+                    value={item.categoryType || 'detail'}
+                    onChange={(e) => onUpdate(item.id, 'categoryType', e.target.value as 'inline' | 'detail')}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
+                >
+                    <option value="detail">内訳明細書に記載</option>
+                    <option value="inline">表紙に展開</option>
+                </select>
             </div>
             {/* 数量・単位 */}
             <div className="px-4 py-2 border-t border-slate-200 flex items-center gap-3">

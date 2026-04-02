@@ -438,6 +438,27 @@ interface EstimatePDFProps {
 }
 
 // ===== Cover Page Component (Landscape) =====
+/**
+ * inlineカテゴリの子項目を表紙用にフラット展開する。
+ * detailカテゴリはそのまま1行（従来通り）。
+ */
+function flattenItemsForCover(items: Estimate['items']): Estimate['items'] {
+    const result: Estimate['items'] = [];
+    for (const item of items) {
+        if (item.isCategory && item.categoryType === 'inline') {
+            // カテゴリ名を太字ヘッダー行として追加（金額なし）
+            result.push({ ...item, amount: 0, children: undefined });
+            // 子項目を通常行として展開
+            for (const child of (item.children || [])) {
+                result.push(child);
+            }
+        } else {
+            result.push(item);
+        }
+    }
+    return result;
+}
+
 function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<EstimatePDFProps, 'includeDetails'>) {
     const createdDate = new Date(estimate.createdAt);
     const validUntilDate = new Date(estimate.validUntil);
@@ -595,7 +616,7 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                 </View>
 
                 {(() => {
-                    const topItems = estimate.items;
+                    const topItems = flattenItemsForCover(estimate.items);
                     const maxRows = 12;
                     const rows = [];
 
@@ -679,7 +700,8 @@ function CoverContinuationPages({
 }) {
     const COVER_MAX_ROWS = 12;
     const ROWS_PER_PAGE = 20;
-    const overflowItems = estimate.items.slice(COVER_MAX_ROWS);
+    const flatCoverItems = flattenItemsForCover(estimate.items);
+    const overflowItems = flatCoverItems.slice(COVER_MAX_ROWS);
     if (overflowItems.length === 0) return null;
 
     const totalPages = Math.ceil(overflowItems.length / ROWS_PER_PAGE);
@@ -989,11 +1011,13 @@ function FlatDetailsPages({
 // ===== Main Estimate PDF Document =====
 export function EstimatePDF({ estimate, project, companyInfo, includeDetails = true, creatorName }: EstimatePDFProps) {
     const COVER_MAX_ROWS = 12;
-    const categories = estimate.items.filter(item => item.isCategory && (item.children || []).length > 0);
-    const hasCategories = categories.length > 0;
+    const flatCoverItems = flattenItemsForCover(estimate.items);
+    // detail カテゴリのみ内訳明細書を生成（inline は表紙に展開済み）
+    const detailCategories = estimate.items.filter(item => item.isCategory && item.categoryType !== 'inline' && (item.children || []).length > 0);
+    const hasCategories = detailCategories.length > 0;
     const estimateTitle = project.title || estimate.title;
-    const hasOverflow = estimate.items.length > COVER_MAX_ROWS;
-    const coverContinuationPages = hasOverflow ? Math.ceil((estimate.items.length - COVER_MAX_ROWS) / 20) : 0;
+    const hasOverflow = flatCoverItems.length > COVER_MAX_ROWS;
+    const coverContinuationPages = hasOverflow ? Math.ceil((flatCoverItems.length - COVER_MAX_ROWS) / 20) : 0;
     const detailsStartPage = 2 + coverContinuationPages;
 
     return (
@@ -1016,7 +1040,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
 
             {includeDetails && (
                 hasCategories ? (
-                    categories.map((cat, idx) => (
+                    detailCategories.map((cat, idx) => (
                         <CategoryDetailsPage
                             key={cat.id}
                             category={cat}
