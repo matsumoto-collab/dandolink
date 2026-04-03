@@ -466,14 +466,14 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 
     return (
         <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
-            <td className="px-1 py-2 w-8 sticky left-0 z-10 bg-white">
+            <td className="px-1 py-2 sticky left-0 z-10 bg-white" style={{ minWidth: 32, maxWidth: 32, width: 32 }}>
                 {dragListeners ? (
                     <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600" {...dragListeners}>
                         <GripVertical className="w-4 h-4" />
                     </button>
                 ) : null}
             </td>
-            <td className="px-3 py-2 sticky left-[32px] z-10 bg-white">
+            <td className="px-3 py-2 sticky z-10 bg-white" style={{ left: 32, minWidth: 80, maxWidth: 80, width: 80 }}>
                 <div className="flex items-center justify-center gap-1">
                     <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
                         <ChevronUp className="w-4 h-4" />
@@ -486,7 +486,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                     </button>
                 </div>
             </td>
-            <td className="px-3 py-2 sticky left-[112px] z-10 bg-white border-r border-slate-300">
+            <td className="px-3 py-2 sticky z-10 bg-white border-r border-slate-300" style={{ left: 112, minWidth: 320, width: 320 }}>
                 <div className={isChild ? 'pl-6' : ''}>
                     <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={cellInputClass} />
                 </div>
