@@ -335,20 +335,26 @@ function CostNameInput({ item, onUpdate, costMasters, className }: {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 250, openUp: false });
 
-    const filtered = costMasters?.filter(m =>
-        !item.costName || m.name.toLowerCase().includes(item.costName.toLowerCase())
+    const searchTerm = (item.costName || '').toLowerCase();
+    const filteredMasters = costMasters?.filter(m =>
+        !searchTerm || m.name.toLowerCase().includes(searchTerm)
     ) || [];
+
+    // 見積項目名が入力されていて、検索にマッチする場合に表示
+    const showEstimateItem = item.description && (!searchTerm || item.description.toLowerCase().includes(searchTerm));
+
+    const hasDropdownItems = filteredMasters.length > 0 || showEstimateItem;
 
     const updatePosition = useCallback(() => {
         if (inputRef.current) {
             const rect = inputRef.current.getBoundingClientRect();
-            const maxDropdownHeight = 200;
+            const maxDropdownHeight = 250;
             const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
             const openUp = rect.bottom + maxDropdownHeight > viewportHeight && rect.top > maxDropdownHeight;
             setDropdownPos({
                 top: openUp ? rect.top - 4 : rect.bottom + 2,
                 left: rect.left,
-                width: Math.max(rect.width, 250),
+                width: Math.max(rect.width, 280),
                 openUp,
             });
         }
@@ -365,7 +371,7 @@ function CostNameInput({ item, onUpdate, costMasters, className }: {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleSelect = (master: { name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }) => {
+    const handleSelectMaster = (master: { name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }) => {
         onUpdate(item.id, 'costName', master.name);
         if (master.quantity != null) onUpdate(item.id, 'costQuantity', master.quantity);
         if (master.unit) onUpdate(item.id, 'costUnit', master.unit);
@@ -373,10 +379,15 @@ function CostNameInput({ item, onUpdate, costMasters, className }: {
         setShowDropdown(false);
     };
 
-    const dropdown = showDropdown && filtered.length > 0 ? createPortal(
+    const handleSelectDescription = () => {
+        onUpdate(item.id, 'costName', item.description);
+        setShowDropdown(false);
+    };
+
+    const dropdown = showDropdown && hasDropdownItems ? createPortal(
         <div
             ref={dropdownRef}
-            className="fixed bg-white border border-slate-200 rounded-lg shadow-lg z-[9999] overflow-auto max-h-[200px]"
+            className="fixed bg-white border border-slate-200 rounded-lg shadow-lg z-[9999] overflow-auto max-h-[250px]"
             style={{
                 top: dropdownPos.openUp ? undefined : dropdownPos.top,
                 bottom: dropdownPos.openUp ? `${(window.visualViewport?.height ?? window.innerHeight) - dropdownPos.top}px` : undefined,
@@ -384,21 +395,40 @@ function CostNameInput({ item, onUpdate, costMasters, className }: {
                 width: dropdownPos.width,
             }}
         >
-            {filtered.map(m => (
-                <button
-                    key={m.id}
-                    type="button"
-                    className="w-full px-3 py-1.5 text-left text-xs hover:bg-slate-100 border-b border-slate-50 last:border-b-0"
-                    onMouseDown={(e) => { e.preventDefault(); handleSelect(m); }}
-                >
-                    <span className="font-medium">{m.name}</span>
-                    {(m.quantity != null || m.unit || m.unitPrice != null) && (
-                        <span className="ml-2 text-slate-400">
-                            {m.quantity != null && m.quantity}{m.unit && ` ${m.unit}`}{m.unitPrice != null && ` × ¥${Number(m.unitPrice).toLocaleString()}`}
-                        </span>
-                    )}
-                </button>
-            ))}
+            {/* 原価マスタセクション */}
+            {filteredMasters.length > 0 && (
+                <>
+                    <div className="px-3 py-1 text-[10px] font-bold text-slate-400 bg-slate-50 border-b border-slate-100 uppercase tracking-wider">原価マスタ</div>
+                    {filteredMasters.map(m => (
+                        <button
+                            key={m.id}
+                            type="button"
+                            className="w-full px-3 py-1.5 text-left text-xs hover:bg-slate-100 border-b border-slate-50 last:border-b-0"
+                            onMouseDown={(e) => { e.preventDefault(); handleSelectMaster(m); }}
+                        >
+                            <span className="font-medium">{m.name}</span>
+                            {(m.quantity != null || m.unit || m.unitPrice != null) && (
+                                <span className="ml-2 text-slate-400">
+                                    {m.quantity != null && m.quantity}{m.unit && ` ${m.unit}`}{m.unitPrice != null && ` × ¥${Number(m.unitPrice).toLocaleString()}`}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </>
+            )}
+            {/* 見積項目名セクション */}
+            {showEstimateItem && (
+                <>
+                    <div className="px-3 py-1 text-[10px] font-bold text-slate-400 bg-slate-50 border-b border-slate-100 border-t border-t-slate-200 uppercase tracking-wider">見積項目名</div>
+                    <button
+                        type="button"
+                        className="w-full px-3 py-1.5 text-left text-xs hover:bg-blue-50 text-blue-700"
+                        onMouseDown={(e) => { e.preventDefault(); handleSelectDescription(); }}
+                    >
+                        <span className="font-medium">{item.description}</span>
+                    </button>
+                </>
+            )}
         </div>,
         document.body
     ) : null;
@@ -415,10 +445,6 @@ function CostNameInput({ item, onUpdate, costMasters, className }: {
                     updatePosition();
                 }}
                 onFocus={() => {
-                    // デフォルトで見積項目名をセット（空の場合）
-                    if (!item.costName && item.description) {
-                        onUpdate(item.id, 'costName', item.description);
-                    }
                     updatePosition();
                     setShowDropdown(true);
                 }}
