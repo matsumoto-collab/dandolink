@@ -323,7 +323,7 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
     );
 }
 
-/** 原価項目名入力（原価マスター候補ドロップダウン付き） */
+/** 原価項目名入力（原価マスタ候補＋見積項目名のドロップダウン付き） */
 function CostNameInput({ item, onUpdate, costMasters, className }: {
     item: EstimateItem;
     onUpdate: ItemRowProps['onUpdate'];
