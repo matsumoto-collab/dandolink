@@ -184,7 +184,7 @@ export default function DailyReportPage() {
         <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
+                <h1 className="text-2xl font-bold text-slate-800">
                     日報一覧
                 </h1>
                 <p className="text-sm text-slate-500 mt-1">登録されている日報を管理できます</p>

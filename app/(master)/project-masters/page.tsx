@@ -248,7 +248,7 @@ export default function ProjectMasterListPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">案件一覧</h1>
+                        <h1 className="text-2xl font-bold text-slate-800">案件一覧</h1>
                         <p className="text-sm text-slate-500 mt-1">
                             {filteredMasters.length}件の案件データ
                         </p>

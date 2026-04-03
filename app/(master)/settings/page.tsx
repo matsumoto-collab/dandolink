@@ -164,7 +164,7 @@ export default function SettingsPage() {
             <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
                 {/* Header */}
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">マスター・設定</h1>
+                    <h1 className="text-2xl font-bold text-slate-800">マスター・設定</h1>
                     <p className="text-sm text-slate-500 mt-1">マスターデータを管理します</p>
                 </div>
 
