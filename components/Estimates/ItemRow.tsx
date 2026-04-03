@@ -6,6 +6,47 @@ import { EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster, UnitPriceSpecification } from '@/types/unitPrice';
 import { Trash2, ChevronUp, ChevronDown, GripVertical } from 'lucide-react';
 
+/** 小数点入力対応の数値インプット */
+export function DecimalInput({ value, onChange, className, placeholder, style }: {
+    value: number;
+    onChange: (num: number) => void;
+    className: string;
+    placeholder?: string;
+    style?: React.CSSProperties;
+}) {
+    const [localValue, setLocalValue] = useState(value === 0 ? '' : String(value));
+    useEffect(() => {
+        setLocalValue(value === 0 ? '' : String(value));
+    }, [value]);
+    return (
+        <input
+            type="text"
+            inputMode="decimal"
+            value={localValue}
+            onChange={(e) => {
+                const val = e.target.value;
+                if (val === '' || /^-?\d*\.?\d*$/.test(val)) {
+                    setLocalValue(val);
+                    const num = Number(val);
+                    if (val !== '' && !isNaN(num) && !val.endsWith('.')) {
+                        onChange(num);
+                    }
+                }
+            }}
+            onBlur={() => {
+                const num = localValue === '' ? 0 : Number(localValue);
+                if (!isNaN(num)) {
+                    onChange(num);
+                    setLocalValue(num === 0 ? '' : String(num));
+                }
+            }}
+            className={className}
+            placeholder={placeholder}
+            style={style}
+        />
+    );
+}
+
 interface ItemRowProps {
     item: EstimateItem;
     index: number;
@@ -495,21 +536,11 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                 <SpecificationInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} specifications={unitPriceSpecifications} className={cellInputClass} />
             </td>
             <td className="px-3 py-2">
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    value={item.quantity === 0 ? '' : item.quantity}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') {
-                            onUpdate(item.id, 'quantity', 0);
-                        } else if (!isNaN(Number(val))) {
-                            onUpdate(item.id, 'quantity', Number(val));
-                        }
-                    }}
+                <DecimalInput
+                    value={item.quantity}
+                    onChange={(num) => onUpdate(item.id, 'quantity', num)}
                     className={cellInputClass}
                     placeholder="数量"
-                    style={{ imeMode: 'inactive' }}
                 />
             </td>
             <td className="px-3 py-2">
@@ -642,18 +673,9 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
                     <div className="grid grid-cols-3 gap-2">
                         <div>
                             <label className={mobileLabelClass}>数量</label>
-                            <input
-                                type="text"
-                                inputMode="decimal"
-                                value={item.quantity === 0 ? '' : item.quantity}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val === '') {
-                                        onUpdate(item.id, 'quantity', 0);
-                                    } else if (!isNaN(Number(val))) {
-                                        onUpdate(item.id, 'quantity', Number(val));
-                                    }
-                                }}
+                            <DecimalInput
+                                value={item.quantity}
+                                onChange={(num) => onUpdate(item.id, 'quantity', num)}
                                 className={mobileInputClass}
                                 placeholder="数量"
                             />

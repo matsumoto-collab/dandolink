@@ -8,7 +8,7 @@ import { EstimateItem } from '@/types/estimate';
 import { UnitPriceMaster, UnitPriceCategory, UnitPriceSpecification } from '@/types/unitPrice';
 import { createPortal } from 'react-dom';
 import { Plus, Star, ClipboardList, PenLine, ChevronDown, ChevronRight, FolderPlus, GripVertical } from 'lucide-react';
-import { ItemTableRow, ItemCard } from './ItemRow';
+import { ItemTableRow, ItemCard, DecimalInput } from './ItemRow';
 
 interface ItemsEditorProps {
     items: EstimateItem[];
@@ -219,15 +219,9 @@ function CategoryTableRow({
                 />
             </td>
             <td className="px-3 py-2">
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    value={item.quantity === 0 ? '' : item.quantity}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '') onUpdate(item.id, 'quantity', 0);
-                        else if (!isNaN(Number(val))) onUpdate(item.id, 'quantity', Number(val));
-                    }}
+                <DecimalInput
+                    value={item.quantity}
+                    onChange={(num) => onUpdate(item.id, 'quantity', num)}
                     className="w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500"
                     placeholder="数量"
                 />
@@ -321,15 +315,9 @@ function CategoryCard({
             <div className="px-4 py-2 border-t border-slate-200 flex items-center gap-3">
                 <div className="flex-1">
                     <label className="block text-xs text-slate-500 mb-0.5">数量</label>
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        value={item.quantity === 0 ? '' : item.quantity}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '') onUpdate(item.id, 'quantity', 0);
-                            else if (!isNaN(Number(val))) onUpdate(item.id, 'quantity', Number(val));
-                        }}
+                    <DecimalInput
+                        value={item.quantity}
+                        onChange={(num) => onUpdate(item.id, 'quantity', num)}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg text-base"
                         placeholder="数量"
                     />
