@@ -18,6 +18,7 @@ interface ItemRowProps {
     unitPriceMasters?: UnitPriceMaster[];
     unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
+    costMasters?: Array<{ id: string; name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }>;
     // Drag & drop
     sortableRef?: (node: HTMLElement | null) => void;
     sortableStyle?: React.CSSProperties;
@@ -322,9 +323,120 @@ function SpecificationInput({ item, onUpdate, unitPriceMasters, specifications, 
     );
 }
 
+/** 原価項目名入力（原価マスター候補ドロップダウン付き） */
+function CostNameInput({ item, onUpdate, costMasters, className }: {
+    item: EstimateItem;
+    onUpdate: ItemRowProps['onUpdate'];
+    costMasters?: Array<{ id: string; name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }>;
+    className: string;
+}) {
+    const [showDropdown, setShowDropdown] = useState(false);
+    const inputRef = useRef<HTMLInputElement>(null);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 250, openUp: false });
+
+    const filtered = costMasters?.filter(m =>
+        !item.costName || m.name.toLowerCase().includes(item.costName.toLowerCase())
+    ) || [];
+
+    const updatePosition = useCallback(() => {
+        if (inputRef.current) {
+            const rect = inputRef.current.getBoundingClientRect();
+            const maxDropdownHeight = 200;
+            const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+            const openUp = rect.bottom + maxDropdownHeight > viewportHeight && rect.top > maxDropdownHeight;
+            setDropdownPos({
+                top: openUp ? rect.top - 4 : rect.bottom + 2,
+                left: rect.left,
+                width: Math.max(rect.width, 250),
+                openUp,
+            });
+        }
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+                inputRef.current && !inputRef.current.contains(e.target as Node)) {
+                setShowDropdown(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (master: { name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }) => {
+        onUpdate(item.id, 'costName', master.name);
+        if (master.quantity != null) onUpdate(item.id, 'costQuantity', master.quantity);
+        if (master.unit) onUpdate(item.id, 'costUnit', master.unit);
+        if (master.unitPrice != null) onUpdate(item.id, 'costUnitPrice', Number(master.unitPrice));
+        setShowDropdown(false);
+    };
+
+    const dropdown = showDropdown && filtered.length > 0 ? createPortal(
+        <div
+            ref={dropdownRef}
+            className="fixed bg-white border border-slate-200 rounded-lg shadow-lg z-[9999] overflow-auto max-h-[200px]"
+            style={{
+                top: dropdownPos.openUp ? undefined : dropdownPos.top,
+                bottom: dropdownPos.openUp ? `${(window.visualViewport?.height ?? window.innerHeight) - dropdownPos.top}px` : undefined,
+                left: dropdownPos.left,
+                width: dropdownPos.width,
+            }}
+        >
+            {filtered.map(m => (
+                <button
+                    key={m.id}
+                    type="button"
+                    className="w-full px-3 py-1.5 text-left text-xs hover:bg-slate-100 border-b border-slate-50 last:border-b-0"
+                    onMouseDown={(e) => { e.preventDefault(); handleSelect(m); }}
+                >
+                    <span className="font-medium">{m.name}</span>
+                    {(m.quantity != null || m.unit || m.unitPrice != null) && (
+                        <span className="ml-2 text-slate-400">
+                            {m.quantity != null && m.quantity}{m.unit && ` ${m.unit}`}{m.unitPrice != null && ` × ¥${Number(m.unitPrice).toLocaleString()}`}
+                        </span>
+                    )}
+                </button>
+            ))}
+        </div>,
+        document.body
+    ) : null;
+
+    return (
+        <>
+            <input
+                ref={inputRef}
+                type="text"
+                value={item.costName || ''}
+                onChange={(e) => {
+                    onUpdate(item.id, 'costName', e.target.value);
+                    setShowDropdown(true);
+                    updatePosition();
+                }}
+                onFocus={() => {
+                    // デフォルトで見積項目名をセット（空の場合）
+                    if (!item.costName && item.description) {
+                        onUpdate(item.id, 'costName', item.description);
+                    }
+                    updatePosition();
+                    setShowDropdown(true);
+                }}
+                className={className}
+                placeholder="原価項目名"
+                style={{ imeMode: 'active' }}
+            />
+            {dropdown}
+        </>
+    );
+}
+
 /** デスクトップ用テーブル行 */
-export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, unitPriceSpecifications, onSelectMaster, sortableRef, sortableStyle, sortableAttributes, dragListeners }: ItemRowProps) {
+export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, unitPriceSpecifications, onSelectMaster, costMasters, sortableRef, sortableStyle, sortableAttributes, dragListeners }: ItemRowProps) {
     const cellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-500 text-xs";
+    const costCellInputClass = "w-full px-2 py-1 border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 text-xs bg-amber-50/30";
+
+    const costSubtotal = (item.costQuantity && item.costUnitPrice) ? Math.round(item.costQuantity * item.costUnitPrice) : null;
 
     return (
         <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
@@ -334,6 +446,19 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                         <GripVertical className="w-4 h-4" />
                     </button>
                 ) : null}
+            </td>
+            <td className="px-3 py-2">
+                <div className="flex items-center justify-center gap-1">
+                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
+                        <ChevronUp className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="下に移動" aria-label="下に移動">
+                        <ChevronDown className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => onRemove(item.id)} className="p-1 text-slate-600 hover:bg-slate-50 rounded transition-colors" title="削除" aria-label="削除">
+                        <Trash2 className="w-4 h-4" />
+                    </button>
+                </div>
             </td>
             <td className="px-3 py-2">
                 <div className={isChild ? 'pl-6' : ''}>
@@ -381,17 +506,49 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
             <td className="px-3 py-2">
                 <input type="text" value={item.notes || ''} onChange={(e) => onUpdate(item.id, 'notes', e.target.value)} className={cellInputClass} placeholder="備考" style={{ imeMode: 'active' }} />
             </td>
-            <td className="px-3 py-2">
-                <div className="flex items-center justify-center gap-1">
-                    <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
-                        <ChevronUp className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => onMoveDown(index)} disabled={index === totalItems - 1} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="下に移動" aria-label="下に移動">
-                        <ChevronDown className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => onRemove(item.id)} className="p-1 text-slate-600 hover:bg-slate-50 rounded transition-colors" title="削除" aria-label="削除">
-                        <Trash2 className="w-4 h-4" />
-                    </button>
+            {/* 原価カラム */}
+            <td className="px-3 py-2 border-l-2 border-slate-300 bg-amber-50/30">
+                <CostNameInput item={item} onUpdate={onUpdate} costMasters={costMasters} className={costCellInputClass} />
+            </td>
+            <td className="px-3 py-2 bg-amber-50/30">
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={item.costQuantity == null || item.costQuantity === 0 ? '' : item.costQuantity}
+                    onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === '') {
+                            onUpdate(item.id, 'costQuantity', 0);
+                        } else if (!isNaN(Number(val))) {
+                            onUpdate(item.id, 'costQuantity', Number(val));
+                        }
+                    }}
+                    className={costCellInputClass}
+                    placeholder="数量"
+                    style={{ imeMode: 'inactive' }}
+                />
+            </td>
+            <td className="px-3 py-2 bg-amber-50/30">
+                <input type="text" value={item.costUnit || ''} onChange={(e) => onUpdate(item.id, 'costUnit', e.target.value)} className={costCellInputClass} placeholder="式" style={{ imeMode: 'active' }} />
+            </td>
+            <td className="px-3 py-2 bg-amber-50/30">
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    value={item.costUnitPrice == null || item.costUnitPrice === 0 ? '' : item.costUnitPrice.toLocaleString()}
+                    onChange={(e) => {
+                        const raw = e.target.value.replace(/[^0-9]/g, '');
+                        const num = parseInt(raw, 10);
+                        onUpdate(item.id, 'costUnitPrice', isNaN(num) ? 0 : num);
+                    }}
+                    className={costCellInputClass}
+                    placeholder="単価"
+                    style={{ imeMode: 'inactive' }}
+                />
+            </td>
+            <td className="px-3 py-2 bg-amber-50/30">
+                <div className="text-right font-medium text-xs">
+                    {costSubtotal != null ? `¥${costSubtotal.toLocaleString()}` : ''}
                 </div>
             </td>
         </tr>

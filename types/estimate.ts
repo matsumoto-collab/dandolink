@@ -9,7 +9,11 @@ export interface EstimateItem {
     amount: number;       // 金額
     taxType: 'none' | 'standard'; // 税区分（なし、10%）
     notes?: string;       // 備考
-    costAmount?: number | null; // 原価金額（予算書用）
+    costAmount?: number | null; // 原価金額（予算書用） - 自動計算: costQuantity * costUnitPrice
+    costName?: string;          // 原価項目名（マスタから選択 or 自由入力）
+    costQuantity?: number;      // 原価数量
+    costUnit?: string;          // 原価単位
+    costUnitPrice?: number;     // 原価単価
     isCategory?: boolean;       // カテゴリ行（子項目をグループ化）
     categoryType?: 'inline' | 'detail';  // inline=表紙展開, detail=内訳明細書（デフォルト: detail）
     children?: EstimateItem[];  // 子項目（isCategoryがtrueの場合）

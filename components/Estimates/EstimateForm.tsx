@@ -39,12 +39,15 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
     const { unitPrices, unitPriceCategories, unitPriceSpecifications, ensureDataLoaded: ensureUnitPricesLoaded } = useUnitPriceMaster();
+    const [costMasters, setCostMasters] = useState<Array<{ id: string; name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }>>([]);
 
     // 案件マスターと顧客データのフェッチ
     useEffect(() => {
         fetchProjectMasters();
         ensureDataLoaded();
         ensureUnitPricesLoaded();
+        // 原価マスター取得
+        fetch('/api/master-data/cost-masters').then(r => r.ok ? r.json() : []).then(setCostMasters).catch(() => {});
     }, [fetchProjectMasters, ensureDataLoaded, ensureUnitPricesLoaded]);
 
     const [projectId, setProjectId] = useState(initialData?.projectId || '');
@@ -72,10 +75,22 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
     // 項目別原価が1つでもあればcostTotalはロック（自動計算）
     const { costTotalLocked, itemsCostSum } = React.useMemo(() => {
         let sum = 0; let hasAny = false;
+        const calcCost = (it: EstimateItem) => {
+            // costQuantity * costUnitPrice があればそれを使う、なければ costAmount
+            if (it.costQuantity != null && it.costUnitPrice != null && (it.costQuantity > 0 || it.costUnitPrice > 0)) {
+                sum += Math.round(it.costQuantity * it.costUnitPrice);
+                hasAny = true;
+            } else if (it.costAmount != null) {
+                sum += it.costAmount;
+                hasAny = true;
+            }
+        };
         for (const item of items) {
             if (item.isCategory && item.children) {
-                for (const c of item.children) { if (c.costAmount != null) { sum += c.costAmount; hasAny = true; } }
-            } else { if (item.costAmount != null) { sum += item.costAmount; hasAny = true; } }
+                for (const c of item.children) calcCost(c);
+            } else {
+                calcCost(item);
+            }
         }
         return { costTotalLocked: hasAny, itemsCostSum: hasAny ? sum : null };
     }, [items]);
@@ -217,6 +232,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                     if (child.id === childId) {
                         const updated = { ...child, [field]: value };
                         if (field === 'quantity' || field === 'unitPrice') updated.amount = Math.round(updated.quantity * updated.unitPrice);
+                        if (field === 'costQuantity' || field === 'costUnitPrice') {
+                            const cq = updated.costQuantity ?? 0;
+                            const cp = updated.costUnitPrice ?? 0;
+                            updated.costAmount = cq > 0 && cp > 0 ? Math.round(cq * cp) : null;
+                        }
                         return updated;
                     }
                     return child;
@@ -307,6 +327,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             if (item.id === id) {
                 const updated = { ...item, [field]: value };
                 if (field === 'quantity' || field === 'unitPrice') updated.amount = Math.round(updated.quantity * updated.unitPrice);
+                if (field === 'costQuantity' || field === 'costUnitPrice') {
+                    const cq = updated.costQuantity ?? 0;
+                    const cp = updated.costUnitPrice ?? 0;
+                    updated.costAmount = cq > 0 && cp > 0 ? Math.round(cq * cp) : null;
+                }
                 return updated;
             }
             return item;
@@ -490,6 +515,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                 unitPriceCategories={unitPriceCategories}
                 unitPriceSpecifications={unitPriceSpecifications}
                 onSelectMaster={handleSelectMasterForItem}
+                costMasters={costMasters}
             />
 
             <ConditionNotes notes={notes} setNotes={setNotes} />
