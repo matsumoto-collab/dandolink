@@ -185,9 +185,9 @@ export default function MaterialRequisitionPage() {
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
+            <div className="flex-1 overflow-y-auto">
                 {/* Header */}
-                <div className="mb-4 md:mb-8">
+                <div className="mb-6">
                     <h1 className="text-2xl font-bold text-slate-800">材料出庫伝票</h1>
                     <p className="text-sm text-slate-500 mt-1">材料の出庫を管理します</p>
                 </div>

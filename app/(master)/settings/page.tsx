@@ -161,7 +161,7 @@ export default function SettingsPage() {
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
-            <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
+            <div className="flex-1 overflow-y-auto">
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-slate-800">マスター・設定</h1>

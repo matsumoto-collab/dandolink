@@ -85,7 +85,7 @@ export default function CustomersPage() {
     };
 
     return (
-        <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden bg-slate-50">
+        <div className="h-full flex flex-col overflow-hidden bg-slate-50">
             {/* ヘッダー */}
             <div className="flex items-center justify-between mb-6">
                 <div>

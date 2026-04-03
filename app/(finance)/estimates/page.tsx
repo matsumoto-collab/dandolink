@@ -196,7 +196,7 @@ export default function EstimateListPage() {
 
 
     return (
-        <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
+        <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-slate-800">
