@@ -138,10 +138,10 @@ export default function ProjectListPage() {
         <div className="p-4 sm:p-6 h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
-                <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
                     案件一覧
                 </h1>
-                <p className="text-slate-600">登録されている全ての案件を管理できます</p>
+                <p className="text-sm text-slate-500 mt-1">登録されている全ての案件を管理できます</p>
             </div>
 
             {/* ツールバー */}

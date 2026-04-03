@@ -102,8 +102,8 @@ export default function CompanyInfoSettings() {
         <div>
             {/* ヘッダー */}
             <div className="mb-3 md:mb-6">
-                <h1 className="text-3xl font-bold text-slate-800 mb-2">会社情報設定</h1>
-                <p className="text-slate-600">自社の基本情報・口座情報を管理します</p>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">会社情報設定</h1>
+                <p className="text-sm text-slate-500 mt-1">自社の基本情報・口座情報を管理します</p>
             </div>
 
             {/* コンテンツ */}

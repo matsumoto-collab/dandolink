@@ -163,9 +163,9 @@ export default function SettingsPage() {
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
             <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
                 {/* Header */}
-                <div className="mb-4 md:mb-8">
-                    <h1 className="text-3xl font-bold text-slate-800 mb-2">マスター・設定</h1>
-                    <p className="text-slate-600">マスターデータを管理します</p>
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">マスター・設定</h1>
+                    <p className="text-sm text-slate-500 mt-1">マスターデータを管理します</p>
                 </div>
 
                 {/* Segment Tabs */}

@@ -87,12 +87,12 @@ export default function CustomersPage() {
     return (
         <div className="h-full flex flex-col p-3 md:p-6 overflow-hidden bg-slate-50">
             {/* ヘッダー */}
-            <div className="flex items-center justify-between mb-3 md:mb-6">
+            <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800 mb-2">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
                         顧客一覧
                     </h1>
-                    <p className="text-slate-600">{filteredCustomers.length}件の顧客データ</p>
+                    <p className="text-sm text-slate-500 mt-1">{filteredCustomers.length}件の顧客データ</p>
                 </div>
             </div>
 
