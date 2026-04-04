@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
                         id: true,
                         title: true,
                         name: true,
+                        honorific: true,
                         customerName: true,
                         scheduledStartDate: true,
                         scheduledEndDate: true,
@@ -117,7 +118,7 @@ export async function GET(req: NextRequest) {
                 projectMap.set(pmId, {
                     projectMasterId: pmId,
                     projectTitle: a.projectMaster.title,
-                    projectName: a.projectMaster.name,
+                    projectName: a.projectMaster.name ? `${a.projectMaster.name}${a.projectMaster.honorific || ''}` : null,
                     customerName: a.projectMaster.customerName,
                     scheduledStartDate: a.projectMaster.scheduledStartDate?.toISOString().split('T')[0] ?? null,
                     scheduledEndDate: a.projectMaster.scheduledEndDate?.toISOString().split('T')[0] ?? null,
