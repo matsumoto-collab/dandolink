@@ -276,6 +276,19 @@ model Worker {
   @@schema("public")
 }
 
+model ConstructionContent {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([name])
+  @@index([sortOrder])
+  @@schema("public")
+}
+
 model ConstructionSuffix {
   id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   name      String

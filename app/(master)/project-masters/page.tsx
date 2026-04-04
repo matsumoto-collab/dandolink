@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useEstimates } from '@/hooks/useEstimates';
-import { ProjectMaster, ConstructionContentType, ScaffoldingSpec } from '@/types/calendar';
+import { ProjectMaster, ScaffoldingSpec } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -83,7 +83,7 @@ export default function ProjectMasterListPage() {
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
             constructionType: 'other',
-            constructionContent: data.constructionContent as ConstructionContentType,
+            constructionContent: data.constructionContent as string,
             status: 'active',
             postalCode: data.postalCode || undefined,
             prefecture: data.prefecture || undefined,
@@ -134,7 +134,7 @@ export default function ProjectMasterListPage() {
             constructionSuffixId: data.constructionSuffixId || undefined,
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
-            constructionContent: data.constructionContent as ConstructionContentType || undefined,
+            constructionContent: data.constructionContent as string || undefined,
             postalCode: data.postalCode || undefined,
             prefecture: data.prefecture || undefined,
             city: data.city || undefined,
@@ -181,13 +181,15 @@ export default function ProjectMasterListPage() {
     };
 
     const getConstructionContentLabel = (content: string | undefined) => {
-        switch (content) {
-            case 'new_construction': return '新築';
-            case 'renovation': return '改修';
-            case 'large_scale': return '大規模';
-            case 'other': return 'その他';
-            default: return '-';
-        }
+        if (!content) return '-';
+        // 旧enum値の後方互換
+        const legacy: Record<string, string> = {
+            new_construction: '新築',
+            renovation: '改修',
+            large_scale: '大規模',
+            other: 'その他',
+        };
+        return legacy[content] || content;
     };
 
     const handleCreateEstimate = useCallback(() => {

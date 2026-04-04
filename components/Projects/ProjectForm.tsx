@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, CONSTRUCTION_CONTENT_LABELS, ConstructionContentType, DailySchedule, WorkSchedule } from '@/types/calendar';
+import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DailySchedule, WorkSchedule } from '@/types/calendar';
 import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
@@ -96,6 +96,18 @@ export default function ProjectForm({
         fetchSuffixes();
     }, []);
 
+    // 工事内容マスタ
+    const [constructionContents, setConstructionContents] = useState<{ id: string; name: string }[]>([]);
+    useEffect(() => {
+        const fetchContents = async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-contents');
+                if (res.ok) setConstructionContents(await res.json());
+            } catch { /* ignore */ }
+        };
+        fetchContents();
+    }, []);
+
     // 3フィールド分離前の古い案件: name=undefinedの場合titleからフォールバック
     const hasInitialName = !!initialData?.name;
     const [formData, setFormData] = useState({
@@ -118,7 +130,7 @@ export default function ProjectForm({
         // 工事種別（単一選択 - IDまたはレガシーコードで保存）
         constructionType: initialData?.constructionType || '',
         // 工事内容
-        constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
+        constructionContent: initialData?.constructionContent || '',
         remarks: initialData?.remarks || '',
     });
 
@@ -143,7 +155,7 @@ export default function ProjectForm({
                 ? initialData.confirmedVehicleIds.map(id => mockVehicles.find(v => v.id === id)?.name).filter((n): n is string => !!n)
                 : initialData?.trucks || [],
             constructionType: initialData?.constructionType || '',
-            constructionContent: initialData?.constructionContent || '' as ConstructionContentType | '',
+            constructionContent: initialData?.constructionContent || '',
             remarks: initialData?.remarks || '',
         });
     }, [initialData]);
@@ -628,20 +640,16 @@ export default function ProjectForm({
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                         工事内容
                     </label>
-                    <div className="flex flex-wrap gap-2 border border-slate-200 rounded-md p-3">
-                        {(Object.entries(CONSTRUCTION_CONTENT_LABELS) as [ConstructionContentType, string][]).map(([value, label]) => (
-                            <label key={value} className="flex items-center space-x-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="constructionContent"
-                                    checked={formData.constructionContent === value}
-                                    onChange={() => setFormData({ ...formData, constructionContent: value })}
-                                    className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
-                                />
-                                <span className="text-sm text-slate-700">{label}</span>
-                            </label>
+                    <select
+                        value={formData.constructionContent}
+                        onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500"
+                    >
+                        <option value="">選択してください</option>
+                        {constructionContents.map((item) => (
+                            <option key={item.id} value={item.name}>{item.name}</option>
                         ))}
-                    </div>
+                    </select>
                 </div>
 
                 {/* 複数日スケジュール管理 */}

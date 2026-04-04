@@ -14,7 +14,8 @@ interface ProjectMasterDetailPanelProps {
     hideFinancials?: boolean;
 }
 
-const CONSTRUCTION_CONTENT_LABELS: Record<string, string> = {
+// 旧enum値→表示名の変換（後方互換）
+const LEGACY_CONTENT_LABELS: Record<string, string> = {
     new_construction: '新築',
     renovation: '改修',
     large_scale: '大規模',
@@ -89,7 +90,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                 <Field label="元請け" value={pm.customerName} />
                 <Field
                     label="工事内容"
-                    value={pm.constructionContent ? CONSTRUCTION_CONTENT_LABELS[pm.constructionContent] : undefined}
+                    value={pm.constructionContent ? (LEGACY_CONTENT_LABELS[pm.constructionContent] || pm.constructionContent) : undefined}
                 />
                 <Field label="案件責任者" value={managerNames || undefined} />
                 <Field

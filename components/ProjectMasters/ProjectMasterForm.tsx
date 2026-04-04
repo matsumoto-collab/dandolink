@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import {
     ScaffoldingSpec,
     DEFAULT_SCAFFOLDING_SPEC,
-    ConstructionContentType,
 } from '@/types/calendar';
 import { CollapsibleSection } from './common/CollapsibleSection';
 import { BasicInfoSection } from './sections/BasicInfoSection';
@@ -29,7 +28,7 @@ export interface ProjectMasterFormData {
     constructionSuffixId: string;
     customerId: string;
     customerName: string;
-    constructionContent: ConstructionContentType | '';
+    constructionContent: string;
     // 住所情報
     postalCode: string;
     prefecture: string;

@@ -8,6 +8,7 @@ import UnitPriceMasterSettings from '@/components/Settings/UnitPriceMasterSettin
 import UserManagement from '@/components/Settings/UserManagement';
 import ConstructionTypeSettings from '@/components/Settings/ConstructionTypeSettings';
 import ConstructionSuffixSettings from '@/components/Settings/ConstructionSuffixSettings';
+import ConstructionContentSettings from '@/components/Settings/ConstructionContentSettings';
 import BillingTitleSettings from '@/components/Settings/BillingTitleSettings';
 import MaterialMasterSettings from '@/components/Settings/MaterialMasterSettings';
 import CostMasterSettings from '@/components/Settings/CostMasterSettings';
@@ -26,7 +27,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'users'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'users'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [newItemName, setNewItemName] = useState('');
@@ -44,11 +45,12 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'users'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'users'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
             { id: 'constructionSuffixes' as const, label: '工事名称', count: null },
+            { id: 'constructionContents' as const, label: '工事内容', count: null },
             { id: 'billingTitles' as const, label: '請求項目', count: null },
             { id: 'unitprices' as const, label: '単価マスター', count: null },
             { id: 'materials' as const, label: '材料マスター', count: null },
@@ -313,6 +315,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'constructionSuffixes' ? (
                             // 工事名称マスター
                             <ConstructionSuffixSettings />
+                        ) : activeTab === 'constructionContents' ? (
+                            // 工事内容マスター
+                            <ConstructionContentSettings />
                         ) : activeTab === 'billingTitles' ? (
                             // 請求項目マスター
                             <BillingTitleSettings />

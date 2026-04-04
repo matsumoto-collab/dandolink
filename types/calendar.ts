@@ -77,15 +77,19 @@ export interface WorkSchedule {
 
 // ===== 新データモデル =====
 
-// 工事内容タイプ
-export type ConstructionContentType = 'new_construction' | 'renovation' | 'large_scale' | 'other';
+// 工事内容タイプ（マスターデータから動的に取得、後方互換のためstring型）
+export type ConstructionContentType = string;
 
-export const CONSTRUCTION_CONTENT_LABELS: Record<ConstructionContentType, string> = {
+// 旧enum値→表示名の変換（後方互換用）
+export const LEGACY_CONSTRUCTION_CONTENT_LABELS: Record<string, string> = {
     new_construction: '新築',
     renovation: '改修',
     large_scale: '大規模',
     other: 'その他',
 };
+
+/** @deprecated Use API instead: /api/master-data/construction-contents */
+export const CONSTRUCTION_CONTENT_LABELS = LEGACY_CONSTRUCTION_CONTENT_LABELS;
 
 // 足場仕様インターフェース
 export interface ScaffoldingSpec {

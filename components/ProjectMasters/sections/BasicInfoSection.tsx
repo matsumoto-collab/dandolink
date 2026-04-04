@@ -5,7 +5,7 @@ import { Plus, Search } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { FormField } from '../common/FormField';
 import { useCustomerSearch } from '@/hooks/useCustomerSearch';
-import { ConstructionContentType, CONSTRUCTION_CONTENT_LABELS } from '@/types/calendar';
+// ConstructionContentType kept for form data compatibility
 import { isManagerOrAbove } from '@/utils/permissions';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import CustomerModal from '@/components/Customers/CustomerModal';
@@ -21,6 +21,12 @@ const HONORIFIC_OPTIONS = [
 ];
 
 interface ConstructionSuffix {
+    id: string;
+    name: string;
+    sortOrder: number;
+}
+
+interface ConstructionContentItem {
     id: string;
     name: string;
     sortOrder: number;
@@ -44,6 +50,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
     const customerDropdownRef = useRef<HTMLDivElement>(null);
     const [constructionSuffixes, setConstructionSuffixes] = useState<ConstructionSuffix[]>([]);
+    const [constructionContents, setConstructionContents] = useState<ConstructionContentItem[]>([]);
 
     const {
         setCustomers,
@@ -131,6 +138,20 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
         fetchSuffixes();
     }, []);
 
+    useEffect(() => {
+        const fetchContents = async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-contents');
+                if (res.ok) {
+                    setConstructionContents(await res.json());
+                }
+            } catch (error) {
+                console.error('Failed to fetch construction contents:', error);
+            }
+        };
+        fetchContents();
+    }, []);
+
     // 正式名称プレビューを生成
     const titlePreview = useMemo(() => {
         const n = formData.name.trim();
@@ -147,12 +168,12 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                 <FormField label="工事内容" required>
                     <select
                         value={formData.constructionContent}
-                        onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value as ConstructionContentType })}
+                        onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value as string })}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                     >
                         <option value="">選択してください</option>
-                        {Object.entries(CONSTRUCTION_CONTENT_LABELS).map(([key, label]) => (
-                            <option key={key} value={key}>{label}</option>
+                        {constructionContents.map((item) => (
+                            <option key={item.id} value={item.name}>{item.name}</option>
                         ))}
                     </select>
                 </FormField>
