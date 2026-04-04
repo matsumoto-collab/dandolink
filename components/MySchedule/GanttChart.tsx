@@ -71,15 +71,6 @@ function getDaysBetween(start: Date, end: Date): Date[] {
 
 const DAY_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
-const FOREMAN_COLORS = [
-    '#14b8a6', '#f59e0b', '#8b5cf6', '#ef4444', '#3b82f6',
-    '#ec4899', '#10b981', '#f97316', '#6366f1', '#06b6d4',
-];
-
-function getForemanColor(index: number): string {
-    return FOREMAN_COLORS[index % FOREMAN_COLORS.length];
-}
-
 // --- Component ---
 
 export default function GanttChart({
@@ -153,13 +144,6 @@ export default function GanttChart({
         }
         return map;
     }, [filteredProjects]);
-
-    // 職長カラーマップ
-    const foremanColorMap = useMemo(() => {
-        const m = new Map<string, string>();
-        foremen.forEach((f, i) => m.set(f.id, getForemanColor(i)));
-        return m;
-    }, [foremen]);
 
     const ROW_HEIGHT = 56;
     const LEFT_COL_WIDTH = 250;
