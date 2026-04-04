@@ -294,6 +294,7 @@ export default function EstimateDetailModal({
                         <BudgetTab
                             items={budgetItems}
                             onUpdateCostAmount={handleUpdateCostAmount}
+                            subtotal={estimate.subtotal}
                             total={estimate.total}
                             costTotal={estimate.costTotal ?? null}
                         />

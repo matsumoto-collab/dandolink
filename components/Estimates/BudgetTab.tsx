@@ -6,6 +6,7 @@ import { EstimateItem } from '@/types/estimate';
 interface BudgetTabProps {
     items: EstimateItem[];
     onUpdateCostAmount: (itemId: string, costAmount: number | null, childId?: string) => void;
+    subtotal: number;
     total: number;
     costTotal: number | null;
 }
@@ -53,7 +54,7 @@ function CostInput({ value, onChange }: { value: number | null | undefined; onCh
     );
 }
 
-export default function BudgetTab({ items, onUpdateCostAmount, total, costTotal }: BudgetTabProps) {
+export default function BudgetTab({ items, onUpdateCostAmount, subtotal, total, costTotal }: BudgetTabProps) {
     // 項目別原価の合計
     const itemsCostTotal = React.useMemo(() => {
         let sum = 0;
@@ -71,8 +72,8 @@ export default function BudgetTab({ items, onUpdateCostAmount, total, costTotal 
     }, [items]);
 
     const effectiveCostTotal = itemsCostTotal ?? costTotal;
-    const grossProfit = effectiveCostTotal != null ? total - effectiveCostTotal : null;
-    const grossProfitRate = grossProfit != null && total > 0 ? (grossProfit / total) * 100 : null;
+    const grossProfit = effectiveCostTotal != null ? subtotal - effectiveCostTotal : null;
+    const grossProfitRate = grossProfit != null && subtotal > 0 ? (grossProfit / subtotal) * 100 : null;
 
     const getProfitColor = (rate: number) => {
         if (rate < 0) return 'text-red-600';

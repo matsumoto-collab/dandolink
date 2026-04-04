@@ -30,8 +30,8 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustSubtotal, 
     // 粗利計算
     const parsedCost = parseInt((costInput || '').replace(/,/g, ''), 10);
     const hasCost = !isNaN(parsedCost) && parsedCost >= 0;
-    const grossProfit = hasCost ? total - parsedCost : 0;
-    const grossProfitRate = hasCost && total > 0 ? (grossProfit / total) * 100 : 0;
+    const grossProfit = hasCost ? subtotal - parsedCost : 0;
+    const grossProfitRate = hasCost && subtotal > 0 ? (grossProfit / subtotal) * 100 : 0;
 
     const getProfitRateColor = (rate: number) => {
         if (rate < 0) return 'text-red-600';
