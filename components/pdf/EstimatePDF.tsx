@@ -499,8 +499,10 @@ function CoverPage({ estimate, project, companyInfo, creatorName }: Omit<Estimat
                 <View style={styles.customerArea}>
                     {(() => {
                         const fullName = `${project.customer || ''}\u3000${project.customerHonorific || '御中'}`;
-                        const len = fullName.length;
-                        const fontSize = len <= 12 ? 14 : len <= 16 ? 12 : len <= 20 ? 11 : 10;
+                        const maxWidth = 280 * 0.8; // 下線幅の80%
+                        const baseFontSize = 14;
+                        const textWidth = fullName.length * baseFontSize;
+                        const fontSize = textWidth <= maxWidth ? baseFontSize : Math.max(10, Math.floor(maxWidth / fullName.length));
                         return <Text style={{ ...styles.customerName, fontSize }}>{fullName}</Text>;
                     })()}
                     <Text style={styles.greetingText}>{'いつもお世話になっております。\n下記の通り御見積書をお送りいたしますので、\nご検討のほどよろしくお願いいたします。'}</Text>
