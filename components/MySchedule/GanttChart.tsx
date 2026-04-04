@@ -197,7 +197,8 @@ export default function GanttChart({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => onNavigate('today')}
-                        className="px-3 py-1.5 text-sm font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                        className="px-3 py-1.5 font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
+                        style={{ fontSize: 12 }}
                     >
                         今日
                     </button>
@@ -219,13 +220,15 @@ export default function GanttChart({
                     <div className="flex rounded-lg border border-slate-300 overflow-hidden">
                         <button
                             onClick={() => onViewModeChange('week')}
-                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'week' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            className={`px-3 py-1.5 font-medium transition-colors ${viewMode === 'week' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            style={{ fontSize: 12 }}
                         >
                             週
                         </button>
                         <button
                             onClick={() => onViewModeChange('month')}
-                            className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === 'month' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            className={`px-3 py-1.5 font-medium transition-colors ${viewMode === 'month' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                            style={{ fontSize: 12 }}
                         >
                             月
                         </button>
@@ -251,7 +254,8 @@ export default function GanttChart({
                     <select
                         value={filterForemanId ?? ''}
                         onChange={(e) => onFilterForemanChange(e.target.value || null)}
-                        className="text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        className="border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                        style={{ fontSize: 12 }}
                     >
                         <option value="">全担当者</option>
                         {foremen.map(f => (
@@ -278,8 +282,8 @@ export default function GanttChart({
                                 {monthGroups.map((g) => (
                                     <div
                                         key={g.label}
-                                        className="text-xs font-semibold text-slate-600 flex items-center px-2 border-r border-slate-200"
-                                        style={{ width: g.days.length * cellWidth }}
+                                        className="font-semibold text-slate-600 flex items-center px-2 border-r border-slate-200"
+                                        style={{ fontSize: 11, width: g.days.length * cellWidth }}
                                     >
                                         {g.label}
                                     </div>
