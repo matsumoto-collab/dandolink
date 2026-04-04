@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useRef, useEffect, useState } from 'react';
+import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // --- Types ---
@@ -71,6 +71,10 @@ function getDaysBetween(start: Date, end: Date): Date[] {
 
 const DAY_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
+const ROW_HEIGHT = 32;
+const LEFT_COL_WIDTH = 210;
+const HEADER_HEIGHT = 56;
+
 // --- Component ---
 
 export default function GanttChart({
@@ -85,7 +89,9 @@ export default function GanttChart({
     filterForemanId,
     onFilterForemanChange,
 }: GanttChartProps) {
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const headerScrollRef = useRef<HTMLDivElement>(null);
+    const bodyScrollRef = useRef<HTMLDivElement>(null);
+    const leftBodyRef = useRef<HTMLDivElement>(null);
     const todayRef = useRef<HTMLDivElement>(null);
     const [cellWidth, setCellWidth] = useState(30);
 
@@ -98,7 +104,6 @@ export default function GanttChart({
         return m;
     }, [constructionTypes]);
 
-    // 月グループ
     const monthGroups = useMemo(() => {
         const groups: { label: string; days: Date[] }[] = [];
         let currentMonth = '';
@@ -115,13 +120,51 @@ export default function GanttChart({
 
     // 今日の列にスクロール
     useEffect(() => {
-        if (todayRef.current && scrollRef.current) {
-            const container = scrollRef.current;
+        if (todayRef.current && bodyScrollRef.current) {
+            const container = bodyScrollRef.current;
             const todayEl = todayRef.current;
             const offset = todayEl.offsetLeft - container.clientWidth / 3;
             container.scrollLeft = Math.max(0, offset);
+            // ヘッダーも同期
+            if (headerScrollRef.current) {
+                headerScrollRef.current.scrollLeft = container.scrollLeft;
+            }
         }
     }, [days]);
+
+    // 左カラムと右ボディの縦スクロール同期
+    useEffect(() => {
+        const left = leftBodyRef.current;
+        const right = bodyScrollRef.current;
+        if (!left || !right) return;
+
+        let syncing = false;
+        const onLeftScroll = () => {
+            if (syncing) return;
+            syncing = true;
+            right.scrollTop = left.scrollTop;
+            syncing = false;
+        };
+        const onRightScroll = () => {
+            if (syncing) return;
+            syncing = true;
+            left.scrollTop = right.scrollTop;
+            syncing = false;
+        };
+        left.addEventListener('scroll', onLeftScroll);
+        right.addEventListener('scroll', onRightScroll);
+        return () => {
+            left.removeEventListener('scroll', onLeftScroll);
+            right.removeEventListener('scroll', onRightScroll);
+        };
+    }, []);
+
+    // 右ヘッダーと右ボディの横スクロール同期
+    const onBodyHScroll = useCallback(() => {
+        if (headerScrollRef.current && bodyScrollRef.current) {
+            headerScrollRef.current.scrollLeft = bodyScrollRef.current.scrollLeft;
+        }
+    }, []);
 
     // フィルタ適用
     const filteredProjects = useMemo(() => {
@@ -145,13 +188,12 @@ export default function GanttChart({
         return map;
     }, [filteredProjects]);
 
-    const ROW_HEIGHT = 32;
-    const LEFT_COL_WIDTH = 210;
+    const totalWidth = days.length * cellWidth;
 
     return (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm flex flex-col" style={{ height: 'calc(100vh - 180px)' }}>
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-200 bg-slate-50">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => onNavigate('today')}
@@ -174,7 +216,6 @@ export default function GanttChart({
                 </div>
 
                 <div className="flex items-center gap-3">
-                    {/* 表示切替 */}
                     <div className="flex rounded-lg border border-slate-300 overflow-hidden">
                         <button
                             onClick={() => onViewModeChange('week')}
@@ -190,7 +231,6 @@ export default function GanttChart({
                         </button>
                     </div>
 
-                    {/* セル幅 */}
                     <div className="flex items-center gap-1">
                         <button
                             onClick={() => setCellWidth(w => Math.max(24, w - 4))}
@@ -208,7 +248,6 @@ export default function GanttChart({
                         </button>
                     </div>
 
-                    {/* 職長フィルタ */}
                     <select
                         value={filterForemanId ?? ''}
                         onChange={(e) => onFilterForemanChange(e.target.value || null)}
@@ -222,44 +261,18 @@ export default function GanttChart({
                 </div>
             </div>
 
-            {/* Chart area */}
-            <div className="flex overflow-hidden">
-                {/* Left column - project names */}
-                <div className="flex-shrink-0 border-r border-slate-200 bg-white z-10" style={{ width: LEFT_COL_WIDTH }}>
-                    {/* Header placeholder */}
-                    <div className="border-b border-slate-200 bg-slate-50" style={{ height: 56 }}>
-                        <div className="flex items-end h-full px-3 pb-2">
-                            <span className="text-xs font-semibold text-slate-500">案件名</span>
-                        </div>
+            {/* Header row (fixed) */}
+            <div className="flex-shrink-0 flex border-b border-slate-200">
+                {/* Left header */}
+                <div className="flex-shrink-0 border-r border-slate-200 bg-slate-50" style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}>
+                    <div className="flex items-end h-full px-3 pb-2">
+                        <span className="text-xs font-semibold text-slate-500">案件名</span>
                     </div>
-
-                    {/* Project rows */}
-                    {filteredProjects.map((project) => (
-                        <div
-                            key={project.projectMasterId}
-                            className="flex items-center gap-2 px-3 border-b border-slate-100 hover:bg-slate-50 transition-colors"
-                            style={{ height: ROW_HEIGHT }}
-                        >
-                            <div className="flex-1 min-w-0">
-                                <div className="font-medium text-slate-800 truncate" style={{ fontSize: 12 }} title={project.projectTitle}>
-                                    {project.projectName || project.projectTitle}
-                                </div>
-                            </div>
-                        </div>
-                    ))}
-
-                    {filteredProjects.length === 0 && (
-                        <div className="flex items-center justify-center h-32 text-sm text-slate-400">
-                            表示できる案件がありません
-                        </div>
-                    )}
                 </div>
-
-                {/* Right area - scrollable calendar */}
-                <div className="flex-1 overflow-x-auto" ref={scrollRef}>
-                    <div style={{ width: days.length * cellWidth, minWidth: '100%' }}>
-                        {/* Header: month + date + day-of-week */}
-                        <div className="border-b border-slate-200 bg-slate-50" style={{ height: 56 }}>
+                {/* Right header - horizontal scroll hidden (synced with body) */}
+                <div className="flex-1 overflow-hidden min-w-0" ref={headerScrollRef}>
+                    <div style={{ width: totalWidth }}>
+                        <div className="bg-slate-50" style={{ height: HEADER_HEIGHT }}>
                             {/* Month row */}
                             <div className="flex" style={{ height: 22 }}>
                                 {monthGroups.map((g) => (
@@ -299,8 +312,46 @@ export default function GanttChart({
                                 })}
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
 
-                        {/* Data rows */}
+            {/* Body area (scrollable, fills remaining height) */}
+            <div className="flex flex-1 min-h-0">
+                {/* Left body - vertical scroll only, scrollbar hidden */}
+                <div
+                    className="flex-shrink-0 border-r border-slate-200 bg-white overflow-y-auto overflow-x-hidden"
+                    ref={leftBodyRef}
+                    style={{ width: LEFT_COL_WIDTH, scrollbarWidth: 'none' }}
+                >
+                    {filteredProjects.map((project) => (
+                        <div
+                            key={project.projectMasterId}
+                            className="flex items-center gap-2 px-3 border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                            style={{ height: ROW_HEIGHT }}
+                        >
+                            <div className="flex-1 min-w-0">
+                                <div className="font-medium text-slate-800 truncate" style={{ fontSize: 12 }} title={project.projectTitle}>
+                                    {project.projectName || project.projectTitle}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+
+                    {filteredProjects.length === 0 && (
+                        <div className="flex items-center justify-center h-32 text-sm text-slate-400">
+                            表示できる案件がありません
+                        </div>
+                    )}
+                </div>
+
+                {/* Right body - vertical + horizontal scroll, scrollbar visible at bottom */}
+                <div
+                    className="flex-1 overflow-auto min-w-0"
+                    ref={bodyScrollRef}
+                    onScroll={onBodyHScroll}
+                >
+                    <div style={{ width: totalWidth }}>
                         {filteredProjects.map((project) => {
                             const workMap = projectWorkMap.get(project.projectMasterId);
 
@@ -318,7 +369,6 @@ export default function GanttChart({
                                         const isSat = dow === 6;
                                         const entries = workMap?.get(dateStr);
 
-                                        // スケジュール範囲内かどうか（薄い背景を表示）
                                         const inRange = project.startDate && project.endDate &&
                                             dateStr >= project.startDate && dateStr <= project.endDate;
 
@@ -326,14 +376,12 @@ export default function GanttChart({
                                             <div
                                                 key={i}
                                                 className={`relative border-r border-slate-50 flex items-center justify-center ${isToday ? 'bg-red-50/40' : isSun ? 'bg-rose-50/30' : isSat ? 'bg-blue-50/30' : ''}`}
-                                                style={{ width: cellWidth }}
+                                                style={{ width: cellWidth, minWidth: cellWidth }}
                                             >
-                                                {/* 工期範囲の薄い背景 */}
                                                 {inRange && !entries && (
                                                     <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-6 bg-slate-100/60 border-y border-dashed border-slate-200" />
                                                 )}
 
-                                                {/* 作業エントリ */}
                                                 {entries && entries.length > 0 && (
                                                     <WorkCell
                                                         entries={entries}
@@ -342,7 +390,6 @@ export default function GanttChart({
                                                     />
                                                 )}
 
-                                                {/* 今日マーカー */}
                                                 {isToday && (
                                                     <div className="absolute top-0 left-0 w-px h-full bg-red-400 z-10 pointer-events-none" />
                                                 )}
@@ -370,7 +417,6 @@ function WorkCell({
     ctMap: Map<string, ConstructionType>;
     cellWidth: number;
 }) {
-    // 同日に複数エントリある場合、最初のものをメインで表示
     const main = entries[0];
     const ct = main.constructionTypeId ? ctMap.get(main.constructionTypeId) : null;
     const color = ct?.color ?? '#f59e0b';
