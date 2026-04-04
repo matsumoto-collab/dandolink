@@ -51,9 +51,16 @@ export default function MySchedulePage() {
 
     const [baseMonth, setBaseMonth] = useState(() => getMonthStart(new Date()));
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
-    const [filterManagerId, setFilterManagerId] = useState<string | null>(null);
+    const [filterManagerId, setFilterManagerId] = useState<string | null>(session?.user?.id ?? null);
 
     const isAdmin = session?.user?.role === 'admin';
+
+    // セッション読み込み後にデフォルト設定
+    useEffect(() => {
+        if (session?.user?.id && filterManagerId === null) {
+            setFilterManagerId(session.user.id);
+        }
+    }, [session?.user?.id, filterManagerId]);
 
     const { viewStartDate, viewEndDate } = useMemo(() => {
         if (viewMode === 'month') {
