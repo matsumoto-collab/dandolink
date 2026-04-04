@@ -78,11 +78,13 @@ export default function MySchedulePage() {
         }
     }, [baseMonth, viewMode]);
 
+    // APIデータ取得期間（前後6ヶ月の広い範囲を固定取得、月移動で再取得しない）
     const fetchRange = useMemo(() => {
-        const start = getMonthStart(addMonths(baseMonth, -1));
-        const end = getMonthEnd(addMonths(baseMonth, 3));
+        const now = new Date();
+        const start = getMonthStart(addMonths(getMonthStart(now), -6));
+        const end = getMonthEnd(addMonths(getMonthStart(now), 6));
         return { start: formatDateParam(start), end: formatDateParam(end) };
-    }, [baseMonth]);
+    }, []);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
