@@ -8,6 +8,11 @@ import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 
+/** ファイル名に使えない文字を除去 */
+function sanitizeFileName(name: string): string {
+    return name.replace(/[\\/:*?"<>|]/g, '_').trim();
+}
+
 // Register fonts on module load
 import '@/components/pdf/styles';
 
@@ -39,7 +44,8 @@ export async function exportEstimatePDFReact(
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `見積書_${estimate.estimateNumber}_${new Date().getTime()}.pdf`;
+        const titlePart = sanitizeFileName(estimate.title || estimate.estimateNumber);
+        link.download = `見積書_${titlePart}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -99,7 +105,9 @@ export async function exportInvoicePDFReact(
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `請求書_${invoice.invoiceNumber}_${new Date().getTime()}.pdf`;
+        const customerPart = project.customer ? `_${project.customer}${project.customerHonorific || ''}` : '';
+        const titlePart = sanitizeFileName((invoice.title || invoice.invoiceNumber) + customerPart);
+        link.download = `請求書_${titlePart}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
