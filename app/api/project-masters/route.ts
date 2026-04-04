@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, scheduledStartDate, scheduledEndDate, managerIds, remarks, createdBy } = validation.data;
+        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
 
         // 正式名称を自動合成（nameがある場合）
         let resolvedTitle = title || '';
@@ -134,9 +134,6 @@ export async function POST(req: NextRequest) {
                 estimatedDemolitionWorkers: estimatedDemolitionWorkers || null,
                 contractAmount: contractAmount || null, scaffoldingSpec: scaffoldingSpec || undefined,
                 description: description || null,
-                scheduledStartDate: scheduledStartDate ? new Date(scheduledStartDate) : null,
-                scheduledEndDate: scheduledEndDate ? new Date(scheduledEndDate) : null,
-                managerIds: managerIds || [],
                 remarks: remarks || null,
                 createdBy: stringifyJsonField(createdBy),
                 updatedBy: session!.user.id,

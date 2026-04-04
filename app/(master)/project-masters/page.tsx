@@ -148,9 +148,6 @@ export default function ProjectMasterListPage() {
             estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
             contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
             scaffoldingSpec: data.scaffoldingSpec as ScaffoldingSpec,
-            scheduledStartDate: data.scheduledStartDate || undefined,
-            scheduledEndDate: data.scheduledEndDate || undefined,
-            managerIds: data.managerIds,
             remarks: data.remarks ?? '',
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });

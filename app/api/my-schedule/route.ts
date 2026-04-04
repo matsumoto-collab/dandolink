@@ -49,9 +49,6 @@ export async function GET(req: NextRequest) {
                         honorific: true,
                         customerName: true,
                         constructionSuffixId: true,
-                        scheduledStartDate: true,
-                        scheduledEndDate: true,
-                        managerIds: true,
                         createdBy: true,
                         status: true,
                     },
@@ -92,8 +89,6 @@ export async function GET(req: NextRequest) {
             projectName: string | null;
             customerName: string | null;
             constructionSuffixId: string | null;
-            scheduledStartDate: string | null;
-            scheduledEndDate: string | null;
             managerIds: string[];
             status: string;
             foremen: Map<string, string>;
@@ -123,8 +118,6 @@ export async function GET(req: NextRequest) {
                     projectName: a.projectMaster.name ? `${a.projectMaster.name}${a.projectMaster.honorific || ''}` : null,
                     customerName: a.projectMaster.customerName,
                     constructionSuffixId: a.projectMaster.constructionSuffixId,
-                    scheduledStartDate: a.projectMaster.scheduledStartDate?.toISOString().split('T')[0] ?? null,
-                    scheduledEndDate: a.projectMaster.scheduledEndDate?.toISOString().split('T')[0] ?? null,
                     managerIds: createdByIds,
                     status: a.projectMaster.status,
                     foremen: new Map(),
@@ -162,10 +155,8 @@ export async function GET(req: NextRequest) {
                 projectName: p.projectName,
                 customerName: p.customerName,
                 constructionSuffixId: p.constructionSuffixId,
-                startDate: p.scheduledStartDate ?? startDateActual,
-                endDate: p.scheduledEndDate ?? endDateActual,
-                actualStartDate: startDateActual,
-                actualEndDate: endDateActual,
+                startDate: startDateActual,
+                endDate: endDateActual,
                 managerIds: p.managerIds,
                 status: p.status,
                 foremen: Array.from(p.foremen.entries()).map(([id, displayName]) => ({

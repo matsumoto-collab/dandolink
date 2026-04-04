@@ -30,8 +30,6 @@ export interface GanttProject {
     constructionSuffixId: string | null;
     startDate: string | null;
     endDate: string | null;
-    actualStartDate: string | null;
-    actualEndDate: string | null;
     managerIds: string[];
     status: string;
     foremen: Foreman[];

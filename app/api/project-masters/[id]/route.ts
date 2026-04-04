@@ -85,9 +85,6 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.scaffoldingSpec !== undefined) updateData.scaffoldingSpec = body.scaffoldingSpec;
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;
-        if (body.scheduledStartDate !== undefined) updateData.scheduledStartDate = body.scheduledStartDate ? new Date(body.scheduledStartDate) : null;
-        if (body.scheduledEndDate !== undefined) updateData.scheduledEndDate = body.scheduledEndDate ? new Date(body.scheduledEndDate) : null;
-        if (body.managerIds !== undefined) updateData.managerIds = Array.isArray(body.managerIds) ? body.managerIds : [];
         if (body.createdBy !== undefined) updateData.createdBy = stringifyJsonField(body.createdBy);
         updateData.updatedBy = session!.user.id;
 
