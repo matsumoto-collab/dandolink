@@ -81,6 +81,15 @@ export function useProjectMasters() {
         enabled: status === 'authenticated',
     });
 
+    // assignmentsテーブルの変更を監視して配置数をリアルタイム更新
+    useRealtimeSubscription({
+        table: 'Assignment',
+        channelName: 'assignments-for-pm-count',
+        onDataChange: () => debouncedFetch(),
+        enabled: status === 'authenticated',
+        debounceMs: SYNC_DEBOUNCE_MS,
+    });
+
     // Browser event listener for cross-context sync
     useEffect(() => {
         const handleProjectMasterCreated = () => {
