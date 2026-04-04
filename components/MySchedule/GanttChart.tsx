@@ -40,14 +40,15 @@ export interface GanttProject {
 interface GanttChartProps {
     projects: GanttProject[];
     constructionTypes: ConstructionType[];
-    foremen: Foreman[];
+    managers: { id: string; displayName: string }[];
     viewStartDate: Date;
     viewEndDate: Date;
     onNavigate: (direction: 'prev' | 'next' | 'today') => void;
     viewMode: 'month' | 'week';
     onViewModeChange: (mode: 'month' | 'week') => void;
-    filterForemanId: string | null;
-    onFilterForemanChange: (id: string | null) => void;
+    filterManagerId: string | null;
+    onFilterManagerChange: (id: string | null) => void;
+    isAdmin: boolean;
 }
 
 // --- Helpers ---
@@ -80,14 +81,15 @@ const HEADER_HEIGHT = 56;
 export default function GanttChart({
     projects,
     constructionTypes,
-    foremen,
+    managers,
     viewStartDate,
     viewEndDate,
     onNavigate,
     viewMode,
     onViewModeChange,
-    filterForemanId,
-    onFilterForemanChange,
+    filterManagerId,
+    onFilterManagerChange,
+    isAdmin,
 }: GanttChartProps) {
     const headerScrollRef = useRef<HTMLDivElement>(null);
     const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -166,13 +168,13 @@ export default function GanttChart({
         }
     }, []);
 
-    // フィルタ適用
+    // フィルタ適用（担当者のmanagerIdsで絞り込み）
     const filteredProjects = useMemo(() => {
-        if (!filterForemanId) return projects;
+        if (!filterManagerId) return projects;
         return projects.filter(p =>
-            p.foremen.some(f => f.id === filterForemanId)
+            p.managerIds.includes(filterManagerId)
         );
-    }, [projects, filterForemanId]);
+    }, [projects, filterManagerId]);
 
     // 案件ごとのworkEntriesをdateでインデックス
     const projectWorkMap = useMemo(() => {
@@ -251,17 +253,19 @@ export default function GanttChart({
                         </button>
                     </div>
 
-                    <select
-                        value={filterForemanId ?? ''}
-                        onChange={(e) => onFilterForemanChange(e.target.value || null)}
-                        className="border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
-                        style={{ fontSize: 12 }}
-                    >
-                        <option value="">全担当者</option>
-                        {foremen.map(f => (
-                            <option key={f.id} value={f.id}>{f.displayName}</option>
-                        ))}
-                    </select>
+                    {isAdmin && (
+                        <select
+                            value={filterManagerId ?? ''}
+                            onChange={(e) => onFilterManagerChange(e.target.value || null)}
+                            className="border border-slate-300 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                            style={{ fontSize: 12 }}
+                        >
+                            <option value="">全担当者</option>
+                            {managers.map(m => (
+                                <option key={m.id} value={m.id}>{m.displayName}</option>
+                            ))}
+                        </select>
+                    )}
                 </div>
             </div>
 
