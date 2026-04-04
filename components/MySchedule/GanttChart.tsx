@@ -260,21 +260,6 @@ export default function GanttChart({
                                 <div className="text-sm font-medium text-slate-800 truncate" title={project.projectTitle}>
                                     {project.projectName || project.projectTitle}
                                 </div>
-                                <div className="flex items-center gap-1 mt-0.5">
-                                    {project.foremen.slice(0, 3).map((f) => (
-                                        <span
-                                            key={f.id}
-                                            className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white"
-                                            style={{ backgroundColor: foremanColorMap.get(f.id) ?? '#94a3b8' }}
-                                            title={f.displayName}
-                                        >
-                                            {f.displayName.charAt(0)}
-                                        </span>
-                                    ))}
-                                    {project.foremen.length > 3 && (
-                                        <span className="text-[10px] text-slate-400">+{project.foremen.length - 3}</span>
-                                    )}
-                                </div>
                             </div>
                         </div>
                     ))}
