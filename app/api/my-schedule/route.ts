@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
                         scheduledStartDate: true,
                         scheduledEndDate: true,
                         managerIds: true,
+                        createdBy: true,
                         status: true,
                     },
                 },
@@ -98,10 +99,17 @@ export async function GET(req: NextRequest) {
 
         for (const a of assignments) {
             const pmId = a.projectMasterId;
-            const pmManagerIds = a.projectMaster.managerIds ?? [];
+            // createdByはJSON文字列の場合があるのでパース
+            let createdByIds: string[] = [];
+            const raw = a.projectMaster.createdBy;
+            if (Array.isArray(raw)) {
+                createdByIds = raw;
+            } else if (typeof raw === 'string') {
+                try { createdByIds = JSON.parse(raw); } catch { createdByIds = raw ? [raw] : []; }
+            }
 
-            // 担当者フィルタ: targetManagerIdがある場合、そのIDがmanagerIdsに含まれる案件のみ
-            if (targetManagerId && !pmManagerIds.includes(targetManagerId)) {
+            // 担当者フィルタ: targetManagerIdがある場合、そのIDがcreatedByに含まれる案件のみ
+            if (targetManagerId && !createdByIds.includes(targetManagerId)) {
                 continue;
             }
 
@@ -113,7 +121,7 @@ export async function GET(req: NextRequest) {
                     customerName: a.projectMaster.customerName,
                     scheduledStartDate: a.projectMaster.scheduledStartDate?.toISOString().split('T')[0] ?? null,
                     scheduledEndDate: a.projectMaster.scheduledEndDate?.toISOString().split('T')[0] ?? null,
-                    managerIds: pmManagerIds,
+                    managerIds: createdByIds,
                     status: a.projectMaster.status,
                     foremen: new Map(),
                     workEntries: [],
