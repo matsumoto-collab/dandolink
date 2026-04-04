@@ -45,7 +45,7 @@ export async function exportEstimatePDFReact(
         const link = document.createElement('a');
         link.href = url;
         const titlePart = sanitizeFileName(estimate.title || estimate.estimateNumber);
-        link.download = `見積書_${titlePart}.pdf`;
+        link.download = `${titlePart}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
