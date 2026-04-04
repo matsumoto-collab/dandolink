@@ -380,10 +380,24 @@ export default function GanttChart({
                                         const inRange = project.startDate && project.endDate &&
                                             dateStr >= project.startDate && dateStr <= project.endDate;
 
+                                        // 前日と同じ工事種別が連続しているかチェック
+                                        let showLabel = true;
+                                        if (entries && entries.length > 0 && i > 0) {
+                                            const prevDateStr = formatDate(days[i - 1]);
+                                            const prevEntries = workMap?.get(prevDateStr);
+                                            if (prevEntries && prevEntries.length > 0) {
+                                                const curType = entries[0].constructionTypeId;
+                                                const prevType = prevEntries[0].constructionTypeId;
+                                                if (curType === prevType) {
+                                                    showLabel = false;
+                                                }
+                                            }
+                                        }
+
                                         return (
                                             <div
                                                 key={i}
-                                                className={`relative border-r border-slate-200 flex items-center justify-center ${isToday ? 'bg-red-50/40' : isSun ? 'bg-rose-50/30' : isSat ? 'bg-blue-50/30' : ''}`}
+                                                className={`relative border-r border-slate-200 ${isToday ? 'bg-red-50/40' : isSun ? 'bg-rose-50/30' : isSat ? 'bg-blue-50/30' : ''}`}
                                                 style={{ width: cellWidth, minWidth: cellWidth }}
                                             >
                                                 {inRange && !entries && (
@@ -395,6 +409,7 @@ export default function GanttChart({
                                                         entries={entries}
                                                         ctMap={ctMap}
                                                         cellWidth={cellWidth}
+                                                        showLabel={showLabel}
                                                     />
                                                 )}
 
@@ -419,11 +434,12 @@ export default function GanttChart({
 function WorkCell({
     entries,
     ctMap,
-    cellWidth,
+    showLabel,
 }: {
     entries: WorkEntry[];
     ctMap: Map<string, ConstructionType>;
     cellWidth: number;
+    showLabel: boolean;
 }) {
     const main = entries[0];
     const ct = main.constructionTypeId ? ctMap.get(main.constructionTypeId) : null;
@@ -432,27 +448,30 @@ function WorkCell({
 
     return (
         <div
-            className="absolute inset-x-0.5 top-1/2 -translate-y-1/2 rounded-sm flex items-center justify-center overflow-hidden cursor-default group"
-            style={{
-                height: 28,
-                backgroundColor: `${color}30`,
-                borderLeft: `3px solid ${color}`,
-            }}
-            title={`${name}${entries.length > 1 ? ` (+${entries.length - 1})` : ''}`}
+            className="absolute inset-0 flex flex-col cursor-default"
+            title={name}
         >
-            {cellWidth >= 32 && (
-                <span
-                    className="text-[10px] font-medium truncate px-0.5 leading-tight"
-                    style={{ color }}
-                >
-                    {name}
-                </span>
-            )}
-            {entries.length > 1 && (
-                <span className="absolute -top-1 -right-0.5 w-3.5 h-3.5 rounded-full bg-slate-600 text-white text-[8px] flex items-center justify-center font-bold">
-                    {entries.length}
-                </span>
-            )}
+            {/* 上半分: ラベル（初日のみ表示） */}
+            <div className="flex-1 flex items-end overflow-visible">
+                {showLabel && name && (
+                    <span
+                        className="font-medium text-slate-700 whitespace-nowrap pl-0.5 leading-none"
+                        style={{ fontSize: 11, position: 'relative', zIndex: 5 }}
+                    >
+                        {name}
+                    </span>
+                )}
+            </div>
+            {/* 下半分: カラーバー */}
+            <div className="flex items-center justify-center" style={{ height: '45%' }}>
+                <div
+                    className="rounded-sm w-full mx-0.5"
+                    style={{
+                        height: '80%',
+                        backgroundColor: color,
+                    }}
+                />
+            </div>
         </div>
     );
 }
