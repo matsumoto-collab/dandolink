@@ -66,6 +66,9 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
         estimatedDemolitionWorkers: pm.estimatedDemolitionWorkers?.toString() || '',
         contractAmount: pm.contractAmount?.toString() || '',
         scaffoldingSpec: pm.scaffoldingSpec || DEFAULT_FORM_DATA.scaffoldingSpec,
+        scheduledStartDate: pm.scheduledStartDate ? new Date(pm.scheduledStartDate).toISOString().split('T')[0] : '',
+        scheduledEndDate: pm.scheduledEndDate ? new Date(pm.scheduledEndDate).toISOString().split('T')[0] : '',
+        managerIds: Array.isArray(pm.managerIds) ? pm.managerIds : [],
         remarks: pm.remarks || '',
         createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
     };

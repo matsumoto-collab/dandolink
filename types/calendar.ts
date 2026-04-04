@@ -176,6 +176,9 @@ export interface ProjectMaster {
 
     description?: string;            // 説明
     remarks?: string;                // 備考
+    scheduledStartDate?: string | Date; // 工事開始予定日
+    scheduledEndDate?: string | Date;   // 工事完了予定日
+    managerIds?: string[];           // 担当者ID（最大3名）
     createdBy?: string | string[];   // 案件担当者
     createdAt: Date;
     updatedAt: Date;

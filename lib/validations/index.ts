@@ -134,6 +134,10 @@ export const createProjectMasterSchema = z.object({
     // 足場仕様
     scaffoldingSpec: z.unknown().optional().nullable(),
     description: z.string().optional().nullable(),
+    // スケジュール
+    scheduledStartDate: z.string().optional().nullable(),
+    scheduledEndDate: z.string().optional().nullable(),
+    managerIds: z.array(z.string()).optional().default([]),
     // その他
     remarks: z.string().max(2000).optional().nullable(),
     createdBy: z.array(z.string()).optional(),

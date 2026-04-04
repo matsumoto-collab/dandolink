@@ -12,6 +12,7 @@ import { AddressSection } from './sections/AddressSection';
 import { ConstructionSection } from './sections/ConstructionSection';
 import { ScaffoldingSection } from './sections/ScaffoldingSection';
 import { RemarksSection } from './sections/RemarksSection';
+import { ScheduleSection } from './sections/ScheduleSection';
 import { FilesSection } from './sections/FilesSection';
 
 export interface WorkDateEntry {
@@ -46,6 +47,10 @@ export interface ProjectMasterFormData {
     contractAmount: string;
     // 足場仕様
     scaffoldingSpec: ScaffoldingSpec;
+    // スケジュール
+    scheduledStartDate: string;
+    scheduledEndDate: string;
+    managerIds: string[];
     // その他
     remarks: string;
     createdBy: string[];
@@ -76,6 +81,9 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     estimatedDemolitionWorkers: '',
     contractAmount: '',
     scaffoldingSpec: DEFAULT_SCAFFOLDING_SPEC,
+    scheduledStartDate: '',
+    scheduledEndDate: '',
+    managerIds: [],
     remarks: '',
     createdBy: [],
 };
@@ -94,6 +102,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
         basic: true,
         address: true,
         construction: true,
+        schedule: true,
         scaffolding: false,
         remarks: true,
         files: true,
@@ -130,6 +139,15 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 onToggle={() => toggleSection('construction')}
             >
                 <ConstructionSection formData={formData} setFormData={setFormData} />
+            </CollapsibleSection>
+
+            {/* スケジュールセクション */}
+            <CollapsibleSection
+                title="工程スケジュール"
+                isExpanded={expandedSections.schedule}
+                onToggle={() => toggleSection('schedule')}
+            >
+                <ScheduleSection formData={formData} setFormData={setFormData} />
             </CollapsibleSection>
 
             {/* 足場仕様セクション */}

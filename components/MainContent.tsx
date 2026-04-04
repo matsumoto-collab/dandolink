@@ -58,6 +58,9 @@ const InventoryPage = dynamic(() => import('@/components/Materials/InventoryPage
 const LoadingListPage = dynamic(() => import('@/components/Materials/LoadingListPage'), {
     loading: () => <LoadingSpinner />,
 });
+const MySchedulePage = dynamic(() => import('@/components/MySchedule/MySchedulePage'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -130,6 +133,9 @@ export default function MainContent() {
 
             case 'settings':
                 return <SettingsPage />;
+
+            case 'my-schedule':
+                return <MySchedulePage />;
 
             case 'project-masters':
                 return <ProjectMasterListPage />;

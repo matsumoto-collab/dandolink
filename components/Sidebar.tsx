@@ -10,7 +10,7 @@ import {
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'settings';
 }
 
 interface NavSection {
@@ -23,6 +23,7 @@ const navigationSections: NavSection[] = [
         title: '業務管理',
         items: [
             { name: 'スケジュール管理', page: 'schedule' },
+            { name: 'マイスケジュール', page: 'my-schedule' },
             { name: '案件一覧', page: 'project-masters' },
             { name: '日報一覧', page: 'reports' },
         ],
