@@ -302,7 +302,7 @@ export default function GanttChart({
                                         <div
                                             key={i}
                                             ref={isToday ? todayRef : undefined}
-                                            className={`flex flex-col items-center justify-center border-r border-slate-100 ${isToday ? 'bg-red-50' : isSun ? 'bg-rose-50/50' : isSat ? 'bg-blue-50/50' : ''}`}
+                                            className={`flex flex-col items-center justify-center border-r border-slate-200 ${isToday ? 'bg-red-50' : isSun ? 'bg-rose-50/50' : isSat ? 'bg-blue-50/50' : ''}`}
                                             style={{ width: cellWidth }}
                                         >
                                             <span className={`font-medium leading-none ${isToday ? 'text-red-600 font-bold' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-slate-600'}`} style={{ fontSize: 11, height: 17, display: 'flex', alignItems: 'center' }}>
@@ -331,7 +331,7 @@ export default function GanttChart({
                     {filteredProjects.map((project) => (
                         <div
                             key={project.projectMasterId}
-                            className="flex items-center gap-2 px-3 border-b border-slate-100 hover:bg-slate-50 transition-colors"
+                            className="flex items-center gap-2 px-3 border-b border-slate-200 hover:bg-slate-50 transition-colors"
                             style={{ height: ROW_HEIGHT }}
                         >
                             <div className="flex-1 min-w-0">
@@ -362,7 +362,7 @@ export default function GanttChart({
                             return (
                                 <div
                                     key={project.projectMasterId}
-                                    className="flex border-b border-slate-100"
+                                    className="flex border-b border-slate-200"
                                     style={{ height: ROW_HEIGHT }}
                                 >
                                     {days.map((d, i) => {
@@ -379,7 +379,7 @@ export default function GanttChart({
                                         return (
                                             <div
                                                 key={i}
-                                                className={`relative border-r border-slate-50 flex items-center justify-center ${isToday ? 'bg-red-50/40' : isSun ? 'bg-rose-50/30' : isSat ? 'bg-blue-50/30' : ''}`}
+                                                className={`relative border-r border-slate-200 flex items-center justify-center ${isToday ? 'bg-red-50/40' : isSun ? 'bg-rose-50/30' : isSat ? 'bg-blue-50/30' : ''}`}
                                                 style={{ width: cellWidth, minWidth: cellWidth }}
                                             >
                                                 {inRange && !entries && (
