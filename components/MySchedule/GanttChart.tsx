@@ -53,7 +53,10 @@ interface GanttChartProps {
 // --- Helpers ---
 
 function formatDate(d: Date): string {
-    return d.toISOString().split('T')[0];
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
 }
 
 function getDaysBetween(start: Date, end: Date): Date[] {
@@ -372,7 +375,7 @@ export default function GanttChart({
 
                                                 {/* 今日マーカー */}
                                                 {isToday && (
-                                                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-0.5 h-full bg-red-400 z-10 pointer-events-none" />
+                                                    <div className="absolute top-0 left-0 w-px h-full bg-red-400 z-10 pointer-events-none" />
                                                 )}
                                             </div>
                                         );
