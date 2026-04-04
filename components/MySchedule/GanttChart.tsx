@@ -27,6 +27,7 @@ export interface GanttProject {
     projectTitle: string;
     projectName: string | null;
     customerName: string | null;
+    constructionSuffixId: string | null;
     startDate: string | null;
     endDate: string | null;
     actualStartDate: string | null;
@@ -37,9 +38,15 @@ export interface GanttProject {
     workEntries: WorkEntry[];
 }
 
+interface ConstructionSuffix {
+    id: string;
+    name: string;
+}
+
 interface GanttChartProps {
     projects: GanttProject[];
     constructionTypes: ConstructionType[];
+    constructionSuffixes: ConstructionSuffix[];
     managers: { id: string; displayName: string }[];
     viewStartDate: Date;
     viewEndDate: Date;
@@ -48,6 +55,12 @@ interface GanttChartProps {
     onViewModeChange: (mode: 'month' | 'week') => void;
     filterManagerId: string | null;
     onFilterManagerChange: (id: string | null) => void;
+    filterSuffixIds: string[];
+    onFilterSuffixIdsChange: (ids: string[]) => void;
+    filterCustomerNames: string[];
+    onFilterCustomerNamesChange: (names: string[]) => void;
+    filterProjectIds: string[];
+    onFilterProjectIdsChange: (ids: string[]) => void;
     isAdmin: boolean;
 }
 
@@ -81,6 +94,7 @@ const HEADER_HEIGHT = 56;
 export default function GanttChart({
     projects,
     constructionTypes,
+    constructionSuffixes,
     managers,
     viewStartDate,
     viewEndDate,
@@ -89,6 +103,12 @@ export default function GanttChart({
     onViewModeChange,
     filterManagerId,
     onFilterManagerChange,
+    filterSuffixIds,
+    onFilterSuffixIdsChange,
+    filterCustomerNames,
+    onFilterCustomerNamesChange,
+    filterProjectIds,
+    onFilterProjectIdsChange,
     isAdmin,
 }: GanttChartProps) {
     const headerScrollRef = useRef<HTMLDivElement>(null);
@@ -168,13 +188,23 @@ export default function GanttChart({
         }
     }, []);
 
-    // フィルタ適用（担当者のmanagerIdsで絞り込み）
+    // 顧客リスト（フィルタ用、重複排除）
+    const customerNames = useMemo(() => {
+        const names = new Set<string>();
+        projects.forEach(p => { if (p.customerName) names.add(p.customerName); });
+        return Array.from(names).sort();
+    }, [projects]);
+
+    // フィルタ適用
     const filteredProjects = useMemo(() => {
-        if (!filterManagerId) return projects;
-        return projects.filter(p =>
-            p.managerIds.includes(filterManagerId)
-        );
-    }, [projects, filterManagerId]);
+        return projects.filter(p => {
+            if (filterManagerId && !p.managerIds.includes(filterManagerId)) return false;
+            if (filterSuffixIds.length > 0 && (!p.constructionSuffixId || !filterSuffixIds.includes(p.constructionSuffixId))) return false;
+            if (filterCustomerNames.length > 0 && (!p.customerName || !filterCustomerNames.includes(p.customerName))) return false;
+            if (filterProjectIds.length > 0 && !filterProjectIds.includes(p.projectMasterId)) return false;
+            return true;
+        });
+    }, [projects, filterManagerId, filterSuffixIds, filterCustomerNames, filterProjectIds]);
 
     // 案件ごとのworkEntriesをdateでインデックス
     const projectWorkMap = useMemo(() => {
@@ -267,6 +297,108 @@ export default function GanttChart({
                         </select>
                     )}
                 </div>
+            </div>
+
+            {/* Filter bar */}
+            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-slate-200 bg-slate-50/50 flex-wrap">
+                {/* 工事名称フィルタ */}
+                <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>工事:</span>
+                    <select
+                        value=""
+                        onChange={(e) => {
+                            if (e.target.value && !filterSuffixIds.includes(e.target.value)) {
+                                onFilterSuffixIdsChange([...filterSuffixIds, e.target.value]);
+                            }
+                        }}
+                        className="border border-slate-300 rounded-lg px-2 py-1 bg-white"
+                        style={{ fontSize: 12 }}
+                    >
+                        <option value="">選択...</option>
+                        {constructionSuffixes.filter(s => !filterSuffixIds.includes(s.id)).map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                    </select>
+                    {filterSuffixIds.map(id => {
+                        const s = constructionSuffixes.find(x => x.id === id);
+                        return (
+                            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-50 text-teal-700 rounded-md border border-teal-200" style={{ fontSize: 11 }}>
+                                {s?.name ?? id.slice(0, 6)}
+                                <button onClick={() => onFilterSuffixIdsChange(filterSuffixIds.filter(x => x !== id))} className="hover:text-red-500">×</button>
+                            </span>
+                        );
+                    })}
+                </div>
+
+                {/* 顧客フィルタ */}
+                <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>顧客:</span>
+                    <select
+                        value=""
+                        onChange={(e) => {
+                            if (e.target.value && !filterCustomerNames.includes(e.target.value)) {
+                                onFilterCustomerNamesChange([...filterCustomerNames, e.target.value]);
+                            }
+                        }}
+                        className="border border-slate-300 rounded-lg px-2 py-1 bg-white"
+                        style={{ fontSize: 12 }}
+                    >
+                        <option value="">選択...</option>
+                        {customerNames.filter(n => !filterCustomerNames.includes(n)).map(n => (
+                            <option key={n} value={n}>{n}</option>
+                        ))}
+                    </select>
+                    {filterCustomerNames.map(name => (
+                        <span key={name} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-md border border-blue-200" style={{ fontSize: 11 }}>
+                            {name}
+                            <button onClick={() => onFilterCustomerNamesChange(filterCustomerNames.filter(x => x !== name))} className="hover:text-red-500">×</button>
+                        </span>
+                    ))}
+                </div>
+
+                {/* 案件フィルタ */}
+                <div className="flex items-center gap-1.5">
+                    <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>案件:</span>
+                    <select
+                        value=""
+                        onChange={(e) => {
+                            if (e.target.value && !filterProjectIds.includes(e.target.value)) {
+                                onFilterProjectIdsChange([...filterProjectIds, e.target.value]);
+                            }
+                        }}
+                        className="border border-slate-300 rounded-lg px-2 py-1 bg-white"
+                        style={{ fontSize: 12 }}
+                    >
+                        <option value="">選択...</option>
+                        {projects.filter(p => !filterProjectIds.includes(p.projectMasterId)).map(p => (
+                            <option key={p.projectMasterId} value={p.projectMasterId}>{p.projectName || p.projectTitle}</option>
+                        ))}
+                    </select>
+                    {filterProjectIds.map(id => {
+                        const p = projects.find(x => x.projectMasterId === id);
+                        return (
+                            <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 rounded-md border border-amber-200" style={{ fontSize: 11 }}>
+                                {p?.projectName || p?.projectTitle || id.slice(0, 6)}
+                                <button onClick={() => onFilterProjectIdsChange(filterProjectIds.filter(x => x !== id))} className="hover:text-red-500">×</button>
+                            </span>
+                        );
+                    })}
+                </div>
+
+                {/* クリアボタン */}
+                {(filterSuffixIds.length > 0 || filterCustomerNames.length > 0 || filterProjectIds.length > 0) && (
+                    <button
+                        onClick={() => {
+                            onFilterSuffixIdsChange([]);
+                            onFilterCustomerNamesChange([]);
+                            onFilterProjectIdsChange([]);
+                        }}
+                        className="text-slate-400 hover:text-red-500 transition-colors whitespace-nowrap"
+                        style={{ fontSize: 11 }}
+                    >
+                        クリア
+                    </button>
+                )}
             </div>
 
             {/* Header row (fixed) */}

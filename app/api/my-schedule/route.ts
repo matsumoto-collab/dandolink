@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
                         name: true,
                         honorific: true,
                         customerName: true,
+                        constructionSuffixId: true,
                         scheduledStartDate: true,
                         scheduledEndDate: true,
                         managerIds: true,
@@ -90,6 +91,7 @@ export async function GET(req: NextRequest) {
             projectTitle: string;
             projectName: string | null;
             customerName: string | null;
+            constructionSuffixId: string | null;
             scheduledStartDate: string | null;
             scheduledEndDate: string | null;
             managerIds: string[];
@@ -120,6 +122,7 @@ export async function GET(req: NextRequest) {
                     projectTitle: a.projectMaster.title,
                     projectName: a.projectMaster.name ? `${a.projectMaster.name}${a.projectMaster.honorific || ''}` : null,
                     customerName: a.projectMaster.customerName,
+                    constructionSuffixId: a.projectMaster.constructionSuffixId,
                     scheduledStartDate: a.projectMaster.scheduledStartDate?.toISOString().split('T')[0] ?? null,
                     scheduledEndDate: a.projectMaster.scheduledEndDate?.toISOString().split('T')[0] ?? null,
                     managerIds: createdByIds,
@@ -158,6 +161,7 @@ export async function GET(req: NextRequest) {
                 projectTitle: p.projectTitle,
                 projectName: p.projectName,
                 customerName: p.customerName,
+                constructionSuffixId: p.constructionSuffixId,
                 startDate: p.scheduledStartDate ?? startDateActual,
                 endDate: p.scheduledEndDate ?? endDateActual,
                 actualStartDate: startDateActual,
@@ -172,9 +176,17 @@ export async function GET(req: NextRequest) {
             };
         });
 
+        // 工事名称マスターを取得
+        const constructionSuffixes = await prisma.constructionSuffix.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true },
+            orderBy: { sortOrder: 'asc' },
+        });
+
         return NextResponse.json({
             projects: result,
             constructionTypes,
+            constructionSuffixes,
             managers,
             currentUserRole: role,
         }, {

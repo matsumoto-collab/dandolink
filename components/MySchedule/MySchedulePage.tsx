@@ -17,9 +17,15 @@ interface Manager {
     role: string;
 }
 
+interface ConstructionSuffix {
+    id: string;
+    name: string;
+}
+
 interface ApiResponse {
     projects: GanttProject[];
     constructionTypes: ConstructionType[];
+    constructionSuffixes: ConstructionSuffix[];
     managers: Manager[];
     currentUserRole: string;
 }
@@ -52,6 +58,9 @@ export default function MySchedulePage() {
     const [baseMonth, setBaseMonth] = useState(() => getMonthStart(new Date()));
     const [viewMode, setViewMode] = useState<'month' | 'week'>('month');
     const [filterManagerId, setFilterManagerId] = useState<string | null>(session?.user?.id ?? null);
+    const [filterSuffixIds, setFilterSuffixIds] = useState<string[]>([]);
+    const [filterCustomerNames, setFilterCustomerNames] = useState<string[]>([]);
+    const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
 
     const isAdmin = session?.user?.role === 'admin';
 
@@ -166,6 +175,7 @@ export default function MySchedulePage() {
                 <GanttChart
                     projects={data.projects}
                     constructionTypes={data.constructionTypes}
+                    constructionSuffixes={data.constructionSuffixes}
                     managers={data.managers}
                     viewStartDate={viewStartDate}
                     viewEndDate={viewEndDate}
@@ -174,6 +184,12 @@ export default function MySchedulePage() {
                     onViewModeChange={setViewMode}
                     filterManagerId={filterManagerId}
                     onFilterManagerChange={setFilterManagerId}
+                    filterSuffixIds={filterSuffixIds}
+                    onFilterSuffixIdsChange={setFilterSuffixIds}
+                    filterCustomerNames={filterCustomerNames}
+                    onFilterCustomerNamesChange={setFilterCustomerNames}
+                    filterProjectIds={filterProjectIds}
+                    onFilterProjectIdsChange={setFilterProjectIds}
                     isAdmin={isAdmin}
                 />
             ) : null}
