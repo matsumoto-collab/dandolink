@@ -87,7 +87,7 @@ export default function GanttChart({
 }: GanttChartProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
     const todayRef = useRef<HTMLDivElement>(null);
-    const [cellWidth, setCellWidth] = useState(36);
+    const [cellWidth, setCellWidth] = useState(30);
 
     const days = useMemo(() => getDaysBetween(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
     const today = useMemo(() => formatDate(new Date()), []);
@@ -145,8 +145,8 @@ export default function GanttChart({
         return map;
     }, [filteredProjects]);
 
-    const ROW_HEIGHT = 56;
-    const LEFT_COL_WIDTH = 250;
+    const ROW_HEIGHT = 32;
+    const LEFT_COL_WIDTH = 210;
 
     return (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
@@ -227,7 +227,7 @@ export default function GanttChart({
                 {/* Left column - project names */}
                 <div className="flex-shrink-0 border-r border-slate-200 bg-white z-10" style={{ width: LEFT_COL_WIDTH }}>
                     {/* Header placeholder */}
-                    <div className="border-b border-slate-200 bg-slate-50" style={{ height: 68 }}>
+                    <div className="border-b border-slate-200 bg-slate-50" style={{ height: 56 }}>
                         <div className="flex items-end h-full px-3 pb-2">
                             <span className="text-xs font-semibold text-slate-500">案件名</span>
                         </div>
@@ -241,7 +241,7 @@ export default function GanttChart({
                             style={{ height: ROW_HEIGHT }}
                         >
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-800 truncate" title={project.projectTitle}>
+                                <div className="font-medium text-slate-800 truncate" style={{ fontSize: 12 }} title={project.projectTitle}>
                                     {project.projectName || project.projectTitle}
                                 </div>
                             </div>
@@ -259,7 +259,7 @@ export default function GanttChart({
                 <div className="flex-1 overflow-x-auto" ref={scrollRef}>
                     <div style={{ width: days.length * cellWidth, minWidth: '100%' }}>
                         {/* Header: month + date + day-of-week */}
-                        <div className="border-b border-slate-200 bg-slate-50" style={{ height: 68 }}>
+                        <div className="border-b border-slate-200 bg-slate-50" style={{ height: 56 }}>
                             {/* Month row */}
                             <div className="flex" style={{ height: 22 }}>
                                 {monthGroups.map((g) => (
@@ -273,7 +273,7 @@ export default function GanttChart({
                                 ))}
                             </div>
                             {/* Date + day-of-week rows */}
-                            <div className="flex" style={{ height: 46 }}>
+                            <div className="flex" style={{ height: 34 }}>
                                 {days.map((d, i) => {
                                     const dateStr = formatDate(d);
                                     const isToday = dateStr === today;
@@ -288,10 +288,10 @@ export default function GanttChart({
                                             className={`flex flex-col items-center justify-center border-r border-slate-100 ${isToday ? 'bg-red-50' : isSun ? 'bg-rose-50/50' : isSat ? 'bg-blue-50/50' : ''}`}
                                             style={{ width: cellWidth }}
                                         >
-                                            <span className={`text-xs font-medium ${isToday ? 'text-red-600 font-bold' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-slate-600'}`}>
+                                            <span className={`font-medium leading-none ${isToday ? 'text-red-600 font-bold' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-slate-600'}`} style={{ fontSize: 11, height: 17, display: 'flex', alignItems: 'center' }}>
                                                 {d.getDate()}
                                             </span>
-                                            <span className={`text-[10px] ${isToday ? 'text-red-500' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-slate-400'}`}>
+                                            <span className={`leading-none ${isToday ? 'text-red-500' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-slate-400'}`} style={{ fontSize: 11, height: 17, display: 'flex', alignItems: 'center' }}>
                                                 {DAY_OF_WEEK[dow]}
                                             </span>
                                         </div>
