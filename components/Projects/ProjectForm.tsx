@@ -446,6 +446,8 @@ export default function ProjectForm({
             name: formData.name.trim() || undefined,
             honorific: formData.honorific || undefined,
             constructionSuffixId: formData.constructionSuffixId || undefined,
+            projectMasterId: initialData?.projectMasterId,
+            location: initialData?.location,
             customer: formData.customer || undefined,
             createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : undefined,
             startDate: startDate,
