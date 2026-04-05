@@ -92,57 +92,11 @@ export const LEGACY_CONSTRUCTION_CONTENT_LABELS: Record<string, string> = {
 export const CONSTRUCTION_CONTENT_LABELS = LEGACY_CONSTRUCTION_CONTENT_LABELS;
 
 // 足場仕様インターフェース
-export interface ScaffoldingSpec {
-    // 項目1
-    singleSideScaffold: boolean;  // 一側足場
-    mainScaffold: boolean;        // 本足場
-    outerHandrail: '1本' | '2本' | null; // 外手摺
-    innerHandrail: string;        // 内手摺（本数）
-    fallPreventionHandrail: '1本' | '2本' | '3本' | null; // 落下防止手摺
-    baseboard: 'L型' | '木' | null; // 巾木
-    narrowNet: boolean;           // 小幅ネット
-    wallTie: string;              // 壁つなぎ
+// 足場仕様: マスター項目IDをキーに値を保持（legacyキーは後方互換のため残存）
+export type ScaffoldingSpec = Record<string, boolean | string | null>;
 
-    // 項目2
-    sheet: boolean;               // シート
-    sheetType: string;            // シート種別※カヤシートの場合
-    imageSheet: '持参' | '現場' | null; // イメージシート
-    scaffoldSign: boolean;        // 足場表示看板
-    stairs: boolean;              // 階段
-    ladder: boolean;              // タラップ
-    stairUnit: boolean;           // 階段墜
-    cornerAnti: '400' | '250' | null; // 1・2コマアンチ
-
-    // 項目3
-    parentRope: string;           // 親綱
-    cushionCover: boolean;        // 養生カバークッション
-    spaceTube: boolean;           // スペースチューブ
-    gableHandrail: boolean;       // 切妻単管手摺
-}
-
-// デフォルト足場仕様
-export const DEFAULT_SCAFFOLDING_SPEC: ScaffoldingSpec = {
-    singleSideScaffold: false,
-    mainScaffold: false,
-    outerHandrail: null,
-    innerHandrail: '',
-    fallPreventionHandrail: null,
-    baseboard: null,
-    narrowNet: false,
-    wallTie: '',
-    sheet: false,
-    sheetType: '',
-    imageSheet: null,
-    scaffoldSign: false,
-    stairs: false,
-    ladder: false,
-    stairUnit: false,
-    cornerAnti: null,
-    parentRope: '',
-    cushionCover: false,
-    spaceTube: false,
-    gableHandrail: false,
-};
+// デフォルト足場仕様（空オブジェクト）
+export const DEFAULT_SCAFFOLDING_SPEC: ScaffoldingSpec = {};
 
 // 案件マスター（1現場=1レコード）
 export interface ProjectMaster {
