@@ -147,7 +147,7 @@ export function ScaffoldingSection({ formData, setFormData }: ScaffoldingSection
             const v = readValue(spec, item);
             if (item.type === 'toggle' && v === true) summaryChips.push(item.name);
             else if (item.type === 'segment' && typeof v === 'string' && v) summaryChips.push(`${item.name}${v}`);
-            else if (item.type === 'text' && typeof v === 'string' && v.trim()) summaryChips.push(`${item.name}:${v}`);
+            else if (item.type === 'text' && typeof v === 'string') summaryChips.push(v.trim() ? `${item.name}:${v.trim()}` : item.name);
         });
     });
 
@@ -218,14 +218,15 @@ export function ScaffoldingSection({ formData, setFormData }: ScaffoldingSection
                                 );
                             }
 
-                            // text
-                            const text = typeof v === 'string' ? v : '';
+                            // text: enabled は「値が文字列として存在するか」で判定（空文字でもON扱い）
+                            const isTextEnabled = typeof v === 'string';
+                            const text = isTextEnabled ? (v as string) : '';
                             return (
                                 <SpecCard
                                     key={item.id}
                                     title={item.name}
-                                    enabled={text.length > 0}
-                                    onToggle={(on) => updateValue(item.id, on ? text || ' ' : '')}
+                                    enabled={isTextEnabled}
+                                    onToggle={(on) => updateValue(item.id, on ? '' : null)}
                                 >
                                     <input
                                         type="text"
