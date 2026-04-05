@@ -74,7 +74,7 @@ export default function VacationSelector({
                         return (
                             <span
                                 key={memberId}
-                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[12px] font-semibold"
+                                className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-semibold"
                             >
                                 {member.displayName}
                                 {!readOnly && (
