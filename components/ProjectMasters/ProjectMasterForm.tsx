@@ -149,16 +149,25 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 <RemarksSection formData={formData} setFormData={setFormData} />
             </CollapsibleSection>
 
-            {/* ファイル添付セクション（編集モードのみ） */}
-            {isEdit && projectMasterId && (
-                <CollapsibleSection
-                    title="ファイル・写真"
-                    isExpanded={expandedSections.files}
-                    onToggle={() => toggleSection('files')}
-                >
+            {/* ファイル添付セクション */}
+            <CollapsibleSection
+                title="ファイル・写真"
+                isExpanded={expandedSections.files}
+                onToggle={() => toggleSection('files')}
+            >
+                {isEdit && projectMasterId ? (
                     <FilesSection projectMasterId={projectMasterId} />
-                </CollapsibleSection>
-            )}
+                ) : (
+                    <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                        <p className="text-sm text-slate-500">
+                            ファイル・写真は案件を登録した後にアップロードできます。
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                            先に案件を「作成」してから、編集画面でアップロードしてください。
+                        </p>
+                    </div>
+                )}
+            </CollapsibleSection>
 
             {/* Action Buttons */}
             <div className="flex justify-end gap-2 pt-4 border-t">
