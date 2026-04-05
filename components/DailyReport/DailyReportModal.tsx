@@ -214,6 +214,21 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return () => { cancelled = true; };
     }, [isOpen, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // projects が非同期で到着した後、新規日報かつ workItems が空なら todayAssignments から再生成
+    useEffect(() => {
+        if (!isOpen) return;
+        if (selectedReport) return; // 既存日報を編集中は触らない
+        if (workItems.length > 0) return; // 既に入力がある場合は上書きしない
+        if (todayAssignments.length === 0) return;
+        setWorkItems(todayAssignments.map(a => ({
+            assignmentId: a.id,
+            startTime: '08:00',
+            endTime: '17:00',
+            breakMinutes: 0,
+            workerIds: a.confirmedWorkerIds || [],
+        })));
+    }, [isOpen, selectedReport, projects, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // 日付ナビゲーション
     const goPreviousDay = () => {
         const newDate = new Date(selectedDate);
