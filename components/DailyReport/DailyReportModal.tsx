@@ -89,9 +89,14 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     }, [isOpen]);
 
     // モーダルが開いた時・日付変更時にアサインメントを取得
+    // 境界問題を避けるため選択日の前後1日も含めて取得する
     useEffect(() => {
         if (!isOpen) return;
-        fetchForDateRange(selectedDate, selectedDate);
+        const start = new Date(selectedDate);
+        start.setDate(start.getDate() - 1);
+        const end = new Date(selectedDate);
+        end.setDate(end.getDate() + 1);
+        fetchForDateRange(start, end);
     }, [isOpen, selectedDate, fetchForDateRange]);
 
     // モーダルが開いたときの初期化（foremanId設定）
