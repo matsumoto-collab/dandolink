@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
+import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import { ExternalLink } from 'lucide-react';
 
@@ -336,6 +337,16 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                         <div className="bg-slate-50 rounded-md p-3 border border-slate-200">
                             <p className="text-sm text-slate-700 whitespace-pre-wrap">{project.remarks}</p>
                         </div>
+                    </div>
+                )}
+
+                {/* 足場仕様 */}
+                {project.projectMasterId && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            足場仕様
+                        </label>
+                        <ScaffoldingSpecDisplay projectMasterId={project.projectMasterId} />
                     </div>
                 )}
 
