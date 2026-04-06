@@ -25,20 +25,6 @@ const PREFECTURES = [
 
 const FALLBACK = { lat: 35.6762, lng: 139.6503 };
 
-const JP_ISO_TO_PREFECTURE: Record<string, string> = {
-    'JP-01': '北海道', 'JP-02': '青森県', 'JP-03': '岩手県', 'JP-04': '宮城県',
-    'JP-05': '秋田県', 'JP-06': '山形県', 'JP-07': '福島県', 'JP-08': '茨城県',
-    'JP-09': '栃木県', 'JP-10': '群馬県', 'JP-11': '埼玉県', 'JP-12': '千葉県',
-    'JP-13': '東京都', 'JP-14': '神奈川県', 'JP-15': '新潟県', 'JP-16': '富山県',
-    'JP-17': '石川県', 'JP-18': '福井県', 'JP-19': '山梨県', 'JP-20': '長野県',
-    'JP-21': '岐阜県', 'JP-22': '静岡県', 'JP-23': '愛知県', 'JP-24': '三重県',
-    'JP-25': '滋賀県', 'JP-26': '京都府', 'JP-27': '大阪府', 'JP-28': '兵庫県',
-    'JP-29': '奈良県', 'JP-30': '和歌山県', 'JP-31': '鳥取県', 'JP-32': '島根県',
-    'JP-33': '岡山県', 'JP-34': '広島県', 'JP-35': '山口県', 'JP-36': '徳島県',
-    'JP-37': '香川県', 'JP-38': '愛媛県', 'JP-39': '高知県', 'JP-40': '福岡県',
-    'JP-41': '佐賀県', 'JP-42': '長崎県', 'JP-43': '熊本県', 'JP-44': '大分県',
-    'JP-45': '宮崎県', 'JP-46': '鹿児島県', 'JP-47': '沖縄県',
-};
 const LS_KEY = 'dandolink_last_location';
 
 function saveLastLocation(lat: number, lng: number) {
@@ -84,27 +70,43 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         lng: formData.longitude ?? FALLBACK.lng,
     };
 
-    // Nominatim 逆ジオコーディング（座標 → 住所）※地図モードのみ使用
+    // Google Maps Geocoding API 逆ジオコーディング（座標 → 住所）※地図モードのみ使用
     const reverseGeocode = useCallback(async (lat: number, lng: number) => {
         setIsReverseGeocoding(true);
         try {
+            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
             const res = await fetch(
-                `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ja`,
-                { headers: { 'User-Agent': 'DandoLink/1.0' }, cache: 'no-store' }
+                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&language=ja&key=${apiKey}`,
+                { cache: 'no-store' }
             );
             if (res.ok) {
                 const data = await res.json();
-                const addr = data.address ?? {};
-                const isoCode = addr['ISO3166-2-lvl4'] ?? '';
-                const prefecture = addr.state ?? addr.province ?? JP_ISO_TO_PREFECTURE[isoCode] ?? '';
-                const baseCity = addr.city ?? addr.town ?? addr.village ?? addr.county ?? '';
-                const suburb = addr.suburb ?? addr.neighbourhood ?? addr.hamlet ?? addr.quarter ?? '';
-                const city = suburb ? `${baseCity}${suburb}` : baseCity;
-                setFormData(prev => ({
-                    ...prev,
-                    prefecture: prefecture || prev.prefecture,
-                    city: city || prev.city,
-                }));
+                if (data.status === 'OK' && data.results?.length > 0) {
+                    const components = data.results[0].address_components ?? [];
+                    let prefecture = '';
+                    let city = '';
+                    let location = '';
+                    for (const c of components) {
+                        const types: string[] = c.types ?? [];
+                        if (types.includes('administrative_area_level_1')) {
+                            prefecture = c.long_name;
+                        } else if (types.includes('locality') || types.includes('sublocality_level_1')) {
+                            city += c.long_name;
+                        } else if (types.includes('sublocality_level_2')) {
+                            city += c.long_name;
+                        } else if (types.includes('sublocality_level_3') || types.includes('sublocality_level_4')) {
+                            location += c.long_name;
+                        } else if (types.includes('premise') || types.includes('street_number')) {
+                            location += c.long_name;
+                        }
+                    }
+                    setFormData(prev => ({
+                        ...prev,
+                        prefecture: prefecture || prev.prefecture,
+                        city: city || prev.city,
+                        location: location || prev.location,
+                    }));
+                }
             }
         } catch {
             // 住所自動入力は失敗しても問題なし
@@ -113,18 +115,20 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         }
     }, [setFormData]);
 
-    // Nominatim 前方ジオコーディング（住所 → 座標）※地図モードのみ使用
+    // Google Maps Geocoding API 前方ジオコーディング（住所 → 座標）※地図モードのみ使用
     const forwardGeocode = useCallback(async (query: string) => {
         try {
+            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
             const res = await fetch(
-                `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&accept-language=ja&limit=1&countrycodes=jp`,
-                { headers: { 'User-Agent': 'DandoLink/1.0' }, cache: 'no-store' }
+                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&language=ja&region=jp&key=${apiKey}`,
+                { cache: 'no-store' }
             );
             if (res.ok) {
                 const data = await res.json();
-                if (data.length > 0) {
-                    const lat = parseFloat(data[0].lat);
-                    const lng = parseFloat(data[0].lon);
+                if (data.status === 'OK' && data.results?.length > 0) {
+                    const loc = data.results[0].geometry.location;
+                    const lat = loc.lat;
+                    const lng = loc.lng;
                     const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
                     setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
                     skipReverseGeocodeRef.current = true;
