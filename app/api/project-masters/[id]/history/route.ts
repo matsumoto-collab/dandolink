@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const assignments = await prisma.projectAssignment.findMany({
             where: { projectMasterId: id },
-            orderBy: { date: 'desc' },
+            orderBy: { date: 'asc' },
             include: {
                 projectMaster: { select: { constructionType: true, constructionContent: true } },
                 dailyReportWorkItems: { select: { startTime: true, endTime: true, breakMinutes: true } },
