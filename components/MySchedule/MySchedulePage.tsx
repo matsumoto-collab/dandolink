@@ -1,8 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import GanttChart, { GanttProject } from './GanttChart';
+import { ProjectMaster } from '@/types/calendar';
+import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
+import toast from 'react-hot-toast';
+import Loading from '@/components/ui/Loading';
+
+const ProjectMasterDetailModal = dynamic(
+    () => import('@/components/ProjectMaster/ProjectMasterDetailModal'),
+    { loading: () => <Loading overlay /> }
+);
 
 interface ConstructionType {
     id: string;
@@ -63,6 +73,18 @@ export default function MySchedulePage() {
     const [filterProjectIds, setFilterProjectIds] = useState<string[]>([]);
 
     const isAdmin = session?.user?.role === 'admin';
+    const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
+
+    const handleProjectClick = useCallback(async (projectMasterId: string) => {
+        try {
+            const res = await fetch(`/api/project-masters/${projectMasterId}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error('案件情報の取得に失敗しました');
+            const pm: ProjectMaster = await res.json();
+            setDetailPm(pm);
+        } catch {
+            toast.error('案件情報の取得に失敗しました');
+        }
+    }, []);
 
     // セッション読み込み後にデフォルト設定
     useEffect(() => {
@@ -123,6 +145,19 @@ export default function MySchedulePage() {
     }, [fetchRange, isAdmin, filterManagerId]);
 
     useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleUpdateProjectMaster = useCallback(async (id: string, formData: ProjectMasterFormData) => {
+        const res = await fetch(`/api/project-masters/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+        });
+        if (!res.ok) throw new Error('更新に失敗しました');
+        const updated: ProjectMaster = await res.json();
+        setDetailPm(updated);
+        toast.success('案件情報を更新しました');
         fetchData();
     }, [fetchData]);
 
@@ -191,8 +226,17 @@ export default function MySchedulePage() {
                     filterProjectIds={filterProjectIds}
                     onFilterProjectIdsChange={setFilterProjectIds}
                     isAdmin={isAdmin}
+                    onProjectClick={handleProjectClick}
                 />
             ) : null}
+
+            {detailPm && (
+                <ProjectMasterDetailModal
+                    pm={detailPm}
+                    onClose={() => setDetailPm(null)}
+                    onUpdate={handleUpdateProjectMaster}
+                />
+            )}
         </div>
     );
 }

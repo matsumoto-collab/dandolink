@@ -60,6 +60,7 @@ interface GanttChartProps {
     filterProjectIds: string[];
     onFilterProjectIdsChange: (ids: string[]) => void;
     isAdmin: boolean;
+    onProjectClick?: (projectMasterId: string) => void;
 }
 
 // --- Helpers ---
@@ -108,6 +109,7 @@ export default function GanttChart({
     filterProjectIds,
     onFilterProjectIdsChange,
     isAdmin,
+    onProjectClick,
 }: GanttChartProps) {
     const headerScrollRef = useRef<HTMLDivElement>(null);
     const bodyScrollRef = useRef<HTMLDivElement>(null);
@@ -469,7 +471,12 @@ export default function GanttChart({
                             style={{ height: ROW_HEIGHT }}
                         >
                             <div className="flex-1 min-w-0">
-                                <div className="font-medium text-slate-800 truncate" style={{ fontSize: 12 }} title={project.projectTitle}>
+                                <div
+                                    className={`font-medium truncate ${onProjectClick ? 'text-teal-700 hover:text-teal-900 hover:underline cursor-pointer' : 'text-slate-800'}`}
+                                    style={{ fontSize: 12 }}
+                                    title={project.projectTitle}
+                                    onClick={() => onProjectClick?.(project.projectMasterId)}
+                                >
                                     {project.projectName || project.projectTitle}
                                 </div>
                             </div>
