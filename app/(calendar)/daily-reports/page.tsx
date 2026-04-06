@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
@@ -20,14 +20,30 @@ const DailyReportModal = dynamic(
     { loading: () => <Loading overlay /> }
 );
 
+// 期間フィルタの初期値（過去30日）
+const getInitialRange = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 30);
+    return { start: formatDateKey(start), end: formatDateKey(end) };
+};
+
 export default function DailyReportPage() {
-    const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports({ autoFetch: true });
+    const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports({ autoFetch: false });
     const { allForemen, getForemanName } = useCalendarDisplay();
 
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [foremanFilter, setForemanFilter] = useState<string>('all');
-    const [dateFilter, setDateFilter] = useState<string>('');
+    const initialRange = useMemo(getInitialRange, []);
+    const [rangeStart, setRangeStart] = useState<string>(initialRange.start);
+    const [rangeEnd, setRangeEnd] = useState<string>(initialRange.end);
+
+    // 期間に応じて日報を取得
+    useEffect(() => {
+        if (!rangeStart || !rangeEnd) return;
+        fetchDailyReports({ startDate: rangeStart, endDate: rangeEnd });
+    }, [rangeStart, rangeEnd, fetchDailyReports]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
 
@@ -85,14 +101,6 @@ export default function DailyReportPage() {
                 if (foremanFilter !== 'all' && report.foremanId !== foremanFilter) {
                     return false;
                 }
-                if (dateFilter) {
-                    const reportDate = report.date instanceof Date
-                        ? formatDateKey(report.date)
-                        : formatDateKey(new Date(report.date));
-                    if (reportDate !== dateFilter) {
-                        return false;
-                    }
-                }
                 if (debouncedSearchTerm) {
                     const foremanName = getForemanName(report.foremanId).toLowerCase();
                     const notes = (report.notes || '').toLowerCase();
@@ -141,7 +149,7 @@ export default function DailyReportPage() {
                 }
                 return sortDir === 'asc' ? cmp : -cmp;
             });
-    }, [dailyReports, foremanFilter, dateFilter, debouncedSearchTerm, getForemanName, sortKey, sortDir]);
+    }, [dailyReports, foremanFilter, debouncedSearchTerm, getForemanName, sortKey, sortDir]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -171,13 +179,13 @@ export default function DailyReportPage() {
     };
 
     const handleSaved = () => {
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - 30);
-        fetchDailyReports({
-            startDate: formatDateKey(startDate),
-            endDate: formatDateKey(endDate),
-        });
+        fetchDailyReports({ startDate: rangeStart, endDate: rangeEnd });
+    };
+
+    const resetRange = () => {
+        const r = getInitialRange();
+        setRangeStart(r.start);
+        setRangeEnd(r.end);
     };
 
     return (
@@ -226,27 +234,37 @@ export default function DailyReportPage() {
                             </option>
                         ))}
                     </select>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm text-slate-600 whitespace-nowrap">期間</span>
                         <input
                             type="date"
-                            value={dateFilter}
-                            onChange={(e) => setDateFilter(e.target.value)}
-                            className="flex-1 sm:flex-none px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                            value={rangeStart}
+                            max={rangeEnd || undefined}
+                            onChange={(e) => setRangeStart(e.target.value)}
+                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                         />
-                        {dateFilter && (
-                            <button
-                                onClick={() => setDateFilter('')}
-                                className="px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
-                            >
-                                クリア
-                            </button>
-                        )}
+                        <span className="text-slate-400">〜</span>
+                        <input
+                            type="date"
+                            value={rangeEnd}
+                            min={rangeStart || undefined}
+                            onChange={(e) => setRangeEnd(e.target.value)}
+                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
+                        <button
+                            onClick={resetRange}
+                            className="px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
+                        >
+                            直近30日
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* デスクトップ: テーブルヘッダー */}
-            <div className="hidden md:block bg-slate-100 rounded-t-xl border border-slate-200 border-b-0 select-none">
+            {/* リスト（ヘッダーsticky + 縦スクロール） */}
+            <div className="flex-1 min-h-0 overflow-y-auto md:border md:border-slate-200 md:rounded-xl md:bg-white">
+            {/* デスクトップ: テーブルヘッダー（sticky） */}
+            <div className="hidden md:block bg-slate-100 border-b border-slate-200 select-none sticky top-0 z-10 md:rounded-t-xl">
                 <div className="grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 text-xs font-bold text-slate-800 uppercase tracking-wider">
                     <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('date')}>
                         <Calendar className="w-3.5 h-3.5" />
@@ -278,8 +296,8 @@ export default function DailyReportPage() {
                 </div>
             </div>
 
-            {/* リスト */}
-            <div className="flex-1 overflow-y-auto">
+            {/* リスト本体 */}
+            <div>
                 {isLoading ? (
                     <div className="flex items-center justify-center h-48">
                         <Loading text="読み込み中..." />
@@ -287,13 +305,13 @@ export default function DailyReportPage() {
                 ) : filteredReports.length === 0 ? (
                     <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
                         <p className="text-slate-500">
-                            {searchTerm || foremanFilter !== 'all' || dateFilter
+                            {searchTerm || foremanFilter !== 'all'
                                 ? '検索結果が見つかりませんでした'
-                                : '日報が登録されていません'}
+                                : '指定期間に日報が登録されていません'}
                         </p>
                     </div>
                 ) : (
-                    <div className="md:border md:border-slate-200 md:rounded-b-xl md:bg-white space-y-3 md:space-y-0 md:divide-y md:divide-slate-100">
+                    <div className="space-y-3 md:space-y-0 md:divide-y md:divide-slate-100">
                         {filteredReports.map((report) => {
                             const workItemSummaries = getWorkItemSummaries(report);
 
@@ -384,11 +402,12 @@ export default function DailyReportPage() {
                     </div>
                 )}
             </div>
+            </div>
 
             {/* 統計情報 */}
             <div className="mt-4 text-sm text-slate-600">
                 全 {filteredReports.length} 件の日報
-                {(searchTerm || foremanFilter !== 'all' || dateFilter) && ` (${dailyReports.length}件中)`}
+                {(searchTerm || foremanFilter !== 'all') && ` (${dailyReports.length}件中)`}
             </div>
 
             {/* 日報入力モーダル */}
