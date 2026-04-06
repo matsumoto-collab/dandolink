@@ -82,22 +82,37 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === 'OK' && data.results?.length > 0) {
-                    const components = data.results[0].address_components ?? [];
+                    const result = data.results[0];
+                    const components = result.address_components ?? [];
+                    // 都道府県を取得
                     let prefecture = '';
+                    for (const c of components) {
+                        if ((c.types ?? []).includes('administrative_area_level_1')) {
+                            prefecture = c.long_name;
+                            break;
+                        }
+                    }
+                    // formatted_address から都道府県以降を分割
+                    // 例: "日本、〒530-0001 大阪府大阪市北区梅田3丁目1−1" → city="大阪市北区梅田", location="3丁目1−1"
+                    const formatted = result.formatted_address ?? '';
                     let city = '';
                     let location = '';
-                    for (const c of components) {
-                        const types: string[] = c.types ?? [];
-                        if (types.includes('administrative_area_level_1')) {
-                            prefecture = c.long_name;
-                        } else if (types.includes('locality') || types.includes('sublocality_level_1')) {
-                            city += c.long_name;
-                        } else if (types.includes('sublocality_level_2')) {
-                            city += c.long_name;
-                        } else if (types.includes('sublocality_level_3') || types.includes('sublocality_level_4')) {
-                            location += c.long_name;
-                        } else if (types.includes('premise') || types.includes('street_number')) {
-                            location += c.long_name;
+                    if (prefecture && formatted.includes(prefecture)) {
+                        const afterPref = formatted.split(prefecture)[1] ?? '';
+                        // 丁目・番地の区切りを探す（数字の直前で分割）
+                        const match = afterPref.match(/^(.+?)(\d+丁目.*)$/);
+                        if (match) {
+                            city = match[1];
+                            location = match[2];
+                        } else {
+                            // 丁目がない場合、数字の直前で分割
+                            const numMatch = afterPref.match(/^(.+?)(\d+.*)$/);
+                            if (numMatch) {
+                                city = numMatch[1];
+                                location = numMatch[2];
+                            } else {
+                                city = afterPref;
+                            }
                         }
                     }
                     setFormData(prev => ({
