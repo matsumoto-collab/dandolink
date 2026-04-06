@@ -70,85 +70,76 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         lng: formData.longitude ?? FALLBACK.lng,
     };
 
-    // Google Maps Geocoding API 逆ジオコーディング（座標 → 住所）※地図モードのみ使用
+    // formatted_address から都道府県・市区町村・その他住所を分割するヘルパー
+    const parseFormattedAddress = useCallback((result: google.maps.GeocoderResult) => {
+        const components = result.address_components ?? [];
+        let prefecture = '';
+        for (const c of components) {
+            if (c.types.includes('administrative_area_level_1')) {
+                prefecture = c.long_name;
+                break;
+            }
+        }
+        const formatted = result.formatted_address ?? '';
+        let city = '';
+        let location = '';
+        if (prefecture && formatted.includes(prefecture)) {
+            const afterPref = formatted.split(prefecture)[1] ?? '';
+            // 丁目・番地の区切りを探す（数字の直前で分割）
+            const match = afterPref.match(/^(.+?)(\d+丁目.*)$/);
+            if (match) {
+                city = match[1];
+                location = match[2];
+            } else {
+                const numMatch = afterPref.match(/^(.+?)(\d+.*)$/);
+                if (numMatch) {
+                    city = numMatch[1];
+                    location = numMatch[2];
+                } else {
+                    city = afterPref;
+                }
+            }
+        }
+        return { prefecture, city, location };
+    }, []);
+
+    // Google Maps JavaScript API Geocoder 逆ジオコーディング（座標 → 住所）※地図モードのみ使用
     const reverseGeocode = useCallback(async (lat: number, lng: number) => {
+        if (!window.google?.maps) return;
         setIsReverseGeocoding(true);
         try {
-            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-            const res = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&language=ja&key=${apiKey}`,
-                { cache: 'no-store' }
-            );
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'OK' && data.results?.length > 0) {
-                    const result = data.results[0];
-                    const components = result.address_components ?? [];
-                    // 都道府県を取得
-                    let prefecture = '';
-                    for (const c of components) {
-                        if ((c.types ?? []).includes('administrative_area_level_1')) {
-                            prefecture = c.long_name;
-                            break;
-                        }
-                    }
-                    // formatted_address から都道府県以降を分割
-                    // 例: "日本、〒530-0001 大阪府大阪市北区梅田3丁目1−1" → city="大阪市北区梅田", location="3丁目1−1"
-                    const formatted = result.formatted_address ?? '';
-                    let city = '';
-                    let location = '';
-                    if (prefecture && formatted.includes(prefecture)) {
-                        const afterPref = formatted.split(prefecture)[1] ?? '';
-                        // 丁目・番地の区切りを探す（数字の直前で分割）
-                        const match = afterPref.match(/^(.+?)(\d+丁目.*)$/);
-                        if (match) {
-                            city = match[1];
-                            location = match[2];
-                        } else {
-                            // 丁目がない場合、数字の直前で分割
-                            const numMatch = afterPref.match(/^(.+?)(\d+.*)$/);
-                            if (numMatch) {
-                                city = numMatch[1];
-                                location = numMatch[2];
-                            } else {
-                                city = afterPref;
-                            }
-                        }
-                    }
-                    setFormData(prev => ({
-                        ...prev,
-                        prefecture: prefecture || prev.prefecture,
-                        city: city || prev.city,
-                        location: location || prev.location,
-                    }));
-                }
+            const geocoder = new google.maps.Geocoder();
+            const response = await geocoder.geocode({ location: { lat, lng }, language: 'ja' });
+            if (response.results?.length > 0) {
+                const { prefecture, city, location } = parseFormattedAddress(response.results[0]);
+                setFormData(prev => ({
+                    ...prev,
+                    prefecture: prefecture || prev.prefecture,
+                    city: city || prev.city,
+                    location: location || prev.location,
+                }));
             }
         } catch {
             // 住所自動入力は失敗しても問題なし
         } finally {
             setIsReverseGeocoding(false);
         }
-    }, [setFormData]);
+    }, [setFormData, parseFormattedAddress]);
 
-    // Google Maps Geocoding API 前方ジオコーディング（住所 → 座標）※地図モードのみ使用
+    // Google Maps JavaScript API Geocoder 前方ジオコーディング（住所 → 座標）※地図モードのみ使用
     const forwardGeocode = useCallback(async (query: string) => {
+        if (!window.google?.maps) return;
         try {
-            const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-            const res = await fetch(
-                `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&language=ja&region=jp&key=${apiKey}`,
-                { cache: 'no-store' }
-            );
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'OK' && data.results?.length > 0) {
-                    const loc = data.results[0].geometry.location;
-                    const lat = loc.lat;
-                    const lng = loc.lng;
-                    const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
-                    setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
-                    skipReverseGeocodeRef.current = true;
-                    setForcedCenter({ lat, lng });
-                }
+            const geocoder = new google.maps.Geocoder();
+            const response = await geocoder.geocode({ address: query, language: 'ja', region: 'jp' });
+            if (response.results?.length > 0) {
+                const loc = response.results[0].geometry.location;
+                const lat = loc.lat();
+                const lng = loc.lng();
+                const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
+                setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
+                skipReverseGeocodeRef.current = true;
+                setForcedCenter({ lat, lng });
             }
         } catch {
             // ジオコーディング失敗は無視
