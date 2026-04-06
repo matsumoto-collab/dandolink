@@ -246,7 +246,7 @@ export default function ProjectMasterListPage() {
                 onSubmit={handleEstimateSubmit}
                 initialData={estimateInitialData}
             />
-            <div className="h-full flex flex-col overflow-hidden bg-slate-50">
+            <div className="h-[100dvh] flex flex-col overflow-hidden bg-slate-50 p-4 pb-2">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div>
@@ -381,7 +381,7 @@ export default function ProjectMasterListPage() {
                 </div>
 
                 {/* デスクトップテーブルビュー */}
-                <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+                <div className="hidden md:block flex-1 min-h-0 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
                     <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-100 sticky top-0 z-10">
                             <tr>
@@ -498,7 +498,7 @@ export default function ProjectMasterListPage() {
 
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2 mt-4 pb-2">
+                    <div className="flex-shrink-0 flex justify-center items-center gap-2 mt-4 pb-2">
                         <button
                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                             disabled={currentPage === 1}
