@@ -488,6 +488,8 @@ export default function GanttChart({
                             表示できる案件がありません
                         </div>
                     )}
+                    {/* 右側の横スクロールバー分のスペーサー */}
+                    <div className="flex-shrink-0" style={{ height: 17 }} />
                 </div>
 
                 {/* Right body - vertical + horizontal scroll, scrollbar visible at bottom */}
