@@ -247,7 +247,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
                 customer: a.projectMaster?.customerShortName || a.projectMaster?.customerName,
                 workers: a.workers,
                 trucks: a.vehicles,
-                remarks: a.remarks || a.projectMaster?.remarks,
+                remarks: a.remarks || '',
                 constructionType,
                 assignedEmployeeId: a.assignedEmployeeId,
                 sortOrder: a.sortOrder,

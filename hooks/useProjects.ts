@@ -390,7 +390,7 @@ export function useProjects() {
             memberCount: a.memberCount,
             estimatedHours: a.estimatedHours ?? 8.0,
             trucks: a.vehicles,
-            remarks: a.remarks || a.projectMaster?.remarks,
+            remarks: a.remarks || '',
             dispatchRemark: a.dispatchRemark,
             constructionType: constructionType as 'assembly' | 'demolition' | 'other',
             constructionContent: a.projectMaster?.constructionContent,
