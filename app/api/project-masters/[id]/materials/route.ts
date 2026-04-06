@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { projectMaterialsUpdateSchema, validateRequest } from '@/lib/validations';
 
 export async function GET(
     _request: NextRequest,
@@ -36,18 +37,16 @@ export async function PUT(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await params;
         const body = await request.json();
-        const { items } = body as {
-            items: { materialItemId: string; requiredQuantity: number; notes?: string }[];
-        };
-
-        if (!items || !Array.isArray(items)) {
-            return NextResponse.json({ error: '材料データが不正です' }, { status: 400 });
+        const validation = validateRequest(projectMaterialsUpdateSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { items } = validation.data;
 
         // Filter to items with quantity > 0
         const validItems = items.filter(i => i.requiredQuantity > 0);

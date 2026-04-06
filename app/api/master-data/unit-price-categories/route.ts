@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { unitPriceCategorySchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -24,10 +25,12 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name, sortOrder, quantity, unit } = await request.json();
-        if (!name) {
-            return validationErrorResponse('カテゴリ名は必須です');
+        const body = await request.json();
+        const validation = validateRequest(unitPriceCategorySchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { name, sortOrder, quantity, unit } = validation.data;
 
         const category = await prisma.unitPriceCategory.create({
             data: {

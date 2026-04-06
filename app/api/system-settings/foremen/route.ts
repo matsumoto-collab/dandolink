@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireManagerOrAbove, parseJsonField, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, parseJsonField, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { displayedForemanIdsSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -21,7 +22,12 @@ export async function PATCH(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { displayedForemanIds } = await request.json();
+        const body = await request.json();
+        const validation = validateRequest(displayedForemanIdsSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
+        }
+        const { displayedForemanIds } = validation.data;
         const settings = await prisma.systemSettings.upsert({
             where: { id: 'default' },
             update: { displayedForemanIds: JSON.stringify(displayedForemanIds || []) },

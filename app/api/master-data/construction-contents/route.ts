@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireManagerOrAbove, serverErrorResponse, validateStringField } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { nameOnlySchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -25,9 +26,12 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name } = await request.json();
-        const validatedName = validateStringField(name, '名前', 100);
-        if (validatedName instanceof NextResponse) return validatedName;
+        const body = await request.json();
+        const validation = validateRequest(nameOnlySchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
+        }
+        const { name } = validation.data;
 
         const maxSortOrder = await prisma.constructionContent.aggregate({
             _max: { sortOrder: true },
@@ -36,7 +40,7 @@ export async function POST(request: NextRequest) {
 
         const content = await prisma.constructionContent.create({
             data: {
-                name: validatedName,
+                name,
                 sortOrder: nextSortOrder,
             },
         });

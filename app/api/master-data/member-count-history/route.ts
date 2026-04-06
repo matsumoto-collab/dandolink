@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { memberCountHistoryCreateSchema, memberCountHistoryUpdateSchema, memberCountHistoryDeleteSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -23,10 +24,12 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { startDate, count } = await request.json();
-        if (!startDate || typeof count !== 'number' || count < 1) {
-            return validationErrorResponse('startDate と count(1以上) が必要です');
+        const body = await request.json();
+        const validation = validateRequest(memberCountHistoryCreateSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { startDate, count } = validation.data;
 
         const entry = await prisma.memberCountHistory.create({
             data: { startDate: new Date(startDate), count },
@@ -42,10 +45,12 @@ export async function PUT(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { id, startDate, count } = await request.json();
-        if (!id || !startDate || typeof count !== 'number' || count < 1) {
-            return validationErrorResponse('id, startDate, count(1以上) が必要です');
+        const body = await request.json();
+        const validation = validateRequest(memberCountHistoryUpdateSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { id, startDate, count } = validation.data;
 
         const entry = await prisma.memberCountHistory.update({
             where: { id },
@@ -62,10 +67,12 @@ export async function DELETE(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { id } = await request.json();
-        if (!id) {
-            return validationErrorResponse('id が必要です');
+        const body = await request.json();
+        const validation = validateRequest(memberCountHistoryDeleteSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { id } = validation.data;
 
         // Prevent deleting the last entry
         const count = await prisma.memberCountHistory.count();

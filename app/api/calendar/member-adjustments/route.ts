@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { memberAdjustmentSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -24,11 +25,12 @@ export async function POST(req: NextRequest) {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const { dateKey, adjustment } = await req.json();
-
-        if (!dateKey || typeof adjustment !== 'number') {
-            return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
+        const body = await req.json();
+        const validation = validateRequest(memberAdjustmentSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { dateKey, adjustment } = validation.data;
 
         if (adjustment === 0) {
             await prisma.memberAdjustment.deleteMany({ where: { dateKey } });

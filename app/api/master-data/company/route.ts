@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { companyInfoSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -24,14 +25,20 @@ export async function PATCH(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name, postalCode, address, tel, fax, email, representativeTitle, representative, sealImage, logoImage, licenseNumber, registrationNumber, contactPerson, bankAccounts } = await request.json();
+        const body = await request.json();
+        const validation = validateRequest(companyInfoSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
+        }
+        const { name, postalCode, address, tel, fax, email, representativeTitle, representative, sealImage, logoImage, licenseNumber, registrationNumber, contactPerson, bankAccounts } = validation.data;
 
         const data = {
             name, postalCode, address, tel,
             fax: fax || null, email: email || null, representativeTitle: representativeTitle || null,
             representative, sealImage: sealImage || null, logoImage: logoImage || null,
             licenseNumber: licenseNumber || null, registrationNumber: registrationNumber || null,
-            contactPerson: contactPerson || null, bankAccounts: bankAccounts || null,
+            contactPerson: contactPerson || null,
+            ...(bankAccounts !== undefined && { bankAccounts: bankAccounts ?? undefined }),
         };
 
         const company = await prisma.companyInfo.upsert({ where: { id: 'default' }, update: data, create: { id: 'default', ...data } });

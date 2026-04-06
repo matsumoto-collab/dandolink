@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { materialRequisitionUpdateSchema, validateRequest } from '@/lib/validations';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -40,11 +41,15 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { error, session } = await requireAuth();
+        const { error, session } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await params;
         const body = await request.json();
+        const validation = validateRequest(materialRequisitionUpdateSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
+        }
 
         // Get current requisition to check status transition
         const current = await prisma.materialRequisition.findUnique({
@@ -131,7 +136,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { error } = await requireAuth();
+        const { error } = await requireManagerOrAbove();
         if (error) return error;
 
         const { id } = await params;

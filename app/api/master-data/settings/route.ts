@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { systemSettingsSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -22,10 +23,12 @@ export async function PATCH(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { totalMembers } = await request.json();
-        if (typeof totalMembers !== 'number' || totalMembers < 1) {
-            return validationErrorResponse('totalMembersは1以上の数値が必要です');
+        const body = await request.json();
+        const validation = validateRequest(systemSettingsSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { totalMembers } = validation.data;
 
         const settings = await prisma.systemSettings.upsert({ where: { id: 'default' }, update: { totalMembers }, create: { id: 'default', totalMembers } });
         return NextResponse.json(settings);

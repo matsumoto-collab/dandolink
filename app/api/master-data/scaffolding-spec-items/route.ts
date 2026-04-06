@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
-
-const VALID_TYPES = ['toggle', 'segment', 'text'] as const;
+import { scaffoldingSpecItemSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -24,12 +23,12 @@ export async function POST(request: NextRequest) {
         if (error) return error;
 
         const body = await request.json();
-        const { groupId, name, type, options } = body;
+        const validation = validateRequest(scaffoldingSpecItemSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
+        }
+        const { groupId, name, type, options } = validation.data;
 
-        if (typeof groupId !== 'string' || !groupId) return validationErrorResponse('groupIdは必須です');
-        if (typeof name !== 'string' || !name.trim()) return validationErrorResponse('名前は必須です');
-        if (name.trim().length > 100) return validationErrorResponse('名前は100文字以内で入力してください');
-        if (!VALID_TYPES.includes(type)) return validationErrorResponse('typeが不正です');
         if (type === 'segment' && (!Array.isArray(options) || options.length === 0)) {
             return validationErrorResponse('segmentタイプは選択肢が必要です');
         }
@@ -43,9 +42,9 @@ export async function POST(request: NextRequest) {
         const item = await prisma.scaffoldingSpecItem.create({
             data: {
                 groupId,
-                name: name.trim(),
+                name,
                 type,
-                options: type === 'segment' ? options : null,
+                options: type === 'segment' && options ? options : undefined,
                 sortOrder: nextSortOrder,
             },
         });

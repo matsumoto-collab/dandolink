@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { unitPriceMasterSchema, validateRequest } from '@/lib/validations';
 
 function formatUnitPrice(up: { templates: string; [key: string]: unknown }) {
     return { ...up, templates: parseJsonField<unknown[]>(up.templates, []) };
@@ -25,10 +26,12 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { description, unit, unitPrice, quantity, templates, categoryId, notes } = await request.json();
-        if (!description || !unit || unitPrice === undefined || !templates) {
-            return validationErrorResponse('説明、単位、単価、テンプレートは必須です');
+        const body = await request.json();
+        const validation = validateRequest(unitPriceMasterSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { description, unit, unitPrice, quantity, templates, categoryId, notes } = validation.data;
 
         const newUnitPrice = await prisma.unitPriceMaster.create({
             data: {

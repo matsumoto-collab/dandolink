@@ -13,7 +13,17 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const dailyReport = await prisma.dailyReport.findUnique({
             where: { id },
-            include: { workItems: { include: { assignment: { include: { projectMaster: true } } } } },
+            select: {
+                id: true, foremanId: true, date: true,
+                morningLoadingMinutes: true, eveningLoadingMinutes: true,
+                earlyStartMinutes: true, overtimeMinutes: true, breakMinutes: true, notes: true, createdAt: true, updatedAt: true, updatedBy: true,
+                workItems: {
+                    select: {
+                        id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
+                        assignment: { select: { id: true, date: true, projectMaster: { select: { id: true, title: true, name: true, honorific: true, customerName: true } } } },
+                    },
+                },
+            },
         });
 
         if (!dailyReport) return notFoundResponse('日報');

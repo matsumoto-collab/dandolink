@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, requireManagerOrAbove, serverErrorResponse, validateStringField } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { costMasterSchema, validateRequest } from '@/lib/validations';
 
 export async function GET() {
     try {
@@ -25,9 +26,12 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name, quantity, unit, unitPrice } = await request.json();
-        const validatedName = validateStringField(name, '名前', 100);
-        if (validatedName instanceof NextResponse) return validatedName;
+        const body = await request.json();
+        const validation = validateRequest(costMasterSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
+        }
+        const { name, quantity, unit, unitPrice } = validation.data;
 
         const maxSortOrder = await prisma.costMaster.aggregate({
             _max: { sortOrder: true },
@@ -36,10 +40,10 @@ export async function POST(request: NextRequest) {
 
         const costMaster = await prisma.costMaster.create({
             data: {
-                name: validatedName,
-                quantity: quantity != null ? Number(quantity) : null,
-                unit: unit?.trim() || null,
-                unitPrice: unitPrice != null ? Number(unitPrice) : null,
+                name,
+                quantity: quantity ?? null,
+                unit: unit ?? null,
+                unitPrice: unitPrice ?? null,
                 sortOrder: nextSortOrder,
             },
         });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
+import { requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { loadingListConfirmSchema, validateRequest } from '@/lib/validations';
 
 // 積込リストから出庫確定 → 在庫減算 + 出庫伝票自動作成
 export async function POST(request: NextRequest) {
@@ -9,15 +10,11 @@ export async function POST(request: NextRequest) {
         if (error) return error;
 
         const body = await request.json();
-        const { date, vehicleId, items } = body as {
-            date: string;
-            vehicleId: string;
-            items: { materialItemId: string; projectMasterId: string; quantity: number }[];
-        };
-
-        if (!date || !vehicleId || !items?.length) {
-            return NextResponse.json({ error: '必須パラメータが不足しています' }, { status: 400 });
+        const validation = validateRequest(loadingListConfirmSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
+        const { date, vehicleId, items } = validation.data;
 
         // Group items by project for creating requisitions
         const byProject = new Map<string, { materialItemId: string; quantity: number }[]>();

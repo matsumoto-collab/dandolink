@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { materialRequisitionCreateSchema, validateRequest } from '@/lib/validations';
 
 export async function GET(request: NextRequest) {
     try {
@@ -59,18 +60,14 @@ export async function POST(request: NextRequest) {
         if (error) return error;
 
         const body = await request.json();
-        const { projectMasterId, date, foremanId, foremanName, type, status: reqStatus, vehicleInfo, notes, items } = body;
-
-        if (!projectMasterId || !date || !foremanId) {
-            return NextResponse.json({ error: '現場、日付、職長は必須です' }, { status: 400 });
+        const validation = validateRequest(materialRequisitionCreateSchema, body);
+        if (!validation.success) {
+            return validationErrorResponse(validation.error, validation.details);
         }
-
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            return NextResponse.json({ error: '材料を1つ以上入力してください' }, { status: 400 });
-        }
+        const { projectMasterId, date, foremanId, foremanName, type, status: reqStatus, vehicleInfo, notes, items } = validation.data;
 
         // 数量 > 0 のアイテムのみ保存
-        const validItems = items.filter((item: { quantity: number }) => item.quantity > 0);
+        const validItems = items.filter((item) => item.quantity > 0);
         if (validItems.length === 0) {
             return NextResponse.json({ error: '数量が入力された材料がありません' }, { status: 400 });
         }
@@ -87,7 +84,7 @@ export async function POST(request: NextRequest) {
                 notes: notes || null,
                 createdBy: session?.user?.id || null,
                 items: {
-                    create: validItems.map((item: { materialItemId: string; quantity: number; vehicleLabel?: string; notes?: string }) => ({
+                    create: validItems.map((item) => ({
                         materialItemId: item.materialItemId,
                         quantity: item.quantity,
                         vehicleLabel: item.vehicleLabel || null,
