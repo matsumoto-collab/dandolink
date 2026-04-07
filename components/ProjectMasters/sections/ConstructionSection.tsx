@@ -457,8 +457,14 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                 <div className="flex items-center gap-2">
                     <input
                         type="number"
+                        min="0"
                         value={formData.contractAmount}
-                        onChange={(e) => setFormData({ ...formData, contractAmount: e.target.value })}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === '' || Number(val) >= 0) {
+                                setFormData({ ...formData, contractAmount: val });
+                            }
+                        }}
                         className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
                         placeholder="例: 500000"
                     />
