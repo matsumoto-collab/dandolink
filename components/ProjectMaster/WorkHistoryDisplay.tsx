@@ -97,7 +97,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
     return (
         <div className="space-y-2">
             <div className="text-xs text-slate-500 text-right">{history.length}件</div>
-            <div className="space-y-2 max-h-60 overflow-y-auto">
+            <div className="max-h-60 overflow-y-auto border border-slate-200 rounded-xl p-2 space-y-2">
                 {history.map((item) => {
                     const ctInfo = getConstructionTypeInfo(item.constructionType);
                     const formatMinutes = (m: number) => {
