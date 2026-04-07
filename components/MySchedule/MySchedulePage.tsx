@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import GanttChart, { GanttProject } from './GanttChart';
@@ -8,6 +8,7 @@ import { ProjectMaster } from '@/types/calendar';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import toast from 'react-hot-toast';
 import Loading from '@/components/ui/Loading';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 const ProjectMasterDetailModal = dynamic(
     () => import('@/components/ProjectMaster/ProjectMasterDetailModal'),
@@ -148,17 +149,75 @@ export default function MySchedulePage() {
         fetchData();
     }, [fetchData]);
 
+    // Supabase Realtime: 配置・案件マスターの変更を検知して自動再取得
+    const isUpdatingRef = useRef(false);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const debouncedFetchData = useCallback(() => {
+        if (isUpdatingRef.current) return;
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            fetchData();
+        }, 500);
+    }, [fetchData]);
+
+    useEffect(() => {
+        if (!session?.user) return;
+
+        let channel: RealtimeChannel | null = null;
+
+        const setupRealtime = async () => {
+            try {
+                const { supabase } = await import('@/lib/supabase');
+                channel = supabase
+                    .channel('my_schedule_changes')
+                    .on(
+                        'postgres_changes',
+                        { event: '*', schema: 'public', table: 'ProjectAssignment' },
+                        () => debouncedFetchData()
+                    )
+                    .on(
+                        'postgres_changes',
+                        { event: 'UPDATE', schema: 'public', table: 'ProjectMaster' },
+                        () => debouncedFetchData()
+                    )
+                    .subscribe();
+            } catch (error) {
+                console.error('Failed to setup my-schedule realtime:', error);
+            }
+        };
+
+        setupRealtime();
+
+        return () => {
+            if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            const channelToRemove = channel;
+            if (channelToRemove) {
+                import('@/lib/supabase')
+                    .then(({ supabase }) => {
+                        supabase.removeChannel(channelToRemove);
+                    })
+                    .catch(() => {});
+            }
+        };
+    }, [session?.user, debouncedFetchData]);
+
     const handleUpdateProjectMaster = useCallback(async (id: string, formData: ProjectMasterFormData) => {
-        const res = await fetch(`/api/project-masters/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-        });
-        if (!res.ok) throw new Error('更新に失敗しました');
-        const updated: ProjectMaster = await res.json();
-        setDetailPm(updated);
-        toast.success('案件情報を更新しました');
-        fetchData();
+        isUpdatingRef.current = true;
+        try {
+            const res = await fetch(`/api/project-masters/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (!res.ok) throw new Error('更新に失敗しました');
+            const updated: ProjectMaster = await res.json();
+            setDetailPm(updated);
+            toast.success('案件情報を更新しました');
+            await fetchData();
+        } finally {
+            setTimeout(() => { isUpdatingRef.current = false; }, 1000);
+        }
     }, [fetchData]);
 
     const handleNavigate = useCallback((direction: 'prev' | 'next' | 'today') => {
