@@ -127,30 +127,32 @@ export default function ProjectMasterListPage() {
     };
 
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
-        await updateProjectMaster(id, {
+        // null を送ることで API 側でフィールドをクリアできる（undefined だと更新対象外になる）
+        const updatePayload: Record<string, unknown> = {
             title: data.title,
-            name: data.name || undefined,
-            honorific: data.honorific ?? undefined,
-            constructionSuffixId: data.constructionSuffixId || undefined,
-            customerId: data.customerId || undefined,
-            customerName: data.customerName || undefined,
-            constructionContent: data.constructionContent as string || undefined,
-            postalCode: data.postalCode || undefined,
-            prefecture: data.prefecture || undefined,
-            city: data.city || undefined,
-            location: data.location || undefined,
-            plusCode: data.plusCode || undefined,
-            latitude: data.latitude ?? undefined,
-            longitude: data.longitude ?? undefined,
-            area: data.area ? parseFloat(data.area) : undefined,
-            areaRemarks: data.areaRemarks || undefined,
-            estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
-            estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
-            contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
+            name: data.name || null,
+            honorific: data.honorific ?? null,
+            constructionSuffixId: data.constructionSuffixId || null,
+            customerId: data.customerId || null,
+            customerName: data.customerName || null,
+            constructionContent: (data.constructionContent as string) || null,
+            postalCode: data.postalCode || null,
+            prefecture: data.prefecture || null,
+            city: data.city || null,
+            location: data.location || null,
+            plusCode: data.plusCode || null,
+            latitude: data.latitude ?? null,
+            longitude: data.longitude ?? null,
+            area: data.area ? parseFloat(data.area) : null,
+            areaRemarks: data.areaRemarks || null,
+            estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : null,
+            estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : null,
+            contractAmount: data.contractAmount ? parseInt(data.contractAmount) : null,
             scaffoldingSpec: data.scaffoldingSpec as ScaffoldingSpec,
             remarks: data.remarks ?? '',
-            createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
-        });
+            createdBy: data.createdBy.length > 0 ? data.createdBy : [],
+        };
+        await updateProjectMaster(id, updatePayload as Partial<ProjectMaster>);
         // 作業日程から新規アサインを自動生成
         const assignmentPromises = data.workDates.flatMap((w) => {
             if (!w.date || w.foremen.length === 0) return [];

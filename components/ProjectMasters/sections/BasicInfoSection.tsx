@@ -268,7 +268,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
-                                value={customerSearchTerm || formData.customerName}
+                                value={customerSearchTerm}
                                 onChange={(e) => {
                                     setCustomerSearchTerm(e.target.value);
                                     setShowCustomerDropdown(true);
