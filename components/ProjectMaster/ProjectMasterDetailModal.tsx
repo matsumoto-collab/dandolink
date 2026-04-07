@@ -79,6 +79,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
     const constructionTypes = useMasterStore(selectConstructionTypes);
 
+    // pm.id が変わった時（別の案件を開いた時）のみモード・タブをリセット
     useEffect(() => {
         if (pm) {
             setMode(initialEditMode ? 'edit' : 'view');
@@ -86,7 +87,16 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
             setFormData(initFormDataFromPm(pm, constructionTypes));
             setShowUnsavedConfirm(false);
         }
-    }, [pm?.id, initialEditMode]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pm?.id, initialEditMode]);
+
+    // pm の内容が変わった時（保存後など）に formData を最新に同期
+    useEffect(() => {
+        if (pm && mode === 'view') {
+            setFormData(initFormDataFromPm(pm, constructionTypes));
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pm]);
 
     const isFormDirty = () => {
         if (!pm) return false;
