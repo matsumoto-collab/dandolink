@@ -108,58 +108,44 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                     return (
                         <div
                             key={item.id}
-                            className="p-3 bg-white rounded-xl border border-slate-200 text-sm"
+                            className="px-3 py-2 bg-white rounded-xl border border-slate-200 text-xs"
                         >
-                            {/* 日付 + 工事種別 */}
-                            <div className="flex items-center justify-between mb-2.5">
-                                <span className="font-semibold text-slate-800">
+                            {/* 1行目: 日付 + 工事種別 + 職長 + 人数 + 作業時間 */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold text-slate-800 text-sm">
                                     {formatDate(item.date)}
                                 </span>
                                 <span
-                                    className="px-2 py-0.5 text-xs font-medium rounded-full"
+                                    className="px-1.5 py-0.5 font-medium rounded-full leading-none"
                                     style={{
                                         backgroundColor: `${ctInfo.color}30`,
                                         color: '#000000',
+                                        fontSize: '10px',
                                     }}
                                 >
                                     {ctInfo.label}
                                 </span>
-                            </div>
-
-                            {/* 詳細グリッド */}
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                                <div>
-                                    <span className="text-slate-400">職長</span>
-                                    <p className="text-slate-700 font-medium">
-                                        {item.foremanName}
-                                        {item.memberCount > 0 && <span className="text-slate-400 font-normal ml-1">({item.memberCount}名)</span>}
-                                    </p>
-                                </div>
-                                <div>
-                                    <span className="text-slate-400">作業時間</span>
-                                    <p className="text-slate-700 font-medium">
-                                        {item.workTimeMinutes != null ? formatMinutes(item.workTimeMinutes) : '−'}
-                                    </p>
-                                </div>
-                                {item.workerNames.length > 0 && (
-                                    <div>
-                                        <span className="text-slate-400">メンバー</span>
-                                        <p className="text-slate-700">{item.workerNames.join('、')}</p>
-                                    </div>
-                                )}
-                                {item.vehicleNames.length > 0 && (
-                                    <div>
-                                        <span className="text-slate-400">車両</span>
-                                        <p className="text-slate-700">{item.vehicleNames.join('、')}</p>
-                                    </div>
+                                <span className="text-slate-600">
+                                    {item.foremanName}
+                                    {item.memberCount > 0 && <span className="text-slate-400 ml-0.5">({item.memberCount}名)</span>}
+                                </span>
+                                {item.workTimeMinutes != null && (
+                                    <span className="text-slate-400">{formatMinutes(item.workTimeMinutes)}</span>
                                 )}
                             </div>
-
-                            {/* 備考 */}
-                            {item.remarks && (
-                                <p className="mt-2 text-xs text-slate-500 border-t border-slate-100 pt-1.5">
-                                    {item.remarks}
-                                </p>
+                            {/* 2行目: メンバー・車両・備考（ある場合のみ） */}
+                            {(item.workerNames.length > 0 || item.vehicleNames.length > 0 || item.remarks) && (
+                                <div className="mt-1 text-slate-500 leading-tight truncate">
+                                    {item.workerNames.length > 0 && (
+                                        <span>メンバー: {item.workerNames.join('、')}</span>
+                                    )}
+                                    {item.vehicleNames.length > 0 && (
+                                        <span className="ml-2">車両: {item.vehicleNames.join('、')}</span>
+                                    )}
+                                    {item.remarks && (
+                                        <span className="ml-2">備考: {item.remarks}</span>
+                                    )}
+                                </div>
                             )}
                         </div>
                     );
