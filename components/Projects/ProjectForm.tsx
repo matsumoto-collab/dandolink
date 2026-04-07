@@ -441,25 +441,25 @@ export default function ProjectForm({
             }];
         }
 
-        const projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
+        const projectData = {
             title: composedTitle,
-            name: formData.name.trim() || undefined,
-            honorific: formData.honorific || undefined,
-            constructionSuffixId: formData.constructionSuffixId || undefined,
+            name: formData.name.trim() || null,
+            honorific: formData.honorific || null,
+            constructionSuffixId: formData.constructionSuffixId || null,
             projectMasterId: initialData?.projectMasterId,
             location: initialData?.location,
-            customer: formData.customer || undefined,
-            createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : undefined,
+            customer: formData.customer || null,
+            createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : [],
             startDate: startDate,
             assignedEmployeeId: initialData?.assignedEmployeeId || defaultEmployeeId || 'unassigned',
             memberCount: formData.memberCount,
             workers: workers,
-            trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
-            vehicles: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : undefined,
+            trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : [],
+            vehicles: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : [],
             // 工事種別
             constructionType: formData.constructionType,
             // 工事内容
-            constructionContent: formData.constructionContent || undefined,
+            constructionContent: formData.constructionContent || null,
             // 複数日スケジュール
             workSchedules: workSchedules,
             color: color,
@@ -467,7 +467,7 @@ export default function ProjectForm({
             estimatedHours: formData.estimatedHours,
         };
 
-        onSubmit(projectData);
+        onSubmit(projectData as Omit<Project, 'id' | 'createdAt' | 'updatedAt'>);
     };
 
     return (

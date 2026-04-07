@@ -468,11 +468,11 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            const data: EstimateInput = {
-                projectId: projectId || undefined, customerId: customerId || undefined, estimateNumber, title, items, subtotal, tax, total,
-                validUntil: new Date(validUntil), status, notes: notes || undefined, location: location || undefined, costTotal,
-                constructionPeriod: constructionPeriod || undefined,
-            };
+            const data = {
+                projectId: projectId || null, customerId: customerId || null, estimateNumber, title, items, subtotal, tax, total,
+                validUntil: new Date(validUntil), status, notes: notes || null, location: location || null, costTotal,
+                constructionPeriod: constructionPeriod || null,
+            } as EstimateInput;
             await onSubmit(data);
         } finally {
             setIsSubmitting(false);

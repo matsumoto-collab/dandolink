@@ -306,21 +306,21 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         if (isSubmitting) return;
         setIsSubmitting(true);
         try {
-            const data: InvoiceInput = {
-                projectId: selectedProjectIds[0] || undefined,
-                projectMasterIds: selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
+            const data = {
+                projectId: selectedProjectIds[0] || null,
+                projectMasterIds: selectedProjectIds.length > 0 ? selectedProjectIds : [],
                 customerId,
                 invoiceNumber,
                 title,
-                items: allItems.map(item => item.projectMasterId === '_none' ? { ...item, projectMasterId: undefined } : item),
+                items: allItems.map(item => item.projectMasterId === '_none' ? { ...item, projectMasterId: null } : item),
                 subtotal,
                 tax,
                 total,
                 dueDate: new Date(dueDate),
                 status,
-                paidDate: paidDate ? new Date(paidDate) : undefined,
-                notes: notes || undefined,
-            };
+                paidDate: paidDate ? new Date(paidDate) : null,
+                notes: notes || null,
+            } as InvoiceInput;
             await onSubmit(data);
         } finally {
             setIsSubmitting(false);
