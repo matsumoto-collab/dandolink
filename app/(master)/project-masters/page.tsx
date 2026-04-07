@@ -151,6 +151,27 @@ export default function ProjectMasterListPage() {
             remarks: data.remarks ?? '',
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
         });
+        // 作業日程から新規アサインを自動生成
+        const assignmentPromises = data.workDates.flatMap((w) => {
+            if (!w.date || w.foremen.length === 0) return [];
+            return w.foremen.map((f, i) =>
+                fetch('/api/assignments', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        projectMasterId: id,
+                        assignedEmployeeId: f.foremanId,
+                        date: new Date(`${w.date}T00:00:00Z`).toISOString(),
+                        memberCount: f.memberCount,
+                        sortOrder: i,
+                        estimatedHours: 8.0,
+                        constructionType: w.constructionType || undefined,
+                    }),
+                })
+            );
+        });
+        await Promise.all(assignmentPromises);
+
         // 保存後、detailPmをストアの最新データで更新（再編集時にpm.latitudeが古い値にならないよう）
         const updated = getProjectMasterById(id);
         if (updated) setDetailPm(updated);
