@@ -157,7 +157,7 @@ export default function ConstructionTypeSettings() {
                         className="fixed inset-0 z-40"
                         onClick={() => setShowColorPicker(null)}
                     />
-                    <div className="absolute z-50 top-10 left-0 p-2 bg-white rounded-xl shadow-xl border border-slate-200 grid grid-cols-2 gap-1 w-[280px] md:w-[320px] max-h-[320px] overflow-y-auto">
+                    <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 bg-white rounded-xl shadow-xl border border-slate-200 grid grid-cols-2 gap-1 w-[280px] md:w-[320px] max-h-[320px] overflow-y-auto">
                         {COLOR_PALETTE.map((color) => (
                             <button
                                 key={color}
