@@ -16,7 +16,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import { canDispatch as canDispatchCheck } from '@/utils/permissions';
 import { addDays } from '@/utils/dateUtils';
-import { CalendarEvent, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
+import { CalendarEvent, CalendarNavigation, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import DesktopCalendarView from './DesktopCalendarView';
@@ -41,14 +41,6 @@ const ProjectSelectionModal = dynamic(() => import('./ProjectSelectionModal'), {
     loading: () => <Loading overlay />
 });
 const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'));
-
-export interface CalendarNavigation {
-    goToPreviousWeek: () => void;
-    goToNextWeek: () => void;
-    goToPreviousDay: () => void;
-    goToNextDay: () => void;
-    goToToday: () => void;
-}
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;

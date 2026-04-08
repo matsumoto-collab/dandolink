@@ -1,3 +1,12 @@
+// カレンダーナビゲーション
+export interface CalendarNavigation {
+    goToPreviousWeek: () => void;
+    goToNextWeek: () => void;
+    goToPreviousDay: () => void;
+    goToNextDay: () => void;
+    goToToday: () => void;
+}
+
 // プロジェクトステータス型
 export type ProjectStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
 

@@ -10,17 +10,9 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { generateEmployeeRows } from '@/utils/employeeUtils';
 import { addDays } from '@/utils/dateUtils';
-import { CalendarEvent, Employee } from '@/types/calendar';
+import { CalendarEvent, CalendarNavigation, Employee } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
 import OverviewCalendarView from './OverviewCalendarView';
-
-export interface CalendarNavigation {
-    goToPreviousWeek: () => void;
-    goToNextWeek: () => void;
-    goToPreviousDay: () => void;
-    goToNextDay: () => void;
-    goToToday: () => void;
-}
 
 interface OverviewCalendarProps {
     onNavigationReady?: (nav: CalendarNavigation) => void;

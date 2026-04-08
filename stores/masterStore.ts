@@ -2,32 +2,11 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { ConstructionTypeMaster } from '@/types/calendar';
+import { Vehicle, MemberCountHistoryEntry } from '@/types/master';
 import { logger } from '@/lib/logger';
 
-// Types
-export interface Vehicle {
-    id: string;
-    name: string;
-}
-
-export interface Manager {
-    id: string;
-    name: string;
-}
-
-export interface MemberCountHistoryEntry {
-    id: string;
-    startDate: string; // ISO date string
-    count: number;
-}
-
-export interface MasterData {
-    vehicles: Vehicle[];
-    managers: Manager[];
-    constructionTypes: ConstructionTypeMaster[];
-    totalMembers: number;
-    memberCountHistory: MemberCountHistoryEntry[];
-}
+// Re-export types for backward compatibility
+export type { Vehicle, Manager, MemberCountHistoryEntry, MasterData } from '@/types/master';
 
 interface MasterState {
     // Data

@@ -15,6 +15,24 @@ Font.register({
     ],
 });
 
+// Shared color palette for PDF documents
+export const PDF_COLORS = {
+    navy: '#222222',
+    navyLight: '#444444',
+    headerBg: '#333333',
+    headerText: '#ffffff',
+    infoBg: '#f5f5f5',
+    zebraStripe: '#fafafa',
+    borderDark: '#333333',
+    borderLight: '#d4d4d4',
+    borderMedium: '#a3a3a3',
+    textPrimary: '#1a1a1a',
+    textSecondary: '#525252',
+    red: '#dc2626',
+    white: '#ffffff',
+    totalBg: '#f0f0f0',
+} as const;
+
 // Common styles for PDF documents
 export const commonStyles = StyleSheet.create({
     page: {

@@ -12,25 +12,7 @@ import {
 import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
-import { toReiwa, sanitizePdfText } from './styles';
-
-// ===== Color Palette =====
-const COLORS = {
-    navy: '#222222',
-    navyLight: '#444444',
-    headerBg: '#333333',
-    headerText: '#ffffff',
-    infoBg: '#f5f5f5',
-    zebraStripe: '#fafafa',
-    borderDark: '#333333',
-    borderLight: '#d4d4d4',
-    borderMedium: '#a3a3a3',
-    textPrimary: '#1a1a1a',
-    textSecondary: '#525252',
-    red: '#dc2626',
-    white: '#ffffff',
-    totalBg: '#f0f0f0',
-};
+import { toReiwa, sanitizePdfText, PDF_COLORS as COLORS } from './styles';
 
 // ===== Styles (Portrait A4) =====
 const styles = StyleSheet.create({
