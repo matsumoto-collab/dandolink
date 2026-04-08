@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { CalendarEvent, EmployeeRow, WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import { getDayOfWeekString } from '@/utils/dateUtils';
@@ -12,7 +12,6 @@ interface OverviewCalendarViewProps {
     getTotalMembersForDate: (dateStr: string) => number;
     getVacationEmployees: (dateKey: string) => string[];
     getMemberAdjustment?: (dateKey: string) => number;
-    // Navigation
     goToPreviousWeek?: () => void;
     goToNextWeek?: () => void;
     goToPreviousDay?: () => void;
@@ -20,18 +19,31 @@ interface OverviewCalendarViewProps {
     goToToday?: () => void;
 }
 
-function MiniCard({ event }: { event: CalendarEvent }) {
+// Min row height in px — rows won't shrink below this
+const MIN_ROW_HEIGHT = 32;
+// Fixed heights for header area (nav bar + thead rows)
+const NAV_HEIGHT = 36;
+const THEAD_HEIGHT = 40; // date row + remaining row
+
+function MiniCard({ event, compact }: { event: CalendarEvent; compact: boolean }) {
     return (
         <div
-            className="rounded px-0.5 py-px mb-px overflow-hidden max-w-full"
-            style={{ backgroundColor: event.color || '#e2e8f0' }}
+            className="rounded px-0.5 overflow-hidden max-w-full"
+            style={{
+                backgroundColor: event.color || '#e2e8f0',
+                marginBottom: compact ? 0 : 1,
+                paddingTop: compact ? 0 : 1,
+                paddingBottom: compact ? 0 : 1,
+            }}
         >
-            <div className="text-[6px] leading-[7px] font-medium text-slate-800 truncate">
+            <div className={`font-medium text-slate-800 truncate ${compact ? 'text-[5px] leading-[6px]' : 'text-[6px] leading-[8px]'}`}>
                 {(event as any).name || event.title}
             </div>
-            <div className="text-[5px] leading-[7px] text-slate-600 truncate">
-                {event.customer || ''}
-            </div>
+            {!compact && (
+                <div className="text-[5px] leading-[7px] text-slate-600 truncate">
+                    {event.customer || ''}
+                </div>
+            )}
         </div>
     );
 }
@@ -50,76 +62,31 @@ export default function OverviewCalendarView({
     goToToday: _goToToday,
 }: OverviewCalendarViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const contentRef = useRef<HTMLDivElement>(null);
-    // Use refs to avoid stale closure issues in touch handlers
-    const scaleRef = useRef(1);
-    const originRef = useRef({ x: 0, y: 0 });
+    const [rowHeight, setRowHeight] = useState<number>(0);
 
-    const applyTransform = useCallback(() => {
-        const el = contentRef.current;
-        if (!el) return;
-        const s = scaleRef.current;
-        const o = originRef.current;
-        el.style.transform = `scale(${s})`;
-        el.style.transformOrigin = `${o.x}px ${o.y}px`;
-    }, []);
-
+    // Calculate row height to fit viewport
     useEffect(() => {
-        const container = containerRef.current;
-        if (!container) return;
-
-        let startDistance = 0;
-        let startScale = 1;
-
-        const getDistance = (t: TouchList) => {
-            const dx = t[0].clientX - t[1].clientX;
-            const dy = t[0].clientY - t[1].clientY;
-            return Math.sqrt(dx * dx + dy * dy);
+        const calculate = () => {
+            const container = containerRef.current;
+            if (!container) return;
+            const availableHeight = container.clientHeight - THEAD_HEIGHT;
+            const rowCount = employeeRows.length || 1;
+            const calculated = Math.floor(availableHeight / rowCount);
+            setRowHeight(Math.max(calculated, MIN_ROW_HEIGHT));
         };
+        calculate();
+        const observer = new ResizeObserver(calculate);
+        if (containerRef.current) observer.observe(containerRef.current);
+        return () => observer.disconnect();
+    }, [employeeRows.length]);
 
-        const onTouchStart = (e: TouchEvent) => {
-            if (e.touches.length === 2) {
-                e.preventDefault();
-                startDistance = getDistance(e.touches);
-                startScale = scaleRef.current;
-                // Set origin to midpoint of the two fingers relative to content
-                const rect = container.getBoundingClientRect();
-                originRef.current = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left + container.scrollLeft,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top + container.scrollTop,
-                };
-            }
-        };
-
-        const onTouchMove = (e: TouchEvent) => {
-            if (e.touches.length === 2) {
-                e.preventDefault();
-                const dist = getDistance(e.touches);
-                const newScale = Math.max(0.5, Math.min(4, startScale * (dist / startDistance)));
-                scaleRef.current = newScale;
-                applyTransform();
-            }
-        };
-
-        const onTouchEnd = () => {
-            // no-op, keep current scale
-        };
-
-        container.addEventListener('touchstart', onTouchStart, { passive: false });
-        container.addEventListener('touchmove', onTouchMove, { passive: false });
-        container.addEventListener('touchend', onTouchEnd);
-
-        return () => {
-            container.removeEventListener('touchstart', onTouchStart);
-            container.removeEventListener('touchmove', onTouchMove);
-            container.removeEventListener('touchend', onTouchEnd);
-        };
-    }, [applyTransform]);
+    // compact mode when rows are small
+    const compact = rowHeight < 48;
 
     return (
         <div className="h-full flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
             {/* Header with nav */}
-            <div className="px-2 py-1 bg-slate-50 border-b border-slate-200 flex-shrink-0 flex items-center justify-between">
+            <div className="px-2 py-1 bg-slate-50 border-b border-slate-200 flex-shrink-0 flex items-center justify-between" style={{ height: NAV_HEIGHT }}>
                 {goToPreviousWeek && goToPreviousDay ? (
                     <div className="flex items-center">
                         <button onClick={goToPreviousWeek} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1週間前">
@@ -130,7 +97,7 @@ export default function OverviewCalendarView({
                         </button>
                     </div>
                 ) : <div />}
-                <span className="text-xs text-slate-500">俯瞰ビュー（ピンチで拡大縮小）</span>
+                <span className="text-xs text-slate-500">俯瞰ビュー</span>
                 {goToNextDay && goToNextWeek ? (
                     <div className="flex items-center">
                         <button onClick={goToNextDay} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1日後">
@@ -143,103 +110,106 @@ export default function OverviewCalendarView({
                 ) : <div />}
             </div>
 
-            {/* Scrollable + pinch-zoomable content */}
+            {/* Table content — fills remaining space */}
             <div
                 ref={containerRef}
                 className="flex-1 overflow-auto"
-                style={{ touchAction: 'pan-x pan-y' }}
             >
-                <div ref={contentRef} style={{ transformOrigin: '0 0' }}>
-                    <table className="w-full border-collapse table-fixed">
-                        <colgroup>
-                            <col style={{ width: '60px' }} />
-                            {weekDays.map((_, i) => (
-                                <col key={i} />
-                            ))}
-                        </colgroup>
-                        {/* Header */}
-                        <thead className="sticky top-0 z-10">
-                            <tr className="bg-slate-100">
-                                <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '60px' }}>
-                                    職長
-                                </th>
+                <table className="w-full border-collapse table-fixed">
+                    <colgroup>
+                        <col style={{ width: '60px' }} />
+                        {weekDays.map((_, i) => (
+                            <col key={i} />
+                        ))}
+                    </colgroup>
+                    {/* Header */}
+                    <thead className="sticky top-0 z-10">
+                        <tr className="bg-slate-100">
+                            <th className="text-[8px] font-bold text-slate-700 border border-slate-300 px-0 py-0.5 sticky left-0 z-20 bg-slate-100" style={{ width: '60px' }}>
+                                職長
+                            </th>
+                            {weekDays.map((day, i) => {
+                                const dayStr = getDayOfWeekString(day.date, 'short');
+                                const d = day.date.getDate();
+                                const isSat = day.dayOfWeek === 6;
+                                const isSun = day.dayOfWeek === 0;
+                                return (
+                                    <th
+                                        key={i}
+                                        className={`text-[8px] font-bold border border-slate-300 px-0 py-0.5 ${
+                                            day.isToday ? 'bg-slate-700 text-white' :
+                                            isSat ? 'bg-blue-50 text-blue-700' :
+                                            isSun ? 'bg-rose-50 text-rose-700' :
+                                            'text-slate-700'
+                                        }`}
+                                    >
+                                        {d}({dayStr})
+                                    </th>
+                                );
+                            })}
+                        </tr>
+                        {/* Remaining members row */}
+                        <tr className="bg-white">
+                            <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '60px' }}>
+                                残り
+                            </td>
+                            {weekDays.map((day, i) => {
+                                const dateKey = formatDateKey(day.date);
+                                const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned');
+                                const byForeman = new Map<string, number[]>();
+                                dayEvents.forEach(e => {
+                                    const key = e.assignedEmployeeId!;
+                                    if (!byForeman.has(key)) byForeman.set(key, []);
+                                    byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
+                                });
+                                let assigned = 0;
+                                byForeman.forEach(counts => { assigned += Math.max(...counts); });
+                                const vacation = getVacationEmployees(dateKey).length;
+                                const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
+                                const remaining = getTotalMembersForDate(dateKey) + adj - assigned - vacation;
+                                return (
+                                    <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
+                                        <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-slate-700' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>
+                                            {remaining}人
+                                        </span>
+                                    </td>
+                                );
+                            })}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {employeeRows.map((row) => (
+                            <tr key={row.employeeId} className="border-b border-slate-200">
+                                <td
+                                    className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap overflow-hidden"
+                                    style={{ width: '60px', height: rowHeight || undefined }}
+                                >
+                                    {row.employeeName}
+                                </td>
                                 {weekDays.map((day, i) => {
-                                    const dayStr = getDayOfWeekString(day.date, 'short');
-                                    const d = day.date.getDate();
+                                    const cellEvents = getEventsForDate(row, day.date);
                                     const isSat = day.dayOfWeek === 6;
                                     const isSun = day.dayOfWeek === 0;
                                     return (
-                                        <th
+                                        <td
                                             key={i}
-                                            className={`text-[8px] font-bold border border-slate-300 px-0 py-0.5 ${
-                                                day.isToday ? 'bg-slate-700 text-white' :
-                                                isSat ? 'bg-blue-50 text-blue-700' :
-                                                isSun ? 'bg-rose-50 text-rose-700' :
-                                                'text-slate-700'
+                                            className={`border border-slate-200 px-px align-top overflow-hidden ${
+                                                isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
                                             }`}
+                                            style={{ height: rowHeight || undefined, padding: compact ? '0 1px' : undefined }}
                                         >
-                                            {d}({dayStr})
-                                        </th>
-                                    );
-                                })}
-                            </tr>
-                            {/* Remaining members row */}
-                            <tr className="bg-white">
-                                <td className="text-[7px] font-bold text-slate-600 border border-slate-300 px-0 py-0.5 text-center sticky left-0 z-20 bg-white" style={{ width: '60px' }}>
-                                    残り
-                                </td>
-                                {weekDays.map((day, i) => {
-                                    const dateKey = formatDateKey(day.date);
-                                    const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned');
-                                    const byForeman = new Map<string, number[]>();
-                                    dayEvents.forEach(e => {
-                                        const key = e.assignedEmployeeId!;
-                                        if (!byForeman.has(key)) byForeman.set(key, []);
-                                        byForeman.get(key)!.push(e.workers?.length || e.memberCount || 0);
-                                    });
-                                    let assigned = 0;
-                                    byForeman.forEach(counts => { assigned += Math.max(...counts); });
-                                    const vacation = getVacationEmployees(dateKey).length;
-                                    const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                                    const remaining = getTotalMembersForDate(dateKey) + adj - assigned - vacation;
-                                    return (
-                                        <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
-                                            <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-slate-700' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>
-                                                {remaining}人
-                                            </span>
+                                            <div className="overflow-hidden" style={{ maxHeight: rowHeight ? rowHeight - 2 : undefined }}>
+                                                {cellEvents.map((event) => (
+                                                    <MiniCard key={event.id} event={event} compact={compact} />
+                                                ))}
+                                            </div>
                                         </td>
                                     );
                                 })}
                             </tr>
-                        </thead>
-                        <tbody>
-                            {employeeRows.map((row) => (
-                                <tr key={row.employeeId} className="border-b border-slate-200">
-                                    <td className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap" style={{ width: '60px' }}>
-                                        {row.employeeName}
-                                    </td>
-                                    {weekDays.map((day, i) => {
-                                        const cellEvents = getEventsForDate(row, day.date);
-                                        const isSat = day.dayOfWeek === 6;
-                                        const isSun = day.dayOfWeek === 0;
-                                        return (
-                                            <td
-                                                key={i}
-                                                className={`border border-slate-200 px-px py-px align-top ${
-                                                    isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
-                                                }`}
-                                            >
-                                                {cellEvents.map((event) => (
-                                                    <MiniCard key={event.id} event={event} />
-                                                ))}
-                                            </td>
-                                        );
-                                    })}
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                        ))}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
