@@ -190,7 +190,7 @@ export default function MainContent() {
 
             pwa-main-safe
         ">
-            <div key={activePage} className={`${activePage === 'schedule' || activePage === 'estimates' ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+            <div key={activePage} className={`${activePage === 'schedule' || activePage === 'estimates' || activePage === 'project-masters' ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                 {renderContent()}
             </div>
         </main>
