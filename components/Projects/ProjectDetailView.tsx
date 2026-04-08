@@ -294,6 +294,12 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                                     Google Mapsで開く
                                 </a>
                             </div>
+                            {(() => {
+                                const addressParts = [locationData.prefecture, locationData.city, locationData.location].filter(Boolean);
+                                return addressParts.length > 0 ? (
+                                    <p className="text-sm text-slate-700 mb-2">{addressParts.join(' ')}</p>
+                                ) : null;
+                            })()}
                             <div className="border border-slate-200 rounded-lg overflow-hidden">
                                 <iframe
                                     key={mapQuery}
