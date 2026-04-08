@@ -44,7 +44,22 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
     const [showMap, setShowMap] = useState(false);
     const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
-    const [inputMode, setInputMode] = useState<InputMode>('address');
+    const [inputMode, setInputMode] = useState<InputMode>(() => {
+        const hasAddressFields = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
+        const hasCoords = formData.latitude != null && formData.longitude != null;
+        return (!hasAddressFields && hasCoords) ? 'map' : 'address';
+    });
+    // lat/lngのみで住所フィールドが空の場合は地図モードに切り替え
+    useEffect(() => {
+        const hasAddressFields = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
+        const hasCoords = formData.latitude != null && formData.longitude != null;
+        if (!hasAddressFields && hasCoords) {
+            setInputMode('map');
+        } else if (hasAddressFields) {
+            setInputMode('address');
+        }
+    }, [formData.postalCode, formData.prefecture, formData.city, formData.location, formData.latitude, formData.longitude]);
+
     // 住所モード用: iframe に渡すクエリ（デバウンス済み）
     const [iframeQuery, setIframeQuery] = useState(
         [formData.prefecture, formData.city, formData.location].filter(Boolean).join('')
@@ -63,7 +78,8 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
 
     // 地図モード用
     const hasAddress = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
-    const mapVisible = showMap || hasAddress;
+    const hasCoords = formData.latitude != null && formData.longitude != null;
+    const mapVisible = showMap || hasAddress || hasCoords;
 
     const defaultCenter = {
         lat: formData.latitude ?? FALLBACK.lat,
