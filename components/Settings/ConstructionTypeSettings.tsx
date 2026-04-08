@@ -133,6 +133,12 @@ export default function ConstructionTypeSettings() {
         if (ct.color) colorToTypeName[ct.color] = ct.name;
     });
 
+    // パレット + パレット外の使用中カラーを統合
+    const usedColorsOutsidePalette = constructionTypes
+        .filter((ct) => ct.color && !(COLOR_PALETTE as readonly string[]).includes(ct.color))
+        .map((ct) => ct.color);
+    const allColors = [...COLOR_PALETTE, ...usedColorsOutsidePalette];
+
     // 色選択コンポーネント
     const ColorPicker = ({
         selectedColor,
@@ -158,7 +164,7 @@ export default function ConstructionTypeSettings() {
                         onClick={() => setShowColorPicker(null)}
                     />
                     <div className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 p-2 bg-white rounded-xl shadow-xl border border-slate-200 grid grid-cols-2 gap-1 w-[280px] md:w-[320px] max-h-[320px] overflow-y-auto">
-                        {COLOR_PALETTE.map((color) => (
+                        {allColors.map((color) => (
                             <button
                                 key={color}
                                 type="button"
