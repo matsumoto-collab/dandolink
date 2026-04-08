@@ -45,9 +45,9 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const [showMap, setShowMap] = useState(false);
     const [forcedCenter, setForcedCenter] = useState<{ lat: number; lng: number } | undefined>(undefined);
     const [inputMode, setInputMode] = useState<InputMode>(() => {
-        const hasAddressFields = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
+        // lat/lngがある = 地図から登録された案件
         const hasCoords = formData.latitude != null && formData.longitude != null;
-        return (!hasAddressFields && hasCoords) ? 'map' : 'address';
+        return hasCoords ? 'map' : 'address';
     });
     // 住所モード用: iframe に渡すクエリ（デバウンス済み）
     const [iframeQuery, setIframeQuery] = useState(
