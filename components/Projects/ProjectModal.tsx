@@ -68,14 +68,14 @@ export default function ProjectModal({
         };
     }, [isOpen, assignmentId, isEditMode, startEditing, stopEditing]);
 
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     if (!isOpen) return null;
 
     // モーダルのタイトルを動的に設定
     const modalTitle = initialData?.id
         ? (isEditMode ? '案件編集' : '案件詳細')
         : '案件登録';
-
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     const handleDelete = () => {
         setShowDeleteConfirm(true);
