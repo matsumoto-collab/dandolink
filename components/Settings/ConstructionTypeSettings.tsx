@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X, GripVertical } from 'lucide-react';
-import { COLOR_PALETTE, COLOR_PALETTE_NAMES, ConstructionTypeMaster } from '@/types/calendar';
+import { COLOR_PALETTE, ConstructionTypeMaster } from '@/types/calendar';
 import { useMasterStore } from '@/stores/masterStore';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
@@ -127,6 +127,12 @@ export default function ConstructionTypeSettings() {
         }
     };
 
+    // 色 → 使用中の工事種別名マッピング
+    const colorToTypeName: Record<string, string> = {};
+    constructionTypes.forEach((ct) => {
+        if (ct.color) colorToTypeName[ct.color] = ct.name;
+    });
+
     // 色選択コンポーネント
     const ColorPicker = ({
         selectedColor,
@@ -143,7 +149,7 @@ export default function ConstructionTypeSettings() {
                 onClick={() => setShowColorPicker(showColorPicker === pickerId ? null : pickerId)}
                 className="w-8 h-8 rounded-lg border-2 border-slate-300 shadow-sm hover:shadow-md transition-shadow"
                 style={{ backgroundColor: selectedColor }}
-                title={COLOR_PALETTE_NAMES[selectedColor] || '色を選択'}
+                title={colorToTypeName[selectedColor] || '色を選択'}
             />
             {showColorPicker === pickerId && (
                 <>
@@ -171,7 +177,7 @@ export default function ConstructionTypeSettings() {
                                     style={{ backgroundColor: color }}
                                 />
                                 <span className="text-xs text-slate-600 truncate">
-                                    {COLOR_PALETTE_NAMES[color] || ''}
+                                    {colorToTypeName[color] || ''}
                                 </span>
                             </button>
                         ))}
