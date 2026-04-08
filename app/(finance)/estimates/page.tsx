@@ -212,7 +212,7 @@ export default function EstimateListPage() {
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
-            <div className="mb-6">
+            <div className="mb-6 flex-shrink-0">
                 <h1 className="text-2xl font-bold text-slate-800">
                     見積書一覧
                 </h1>
@@ -221,7 +221,7 @@ export default function EstimateListPage() {
 
 
             {/* ツールバー */}
-            <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                 {/* 検索バーとフィルター */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
                     {/* 検索バー */}
@@ -560,7 +560,7 @@ export default function EstimateListPage() {
             </div>
 
             {/* 統計情報 */}
-            <div className="mt-4 text-sm text-slate-600">
+            <div className="mt-4 flex-shrink-0 text-sm text-slate-600">
                 全 {filteredEstimates.length} 件の見積書
                 {(searchTerm || statusFilter !== 'all') && ` (${estimates.length}件中)`}
             </div>
