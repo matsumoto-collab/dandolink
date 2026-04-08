@@ -301,7 +301,7 @@ export const CONSTRUCTION_TYPE_COLORS = DEFAULT_CONSTRUCTION_TYPE_COLORS;
 /** @deprecated DEFAULT_CONSTRUCTION_TYPE_LABELSを使用してください */
 export const CONSTRUCTION_TYPE_LABELS = DEFAULT_CONSTRUCTION_TYPE_LABELS;
 
-// 色選択用のパレット（10色）
+// 色選択用のパレット（20色）
 export const COLOR_PALETTE = [
     '#FFAB91',  // サーモンピンク
     '#FFB74D',  // マンダリンオレンジ
@@ -313,6 +313,16 @@ export const COLOR_PALETTE = [
     '#BA68C8',  // アメジストパープル
     '#A1887F',  // モカブラウン
     '#90A4AE',  // ミディアムグレー
+    '#EF9A9A',  // ローズピンク
+    '#F48FB1',  // フューシャピンク
+    '#CE93D8',  // ラベンダー
+    '#9FA8DA',  // ペリウィンクル
+    '#81D4FA',  // スカイブルー
+    '#80CBC4',  // ミントグリーン
+    '#C5E1A5',  // ピスタチオ
+    '#FFE082',  // ハニーイエロー
+    '#FFCC80',  // アプリコット
+    '#BCAAA4',  // トープ
 ] as const;
 
 // カラーパレットの日本語名
@@ -327,6 +337,16 @@ export const COLOR_PALETTE_NAMES: Record<string, string> = {
     '#BA68C8': 'アメジストパープル',
     '#A1887F': 'モカブラウン',
     '#90A4AE': 'ミディアムグレー',
+    '#EF9A9A': 'ローズピンク',
+    '#F48FB1': 'フューシャピンク',
+    '#CE93D8': 'ラベンダー',
+    '#9FA8DA': 'ペリウィンクル',
+    '#81D4FA': 'スカイブルー',
+    '#80CBC4': 'ミントグリーン',
+    '#C5E1A5': 'ピスタチオ',
+    '#FFE082': 'ハニーイエロー',
+    '#FFCC80': 'アプリコット',
+    '#BCAAA4': 'トープ',
 };
 
 // ===== 競合解決関連 =====
