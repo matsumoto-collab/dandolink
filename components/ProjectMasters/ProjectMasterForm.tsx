@@ -119,7 +119,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 isExpanded={expandedSections.address}
                 onToggle={() => toggleSection('address')}
             >
-                <AddressSection formData={formData} setFormData={setFormData} />
+                <AddressSection key={projectMasterId ?? 'new'} formData={formData} setFormData={setFormData} />
             </CollapsibleSection>
 
             {/* 工事情報セクション */}

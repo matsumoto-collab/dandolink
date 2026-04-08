@@ -49,17 +49,6 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         const hasCoords = formData.latitude != null && formData.longitude != null;
         return (!hasAddressFields && hasCoords) ? 'map' : 'address';
     });
-    // lat/lngのみで住所フィールドが空の場合は地図モードに切り替え
-    useEffect(() => {
-        const hasAddressFields = !!(formData.postalCode || formData.prefecture || formData.city || formData.location);
-        const hasCoords = formData.latitude != null && formData.longitude != null;
-        if (!hasAddressFields && hasCoords) {
-            setInputMode('map');
-        } else if (hasAddressFields) {
-            setInputMode('address');
-        }
-    }, [formData.postalCode, formData.prefecture, formData.city, formData.location, formData.latitude, formData.longitude]);
-
     // 住所モード用: iframe に渡すクエリ（デバウンス済み）
     const [iframeQuery, setIframeQuery] = useState(
         [formData.prefecture, formData.city, formData.location].filter(Boolean).join('')
@@ -86,36 +75,28 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         lng: formData.longitude ?? FALLBACK.lng,
     };
 
-    // formatted_address から都道府県・市区町村・その他住所を分割するヘルパー
+    // address_components から都道府県・市区町村・その他住所を分割するヘルパー
     const parseFormattedAddress = useCallback((result: google.maps.GeocoderResult) => {
         const components = result.address_components ?? [];
         let prefecture = '';
+        const cityParts: string[] = [];
+        const locationParts: string[] = [];
+
         for (const c of components) {
             if (c.types.includes('administrative_area_level_1')) {
                 prefecture = c.long_name;
-                break;
+            } else if (c.types.includes('locality') || c.types.includes('sublocality_level_1') ||
+                       c.types.includes('sublocality_level_2') || c.types.includes('sublocality_level_3') ||
+                       c.types.includes('sublocality_level_4')) {
+                cityParts.push(c.long_name);
+            } else if (c.types.includes('premise') || c.types.includes('subpremise')) {
+                locationParts.push(c.long_name);
             }
+            // country, postal_code, political などは無視
         }
-        const formatted = result.formatted_address ?? '';
-        let city = '';
-        let location = '';
-        if (prefecture && formatted.includes(prefecture)) {
-            const afterPref = formatted.split(prefecture)[1] ?? '';
-            // 丁目・番地の区切りを探す（数字の直前で分割）
-            const match = afterPref.match(/^(.+?)(\d+丁目.*)$/);
-            if (match) {
-                city = match[1];
-                location = match[2];
-            } else {
-                const numMatch = afterPref.match(/^(.+?)(\d+.*)$/);
-                if (numMatch) {
-                    city = numMatch[1];
-                    location = numMatch[2];
-                } else {
-                    city = afterPref;
-                }
-            }
-        }
+
+        const city = cityParts.join('');
+        const location = locationParts.join(' ');
         return { prefecture, city, location };
     }, []);
 
