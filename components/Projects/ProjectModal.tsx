@@ -7,7 +7,7 @@ import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
-import { FileText } from 'lucide-react';
+import { FileText, Pencil, Trash2 } from 'lucide-react';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 
@@ -75,11 +75,18 @@ export default function ProjectModal({
         ? (isEditMode ? '案件編集' : '案件詳細')
         : '案件登録';
 
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
     const handleDelete = () => {
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDelete = () => {
         if (initialData?.id && onDelete) {
             onDelete(initialData.id);
             onClose();
         }
+        setShowDeleteConfirm(false);
     };
 
     return (
@@ -104,10 +111,28 @@ export default function ProjectModal({
                         )}
                     </div>
                     <div className="flex items-center gap-2">
+                        {!readOnly && !isEditMode && initialData?.id && (
+                            <button
+                                onClick={() => setIsEditMode(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                <Pencil className="w-4 h-4" />
+                                編集
+                            </button>
+                        )}
+                        {!readOnly && !isEditMode && initialData?.id && onDelete && (
+                            <button
+                                onClick={handleDelete}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-300 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                削除
+                            </button>
+                        )}
                         {!readOnly && !isEditMode && onCreateEstimate && (
                             <button
                                 onClick={onCreateEstimate}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <FileText className="w-4 h-4" />
                                 見積書を作成
@@ -130,10 +155,7 @@ export default function ProjectModal({
                         // 既存案件の閲覧モード（readOnlyの場合は常に閲覧モード）
                         <ProjectDetailView
                             project={initialData as Project}
-                            onEdit={readOnly ? undefined : () => setIsEditMode(true)}
                             onClose={onClose}
-                            onDelete={readOnly ? undefined : handleDelete}
-                            readOnly={readOnly}
                         />
                     ) : (
                         // 編集モード（新規作成または編集）
@@ -157,6 +179,32 @@ export default function ProjectModal({
                         />
                     )}
                 </div>
+
+                {/* 削除確認ダイアログ */}
+                {showDeleteConfirm && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-10 rounded-lg">
+                        <div className="bg-white rounded-xl p-6 mx-4 max-w-sm w-full shadow-xl">
+                            <h3 className="text-lg font-semibold text-slate-900 mb-2">案件を削除しますか？</h3>
+                            <p className="text-sm text-slate-600 mb-4">
+                                「{initialData?.title}」を削除します。この操作は元に戻せません。
+                            </p>
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    className="flex-1 px-4 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                                >
+                                    キャンセル
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors font-medium"
+                                >
+                                    削除
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

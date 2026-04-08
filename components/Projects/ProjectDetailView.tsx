@@ -18,14 +18,10 @@ interface ManagerUser {
 
 interface ProjectDetailViewProps {
     project: Project;
-    onEdit?: () => void;
     onClose: () => void;
-    onDelete?: () => void;
-    readOnly?: boolean;
 }
 
-export default function ProjectDetailView({ project, onEdit, onClose, onDelete, readOnly = false }: ProjectDetailViewProps) {
-    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+export default function ProjectDetailView({ project, onClose }: ProjectDetailViewProps) {
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
     const [locationData, setLocationData] = useState<{
@@ -131,21 +127,6 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
     };
 
     const status = project.status ? statusConfig[project.status] : null;
-
-    const handleDelete = () => {
-        setShowDeleteConfirm(true);
-    };
-
-    const confirmDelete = () => {
-        if (onDelete) {
-            onDelete();
-        }
-        setShowDeleteConfirm(false);
-    };
-
-    const cancelDelete = () => {
-        setShowDeleteConfirm(false);
-    };
 
     return (
         <div className="space-y-6">
@@ -378,67 +359,14 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                 )}
             </div>
 
-            {/* 削除確認ダイアログ */}
-            {showDeleteConfirm && (
-                <div className="fixed inset-0 lg:left-48 z-[60] flex items-center justify-center">
-                    <div className="absolute inset-0 bg-black bg-opacity-50" onClick={cancelDelete} />
-                    <div className="relative bg-white rounded-lg shadow-xl p-6 max-w-sm mx-4">
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">
-                            案件を削除しますか？
-                        </h3>
-                        <p className="text-sm text-slate-600 mb-4">
-                            「{project.title}」を削除します。この操作は元に戻せません。
-                        </p>
-                        <div className="flex gap-3">
-                            <button
-                                onClick={cancelDelete}
-                                className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-                            >
-                                キャンセル
-                            </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
-                            >
-                                削除
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* アクションボタン */}
-            <div className="space-y-3 pt-4 border-t border-slate-200">
-                {/* 削除ボタン（読み取り専用では非表示） */}
-                {!readOnly && onDelete && (
-                    <button
-                        onClick={handleDelete}
-                        className="w-full px-4 py-2 border border-slate-300 bg-slate-50 rounded-md text-slate-700 hover:bg-slate-100 transition-colors font-medium flex items-center justify-center gap-2"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        削除
-                    </button>
-                )}
-
-                {/* 編集・閉じるボタン */}
-                <div className="flex gap-3">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors font-medium"
-                    >
-                        閉じる
-                    </button>
-                    {!readOnly && onEdit && (
-                        <button
-                            onClick={onEdit}
-                            className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors"
-                        >
-                            編集
-                        </button>
-                    )}
-                </div>
+            {/* 閉じるボタン */}
+            <div className="pt-4 border-t border-slate-200">
+                <button
+                    onClick={onClose}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors font-medium"
+                >
+                    閉じる
+                </button>
             </div>
         </div>
     );

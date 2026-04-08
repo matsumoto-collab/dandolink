@@ -14,8 +14,6 @@ jest.mock('@/hooks/useMasterData');
 
 describe('ProjectDetailView', () => {
     const mockOnClose = jest.fn();
-    const mockOnEdit = jest.fn();
-    const mockOnDelete = jest.fn();
 
     const mockProject: Project = {
         id: 'p1',
@@ -131,96 +129,10 @@ describe('ProjectDetailView', () => {
 
     it('should call onClose when close button clicked', () => {
         render(
-            <ProjectDetailView project={mockProject} onClose={mockOnClose} onEdit={mockOnEdit} />
+            <ProjectDetailView project={mockProject} onClose={mockOnClose} />
         );
         fireEvent.click(screen.getByText('閉じる'));
         expect(mockOnClose).toHaveBeenCalled();
-    });
-
-    it('should call onEdit when edit button clicked', () => {
-        render(
-            <ProjectDetailView project={mockProject} onClose={mockOnClose} onEdit={mockOnEdit} />
-        );
-        fireEvent.click(screen.getByText('編集'));
-        expect(mockOnEdit).toHaveBeenCalled();
-    });
-
-    it('should show delete confirmation dialog and call onDelete', async () => {
-        render(
-            <ProjectDetailView
-                project={mockProject}
-                onClose={mockOnClose}
-                onDelete={mockOnDelete}
-            />
-        );
-
-        // Wait for async effects to settle
-        await waitFor(() => {
-            expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
-        });
-
-        // Click the action area delete button
-        const allButtons = screen.getAllByRole('button');
-        const actionDeleteButton = allButtons.find(btn =>
-            btn.textContent?.includes('削除') && btn.className.includes('border-slate-300')
-        );
-        expect(actionDeleteButton).toBeTruthy();
-        fireEvent.click(actionDeleteButton!);
-
-        // Confirmation dialog appears
-        expect(screen.getByText('案件を削除しますか？')).toBeInTheDocument();
-        expect(screen.getByText(/この操作は元に戻せません/)).toBeInTheDocument();
-
-        // Confirm deletion - find the red confirmation button in the dialog
-        const dialogButtons = screen.getAllByRole('button');
-        const confirmButton = dialogButtons.find(btn =>
-            btn.textContent === '削除' && btn.className.includes('bg-slate-700')
-        );
-        expect(confirmButton).toBeTruthy();
-        fireEvent.click(confirmButton!);
-        expect(mockOnDelete).toHaveBeenCalled();
-    });
-
-    it('should cancel delete confirmation', async () => {
-        render(
-            <ProjectDetailView
-                project={mockProject}
-                onClose={mockOnClose}
-                onDelete={mockOnDelete}
-            />
-        );
-
-        await waitFor(() => {
-            expect(screen.queryByText('読み込み中...')).not.toBeInTheDocument();
-        });
-
-        // Open dialog
-        const allButtons = screen.getAllByRole('button');
-        const actionDeleteButton = allButtons.find(btn =>
-            btn.textContent?.includes('削除') && btn.className.includes('border-slate-300')
-        );
-        fireEvent.click(actionDeleteButton!);
-        expect(screen.getByText('案件を削除しますか？')).toBeInTheDocument();
-
-        // Cancel
-        fireEvent.click(screen.getByText('キャンセル'));
-        expect(screen.queryByText('案件を削除しますか？')).not.toBeInTheDocument();
-        expect(mockOnDelete).not.toHaveBeenCalled();
-    });
-
-    it('should hide edit and delete buttons when readOnly', () => {
-        render(
-            <ProjectDetailView
-                project={mockProject}
-                onClose={mockOnClose}
-                onEdit={mockOnEdit}
-                onDelete={mockOnDelete}
-                readOnly={true}
-            />
-        );
-        expect(screen.queryByText('編集')).not.toBeInTheDocument();
-        // Delete button should not appear in action area
-        expect(screen.queryByText('削除')).not.toBeInTheDocument();
     });
 
     it('should show loading state for managers', () => {
