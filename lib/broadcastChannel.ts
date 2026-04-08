@@ -7,6 +7,7 @@
  * - Supabase broadcast はデフォルト self: false のため自己送信は受信しない
  */
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 type BroadcastListener = (payload: Record<string, unknown>) => void;
 
@@ -37,7 +38,7 @@ export function initBroadcastChannel(): void {
                 });
         })
         .catch((err) => {
-            console.error('Failed to init broadcast channel:', err);
+            logger.error('Failed to init broadcast channel:', err);
             initialized = false; // 失敗したらリトライ可能にする
         });
 }

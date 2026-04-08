@@ -16,6 +16,7 @@ import { EstimateInput } from '@/types/estimate';
 import dynamic from 'next/dynamic';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -56,7 +57,7 @@ export default function EstimateDetailPage() {
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
-                    console.error('PDF生成エラー:', error);
+                    logger.error('PDF生成エラー:', error);
                     toast.error('PDF生成に失敗しました');
                     setPdfUrl('error');
                 }
@@ -102,7 +103,7 @@ export default function EstimateDetailPage() {
             toast.success('見積書を更新しました');
             // PDF will be regenerated automatically by useEffect
         } catch (error) {
-            console.error('Failed to update estimate:', error);
+            logger.error('Failed to update estimate:', error);
             toast.error('見積書の更新に失敗しました');
         }
     };

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import { logger } from '@/lib/logger';
 
 interface Props {
     children: ReactNode;
@@ -28,7 +29,7 @@ class ErrorBoundary extends Component<Props, State> {
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
         // エラーログをコンソールに出力（本番環境ではログ収集サービスに送信推奨）
-        console.error('ErrorBoundary caught an error:', error, errorInfo);
+        logger.error('ErrorBoundary caught an error:', error, { componentStack: errorInfo.componentStack });
     }
 
     handleReload = (): void => {

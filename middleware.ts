@@ -2,6 +2,7 @@ import { withAuth, NextRequestWithAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { logger } from '@/lib/logger';
 
 // 環境変数が設定されているか確認
 const isRedisConfigured = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -42,7 +43,7 @@ export default withAuth(
                 }
             } catch (error) {
                 // Redis通信エラー時はブロックせず通す（フェイルオープン）
-                console.error('[Middleware RateLimit Error]', error);
+                logger.error('[Middleware RateLimit Error]', error);
             }
         }
 

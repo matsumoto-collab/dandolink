@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 interface CostMasterItem {
     id: string;
@@ -29,7 +30,7 @@ export default function CostMasterSettings() {
                 setItems(data);
             }
         } catch (error) {
-            console.error('Failed to fetch cost masters:', error);
+            logger.error('Failed to fetch cost masters:', error);
             toast.error('原価マスターの取得に失敗しました');
         } finally {
             setIsLoading(false);

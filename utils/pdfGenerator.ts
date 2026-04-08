@@ -6,6 +6,7 @@ import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 import { NotoSansJPFont } from './fonts/NotoSansJP-font';
+import { logger } from '@/lib/logger';
 
 // Color palette
 const COLORS = {
@@ -122,7 +123,7 @@ export function generateEstimatePDFBlob(
             const url = URL.createObjectURL(pdfBlob);
             resolve(url);
         } catch (error) {
-            console.error('PDF生成エラー:', error);
+            logger.error('PDF生成エラー:', error);
             reject(error);
         }
     });

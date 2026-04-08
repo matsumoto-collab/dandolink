@@ -16,6 +16,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 // 大きなモーダルコンポーネントを遅延読み込み
 const ProjectModal = dynamic(
@@ -105,7 +106,7 @@ export default function EstimateListPage() {
             try {
                 await deleteEstimate(id);
             } catch (error) {
-                console.error('Failed to delete estimate:', error);
+                logger.error('Failed to delete estimate:', error);
                 toast.error(error instanceof Error ? error.message : '見積書の削除に失敗しました');
             }
         }
@@ -187,7 +188,7 @@ export default function EstimateListPage() {
             setIsModalOpen(false);
             setEditingEstimate(null);
         } catch (error) {
-            console.error('Failed to save estimate:', error);
+            logger.error('Failed to save estimate:', error);
             toast.error(error instanceof Error ? error.message : '見積書の保存に失敗しました');
         } finally {
             setIsSubmitting(false);
@@ -542,7 +543,7 @@ export default function EstimateListPage() {
                     onUpdateEstimate={async (id, data) => {
                         try {
                             await updateEstimate(id, { items: data.items, costTotal: data.costTotal } as Partial<EstimateInput>);
-                        } catch (e) { console.error('予算書の保存に失敗:', e); }
+                        } catch (e) { logger.error('予算書の保存に失敗:', e); }
                     }}
                     onCreateProject={selectedEstimate ? () => handleCreateProjectFromEstimate(selectedEstimate) : undefined}
                 />

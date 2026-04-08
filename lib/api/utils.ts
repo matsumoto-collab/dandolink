@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { checkRateLimit, RateLimitConfig, RATE_LIMITS } from '@/lib/rate-limit';
 import { Prisma } from '@prisma/client';
+import { logger } from '@/lib/logger';
 
 // JSON処理関数を再エクスポート（後方互換性）
 export { parseJsonField, stringifyJsonField, parseJsonFields } from '@/lib/json-utils';
@@ -186,7 +187,7 @@ export function serverErrorResponse(
 ) {
     // 構造化されたエラーログを出力
     const errorLog = formatErrorForLog(operation, error);
-    console.error('[API Error]', JSON.stringify(errorLog, null, 2));
+    logger.error('[API Error]', JSON.stringify(errorLog, null, 2));
 
     // Prismaエラーの場合は適切なステータスとメッセージを返す
     const prismaError = getPrismaErrorInfo(error);

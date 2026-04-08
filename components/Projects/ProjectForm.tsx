@@ -15,6 +15,7 @@ import { CustomerInput } from '@/types/customer';
 import { useFinanceStore } from '@/stores/financeStore';
 import { ButtonLoading } from '@/components/ui/Loading';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from '@/lib/logger';
 
 const HONORIFIC_OPTIONS = [
     { value: '様邸', label: '様邸' },
@@ -203,7 +204,7 @@ export default function ProjectForm({
                     setCustomers(data);
                 }
             } catch (error) {
-                console.error('Failed to fetch customers:', error);
+                logger.error('Failed to fetch customers:', error);
             }
         };
         fetchCustomers();
@@ -234,7 +235,7 @@ export default function ProjectForm({
                     setApiManagers(filtered);
                 }
             } catch (error) {
-                console.error('Failed to fetch managers:', error);
+                logger.error('Failed to fetch managers:', error);
             } finally {
                 setIsLoadingManagers(false);
             }
@@ -394,7 +395,7 @@ export default function ProjectForm({
                 setShowNewCustomerModal(false);
             }
         } catch (error) {
-            console.error('Failed to create customer:', error);
+            logger.error('Failed to create customer:', error);
         }
     };
 

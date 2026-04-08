@@ -1,5 +1,6 @@
 import { Ratelimit } from '@upstash/ratelimit';
 import { Redis } from '@upstash/redis';
+import { logger } from '@/lib/logger';
 
 /**
  * 分散Rate Limiter (Upstash Redis利用)
@@ -16,7 +17,7 @@ try {
         });
     }
 } catch (e) {
-    console.error('Redis initialization error:', e);
+    logger.error('Redis initialization error:', e);
 }
 
 // インメモリフォールバック（Redis未設定時・Redis障害時に使用）
@@ -117,7 +118,7 @@ export async function checkRateLimit(
             resetTime: reset,
         };
     } catch (error) {
-        console.error('Rate limit error (Redis):', (error instanceof Error) ? error.message : String(error));
+        logger.error('Rate limit error (Redis):', (error instanceof Error) ? error.message : String(error));
         // Redis障害時はインメモリフォールバックで保護を維持
         return checkMemoryRateLimit(identifier, config);
     }

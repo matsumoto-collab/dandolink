@@ -6,6 +6,7 @@ import { X, Copy, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { logger } from '@/lib/logger';
 
 interface CopyAssignmentModalProps {
     isOpen: boolean;
@@ -74,7 +75,7 @@ export default function CopyAssignmentModal({
             await onCopy(start, end, employeeId);
             onClose();
         } catch (error) {
-            console.error('Failed to copy assignment:', error);
+            logger.error('Failed to copy assignment:', error);
             toast.error('コピーに失敗しました');
         } finally {
             setIsSubmitting(false);

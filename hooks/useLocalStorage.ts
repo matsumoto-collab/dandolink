@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { logger } from '@/lib/logger';
 
 /**
  * LocalStorageを扱うカスタムフック
@@ -14,7 +15,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
             const item = window.localStorage.getItem(key);
             return item ? JSON.parse(item, dateReviver) : initialValue;
         } catch (error) {
-            console.error(`Error loading ${key} from localStorage:`, error);
+            logger.error(`Error loading ${key} from localStorage:`, error);
             return initialValue;
         }
     });
@@ -29,7 +30,7 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
                 window.localStorage.setItem(key, JSON.stringify(valueToStore));
             }
         } catch (error) {
-            console.error(`Error saving ${key} to localStorage:`, error);
+            logger.error(`Error saving ${key} to localStorage:`, error);
         }
     };
 

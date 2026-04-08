@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { logger } from '@/lib/logger';
 
 type RemarkSlice = Pick<CalendarState, 'remarks' | 'remarksLoading' | 'remarksInitialized'> &
     Pick<CalendarActions, 'fetchRemarks' | 'getRemark' | 'setRemark'>;
@@ -18,7 +19,7 @@ export const createRemarkSlice: CalendarSlice<RemarkSlice> = (set, get) => ({
                 set({ remarks: data, remarksInitialized: true });
             }
         } catch (error) {
-            console.error('Failed to fetch remarks:', error);
+            logger.error('Failed to fetch remarks:', error);
         } finally {
             set({ remarksLoading: false });
         }
@@ -44,7 +45,7 @@ export const createRemarkSlice: CalendarSlice<RemarkSlice> = (set, get) => ({
             });
             sendBroadcast('remark_updated', { dateKey });
         } catch (error) {
-            console.error('Failed to set remark:', error);
+            logger.error('Failed to set remark:', error);
             get().fetchRemarks();
         }
     },

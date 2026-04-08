@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import BudgetTab from './BudgetTab';
+import { logger } from '@/lib/logger';
 
 interface EstimateDetailModalProps {
     isOpen: boolean;
@@ -111,7 +112,7 @@ export default function EstimateDetailModal({
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
-                    console.error('PDF生成エラー:', error);
+                    logger.error('PDF生成エラー:', error);
                 }
             };
 

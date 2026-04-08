@@ -13,6 +13,7 @@ import Loading from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 // モーダルを遅延読み込み
 const DailyReportModal = dynamic(
@@ -157,7 +158,7 @@ export default function DailyReportPage() {
             try {
                 await deleteDailyReport(id);
             } catch (error) {
-                console.error('Failed to delete daily report:', error);
+                logger.error('Failed to delete daily report:', error);
                 toast.error('日報の削除に失敗しました');
             }
         }

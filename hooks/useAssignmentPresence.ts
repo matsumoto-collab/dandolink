@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { AssignmentEditingState, EditingUser } from '@/types/calendar';
+import { logger } from '@/lib/logger';
 
 interface PresenceState {
     [key: string]: AssignmentEditingState[];
@@ -46,7 +47,7 @@ export function useAssignmentPresence() {
                         }
                     });
             } catch (error) {
-                console.error('Failed to setup presence:', error);
+                logger.error('Failed to setup presence:', error);
             }
         };
 
@@ -107,7 +108,7 @@ export function useAssignmentPresence() {
         try {
             await channelRef.current.track(presenceData);
         } catch (error) {
-            console.error('Failed to track presence:', error);
+            logger.error('Failed to track presence:', error);
         }
     }, [session?.user]);
 
@@ -120,7 +121,7 @@ export function useAssignmentPresence() {
         try {
             await channelRef.current.untrack();
         } catch (error) {
-            console.error('Failed to untrack presence:', error);
+            logger.error('Failed to untrack presence:', error);
         }
     }, []);
 

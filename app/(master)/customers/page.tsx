@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Plus, Search, Edit, Trash2, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 export default function CustomersPage() {
     const { customers, isLoading, isInitialized, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -35,7 +36,7 @@ export default function CustomersPage() {
             await addCustomer(data);
             setIsModalOpen(false);
         } catch (error) {
-            console.error('Failed to add customer:', error);
+            logger.error('Failed to add customer:', error);
             toast.error(error instanceof Error ? error.message : '顧客の追加に失敗しました');
         } finally {
             setIsSubmitting(false);
@@ -51,7 +52,7 @@ export default function CustomersPage() {
                 setEditingCustomer(null);
                 setIsModalOpen(false);
             } catch (error) {
-                console.error('Failed to update customer:', error);
+                logger.error('Failed to update customer:', error);
                 toast.error(error instanceof Error ? error.message : '顧客の更新に失敗しました');
             } finally {
                 setIsSubmitting(false);
@@ -65,7 +66,7 @@ export default function CustomersPage() {
             try {
                 await deleteCustomer(id);
             } catch (error) {
-                console.error('Failed to delete customer:', error);
+                logger.error('Failed to delete customer:', error);
                 toast.error(error instanceof Error ? error.message : '顧客の削除に失敗しました');
             }
         }

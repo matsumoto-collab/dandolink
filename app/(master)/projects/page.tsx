@@ -10,6 +10,7 @@ import { Plus, Edit, Trash2, Search, Loader2, FileText } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(
@@ -105,7 +106,7 @@ export default function ProjectListPage() {
             try {
                 await deleteProject(projectId);
             } catch (error) {
-                console.error('Failed to delete project:', error);
+                logger.error('Failed to delete project:', error);
                 toast.error(error instanceof Error ? error.message : '案件の削除に失敗しました');
             }
         }
@@ -122,7 +123,7 @@ export default function ProjectListPage() {
             setIsModalOpen(false);
             setEditingProject(null);
         } catch (error) {
-            console.error('Failed to save project:', error);
+            logger.error('Failed to save project:', error);
             toast.error(error instanceof Error ? error.message : '案件の保存に失敗しました');
         } finally {
             setIsSubmitting(false);

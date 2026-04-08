@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { logger } from '@/lib/logger';
 
 interface CellRemarkSlice extends
     Pick<CalendarState, 'cellRemarks' | 'cellRemarksLoading' | 'cellRemarksInitialized'>,
@@ -19,7 +20,7 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
                 set({ cellRemarks: data, cellRemarksInitialized: true });
             }
         } catch (error) {
-            console.error('Failed to fetch cell remarks:', error);
+            logger.error('Failed to fetch cell remarks:', error);
         } finally {
             set({ cellRemarksLoading: false });
         }
@@ -49,7 +50,7 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
             });
             sendBroadcast('cell_remark_updated', { foremanId, dateKey });
         } catch (error) {
-            console.error('Failed to set cell remark:', error);
+            logger.error('Failed to set cell remark:', error);
             // Revert or fetch on error? Ideally revert, but fetching is safer to sync state
             get().fetchCellRemarks();
         }

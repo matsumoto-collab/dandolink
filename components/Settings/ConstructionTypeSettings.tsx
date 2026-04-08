@@ -5,6 +5,7 @@ import { Trash2, Edit, Plus, Check, X, GripVertical } from 'lucide-react';
 import { COLOR_PALETTE, COLOR_PALETTE_NAMES, ConstructionTypeMaster } from '@/types/calendar';
 import { useMasterStore } from '@/stores/masterStore';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 export default function ConstructionTypeSettings() {
     const refreshMasterData = useMasterStore((state) => state.refreshMasterData);
@@ -27,7 +28,7 @@ export default function ConstructionTypeSettings() {
                 setConstructionTypes(data);
             }
         } catch (error) {
-            console.error('Failed to fetch construction types:', error);
+            logger.error('Failed to fetch construction types:', error);
             toast.error('工事種別の取得に失敗しました');
         } finally {
             setIsLoading(false);
@@ -59,7 +60,7 @@ export default function ConstructionTypeSettings() {
                 toast.error('追加に失敗しました');
             }
         } catch (error) {
-            console.error('Failed to add construction type:', error);
+            logger.error('Failed to add construction type:', error);
             toast.error('追加に失敗しました');
         }
     };
@@ -93,7 +94,7 @@ export default function ConstructionTypeSettings() {
                 toast.error('更新に失敗しました');
             }
         } catch (error) {
-            console.error('Failed to update construction type:', error);
+            logger.error('Failed to update construction type:', error);
             toast.error('更新に失敗しました');
         }
     };
@@ -121,7 +122,7 @@ export default function ConstructionTypeSettings() {
                 toast.error('削除に失敗しました');
             }
         } catch (error) {
-            console.error('Failed to delete construction type:', error);
+            logger.error('Failed to delete construction type:', error);
             toast.error('削除に失敗しました');
         }
     };

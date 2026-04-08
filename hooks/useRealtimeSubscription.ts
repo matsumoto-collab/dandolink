@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /** Realtimeペイロードの型 */
 export type RealtimePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
@@ -63,7 +64,7 @@ export function useRealtimeSubscription({
 
             channelRef.current = channel;
         } catch (error) {
-            console.error(`[Realtime] Failed to setup ${channelName} subscription:`, error);
+            logger.error(`[Realtime] Failed to setup ${channelName} subscription:`, error);
         }
 
         return () => {

@@ -7,6 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { DailyReportInput } from '@/types/dailyReport';
 import { Clock, Save, Loader2, FileText, Truck, AlertCircle } from 'lucide-react';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { logger } from '@/lib/logger';
 
 interface DailyReportFormProps {
     date: Date;
@@ -152,7 +153,7 @@ export default function DailyReportForm({ date, foremanId, onSaved }: DailyRepor
             setSaveMessage({ type: 'success', text: '日報を保存しました' });
             onSaved?.();
         } catch (error) {
-            console.error('Failed to save:', error);
+            logger.error('Failed to save:', error);
             setSaveMessage({ type: 'error', text: '保存に失敗しました' });
         } finally {
             setIsSaving(false);

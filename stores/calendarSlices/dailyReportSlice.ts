@@ -1,6 +1,7 @@
 import { CalendarSlice, CalendarActions, CalendarState, parseDailyReportDates } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { logger } from '@/lib/logger';
 
 type DailyReportSlice = Pick<CalendarState, 'dailyReports' | 'dailyReportsLoading' | 'dailyReportsInitialized'> &
     Pick<CalendarActions, 'fetchDailyReports' | 'getDailyReportByForemanAndDate' | 'saveDailyReport' | 'deleteDailyReport'>;
@@ -51,7 +52,7 @@ export const createDailyReportSlice: CalendarSlice<DailyReportSlice> = (set, get
                 }
             }
         } catch (error) {
-            console.error('Failed to fetch daily reports:', error);
+            logger.error('Failed to fetch daily reports:', error);
         } finally {
             set({ dailyReportsLoading: false });
         }

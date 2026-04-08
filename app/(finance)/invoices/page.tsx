@@ -13,6 +13,7 @@ import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, 
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 // モーダルを遅延読み込み
 const InvoiceModal = dynamic(
@@ -126,7 +127,7 @@ export default function InvoiceListPage() {
             try {
                 await deleteInvoice(id);
             } catch (error) {
-                console.error('Failed to delete invoice:', error);
+                logger.error('Failed to delete invoice:', error);
                 toast.error(error instanceof Error ? error.message : '請求書の削除に失敗しました');
             }
         }
@@ -158,7 +159,7 @@ export default function InvoiceListPage() {
             setIsModalOpen(false);
             setEditingInvoice(null);
         } catch (error) {
-            console.error('Failed to save invoice:', error);
+            logger.error('Failed to save invoice:', error);
             toast.error(error instanceof Error ? error.message : '請求書の保存に失敗しました');
         } finally {
             setIsSubmitting(false);

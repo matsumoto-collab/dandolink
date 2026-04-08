@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { logger } from '@/lib/logger';
 
 type VacationSlice = Pick<CalendarState, 'vacations' | 'vacationsLoading' | 'vacationsInitialized'> &
     Pick<CalendarActions, 'fetchVacations' | 'getVacationEmployees' | 'setVacationEmployees' | 'addVacationEmployee' | 'removeVacationEmployee' | 'getVacationRemarks' | 'setVacationRemarks'>;
@@ -26,7 +27,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                 }
             }
         } catch (error) {
-            console.error('Failed to fetch vacations:', error);
+            logger.error('Failed to fetch vacations:', error);
         } finally {
             set({ vacationsLoading: false });
         }
@@ -55,7 +56,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
             if (!res.ok) throw new Error('Failed to save vacation');
             sendBroadcast('vacation_updated', { dateKey });
         } catch (error) {
-            console.error('Failed to save vacation:', error);
+            logger.error('Failed to save vacation:', error);
             set((state) => ({
                 vacations: {
                     ...state.vacations,
@@ -103,7 +104,7 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
             if (!res.ok) throw new Error('Failed to save vacation remarks');
             sendBroadcast('vacation_updated', { dateKey });
         } catch (error) {
-            console.error('Failed to save vacation remarks:', error);
+            logger.error('Failed to save vacation remarks:', error);
             set((state) => ({
                 vacations: {
                     ...state.vacations,

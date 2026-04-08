@@ -9,6 +9,7 @@ import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 interface InvoiceDetailModalProps {
     isOpen: boolean;
@@ -75,7 +76,7 @@ export default function InvoiceDetailModal({
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
-                    console.error('PDF生成エラー:', error);
+                    logger.error('PDF生成エラー:', error);
                 }
             };
             generatePDF();

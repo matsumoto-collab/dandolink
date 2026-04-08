@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { TrendingUp, TrendingDown, DollarSign, Truck, Users, Wrench, Package, MoreHorizontal } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
+import { logger } from '@/lib/logger';
 
 const ProjectProfitChart = dynamic(() => import('./ProjectProfitChart'), { ssr: false });
 
@@ -49,7 +50,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                 const data = await response.json();
                 setProfitData(data);
             } catch (err) {
-                console.error('Error fetching profit data:', err);
+                logger.error('Error fetching profit data:', err);
                 setError('利益情報の取得に失敗しました');
             } finally {
                 setIsLoading(false);

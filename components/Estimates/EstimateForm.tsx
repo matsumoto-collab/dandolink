@@ -19,6 +19,7 @@ import EstimateHeader from './EstimateHeader';
 import ItemsEditor from './ItemsEditor';
 import SummaryFooter from './SummaryFooter';
 import ConditionNotes from './ConditionNotes';
+import { logger } from '@/lib/logger';
 
 interface EstimateFormProps {
     initialData?: Partial<EstimateInput>;
@@ -415,7 +416,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             setPreviewPdfUrl(url);
             setIsPreviewOpen(true);
         } catch (error) {
-            console.error('プレビュー生成エラー:', error);
+            logger.error('プレビュー生成エラー:', error);
             toast.error('プレビューの生成に失敗しました');
         } finally {
             setIsGeneratingPreview(false);

@@ -10,6 +10,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { logger } from '@/lib/logger';
 
 
 interface DispatchUser {
@@ -76,7 +77,7 @@ export default function DispatchConfirmModal({
                     setWorkers(data);
                 }
             } catch (error) {
-                console.error('Failed to fetch dispatch users:', error);
+                logger.error('Failed to fetch dispatch users:', error);
             } finally {
                 setIsLoadingUsers(false);
             }
@@ -171,7 +172,7 @@ export default function DispatchConfirmModal({
 
             onClose();
         } catch (error) {
-            console.error('Failed to confirm dispatch:', error);
+            logger.error('Failed to confirm dispatch:', error);
             toast.error('手配確定に失敗しました');
         } finally {
             setIsSubmitting(false);
@@ -190,7 +191,7 @@ export default function DispatchConfirmModal({
             });
             onClose();
         } catch (error) {
-            console.error('Failed to cancel dispatch:', error);
+            logger.error('Failed to cancel dispatch:', error);
             toast.error('手配解除に失敗しました');
         } finally {
             setIsSubmitting(false);

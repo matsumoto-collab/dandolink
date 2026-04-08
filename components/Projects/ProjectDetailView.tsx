@@ -7,6 +7,7 @@ import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFile
 import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import { ExternalLink } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
 
@@ -91,7 +92,7 @@ export default function ProjectDetailView({ project, onEdit, onClose, onDelete, 
                     setManagerMap(map);
                 }
             } catch {
-                console.error('担当者名の取得に失敗しました');
+                logger.error('担当者名の取得に失敗しました');
             } finally {
                 setIsLoadingManagers(false);
             }

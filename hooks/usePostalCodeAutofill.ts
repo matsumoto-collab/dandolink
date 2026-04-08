@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { logger } from '@/lib/logger';
 
 interface AddressResult {
     prefecture: string;
@@ -26,7 +27,7 @@ export function usePostalCodeAutofill() {
             }
             return null;
         } catch (error) {
-            console.error('Failed to fetch address:', error);
+            logger.error('Failed to fetch address:', error);
             return null;
         }
     }, []);

@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { useFinanceStore } from '@/stores/financeStore';
 import { CompanyInfoInput } from '@/types/company';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 // Re-export types for backward compatibility
 export type { CompanyInfo, CompanyInfoInput } from '@/types/company';
@@ -58,7 +59,7 @@ export function useCompany() {
                     })
                     .subscribe();
             } catch (error) {
-                console.error('[Realtime] Failed to setup company info subscription:', error);
+                logger.error('[Realtime] Failed to setup company info subscription:', error);
             }
         };
 

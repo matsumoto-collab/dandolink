@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 interface ConstructionSuffix {
     id: string;
@@ -27,7 +28,7 @@ export default function ConstructionSuffixSettings() {
                 setSuffixes(data);
             }
         } catch (error) {
-            console.error('Failed to fetch construction suffixes:', error);
+            logger.error('Failed to fetch construction suffixes:', error);
             toast.error('工事名称の取得に失敗しました');
         } finally {
             setIsLoading(false);

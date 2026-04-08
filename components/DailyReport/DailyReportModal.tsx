@@ -11,6 +11,7 @@ import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { logger } from '@/lib/logger';
 
 interface DailyReportModalProps {
     isOpen: boolean;
@@ -82,7 +83,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 const res = await fetch('/api/dispatch/workers');
                 if (res.ok) setAllWorkers(await res.json());
             } catch (e) {
-                console.error('Failed to fetch workers:', e);
+                logger.error('Failed to fetch workers:', e);
             }
         };
         fetchWorkers();
@@ -324,7 +325,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 onClose();
             }, 1000);
         } catch (error) {
-            console.error('Failed to save:', error);
+            logger.error('Failed to save:', error);
             setSaveMessage({ type: 'error', text: '保存に失敗しました' });
         } finally {
             setIsSaving(false);

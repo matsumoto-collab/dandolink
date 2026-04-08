@@ -15,6 +15,7 @@ function sanitizeFileName(name: string): string {
 
 // Register fonts on module load
 import '@/components/pdf/styles';
+import { logger } from '@/lib/logger';
 
 interface EstimatePDFOptions {
     includeDetails?: boolean;
@@ -51,7 +52,7 @@ export async function exportEstimatePDFReact(
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     } catch (error) {
-        console.error('PDF生成エラー:', error);
+        logger.error('PDF生成エラー:', error);
         throw error;
     }
 }
@@ -78,7 +79,7 @@ export async function generateEstimatePDFBlobReact(
 
         return URL.createObjectURL(blob);
     } catch (error) {
-        console.error('PDF生成エラー:', error);
+        logger.error('PDF生成エラー:', error);
         throw error;
     }
 }
@@ -113,7 +114,7 @@ export async function exportInvoicePDFReact(
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     } catch (error) {
-        console.error('PDF生成エラー:', error);
+        logger.error('PDF生成エラー:', error);
         throw error;
     }
 }
@@ -139,7 +140,7 @@ export async function generateInvoicePDFBlobReact(
 
         return URL.createObjectURL(blob);
     } catch (error) {
-        console.error('PDF生成エラー:', error);
+        logger.error('PDF生成エラー:', error);
         throw error;
     }
 }

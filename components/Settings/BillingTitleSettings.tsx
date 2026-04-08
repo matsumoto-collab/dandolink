@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BillingTitle } from '@/types/invoice';
+import { logger } from '@/lib/logger';
 
 export default function BillingTitleSettings() {
     const [titles, setTitles] = useState<BillingTitle[]>([]);
@@ -21,7 +22,7 @@ export default function BillingTitleSettings() {
                 setTitles(data);
             }
         } catch (error) {
-            console.error('Failed to fetch billing titles:', error);
+            logger.error('Failed to fetch billing titles:', error);
             toast.error('請求項目の取得に失敗しました');
         } finally {
             setIsLoading(false);

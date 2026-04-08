@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { ConstructionTypeMaster } from '@/types/calendar';
+import { logger } from '@/lib/logger';
 
 // Types
 export interface Vehicle {
@@ -117,7 +118,7 @@ export const useMasterStore = create<MasterStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch master data:', error);
+                logger.error('Failed to fetch master data:', error);
             } finally {
                 set({ isLoading: false });
             }
@@ -153,7 +154,7 @@ export const useMasterStore = create<MasterStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to refresh master data:', error);
+                logger.error('Failed to refresh master data:', error);
             }
         },
 
@@ -203,7 +204,7 @@ export const useMasterStore = create<MasterStore>()(
                     set({ memberCountHistory: history });
                 }
             } catch (error) {
-                console.error('Failed to fetch member count history:', error);
+                logger.error('Failed to fetch member count history:', error);
             }
         },
 
@@ -288,7 +289,7 @@ export const useMasterStore = create<MasterStore>()(
 
                 set({ _realtimeChannels: channels });
             } catch (error) {
-                console.error('[Zustand] Failed to setup master data realtime subscription:', error);
+                logger.error('[Zustand] Failed to setup master data realtime subscription:', error);
             }
         },
 

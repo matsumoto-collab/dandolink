@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 // アイコン不使用（ラベルテキストのみ）
 import { useMasterData } from '@/hooks/useMasterData';
 import { DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
+import { logger } from '@/lib/logger';
 
 interface WorkHistoryItem {
     id: string;
@@ -56,7 +57,7 @@ export default function WorkHistoryDisplay({ projectMasterId }: WorkHistoryDispl
                 setHistory(data);
             } catch (err) {
                 setError('作業履歴の取得に失敗しました');
-                console.error(err);
+                logger.error('作業履歴の取得に失敗しました', err);
             } finally {
                 setIsLoading(false);
             }

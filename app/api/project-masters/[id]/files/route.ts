@@ -5,6 +5,7 @@ import { canDispatch } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
+import { logger } from '@/lib/logger';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -180,17 +181,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
             ]);
 
             if (displayResult.error) {
-                console.error('Storage upload error:', displayResult.error);
+                logger.error('Storage upload error:', displayResult.error);
                 const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
                 if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
                 return errorResponse('ファイルのアップロードに失敗しました', 500);
             }
             if (origResult.error) {
-                console.error('Original upload error:', origResult.error);
+                logger.error('Original upload error:', origResult.error);
                 originalStoragePath = null;
             }
             if (thumbResult.error) {
-                console.error('Thumbnail upload error:', thumbResult.error);
+                logger.error('Thumbnail upload error:', thumbResult.error);
                 thumbnailPath = null;
             }
         } else {
@@ -208,7 +209,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 .from(STORAGE_BUCKET)
                 .upload(storagePath, uploadBuffer, { contentType: uploadContentType, upsert: false });
             if (uploadError) {
-                console.error('Storage upload error:', uploadError);
+                logger.error('Storage upload error:', uploadError);
                 return errorResponse('ファイルのアップロードに失敗しました', 500);
             }
         }

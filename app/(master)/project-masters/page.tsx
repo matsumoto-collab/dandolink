@@ -14,6 +14,7 @@ import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCr
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
+import { logger } from '@/lib/logger';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -185,7 +186,7 @@ export default function ProjectMasterListPage() {
         try {
             await deleteProjectMaster(id);
         } catch (error) {
-            console.error('Failed to delete project master:', error);
+            logger.error('Failed to delete project master:', error);
             toast.error('案件マスターの削除に失敗しました');
         }
     };
@@ -196,7 +197,7 @@ export default function ProjectMasterListPage() {
                 status: pm.status === 'active' ? 'completed' : 'active',
             });
         } catch (error) {
-            console.error('Failed to update status:', error);
+            logger.error('Failed to update status:', error);
         }
     };
 

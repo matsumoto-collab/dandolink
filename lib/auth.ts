@@ -3,6 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { UserRole } from '@/types/user';
+import { logger } from '@/lib/logger';
 
 // NEXTAUTH_SECRET検証 - 本番環境では必須
 if (!process.env.NEXTAUTH_SECRET) {
@@ -11,9 +12,7 @@ if (!process.env.NEXTAUTH_SECRET) {
             'NEXTAUTH_SECRET環境変数が設定されていません。本番環境では必須です。'
         );
     } else {
-        console.warn(
-            '⚠️ NEXTAUTH_SECRET環境変数が設定されていません。開発環境のみ許容されます。'
-        );
+        logger.warn('NEXTAUTH_SECRET環境変数が設定されていません。開発環境のみ許容されます。');
     }
 }
 
@@ -114,7 +113,7 @@ export const authOptions: NextAuthOptions = {
                             token.lastDbCheck = now;
                         }
                     } catch (error) {
-                        console.error('JWT DB検証エラー:', (error instanceof Error) ? error.message : 'Unknown error');
+                        logger.error('JWT DB検証エラー:', (error instanceof Error) ? error.message : 'Unknown error');
                         // DB接続エラー時等は既存のトークン状態を維持
                     }
                 }

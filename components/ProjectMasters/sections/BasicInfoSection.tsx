@@ -12,6 +12,7 @@ import CustomerModal from '@/components/Customers/CustomerModal';
 import { CustomerInput } from '@/types/customer';
 import { useFinanceStore } from '@/stores/financeStore';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 const HONORIFIC_OPTIONS = [
     { value: '様邸', label: '様邸' },
@@ -116,7 +117,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     setManagers(filtered);
                 }
             } catch (error) {
-                console.error('Failed to fetch managers:', error);
+                logger.error('Failed to fetch managers:', error);
             } finally {
                 setIsLoadingManagers(false);
             }
@@ -132,7 +133,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     setConstructionSuffixes(await res.json());
                 }
             } catch (error) {
-                console.error('Failed to fetch construction suffixes:', error);
+                logger.error('Failed to fetch construction suffixes:', error);
             }
         };
         fetchSuffixes();
@@ -146,7 +147,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     setConstructionContents(await res.json());
                 }
             } catch (error) {
-                console.error('Failed to fetch construction contents:', error);
+                logger.error('Failed to fetch construction contents:', error);
             }
         };
         fetchContents();

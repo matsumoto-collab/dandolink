@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { ProjectAssignment, AssignmentCalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 import { supabase } from '@/lib/supabase';
 import { useMasterStore } from '@/stores/masterStore';
+import { logger } from '@/lib/logger';
 
 interface AssignmentContextType {
     assignments: ProjectAssignment[];
@@ -91,7 +92,7 @@ export function AssignmentProvider({ children }: { children: ReactNode }) {
 
             setAssignments(formatted);
         } catch (err) {
-            console.error('Fetch assignments error:', err);
+            logger.error('Fetch assignments error:', err);
             setError(err instanceof Error ? err.message : '不明なエラー');
         } finally {
             setIsLoading(false);

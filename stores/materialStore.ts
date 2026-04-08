@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import type { MaterialCategoryWithItems, MaterialRequisition } from '@/types/material';
+import { logger } from '@/lib/logger';
 
 interface MaterialState {
     categories: MaterialCategoryWithItems[];
@@ -55,7 +56,7 @@ export const useMaterialStore = create<MaterialStore>()(
                     set({ categories, isCategoriesInitialized: true });
                 }
             } catch (error) {
-                console.error('Failed to fetch material categories:', error);
+                logger.error('Failed to fetch material categories:', error);
             } finally {
                 set({ isCategoriesLoading: false });
             }
@@ -140,7 +141,7 @@ export const useMaterialStore = create<MaterialStore>()(
                     set({ requisitions });
                 }
             } catch (error) {
-                console.error('Failed to fetch requisitions:', error);
+                logger.error('Failed to fetch requisitions:', error);
             } finally {
                 set({ isRequisitionsLoading: false });
             }

@@ -22,6 +22,7 @@ import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import DesktopCalendarView from './DesktopCalendarView';
 import MobileCalendarView from './MobileCalendarView';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
+import { logger } from '@/lib/logger';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
@@ -148,7 +149,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                             await refreshProjects();
                         }
                     } catch (err) {
-                        console.error('Failed to overwrite:', err);
+                        logger.error('Failed to overwrite:', err);
                     }
                 }
                 break;

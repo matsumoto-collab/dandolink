@@ -9,6 +9,7 @@ import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMaster
 import toast from 'react-hot-toast';
 import Loading from '@/components/ui/Loading';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 const ProjectMasterDetailModal = dynamic(
     () => import('@/components/ProjectMaster/ProjectMasterDetailModal'),
@@ -183,7 +184,7 @@ export default function MySchedulePage() {
                     )
                     .subscribe();
             } catch (error) {
-                console.error('Failed to setup my-schedule realtime:', error);
+                logger.error('Failed to setup my-schedule realtime:', error);
             }
         };
 

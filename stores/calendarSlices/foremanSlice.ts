@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState, ForemanUser } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { logger } from '@/lib/logger';
 
 type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized'> &
     Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
@@ -18,7 +19,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
                 set({ allForemen: data });
             }
         } catch (error) {
-            console.error('Failed to fetch foremen:', error);
+            logger.error('Failed to fetch foremen:', error);
         }
     },
 
@@ -33,7 +34,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
                 }
             }
         } catch (error) {
-            console.error('Failed to fetch user settings:', error);
+            logger.error('Failed to fetch user settings:', error);
         } finally {
             set({ foremanSettingsLoading: false, foremanSettingsInitialized: true });
         }
@@ -55,7 +56,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
                 sendBroadcast('foreman_settings_updated', {});
             } catch (error) {
                 set({ displayedForemanIds: previousIds });
-                console.error('Failed to add foreman:', error);
+                logger.error('Failed to add foreman:', error);
             }
         }
     },
@@ -74,7 +75,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
             sendBroadcast('foreman_settings_updated', {});
         } catch (error) {
             set({ displayedForemanIds: previousIds });
-            console.error('Failed to remove foreman:', error);
+            logger.error('Failed to remove foreman:', error);
         }
     },
 
@@ -100,7 +101,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
             sendBroadcast('foreman_settings_updated', {});
         } catch (error) {
             set({ displayedForemanIds: previousIds });
-            console.error('Failed to move foreman:', error);
+            logger.error('Failed to move foreman:', error);
         }
     },
 

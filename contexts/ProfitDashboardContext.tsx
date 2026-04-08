@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 interface ProjectProfit {
     id: string;
@@ -60,7 +61,7 @@ export function ProfitDashboardProvider({ children }: { children: React.ReactNod
                 setIsInitialLoaded(true);
             }
         } catch (error) {
-            console.error('Failed to fetch profit dashboard data:', error);
+            logger.error('Failed to fetch profit dashboard data:', error);
             toast.error('収益データの取得に失敗しました');
         } finally {
             setIsLoading(false);

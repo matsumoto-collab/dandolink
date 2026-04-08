@@ -5,6 +5,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { BankAccount } from '@/types/company';
 import { Plus, Trash2, Save, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 export default function CompanyInfoSettings() {
     const { companyInfo, updateCompanyInfo, isLoading, ensureDataLoaded } = useCompany();
@@ -83,7 +84,7 @@ export default function CompanyInfoSettings() {
             await updateCompanyInfo(formData);
             toast.success('会社情報を保存しました');
         } catch (error) {
-            console.error('Save error:', error);
+            logger.error('Save error:', error);
             toast.error('保存に失敗しました');
         } finally {
             setSaving(false);

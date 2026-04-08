@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState, parseProjectMasterDates } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { logger } from '@/lib/logger';
 
 type ProjectMasterSlice = Pick<CalendarState, 'projectMasters' | 'projectMastersLoading' | 'projectMastersError' | 'projectMastersInitialized'> &
     Pick<CalendarActions, 'fetchProjectMasters' | 'createProjectMaster' | 'updateProjectMaster' | 'deleteProjectMaster' | 'getProjectMasterById'>;
@@ -30,7 +31,7 @@ export const createProjectMasterSlice: CalendarSlice<ProjectMasterSlice> = (set,
                 projectMastersInitialized: true,
             });
         } catch (err) {
-            console.error('Fetch project masters error:', err);
+            logger.error('Fetch project masters error:', err);
             set({ projectMastersError: err instanceof Error ? err.message : '不明なエラー' });
         } finally {
             set({ projectMastersLoading: false });

@@ -5,6 +5,7 @@ import { Customer, CustomerInput } from '@/types/customer';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { UnitPriceMaster, UnitPriceMasterInput, UnitPriceTemplate, UnitPriceTemplateInput, UnitPriceCategory, UnitPriceCategoryInput, UnitPriceSpecification, UnitPriceSpecificationInput } from '@/types/unitPrice';
+import { logger } from '@/lib/logger';
 
 // Helper to parse dates
 function parseCustomerDates(customer: Customer & { createdAt: string | Date; updatedAt: string | Date }): Customer {
@@ -236,7 +237,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch company info:', error);
+                logger.error('Failed to fetch company info:', error);
             } finally {
                 set({ companyLoading: false });
             }
@@ -275,7 +276,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch customers:', error);
+                logger.error('Failed to fetch customers:', error);
             } finally {
                 set({ customersLoading: false });
             }
@@ -347,7 +348,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch estimates:', error);
+                logger.error('Failed to fetch estimates:', error);
             } finally {
                 set({ estimatesLoading: false });
             }
@@ -424,7 +425,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch invoices:', error);
+                logger.error('Failed to fetch invoices:', error);
             } finally {
                 set({ invoicesLoading: false });
             }
@@ -501,7 +502,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch unit prices:', error);
+                logger.error('Failed to fetch unit prices:', error);
             } finally {
                 set({ unitPricesLoading: false });
             }
@@ -576,7 +577,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch unit price templates:', error);
+                logger.error('Failed to fetch unit price templates:', error);
             } finally {
                 set({ unitPriceTemplatesLoading: false });
             }
@@ -646,7 +647,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch unit price categories:', error);
+                logger.error('Failed to fetch unit price categories:', error);
             } finally {
                 set({ unitPriceCategoriesLoading: false });
             }
@@ -716,7 +717,7 @@ export const useFinanceStore = create<FinanceStore>()(
                     });
                 }
             } catch (error) {
-                console.error('Failed to fetch unit price specifications:', error);
+                logger.error('Failed to fetch unit price specifications:', error);
             } finally {
                 set({ unitPriceSpecificationsLoading: false });
             }

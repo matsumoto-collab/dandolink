@@ -2,6 +2,7 @@ import { ProjectMaster, ProjectAssignment, ConflictError } from '@/types/calenda
 import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, assignmentToProject, parseProjectMasterDates } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { logger } from '@/lib/logger';
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
     Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
@@ -35,11 +36,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 }));
                 set({ assignments: parsed, projectsInitialized: true });
             } else {
-                console.error('Failed to fetch assignments: HTTP', response.status);
+                logger.error('Failed to fetch assignments: HTTP', response.status);
                 set({ projectsInitialized: true });
             }
         } catch (error) {
-            console.error('Failed to fetch assignments:', error);
+            logger.error('Failed to fetch assignments:', error);
             set({ projectsInitialized: true });
         } finally {
             set({ projectsLoading: false });

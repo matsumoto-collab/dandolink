@@ -8,6 +8,7 @@ import { useMasterStore } from '@/stores/masterStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { logger } from '@/lib/logger';
 
 // Re-export types for backward compatibility
 export type { Project, CalendarEvent, ProjectAssignment, ProjectMaster } from '@/types/calendar';
@@ -116,7 +117,7 @@ export function useProjects() {
                 upsertAssignmentStore(assignment);
             }
         } catch (error) {
-            console.error('Failed to fetch assignment for realtime sync:', error);
+            logger.error('Failed to fetch assignment for realtime sync:', error);
         }
     }, [upsertAssignmentStore]);
 
@@ -178,14 +179,14 @@ export function useProjects() {
                                         });
                                     }
                                 } catch (error) {
-                                    console.error('Failed to sync project master:', error);
+                                    logger.error('Failed to sync project master:', error);
                                 }
                             }
                         }
                     )
                     .subscribe();
             } catch (error) {
-                console.error('Failed to setup realtime:', error);
+                logger.error('Failed to setup realtime:', error);
             }
         };
 

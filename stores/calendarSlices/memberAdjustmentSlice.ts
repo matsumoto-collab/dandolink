@@ -1,5 +1,6 @@
 import { CalendarSlice, CalendarActions, CalendarState } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
+import { logger } from '@/lib/logger';
 
 interface MemberAdjustmentSlice extends
     Pick<CalendarState, 'memberAdjustments' | 'memberAdjustmentsInitialized'>,
@@ -17,7 +18,7 @@ export const createMemberAdjustmentSlice: CalendarSlice<MemberAdjustmentSlice> =
                 set({ memberAdjustments: data, memberAdjustmentsInitialized: true });
             }
         } catch (error) {
-            console.error('Failed to fetch member adjustments:', error);
+            logger.error('Failed to fetch member adjustments:', error);
         }
     },
 
@@ -42,7 +43,7 @@ export const createMemberAdjustmentSlice: CalendarSlice<MemberAdjustmentSlice> =
             });
             sendBroadcast('member_adjustment_updated', { dateKey });
         } catch (error) {
-            console.error('Failed to set member adjustment:', error);
+            logger.error('Failed to set member adjustment:', error);
             get().fetchMemberAdjustments();
         }
     },

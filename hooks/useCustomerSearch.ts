@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Customer } from '@/types/customer';
+import { logger } from '@/lib/logger';
 
 export function useCustomerSearch() {
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -17,7 +18,7 @@ export function useCustomerSearch() {
                     setCustomers(data);
                 }
             } catch (error) {
-                console.error('Failed to fetch customers:', error);
+                logger.error('Failed to fetch customers:', error);
             } finally {
                 setIsLoading(false);
             }

@@ -7,6 +7,7 @@ import Loading from '@/components/ui/Loading';
 import { User } from '@/types/user';
 import UserModal from './UserModal';
 import toast from 'react-hot-toast';
+import { logger } from '@/lib/logger';
 
 
 // ランダムパスワード生成（英字[大文字・小文字]と数字を含む12文字）
@@ -55,7 +56,7 @@ export default function UserManagement() {
                 setUsers(data);
             }
         } catch (error) {
-            console.error('Failed to fetch users:', error);
+            logger.error('Failed to fetch users:', error);
         } finally {
             setIsLoading(false);
         }
@@ -90,7 +91,7 @@ export default function UserManagement() {
                 toast.error(data.error || 'ユーザーの削除に失敗しました');
             }
         } catch (error) {
-            console.error('Failed to delete user:', error);
+            logger.error('Failed to delete user:', error);
             toast.error('ユーザーの削除に失敗しました');
         }
     };
@@ -149,7 +150,7 @@ export default function UserManagement() {
                 toast.error(data.error || 'パスワードリセットに失敗しました');
             }
         } catch (error) {
-            console.error('Failed to reset password:', error);
+            logger.error('Failed to reset password:', error);
             toast.error('パスワードリセットに失敗しました');
         } finally {
             setIsResetting(false);

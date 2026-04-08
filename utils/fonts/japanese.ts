@@ -6,6 +6,7 @@
  */
 
 import type { jsPDF } from 'jspdf';
+import { logger } from '@/lib/logger';
 
 // 注: 実際のフォントデータは非常に大きいため、ここでは代替案を使用します
 
@@ -40,7 +41,7 @@ export function drawJapaneseText(
     try {
         doc.text(text, x, y, options);
     } catch (error) {
-        console.error('テキスト描画エラー:', error);
+        logger.error('テキスト描画エラー:', error);
         // フォールバック: ASCIIのみ
         const asciiText = text.replace(/[^\x00-\x7F]/g, '?');
         doc.text(asciiText, x, y, options);
