@@ -12,7 +12,8 @@ export const createProjectMasterSlice: CalendarSlice<ProjectMasterSlice> = (set,
     projectMastersInitialized: false,
 
     fetchProjectMasters: async (search?: string, status?: string) => {
-        set({ projectMastersLoading: true, projectMastersError: null });
+        const isInitialLoad = !get().projectMastersInitialized;
+        set({ projectMastersLoading: isInitialLoad, projectMastersError: null });
         try {
             const params = new URLSearchParams();
             if (search) params.append('search', search);
