@@ -362,7 +362,7 @@ export default function ProjectMasterListPage() {
                                         {(pm.prefecture || pm.city || pm.location) && (
                                             <span className="flex items-center gap-1">
                                                 <MapPin className="w-3.5 h-3.5" />
-                                                {[pm.prefecture, pm.city].filter(Boolean).join(' ')}
+                                                {[pm.prefecture, pm.city, pm.location].filter(Boolean).join(' ')}
                                             </span>
                                         )}
                                         <span className="flex items-center gap-1 text-slate-500">
@@ -481,7 +481,7 @@ export default function ProjectMasterListPage() {
                                             {pm.customerName || '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
-                                            {[pm.prefecture, pm.city].filter(Boolean).join(' ') || '-'}
+                                            {[pm.prefecture, pm.city, pm.location].filter(Boolean).join(' ') || '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
                                             {pm.assignmentCount ?? 0}件の配置
