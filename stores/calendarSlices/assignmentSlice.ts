@@ -115,8 +115,12 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             }
         }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const parseAssignmentResponse = (a: any): ProjectAssignment & { projectMaster?: ProjectMaster } => ({
+        type AssignmentApiResponse = Omit<ProjectAssignment, 'date' | 'createdAt' | 'updatedAt'> & {
+            date: string; createdAt: string; updatedAt: string;
+            projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string };
+        };
+
+        const parseAssignmentResponse = (a: AssignmentApiResponse): ProjectAssignment & { projectMaster?: ProjectMaster } => ({
             ...a,
             date: new Date(a.date),
             createdAt: new Date(a.createdAt),

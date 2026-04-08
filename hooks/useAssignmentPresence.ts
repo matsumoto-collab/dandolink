@@ -38,12 +38,8 @@ export function useAssignmentPresence() {
                         const state = channel?.presenceState<AssignmentEditingState>() || {};
                         updateEditingUsers(state);
                     })
-                    .on('presence', { event: 'join' }, ({ newPresences }) => {
-                        console.log('User joined editing:', newPresences);
-                    })
-                    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-                        console.log('User left editing:', leftPresences);
-                    })
+                    .on('presence', { event: 'join' }, () => {})
+                    .on('presence', { event: 'leave' }, () => {})
                     .subscribe(async (status) => {
                         if (status === 'SUBSCRIBED') {
                             channelRef.current = channel;

@@ -15,11 +15,17 @@ function parseCustomerDates(customer: Customer & { createdAt: string | Date; upd
     };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function parseEstimateDates(estimate: any): Estimate {
+type EstimateApiResponse = Omit<Estimate, 'validUntil' | 'createdAt' | 'updatedAt' | 'projectId'> & {
+    projectId?: string;
+    projectMasterId?: string;
+    validUntil: string;
+    createdAt: string;
+    updatedAt: string;
+};
+
+function parseEstimateDates(estimate: EstimateApiResponse): Estimate {
     return {
         ...estimate,
-        // API returns projectMasterId, frontend uses projectId
         projectId: estimate.projectId ?? estimate.projectMasterId ?? undefined,
         costTotal: estimate.costTotal ?? null,
         validUntil: new Date(estimate.validUntil),
