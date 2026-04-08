@@ -42,6 +42,8 @@ export default function InvoiceListPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
@@ -122,6 +124,17 @@ export default function InvoiceListPage() {
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [invoices, debouncedSearchTerm, statusFilter, getProjectName]);
 
+    // フィルター変更時にページをリセット
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearchTerm, statusFilter]);
+
+    const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
+    const paginatedInvoices = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredInvoices.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredInvoices, currentPage]);
+
     const handleDelete = async (id: string) => {
         if (confirm('この請求書を削除してもよろしいですか?')) {
             try {
@@ -187,7 +200,7 @@ export default function InvoiceListPage() {
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
-            <div className="mb-6">
+            <div className="mb-6 flex-shrink-0">
                 <h1 className="text-2xl font-bold text-slate-800">
                     請求書一覧
                 </h1>
@@ -196,7 +209,7 @@ export default function InvoiceListPage() {
 
 
             {/* ツールバー */}
-            <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                 {/* 検索バーとフィルター */}
                 <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
                     {/* 検索バー */}
@@ -257,7 +270,7 @@ export default function InvoiceListPage() {
                     </div>
                 ) : (
                     <div className="grid grid-cols-1 gap-4">
-                        {filteredInvoices.map((invoice) => {
+                        {paginatedInvoices.map((invoice) => {
                             const statusInfo = getStatusInfo(invoice.status);
                             const StatusIcon = statusInfo.icon;
 
@@ -328,7 +341,8 @@ export default function InvoiceListPage() {
             </div>
 
             {/* デスクトップテーブルビュー */}
-            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+            <div className="hidden md:flex md:flex-col flex-1 min-h-0 bg-white rounded-xl shadow-lg border border-slate-200">
+            <div className="flex-1 overflow-auto">
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-100 sticky top-0 z-10">
                         <tr>
@@ -379,7 +393,7 @@ export default function InvoiceListPage() {
                                 </td>
                             </tr>
                         ) : (
-                            filteredInvoices.map((invoice) => {
+                            paginatedInvoices.map((invoice) => {
                                 const statusInfo = getStatusInfo(invoice.status);
                                 const StatusIcon = statusInfo.icon;
 
@@ -445,8 +459,32 @@ export default function InvoiceListPage() {
                 </table>
             </div>
 
+                {/* ページネーション */}
+                {totalPages > 1 && (
+                    <div className="flex-shrink-0 flex justify-center items-center gap-2 py-3 border-t border-slate-200">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            前へ
+                        </button>
+                        <span className="text-sm font-medium text-slate-600 px-4">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            次へ
+                        </button>
+                    </div>
+                )}
+            </div>
+
             {/* 統計情報 */}
-            <div className="mt-4 text-sm text-slate-600">
+            <div className="mt-4 flex-shrink-0 text-sm text-slate-600">
                 全 {filteredInvoices.length} 件の請求書
                 {(searchTerm || statusFilter !== 'all') && ` (${invoices.length}件中)`}
             </div>

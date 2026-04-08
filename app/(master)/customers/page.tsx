@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useCustomers } from '@/hooks/useCustomers';
 import { Customer, CustomerInput } from '@/types/customer';
 import CustomerModal from '@/components/Customers/CustomerModal';
@@ -18,6 +18,8 @@ export default function CustomersPage() {
         ensureDataLoaded();
     }, [ensureDataLoaded]);
     const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
@@ -28,6 +30,17 @@ export default function CustomersPage() {
         customer.shortName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         customer.contactPersons?.some(cp => cp.name.toLowerCase().includes(searchQuery.toLowerCase()))
     );
+
+    // フィルター変更時にページをリセット
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery]);
+
+    const totalPages = Math.ceil(filteredCustomers.length / ITEMS_PER_PAGE);
+    const paginatedCustomers = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredCustomers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredCustomers, currentPage]);
 
     // 新規顧客を追加
     const handleAddCustomer = async (data: CustomerInput) => {
@@ -88,7 +101,7 @@ export default function CustomersPage() {
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
             {/* ヘッダー */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex-shrink-0 flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">
                         顧客一覧
@@ -98,7 +111,7 @@ export default function CustomersPage() {
             </div>
 
             {/* 検索バー + 新規登録ボタン */}
-            <div className="flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4 md:mb-6">
+            <div className="flex-shrink-0 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4 md:mb-6">
                 <div className="relative w-full md:flex-1 md:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
@@ -139,7 +152,7 @@ export default function CustomersPage() {
                         )}
                     </div>
                 ) : (
-                    filteredCustomers.map((customer) => (
+                    paginatedCustomers.map((customer) => (
                         <div
                             key={customer.id}
                             className="bg-white rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow"
@@ -192,7 +205,8 @@ export default function CustomersPage() {
             </div>
 
             {/* デスクトップテーブルビュー */}
-            <div className="hidden md:block flex-1 overflow-auto bg-white rounded-xl shadow-lg border border-slate-200">
+            <div className="hidden md:flex md:flex-col flex-1 min-h-0 bg-white rounded-xl shadow-lg border border-slate-200">
+            <div className="flex-1 overflow-auto">
                 <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-100 sticky top-0 z-10">
                         <tr>
@@ -239,7 +253,7 @@ export default function CustomersPage() {
                                 </td>
                             </tr>
                         ) : (
-                            filteredCustomers.map((customer) => (
+                            paginatedCustomers.map((customer) => (
                                 <tr
                                     key={customer.id}
                                     className="hover:bg-slate-50 transition-all duration-200"
@@ -287,6 +301,30 @@ export default function CustomersPage() {
                         )}
                     </tbody>
                 </table>
+            </div>
+
+                {/* ページネーション */}
+                {totalPages > 1 && (
+                    <div className="flex-shrink-0 flex justify-center items-center gap-2 py-3 border-t border-slate-200">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            前へ
+                        </button>
+                        <span className="text-sm font-medium text-slate-600 px-4">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            次へ
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* モーダル */}

@@ -36,6 +36,8 @@ export default function DailyReportPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [foremanFilter, setForemanFilter] = useState<string>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
     const initialRange = useMemo(getInitialRange, []);
     const [rangeStart, setRangeStart] = useState<string>(initialRange.start);
     const [rangeEnd, setRangeEnd] = useState<string>(initialRange.end);
@@ -152,6 +154,17 @@ export default function DailyReportPage() {
             });
     }, [dailyReports, foremanFilter, debouncedSearchTerm, getForemanName, sortKey, sortDir]);
 
+    // フィルター変更時にページをリセット
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [debouncedSearchTerm, foremanFilter, rangeStart, rangeEnd]);
+
+    const totalPages = Math.ceil(filteredReports.length / ITEMS_PER_PAGE);
+    const paginatedReports = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredReports.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredReports, currentPage]);
+
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
         if (confirm('この日報を削除してもよろしいですか?')) {
@@ -192,7 +205,7 @@ export default function DailyReportPage() {
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
-            <div className="mb-6">
+            <div className="mb-6 flex-shrink-0">
                 <h1 className="text-2xl font-bold text-slate-800">
                     日報一覧
                 </h1>
@@ -200,7 +213,7 @@ export default function DailyReportPage() {
             </div>
 
             {/* ツールバー */}
-            <div className="mb-6 flex flex-col gap-3 sm:gap-4">
+            <div className="mb-6 flex-shrink-0 flex flex-col gap-3 sm:gap-4">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                     <div className="flex-1 sm:max-w-md relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -313,7 +326,7 @@ export default function DailyReportPage() {
                     </div>
                 ) : (
                     <div className="space-y-3 md:space-y-0 md:divide-y md:divide-slate-100">
-                        {filteredReports.map((report) => {
+                        {paginatedReports.map((report) => {
                             const workItemSummaries = getWorkItemSummaries(report);
 
                             return (
@@ -405,8 +418,31 @@ export default function DailyReportPage() {
             </div>
             </div>
 
+            {/* ページネーション */}
+            {totalPages > 1 && (
+                <div className="flex-shrink-0 flex justify-center items-center gap-2 py-3">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                    >
+                        前へ
+                    </button>
+                    <span className="text-sm font-medium text-slate-600 px-4">
+                        {currentPage} / {totalPages}
+                    </span>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                    >
+                        次へ
+                    </button>
+                </div>
+            )}
+
             {/* 統計情報 */}
-            <div className="mt-4 text-sm text-slate-600">
+            <div className="mt-2 flex-shrink-0 text-sm text-slate-600">
                 全 {filteredReports.length} 件の日報
                 {(searchTerm || foremanFilter !== 'all') && ` (${dailyReports.length}件中)`}
             </div>
