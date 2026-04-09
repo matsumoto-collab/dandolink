@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { FileText, Folder, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 const PdfViewer = dynamic(
@@ -11,15 +12,16 @@ const PdfViewer = dynamic(
     { ssr: false }
 );
 
-const CATEGORIES = [
+const ALL_CATEGORIES = [
     { key: 'survey', label: '現調写真' },
     { key: 'assembly', label: '組立' },
     { key: 'demolition', label: '解体' },
     { key: 'other', label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
+    { key: 'document', label: '書類', adminOnly: true },
 ] as const;
 
-type CategoryKey = typeof CATEGORIES[number]['key'];
+type CategoryKey = typeof ALL_CATEGORIES[number]['key'];
 
 interface ProjectMasterFileData {
     id: string;
@@ -43,6 +45,10 @@ function formatFileSize(bytes: number): string {
 }
 
 export default function ProjectMasterFilesView({ projectMasterId }: ProjectMasterFilesViewProps) {
+    const { data: session } = useSession();
+    const isAdminOrManager = session?.user?.role === 'admin' || session?.user?.role === 'manager';
+    const CATEGORIES = ALL_CATEGORIES.filter(c => !('adminOnly' in c && c.adminOnly) || isAdminOrManager);
+
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState<CategoryKey | null>(null);

@@ -24,7 +24,7 @@ const ALLOWED_MIME_TYPES = [
 
 export async function GET(_req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
 
         const { id } = await context.params;
@@ -33,8 +33,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const projectMaster = await prisma.projectMaster.findUnique({ where: { id } });
         if (!projectMaster) return notFoundResponse('案件マスター');
 
+        const isAdminOrManager = session!.user.role === 'admin' || session!.user.role === 'manager';
+
         const files = await prisma.projectMasterFile.findMany({
-            where: { projectMasterId: id },
+            where: {
+                projectMasterId: id,
+                // 書類カテゴリは管理者・マネージャーのみ
+                ...(!isAdminOrManager ? { category: { not: 'document' } } : {}),
+            },
             orderBy: { createdAt: 'desc' },
         });
 
@@ -125,13 +131,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const projectMaster = await prisma.projectMaster.findUnique({ where: { id } });
         if (!projectMaster) return notFoundResponse('案件マスター');
 
-        const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction'];
+        const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction', 'document'];
 
         const formData = await req.formData();
         const file = formData.get('file') as File | null;
         const description = formData.get('description') as string | null;
         const categoryRaw = formData.get('category') as string | null;
         const category = categoryRaw && VALID_CATEGORIES.includes(categoryRaw) ? categoryRaw : 'other';
+
+        // 書類カテゴリは管理者・マネージャーのみ
+        if (category === 'document') {
+            const isAdminOrManager = session!.user.role === 'admin' || session!.user.role === 'manager';
+            if (!isAdminOrManager) return errorResponse('書類カテゴリへのアップロード権限がありません', 403);
+        }
 
         if (!file) return errorResponse('ファイルが選択されていません', 400);
         if (!ALLOWED_MIME_TYPES.includes(file.type)) {

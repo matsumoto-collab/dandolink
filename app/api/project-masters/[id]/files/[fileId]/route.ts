@@ -11,7 +11,7 @@ interface RouteContext {
 
 export async function GET(req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
 
         const { id, fileId } = await context.params;
@@ -21,6 +21,12 @@ export async function GET(req: NextRequest, context: RouteContext) {
             where: { id: fileId, projectMasterId: id },
         });
         if (!file) return notFoundResponse('ファイル');
+
+        // 書類カテゴリは管理者・マネージャーのみ
+        if (file.category === 'document') {
+            const isAdminOrManager = session!.user.role === 'admin' || session!.user.role === 'manager';
+            if (!isAdminOrManager) return errorResponse('権限がありません', 403);
+        }
 
         // 元画像 or 表示用のパスを選択
         const path = quality === 'original' && file.originalStoragePath
@@ -54,6 +60,12 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
             where: { id: fileId, projectMasterId: id },
         });
         if (!file) return notFoundResponse('ファイル');
+
+        // 書類カテゴリは管理者・マネージャーのみ
+        if (file.category === 'document') {
+            const isAdminOrManager = session!.user.role === 'admin' || session!.user.role === 'manager';
+            if (!isAdminOrManager) return errorResponse('権限がありません', 403);
+        }
 
         // Supabase Storage から削除（表示用 + サムネイル + 元画像）
         const pathsToRemove = [file.storagePath];

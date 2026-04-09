@@ -6,6 +6,7 @@ import { FileText, Trash2, Upload, Loader2, Download } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
 
 const PdfViewer = dynamic(
@@ -13,14 +14,15 @@ const PdfViewer = dynamic(
     { ssr: false }
 );
 
-type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction';
+type FileCategory = 'survey' | 'assembly' | 'demolition' | 'other' | 'instruction' | 'document';
 
-const CATEGORIES: { key: FileCategory; label: string }[] = [
+const ALL_CATEGORIES: { key: FileCategory; label: string; adminOnly?: boolean }[] = [
     { key: 'survey',      label: '現調写真' },
     { key: 'assembly',    label: '組立' },
     { key: 'demolition',  label: '解体' },
     { key: 'other',       label: 'その他' },
     { key: 'instruction', label: '指示書/図面' },
+    { key: 'document',    label: '書類', adminOnly: true },
 ];
 
 interface ProjectMasterFileData {
@@ -50,6 +52,10 @@ function formatFileSize(bytes: number): string {
 }
 
 export function FilesSection({ projectMasterId }: FilesSectionProps) {
+    const { data: session } = useSession();
+    const isAdminOrManager = session?.user?.role === 'admin' || session?.user?.role === 'manager';
+    const CATEGORIES = ALL_CATEGORIES.filter(c => !c.adminOnly || isAdminOrManager);
+
     const [files, setFiles] = useState<ProjectMasterFileData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<FileCategory>('survey');
