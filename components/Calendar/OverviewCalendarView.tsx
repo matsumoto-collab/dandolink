@@ -37,11 +37,11 @@ function MiniCard({ event, compact }: { event: CalendarEvent; compact: boolean }
             }}
         >
             <div className={`font-medium text-slate-800 truncate ${compact ? 'text-[7px] leading-[8px]' : 'text-[8px] leading-[10px]'}`}>
-                {(event as any).name || event.title}
+                {(event as any).name ? `${(event as any).name}${(event as any).honorific || ''}` : event.title}
             </div>
-            {!compact && (
+            {!compact && event.customer && (
                 <div className="text-[7px] leading-[9px] text-slate-600 truncate">
-                    {event.customer || ''}
+                    {event.customer}
                 </div>
             )}
         </div>
