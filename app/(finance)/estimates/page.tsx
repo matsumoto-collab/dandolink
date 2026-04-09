@@ -459,29 +459,29 @@ export default function EstimateListPage() {
                                         }}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-semibold text-slate-600">
+                                            <span className="text-[12px] font-semibold text-slate-600">
                                                 {estimate.estimateNumber}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {getProjectName(estimate.projectId ?? '') ? (
-                                                <span className="text-sm text-slate-700">
+                                                <span className="text-[12px] text-slate-700">
                                                     {getProjectName(estimate.projectId ?? '')}
                                                 </span>
                                             ) : (
-                                                <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-medium">
+                                                <span className="inline-flex items-center gap-1 text-[12px] text-slate-500 font-medium">
                                                     <Link2Off className="w-3.5 h-3.5" />
                                                     案件未紐付け
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {getCustomerName(estimate.customerId) || '−'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] font-semibold text-slate-900">
                                             ¥{estimate.total.toLocaleString()}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px]">
                                             {estimate.costTotal != null && estimate.total > 0 ? (
                                                 (() => {
                                                     const rate = ((estimate.total - estimate.costTotal) / estimate.total) * 100;
@@ -498,33 +498,30 @@ export default function EstimateListPage() {
                                                 {statusInfo.label}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {formatDate(estimate.validUntil, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {formatDate(estimate.createdAt, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleCopy(estimate)}
-                                                className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
-                                                title="コピーして新規作成"
+                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 mr-2 transition-colors"
                                             >
-                                                <Copy className="w-5 h-5" />
+                                                コピー
                                             </button>
                                             <button
                                                 onClick={() => handleEdit(estimate)}
-                                                className="text-slate-600 hover:text-slate-700 mr-3 transition-colors"
-                                                title="編集"
+                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 mr-2 transition-colors"
                                             >
-                                                <Edit className="w-5 h-5" />
+                                                編集
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(estimate.id)}
-                                                className="text-slate-600 hover:text-slate-700 transition-colors"
-                                                title="削除"
+                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                                             >
-                                                <Trash2 className="w-5 h-5" />
+                                                削除
                                             </button>
                                         </td>
                                     </tr>

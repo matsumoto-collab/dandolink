@@ -373,13 +373,13 @@ export default function DailyReportPage() {
 
                                     {/* デスクトップ表示 */}
                                     <div className="hidden md:grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 items-center">
-                                        <div className="text-sm font-semibold text-slate-900">
+                                        <div className="text-[12px] font-semibold text-slate-900">
                                             {formatDate(report.date, 'full')}
                                         </div>
-                                        <div className="text-sm text-slate-700">
+                                        <div className="text-[12px] text-slate-700">
                                             {getForemanName(report.foremanId)}
                                         </div>
-                                        <div className="text-sm text-slate-700 min-w-0">
+                                        <div className="text-[12px] text-slate-700 min-w-0">
                                             {workItemSummaries.map((item, i) => (
                                                 <span key={i} className={i > 0 ? 'ml-3' : ''}>
                                                     <span className="text-slate-400">{i + 1}件目</span>{' '}
@@ -389,24 +389,23 @@ export default function DailyReportPage() {
                                             ))}
                                             {workItemSummaries.length === 0 && <span className="text-slate-400">-</span>}
                                         </div>
-                                        <div className="text-sm text-slate-700">
+                                        <div className="text-[12px] text-slate-700">
                                             <span className="text-slate-500">朝</span> {formatMinutes(report.morningLoadingMinutes)}
                                             <span className="mx-1.5 text-slate-300">|</span>
                                             <span className="text-slate-500">夕</span> {formatMinutes(report.eveningLoadingMinutes)}
                                         </div>
-                                        <div className="text-sm text-slate-700">
+                                        <div className="text-[12px] text-slate-700">
                                             {report.earlyStartMinutes > 0 ? formatMinutes(report.earlyStartMinutes) : <span className="text-slate-300">-</span>}
                                         </div>
-                                        <div className="text-sm text-slate-700">
+                                        <div className="text-[12px] text-slate-700">
                                             {report.overtimeMinutes > 0 ? formatMinutes(report.overtimeMinutes) : <span className="text-slate-300">-</span>}
                                         </div>
                                         <div className="flex justify-end">
                                             <button
                                                 onClick={(e) => handleDelete(e, report.id)}
-                                                className="p-1.5 text-slate-400 hover:text-red-500 rounded transition-colors"
-                                                title="削除"
+                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                削除
                                             </button>
                                         </div>
                                     </div>

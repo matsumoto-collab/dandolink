@@ -259,41 +259,39 @@ export default function CustomersPage() {
                                     className="hover:bg-slate-50 transition-all duration-200"
                                 >
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="text-sm font-semibold text-slate-900">
+                                        <span className="text-[12px] font-semibold text-slate-900">
                                             {customer.name}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                         {customer.shortName || '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                         {customer.contactPersons && customer.contactPersons.length > 0
                                             ? customer.contactPersons.map(cp => cp.name).join(', ')
                                             : '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                         {customer.email || '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                    <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                         {customer.phone || '-'}
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-slate-700 max-w-xs truncate">
+                                    <td className="px-6 py-4 text-[12px] text-slate-700 max-w-xs truncate">
                                         {customer.address || '-'}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium">
                                         <button
                                             onClick={() => handleEditClick(customer)}
-                                            className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
-                                            title="編集"
+                                            className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 mr-2 transition-colors"
                                         >
-                                            <Edit className="w-5 h-5" />
+                                            編集
                                         </button>
                                         <button
                                             onClick={() => handleDeleteCustomer(customer.id, customer.name)}
-                                            className="text-slate-600 hover:text-slate-700 transition-colors"
-                                            title="削除"
+                                            className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                                         >
-                                            <Trash2 className="w-5 h-5" />
+                                            削除
                                         </button>
                                     </td>
                                 </tr>

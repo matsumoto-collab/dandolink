@@ -404,23 +404,23 @@ export default function InvoiceListPage() {
                                         onClick={() => handleOpenDetail(invoice)}
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-sm font-semibold text-slate-600">
+                                            <span className="text-[12px] font-semibold text-slate-600">
                                                 {invoice.invoiceNumber}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {getProjectName(invoice) ? (
-                                                <span className="text-sm text-slate-700">
+                                                <span className="text-[12px] text-slate-700">
                                                     {getProjectName(invoice)}
                                                 </span>
                                             ) : (
-                                                <span className="text-sm text-slate-500">案件未紐付け</span>
+                                                <span className="text-[12px] text-slate-500">案件未紐付け</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {getCustomerName(invoice.projectId || '') || '−'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -429,26 +429,24 @@ export default function InvoiceListPage() {
                                                 {statusInfo.label}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {formatDate(invoice.dueDate, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {formatDate(invoice.createdAt, 'full')}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
                                             <button
                                                 onClick={() => handleEdit(invoice)}
-                                                className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
-                                                title="編集"
+                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 mr-2 transition-colors"
                                             >
-                                                <Edit className="w-5 h-5" />
+                                                編集
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(invoice.id)}
-                                                className="text-slate-600 hover:text-slate-700 transition-colors"
-                                                title="削除"
+                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
                                             >
-                                                <Trash2 className="w-5 h-5" />
+                                                削除
                                             </button>
                                         </td>
                                     </tr>
