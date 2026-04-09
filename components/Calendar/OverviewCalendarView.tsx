@@ -25,7 +25,7 @@ const MIN_ROW_HEIGHT = 32;
 const NAV_HEIGHT = 36;
 const THEAD_HEIGHT = 40; // date row + remaining row
 
-function MiniCard({ event, compact }: { event: CalendarEvent; compact: boolean }) {
+function MiniCard({ event }: { event: CalendarEvent }) {
     return (
         <div
             className="rounded px-0.5 overflow-hidden max-w-full"
@@ -200,7 +200,7 @@ export default function OverviewCalendarView({
                                         >
                                             <div className="overflow-hidden" style={{ maxHeight: rowHeight ? rowHeight - 2 : undefined }}>
                                                 {cellEvents.map((event) => (
-                                                    <MiniCard key={event.id} event={event} compact={compact} />
+                                                    <MiniCard key={event.id} event={event} />
                                                 ))}
                                             </div>
                                         </td>
