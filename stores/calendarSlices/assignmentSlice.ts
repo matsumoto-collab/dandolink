@@ -3,6 +3,10 @@ import { CalendarSlice, CalendarActions, CalendarState, ConflictUpdateError, ass
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
+
+const MAX_RETRY_COUNT = 3;
+const DEFAULT_RETRY_DELAY_MS = 2000;
 
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
     Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
@@ -12,8 +16,8 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     projectsLoading: false,
     projectsInitialized: false,
 
-    fetchAssignments: async (startDate, endDate) => {
-        set({ projectsLoading: true });
+    fetchAssignments: async (startDate, endDate, _retryCount = 0) => {
+        if (_retryCount === 0) set({ projectsLoading: true });
         try {
             const params = new URLSearchParams();
             if (startDate) params.append('startDate', startDate);
@@ -35,15 +39,24 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     } : undefined,
                 }));
                 set({ assignments: parsed, projectsInitialized: true });
+            } else if (response.status === 429 && _retryCount < MAX_RETRY_COUNT) {
+                const retryAfter = response.headers.get('Retry-After');
+                const delayMs = retryAfter ? Math.min(parseInt(retryAfter, 10) * 1000, 10000) : DEFAULT_RETRY_DELAY_MS;
+                logger.warn(`Rate limited (429). Retrying in ${delayMs}ms (attempt ${_retryCount + 1}/${MAX_RETRY_COUNT})`);
+                await new Promise(r => setTimeout(r, delayMs));
+                return get().fetchAssignments(startDate, endDate, _retryCount + 1);
             } else {
                 logger.error('Failed to fetch assignments: HTTP', response.status);
+                if (response.status === 429) {
+                    toast.error('サーバーが混み合っています。しばらく待ってから再度お試しください。');
+                }
                 set({ projectsInitialized: true });
             }
         } catch (error) {
             logger.error('Failed to fetch assignments:', error);
             set({ projectsInitialized: true });
         } finally {
-            set({ projectsLoading: false });
+            if (_retryCount === 0) set({ projectsLoading: false });
         }
     },
 

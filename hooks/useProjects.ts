@@ -64,7 +64,11 @@ export function useProjects() {
         }
     }, [status]);
 
-    // Fetch for a specific date range
+    // Debounced fetch to prevent rapid-fire API calls hitting rate limits
+    const fetchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const fetchResolversRef = useRef<Array<() => void>>([]);
+
+    // Fetch for a specific date range (debounced: 300ms)
     const fetchForDateRange = useCallback(async (startDate: Date, endDate: Date) => {
         const startStr = formatDateKey(startDate);
         const endStr = formatDateKey(endDate);
@@ -76,17 +80,33 @@ export function useProjects() {
             return;
         }
 
-        currentDateRangeRef.current = { start: startStr, end: endStr };
-        await fetchAssignmentsStore(startStr, endStr);
+        // Debounce: cancel pending fetch, schedule a new one
+        if (fetchDebounceRef.current) {
+            clearTimeout(fetchDebounceRef.current);
+        }
 
-        // Fetch cell remarks if not initialized
-        if (!useCalendarStore.getState().cellRemarksInitialized) {
-            fetchCellRemarksStore();
-        }
-        // Fetch member adjustments if not initialized
-        if (!useCalendarStore.getState().memberAdjustmentsInitialized) {
-            fetchMemberAdjustmentsStore();
-        }
+        return new Promise<void>((resolve) => {
+            fetchResolversRef.current.push(resolve);
+            fetchDebounceRef.current = setTimeout(async () => {
+                fetchDebounceRef.current = null;
+                const resolvers = [...fetchResolversRef.current];
+                fetchResolversRef.current = [];
+
+                currentDateRangeRef.current = { start: startStr, end: endStr };
+                await fetchAssignmentsStore(startStr, endStr);
+
+                // Fetch cell remarks if not initialized
+                if (!useCalendarStore.getState().cellRemarksInitialized) {
+                    fetchCellRemarksStore();
+                }
+                // Fetch member adjustments if not initialized
+                if (!useCalendarStore.getState().memberAdjustmentsInitialized) {
+                    fetchMemberAdjustmentsStore();
+                }
+
+                resolvers.forEach(r => r());
+            }, 300);
+        });
     }, [fetchAssignmentsStore, fetchCellRemarksStore, fetchMemberAdjustmentsStore]);
 
     // 単一配置をAPIから取得してstoreに差し込む（Realtime incremental sync用）

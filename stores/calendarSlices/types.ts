@@ -158,7 +158,7 @@ export interface CalendarActions {
     deleteDailyReport: (id: string) => Promise<void>;
 
     // Projects (Assignments)
-    fetchAssignments: (startDate?: string, endDate?: string) => Promise<void>;
+    fetchAssignments: (startDate?: string, endDate?: string, _retryCount?: number) => Promise<void>;
     addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => Promise<void>;

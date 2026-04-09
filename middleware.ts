@@ -12,7 +12,7 @@ const redis = isRedisConfigured ? Redis.fromEnv() : null;
 const apiRateLimiter = redis
     ? new Ratelimit({
         redis,
-        limiter: Ratelimit.slidingWindow(100, '60 s'),
+        limiter: Ratelimit.slidingWindow(200, '60 s'),
         analytics: true,
     })
     : null;
