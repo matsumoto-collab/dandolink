@@ -2,6 +2,7 @@
 
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 // --- Types ---
 
@@ -85,7 +86,8 @@ function getDaysBetween(start: Date, end: Date): Date[] {
 const DAY_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土'];
 
 const ROW_HEIGHT = 32;
-const LEFT_COL_WIDTH = 210;
+const LEFT_COL_WIDTH_PC = 210;
+const LEFT_COL_WIDTH_MOBILE = 100;
 const HEADER_HEIGHT = 56;
 
 // --- Component ---
@@ -111,6 +113,9 @@ export default function GanttChart({
     isAdmin,
     onProjectClick,
 }: GanttChartProps) {
+    const isMobile = useMediaQuery('(max-width: 1023px)');
+    const leftColWidth = isMobile ? LEFT_COL_WIDTH_MOBILE : LEFT_COL_WIDTH_PC;
+
     const headerScrollRef = useRef<HTMLDivElement>(null);
     const bodyScrollRef = useRef<HTMLDivElement>(null);
     const leftBodyRef = useRef<HTMLDivElement>(null);
@@ -404,7 +409,7 @@ export default function GanttChart({
             {/* Header row (fixed) */}
             <div className="flex-shrink-0 flex border-b border-slate-200">
                 {/* Left header */}
-                <div className="flex-shrink-0 border-r border-slate-200 bg-slate-50" style={{ width: LEFT_COL_WIDTH, height: HEADER_HEIGHT }}>
+                <div className="flex-shrink-0 border-r border-slate-200 bg-slate-50" style={{ width: leftColWidth, height: HEADER_HEIGHT }}>
                     <div className="flex items-end h-full px-3 pb-2">
                         <span className="text-xs font-semibold text-slate-500">案件名</span>
                     </div>
@@ -462,7 +467,7 @@ export default function GanttChart({
                 <div
                     className="flex-shrink-0 border-r border-slate-200 bg-white overflow-y-auto overflow-x-hidden"
                     ref={leftBodyRef}
-                    style={{ width: LEFT_COL_WIDTH, scrollbarWidth: 'none' }}
+                    style={{ width: leftColWidth, scrollbarWidth: 'none' }}
                 >
                     {filteredProjects.map((project) => (
                         <div
@@ -473,7 +478,7 @@ export default function GanttChart({
                             <div className="flex-1 min-w-0">
                                 <div
                                     className={`font-medium truncate ${onProjectClick ? 'text-teal-700 hover:text-teal-900 hover:underline cursor-pointer' : 'text-slate-800'}`}
-                                    style={{ fontSize: 12 }}
+                                    style={{ fontSize: isMobile ? 10 : 12 }}
                                     title={project.projectTitle}
                                     onClick={() => onProjectClick?.(project.projectMasterId)}
                                 >
