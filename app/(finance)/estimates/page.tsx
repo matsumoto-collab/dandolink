@@ -482,9 +482,9 @@ export default function EstimateListPage() {
                                             ¥{estimate.total.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px]">
-                                            {estimate.costTotal != null && estimate.total > 0 ? (
+                                            {estimate.costTotal != null && estimate.subtotal > 0 ? (
                                                 (() => {
-                                                    const rate = ((estimate.total - estimate.costTotal) / estimate.total) * 100;
+                                                    const rate = ((estimate.subtotal - estimate.costTotal) / estimate.subtotal) * 100;
                                                     const color = rate < 0 ? 'bg-red-100 text-red-700' : rate < 15 ? 'bg-yellow-100 text-yellow-700' : rate < 30 ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700';
                                                     return <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>{rate.toFixed(1)}%</span>;
                                                 })()
