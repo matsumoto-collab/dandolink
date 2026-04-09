@@ -36,11 +36,11 @@ function MiniCard({ event, compact }: { event: CalendarEvent; compact: boolean }
                 paddingBottom: compact ? 0 : 1,
             }}
         >
-            <div className={`font-medium text-slate-800 truncate ${compact ? 'text-[5px] leading-[6px]' : 'text-[6px] leading-[8px]'}`}>
+            <div className={`font-medium text-slate-800 truncate ${compact ? 'text-[7px] leading-[8px]' : 'text-[8px] leading-[10px]'}`}>
                 {(event as any).name || event.title}
             </div>
             {!compact && (
-                <div className="text-[5px] leading-[7px] text-slate-600 truncate">
+                <div className="text-[7px] leading-[9px] text-slate-600 truncate">
                     {event.customer || ''}
                 </div>
             )}
