@@ -400,7 +400,7 @@ function ProjectCard({
     constructionTypeMap,
 }: ProjectCardProps) {
     const workerCount = project.workers?.length || 0;
-    const vehicleCount = project.trucks?.length || project.vehicles?.length || 0;
+    const vehicleCount = project.confirmedVehicleIds?.length || project.trucks?.length || project.vehicles?.length || 0;
     const foremanName = showForemanBadge
         ? allForemen.find(u => u.id === project.assignedEmployeeId)?.displayName
         : null;

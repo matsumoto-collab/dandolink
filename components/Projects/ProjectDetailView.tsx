@@ -30,7 +30,7 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
         location?: string;
         plusCode?: string;
     } | null>(null);
-    const { constructionTypes } = useMasterData();
+    const { constructionTypes, vehicles } = useMasterData();
     const [workerMap, setWorkerMap] = useState<Record<string, string>>({});
     const [isLoadingWorkers, setIsLoadingWorkers] = useState(false);
 
@@ -228,14 +228,18 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
                     </div>
                 )}
 
-                {/* 車両 */}
-                {project.trucks && project.trucks.length > 0 && (
+                {/* 車両（手配確定時の車両を優先、なければ登録時の車両） */}
+                {(() => {
+                    const displayVehicles: string[] = project.confirmedVehicleIds?.length
+                        ? project.confirmedVehicleIds.map(id => vehicles.find(v => v.id === id)?.name || id)
+                        : (project.trucks || []) as string[];
+                    return displayVehicles.length > 0 ? (
                     <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                             車両
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            {project.trucks.map((truck, index) => (
+                            {displayVehicles.map((name, index) => (
                                 <span
                                     key={index}
                                     className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800"
@@ -243,12 +247,13 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
                                     <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                     </svg>
-                                    {truck}
+                                    {name}
                                 </span>
                             ))}
                         </div>
                     </div>
-                )}
+                    ) : null;
+                })()}
 
                 {/* 地図 */}
                 {locationData && (() => {
