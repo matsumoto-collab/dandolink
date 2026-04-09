@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Trash2, Upload, Loader2, Download } from 'lucide-react';
+import { FileText, Trash2, Upload, Loader2, Download, ChevronDown } from 'lucide-react';
 import imageCompression from 'browser-image-compression';
 import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
@@ -39,6 +39,36 @@ interface ProjectMasterFileData {
     thumbnailSignedUrl: string | null;
     originalSignedUrl: string | null;
     originalStoragePath: string | null;
+    sourceType: string | null;
+}
+
+/** PDF の各ページを canvas 経由で WebP Blob に変換する */
+async function pdfToImages(pdfFile: Blob): Promise<{ blob: Blob; name: string }[]> {
+    const pdfjs = await import('pdfjs-dist');
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+
+    const arrayBuffer = await pdfFile.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    const results: { blob: Blob; name: string }[] = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const scale = 2; // 高解像度
+        const viewport = page.getViewport({ scale });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d')!;
+        await page.render({ canvasContext: ctx, viewport, canvas } as Parameters<typeof page.render>[0]).promise;
+
+        const blob = await new Promise<Blob>((resolve) => {
+            canvas.toBlob((b) => resolve(b!), 'image/webp', 0.85);
+        });
+        results.push({ blob, name: `page_${i}.webp` });
+        canvas.remove();
+    }
+
+    return results;
 }
 
 interface FilesSectionProps {
@@ -93,37 +123,63 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         setUploading(true);
         setUploadProgress({ done: 0, total: rawFiles.length });
 
-        // 1. 全画像を並列で事前圧縮（サーバーでsharp処理するのでサイズ削減のみ）
-        const compressed = await Promise.all(
-            rawFiles.map(async (rawFile) => {
-                if (rawFile.type.startsWith('image/') && rawFile.size > 3 * 1024 * 1024) {
-                    try {
-                        const blob = await imageCompression(rawFile, {
-                            maxSizeMB: 3,
-                            maxWidthOrHeight: 3000,
-                            useWebWorker: true,
-                            initialQuality: 0.9,
+        // 1. PDF→画像変換 + 画像圧縮
+        // uploadItems: { file, name, originalPdf? }
+        type UploadItem = { file: Blob; name: string; originalPdf?: Blob; originalPdfName?: string };
+        const uploadItems: UploadItem[] = [];
+
+        for (const rawFile of rawFiles) {
+            if (rawFile.type === 'application/pdf') {
+                // PDF → 各ページを画像に変換
+                try {
+                    toast('PDFを画像に変換中...', { icon: '📄' });
+                    const pages = await pdfToImages(rawFile);
+                    const baseName = rawFile.name.replace(/\.pdf$/i, '');
+                    pages.forEach((page, idx) => {
+                        uploadItems.push({
+                            file: page.blob,
+                            name: `${baseName}_p${idx + 1}.webp`,
+                            // 最初のページにのみ元PDFを添付
+                            ...(idx === 0 ? { originalPdf: rawFile, originalPdfName: rawFile.name } : {}),
                         });
-                        return { file: blob, name: rawFile.name };
-                    } catch {
-                        return { file: rawFile as Blob, name: rawFile.name };
-                    }
+                    });
+                } catch (err) {
+                    console.error('PDF conversion failed:', err);
+                    toast.error(`PDF変換に失敗しました: ${rawFile.name}`);
                 }
-                return { file: rawFile as Blob, name: rawFile.name };
-            })
-        );
+            } else if (rawFile.type.startsWith('image/') && rawFile.size > 3 * 1024 * 1024) {
+                try {
+                    const blob = await imageCompression(rawFile, {
+                        maxSizeMB: 3,
+                        maxWidthOrHeight: 3000,
+                        useWebWorker: true,
+                        initialQuality: 0.9,
+                    });
+                    uploadItems.push({ file: blob, name: rawFile.name });
+                } catch {
+                    uploadItems.push({ file: rawFile as Blob, name: rawFile.name });
+                }
+            } else {
+                uploadItems.push({ file: rawFile as Blob, name: rawFile.name });
+            }
+        }
+
+        setUploadProgress({ done: 0, total: uploadItems.length });
 
         // 2. 5枚ずつ並列アップロード
         let successCount = 0;
         let doneCount = 0;
         const CONCURRENCY = 5;
-        for (let i = 0; i < compressed.length; i += CONCURRENCY) {
-            const batch = compressed.slice(i, i + CONCURRENCY);
+        for (let i = 0; i < uploadItems.length; i += CONCURRENCY) {
+            const batch = uploadItems.slice(i, i + CONCURRENCY);
             const results = await Promise.allSettled(
-                batch.map(async ({ file, name }) => {
+                batch.map(async (item) => {
                     const formData = new FormData();
-                    formData.append('file', file, name);
+                    formData.append('file', item.file, item.name);
                     formData.append('category', activeTab);
+                    if (item.originalPdf) {
+                        formData.append('originalPdf', item.originalPdf, item.originalPdfName || 'original.pdf');
+                    }
                     const res = await fetch(`/api/project-masters/${projectMasterId}/files`, {
                         method: 'POST',
                         body: formData,
@@ -134,7 +190,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     }
                     const data = await res.json();
                     doneCount++;
-                    setUploadProgress({ done: doneCount, total: compressed.length });
+                    setUploadProgress({ done: doneCount, total: uploadItems.length });
                     return data as ProjectMasterFileData;
                 })
             );
@@ -145,11 +201,10 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     newFiles.push(r.value);
                 } else {
                     doneCount++;
-                    setUploadProgress({ done: doneCount, total: compressed.length });
+                    setUploadProgress({ done: doneCount, total: uploadItems.length });
                     toast.error(r.reason?.message || 'アップロードに失敗しました');
                 }
             }
-            // サーバーレスポンスを直接stateに追加（再fetchなし）
             if (newFiles.length > 0) {
                 setFiles(prev => [...newFiles, ...prev]);
             }
@@ -188,9 +243,18 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
         handleUpload(e.dataTransfer.files);
     };
 
-    const handleDownload = (file: ProjectMasterFileData, quality: 'display' | 'original') => {
-        const url = `/api/project-masters/${projectMasterId}/files/${file.id}?quality=${quality}`;
+    const [downloadMenuId, setDownloadMenuId] = useState<string | null>(null);
+
+    const handleDownload = (file: ProjectMasterFileData, format?: string) => {
+        const params = new URLSearchParams();
+        if (format) {
+            params.set('format', format);
+        } else {
+            params.set('quality', file.originalStoragePath ? 'original' : 'display');
+        }
+        const url = `/api/project-masters/${projectMasterId}/files/${file.id}?${params}`;
         window.open(url, '_blank');
+        setDownloadMenuId(null);
     };
 
     const tabFiles = files.filter(f => f.category === activeTab);
@@ -363,14 +427,45 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
                             {/* ダウンロード・削除ボタン */}
                             <div className="flex items-center gap-1 shrink-0">
-                                <button
-                                    type="button"
-                                    onClick={() => handleDownload(file, file.originalStoragePath ? 'original' : 'display')}
-                                    className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-50 rounded transition-colors"
-                                    title={file.originalStoragePath ? '元画像をダウンロード' : 'ダウンロード'}
-                                >
-                                    <Download className="w-4 h-4" />
-                                </button>
+                                {file.sourceType === 'pdf' ? (
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setDownloadMenuId(downloadMenuId === file.id ? null : file.id)}
+                                            className="flex items-center gap-0.5 p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-50 rounded transition-colors"
+                                            title="形式を選んでダウンロード"
+                                        >
+                                            <Download className="w-4 h-4" />
+                                            <ChevronDown className="w-3 h-3" />
+                                        </button>
+                                        {downloadMenuId === file.id && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setDownloadMenuId(null)} />
+                                                <div className="absolute right-0 top-full mt-1 z-20 bg-white border border-slate-200 rounded-lg shadow-lg py-1 min-w-[120px]">
+                                                    {['PDF', 'JPEG', 'PNG', 'WebP'].map((fmt) => (
+                                                        <button
+                                                            key={fmt}
+                                                            type="button"
+                                                            onClick={() => handleDownload(file, fmt.toLowerCase())}
+                                                            className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                                        >
+                                                            {fmt}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleDownload(file)}
+                                        className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-slate-50 rounded transition-colors"
+                                        title={file.originalStoragePath ? '元画像をダウンロード' : 'ダウンロード'}
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                )}
                                 <button
                                     type="button"
                                     onClick={() => handleDelete(file.id, file.fileName)}

@@ -135,6 +135,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         const formData = await req.formData();
         const file = formData.get('file') as File | null;
+        const originalPdf = formData.get('originalPdf') as File | null;
         const description = formData.get('description') as string | null;
         const categoryRaw = formData.get('category') as string | null;
         const category = categoryRaw && VALID_CATEGORIES.includes(categoryRaw) ? categoryRaw : 'other';
@@ -168,6 +169,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         let originalStoragePath: string | null = null;
 
+        // PDFから変換された画像かどうか
+        const sourceType = originalPdf ? 'pdf' : null;
+
         if (fileType === 'image') {
             // 回転済みバッファを1回だけ作成し、各サイズ変換はそこから派生
             const rotated = sharp(buffer).rotate();
@@ -182,29 +186,53 @@ export async function POST(req: NextRequest, context: RouteContext) {
             uploadContentType = 'image/webp';
             storagePath = `${id}/${fileId}.webp`;
             actualFileSize = displayWebp.length;
-            originalStoragePath = `${id}/${fileId}_original.webp`;
             thumbnailPath = `${id}/${fileId}_thumb.webp`;
 
-            // 3ファイルを並列アップロード
-            const [origResult, displayResult, thumbResult] = await Promise.all([
-                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(originalStoragePath, origWebp, { contentType: 'image/webp', upsert: false }),
-                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(storagePath, displayWebp, { contentType: 'image/webp', upsert: false }),
-                supabaseAdmin.storage.from(STORAGE_BUCKET).upload(thumbnailPath, thumbWebp, { contentType: 'image/webp', upsert: false }),
-            ]);
-
-            if (displayResult.error) {
-                logger.error('Storage upload error:', displayResult.error);
-                const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
-                if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
-                return errorResponse('ファイルのアップロードに失敗しました', 500);
-            }
-            if (origResult.error) {
-                logger.error('Original upload error:', origResult.error);
-                originalStoragePath = null;
-            }
-            if (thumbResult.error) {
-                logger.error('Thumbnail upload error:', thumbResult.error);
-                thumbnailPath = null;
+            if (originalPdf) {
+                // PDF元ファイルを保存
+                const pdfBuffer = Buffer.from(await originalPdf.arrayBuffer());
+                originalStoragePath = `${id}/${fileId}_original.pdf`;
+                const [pdfResult, displayResult, thumbResult] = await Promise.all([
+                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(originalStoragePath, pdfBuffer, { contentType: 'application/pdf', upsert: false }),
+                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(storagePath, displayWebp, { contentType: 'image/webp', upsert: false }),
+                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(thumbnailPath, thumbWebp, { contentType: 'image/webp', upsert: false }),
+                ]);
+                if (displayResult.error) {
+                    logger.error('Storage upload error:', displayResult.error);
+                    const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
+                    if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
+                    return errorResponse('ファイルのアップロードに失敗しました', 500);
+                }
+                if (pdfResult.error) {
+                    logger.error('Original PDF upload error:', pdfResult.error);
+                    originalStoragePath = null;
+                }
+                if (thumbResult.error) {
+                    logger.error('Thumbnail upload error:', thumbResult.error);
+                    thumbnailPath = null;
+                }
+            } else {
+                // 通常の画像: オリジナルWebPも保存
+                originalStoragePath = `${id}/${fileId}_original.webp`;
+                const [origResult, displayResult, thumbResult] = await Promise.all([
+                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(originalStoragePath, origWebp, { contentType: 'image/webp', upsert: false }),
+                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(storagePath, displayWebp, { contentType: 'image/webp', upsert: false }),
+                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(thumbnailPath, thumbWebp, { contentType: 'image/webp', upsert: false }),
+                ]);
+                if (displayResult.error) {
+                    logger.error('Storage upload error:', displayResult.error);
+                    const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
+                    if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
+                    return errorResponse('ファイルのアップロードに失敗しました', 500);
+                }
+                if (origResult.error) {
+                    logger.error('Original upload error:', origResult.error);
+                    originalStoragePath = null;
+                }
+                if (thumbResult.error) {
+                    logger.error('Thumbnail upload error:', thumbResult.error);
+                    thumbnailPath = null;
+                }
             }
         } else {
             uploadBuffer = buffer;
@@ -257,6 +285,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 description: description || null,
                 uploadedBy: session!.user.id,
                 category,
+                sourceType,
                 signedUrl: newSignedUrl,
                 signedUrlExpiresAt: newExpiresAt,
                 thumbnailPath,

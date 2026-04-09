@@ -1011,6 +1011,7 @@ model ProjectMasterFile {
   originalSignedUrl           String?
   originalSignedUrlExpiresAt  DateTime?
   originalStoragePath         String?
+  sourceType                  String?       // 'pdf' if converted from PDF
   projectMaster               ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])

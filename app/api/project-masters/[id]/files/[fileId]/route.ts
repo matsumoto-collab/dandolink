@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
+import sharp from 'sharp';
 import { logger } from '@/lib/logger';
 
 interface RouteContext {
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
         const { id, fileId } = await context.params;
         const quality = req.nextUrl.searchParams.get('quality') || 'display';
+        const format = req.nextUrl.searchParams.get('format'); // jpeg, png, webp, pdf
 
         const file = await prisma.projectMasterFile.findFirst({
             where: { id: fileId, projectMasterId: id },
@@ -28,7 +30,52 @@ export async function GET(req: NextRequest, context: RouteContext) {
             if (!isAdminOrManager) return errorResponse('権限がありません', 403);
         }
 
-        // 元画像 or 表示用のパスを選択
+        // PDF形式でダウンロード（元PDFがある場合）
+        if (format === 'pdf' && file.originalStoragePath?.endsWith('.pdf')) {
+            const { data } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .createSignedUrl(file.originalStoragePath, 60, {
+                    download: file.fileName.replace(/\.\w+$/, '.pdf'),
+                });
+            if (!data?.signedUrl) return errorResponse('ダウンロードURLの生成に失敗しました', 500);
+            return NextResponse.redirect(data.signedUrl);
+        }
+
+        // 画像形式変換ダウンロード (jpeg, png, webp)
+        if (format && ['jpeg', 'png', 'webp'].includes(format) && file.fileType === 'image') {
+            const storagePath = file.originalStoragePath?.endsWith('.webp')
+                ? file.originalStoragePath
+                : file.storagePath;
+            const { data: dlData } = await supabaseAdmin.storage
+                .from(STORAGE_BUCKET)
+                .download(storagePath);
+            if (!dlData) return errorResponse('ファイルの取得に失敗しました', 500);
+
+            const srcBuffer = Buffer.from(await dlData.arrayBuffer());
+            let converted: Buffer;
+            let contentType: string;
+            const baseName = file.fileName.replace(/\.\w+$/, '');
+
+            if (format === 'jpeg') {
+                converted = await sharp(srcBuffer).jpeg({ quality: 90 }).toBuffer();
+                contentType = 'image/jpeg';
+            } else if (format === 'png') {
+                converted = await sharp(srcBuffer).png().toBuffer();
+                contentType = 'image/png';
+            } else {
+                converted = await sharp(srcBuffer).webp({ quality: 90 }).toBuffer();
+                contentType = 'image/webp';
+            }
+
+            return new NextResponse(new Uint8Array(converted), {
+                headers: {
+                    'Content-Type': contentType,
+                    'Content-Disposition': `attachment; filename="${encodeURIComponent(`${baseName}.${format}`)}"`,
+                },
+            });
+        }
+
+        // デフォルト: 従来のダウンロード
         const path = quality === 'original' && file.originalStoragePath
             ? file.originalStoragePath
             : file.storagePath;
