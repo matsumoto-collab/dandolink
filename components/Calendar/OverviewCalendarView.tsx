@@ -31,16 +31,16 @@ function MiniCard({ event, compact }: { event: CalendarEvent; compact: boolean }
             className="rounded px-0.5 overflow-hidden max-w-full"
             style={{
                 backgroundColor: event.color || '#e2e8f0',
-                marginBottom: compact ? 0 : 1,
-                paddingTop: compact ? 0 : 1,
-                paddingBottom: compact ? 0 : 1,
+                marginBottom: 1,
+                paddingTop: 1,
+                paddingBottom: 1,
             }}
         >
-            <div className={`font-medium text-slate-800 truncate ${compact ? 'text-[7px] leading-[8px]' : 'text-[8px] leading-[10px]'}`}>
+            <div className="font-medium text-slate-800 truncate text-[7px] leading-[8px]">
                 {(event as any).name ? `${(event as any).name}${(event as any).honorific || ''}` : event.title}
             </div>
-            {!compact && event.customer && (
-                <div className="text-[7px] leading-[9px] text-slate-600 truncate">
+            {event.customer && (
+                <div className="text-[7px] leading-[8px] text-slate-600 truncate">
                     {event.customer}
                 </div>
             )}
