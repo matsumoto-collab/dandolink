@@ -179,7 +179,7 @@ export default function MySchedulePage() {
                     )
                     .on(
                         'postgres_changes',
-                        { event: 'UPDATE', schema: 'public', table: 'ProjectMaster' },
+                        { event: '*', schema: 'public', table: 'ProjectMaster' },
                         () => debouncedFetchData()
                     )
                     .subscribe();

@@ -162,12 +162,14 @@ export function useProjects() {
                             }
                         }
                     )
-                    // ProjectMaster: UPDATE → 関連する配置のprojectMasterデータを更新
+                    // ProjectMaster: INSERT/UPDATE → 関連する配置のprojectMasterデータを更新
                     .on(
                         'postgres_changes',
-                        { event: 'UPDATE', schema: 'public', table: 'ProjectMaster' },
+                        { event: '*', schema: 'public', table: 'ProjectMaster' },
                         async (payload) => {
                             if (!isUpdatingRef.current) {
+                                // DELETE の場合は対応するアサインも削除されるので無視
+                                if (payload.eventType === 'DELETE') return;
                                 try {
                                     const res = await fetch(`/api/project-masters/${payload.new.id}`);
                                     if (res.ok) {

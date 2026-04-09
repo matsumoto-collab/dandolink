@@ -83,7 +83,7 @@ export function useProjectMasters() {
 
     // assignmentsテーブルの変更を監視して配置数をリアルタイム更新
     useRealtimeSubscription({
-        table: 'Assignment',
+        table: 'ProjectAssignment',
         channelName: 'assignments-for-pm-count',
         onDataChange: () => debouncedFetch(),
         enabled: status === 'authenticated',
