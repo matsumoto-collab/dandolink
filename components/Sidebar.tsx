@@ -29,20 +29,20 @@ const navigationSections: NavSection[] = [
         ],
     },
     {
-        title: '材料管理',
-        items: [
-            { name: '在庫管理', page: 'inventory' },
-            { name: '出庫伝票', page: 'materials' },
-            { name: '積込リスト', page: 'loading-list' },
-        ],
-    },
-    {
         title: '書類・経理',
         items: [
             { name: '見積書', page: 'estimates' },
             { name: '請求書', page: 'invoices' },
             { name: '発注書', page: 'orders' },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
+        ],
+    },
+    {
+        title: '材料管理',
+        items: [
+            { name: '在庫管理', page: 'inventory' },
+            { name: '出庫伝票', page: 'materials' },
+            { name: '積込リスト', page: 'loading-list' },
         ],
     },
     {
