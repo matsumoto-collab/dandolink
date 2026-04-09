@@ -459,11 +459,11 @@ export default function ProjectMasterListPage() {
                                     >
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-semibold text-slate-900">
+                                                <span className="text-[10px] font-semibold text-slate-900">
                                                     {pm.title}
                                                 </span>
                                                 {pm.status === 'completed' && (
-                                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
+                                                    <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-600">
                                                         完了
                                                     </span>
                                                 )}
@@ -471,24 +471,24 @@ export default function ProjectMasterListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             {pm.constructionContent ? (
-                                                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
+                                                <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-slate-100 text-slate-700">
                                                     {getConstructionContentLabel(pm.constructionContent)}
                                                 </span>
                                             ) : (
-                                                <span className="text-sm text-slate-400">-</span>
+                                                <span className="text-[10px] text-slate-400">-</span>
                                             )}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-700">
                                             {pm.customerName || '-'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-700">
                                             {[pm.prefecture, pm.city, pm.location].filter(Boolean).join(' ') || '-'}
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                                        <td className="px-6 py-4 whitespace-nowrap text-[10px] text-slate-700">
                                             {pm.assignmentCount ?? 0}件の配置
                                         </td>
                                         {!isForeman2 && (
-                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium" onClick={(e) => e.stopPropagation()}>
+                                            <td className="px-6 py-4 whitespace-nowrap text-right text-[10px] font-medium" onClick={(e) => e.stopPropagation()}>
                                                 <button
                                                     onClick={() => openEditModal(pm)}
                                                     className="text-slate-600 hover:text-slate-700 mr-4 transition-colors"
