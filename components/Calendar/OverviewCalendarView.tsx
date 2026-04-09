@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { CalendarEvent, EmployeeRow, WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import { getDayOfWeekString } from '@/utils/dateUtils';
@@ -23,7 +23,6 @@ interface OverviewCalendarViewProps {
 const MIN_ROW_HEIGHT = 32;
 // Fixed heights for header area (nav bar + thead rows)
 const NAV_HEIGHT = 36;
-const THEAD_HEIGHT = 40; // date row + remaining row
 
 function MiniCard({ event }: { event: CalendarEvent }) {
     return (
@@ -62,26 +61,6 @@ export default function OverviewCalendarView({
     goToToday: _goToToday,
 }: OverviewCalendarViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [rowHeight, setRowHeight] = useState<number>(0);
-
-    // Calculate row height to fit viewport
-    useEffect(() => {
-        const calculate = () => {
-            const container = containerRef.current;
-            if (!container) return;
-            const availableHeight = container.clientHeight - THEAD_HEIGHT;
-            const rowCount = employeeRows.length || 1;
-            const calculated = Math.floor(availableHeight / rowCount);
-            setRowHeight(Math.max(calculated, MIN_ROW_HEIGHT));
-        };
-        calculate();
-        const observer = new ResizeObserver(calculate);
-        if (containerRef.current) observer.observe(containerRef.current);
-        return () => observer.disconnect();
-    }, [employeeRows.length]);
-
-    // compact mode when rows are small
-    const compact = rowHeight < 48;
 
     return (
         <div className="h-full flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
@@ -182,7 +161,7 @@ export default function OverviewCalendarView({
                             <tr key={row.employeeId} className="border-b border-slate-200">
                                 <td
                                     className="text-[7px] font-semibold text-slate-700 border border-slate-200 px-0.5 py-0 text-center sticky left-0 z-10 bg-white whitespace-nowrap overflow-hidden"
-                                    style={{ width: '60px', height: rowHeight || undefined }}
+                                    style={{ width: '60px', minHeight: MIN_ROW_HEIGHT }}
                                 >
                                     {row.employeeName}
                                 </td>
@@ -196,9 +175,9 @@ export default function OverviewCalendarView({
                                             className={`border border-slate-200 px-px align-top overflow-hidden ${
                                                 isSat ? 'bg-blue-50/30' : isSun ? 'bg-rose-50/30' : ''
                                             }`}
-                                            style={{ height: rowHeight || undefined, padding: compact ? '0 1px' : undefined }}
+                                            style={{ minHeight: MIN_ROW_HEIGHT }}
                                         >
-                                            <div className="overflow-hidden" style={{ maxHeight: rowHeight ? rowHeight - 2 : undefined }}>
+                                            <div>
                                                 {cellEvents.map((event) => (
                                                     <MiniCard key={event.id} event={event} />
                                                 ))}
