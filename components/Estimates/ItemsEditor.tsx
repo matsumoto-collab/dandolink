@@ -160,7 +160,7 @@ function CategoryTableRow({
 }) {
     const { ChevronUp, ChevronDown: ChevronDownIcon, Trash2 } = require('lucide-react');
     return (
-        <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className="border-b border-slate-200 bg-slate-50">
+        <tr id={`estimate-item-${item.id}`} ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className="border-b border-slate-200 bg-slate-50">
             {dragListeners && (
                 <td className="px-1 py-2 sticky left-0 z-10 bg-slate-50" style={{ minWidth: 32, maxWidth: 32, width: 32 }}>
                     <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600" {...dragListeners}>

@@ -192,12 +192,19 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     // 明細操作
     const addItem = () => {
-        setItems([...items, { id: `item-${Date.now()}`, description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
+        const newId = `item-${Date.now()}`;
+        setItems([...items, { id: newId, description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '' }]);
+        // 追加された行が見えるようにスクロール
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`estimate-item-${newId}`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
     };
 
     const addCategory = () => {
+        const newId = `cat-${Date.now()}`;
         setItems([...items, {
-            id: `cat-${Date.now()}`,
+            id: newId,
             description: '',
             specification: '',
             quantity: 0,
@@ -210,6 +217,10 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             categoryType: 'detail',
             children: [],
         }]);
+        requestAnimationFrame(() => {
+            const el = document.getElementById(`estimate-item-${newId}`);
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
     };
 
     const addChildItem = (categoryId: string) => {

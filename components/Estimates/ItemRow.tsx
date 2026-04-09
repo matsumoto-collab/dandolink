@@ -506,7 +506,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
     const costSubtotal = (item.costQuantity && item.costUnitPrice) ? Math.round(item.costQuantity * item.costUnitPrice) : null;
 
     return (
-        <tr ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
+        <tr id={`estimate-item-${item.id}`} ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
             <td className="px-1 py-2 sticky left-0 z-10 bg-white" style={{ minWidth: 32, maxWidth: 32, width: 32 }}>
                 {dragListeners ? (
                     <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600" {...dragListeners}>
@@ -623,7 +623,7 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
         : `¥${item.amount.toLocaleString()}`;
 
     return (
-        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div id={`estimate-item-${item.id}`} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
             {/* 折りたたみヘッダー（常に表示） */}
             <div className="flex items-center gap-2 px-3 py-2.5">
                 <button
