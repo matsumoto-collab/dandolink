@@ -76,26 +76,40 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     };
 
     // address_components から都道府県・市区町村・その他住所を分割するヘルパー
+    // Google Maps は日本の住所コンポーネントを小→大の順 (丁目→町名→市→県) で返すため、
+    // 市区町村として結合する際は逆順 (大→小) に並べ替える必要がある。
     const parseFormattedAddress = useCallback((result: google.maps.GeocoderResult) => {
         const components = result.address_components ?? [];
         let prefecture = '';
-        const cityParts: string[] = [];
+        // 市区町村レベルごとに優先度を持たせて格納（大きい順に並べ替えるため）
+        // locality (市区町村) が最大、sublocality_level_4 (丁目) が最小
+        const cityBuckets: Array<{ priority: number; name: string }> = [];
         const locationParts: string[] = [];
 
         for (const c of components) {
             if (c.types.includes('administrative_area_level_1')) {
                 prefecture = c.long_name;
-            } else if (c.types.includes('locality') || c.types.includes('sublocality_level_1') ||
-                       c.types.includes('sublocality_level_2') || c.types.includes('sublocality_level_3') ||
-                       c.types.includes('sublocality_level_4')) {
-                cityParts.push(c.long_name);
+            } else if (c.types.includes('locality')) {
+                cityBuckets.push({ priority: 0, name: c.long_name });
+            } else if (c.types.includes('sublocality_level_1')) {
+                cityBuckets.push({ priority: 1, name: c.long_name });
+            } else if (c.types.includes('sublocality_level_2')) {
+                cityBuckets.push({ priority: 2, name: c.long_name });
+            } else if (c.types.includes('sublocality_level_3')) {
+                cityBuckets.push({ priority: 3, name: c.long_name });
+            } else if (c.types.includes('sublocality_level_4')) {
+                cityBuckets.push({ priority: 4, name: c.long_name });
             } else if (c.types.includes('premise') || c.types.includes('subpremise')) {
                 locationParts.push(c.long_name);
             }
             // country, postal_code, political などは無視
         }
 
-        const city = cityParts.join('');
+        // 大きい順 (locality → sublocality_level_4) に並べて結合
+        const city = cityBuckets
+            .sort((a, b) => a.priority - b.priority)
+            .map(b => b.name)
+            .join('');
         const location = locationParts.join(' ');
         return { prefecture, city, location };
     }, []);
