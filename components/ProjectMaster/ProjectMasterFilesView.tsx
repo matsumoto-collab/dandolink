@@ -66,22 +66,34 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
      * fetch → Blob → object URL → <a download> → click → revoke
      * (window.open は iOS PWA で無反応になることがあるため使わない)
      */
-    const handleDownload = useCallback(async (file: ProjectMasterFileData) => {
+    const handleDownload = useCallback(async (file: ProjectMasterFileData, format?: string) => {
         if (downloadingId) return;
         setDownloadingId(file.id);
         try {
             const params = new URLSearchParams();
-            params.set('quality', file.originalStoragePath ? 'original' : 'display');
+            if (format) {
+                params.set('format', format);
+            } else {
+                params.set('quality', file.originalStoragePath ? 'original' : 'display');
+            }
             const apiUrl = `/api/project-masters/${projectMasterId}/files/${file.id}?${params}`;
 
             const res = await fetch(apiUrl, { cache: 'no-store' });
             if (!res.ok) throw new Error('download failed');
             const blob = await res.blob();
 
+            // 形式変換時は拡張子を差し替え
+            let downloadName = file.fileName;
+            if (format) {
+                const base = file.fileName.replace(/\.[^.]+$/, '');
+                const ext = format === 'jpeg' ? 'jpg' : format;
+                downloadName = `${base}.${ext}`;
+            }
+
             const objectUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = objectUrl;
-            a.download = file.fileName;
+            a.download = downloadName;
             a.rel = 'noopener';
             document.body.appendChild(a);
             a.click();
@@ -270,15 +282,22 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                 />
             )}
 
-            {/* 画像ライトボックス（PWAでも保存ボタンから確実にダウンロード可能） */}
+            {/* 画像ライトボックス（PWAでも保存ボタンから確実にダウンロード可能）
+                元がPDFの画像は形式選択（PDF/JPEG/PNG/WebP）が出る */}
             {lightboxOpen && (
                 <ImageLightbox
                     images={lightboxImages}
                     initialIndex={lightboxIndex}
                     onClose={() => setLightboxOpen(false)}
-                    onDownload={(idx) => {
+                    onDownload={(idx, format) => {
                         const file = selectedImageFiles[idx];
-                        if (file) handleDownload(file);
+                        if (file) handleDownload(file, format);
+                    }}
+                    getDownloadFormats={(idx) => {
+                        const file = selectedImageFiles[idx];
+                        return file?.sourceType === 'pdf'
+                            ? ['PDF', 'JPEG', 'PNG', 'WebP']
+                            : undefined;
                     }}
                 />
             )}

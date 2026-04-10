@@ -14,12 +14,20 @@ interface ImageLightboxProps {
     initialIndex: number;
     onClose: () => void;
     /** 提供されると下部バーにダウンロードボタンを表示する */
-    onDownload?: (index: number) => void | Promise<void>;
+    onDownload?: (index: number, format?: string) => void | Promise<void>;
+    /** 該当indexで形式選択を表示したい場合に形式名の配列を返す（例: ['PDF', 'JPEG', 'PNG', 'WebP']） */
+    getDownloadFormats?: (index: number) => string[] | undefined;
 }
 
-export function ImageLightbox({ images, initialIndex, onClose, onDownload }: ImageLightboxProps) {
+export function ImageLightbox({ images, initialIndex, onClose, onDownload, getDownloadFormats }: ImageLightboxProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
+    const [formatMenuOpen, setFormatMenuOpen] = useState(false);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
+
+    // 画像切り替え時はフォーマットメニューを閉じる
+    useEffect(() => {
+        setFormatMenuOpen(false);
+    }, [currentIndex]);
 
     const goPrev = useCallback(() => {
         setCurrentIndex(i => (i - 1 + images.length) % images.length);
@@ -159,17 +167,52 @@ export function ImageLightbox({ images, initialIndex, onClose, onDownload }: Ima
 
                 {/* 右下: ダウンロード（任意）＋閉じるボタン */}
                 <div className="flex items-center gap-2">
-                    {onDownload && (
-                        <button
-                            type="button"
-                            onClick={() => onDownload(currentIndex)}
-                            className="flex items-center gap-2 px-5 py-3 min-h-[44px] bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl transition-colors"
-                            aria-label="ダウンロード"
-                        >
-                            <Download className="w-5 h-5 text-white" />
-                            <span className="text-white text-sm font-medium">保存</span>
-                        </button>
-                    )}
+                    {onDownload && (() => {
+                        const formats = getDownloadFormats?.(currentIndex);
+                        const hasFormats = formats && formats.length > 0;
+                        return (
+                            <div className="relative">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (hasFormats) {
+                                            setFormatMenuOpen(o => !o);
+                                        } else {
+                                            onDownload(currentIndex);
+                                        }
+                                    }}
+                                    className="flex items-center gap-2 px-5 py-3 min-h-[44px] bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl transition-colors"
+                                    aria-label="ダウンロード"
+                                >
+                                    <Download className="w-5 h-5 text-white" />
+                                    <span className="text-white text-sm font-medium">保存{hasFormats ? '...' : ''}</span>
+                                </button>
+                                {hasFormats && formatMenuOpen && (
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-10"
+                                            onClick={() => setFormatMenuOpen(false)}
+                                        />
+                                        <div className="absolute right-0 bottom-full mb-2 z-20 bg-white border border-slate-200 rounded-xl shadow-2xl py-1 min-w-[140px] overflow-hidden">
+                                            {formats!.map((fmt) => (
+                                                <button
+                                                    key={fmt}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormatMenuOpen(false);
+                                                        onDownload(currentIndex, fmt.toLowerCase());
+                                                    }}
+                                                    className="w-full text-left px-4 py-3 min-h-[44px] text-sm font-medium text-slate-700 hover:bg-slate-50 active:bg-slate-100 transition-colors"
+                                                >
+                                                    {fmt}で保存
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })()}
                     <button
                         type="button"
                         onClick={onClose}
