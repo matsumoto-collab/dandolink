@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { TransformWrapper, TransformComponent, ReactZoomPanPinchRef } from 'react-zoom-pan-pinch';
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Maximize, Download } from 'lucide-react';
 
 interface LightboxImage {
     src: string;
@@ -13,9 +13,11 @@ interface ImageLightboxProps {
     images: LightboxImage[];
     initialIndex: number;
     onClose: () => void;
+    /** 提供されると下部バーにダウンロードボタンを表示する */
+    onDownload?: (index: number) => void | Promise<void>;
 }
 
-export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxProps) {
+export function ImageLightbox({ images, initialIndex, onClose, onDownload }: ImageLightboxProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const transformRef = useRef<ReactZoomPanPinchRef>(null);
 
@@ -155,16 +157,29 @@ export function ImageLightbox({ images, initialIndex, onClose }: ImageLightboxPr
                     </button>
                 </div>
 
-                {/* 閉じるボタン（下部・親指で届く位置） */}
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex items-center gap-2 px-5 py-3 min-h-[44px] bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl transition-colors"
-                    aria-label="閉じる"
-                >
-                    <X className="w-5 h-5 text-white" />
-                    <span className="text-white text-sm font-medium">閉じる</span>
-                </button>
+                {/* 右下: ダウンロード（任意）＋閉じるボタン */}
+                <div className="flex items-center gap-2">
+                    {onDownload && (
+                        <button
+                            type="button"
+                            onClick={() => onDownload(currentIndex)}
+                            className="flex items-center gap-2 px-5 py-3 min-h-[44px] bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl transition-colors"
+                            aria-label="ダウンロード"
+                        >
+                            <Download className="w-5 h-5 text-white" />
+                            <span className="text-white text-sm font-medium">保存</span>
+                        </button>
+                    )}
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex items-center gap-2 px-5 py-3 min-h-[44px] bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-xl transition-colors"
+                        aria-label="閉じる"
+                    >
+                        <X className="w-5 h-5 text-white" />
+                        <span className="text-white text-sm font-medium">閉じる</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

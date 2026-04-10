@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Folder, X } from 'lucide-react';
+import { FileText, Folder, X, Download, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
@@ -32,6 +33,8 @@ interface ProjectMasterFileData {
     createdAt: string;
     signedUrl: string | null;
     thumbnailSignedUrl: string | null;
+    originalStoragePath: string | null;
+    sourceType: string | null;
 }
 
 interface ProjectMasterFilesViewProps {
@@ -56,6 +59,41 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     const [lightboxIndex, setLightboxIndex] = useState(0);
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [pdfView, setPdfView] = useState<{ url: string; name: string } | null>(null);
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+    /**
+     * PWAスタンドアロンモードでも確実に動くダウンロード処理:
+     * fetch → Blob → object URL → <a download> → click → revoke
+     * (window.open は iOS PWA で無反応になることがあるため使わない)
+     */
+    const handleDownload = useCallback(async (file: ProjectMasterFileData) => {
+        if (downloadingId) return;
+        setDownloadingId(file.id);
+        try {
+            const params = new URLSearchParams();
+            params.set('quality', file.originalStoragePath ? 'original' : 'display');
+            const apiUrl = `/api/project-masters/${projectMasterId}/files/${file.id}?${params}`;
+
+            const res = await fetch(apiUrl, { cache: 'no-store' });
+            if (!res.ok) throw new Error('download failed');
+            const blob = await res.blob();
+
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = file.fileName;
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            // Safari/iOSのために少し遅延してrevoke
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch {
+            toast.error('ダウンロードに失敗しました');
+        } finally {
+            setDownloadingId(null);
+        }
+    }, [downloadingId, projectMasterId]);
 
     const fetchFiles = useCallback(async () => {
         try {
@@ -85,9 +123,8 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     }
 
     const selectedFiles = selectedCategory ? files.filter(f => f.category === selectedCategory) : [];
-    const selectedImages = selectedFiles
-        .filter(f => f.fileType === 'image' && f.signedUrl)
-        .map(f => ({ src: f.signedUrl!, alt: f.fileName, thumbnail: f.thumbnailSignedUrl || f.signedUrl! }));
+    const selectedImageFiles = selectedFiles.filter(f => f.fileType === 'image' && f.signedUrl);
+    const selectedImages = selectedImageFiles.map(f => ({ src: f.signedUrl!, alt: f.fileName, thumbnail: f.thumbnailSignedUrl || f.signedUrl! }));
     const selectedPdfs = selectedFiles.filter(f => f.fileType === 'pdf');
     const selectedLabel = CATEGORIES.find(c => c.key === selectedCategory)?.label ?? '';
 
@@ -155,7 +192,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
 
                         {/* コンテンツ */}
                         <div className="overflow-y-auto p-4 space-y-4">
-                            {/* 画像グリッド: 3列・正方形 */}
+                            {/* 画像グリッド: 3列・正方形（タップで拡大→ライトボックス内で保存） */}
                             {selectedImages.length > 0 && (
                                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                                     {selectedImages.map((img, idx) => (
@@ -185,20 +222,37 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                             {selectedPdfs.length > 0 && (
                                 <div className="space-y-2">
                                     {selectedPdfs.map(file => (
-                                        <button
+                                        <div
                                             key={file.id}
-                                            type="button"
-                                            onClick={() => file.signedUrl && setPdfView({ url: file.signedUrl, name: file.fileName })}
-                                            className="w-full flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:bg-slate-100 active:bg-slate-200 transition-colors text-left min-h-[56px]"
+                                            className="w-full flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 min-h-[56px]"
                                         >
-                                            <div className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 shrink-0">
-                                                <FileText className="w-5 h-5 text-slate-400" />
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-slate-600 truncate">{file.fileName}</p>
-                                                <p className="text-xs text-slate-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
-                                            </div>
-                                        </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => file.signedUrl && setPdfView({ url: file.signedUrl, name: file.fileName })}
+                                                className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                                            >
+                                                <div className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 shrink-0">
+                                                    <FileText className="w-5 h-5 text-slate-400" />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-slate-600 truncate">{file.fileName}</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
+                                                </div>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDownload(file)}
+                                                disabled={downloadingId === file.id}
+                                                className="shrink-0 p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50"
+                                                title="ダウンロード"
+                                            >
+                                                {downloadingId === file.id ? (
+                                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                                ) : (
+                                                    <Download className="w-5 h-5" />
+                                                )}
+                                            </button>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -216,12 +270,16 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                 />
             )}
 
-            {/* 画像ライトボックス */}
+            {/* 画像ライトボックス（PWAでも保存ボタンから確実にダウンロード可能） */}
             {lightboxOpen && (
                 <ImageLightbox
                     images={lightboxImages}
                     initialIndex={lightboxIndex}
                     onClose={() => setLightboxOpen(false)}
+                    onDownload={(idx) => {
+                        const file = selectedImageFiles[idx];
+                        if (file) handleDownload(file);
+                    }}
                 />
             )}
         </div>
