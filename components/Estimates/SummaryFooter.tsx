@@ -40,13 +40,6 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustSubtotal, 
         return 'text-emerald-600';
     };
 
-    const getProfitRateBarColor = (rate: number) => {
-        if (rate < 0) return 'bg-red-500';
-        if (rate < 15) return 'bg-yellow-500';
-        if (rate < 30) return 'bg-slate-400';
-        return 'bg-emerald-500';
-    };
-
     const { targetAmount, discount } = useMemo(() => {
         if (mode === 'target') {
             const target = parseInt(targetInput.replace(/,/g, ''), 10);
@@ -76,46 +69,47 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustSubtotal, 
         setRateInput('');
     };
 
+    const labelClass = "text-[10px] text-slate-500 leading-tight";
+    const valueClass = "text-sm font-semibold text-slate-800 leading-tight";
+    const cellClass = "flex flex-col items-start px-3 first:pl-0";
+
     return (
-        <div className="bg-white px-4 py-1">
-            <div className="grid grid-cols-3 gap-0 divide-x divide-slate-200">
+        <div className="bg-white px-4 py-1.5">
+            <div className={`grid ${onCostTotalChange ? 'grid-cols-6' : 'grid-cols-3'} gap-0 divide-x divide-slate-200 items-center`}>
                 {/* 小計 */}
-                <div className="flex flex-col items-start px-4 first:pl-0">
-                    <span className="text-xs text-slate-500 mb-0.5">小計</span>
-                    <div className="flex items-center gap-2">
-                        <span className="text-base font-semibold text-slate-800">¥{subtotal.toLocaleString()}</span>
+                <div className={cellClass}>
+                    <span className={labelClass}>小計</span>
+                    <div className="flex items-center gap-1.5">
+                        <span className={valueClass}>¥{subtotal.toLocaleString()}</span>
                         {onAdjustSubtotal && (
                             <button
                                 type="button"
                                 onClick={() => setIsOpen(!isOpen)}
-                                className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 rounded-xl px-2 py-0.5 transition-all duration-150"
+                                className="text-[10px] text-slate-500 hover:text-slate-700 border border-slate-200 rounded-md px-1.5 py-0 leading-snug transition-all duration-150"
                             >
-                                金額調整
+                                調整
                             </button>
                         )}
                     </div>
                 </div>
                 {/* 消費税 */}
-                <div className="flex flex-col items-start px-4">
-                    <span className="text-xs text-slate-500 mb-0.5">消費税</span>
-                    <span className="text-base font-semibold text-slate-800">¥{tax.toLocaleString()}</span>
+                <div className={cellClass}>
+                    <span className={labelClass}>消費税</span>
+                    <span className={valueClass}>¥{tax.toLocaleString()}</span>
                 </div>
                 {/* 合計 */}
-                <div className="flex flex-col items-start px-4">
-                    <span className="text-xs text-slate-500 mb-0.5">合計</span>
-                    <span className="text-base font-bold text-slate-700">¥{total.toLocaleString()}</span>
+                <div className={cellClass}>
+                    <span className={labelClass}>合計</span>
+                    <span className="text-sm font-bold text-slate-900 leading-tight">¥{total.toLocaleString()}</span>
                 </div>
-            </div>
-
-            {/* 原価セクション */}
-            {onCostTotalChange && (
-                <div className="border-t border-dashed border-slate-200 mt-3 pt-3">
-                    <div className="grid grid-cols-3 gap-0 divide-x divide-slate-200">
+                {/* 原価セクション */}
+                {onCostTotalChange && (
+                    <>
                         {/* 原価総額 */}
-                        <div className="flex flex-col items-start px-4 first:pl-0">
-                            <span className="text-xs text-slate-500 mb-0.5">原価総額</span>
-                            <div className="flex items-center gap-1">
-                                <span className="text-sm text-slate-500">¥</span>
+                        <div className={cellClass}>
+                            <span className={labelClass}>原価総額</span>
+                            <div className="flex items-center gap-0.5 w-full">
+                                <span className="text-xs text-slate-500">¥</span>
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -129,35 +123,27 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustSubtotal, 
                                     }}
                                     disabled={costTotalLocked}
                                     placeholder="0"
-                                    className={`w-full text-base py-1 px-2 border border-slate-200 rounded-xl shadow-sm outline-none ${costTotalLocked ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'focus:ring-2 focus:ring-slate-500'}`}
+                                    className={`w-full text-sm py-0.5 px-1.5 border border-slate-200 rounded-md shadow-sm outline-none ${costTotalLocked ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'focus:ring-2 focus:ring-slate-500'}`}
                                 />
                             </div>
                         </div>
                         {/* 粗利 */}
-                        <div className="flex flex-col items-start px-4">
-                            <span className="text-xs text-slate-500 mb-0.5">粗利</span>
-                            <span className={`text-base font-semibold ${hasCost ? getProfitRateColor(grossProfitRate) : 'text-slate-400'}`}>
+                        <div className={cellClass}>
+                            <span className={labelClass}>粗利</span>
+                            <span className={`text-sm font-semibold leading-tight ${hasCost ? getProfitRateColor(grossProfitRate) : 'text-slate-400'}`}>
                                 {hasCost ? `¥${grossProfit.toLocaleString()}` : '−'}
                             </span>
                         </div>
                         {/* 粗利率 */}
-                        <div className="flex flex-col items-start px-4">
-                            <span className="text-xs text-slate-500 mb-0.5">粗利率</span>
-                            <span className={`text-base font-semibold ${hasCost ? getProfitRateColor(grossProfitRate) : 'text-slate-400'}`}>
+                        <div className={cellClass}>
+                            <span className={labelClass}>粗利率</span>
+                            <span className={`text-sm font-semibold leading-tight ${hasCost ? getProfitRateColor(grossProfitRate) : 'text-slate-400'}`}>
                                 {hasCost ? `${grossProfitRate.toFixed(1)}%` : '−'}
                             </span>
-                            {hasCost && (
-                                <div className="w-full h-1.5 bg-slate-100 rounded-full mt-1">
-                                    <div
-                                        className={`h-full rounded-full transition-all ${getProfitRateBarColor(grossProfitRate)}`}
-                                        style={{ width: `${Math.max(0, Math.min(100, grossProfitRate))}%` }}
-                                    />
-                                </div>
-                            )}
                         </div>
-                    </div>
-                </div>
-            )}
+                    </>
+                )}
+            </div>
 
             {/* 金額調整パネル */}
             <div
