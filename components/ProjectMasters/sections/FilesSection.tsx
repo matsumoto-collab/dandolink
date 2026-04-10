@@ -330,7 +330,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     ref={fileInputRef}
                     type="file"
                     multiple
-                    accept="image/*,application/pdf"
+                    accept="image/*,application/pdf,.jww"
                     className="hidden"
                     onChange={(e) => handleUpload(e.target.files)}
                     disabled={uploading}
@@ -350,7 +350,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                         </span>
                     </div>
                 )}
-                <p className="text-xs text-slate-400 mt-1">画像（JPG・PNG等）・PDF対応 / 最大20MB</p>
+                <p className="text-xs text-slate-400 mt-1">画像（JPG・PNG等）・PDF・JWW対応 / 最大20MB</p>
             </div>
 
             {/* ファイル一覧 */}
@@ -385,13 +385,13 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     </div>
                                 </button>
                             ) : (
-                                <button
-                                    type="button"
-                                    onClick={() => file.signedUrl && setPdfPreview({ url: file.signedUrl, fileName: file.fileName })}
-                                    className="shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded border border-slate-200 hover:bg-slate-100 transition-colors"
+                                <div
+                                    role={file.fileType === 'pdf' ? 'button' : undefined}
+                                    onClick={() => file.fileType === 'pdf' && file.signedUrl && setPdfPreview({ url: file.signedUrl, fileName: file.fileName })}
+                                    className={`shrink-0 w-12 h-12 flex items-center justify-center bg-slate-50 rounded border border-slate-200 ${file.fileType === 'pdf' ? 'hover:bg-slate-100 cursor-pointer' : ''} transition-colors`}
                                 >
                                     <FileText className="w-6 h-6 text-slate-400" />
-                                </button>
+                                </div>
                             )}
 
                             {/* ファイル情報 */}

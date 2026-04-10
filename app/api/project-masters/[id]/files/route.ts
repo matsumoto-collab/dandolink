@@ -20,6 +20,7 @@ const ALLOWED_MIME_TYPES = [
     'image/heic',
     'image/heif',
     'application/pdf',
+    'application/octet-stream', // JWW等のバイナリファイル
 ];
 
 export async function GET(_req: NextRequest, context: RouteContext) {
@@ -147,15 +148,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
         }
 
         if (!file) return errorResponse('ファイルが選択されていません', 400);
-        if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-            return errorResponse('対応していないファイル形式です（画像またはPDFのみ）', 400);
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+        const ALLOWED_EXTENSIONS = ['jww'];
+        const isAllowedByExt = ALLOWED_EXTENSIONS.includes(fileExt);
+        if (!ALLOWED_MIME_TYPES.includes(file.type) && !isAllowedByExt) {
+            return errorResponse('対応していないファイル形式です（画像・PDF・JWW）', 400);
         }
         if (file.size > MAX_FILE_SIZE) {
             return errorResponse('ファイルサイズが20MBを超えています', 400);
         }
 
         const fileId = randomUUID();
-        const fileType = file.type.startsWith('image/') ? 'image' : 'pdf';
+        const fileType = file.type.startsWith('image/') ? 'image' : (fileExt === 'jww' ? 'jww' : 'pdf');
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
@@ -236,8 +240,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
             }
         } else {
             uploadBuffer = buffer;
-            uploadContentType = file.type;
-            const ALLOWED_EXTENSIONS = ['pdf'];
+            uploadContentType = file.type || 'application/octet-stream';
+            const ALLOWED_EXTENSIONS = ['pdf', 'jww'];
             const ext = file.name.split('.').pop()?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
             if (!ALLOWED_EXTENSIONS.includes(ext)) {
                 return errorResponse('対応していないファイル拡張子です', 400);
