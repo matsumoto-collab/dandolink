@@ -347,6 +347,7 @@ function CategoryCard({
                             item={child}
                             index={ci}
                             totalItems={children.length}
+                            isChild
                             onUpdate={(id, field, value) => onUpdateChildItem(item.id, id, field, value)}
                             onRemove={(id) => onRemoveChildItem(item.id, id)}
                             onMoveUp={(idx) => onMoveChildItem(item.id, idx, 'up')}

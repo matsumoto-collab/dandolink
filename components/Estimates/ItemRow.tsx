@@ -505,16 +505,17 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 
     const costSubtotal = (item.costQuantity && item.costUnitPrice) ? Math.round(item.costQuantity * item.costUnitPrice) : null;
 
+    const rowBg = isChild ? 'bg-sky-50/60' : 'bg-white';
     return (
-        <tr id={`estimate-item-${item.id}`} ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${isChild ? 'bg-white' : 'bg-white'}`}>
-            <td className="px-1 py-2 sticky left-0 z-10 bg-white" style={{ minWidth: 32, maxWidth: 32, width: 32 }}>
+        <tr id={`estimate-item-${item.id}`} ref={sortableRef} style={sortableStyle} {...(sortableAttributes || {})} className={`border-b border-slate-200 last:border-b-0 ${rowBg}`}>
+            <td className={`px-1 py-2 sticky left-0 z-10 ${rowBg}`} style={{ minWidth: 32, maxWidth: 32, width: 32 }}>
                 {dragListeners ? (
                     <button type="button" className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600" {...dragListeners}>
                         <GripVertical className="w-4 h-4" />
                     </button>
                 ) : null}
             </td>
-            <td className="px-3 py-2 sticky z-10 bg-white" style={{ left: 32, minWidth: 80, maxWidth: 80, width: 80 }}>
+            <td className={`px-3 py-2 sticky z-10 ${rowBg}`} style={{ left: 32, minWidth: 80, maxWidth: 80, width: 80 }}>
                 <div className="flex items-center justify-center gap-1">
                     <button type="button" onClick={() => onMoveUp(index)} disabled={index === 0} className="p-1 text-slate-600 hover:bg-slate-100 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="上に移動" aria-label="上に移動">
                         <ChevronUp className="w-4 h-4" />
@@ -527,10 +528,19 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
                     </button>
                 </div>
             </td>
-            <td className="px-3 py-2 sticky z-10 bg-white border-r border-slate-300" style={{ left: 112, minWidth: 320, width: 320 }}>
-                <div className={isChild ? 'pl-6' : ''}>
+            <td className={`px-3 py-2 sticky z-10 border-r border-slate-300 ${rowBg}`} style={{ left: 112, minWidth: 320, width: 320 }}>
+                {isChild ? (
+                    <div className="flex items-stretch gap-1.5">
+                        <div className="flex items-center pl-2 pr-1 border-l-2 border-sky-400">
+                            <span className="text-sky-500 text-xs font-bold select-none">└</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={cellInputClass} />
+                        </div>
+                    </div>
+                ) : (
                     <DescriptionInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} onSelectMaster={onSelectMaster} className={cellInputClass} />
-                </div>
+                )}
             </td>
             <td className="px-3 py-2">
                 <SpecificationInput item={item} onUpdate={onUpdate} unitPriceMasters={unitPriceMasters} specifications={unitPriceSpecifications} className={cellInputClass} />
@@ -613,7 +623,7 @@ export function ItemTableRow({ item, index, totalItems, onUpdate, onRemove, onMo
 }
 
 /** モバイル用カード */
-export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, unitPriceMasters, unitPriceSpecifications, onSelectMaster }: ItemRowProps) {
+export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp, onMoveDown, isChild, unitPriceMasters, unitPriceSpecifications, onSelectMaster }: ItemRowProps) {
     const [isExpanded, setIsExpanded] = useState(!item.description);
     const mobileInputClass = "w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base";
     const mobileLabelClass = "block text-xs font-medium text-slate-500 mb-1";
@@ -623,7 +633,10 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
         : `¥${item.amount.toLocaleString()}`;
 
     return (
-        <div id={`estimate-item-${item.id}`} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <div
+            id={`estimate-item-${item.id}`}
+            className={`border rounded-xl shadow-sm overflow-hidden ${isChild ? 'bg-sky-50/60 border-sky-200 border-l-4 border-l-sky-400 ml-4' : 'bg-white border-slate-200'}`}
+        >
             {/* 折りたたみヘッダー（常に表示） */}
             <div className="flex items-center gap-2 px-3 py-2.5">
                 <button
@@ -631,7 +644,8 @@ export function ItemCard({ item, index, totalItems, onUpdate, onRemove, onMoveUp
                     className="flex-1 flex items-center gap-2 min-w-0 text-left"
                     onClick={() => setIsExpanded(!isExpanded)}
                 >
-                    <span className="text-xs font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded shrink-0">#{index + 1}</span>
+                    {isChild && <span className="text-sky-500 text-sm font-bold select-none shrink-0">└</span>}
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded shrink-0 ${isChild ? 'text-sky-700 bg-sky-100' : 'text-slate-500 bg-slate-100'}`}>{isChild ? `子${index + 1}` : `#${index + 1}`}</span>
                     {!isExpanded && (
                         <span className="text-sm text-slate-700 truncate">
                             {item.description || <span className="text-slate-400">未入力</span>}
