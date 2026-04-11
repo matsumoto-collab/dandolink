@@ -407,18 +407,20 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
             const sign = pendingDelta > 0 ? '+' : '';
             const message = `${dateLabel} の残り人数を ${sign}${pendingDelta}人 変更しますか？`;
 
-            const id = toast(
+            const id = toast.custom(
                 (t) => (
-                    <div className="flex items-center gap-3">
-                        <span className="text-sm text-slate-800">{message}</span>
-                        <div className="flex items-center gap-1">
+                    <div
+                        className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg bg-slate-800 text-white ${t.visible ? 'animate-enter' : 'animate-leave'}`}
+                    >
+                        <span className="text-sm whitespace-nowrap">{message}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             <button
                                 onClick={() => {
                                     toast.dismiss(t.id);
                                     delete pendingToastIdsRef.current[dateKey];
                                     commitPending(dateKey, pendingDelta);
                                 }}
-                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-800"
+                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-white text-slate-800 hover:bg-slate-100 whitespace-nowrap"
                             >
                                 はい
                             </button>
@@ -428,7 +430,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                                     delete pendingToastIdsRef.current[dateKey];
                                     clearPending(dateKey);
                                 }}
-                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-600 text-white hover:bg-slate-500 whitespace-nowrap"
                             >
                                 いいえ
                             </button>
