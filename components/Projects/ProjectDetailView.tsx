@@ -30,6 +30,7 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
         location?: string;
         plusCode?: string;
     } | null>(null);
+    const [projectMasterRemarks, setProjectMasterRemarks] = useState<string>('');
     const { constructionTypes, vehicles } = useMasterData();
     const [workerMap, setWorkerMap] = useState<Record<string, string>>({});
     const [isLoadingWorkers, setIsLoadingWorkers] = useState(false);
@@ -113,6 +114,7 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
                         location: data.location,
                         plusCode: data.plusCode,
                     });
+                    setProjectMasterRemarks(data.remarks || '');
                 }
             })
             .catch(() => {});
@@ -340,6 +342,18 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
                             足場仕様
                         </label>
                         <ScaffoldingSpecDisplay projectMasterId={project.projectMasterId} />
+                    </div>
+                )}
+
+                {/* 案件備考（案件登録時の備考） */}
+                {projectMasterRemarks && (
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                            案件備考
+                        </label>
+                        <div className="bg-slate-50 rounded-md p-3 border border-slate-200">
+                            <p className="text-sm text-slate-700 whitespace-pre-wrap">{projectMasterRemarks}</p>
+                        </div>
                     </div>
                 )}
 

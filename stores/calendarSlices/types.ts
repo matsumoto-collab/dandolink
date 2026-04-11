@@ -86,7 +86,9 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         isDispatchConfirmed: assignment.isDispatchConfirmed,
         createdBy: assignment.projectMaster?.createdBy,
         createdAt: assignment.createdAt,
-        updatedAt: assignment.updatedAt,
+        // 最終更新日は「案件の編集」のみ反映する。スケジュール移動（assignment更新）では変化させない。
+        updatedAt: pm?.updatedAt ?? assignment.updatedAt,
+        updatedBy: pm?.updatedBy ?? assignment.updatedBy,
     };
 }
 

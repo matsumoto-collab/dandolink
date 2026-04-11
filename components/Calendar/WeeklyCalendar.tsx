@@ -23,6 +23,7 @@ import DesktopCalendarView from './DesktopCalendarView';
 import MobileCalendarView from './MobileCalendarView';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
@@ -358,13 +359,115 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     // 日別メンバー調整
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
     const setMemberAdjustment = useCalendarStore((state) => state.setMemberAdjustment);
+    // 連打対応: pendingは即時UI反映、一定時間後にまとめて確認ダイアログ
+    const [pendingAdjustments, setPendingAdjustments] = useState<Record<string, number>>({});
+    const pendingTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const pendingToastIdsRef = useRef<Record<string, string>>({});
     const getMemberAdjustmentCb = useCallback((dateKey: string) => {
-        return memberAdjustments[dateKey] || 0;
-    }, [memberAdjustments]);
+        return (memberAdjustments[dateKey] || 0) + (pendingAdjustments[dateKey] || 0);
+    }, [memberAdjustments, pendingAdjustments]);
+
+    const clearPending = useCallback((dateKey: string) => {
+        setPendingAdjustments(prev => {
+            if (!(dateKey in prev)) return prev;
+            const rest = { ...prev };
+            delete rest[dateKey];
+            return rest;
+        });
+    }, []);
+
+    const commitPending = useCallback((dateKey: string, delta: number) => {
+        const current = useCalendarStore.getState().memberAdjustments[dateKey] || 0;
+        setMemberAdjustment(dateKey, current + delta);
+        clearPending(dateKey);
+    }, [setMemberAdjustment, clearPending]);
+
+    const promptConfirmAdjustment = useCallback((dateKey: string) => {
+        // 最新のpending値を取得するためsetterパターンで読む
+        setPendingAdjustments(prev => {
+            const pendingDelta = prev[dateKey] || 0;
+            if (pendingDelta === 0) {
+                if (pendingToastIdsRef.current[dateKey]) {
+                    toast.dismiss(pendingToastIdsRef.current[dateKey]);
+                    delete pendingToastIdsRef.current[dateKey];
+                }
+                const rest = { ...prev };
+                delete rest[dateKey];
+                return rest;
+            }
+
+            // 既存のトーストがあれば閉じて新しく出し直す
+            if (pendingToastIdsRef.current[dateKey]) {
+                toast.dismiss(pendingToastIdsRef.current[dateKey]);
+            }
+
+            // 日付表示
+            const [, m, d] = dateKey.split('-');
+            const dateLabel = `${Number(m)}/${Number(d)}`;
+            const sign = pendingDelta > 0 ? '+' : '';
+            const message = `${dateLabel} の残り人数を ${sign}${pendingDelta}人 変更しますか？`;
+
+            const id = toast(
+                (t) => (
+                    <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-800">{message}</span>
+                        <div className="flex items-center gap-1">
+                            <button
+                                onClick={() => {
+                                    toast.dismiss(t.id);
+                                    delete pendingToastIdsRef.current[dateKey];
+                                    commitPending(dateKey, pendingDelta);
+                                }}
+                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-700 text-white hover:bg-slate-800"
+                            >
+                                はい
+                            </button>
+                            <button
+                                onClick={() => {
+                                    toast.dismiss(t.id);
+                                    delete pendingToastIdsRef.current[dateKey];
+                                    clearPending(dateKey);
+                                }}
+                                className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            >
+                                いいえ
+                            </button>
+                        </div>
+                    </div>
+                ),
+                { duration: 8000 }
+            );
+            pendingToastIdsRef.current[dateKey] = id;
+            return prev;
+        });
+    }, [commitPending, clearPending]);
+
     const handleMemberAdjustmentChange = useCallback((dateKey: string, delta: number) => {
-        const current = memberAdjustments[dateKey] || 0;
-        setMemberAdjustment(dateKey, current + delta); // fire-and-forget
-    }, [memberAdjustments, setMemberAdjustment]);
+        // pendingに即時反映（UIがすぐ更新される）
+        setPendingAdjustments(prev => ({
+            ...prev,
+            [dateKey]: (prev[dateKey] || 0) + delta,
+        }));
+
+        // 連打対応: 既存タイマーをリセットして1.2秒後にまとめて確認
+        if (pendingTimersRef.current[dateKey]) {
+            clearTimeout(pendingTimersRef.current[dateKey]);
+        }
+        pendingTimersRef.current[dateKey] = setTimeout(() => {
+            delete pendingTimersRef.current[dateKey];
+            promptConfirmAdjustment(dateKey);
+        }, 1200);
+    }, [promptConfirmAdjustment]);
+
+    // アンマウント時にタイマーを掃除
+    useEffect(() => {
+        return () => {
+            Object.values(pendingTimersRef.current).forEach(clearTimeout);
+            pendingTimersRef.current = {};
+            Object.values(pendingToastIdsRef.current).forEach(id => toast.dismiss(id));
+            pendingToastIdsRef.current = {};
+        };
+    }, []);
 
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
     if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
