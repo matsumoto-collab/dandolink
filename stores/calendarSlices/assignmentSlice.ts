@@ -66,11 +66,20 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
 
         if (project.projectMasterId) {
             projectMasterId = project.projectMasterId;
-            if (project.constructionType || project.createdBy || project.constructionContent) {
-                const updateData: Record<string, unknown> = {};
-                if (project.constructionType) updateData.constructionType = project.constructionType;
-                if (project.createdBy) updateData.createdBy = project.createdBy;
-                if (project.constructionContent) updateData.constructionContent = project.constructionContent;
+            // 既存PMに新規アサインを追加する場合、PM値が実際に変わっているときだけPATCH
+            // （でないとPMの updatedAt が配置追加のたびに触られてしまう）
+            const currentPm = get().projectMasters.find(pm => pm.id === project.projectMasterId);
+            const updateData: Record<string, unknown> = {};
+            if (project.constructionType && currentPm?.constructionType !== project.constructionType) {
+                updateData.constructionType = project.constructionType;
+            }
+            if (project.createdBy && JSON.stringify(currentPm?.createdBy ?? null) !== JSON.stringify(project.createdBy)) {
+                updateData.createdBy = project.createdBy;
+            }
+            if (project.constructionContent && currentPm?.constructionContent !== project.constructionContent) {
+                updateData.constructionContent = project.constructionContent;
+            }
+            if (Object.keys(updateData).length > 0) {
                 const patchRes = await fetch(`/api/project-masters/${project.projectMasterId}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -86,13 +95,17 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
 
             if (existing) {
                 projectMasterId = existing.id;
-                if ((project.constructionType && existing.constructionType !== project.constructionType) || project.createdBy || project.constructionContent) {
-                    const updateData: Record<string, unknown> = {};
-                    if (project.constructionType && existing.constructionType !== project.constructionType) {
-                        updateData.constructionType = project.constructionType;
-                    }
-                    if (project.createdBy) updateData.createdBy = project.createdBy;
-                    if (project.constructionContent) updateData.constructionContent = project.constructionContent;
+                const updateData: Record<string, unknown> = {};
+                if (project.constructionType && existing.constructionType !== project.constructionType) {
+                    updateData.constructionType = project.constructionType;
+                }
+                if (project.createdBy && JSON.stringify(existing.createdBy ?? null) !== JSON.stringify(project.createdBy)) {
+                    updateData.createdBy = project.createdBy;
+                }
+                if (project.constructionContent && existing.constructionContent !== project.constructionContent) {
+                    updateData.constructionContent = project.constructionContent;
+                }
+                if (Object.keys(updateData).length > 0) {
                     const patchExistingRes = await fetch(`/api/project-masters/${existing.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
@@ -242,21 +255,37 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
         }));
 
         try {
-            // ProjectMasterの更新が必要な場合
-            if (assignment?.projectMasterId && (updates.title || updates.name !== undefined || updates.createdBy || updates.constructionContent)) {
+            // ProjectMasterの更新が必要な場合（現在値と差分があるフィールドだけPATCH）
+            // でないとPMの updatedAt が配置移動・編集のたびに触られてしまう
+            if (assignment?.projectMasterId) {
+                const currentPm = assignment.projectMaster ?? get().projectMasters.find(pm => pm.id === assignment.projectMasterId);
                 const projectMasterUpdates: Record<string, unknown> = {};
-                if (updates.title) projectMasterUpdates.title = updates.title;
-                if (updates.name !== undefined) projectMasterUpdates.name = updates.name || null;
-                if (updates.honorific !== undefined) projectMasterUpdates.honorific = updates.honorific || null;
-                if (updates.constructionSuffixId !== undefined) projectMasterUpdates.constructionSuffixId = updates.constructionSuffixId || null;
-                if (updates.createdBy) projectMasterUpdates.createdBy = updates.createdBy;
-                if (updates.constructionContent) projectMasterUpdates.constructionContent = updates.constructionContent;
+                if (updates.title && updates.title !== currentPm?.title) {
+                    projectMasterUpdates.title = updates.title;
+                }
+                if (updates.name !== undefined && (updates.name || null) !== (currentPm?.name ?? null)) {
+                    projectMasterUpdates.name = updates.name || null;
+                }
+                if (updates.honorific !== undefined && (updates.honorific || null) !== (currentPm?.honorific ?? null)) {
+                    projectMasterUpdates.honorific = updates.honorific || null;
+                }
+                if (updates.constructionSuffixId !== undefined && (updates.constructionSuffixId || null) !== (currentPm?.constructionSuffixId ?? null)) {
+                    projectMasterUpdates.constructionSuffixId = updates.constructionSuffixId || null;
+                }
+                if (updates.createdBy && JSON.stringify(currentPm?.createdBy ?? null) !== JSON.stringify(updates.createdBy)) {
+                    projectMasterUpdates.createdBy = updates.createdBy;
+                }
+                if (updates.constructionContent && updates.constructionContent !== currentPm?.constructionContent) {
+                    projectMasterUpdates.constructionContent = updates.constructionContent;
+                }
 
-                await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(projectMasterUpdates),
-                });
+                if (Object.keys(projectMasterUpdates).length > 0) {
+                    await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(projectMasterUpdates),
+                    });
+                }
             }
 
             // 職長または日付が変わった場合、手配確定を自動解除

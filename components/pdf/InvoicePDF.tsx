@@ -42,7 +42,8 @@ function CoverPage({
 
     // 明細データ準備
     const allItems = invoice.items.filter(item => item.description);
-    const hasMultipleProjects = projectMasters && projectMasters.length > 1;
+    // 案件が1件でも現場名ヘッダーを表示する（件名には請求日が入るため、何の案件か判別できるようにする）
+    const hasMultipleProjects = projectMasters && projectMasters.length >= 1;
 
     type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0]; index: number };
     const displayRows: DisplayRow[] = [];
@@ -141,7 +142,7 @@ function CoverPage({
                     {/* 件名テーブル */}
                     <View style={{ width: 260, marginLeft: -40, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
                 {[
-                    { label: '件名', value: project.title || invoice.title },
+                    { label: '件名', value: invoice.title || project.title },
                     { label: '現場住所', value: project.location || '' },
                     { label: '有効期限', value: paymentTermText },
                     { label: '工期', value: '' },
@@ -313,7 +314,8 @@ function DetailsPage({
 }) {
     const maxRows = 25;
     const allItems = invoice.items.filter(item => item.description);
-    const hasMultipleProjects = projectMasters && projectMasters.length > 1;
+    // 案件が1件でも現場名ヘッダーを表示する（件名には請求日が入るため、何の案件か判別できるようにする）
+    const hasMultipleProjects = projectMasters && projectMasters.length >= 1;
 
     type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0]; index: number };
     const displayRows: DisplayRow[] = [];
@@ -501,7 +503,7 @@ export function InvoicePDF({
         <Document
             title={`請求書 ${invoice.invoiceNumber}`}
             author={companyInfo.name}
-            subject={`${project.title}の請求書`}
+            subject={`${invoice.title || project.title}の請求書`}
             keywords="請求書, invoice"
             creator="DandoLink"
         >
