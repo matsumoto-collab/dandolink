@@ -117,7 +117,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
         return formatDateKey(projectDate) === dateStr &&
             p.assignedEmployeeId === effectiveForemanId;
-    });
+    }).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
     // 時間文字列をパース ("HH:MM" → hour, minute)
     const parseTimeString = (timeStr: string | null | undefined, defaultHour: number, defaultMinute: number) => {

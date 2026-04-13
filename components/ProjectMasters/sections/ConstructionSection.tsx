@@ -141,7 +141,7 @@ function ForemanSelector({
     };
 
     const updateCount = (id: string, count: number) => {
-        onChange(selected.map(s => s.foremanId === id ? { ...s, memberCount: Math.max(1, count) } : s));
+        onChange(selected.map(s => s.foremanId === id ? { ...s, memberCount: Math.max(0, count) } : s));
     };
 
     return (
@@ -186,7 +186,7 @@ function ForemanSelector({
                                     <button
                                         type="button"
                                         onClick={() => updateCount(f.id, sel.memberCount - 1)}
-                                        disabled={sel.memberCount <= 1}
+                                        disabled={sel.memberCount <= 0}
                                         className="w-8 h-8 flex items-center justify-center border border-slate-300 rounded text-slate-600 disabled:opacity-30 active:bg-slate-100"
                                     >
                                         −
