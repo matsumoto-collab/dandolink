@@ -74,7 +74,7 @@ function CoverPage({
         });
     }
 
-    const maxRows = 26;
+    const maxRows = 18;
 
     // 支払期限の表示
     const paymentTermText = (() => {
@@ -126,7 +126,7 @@ function CoverPage({
                         return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 55 }}>{customerFullName}</Text>;
                     })()}
 
-                    <Text style={{ fontSize: 9, marginBottom: 10 }}>下記の通りご請求申し上げます。</Text>
+                    <Text style={{ fontSize: 9, marginBottom: 10, marginLeft: -40 }}>下記の通りご請求申し上げます。</Text>
 
                     {/* 合計金額セクション */}
                     <View style={{ width: 260, marginBottom: 8, marginLeft: -40, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
