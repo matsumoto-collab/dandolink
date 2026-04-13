@@ -134,7 +134,17 @@ export default function EstimateDetailModal({
     };
 
     const handlePrint = () => {
-        window.print();
+        if (!pdfUrl) return;
+        const w = window.open(pdfUrl, '_blank');
+        if (!w) {
+            alert('ポップアップがブロックされました。ブラウザの設定で許可してください。');
+            return;
+        }
+        const trigger = () => {
+            try { w.focus(); w.print(); } catch { /* noop */ }
+        };
+        w.addEventListener('load', trigger);
+        setTimeout(trigger, 1500);
     };
 
     const handleDelete = () => {
