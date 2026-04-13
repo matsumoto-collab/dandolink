@@ -39,6 +39,8 @@ export default function InvoiceDetailModal({
     customerAddress,
 }: InvoiceDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
+    const [includeCopy, setIncludeCopy] = useState<boolean>(true);
+    const [includeDetails, setIncludeDetails] = useState<boolean>(false);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     const effectiveProject: Project = useMemo(() => {
@@ -72,7 +74,7 @@ export default function InvoiceDetailModal({
             const generatePDF = async () => {
                 try {
                     const { generateInvoicePDFBlobReact } = await loadPdfGenerator();
-                    const url = await generateInvoicePDFBlobReact(invoice, effectiveProject, companyInfo);
+                    const url = await generateInvoicePDFBlobReact(invoice, effectiveProject, companyInfo, undefined, { includeCopy, includeDetails });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -86,12 +88,12 @@ export default function InvoiceDetailModal({
                 URL.revokeObjectURL(currentUrl);
             }
         };
-    }, [isOpen, invoice, effectiveProject, companyInfo]);
+    }, [isOpen, invoice, effectiveProject, companyInfo, includeCopy, includeDetails]);
 
     const handleDownload = async () => {
         if (invoice && companyInfo) {
             const { exportInvoicePDFReact } = await loadPdfGenerator();
-            await exportInvoicePDFReact(invoice, effectiveProject, companyInfo);
+            await exportInvoicePDFReact(invoice, effectiveProject, companyInfo, undefined, { includeCopy, includeDetails });
         }
     };
 
@@ -160,7 +162,7 @@ export default function InvoiceDetailModal({
 
                 {/* アクションバー */}
                 <div className="bg-white border-b border-slate-200 px-6 py-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         <button
                             onClick={handleDownload}
                             className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
@@ -185,6 +187,24 @@ export default function InvoiceDetailModal({
                             <Trash2 size={18} />
                             <span className="hidden sm:inline">削除</span>
                         </button>
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer ml-2">
+                            <input
+                                type="checkbox"
+                                checked={includeCopy}
+                                onChange={(e) => setIncludeCopy(e.target.checked)}
+                                className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                            />
+                            控えを含める
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={includeDetails}
+                                onChange={(e) => setIncludeDetails(e.target.checked)}
+                                className="w-4 h-4 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                            />
+                            請求内訳明細書を含める
+                        </label>
                     </div>
                 </div>
 

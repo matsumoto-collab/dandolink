@@ -19,6 +19,7 @@ interface InvoicePDFProps {
     project: Project;
     companyInfo: CompanyInfo;
     includeDetails?: boolean;
+    includeCopy?: boolean;
     bankAccounts?: Array<{ bankName: string; branchName: string; accountType: string; accountNumber: string }>;
     registrationNumber?: string;
     projectMasters?: Array<{ id: string; title: string }>;
@@ -35,7 +36,8 @@ function CoverPage({
     project,
     companyInfo,
     projectMasters,
-}: Omit<InvoicePDFProps, 'includeDetails' | 'bankAccounts' | 'registrationNumber'>) {
+    isCopy,
+}: Omit<InvoicePDFProps, 'includeDetails' | 'includeCopy' | 'bankAccounts' | 'registrationNumber'> & { isCopy?: boolean }) {
     const createdDate = new Date(invoice.createdAt);
     const dueDate = invoice.dueDate ? new Date(invoice.dueDate) : null;
     const extra = getExtra(project);
@@ -104,7 +106,12 @@ function CoverPage({
                     )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.titleText}>御 請 求 書</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.titleText}>御 請 求 書</Text>
+                        {isCopy && (
+                            <Text style={{ ...styles.titleText, marginLeft: 4 }}>（控）</Text>
+                        )}
+                    </View>
                     <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 4, textAlign: 'right' }}>請求日　{toReiwa(createdDate)}</Text>
                     <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 1, textAlign: 'right' }}>請求No. {invoice.invoiceNumber}</Text>
                 </View>
@@ -498,7 +505,9 @@ export function InvoicePDF({
     project,
     companyInfo,
     projectMasters,
-}: Omit<InvoicePDFProps, 'includeDetails' | 'bankAccounts' | 'registrationNumber'>) {
+    includeCopy = true,
+    includeDetails = false,
+}: Omit<InvoicePDFProps, 'bankAccounts' | 'registrationNumber'>) {
     return (
         <Document
             title={`請求書 ${invoice.invoiceNumber}`}
@@ -513,10 +522,27 @@ export function InvoicePDF({
                 companyInfo={companyInfo}
                 projectMasters={projectMasters}
             />
-            <DetailsPage
-                invoice={invoice}
-                projectMasters={projectMasters}
-            />
+            {includeDetails && (
+                <DetailsPage
+                    invoice={invoice}
+                    projectMasters={projectMasters}
+                />
+            )}
+            {includeCopy && (
+                <CoverPage
+                    invoice={invoice}
+                    project={project}
+                    companyInfo={companyInfo}
+                    projectMasters={projectMasters}
+                    isCopy
+                />
+            )}
+            {includeCopy && includeDetails && (
+                <DetailsPage
+                    invoice={invoice}
+                    projectMasters={projectMasters}
+                />
+            )}
         </Document>
     );
 }

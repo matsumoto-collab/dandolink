@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
         const body = await req.json();
         const validation = validateRequest(createInvoiceSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
-        const { projectMasterId, projectId, projectMasterIds, customerId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes } = validation.data;
+        const { projectMasterId, projectId, projectMasterIds, customerId, estimateId, invoiceNumber, title, items, subtotal, tax, total, dueDate, status, paidDate, notes, createdAt } = validation.data;
 
         // 複数案件IDの解決
         let resolvedPmIds: string[] = [];
@@ -119,6 +119,7 @@ export async function POST(req: NextRequest) {
                 paidDate: paidDate ? new Date(paidDate) : null,
                 notes: notes || null,
                 updatedBy: session!.user.id,
+                ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
             },
         });
 

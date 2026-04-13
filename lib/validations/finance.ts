@@ -18,6 +18,7 @@ export const createInvoiceSchema = z.object({
     status: z.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']).optional().default('draft'),
     paidDate: z.string().nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
+    createdAt: z.string().optional(),
 });
 
 export const updateInvoiceSchema = z.object({
@@ -33,6 +34,7 @@ export const updateInvoiceSchema = z.object({
     status: z.enum(['draft', 'sent', 'paid', 'overdue', 'cancelled']).optional(),
     paidDate: z.string().nullable().optional(),
     notes: z.string().max(2000).nullable().optional(),
+    createdAt: z.string().optional(),
 });
 
 // ========== Estimate ==========

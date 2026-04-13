@@ -3,6 +3,58 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
 
+function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onChange: (v: string) => void; inputClass: string }) {
+    const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
+    const [isOpen, setIsOpen] = useState(false);
+    const wrapRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        fetch('/api/master-data/invoice-titles')
+            .then(r => r.ok ? r.json() : [])
+            .then(setSuggestions)
+            .catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setIsOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const filtered = value
+        ? suggestions.filter(s => s.name.toLowerCase().includes(value.toLowerCase()))
+        : suggestions;
+
+    return (
+        <div className="relative" ref={wrapRef}>
+            <input
+                type="text"
+                value={value}
+                onChange={(e) => { onChange(e.target.value); setIsOpen(true); }}
+                onFocus={() => setIsOpen(true)}
+                className={inputClass}
+                required
+                placeholder="例: ○○現場 請求書"
+            />
+            {isOpen && filtered.length > 0 && (
+                <ul className="absolute z-50 w-full mt-1 bg-white border border-slate-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    {filtered.map(s => (
+                        <li
+                            key={s.id}
+                            className="px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm"
+                            onMouseDown={(e) => { e.preventDefault(); onChange(s.name); setIsOpen(false); }}
+                        >
+                            {s.name}
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
+
 function SearchableCustomerSelect({
     value,
     onChange,
@@ -107,6 +159,8 @@ interface InvoiceHeaderProps {
     setTitle: (v: string) => void;
     dueDate: string;
     setDueDate: (v: string) => void;
+    issueDate: string;
+    setIssueDate: (v: string) => void;
     status: string;
     setStatus: (v: string) => void;
     paidDate: string;
@@ -124,6 +178,7 @@ export default function InvoiceHeader({
     invoiceNumber, setInvoiceNumber,
     title, setTitle,
     dueDate, setDueDate,
+    issueDate, setIssueDate,
     status, setStatus,
     paidDate, setPaidDate,
     customers,
@@ -162,7 +217,12 @@ export default function InvoiceHeader({
 
                 <div>
                     <label className={labelClass}>タイトル <span className="text-slate-500">*</span></label>
-                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} required placeholder="例: ○○現場 請求書" />
+                    <TitleAutocomplete value={title} onChange={setTitle} inputClass={inputClass} />
+                </div>
+
+                <div>
+                    <label className={labelClass}>請求日</label>
+                    <input type="date" value={issueDate} onChange={(e) => setIssueDate(e.target.value)} className={inputClass} />
                 </div>
 
                 <div>

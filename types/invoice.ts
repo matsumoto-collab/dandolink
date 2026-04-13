@@ -40,4 +40,4 @@ export interface Invoice {
 }
 
 // 請求書作成時の入力データ
-export type InvoiceInput = Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'updatedBy'>;
+export type InvoiceInput = Omit<Invoice, 'id' | 'createdAt' | 'updatedAt' | 'updatedBy'> & { createdAt?: Date };

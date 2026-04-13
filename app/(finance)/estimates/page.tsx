@@ -94,14 +94,16 @@ export default function EstimateListPage() {
     const filteredEstimates = useMemo(() => {
         return estimates
             .filter(est => {
-                const matchesSearch = est.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    est.estimateNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    (getProjectName(est.projectId ?? '') ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                const q = debouncedSearchTerm.toLowerCase();
+                const matchesSearch = est.title.toLowerCase().includes(q) ||
+                    est.estimateNumber.toLowerCase().includes(q) ||
+                    (getProjectName(est.projectId ?? '') ?? '').toLowerCase().includes(q) ||
+                    (getCustomerName(est.customerId) ?? '').toLowerCase().includes(q);
                 const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
                 return matchesSearch && matchesStatus;
             })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [estimates, debouncedSearchTerm, statusFilter, getProjectName]);
+    }, [estimates, debouncedSearchTerm, statusFilter, getProjectName, getCustomerName]);
 
     // フィルター変更時にページをリセット
     useEffect(() => {

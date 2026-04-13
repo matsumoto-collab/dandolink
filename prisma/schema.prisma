@@ -252,6 +252,19 @@ model BillingTitle {
   @@schema("public")
 }
 
+model InvoiceTitleSuggestion {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+
+  @@index([name])
+  @@index([sortOrder])
+  @@schema("public")
+}
+
 model Vehicle {
   id        String   @id @default(uuid())
   name      String

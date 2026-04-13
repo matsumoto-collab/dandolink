@@ -115,14 +115,16 @@ export default function InvoiceListPage() {
     const filteredInvoices = useMemo(() => {
         return invoices
             .filter(inv => {
-                const matchesSearch = inv.title.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    inv.invoiceNumber.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
-                    (getProjectName(inv) ?? '').toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+                const q = debouncedSearchTerm.toLowerCase();
+                const matchesSearch = inv.title.toLowerCase().includes(q) ||
+                    inv.invoiceNumber.toLowerCase().includes(q) ||
+                    (getProjectName(inv) ?? '').toLowerCase().includes(q) ||
+                    (getCustomerName(inv.projectId || '') ?? '').toLowerCase().includes(q);
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
                 return matchesSearch && matchesStatus;
             })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [invoices, debouncedSearchTerm, statusFilter, getProjectName]);
+    }, [invoices, debouncedSearchTerm, statusFilter, getProjectName, getCustomerName]);
 
     // フィルター変更時にページをリセット
     useEffect(() => {

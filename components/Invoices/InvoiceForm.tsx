@@ -57,6 +57,10 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         if (initialData?.dueDate) return formatDateKey(new Date(initialData.dueDate));
         return getDefault30DaysLater();
     });
+    const [issueDate, setIssueDate] = useState(() => {
+        if (initialData?.createdAt) return formatDateKey(new Date(initialData.createdAt));
+        return formatDateKey(new Date());
+    });
     const [status, setStatus] = useState<InvoiceInput['status']>(initialData?.status || 'draft');
     const [paidDate, setPaidDate] = useState(() => {
         if (initialData?.paidDate) return formatDateKey(new Date(initialData.paidDate));
@@ -320,6 +324,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 status,
                 paidDate: paidDate ? new Date(paidDate) : null,
                 notes: notes || null,
+                createdAt: issueDate ? new Date(issueDate) : undefined,
             } as InvoiceInput;
             await onSubmit(data);
         } finally {
@@ -337,6 +342,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 invoiceNumber={invoiceNumber} setInvoiceNumber={setInvoiceNumber}
                 title={title} setTitle={setTitle}
                 dueDate={dueDate} setDueDate={setDueDate}
+                issueDate={issueDate} setIssueDate={setIssueDate}
                 status={status} setStatus={(v) => setStatus(v as InvoiceInput['status'])}
                 paidDate={paidDate} setPaidDate={setPaidDate}
                 customers={customers}

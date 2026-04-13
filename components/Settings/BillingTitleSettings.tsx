@@ -6,6 +6,129 @@ import toast from 'react-hot-toast';
 import { BillingTitle } from '@/types/invoice';
 import { logger } from '@/lib/logger';
 
+interface InvoiceTitleSuggestion { id: string; name: string; sortOrder: number; isActive: boolean; }
+
+function InvoiceTitleSuggestionSection() {
+    const [items, setItems] = useState<InvoiceTitleSuggestion[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
+    const [newName, setNewName] = useState('');
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+    const fetchData = async () => {
+        try {
+            const res = await fetch('/api/master-data/invoice-titles');
+            if (res.ok) setItems(await res.json());
+        } catch (error) {
+            logger.error('Failed to fetch invoice title suggestions:', error);
+            toast.error('請求書タイトル候補の取得に失敗しました');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchData(); }, []);
+
+    const handleAdd = async () => {
+        if (!newName.trim()) return;
+        try {
+            const res = await fetch('/api/master-data/invoice-titles', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName.trim() }),
+            });
+            if (res.ok) { toast.success('追加しました'); setNewName(''); fetchData(); }
+            else toast.error('追加に失敗しました');
+        } catch { toast.error('追加に失敗しました'); }
+    };
+
+    const handleSaveEdit = async () => {
+        if (!editingName.trim() || !editingId) return;
+        try {
+            const res = await fetch(`/api/master-data/invoice-titles/${editingId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: editingName.trim() }),
+            });
+            if (res.ok) { toast.success('更新しました'); setEditingId(null); fetchData(); }
+            else toast.error('更新に失敗しました');
+        } catch { toast.error('更新に失敗しました'); }
+    };
+
+    const handleDelete = async (id: string) => {
+        try {
+            const res = await fetch(`/api/master-data/invoice-titles/${id}`, { method: 'DELETE' });
+            if (res.ok) { toast.success('削除しました'); setDeleteConfirm(null); fetchData(); }
+            else toast.error('削除に失敗しました');
+        } catch { toast.error('削除に失敗しました'); }
+    };
+
+    if (isLoading) return null;
+
+    return (
+        <div className="mb-10 pb-10 border-b border-slate-200">
+            <div className="mb-6">
+                <h3 className="text-lg font-semibold text-slate-900">請求書タイトル候補</h3>
+                <p className="text-sm text-slate-500 mt-1">請求書作成時のタイトル入力で候補として表示されます</p>
+            </div>
+            <div className="mb-6 flex gap-2">
+                <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                    className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    placeholder="例: ○月分請求"
+                />
+                <button
+                    onClick={handleAdd}
+                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md"
+                >
+                    <Plus className="w-4 h-4" />
+                    追加
+                </button>
+            </div>
+            <div className="space-y-2">
+                {items.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-200">
+                        {editingId === item.id ? (
+                            <>
+                                <input
+                                    type="text"
+                                    value={editingName}
+                                    onChange={(e) => setEditingName(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                    className="flex-1 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    autoFocus
+                                />
+                                <button onClick={handleSaveEdit} className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl" title="保存"><Check className="w-4 h-4" /></button>
+                                <button onClick={() => setEditingId(null)} className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl" title="キャンセル"><X className="w-4 h-4" /></button>
+                            </>
+                        ) : (
+                            <>
+                                <span className="flex-1 text-slate-900">{item.name}</span>
+                                <button onClick={() => { setEditingId(item.id); setEditingName(item.name); }} className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl" title="編集"><Edit className="w-4 h-4" /></button>
+                                {deleteConfirm === item.id ? (
+                                    <div className="flex gap-1">
+                                        <button onClick={() => handleDelete(item.id)} className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md">削除</button>
+                                        <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md">キャンセル</button>
+                                    </div>
+                                ) : (
+                                    <button onClick={() => setDeleteConfirm(item.id)} className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl" title="削除"><Trash2 className="w-4 h-4" /></button>
+                                )}
+                            </>
+                        )}
+                    </div>
+                ))}
+                {items.length === 0 && (
+                    <div className="text-center py-8 text-slate-500 text-sm">請求書タイトル候補が登録されていません</div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 export default function BillingTitleSettings() {
     const [titles, setTitles] = useState<BillingTitle[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -126,6 +249,7 @@ export default function BillingTitleSettings() {
 
     return (
         <div className="min-w-0 overflow-hidden">
+            <InvoiceTitleSuggestionSection />
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h3 className="text-lg font-semibold text-slate-900">請求項目一覧</h3>

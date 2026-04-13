@@ -54,6 +54,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (data.status !== undefined) updateData.status = data.status;
         if (data.paidDate !== undefined) updateData.paidDate = data.paidDate ? new Date(data.paidDate) : null;
         if (data.notes !== undefined) updateData.notes = data.notes || null;
+        if (data.createdAt !== undefined) updateData.createdAt = new Date(data.createdAt);
         if (customerId !== undefined) updateData.customerId = customerId || null;
 
         // 複数案件の更新

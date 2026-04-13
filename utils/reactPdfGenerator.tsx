@@ -91,7 +91,8 @@ export async function exportInvoicePDFReact(
     invoice: Invoice,
     project: Project,
     companyInfo: CompanyInfo,
-    projectMasters?: Array<{ id: string; title: string }>
+    projectMasters?: Array<{ id: string; title: string }>,
+    options: { includeCopy?: boolean; includeDetails?: boolean } = {}
 ): Promise<void> {
     try {
         const blob = await pdf(
@@ -100,6 +101,8 @@ export async function exportInvoicePDFReact(
                 project={project}
                 companyInfo={companyInfo}
                 projectMasters={projectMasters || invoice.projectMasters}
+                includeCopy={options.includeCopy ?? true}
+                includeDetails={options.includeDetails ?? false}
             />
         ).toBlob();
 
@@ -126,7 +129,8 @@ export async function generateInvoicePDFBlobReact(
     invoice: Invoice,
     project: Project,
     companyInfo: CompanyInfo,
-    projectMasters?: Array<{ id: string; title: string }>
+    projectMasters?: Array<{ id: string; title: string }>,
+    options: { includeCopy?: boolean; includeDetails?: boolean } = {}
 ): Promise<string> {
     try {
         const blob = await pdf(
@@ -135,6 +139,8 @@ export async function generateInvoicePDFBlobReact(
                 project={project}
                 companyInfo={companyInfo}
                 projectMasters={projectMasters || invoice.projectMasters}
+                includeCopy={options.includeCopy ?? true}
+                includeDetails={options.includeDetails ?? false}
             />
         ).toBlob();
 

@@ -53,7 +53,7 @@ export default function SettingsPage() {
             { id: 'constructionSuffixes' as const, label: '工事名称', count: null },
             { id: 'constructionContents' as const, label: '工事内容', count: null },
             { id: 'scaffoldingSpec' as const, label: '足場仕様', count: null },
-            { id: 'billingTitles' as const, label: '請求項目', count: null },
+            { id: 'billingTitles' as const, label: '請求関係', count: null },
             { id: 'unitprices' as const, label: '単価マスター', count: null },
             { id: 'materials' as const, label: '材料マスター', count: null },
             { id: 'costmasters' as const, label: '原価マスター', count: null },
