@@ -302,7 +302,7 @@ function CoverPage({
             </View>
 
             {/* 備考欄 */}
-            <View style={{ marginTop: 10, borderWidth: 0.5, borderColor: COLORS.borderDark, minHeight: 70, padding: 4 }}>
+            <View style={{ marginTop: 6, borderWidth: 0.5, borderColor: COLORS.borderDark, minHeight: 40, padding: 4 }}>
                 <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginBottom: 3 }}>備考</Text>
                 {invoice.notes && (
                     <Text style={{ fontSize: 9 }}>{sanitizePdfText(invoice.notes)}</Text>
