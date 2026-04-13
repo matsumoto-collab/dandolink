@@ -74,7 +74,7 @@ function CoverPage({
         });
     }
 
-    const maxRows = 20;
+    const maxRows = 26;
 
     // 支払期限の表示
     const paymentTermText = (() => {
@@ -106,12 +106,11 @@ function CoverPage({
                     )}
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    {isCopy ? (
+                        <Text style={{ ...styles.titleText, fontSize: 13, letterSpacing: 5 }}>御 請 求 書 （ 控 ）</Text>
+                    ) : (
                         <Text style={styles.titleText}>御 請 求 書</Text>
-                        {isCopy && (
-                            <Text style={{ ...styles.titleText, marginLeft: 4 }}>（控）</Text>
-                        )}
-                    </View>
+                    )}
                     <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 4, textAlign: 'right' }}>請求日　{toReiwa(createdDate)}</Text>
                     <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 1, textAlign: 'right' }}>請求No. {invoice.invoiceNumber}</Text>
                 </View>
@@ -126,6 +125,8 @@ function CoverPage({
                         const fontSize = len <= 12 ? 16 : len <= 16 ? 14 : len <= 20 ? 12 : 11;
                         return <Text style={{ fontSize, fontWeight: 'bold', color: COLORS.navy, marginBottom: 55 }}>{customerFullName}</Text>;
                     })()}
+
+                    <Text style={{ fontSize: 9, marginBottom: 10 }}>下記の通りご請求申し上げます。</Text>
 
                     {/* 合計金額セクション */}
                     <View style={{ width: 260, marginBottom: 8, marginLeft: -40, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
@@ -150,9 +151,7 @@ function CoverPage({
                     <View style={{ width: 260, marginLeft: -40, borderWidth: 0.5, borderColor: COLORS.borderMedium }}>
                 {[
                     { label: '件名', value: invoice.title || project.title },
-                    { label: '現場住所', value: project.location || '' },
-                    { label: '有効期限', value: paymentTermText },
-                    { label: '工期', value: '' },
+                    { label: '支払期限', value: paymentTermText },
                     { label: '支払条件', value: '従来通り' },
                 ].map((row, i, arr) => (
                     <View key={i} style={{ flexDirection: 'row', borderBottomWidth: i < arr.length - 1 ? 0.5 : 0, borderBottomColor: COLORS.borderLight, minHeight: 16 }}>
@@ -300,6 +299,14 @@ function CoverPage({
                     </View>
                     <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
+            </View>
+
+            {/* 備考欄 */}
+            <View style={{ marginTop: 10, borderWidth: 0.5, borderColor: COLORS.borderDark, minHeight: 70, padding: 4 }}>
+                <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginBottom: 3 }}>備考</Text>
+                {invoice.notes && (
+                    <Text style={{ fontSize: 9 }}>{sanitizePdfText(invoice.notes)}</Text>
+                )}
             </View>
 
             {/* Footer */}
