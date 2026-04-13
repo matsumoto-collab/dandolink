@@ -508,6 +508,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
+                    hideRemarks={partnerMode}
                 />
             ) : (
                 <DesktopCalendarView
@@ -540,6 +541,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     goToPreviousDay={goToPreviousDay}
                     goToNextDay={goToNextDay}
                     goToToday={goToToday}
+                    hideRemarks={partnerMode}
                 />
             )}
 

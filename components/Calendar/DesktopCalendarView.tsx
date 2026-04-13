@@ -44,6 +44,7 @@ interface DesktopCalendarViewProps {
     goToNextDay?: () => void;
     goToToday?: () => void;
     weekLabel?: string;
+    hideRemarks?: boolean;
 }
 
 export default function DesktopCalendarView({
@@ -77,6 +78,7 @@ export default function DesktopCalendarView({
     goToNextDay,
     goToToday,
     weekLabel,
+    hideRemarks = false,
 }: DesktopCalendarViewProps) {
     return (
         <DndContext
@@ -141,6 +143,7 @@ export default function DesktopCalendarView({
                             </div>
 
                             {/* 未割り当て行 */}
+                            {!hideRemarks && (
                             <div className="flex border-b-2 border-slate-400 bg-slate-100 h-9">
                                 <div className="sticky left-0 z-30 bg-slate-100 border-r-2 border-slate-400 shadow-md">
                                     <div className="w-24 xl:w-32 h-full flex items-center justify-center">
@@ -192,7 +195,8 @@ export default function DesktopCalendarView({
                                     );
                                 })}
                             </div>
-                            <RemarksRow weekDays={weekDays} readOnly={isReadOnly} />
+                            )}
+                            {!hideRemarks && <RemarksRow weekDays={weekDays} readOnly={isReadOnly} />}
                         </div>
 
                         <div className="flex-1 flex flex-col">

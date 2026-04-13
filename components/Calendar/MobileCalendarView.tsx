@@ -36,6 +36,7 @@ interface MobileCalendarViewProps {
     handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
+    hideRemarks?: boolean;
 }
 
 interface ActionSheetState {
@@ -74,6 +75,7 @@ export default function MobileCalendarView({
     handleMoveToCell,
     getMemberAdjustment,
     onMemberAdjustmentChange,
+    hideRemarks = false,
 }: MobileCalendarViewProps) {
     const todayKey = formatDateKey(new Date());
     const isLandscape = useMediaQuery('(orientation: landscape) and (max-height: 500px)');
@@ -224,7 +226,7 @@ export default function MobileCalendarView({
                         >
                             {weekLabel}
                         </button>
-                        {isLandscape && (
+                        {isLandscape && !hideRemarks && (
                             <button
                                 onClick={() => setShowRemarks(prev => !prev)}
                                 className={`p-1 rounded-lg transition-colors ${showRemarks ? 'bg-teal-100 text-teal-700' : 'text-slate-400 hover:bg-slate-100'}`}
@@ -317,6 +319,7 @@ export default function MobileCalendarView({
                     </div>
 
                     {/* 空き人数行（sticky: ヘッダー直下） */}
+                    {!hideRemarks && (
                     <div
                         className="flex sticky z-[15] border-b-2 border-slate-300 bg-slate-100 shadow-sm"
                         style={{ height: isLandscape ? 20 : 28, top: isLandscape ? 28 : 40 }}
@@ -378,9 +381,10 @@ export default function MobileCalendarView({
                             );
                         })}
                     </div>
+                    )}
 
                     {/* 備考行（休暇+フリーテキスト） */}
-                    {(!isLandscape || showRemarks) && (
+                    {!hideRemarks && (!isLandscape || showRemarks) && (
                         <div className="flex border-b-2 border-slate-300 bg-teal-50/80" style={{ minHeight: isLandscape ? 36 : 48 }}>
                             <div
                                 className="sticky left-0 z-[5] bg-teal-50 border-r-2 border-slate-300 flex items-center justify-center flex-shrink-0"
