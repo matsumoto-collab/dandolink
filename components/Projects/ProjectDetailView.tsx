@@ -283,7 +283,8 @@ export default function ProjectDetailView({ project, onClose }: ProjectDetailVie
                                 </a>
                             </div>
                             {(() => {
-                                const addressParts = [locationData.prefecture, locationData.city, locationData.location].filter(Boolean);
+                                const cityLocation = [locationData.city, locationData.location].filter(Boolean).join('-');
+                                const addressParts = [locationData.prefecture, cityLocation].filter(Boolean);
                                 return addressParts.length > 0 ? (
                                     <p className="text-sm text-slate-700 mb-2">{addressParts.join(' ')}</p>
                                 ) : null;
