@@ -397,11 +397,20 @@ export default function EstimateHeader({
                     <label className={labelClass}>工期</label>
                     <input
                         type="text"
+                        list="construction-period-options"
                         value={constructionPeriod}
                         onChange={(e) => setConstructionPeriod(e.target.value)}
                         className={inputClass}
-                        placeholder="例: 令和8年4月〜令和8年5月"
+                        placeholder="選択または自由入力"
                     />
+                    <datalist id="construction-period-options">
+                        <option value="1ヶ月" />
+                        <option value="2ヶ月" />
+                        <option value="3ヶ月" />
+                        <option value="4ヶ月" />
+                        <option value="5ヶ月" />
+                        <option value="6ヶ月" />
+                    </datalist>
                 </div>
 
                 <div>
