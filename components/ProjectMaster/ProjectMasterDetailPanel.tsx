@@ -65,7 +65,8 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
         .filter(Boolean)
         .join('、');
 
-    const address = [pm.postalCode ? `〒${pm.postalCode}` : null, pm.prefecture, pm.city, pm.location]
+    const cityLocation = [pm.city, pm.location].filter(Boolean).join('-');
+    const address = [pm.postalCode ? `〒${pm.postalCode}` : null, pm.prefecture, cityLocation]
         .filter(Boolean).join(' ');
 
     const mapQuery = (() => {
