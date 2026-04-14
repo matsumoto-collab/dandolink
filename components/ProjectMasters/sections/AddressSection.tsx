@@ -55,6 +55,9 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     );
     const iframeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const skipReverseGeocodeRef = useRef(false);
+    const forwardGeocodeDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // マウント直後の初回 camera change では逆ジオコーディングを抑止する（既存住所の上書き防止）
+    const skipInitialCameraChangeRef = useRef(true);
 
     // 住所フィールド変更時に iframe クエリをデバウンス更新（住所モードのみ）
     useEffect(() => {
@@ -159,6 +162,12 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
 
     // 地図の中心が変わったら座標を反映（地図モード: 逆ジオコーディングも実行）
     const handleLocationChange = useCallback(async (lat: number, lng: number) => {
+        // マウント直後の初回 camera change は、座標も住所も一切更新しない
+        // （既存データを地図の初期レンダリングで上書きしてしまうのを防ぐ）
+        if (skipInitialCameraChangeRef.current) {
+            skipInitialCameraChangeRef.current = false;
+            return;
+        }
         const coordStr = `${lat.toFixed(6)},${lng.toFixed(6)}`;
         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng, plusCode: coordStr }));
         if (skipReverseGeocodeRef.current) {
@@ -169,6 +178,18 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             await reverseGeocode(lat, lng);
         }
     }, [setFormData, reverseGeocode, inputMode]);
+
+    // 地図モード: 住所テキスト変更をデバウンスで forward geocode → lat/lng と地図中心を同期
+    useEffect(() => {
+        if (inputMode !== 'map') return;
+        const query = [formData.prefecture, formData.city, formData.location].filter(Boolean).join('');
+        if (!query) return;
+        if (forwardGeocodeDebounceRef.current) clearTimeout(forwardGeocodeDebounceRef.current);
+        forwardGeocodeDebounceRef.current = setTimeout(() => {
+            forwardGeocode(query);
+        }, 1000);
+        return () => { if (forwardGeocodeDebounceRef.current) clearTimeout(forwardGeocodeDebounceRef.current); };
+    }, [formData.prefecture, formData.city, formData.location, inputMode, forwardGeocode]);
 
     // 現在地ボタン（地図モードで使用）
     const handleGetCurrentLocation = () => {

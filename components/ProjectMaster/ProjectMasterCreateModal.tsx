@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { ProjectMasterForm, ProjectMasterFormData, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import toast from 'react-hot-toast';
@@ -13,18 +14,28 @@ interface ProjectMasterCreateModalProps {
 }
 
 export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: ProjectMasterCreateModalProps) {
-    const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
+    const { data: session } = useSession();
+    const currentUserId = session?.user?.id;
+    const initialFormData: ProjectMasterFormData = currentUserId
+        ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
+        : DEFAULT_FORM_DATA;
+    const [formData, setFormData] = useState<ProjectMasterFormData>(initialFormData);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
-            setFormData(DEFAULT_FORM_DATA);
+            setFormData(currentUserId
+                ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
+                : DEFAULT_FORM_DATA);
             setShowUnsavedConfirm(false);
         }
-    }, [isOpen]);
+    }, [isOpen, currentUserId]);
 
     const isFormDirty = () => {
-        return JSON.stringify(formData) !== JSON.stringify(DEFAULT_FORM_DATA);
+        const baseline = currentUserId
+            ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
+            : DEFAULT_FORM_DATA;
+        return JSON.stringify(formData) !== JSON.stringify(baseline);
     };
 
     const handleClose = () => {

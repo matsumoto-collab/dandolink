@@ -27,12 +27,6 @@ interface ConstructionSuffix {
     sortOrder: number;
 }
 
-interface ConstructionContentItem {
-    id: string;
-    name: string;
-    sortOrder: number;
-}
-
 interface ManagerUser {
     id: string;
     displayName: string;
@@ -51,7 +45,6 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
     const customerDropdownRef = useRef<HTMLDivElement>(null);
     const [constructionSuffixes, setConstructionSuffixes] = useState<ConstructionSuffix[]>([]);
-    const [constructionContents, setConstructionContents] = useState<ConstructionContentItem[]>([]);
 
     const {
         setCustomers,
@@ -139,20 +132,6 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
         fetchSuffixes();
     }, []);
 
-    useEffect(() => {
-        const fetchContents = async () => {
-            try {
-                const res = await fetch('/api/master-data/construction-contents');
-                if (res.ok) {
-                    setConstructionContents(await res.json());
-                }
-            } catch (error) {
-                logger.error('Failed to fetch construction contents:', error);
-            }
-        };
-        fetchContents();
-    }, []);
-
     // 正式名称プレビューを生成
     const titlePreview = useMemo(() => {
         const n = formData.name.trim();
@@ -165,20 +144,6 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
     return (
         <>
             <div className="space-y-4">
-                {/* 工事内容 */}
-                <FormField label="工事内容" required>
-                    <select
-                        value={formData.constructionContent}
-                        onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value as string })}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                    >
-                        <option value="">選択してください</option>
-                        {constructionContents.map((item) => (
-                            <option key={item.id} value={item.name}>{item.name}</option>
-                        ))}
-                    </select>
-                </FormField>
-
                 {/* 案件担当者 */}
                 <FormField label="案件責任者" required>
                     <div className="flex flex-wrap gap-2 min-h-[42px] p-2 border border-slate-300 rounded-lg bg-white">

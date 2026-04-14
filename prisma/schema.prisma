@@ -335,6 +335,7 @@ model ScaffoldingSpecItem {
   name      String
   type      String               @default("toggle") // 'toggle' | 'segment' | 'text'
   options   Json? // segment用 string[]
+  hasText   Boolean              @default(false) // toggle/segment時に補足テキスト欄を併設するか
   legacyKey String? // 旧固定フィールドのキー（後方互換）
   sortOrder Int                  @default(0)
   isActive  Boolean              @default(true)

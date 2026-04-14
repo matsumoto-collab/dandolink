@@ -15,7 +15,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
         const body = await request.json();
-        const { name, type, options, sortOrder, groupId } = body;
+        const { name, type, options, sortOrder, groupId, hasText } = body;
 
         const updateData: Prisma.ScaffoldingSpecItemUpdateInput = {};
 
@@ -33,8 +33,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             } else {
                 updateData.options = Prisma.JsonNull;
             }
+            if (type === 'text') updateData.hasText = false;
         } else if (options !== undefined) {
             updateData.options = options === null ? Prisma.JsonNull : (options as Prisma.InputJsonValue);
+        }
+        if (hasText !== undefined) {
+            if (typeof hasText !== 'boolean') return validationErrorResponse('hasTextはboolean値で指定してください');
+            const effectiveType = type ?? undefined;
+            if (effectiveType !== 'text') updateData.hasText = hasText;
         }
         if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
         if (groupId !== undefined) updateData.group = { connect: { id: groupId } };

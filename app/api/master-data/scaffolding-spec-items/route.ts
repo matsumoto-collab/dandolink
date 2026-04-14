@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         if (!validation.success) {
             return validationErrorResponse(validation.error, validation.details);
         }
-        const { groupId, name, type, options } = validation.data;
+        const { groupId, name, type, options, hasText } = validation.data;
 
         if (type === 'segment' && (!Array.isArray(options) || options.length === 0)) {
             return validationErrorResponse('segmentタイプは選択肢が必要です');
@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
                 name,
                 type,
                 options: type === 'segment' && options ? options : undefined,
+                hasText: type !== 'text' ? !!hasText : false,
                 sortOrder: nextSortOrder,
             },
         });

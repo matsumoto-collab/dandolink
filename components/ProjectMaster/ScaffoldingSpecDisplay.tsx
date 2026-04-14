@@ -9,9 +9,12 @@ type SpecItem = {
     name: string;
     type: 'toggle' | 'segment' | 'text';
     options: string[] | null;
+    hasText: boolean;
     legacyKey: string | null;
     sortOrder: number;
 };
+
+const TEXT_SUFFIX = '__text';
 
 type SpecGroup = {
     id: string;
@@ -64,8 +67,11 @@ export default function ScaffoldingSpecDisplay({ spec: specProp, projectMasterId
             const chips: string[] = [];
             g.items.forEach((item) => {
                 const v = readValue(spec, item);
-                if (item.type === 'toggle' && v === true) chips.push(item.name);
-                else if (item.type === 'segment' && typeof v === 'string' && v) chips.push(`${item.name} ${v}`);
+                const extraRaw = spec?.[item.id + TEXT_SUFFIX];
+                const extra = typeof extraRaw === 'string' && extraRaw.trim() ? extraRaw.trim() : '';
+                const suffix = item.hasText && extra ? ` (${extra})` : '';
+                if (item.type === 'toggle' && v === true) chips.push(item.name + suffix);
+                else if (item.type === 'segment' && typeof v === 'string' && v) chips.push(`${item.name} ${v}${suffix}`);
                 else if (item.type === 'text' && typeof v === 'string') chips.push(v.trim() ? `${item.name}: ${v.trim()}` : item.name);
             });
             return { group: g, chips };

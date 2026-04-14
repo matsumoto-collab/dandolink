@@ -12,6 +12,7 @@ interface SpecItem {
     name: string;
     type: ItemType;
     options: string[] | null;
+    hasText: boolean;
     legacyKey: string | null;
     sortOrder: number;
     isActive: boolean;
@@ -36,9 +37,9 @@ export default function ScaffoldingSpecSettings() {
     const [editingGroupName, setEditingGroupName] = useState('');
 
     // item form state: groupId -> form
-    const [itemForm, setItemForm] = useState<Record<string, { name: string; type: ItemType; options: string }>>({});
+    const [itemForm, setItemForm] = useState<Record<string, { name: string; type: ItemType; options: string; hasText: boolean }>>({});
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
-    const [editingItem, setEditingItem] = useState<{ name: string; type: ItemType; options: string }>({ name: '', type: 'toggle', options: '' });
+    const [editingItem, setEditingItem] = useState<{ name: string; type: ItemType; options: string; hasText: boolean }>({ name: '', type: 'toggle', options: '', hasText: false });
 
     const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
@@ -90,18 +91,19 @@ export default function ScaffoldingSpecSettings() {
     };
 
     // ---- item CRUD ----
-    const getForm = (groupId: string) => itemForm[groupId] ?? { name: '', type: 'toggle' as ItemType, options: '' };
-    const setForm = (groupId: string, patch: Partial<{ name: string; type: ItemType; options: string }>) => {
+    const getForm = (groupId: string) => itemForm[groupId] ?? { name: '', type: 'toggle' as ItemType, options: '', hasText: false };
+    const setForm = (groupId: string, patch: Partial<{ name: string; type: ItemType; options: string; hasText: boolean }>) => {
         setItemForm((prev) => ({ ...prev, [groupId]: { ...getForm(groupId), ...patch } }));
     };
 
     const addItem = async (groupId: string) => {
         const f = getForm(groupId);
         if (!f.name.trim()) return;
-        const body: { groupId: string; name: string; type: ItemType; options?: string[] } = {
+        const body: { groupId: string; name: string; type: ItemType; options?: string[]; hasText?: boolean } = {
             groupId,
             name: f.name.trim(),
             type: f.type,
+            hasText: f.type !== 'text' ? f.hasText : false,
         };
         if (f.type === 'segment') {
             const opts = f.options.split(',').map((s) => s.trim()).filter(Boolean);
@@ -113,7 +115,7 @@ export default function ScaffoldingSpecSettings() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body),
         });
-        if (res.ok) { toast.success('項目を追加しました'); setItemForm((p) => ({ ...p, [groupId]: { name: '', type: 'toggle', options: '' } })); fetchData(); }
+        if (res.ok) { toast.success('項目を追加しました'); setItemForm((p) => ({ ...p, [groupId]: { name: '', type: 'toggle', options: '', hasText: false } })); fetchData(); }
         else toast.error('追加に失敗しました');
     };
 
@@ -123,14 +125,16 @@ export default function ScaffoldingSpecSettings() {
             name: item.name,
             type: item.type,
             options: item.options ? item.options.join(', ') : '',
+            hasText: !!item.hasText,
         });
     };
 
     const saveItem = async (id: string) => {
         if (!editingItem.name.trim()) return;
-        const body: { name: string; type: ItemType; options?: string[] } = {
+        const body: { name: string; type: ItemType; options?: string[]; hasText?: boolean } = {
             name: editingItem.name.trim(),
             type: editingItem.type,
+            hasText: editingItem.type !== 'text' ? editingItem.hasText : false,
         };
         if (editingItem.type === 'segment') {
             const opts = editingItem.options.split(',').map((s) => s.trim()).filter(Boolean);
@@ -247,6 +251,16 @@ export default function ScaffoldingSpecSettings() {
                                                         className="w-40 px-2 py-1 border border-slate-300 rounded text-sm"
                                                     />
                                                 )}
+                                                {editingItem.type !== 'text' && (
+                                                    <label className="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={editingItem.hasText}
+                                                            onChange={(e) => setEditingItem((p) => ({ ...p, hasText: e.target.checked }))}
+                                                        />
+                                                        +テキスト
+                                                    </label>
+                                                )}
                                                 <button onClick={() => saveItem(item.id)} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded"><Check className="w-4 h-4" /></button>
                                                 <button onClick={() => setEditingItemId(null)} className="p-1.5 text-slate-600 hover:bg-slate-100 rounded"><X className="w-4 h-4" /></button>
                                             </>
@@ -255,6 +269,7 @@ export default function ScaffoldingSpecSettings() {
                                                 <span className="flex-1 text-sm text-slate-800">{item.name}</span>
                                                 <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                                                     {item.type === 'toggle' ? '必要/不要' : item.type === 'segment' ? `選択: ${item.options?.join('/')}` : 'テキスト'}
+                                                    {item.hasText && item.type !== 'text' && ' +テキスト'}
                                                 </span>
                                                 <button onClick={() => startEditItem(item)} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded"><Edit className="w-4 h-4" /></button>
                                                 {confirmDelete === `i:${item.id}` ? (
@@ -294,6 +309,16 @@ export default function ScaffoldingSpecSettings() {
                                             placeholder="例: 1本, 2本"
                                             className="w-40 px-2 py-1 border border-slate-300 rounded text-sm"
                                         />
+                                    )}
+                                    {getForm(group.id).type !== 'text' && (
+                                        <label className="flex items-center gap-1 text-xs text-slate-600 whitespace-nowrap">
+                                            <input
+                                                type="checkbox"
+                                                checked={getForm(group.id).hasText}
+                                                onChange={(e) => setForm(group.id, { hasText: e.target.checked })}
+                                            />
+                                            +テキスト
+                                        </label>
                                     )}
                                     <button onClick={() => addItem(group.id)} className="px-3 py-1 bg-slate-800 text-white rounded text-xs flex items-center gap-1">
                                         <Plus className="w-3 h-3" />追加

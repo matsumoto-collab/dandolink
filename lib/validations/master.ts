@@ -65,6 +65,7 @@ export const scaffoldingSpecItemSchema = z.object({
     name: z.string().min(1, '名前は必須です').max(100),
     type: z.enum(['toggle', 'segment', 'text']),
     options: z.array(z.string()).nullable().optional(),
+    hasText: z.boolean().optional(),
 });
 
 export const memberCountHistoryCreateSchema = z.object({

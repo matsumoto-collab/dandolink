@@ -18,9 +18,12 @@ interface SpecItem {
     name: string;
     type: ItemType;
     options: string[] | null;
+    hasText: boolean;
     legacyKey: string | null;
     sortOrder: number;
 }
+
+const TEXT_SUFFIX = '__text';
 
 interface SpecGroup {
     id: string;
@@ -145,8 +148,11 @@ export function ScaffoldingSection({ formData, setFormData }: ScaffoldingSection
     groups.forEach((g) => {
         g.items.forEach((item) => {
             const v = readValue(spec, item);
-            if (item.type === 'toggle' && v === true) summaryChips.push(item.name);
-            else if (item.type === 'segment' && typeof v === 'string' && v) summaryChips.push(`${item.name}${v}`);
+            const extraRaw = spec[item.id + TEXT_SUFFIX];
+            const extra = typeof extraRaw === 'string' && extraRaw.trim() ? extraRaw.trim() : '';
+            const suffix = item.hasText && extra ? ` (${extra})` : '';
+            if (item.type === 'toggle' && v === true) summaryChips.push(item.name + suffix);
+            else if (item.type === 'segment' && typeof v === 'string' && v) summaryChips.push(`${item.name}${v}${suffix}`);
             else if (item.type === 'text' && typeof v === 'string') summaryChips.push(v.trim() ? `${item.name}:${v.trim()}` : item.name);
         });
     });
@@ -187,6 +193,18 @@ export function ScaffoldingSection({ formData, setFormData }: ScaffoldingSection
                     <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
                         {group.items.map((item) => {
                             const v = readValue(spec, item);
+                            const extraRaw = spec[item.id + TEXT_SUFFIX];
+                            const extraText = typeof extraRaw === 'string' ? extraRaw : '';
+
+                            const extraInput = item.hasText ? (
+                                <input
+                                    type="text"
+                                    value={extraText}
+                                    onChange={(e) => updateValue(item.id + TEXT_SUFFIX, e.target.value)}
+                                    placeholder="補足テキスト"
+                                    className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                />
+                            ) : null;
 
                             if (item.type === 'toggle') {
                                 return (
@@ -195,7 +213,9 @@ export function ScaffoldingSection({ formData, setFormData }: ScaffoldingSection
                                         title={item.name}
                                         enabled={v === true}
                                         onToggle={(on) => updateValue(item.id, on)}
-                                    />
+                                    >
+                                        {extraInput}
+                                    </SpecCard>
                                 );
                             }
 
@@ -214,6 +234,7 @@ export function ScaffoldingSection({ formData, setFormData }: ScaffoldingSection
                                             value={current}
                                             onChange={(nv) => updateValue(item.id, nv)}
                                         />
+                                        {extraInput}
                                     </SpecCard>
                                 );
                             }
