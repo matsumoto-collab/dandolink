@@ -185,9 +185,10 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         return () => { if (reverseDebounceRef.current) clearTimeout(reverseDebounceRef.current); };
     }, [selected, isOpen]);
 
-    const handleGetCurrentLocation = useCallback(() => {
+    const getCurrentLocation = useCallback((opts?: { silent?: boolean }) => {
+        const silent = opts?.silent ?? false;
         if (!navigator.geolocation) {
-            toast.error('この端末ではGPSが利用できません');
+            if (!silent) toast.error('この端末ではGPSが利用できません');
             return;
         }
         setIsGettingGps(true);
@@ -201,6 +202,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
             },
             (error) => {
                 setIsGettingGps(false);
+                if (silent) return;
                 switch (error.code) {
                     case error.PERMISSION_DENIED: toast.error('位置情報の使用が許可されていません'); break;
                     case error.POSITION_UNAVAILABLE: toast.error('位置情報を取得できませんでした'); break;
@@ -211,6 +213,15 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
             { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
         );
     }, []);
+
+    const handleGetCurrentLocation = useCallback(() => getCurrentLocation(), [getCurrentLocation]);
+
+    // モーダルオープン時、initialPosition が無ければ自動で現在地を取得（失敗時は無音でFALLBACKのまま）
+    useEffect(() => {
+        if (!isOpen) return;
+        if (initialPosition) return;
+        getCurrentLocation({ silent: true });
+    }, [isOpen, initialPosition, getCurrentLocation]);
 
     const handleSearch = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
