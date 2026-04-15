@@ -36,6 +36,10 @@ interface AddressSectionProps {
 export function AddressSection({ formData, setFormData }: AddressSectionProps) {
     const { fetchAddress } = usePostalCodeAutofill();
     const [isMapModalOpen, setIsMapModalOpen] = useState(false);
+    // 最後の更新元: 'map'=モーダルで選択 / 'text'=手入力。mapなら座標で iframe 表示（番地まで正確）
+    const [lastSource, setLastSource] = useState<'map' | 'text'>(
+        formData.latitude != null && formData.longitude != null ? 'map' : 'text'
+    );
 
     // iframe プレビュー用: 住所入力をデバウンスして反映
     const [iframeQuery, setIframeQuery] = useState(
@@ -49,6 +53,8 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         iframeDebounceRef.current = setTimeout(() => setIframeQuery(query), 800);
         return () => { if (iframeDebounceRef.current) clearTimeout(iframeDebounceRef.current); };
     }, [formData.prefecture, formData.city, formData.location]);
+
+    const markTextEdited = () => setLastSource('text');
 
     const handlePostalCodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/[^0-9]/g, '');
@@ -73,6 +79,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
             location: result.location || prev.location,
         }));
         saveLastLocation(result.lat, result.lng);
+        setLastSource('map');
         setIsMapModalOpen(false);
     };
 
@@ -80,11 +87,13 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         ? { lat: formData.latitude, lng: formData.longitude }
         : undefined;
 
-    const iframePreviewQuery = iframeQuery || (
-        formData.latitude != null && formData.longitude != null
-            ? `${formData.latitude},${formData.longitude}`
-            : ''
-    );
+    // map由来なら座標優先（番地まで正確）、text由来なら住所テキストを優先
+    const coordStr = formData.latitude != null && formData.longitude != null
+        ? `${formData.latitude},${formData.longitude}`
+        : '';
+    const iframePreviewQuery = lastSource === 'map' && coordStr
+        ? coordStr
+        : (iframeQuery || coordStr);
 
     return (
         <div className="space-y-4">
@@ -105,7 +114,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <FormField label="都道府県">
                     <select
                         value={formData.prefecture}
-                        onChange={(e) => setFormData(prev => ({ ...prev, prefecture: e.target.value }))}
+                        onChange={(e) => { markTextEdited(); setFormData(prev => ({ ...prev, prefecture: e.target.value })); }}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                     >
                         <option value="">選択してください</option>
@@ -120,7 +129,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <input
                     type="text"
                     value={formData.city}
-                    onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                    onChange={(e) => { markTextEdited(); setFormData(prev => ({ ...prev, city: e.target.value })); }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                     placeholder="例: 新宿区西新宿"
                 />
@@ -130,7 +139,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 <input
                     type="text"
                     value={formData.location}
-                    onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                    onChange={(e) => { markTextEdited(); setFormData(prev => ({ ...prev, location: e.target.value })); }}
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                     placeholder="番地、建物名など"
                 />
