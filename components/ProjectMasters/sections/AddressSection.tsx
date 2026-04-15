@@ -117,9 +117,27 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
         return { prefecture, city, location };
     }, []);
 
+    // Google Maps JS が読み込まれるまで待つ（初回の現在地クリックでは地図未マウントのため）
+    const waitForGoogleMaps = useCallback(async (timeoutMs = 10000): Promise<boolean> => {
+        if (window.google?.maps?.Geocoder) return true;
+        const start = Date.now();
+        return new Promise<boolean>((resolve) => {
+            const timer = setInterval(() => {
+                if (window.google?.maps?.Geocoder) {
+                    clearInterval(timer);
+                    resolve(true);
+                } else if (Date.now() - start > timeoutMs) {
+                    clearInterval(timer);
+                    resolve(false);
+                }
+            }, 100);
+        });
+    }, []);
+
     // Google Maps JavaScript API Geocoder 逆ジオコーディング（座標 → 住所）※地図モードのみ使用
     const reverseGeocode = useCallback(async (lat: number, lng: number) => {
-        if (!window.google?.maps) return;
+        const ready = await waitForGoogleMaps();
+        if (!ready) return;
         setIsReverseGeocoding(true);
         try {
             const geocoder = new google.maps.Geocoder();

@@ -251,11 +251,13 @@ export default function ProjectMasterListPage() {
 
     return (
         <>
-            <ProjectMasterCreateModal
-                isOpen={isCreating}
-                onClose={() => setIsCreating(false)}
-                onCreate={handleCreate}
-            />
+            {isCreating && (
+                <ProjectMasterCreateModal
+                    isOpen={isCreating}
+                    onClose={() => setIsCreating(false)}
+                    onCreate={handleCreate}
+                />
+            )}
             <ProjectMasterDetailModal
                 pm={detailPm}
                 onClose={closeModal}
