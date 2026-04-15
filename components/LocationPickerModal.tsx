@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { APIProvider, Map, AdvancedMarker, InfoWindow, useMap, MapMouseEvent } from '@vis.gl/react-google-maps';
 import { X, Crosshair, Search, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -245,10 +246,13 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         });
     };
 
-    if (!isOpen) return null;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
 
-    return (
-        <div className="fixed inset-0 z-[100] bg-white flex flex-col">
+    if (!isOpen || !mounted) return null;
+
+    const modal = (
+        <div className="fixed inset-0 z-[9999] bg-white flex flex-col" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-slate-200 bg-white">
                 <button
@@ -315,4 +319,6 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
             </div>
         </div>
     );
+
+    return createPortal(modal, document.body);
 }
