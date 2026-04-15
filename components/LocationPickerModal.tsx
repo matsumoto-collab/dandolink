@@ -253,8 +253,11 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
 
     const modal = (
         <div className="fixed inset-0 z-[9999] bg-white flex flex-col" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
-            {/* ヘッダー */}
-            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-200 bg-white">
+            {/* ヘッダー（ステータスバー回避のため safe-area-inset-top 分の余白を確保） */}
+            <div
+                className="flex items-center justify-between px-4 border-b border-slate-200 bg-white"
+                style={{ paddingTop: 'calc(env(safe-area-inset-top) + 8px)', paddingBottom: 8, minHeight: 56 }}
+            >
                 <button
                     type="button"
                     onClick={onClose}
