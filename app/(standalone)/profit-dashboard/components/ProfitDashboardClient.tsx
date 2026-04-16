@@ -431,6 +431,8 @@ function MultiSelect({
     );
 }
 
+const PAGE_SIZE = 20;
+
 function ProjectTable({
     projects, sortBy, sortOrder, onSort,
 }: {
@@ -439,15 +441,21 @@ function ProjectTable({
     sortOrder: 'asc' | 'desc';
     onSort: (k: SortKey) => void;
 }) {
-    const sorted = projects.slice().sort((a, b) => {
+    const sorted = useMemo(() => projects.slice().sort((a, b) => {
         const av = a[sortBy], bv = b[sortBy];
         return sortOrder === 'desc' ? bv - av : av - bv;
-    });
+    }), [projects, sortBy, sortOrder]);
+
+    const [page, setPage] = useState(1);
+    useEffect(() => { setPage(1); }, [projects, sortBy, sortOrder]);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     return (
-        <div className="overflow-x-auto">
+        <div>
+        <div className="overflow-auto max-h-[70vh]">
             <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
+                <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                     <tr>
                         <Th>案件名</Th>
                         <Th>顧客</Th>
@@ -463,7 +471,7 @@ function ProjectTable({
                         <tr>
                             <td colSpan={7} className="px-4 py-8 text-center text-slate-500">該当する案件がありません</td>
                         </tr>
-                    ) : sorted.map(p => (
+                    ) : pageItems.map(p => (
                         <tr key={p.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-4 py-3">
                                 <div className="font-medium text-slate-800">{p.title}</div>
@@ -503,6 +511,8 @@ function ProjectTable({
                 </tbody>
             </table>
         </div>
+        <Pagination page={page} totalPages={totalPages} totalItems={sorted.length} onChange={setPage} />
+        </div>
     );
 }
 
@@ -517,10 +527,15 @@ function AggregateTable({
     note?: string;
     onRowClick?: (row: AggregateRow) => void;
 }) {
-    const sorted = rows.slice().sort((a, b) => {
+    const sorted = useMemo(() => rows.slice().sort((a, b) => {
         const av = a[sortBy], bv = b[sortBy];
         return sortOrder === 'desc' ? bv - av : av - bv;
-    });
+    }), [rows, sortBy, sortOrder]);
+
+    const [page, setPage] = useState(1);
+    useEffect(() => { setPage(1); }, [rows, sortBy, sortOrder]);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+    const pageItems = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
     return (
         <div>
@@ -532,9 +547,9 @@ function AggregateTable({
                     行をクリックすると、その項目で絞り込んで案件別タブで詳細を確認できます
                 </div>
             )}
-            <div className="overflow-x-auto">
+            <div className="overflow-auto max-h-[70vh]">
                 <table className="w-full">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                         <tr>
                             <Th>{label}</Th>
                             <Th align="center">案件数</Th>
@@ -549,7 +564,7 @@ function AggregateTable({
                             <tr>
                                 <td colSpan={6} className="px-4 py-8 text-center text-slate-500">データがありません</td>
                             </tr>
-                        ) : sorted.map(r => (
+                        ) : pageItems.map(r => (
                             <tr
                                 key={r.key}
                                 className={`hover:bg-slate-50 transition-colors ${onRowClick ? 'cursor-pointer' : ''}`}
@@ -571,6 +586,58 @@ function AggregateTable({
                         ))}
                     </tbody>
                 </table>
+            </div>
+            <Pagination page={page} totalPages={totalPages} totalItems={sorted.length} onChange={setPage} />
+        </div>
+    );
+}
+
+function Pagination({
+    page, totalPages, totalItems, onChange,
+}: {
+    page: number;
+    totalPages: number;
+    totalItems: number;
+    onChange: (p: number) => void;
+}) {
+    if (totalItems === 0) return null;
+    const start = (page - 1) * PAGE_SIZE + 1;
+    const end = Math.min(page * PAGE_SIZE, totalItems);
+    return (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-white text-sm">
+            <div className="text-slate-500">
+                {start}〜{end} / {totalItems}件
+            </div>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => onChange(1)}
+                    disabled={page <= 1}
+                    className="px-2 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    最初
+                </button>
+                <button
+                    onClick={() => onChange(page - 1)}
+                    disabled={page <= 1}
+                    className="px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    前へ
+                </button>
+                <span className="text-slate-600 px-2">{page} / {totalPages}</span>
+                <button
+                    onClick={() => onChange(page + 1)}
+                    disabled={page >= totalPages}
+                    className="px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    次へ
+                </button>
+                <button
+                    onClick={() => onChange(totalPages)}
+                    disabled={page >= totalPages}
+                    className="px-2 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                    最後
+                </button>
             </div>
         </div>
     );
