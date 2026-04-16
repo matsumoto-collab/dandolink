@@ -30,9 +30,22 @@ export interface DashboardSummary {
     averageProfitMargin: number;
 }
 
+export interface AggregateRow {
+    key: string;
+    name: string;
+    revenue: number;
+    totalCost: number;
+    grossProfit: number;
+    profitMargin: number;
+    projectCount: number;
+}
+
 export interface DashboardData {
     projects: ProjectProfit[];
     summary: DashboardSummary;
+    byCustomer: AggregateRow[];
+    byConstructionType: AggregateRow[];
+    byForeman: AggregateRow[];
 }
 
 /**
@@ -54,6 +67,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
             title: true,
             customerName: true,
             status: true,
+            constructionType: true,
             materialCost: true,
             subcontractorCost: true,
             otherExpenses: true,
@@ -68,7 +82,7 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
     const projectIds = projectMasters.map(pm => pm.id);
 
     // 全クエリを並列実行
-    const [estimates, invoices, settings, workItems, assignments, vehicles, allUsers, allWorkers] = await Promise.all([
+    const [estimates, invoices, settings, workItems, assignments, vehicles, allUsers, allWorkers, foremanShares, constructionTypes] = await Promise.all([
         // 見積書
         prisma.estimate.findMany({
             where: { projectMasterId: { in: projectIds } },
@@ -117,13 +131,23 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
         prisma.vehicle.findMany({
             select: { id: true, dailyRate: true },
         }),
-        // ユーザー時給
+        // ユーザー時給+表示名
         prisma.user.findMany({
-            select: { id: true, hourlyRate: true },
+            select: { id: true, hourlyRate: true, displayName: true },
         }),
         // 応援ワーカー時給
         prisma.worker.findMany({
             select: { id: true, hourlyRate: true },
+        }),
+        // 職長別アサイン件数(各案件における按分計算用)
+        prisma.projectAssignment.groupBy({
+            by: ['projectMasterId', 'assignedEmployeeId'],
+            where: { projectMasterId: { in: projectIds } },
+            _count: { _all: true },
+        }),
+        // 工事種別マスター(名前解決)
+        prisma.constructionType.findMany({
+            select: { id: true, name: true },
         }),
     ]);
 
@@ -286,8 +310,121 @@ export async function fetchProfitDashboardData(status: string = 'all'): Promise<
             : 0,
     };
 
+    // 案件IDから工事種別ID/顧客名のマップを作成
+    const projectMetaMap = new Map<string, { customerName: string | null; constructionType: string }>();
+    for (const pm of projectMasters) {
+        projectMetaMap.set(pm.id, {
+            customerName: pm.customerName,
+            constructionType: pm.constructionType || '',
+        });
+    }
+
+    const constructionTypeNameMap = new Map<string, string>();
+    for (const ct of constructionTypes) {
+        constructionTypeNameMap.set(ct.id, ct.name);
+    }
+    // レガシー値の名前
+    constructionTypeNameMap.set('assembly', '組立');
+    constructionTypeNameMap.set('demolition', '解体');
+    constructionTypeNameMap.set('other', 'その他');
+
+    // 案件ごとのアサイン総数(按分用の分母)
+    const totalAssignByProject = new Map<string, number>();
+    for (const row of foremanShares) {
+        const cnt = row._count._all;
+        totalAssignByProject.set(
+            row.projectMasterId,
+            (totalAssignByProject.get(row.projectMasterId) || 0) + cnt
+        );
+    }
+
+    const userNameMap = new Map<string, string>();
+    for (const u of allUsers) {
+        userNameMap.set(u.id, u.displayName);
+    }
+
+    function buildAggregate(
+        keyOf: (p: ProjectProfit) => { key: string; name: string } | null,
+    ): AggregateRow[] {
+        const map = new Map<string, AggregateRow>();
+        for (const p of profitSummaries) {
+            const k = keyOf(p);
+            if (!k) continue;
+            const cur = map.get(k.key) ?? {
+                key: k.key,
+                name: k.name,
+                revenue: 0,
+                totalCost: 0,
+                grossProfit: 0,
+                profitMargin: 0,
+                projectCount: 0,
+            };
+            cur.revenue += p.revenue;
+            cur.totalCost += p.totalCost;
+            cur.grossProfit += p.grossProfit;
+            cur.projectCount += 1;
+            map.set(k.key, cur);
+        }
+        const rows = Array.from(map.values());
+        for (const r of rows) {
+            r.profitMargin = r.revenue > 0 ? Math.round((r.grossProfit / r.revenue) * 1000) / 10 : 0;
+        }
+        rows.sort((a, b) => b.grossProfit - a.grossProfit);
+        return rows;
+    }
+
+    const byCustomer = buildAggregate(p => ({
+        key: p.customerName ?? '__unset__',
+        name: p.customerName ?? '(未設定)',
+    }));
+
+    const byConstructionType = buildAggregate(p => {
+        const meta = projectMetaMap.get(p.id);
+        const ctId = meta?.constructionType || '';
+        const name = constructionTypeNameMap.get(ctId) || (ctId ? ctId : '(未設定)');
+        return { key: ctId || '__unset__', name };
+    });
+
+    // 職長別: アサイン件数で按分
+    const foremanMap = new Map<string, AggregateRow & { _projectIds: Set<string> }>();
+    for (const row of foremanShares) {
+        const project = profitSummaries.find(p => p.id === row.projectMasterId);
+        if (!project) continue;
+        const total = totalAssignByProject.get(row.projectMasterId) || 0;
+        if (total === 0) continue;
+        const ratio = row._count._all / total;
+        const fid = row.assignedEmployeeId;
+        const cur = foremanMap.get(fid) ?? {
+            key: fid,
+            name: userNameMap.get(fid) || '(不明)',
+            revenue: 0,
+            totalCost: 0,
+            grossProfit: 0,
+            profitMargin: 0,
+            projectCount: 0,
+            _projectIds: new Set<string>(),
+        };
+        cur.revenue += project.revenue * ratio;
+        cur.totalCost += project.totalCost * ratio;
+        cur.grossProfit += project.grossProfit * ratio;
+        cur._projectIds.add(row.projectMasterId);
+        foremanMap.set(fid, cur);
+    }
+    const byForeman: AggregateRow[] = Array.from(foremanMap.values()).map(r => ({
+        key: r.key,
+        name: r.name,
+        revenue: Math.round(r.revenue),
+        totalCost: Math.round(r.totalCost),
+        grossProfit: Math.round(r.grossProfit),
+        profitMargin: r.revenue > 0 ? Math.round((r.grossProfit / r.revenue) * 1000) / 10 : 0,
+        projectCount: r._projectIds.size,
+    })).sort((a, b) => b.grossProfit - a.grossProfit);
+
     return {
         projects: profitSummaries,
         summary,
+        byCustomer,
+        byConstructionType,
+        byForeman,
     };
 }

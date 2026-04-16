@@ -7,11 +7,9 @@ interface Props {
     searchParams: Promise<{ status?: string }>;
 }
 
-// データ取得を行うServer Component
 async function ProfitDashboardContent({ status }: { status: string }) {
     const data = await fetchProfitDashboardData(status);
 
-    // Date型をシリアライズ可能な形式に変換
     const serializedProjects: SerializedProjectProfit[] = data.projects.map(p => ({
         ...p,
         updatedAt: p.updatedAt.toISOString(),
@@ -21,12 +19,14 @@ async function ProfitDashboardContent({ status }: { status: string }) {
         <ProfitDashboardClient
             projects={serializedProjects}
             summary={data.summary}
+            byCustomer={data.byCustomer}
+            byConstructionType={data.byConstructionType}
+            byForeman={data.byForeman}
             currentStatus={status}
         />
     );
 }
 
-// メインページ（Server Component）
 export default async function ProfitDashboardPage({ searchParams }: Props) {
     const resolvedParams = await searchParams;
     const status = resolvedParams.status || 'active';
