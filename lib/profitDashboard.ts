@@ -64,17 +64,17 @@ export interface FilterOptions {
 }
 
 export async function fetchDashboardFilterOptions(): Promise<FilterOptions> {
-    const [customerRows, foremen, types] = await Promise.all([
+    const [customerRows, assignedForemen, types] = await Promise.all([
         prisma.projectMaster.findMany({
             where: { customerName: { not: null } },
             select: { customerName: true },
             distinct: ['customerName'],
             orderBy: { customerName: 'asc' },
         }),
-        prisma.user.findMany({
-            where: { isActive: true, role: { in: ['admin', 'manager', 'foreman'] } },
-            select: { id: true, displayName: true },
-            orderBy: { displayName: 'asc' },
+        // 実際にアサイン実績のある職長IDのみを抽出
+        prisma.projectAssignment.findMany({
+            select: { assignedEmployeeId: true },
+            distinct: ['assignedEmployeeId'],
         }),
         prisma.constructionType.findMany({
             where: { isActive: true },
@@ -82,9 +82,19 @@ export async function fetchDashboardFilterOptions(): Promise<FilterOptions> {
             orderBy: { sortOrder: 'asc' },
         }),
     ]);
+
+    const foremanIds = assignedForemen.map(a => a.assignedEmployeeId).filter(Boolean);
+    const foremanUsers = foremanIds.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: foremanIds } },
+            select: { id: true, displayName: true },
+            orderBy: { displayName: 'asc' },
+        })
+        : [];
+
     return {
         customers: customerRows.map(c => c.customerName!).filter(Boolean),
-        foremen: foremen.map(f => ({ id: f.id, name: f.displayName })),
+        foremen: foremanUsers.map(f => ({ id: f.id, name: f.displayName })),
         constructionTypes: types,
     };
 }
