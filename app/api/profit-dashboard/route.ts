@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
-import { fetchProfitDashboardData } from '@/lib/profitDashboard';
+import { fetchProfitDashboardData, fetchDashboardFilterOptions, type DashboardFilters } from '@/lib/profitDashboard';
+
+function parseList(v: string | null): string[] | undefined {
+    if (!v) return undefined;
+    const arr = v.split(',').map(s => s.trim()).filter(Boolean);
+    return arr.length > 0 ? arr : undefined;
+}
 
 export async function GET(request: NextRequest) {
     try {
@@ -8,9 +14,22 @@ export async function GET(request: NextRequest) {
         if (error) return error;
 
         const { searchParams } = new URL(request.url);
-        const status = searchParams.get('status') || 'all';
 
-        const data = await fetchProfitDashboardData(status);
+        if (searchParams.get('options') === '1') {
+            const options = await fetchDashboardFilterOptions();
+            return NextResponse.json(options, { headers: { 'Cache-Control': 'no-store' } });
+        }
+
+        const filters: DashboardFilters = {
+            status: searchParams.get('status') || 'all',
+            dateFrom: searchParams.get('dateFrom') || undefined,
+            dateTo: searchParams.get('dateTo') || undefined,
+            customerNames: parseList(searchParams.get('customers')),
+            foremanIds: parseList(searchParams.get('foremen')),
+            constructionTypeIds: parseList(searchParams.get('types')),
+        };
+
+        const data = await fetchProfitDashboardData(filters);
 
         const projects = data.projects.map(p => ({
             ...p,
@@ -24,7 +43,6 @@ export async function GET(request: NextRequest) {
                 byCustomer: data.byCustomer,
                 byConstructionType: data.byConstructionType,
                 byForeman: data.byForeman,
-                mode: 'full',
             },
             { headers: { 'Cache-Control': 'no-store' } },
         );

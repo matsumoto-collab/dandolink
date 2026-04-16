@@ -48,15 +48,83 @@ export interface DashboardData {
     byForeman: AggregateRow[];
 }
 
+export interface DashboardFilters {
+    status?: string;
+    dateFrom?: string;            // YYYY-MM-DD（アサイン日基準）
+    dateTo?: string;              // YYYY-MM-DD
+    customerNames?: string[];
+    foremanIds?: string[];
+    constructionTypeIds?: string[];
+}
+
+export interface FilterOptions {
+    customers: string[];
+    foremen: { id: string; name: string }[];
+    constructionTypes: { id: string; name: string }[];
+}
+
+export async function fetchDashboardFilterOptions(): Promise<FilterOptions> {
+    const [customerRows, foremen, types] = await Promise.all([
+        prisma.projectMaster.findMany({
+            where: { customerName: { not: null } },
+            select: { customerName: true },
+            distinct: ['customerName'],
+            orderBy: { customerName: 'asc' },
+        }),
+        prisma.user.findMany({
+            where: { isActive: true, role: { in: ['admin', 'manager', 'foreman'] } },
+            select: { id: true, displayName: true },
+            orderBy: { displayName: 'asc' },
+        }),
+        prisma.constructionType.findMany({
+            where: { isActive: true },
+            select: { id: true, name: true },
+            orderBy: { sortOrder: 'asc' },
+        }),
+    ]);
+    return {
+        customers: customerRows.map(c => c.customerName!).filter(Boolean),
+        foremen: foremen.map(f => ({ id: f.id, name: f.displayName })),
+        constructionTypes: types,
+    };
+}
+
 /**
  * 利益ダッシュボードのデータを取得
  * Server ComponentとAPIの両方から使用可能
  */
-export async function fetchProfitDashboardData(status: string = 'all'): Promise<DashboardData> {
+export async function fetchProfitDashboardData(
+    statusOrFilters: string | DashboardFilters = 'all',
+): Promise<DashboardData> {
+    const filters: DashboardFilters = typeof statusOrFilters === 'string'
+        ? { status: statusOrFilters }
+        : statusOrFilters;
+    const status = filters.status ?? 'all';
+
     // 案件マスター一覧を取得
     const where: Record<string, unknown> = {};
     if (status !== 'all') {
         where.status = status;
+    }
+    if (filters.customerNames && filters.customerNames.length > 0) {
+        where.customerName = { in: filters.customerNames };
+    }
+    if (filters.constructionTypeIds && filters.constructionTypeIds.length > 0) {
+        where.constructionType = { in: filters.constructionTypeIds };
+    }
+    // 期間 + 職長条件は同一アサインに対する条件
+    const assignmentSome: Record<string, unknown> = {};
+    if (filters.dateFrom || filters.dateTo) {
+        const dateCond: Record<string, Date> = {};
+        if (filters.dateFrom) dateCond.gte = new Date(`${filters.dateFrom}T00:00:00`);
+        if (filters.dateTo) dateCond.lte = new Date(`${filters.dateTo}T23:59:59.999`);
+        assignmentSome.date = dateCond;
+    }
+    if (filters.foremanIds && filters.foremanIds.length > 0) {
+        assignmentSome.assignedEmployeeId = { in: filters.foremanIds };
+    }
+    if (Object.keys(assignmentSome).length > 0) {
+        where.assignments = { some: assignmentSome };
     }
 
     // 基本クエリ: 案件一覧
