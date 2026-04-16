@@ -16,7 +16,10 @@ export interface SerializedProjectProfit {
     assignmentCount: number;
     estimateAmount: number;
     estimateCostTotal: number | null;
+    contractAmount: number;
+    invoiceAmount: number;
     revenue: number;
+    revenueSource: 'invoice' | 'contract' | 'estimate' | 'none';
     laborCost: number;
     loadingCost: number;
     vehicleCost: number;
@@ -301,7 +304,12 @@ export default function ProfitDashboardClient({
                     </div>
 
                     {activeTab === 'project' ? (
-                        <ProjectTable projects={projects} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                        <>
+                            <div className="px-4 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
+                                売上の採用ロジック: <strong className="text-slate-700">請求済</strong> → <strong className="text-slate-700">契約</strong> → <strong className="text-slate-700">見積</strong> の優先順位
+                            </div>
+                            <ProjectTable projects={projects} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                        </>
                     ) : (
                         <AggregateTable
                             label={TABS.find(t => t.key === activeTab)!.label.replace('別', '')}
@@ -479,10 +487,15 @@ function ProjectTable({
                             </td>
                             <td className="px-4 py-3 text-sm text-slate-600">{p.customerName || '-'}</td>
                             <td className="px-4 py-3 text-right">
-                                <div className="font-medium text-slate-800">{formatCurrency(p.revenue)}</div>
-                                {p.estimateAmount > 0 && p.estimateAmount !== p.revenue && (
-                                    <div className="text-xs text-slate-400">見積: {formatCurrency(p.estimateAmount)}</div>
-                                )}
+                                <div className="flex items-center justify-end gap-2">
+                                    <span className="font-medium text-slate-800">{formatCurrency(p.revenue)}</span>
+                                    <RevenueSourceBadge source={p.revenueSource} />
+                                </div>
+                                <div className="text-xs text-slate-400 mt-0.5">
+                                    {p.invoiceAmount > 0 && p.revenueSource !== 'invoice' && <>請求 {formatCurrency(p.invoiceAmount)} </>}
+                                    {p.contractAmount > 0 && p.revenueSource !== 'contract' && <>契約 {formatCurrency(p.contractAmount)} </>}
+                                    {p.estimateAmount > 0 && p.revenueSource !== 'estimate' && <>見積 {formatCurrency(p.estimateAmount)}</>}
+                                </div>
                             </td>
                             <td className="px-4 py-3 text-right">
                                 <div className="text-slate-600">{formatCurrency(p.totalCost)}</div>
@@ -640,6 +653,21 @@ function Pagination({
                 </button>
             </div>
         </div>
+    );
+}
+
+function RevenueSourceBadge({ source }: { source: 'invoice' | 'contract' | 'estimate' | 'none' }) {
+    if (source === 'none') {
+        return <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">未確定</span>;
+    }
+    const label = source === 'invoice' ? '請求済' : source === 'contract' ? '契約' : '見積';
+    const cls = source === 'invoice'
+        ? 'bg-slate-700 text-white border-slate-700'
+        : source === 'contract'
+            ? 'bg-slate-200 text-slate-700 border-slate-300'
+            : 'bg-white text-slate-500 border-slate-300';
+    return (
+        <span className={`text-[10px] px-1.5 py-0.5 rounded border ${cls}`}>{label}</span>
     );
 }
 

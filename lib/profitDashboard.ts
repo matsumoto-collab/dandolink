@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { parseJsonField } from '@/lib/json-utils';
 
+export type RevenueSource = 'invoice' | 'contract' | 'estimate' | 'none';
+
 export interface ProjectProfit {
     id: string;
     title: string;
@@ -9,7 +11,10 @@ export interface ProjectProfit {
     assignmentCount: number;
     estimateAmount: number;
     estimateCostTotal: number | null;
+    contractAmount: number;
+    invoiceAmount: number;
     revenue: number;
+    revenueSource: RevenueSource;
     laborCost: number;
     loadingCost: number;
     vehicleCost: number;
@@ -146,6 +151,7 @@ export async function fetchProfitDashboardData(
             customerName: true,
             status: true,
             constructionType: true,
+            contractAmount: true,
             materialCost: true,
             subcontractorCost: true,
             otherExpenses: true,
@@ -161,10 +167,11 @@ export async function fetchProfitDashboardData(
 
     // 全クエリを並列実行
     const [estimates, invoices, settings, workItems, assignments, vehicles, allUsers, allWorkers, foremanShares, constructionTypes] = await Promise.all([
-        // 見積書
+        // 見積書(最新の作成日順)
         prisma.estimate.findMany({
             where: { projectMasterId: { in: projectIds } },
-            select: { projectMasterId: true, total: true, costTotal: true },
+            select: { projectMasterId: true, total: true, costTotal: true, createdAt: true },
+            orderBy: { createdAt: 'desc' },
         }),
         // 請求書
         prisma.invoice.findMany({
@@ -229,22 +236,17 @@ export async function fetchProfitDashboardData(
         }),
     ]);
 
-    // 見積書をグループ化
+    // 見積書: 各案件で最新1件を採用(見積額の表示・売上フォールバック用)
     const estimateByProject = new Map<string, number>();
     const estimateCostByProject = new Map<string, number | null>();
     for (const e of estimates) {
-        if (e.projectMasterId) {
-            estimateByProject.set(
-                e.projectMasterId,
-                (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)
-            );
-            // 見積原価: 複数見積がある場合は合算（null同士はnullのまま）
-            if (e.costTotal != null) {
-                estimateCostByProject.set(
-                    e.projectMasterId,
-                    (estimateCostByProject.get(e.projectMasterId) || 0) + e.costTotal
-                );
-            }
+        if (!e.projectMasterId) continue;
+        // estimates は createdAt desc でソート済み、最初に出てきたものが最新
+        if (!estimateByProject.has(e.projectMasterId)) {
+            estimateByProject.set(e.projectMasterId, Number(e.total));
+        }
+        if (e.costTotal != null && !estimateCostByProject.has(e.projectMasterId)) {
+            estimateCostByProject.set(e.projectMasterId, e.costTotal);
         }
     }
 
@@ -343,7 +345,23 @@ export async function fetchProfitDashboardData(
     const profitSummaries: ProjectProfit[] = projectMasters.map(pm => {
         const estimateAmount = estimateByProject.get(pm.id) || 0;
         const estimateCostTotal = estimateCostByProject.get(pm.id) ?? null;
-        const revenue = revenueByProject.get(pm.id) || 0;
+        const invoiceAmount = revenueByProject.get(pm.id) || 0;
+        const contractAmount = Number(pm.contractAmount || 0);
+
+        // 売上フォールバック: 請求書 → 契約金額 → 見積金額
+        let revenue = 0;
+        let revenueSource: RevenueSource = 'none';
+        if (invoiceAmount > 0) {
+            revenue = invoiceAmount;
+            revenueSource = 'invoice';
+        } else if (contractAmount > 0) {
+            revenue = contractAmount;
+            revenueSource = 'contract';
+        } else if (estimateAmount > 0) {
+            revenue = estimateAmount;
+            revenueSource = 'estimate';
+        }
+
         const laborCost = laborCostByProject.get(pm.id) || 0;
         const loadingCost = loadingCostByProject.get(pm.id) || 0;
         const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
@@ -363,7 +381,10 @@ export async function fetchProfitDashboardData(
             assignmentCount: pm._count.assignments,
             estimateAmount,
             estimateCostTotal,
+            contractAmount,
+            invoiceAmount,
             revenue,
+            revenueSource,
             laborCost,
             loadingCost,
             vehicleCost,
