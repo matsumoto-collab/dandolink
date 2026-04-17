@@ -10,7 +10,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { ProjectMaster, ScaffoldingSpec, Project } from '@/types/calendar';
 import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
 import { Invoice, InvoiceInput } from '@/types/invoice';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
@@ -61,6 +61,7 @@ export default function ProjectMasterListPage() {
     const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
     // 複数見積/請求がある場合のピッカー
     const [pickerContext, setPickerContext] = useState<{ pm: ProjectMaster; kind: 'estimate' | 'invoice' } | null>(null);
+    const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
@@ -102,6 +103,31 @@ export default function ProjectMasterListPage() {
         ensureCompanyLoaded();
         ensureCustomersLoaded();
     }, [ensureEstimatesLoaded, ensureInvoicesLoaded, ensureCompanyLoaded, ensureCustomersLoaded]);
+
+    // 案件担当者の表示名マップを取得
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/users', { cache: 'no-store' });
+                if (!res.ok) return;
+                const users: { id: string; displayName: string }[] = await res.json();
+                if (cancelled) return;
+                const map: Record<string, string> = {};
+                users.forEach(u => { map[u.id] = u.displayName; });
+                setManagerMap(map);
+            } catch (e) {
+                logger.error('担当者一覧の取得に失敗:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    const getManagersLabel = useCallback((pm: ProjectMaster): string => {
+        const ids = Array.isArray(pm.createdBy) ? pm.createdBy : pm.createdBy ? [pm.createdBy] : [];
+        if (ids.length === 0) return '';
+        return ids.map(id => managerMap[id] || '...').join('、');
+    }, [managerMap]);
 
     const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
 
@@ -671,21 +697,27 @@ export default function ProjectMasterListPage() {
                                         )}
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-slate-600 flex-wrap">
-                                        {pm.customerName && (
+                                        {(pm.customerShortName || pm.customerName) && (
                                             <span className="flex items-center gap-1">
                                                 <Building className="w-3.5 h-3.5" />
-                                                {pm.customerName}
+                                                {pm.customerShortName || pm.customerName}
                                             </span>
                                         )}
-                                        {(pm.prefecture || pm.city || pm.location) && (
+                                        {getManagersLabel(pm) && (
+                                            <span className="flex items-center gap-1">
+                                                <User className="w-3.5 h-3.5" />
+                                                {getManagersLabel(pm)}
+                                            </span>
+                                        )}
+                                        {(pm.city || pm.location) && (
                                             <span className="flex items-center gap-1">
                                                 <MapPin className="w-3.5 h-3.5" />
-                                                {[pm.prefecture, [pm.city, pm.location].filter(Boolean).join('-')].filter(Boolean).join(' ')}
+                                                {[pm.city, pm.location].filter(Boolean).join('-')}
                                             </span>
                                         )}
                                         <span className="flex items-center gap-1 text-slate-500">
                                             <Calendar className="w-3.5 h-3.5" />
-                                            {pm.assignmentCount ?? 0}件の配置
+                                            {pm.assignmentCount ?? 0}件
                                         </span>
                                     </div>
                                     {/* 見積書・請求書 済/未 */}
@@ -693,21 +725,26 @@ export default function ProjectMasterListPage() {
                                         {(() => {
                                             const hasEst = hasEstimateFor(pm);
                                             const hasInv = hasInvoiceFor(pm);
+                                            const base = 'flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed';
+                                            const done = 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm';
+                                            const todo = 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600';
                                             return (
                                                 <>
                                                     <button
                                                         onClick={() => handleEstimateCellClick(pm)}
                                                         disabled={!hasEst && isForeman2}
-                                                        className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasEst ? 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                                        className={`${base} ${hasEst ? done : todo}`}
                                                     >
-                                                        見積: {hasEst ? '済' : '未'}
+                                                        {hasEst && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                                                        <span>見積 {hasEst ? '済' : '未'}</span>
                                                     </button>
                                                     <button
                                                         onClick={() => handleInvoiceCellClick(pm)}
                                                         disabled={!hasInv && isForeman2}
-                                                        className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasInv ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                                        className={`${base} ${hasInv ? done : todo}`}
                                                     >
-                                                        請求: {hasInv ? '済' : '未'}
+                                                        {hasInv && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                                                        <span>請求 {hasInv ? '済' : '未'}</span>
                                                     </button>
                                                 </>
                                             );
@@ -763,6 +800,9 @@ export default function ProjectMasterListPage() {
                                     元請会社
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    担当者
+                                </th>
+                                <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     所在地
                                 </th>
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -788,6 +828,7 @@ export default function ProjectMasterListPage() {
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
+                                        <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                                         <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
@@ -797,7 +838,7 @@ export default function ProjectMasterListPage() {
                                 ))
                             ) : filteredMasters.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isForeman2 ? 7 : 8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isForeman2 ? 8 : 9} className="px-6 py-12 text-center text-slate-500">
                                         {searchTerm || filterStatus !== 'all' ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
                                     </td>
                                 </tr>
@@ -830,13 +871,16 @@ export default function ProjectMasterListPage() {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                                            {pm.customerName || '-'}
+                                            {pm.customerShortName || pm.customerName || '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                                            {[pm.prefecture, [pm.city, pm.location].filter(Boolean).join('-')].filter(Boolean).join(' ') || '-'}
+                                            {getManagersLabel(pm) || '-'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                                            {pm.assignmentCount ?? 0}件の配置
+                                            {[pm.city, pm.location].filter(Boolean).join('-') || '-'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
+                                            {pm.assignmentCount ?? 0}件
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                             {(() => {
@@ -846,8 +890,9 @@ export default function ProjectMasterListPage() {
                                                         onClick={() => handleEstimateCellClick(pm)}
                                                         disabled={!hasEst && isForeman2}
                                                         title={hasEst ? '見積書を確認' : '見積書を作成'}
-                                                        className={`px-3 py-1 text-[12px] font-semibold rounded-full border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasEst ? 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ${hasEst ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
                                                     >
+                                                        {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
                                                         {hasEst ? '済' : '未'}
                                                     </button>
                                                 );
@@ -861,8 +906,9 @@ export default function ProjectMasterListPage() {
                                                         onClick={() => handleInvoiceCellClick(pm)}
                                                         disabled={!hasInv && isForeman2}
                                                         title={hasInv ? '請求書を確認' : '請求書を作成'}
-                                                        className={`px-3 py-1 text-[12px] font-semibold rounded-full border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasInv ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ${hasInv ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
                                                     >
+                                                        {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
                                                         {hasInv ? '済' : '未'}
                                                     </button>
                                                 );
