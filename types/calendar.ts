@@ -150,6 +150,8 @@ export interface ProjectMaster {
     // リレーション（optional）
     assignments?: ProjectAssignment[];
     assignmentCount?: number;          // 配置件数（一覧表示用）
+    hasEstimate?: boolean;             // 紐付く見積書が存在するか（一覧表示用）
+    hasInvoice?: boolean;              // 紐付く請求書が存在するか（一覧表示用）
 }
 
 // 案件配置（班・日付への割り当て）

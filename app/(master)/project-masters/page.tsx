@@ -2,11 +2,12 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useEstimates } from '@/hooks/useEstimates';
 import { ProjectMaster, ScaffoldingSpec } from '@/types/calendar';
 import { EstimateInput } from '@/types/estimate';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, FileText, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
@@ -22,8 +23,9 @@ const EstimateModal = dynamic(
 );
 
 export default function ProjectMasterListPage() {
+    const router = useRouter();
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
-    const { addEstimate } = useEstimates();
+    const { addEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
@@ -67,6 +69,11 @@ export default function ProjectMasterListPage() {
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, filterStatus]);
+
+    // 「見積書を確認」ボタンのために見積書ストアを遅延ロード
+    useEffect(() => {
+        ensureEstimatesLoaded();
+    }, [ensureEstimatesLoaded]);
 
     const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
 
@@ -224,6 +231,19 @@ export default function ProjectMasterListPage() {
         }
     }, [detailPm]);
 
+    // 詳細モーダル表示中の案件に紐付く最初の見積書
+    const estimateForDetailPm = useMemo(() => {
+        if (!detailPm) return null;
+        const list = getEstimatesByProject(detailPm.id);
+        return list.length > 0 ? list[0] : null;
+    }, [detailPm, getEstimatesByProject]);
+
+    const handleViewEstimate = useCallback(() => {
+        if (estimateForDetailPm) {
+            router.push(`/estimates/${estimateForDetailPm.id}`);
+        }
+    }, [estimateForDetailPm, router]);
+
     const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
         try {
             await addEstimate(data);
@@ -264,6 +284,7 @@ export default function ProjectMasterListPage() {
                 onUpdate={handleUpdate}
                 initialEditMode={openModalInEditMode}
                 onCreateEstimate={isForeman2 ? undefined : handleCreateEstimate}
+                onViewEstimate={!isForeman2 && estimateForDetailPm ? handleViewEstimate : undefined}
                 readOnly={isForeman2}
             />
             <EstimateModal
@@ -351,6 +372,18 @@ export default function ProjectMasterListPage() {
                                         {pm.status === 'completed' && (
                                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">
                                                 完了
+                                            </span>
+                                        )}
+                                        {pm.hasEstimate && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200" title="見積書作成済み">
+                                                <FileText className="w-3 h-3" />
+                                                見積
+                                            </span>
+                                        )}
+                                        {pm.hasInvoice && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200" title="請求書作成済み">
+                                                <Receipt className="w-3 h-3" />
+                                                請求
                                             </span>
                                         )}
                                     </div>
@@ -467,6 +500,18 @@ export default function ProjectMasterListPage() {
                                                 {pm.status === 'completed' && (
                                                     <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-slate-100 text-slate-600">
                                                         完了
+                                                    </span>
+                                                )}
+                                                {pm.hasEstimate && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200" title="見積書作成済み">
+                                                        <FileText className="w-3 h-3" />
+                                                        見積
+                                                    </span>
+                                                )}
+                                                {pm.hasInvoice && (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200" title="請求書作成済み">
+                                                        <Receipt className="w-3 h-3" />
+                                                        請求
                                                     </span>
                                                 )}
                                             </div>

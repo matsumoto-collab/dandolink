@@ -50,6 +50,33 @@ export async function GET(req: NextRequest) {
         const include = { _count: { select: { assignments: true } } };
         const orderBy = { updatedAt: 'desc' as const };
 
+        // 見積書・請求書の有無を一覧で一目でわかるようにするためのフラグ
+        const buildDocFlags = async (pmIds: string[]) => {
+            if (pmIds.length === 0) return { estimateSet: new Set<string>(), invoiceSet: new Set<string>() };
+            const [estimateRows, invoiceRows, invoicePmRows] = await Promise.all([
+                prisma.estimate.findMany({
+                    where: { projectMasterId: { in: pmIds } },
+                    select: { projectMasterId: true },
+                    distinct: ['projectMasterId'],
+                }),
+                prisma.invoice.findMany({
+                    where: { projectMasterId: { in: pmIds } },
+                    select: { projectMasterId: true },
+                    distinct: ['projectMasterId'],
+                }),
+                prisma.invoiceProjectMaster.findMany({
+                    where: { projectMasterId: { in: pmIds } },
+                    select: { projectMasterId: true },
+                    distinct: ['projectMasterId'],
+                }),
+            ]);
+            const estimateSet = new Set(estimateRows.map(e => e.projectMasterId).filter((v): v is string => !!v));
+            const invoiceSet = new Set<string>();
+            for (const r of invoiceRows) if (r.projectMasterId) invoiceSet.add(r.projectMasterId);
+            for (const r of invoicePmRows) invoiceSet.add(r.projectMasterId);
+            return { estimateSet, invoiceSet };
+        };
+
         if (page && limit) {
             const pageNum = parseInt(page, 10);
             let limitNum = parseInt(limit, 10);
@@ -63,14 +90,28 @@ export async function GET(req: NextRequest) {
                 prisma.projectMaster.count({ where }),
             ]);
 
+            const { estimateSet, invoiceSet } = await buildDocFlags(projectMasters.map(pm => pm.id));
+
             return NextResponse.json({
-                data: projectMasters.map(formatProjectMaster),
+                data: projectMasters.map(pm => ({
+                    ...formatProjectMaster(pm),
+                    hasEstimate: estimateSet.has(pm.id),
+                    hasInvoice: invoiceSet.has(pm.id),
+                })),
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const projectMasters = await prisma.projectMaster.findMany({ where, include, orderBy });
-        return NextResponse.json(projectMasters.map(formatProjectMaster), { headers: { 'Cache-Control': 'no-store' } });
+        const { estimateSet, invoiceSet } = await buildDocFlags(projectMasters.map(pm => pm.id));
+        return NextResponse.json(
+            projectMasters.map(pm => ({
+                ...formatProjectMaster(pm),
+                hasEstimate: estimateSet.has(pm.id),
+                hasInvoice: invoiceSet.has(pm.id),
+            })),
+            { headers: { 'Cache-Control': 'no-store' } }
+        );
     } catch (error) {
         return serverErrorResponse('案件マスター一覧の取得', error);
     }

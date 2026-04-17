@@ -8,6 +8,15 @@ interface RouteContext {
     params: Promise<{ id: string }>;
 }
 
+async function getDocFlags(pmId: string) {
+    const [estimateCount, invoiceCount, invoicePmLinkCount] = await Promise.all([
+        prisma.estimate.count({ where: { projectMasterId: pmId } }),
+        prisma.invoice.count({ where: { projectMasterId: pmId } }),
+        prisma.invoiceProjectMaster.count({ where: { projectMasterId: pmId } }),
+    ]);
+    return { hasEstimate: estimateCount > 0, hasInvoice: invoiceCount > 0 || invoicePmLinkCount > 0 };
+}
+
 export async function GET(_req: NextRequest, context: RouteContext) {
     try {
         const { error } = await requireAuth();
@@ -17,7 +26,8 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const projectMaster = await prisma.projectMaster.findUnique({ where: { id }, include: { assignments: { orderBy: { date: 'desc' } } } });
 
         if (!projectMaster) return notFoundResponse('案件マスター');
-        return NextResponse.json(formatProjectMaster(projectMaster));
+        const flags = await getDocFlags(id);
+        return NextResponse.json({ ...formatProjectMaster(projectMaster), ...flags });
     } catch (error) {
         return serverErrorResponse('案件マスターの取得', error);
     }
@@ -93,12 +103,14 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         }
 
         if (Object.keys(changedData).length === 0) {
-            return NextResponse.json(formatProjectMaster(existing));
+            const flags = await getDocFlags(id);
+            return NextResponse.json({ ...formatProjectMaster(existing), ...flags });
         }
 
         changedData.updatedBy = session!.user.id;
         const projectMaster = await prisma.projectMaster.update({ where: { id }, data: changedData });
-        return NextResponse.json(formatProjectMaster(projectMaster));
+        const flags = await getDocFlags(id);
+        return NextResponse.json({ ...formatProjectMaster(projectMaster), ...flags });
     } catch (error) {
         return serverErrorResponse('案件マスターの更新', error);
     }

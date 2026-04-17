@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { X, Edit, ArrowLeft, FileText } from 'lucide-react';
+import { X, Edit, ArrowLeft, FileText, FileSearch } from 'lucide-react';
 
 const MaterialsSection = lazy(() => import('@/components/ProjectMasters/sections/MaterialsSection'));
 import { ProjectMaster } from '@/types/calendar';
@@ -19,6 +19,7 @@ interface ProjectMasterDetailModalProps {
     onUpdate: (id: string, data: ProjectMasterFormData) => Promise<void>;
     initialEditMode?: boolean;
     onCreateEstimate?: () => void;
+    onViewEstimate?: () => void;
     readOnly?: boolean;
 }
 
@@ -71,7 +72,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
     };
 }
 
-export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, readOnly }: ProjectMasterDetailModalProps) {
+export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, onViewEstimate, readOnly }: ProjectMasterDetailModalProps) {
     const isOpen = pm !== null;
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const [activeTab, setActiveTab] = useState<'detail' | 'materials'>('detail');
@@ -182,7 +183,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]"
+                className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-3xl lg:mx-4 lg:max-h-[90vh]"
             >
                 {/* ヘッダー */}
                 <div className={`flex-shrink-0 border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between transition-colors ${isEditMode ? 'bg-slate-50' : 'bg-white'}`}>
@@ -227,6 +228,15 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             >
                                 <FileText className="w-4 h-4" />
                                 見積書を作成
+                            </button>
+                        )}
+                        {!isEditMode && onViewEstimate && (
+                            <button
+                                onClick={onViewEstimate}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-teal-300 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+                            >
+                                <FileSearch className="w-4 h-4" />
+                                見積書を確認
                             </button>
                         )}
                         <button
