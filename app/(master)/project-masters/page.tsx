@@ -315,10 +315,8 @@ export default function ProjectMasterListPage() {
     const handleInvoiceCellClick = useCallback((pm: ProjectMaster) => {
         const list = getInvoicesByProject(pm.id);
         if (list.length === 0) {
-            setInvoiceInitialData({
-                projectId: pm.id,
-                title: `${pm.title} 請求書`,
-            });
+            // タイトルは手動入力（「令和〇年〇月〇日締めご請求書」等）のため空のまま
+            setInvoiceInitialData({ projectId: pm.id });
             setEditingInvoice(null);
             setIsInvoiceModalOpen(true);
         } else if (list.length === 1) {
@@ -598,10 +596,7 @@ export default function ProjectMasterListPage() {
                                         setEditingEstimate(null);
                                         setIsEstimateModalOpen(true);
                                     } else {
-                                        setInvoiceInitialData({
-                                            projectId: pickerContext.pm.id,
-                                            title: `${pickerContext.pm.title} 請求書`,
-                                        });
+                                        setInvoiceInitialData({ projectId: pickerContext.pm.id });
                                         setEditingInvoice(null);
                                         setIsInvoiceModalOpen(true);
                                     }
@@ -721,11 +716,11 @@ export default function ProjectMasterListPage() {
                                         </span>
                                     </div>
                                     {/* 見積書・請求書 済/未 */}
-                                    <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                                    <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
                                         {(() => {
                                             const hasEst = hasEstimateFor(pm);
                                             const hasInv = hasInvoiceFor(pm);
-                                            const base = 'flex-1 inline-flex items-center justify-center gap-1.5 py-2 text-xs font-semibold rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed';
+                                            const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
                                             const done = 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm';
                                             const todo = 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600';
                                             return (
@@ -735,7 +730,7 @@ export default function ProjectMasterListPage() {
                                                         disabled={!hasEst && isForeman2}
                                                         className={`${base} ${hasEst ? done : todo}`}
                                                     >
-                                                        {hasEst && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                                                        {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
                                                         <span>見積 {hasEst ? '済' : '未'}</span>
                                                     </button>
                                                     <button
@@ -743,7 +738,7 @@ export default function ProjectMasterListPage() {
                                                         disabled={!hasInv && isForeman2}
                                                         className={`${base} ${hasInv ? done : todo}`}
                                                     >
-                                                        {hasInv && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                                                        {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
                                                         <span>請求 {hasInv ? '済' : '未'}</span>
                                                     </button>
                                                 </>

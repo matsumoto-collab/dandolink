@@ -201,42 +201,46 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                         )}
                         <LastUpdatedLabel updatedAt={pm.updatedAt} updatedBy={pm.updatedBy} />
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
                         {!readOnly && (
                             isEditMode ? (
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
+                                    title="閲覧に戻る"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
                                 >
                                     <ArrowLeft className="w-4 h-4" />
-                                    閲覧に戻る
+                                    <span className="hidden md:inline">閲覧に戻る</span>
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleStartEdit}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                    title="編集"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
                                 >
                                     <Edit className="w-4 h-4" />
-                                    編集
+                                    <span className="hidden md:inline">編集</span>
                                 </button>
                             )
                         )}
                         {!isEditMode && onCreateEstimate && (
                             <button
                                 onClick={onCreateEstimate}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                title="見積書を作成"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <FileText className="w-4 h-4" />
-                                見積書を作成
+                                <span className="hidden md:inline">見積書を作成</span>
                             </button>
                         )}
                         {!isEditMode && onViewEstimate && (
                             <button
                                 onClick={onViewEstimate}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-teal-300 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+                                title="見積書を確認"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm border border-teal-300 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
                             >
                                 <FileSearch className="w-4 h-4" />
-                                見積書を確認
+                                <span className="hidden md:inline">見積書を確認</span>
                             </button>
                         )}
                         <button
