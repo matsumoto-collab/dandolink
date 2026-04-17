@@ -86,9 +86,10 @@ interface ProjectMasterFormProps {
     onCancel: () => void;
     isEdit?: boolean;
     projectMasterId?: string;
+    errors?: Record<string, string>;
 }
 
-export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, isEdit = false, projectMasterId }: ProjectMasterFormProps) {
+export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, isEdit = false, projectMasterId, errors }: ProjectMasterFormProps) {
     const [expandedSections, setExpandedSections] = useState({
         basic: true,
         address: true,
@@ -97,6 +98,14 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
         remarks: true,
         files: true,
     });
+
+    // エラーが入っている間は基本情報セクションを必ず展開（スクロール先が閉じていると見えないため）
+    const hasBasicError = !!(errors && (errors.name || errors.constructionContent || errors.createdBy || errors.customerName));
+    React.useEffect(() => {
+        if (hasBasicError) {
+            setExpandedSections(prev => (prev.basic ? prev : { ...prev, basic: true }));
+        }
+    }, [hasBasicError]);
 
     const toggleSection = (section: keyof typeof expandedSections) => {
         setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -110,7 +119,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 isExpanded={expandedSections.basic}
                 onToggle={() => toggleSection('basic')}
             >
-                <BasicInfoSection formData={formData} setFormData={setFormData} />
+                <BasicInfoSection formData={formData} setFormData={setFormData} errors={errors} />
             </CollapsibleSection>
 
             {/* 住所セクション */}

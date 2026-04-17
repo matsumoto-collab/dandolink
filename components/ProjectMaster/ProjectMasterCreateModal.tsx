@@ -21,6 +21,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
         : DEFAULT_FORM_DATA;
     const [formData, setFormData] = useState<ProjectMasterFormData>(initialFormData);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (isOpen) {
@@ -28,8 +29,22 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
                 ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
                 : DEFAULT_FORM_DATA);
             setShowUnsavedConfirm(false);
+            setErrors({});
         }
     }, [isOpen, currentUserId]);
+
+    // 入力が修正されたら該当エラーを自動クリア
+    useEffect(() => {
+        setErrors(prev => {
+            if (Object.keys(prev).length === 0) return prev;
+            const next = { ...prev };
+            if (formData.name.trim() && next.name) delete next.name;
+            if (formData.constructionContent && next.constructionContent) delete next.constructionContent;
+            if (formData.createdBy.length > 0 && next.createdBy) delete next.createdBy;
+            if (formData.customerName && next.customerName) delete next.customerName;
+            return next;
+        });
+    }, [formData.name, formData.constructionContent, formData.createdBy, formData.customerName]);
 
     const isFormDirty = () => {
         const baseline = currentUserId
@@ -51,22 +66,35 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
     if (!isOpen) return null;
 
     const handleSubmit = async () => {
-        if (!formData.name.trim()) {
-            toast.error('名前は必須です');
+        const newErrors: Record<string, string> = {};
+        if (formData.createdBy.length === 0) newErrors.createdBy = '案件責任者を1名以上選択してください';
+        if (!formData.constructionContent) newErrors.constructionContent = '工事内容を選択してください';
+        if (!formData.name.trim()) newErrors.name = '名前を入力してください';
+        if (!formData.customerName) newErrors.customerName = '元請けを選択してください';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            // 画面上の並び順で最初のエラーを特定
+            const fieldOrder = ['createdBy', 'constructionContent', 'name', 'customerName'];
+            const firstErrorField = fieldOrder.find(f => newErrors[f]);
+            if (firstErrorField) {
+                requestAnimationFrame(() => {
+                    const el = document.querySelector(`[data-field-id="${firstErrorField}"]`) as HTMLElement | null;
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const input = el.querySelector('input, select, textarea') as HTMLElement | null;
+                        if (input) {
+                            input.focus({ preventScroll: true });
+                        } else {
+                            el.focus({ preventScroll: true });
+                        }
+                    }
+                });
+            }
+            toast.error('入力に不備があります');
             return;
         }
-        if (!formData.constructionContent) {
-            toast.error('工事内容は必須です');
-            return;
-        }
-        if (formData.createdBy.length === 0) {
-            toast.error('案件責任者は必須です');
-            return;
-        }
-        if (!formData.customerName) {
-            toast.error('元請けは必須です');
-            return;
-        }
+        setErrors({});
         try {
             await onCreate(formData);
             onClose();
@@ -114,6 +142,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
                         onSubmit={handleSubmit}
                         onCancel={handleClose}
                         isEdit={false}
+                        errors={errors}
                     />
                 </div>
             </div>

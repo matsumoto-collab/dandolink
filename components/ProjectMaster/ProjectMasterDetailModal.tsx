@@ -77,6 +77,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
     const [activeTab, setActiveTab] = useState<'detail' | 'materials'>('detail');
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const constructionTypes = useMasterStore(selectConstructionTypes);
 
     // pm.id が変わった時（別の案件を開いた時）のみモード・タブをリセット
@@ -86,9 +87,20 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
             setActiveTab('detail');
             setFormData(initFormDataFromPm(pm, constructionTypes));
             setShowUnsavedConfirm(false);
+            setErrors({});
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [pm?.id, initialEditMode]);
+
+    // 入力が修正されたら該当エラーを自動クリア
+    useEffect(() => {
+        setErrors(prev => {
+            if (Object.keys(prev).length === 0) return prev;
+            const next = { ...prev };
+            if ((formData.name.trim() || formData.title.trim()) && next.name) delete next.name;
+            return next;
+        });
+    }, [formData.name, formData.title]);
 
     // pm の内容が変わった時（保存後など）に formData を最新に同期
     useEffect(() => {
@@ -131,9 +143,23 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
 
     const handleUpdate = async () => {
         if (!formData.name.trim() && !formData.title.trim()) {
-            toast.error('名前は必須です');
+            setErrors({ name: '名前を入力してください' });
+            requestAnimationFrame(() => {
+                const el = document.querySelector('[data-field-id="name"]') as HTMLElement | null;
+                if (el) {
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const input = el.querySelector('input, select, textarea') as HTMLElement | null;
+                    if (input) {
+                        input.focus({ preventScroll: true });
+                    } else {
+                        el.focus({ preventScroll: true });
+                    }
+                }
+            });
+            toast.error('入力に不備があります');
             return;
         }
+        setErrors({});
         try {
             await onUpdate(pm.id, formData);
             setMode('view');
@@ -241,6 +267,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             onCancel={handleCancelEdit}
                             isEdit={true}
                             projectMasterId={pm.id}
+                            errors={errors}
                         />
                     ) : activeTab === 'materials' ? (
                         <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500"></div></div>}>

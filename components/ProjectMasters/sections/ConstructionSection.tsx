@@ -8,13 +8,6 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { ConstructionTypeMaster, ProjectAssignment } from '@/types/calendar';
-import { logger } from '@/lib/logger';
-
-interface ConstructionContentItem {
-    id: string;
-    name: string;
-    sortOrder: number;
-}
 
 interface ConstructionSectionProps {
     formData: ProjectMasterFormData;
@@ -329,21 +322,6 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
     const getTotalMembersForDate = useMasterStore(state => state.getTotalMembersForDate);
     const constructionTypes = useMasterStore(selectConstructionTypes);
-    const [constructionContents, setConstructionContents] = useState<ConstructionContentItem[]>([]);
-
-    useEffect(() => {
-        const fetchContents = async () => {
-            try {
-                const res = await fetch('/api/master-data/construction-contents');
-                if (res.ok) {
-                    setConstructionContents(await res.json());
-                }
-            } catch (error) {
-                logger.error('Failed to fetch construction contents:', error);
-            }
-        };
-        fetchContents();
-    }, []);
 
     // constructionTypes ロード後にデフォルト種別を自動セット（全行が未設定の場合のみ）
     useEffect(() => {
@@ -389,20 +367,6 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
 
     return (
         <div className="space-y-4">
-            {/* 工事内容 */}
-            <FormField label="工事内容" required>
-                <select
-                    value={formData.constructionContent}
-                    onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                >
-                    <option value="">選択してください</option>
-                    {constructionContents.map((item) => (
-                        <option key={item.id} value={item.name}>{item.name}</option>
-                    ))}
-                </select>
-            </FormField>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 面積 */}
                 <FormField label="m2">

@@ -27,6 +27,12 @@ interface ConstructionSuffix {
     sortOrder: number;
 }
 
+interface ConstructionContentItem {
+    id: string;
+    name: string;
+    sortOrder: number;
+}
+
 interface ManagerUser {
     id: string;
     displayName: string;
@@ -37,14 +43,16 @@ interface ManagerUser {
 interface BasicInfoSectionProps {
     formData: ProjectMasterFormData;
     setFormData: React.Dispatch<React.SetStateAction<ProjectMasterFormData>>;
+    errors?: Record<string, string>;
 }
 
-export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProps) {
+export function BasicInfoSection({ formData, setFormData, errors }: BasicInfoSectionProps) {
     const [managers, setManagers] = useState<ManagerUser[]>([]);
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
     const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
     const customerDropdownRef = useRef<HTMLDivElement>(null);
     const [constructionSuffixes, setConstructionSuffixes] = useState<ConstructionSuffix[]>([]);
+    const [constructionContents, setConstructionContents] = useState<ConstructionContentItem[]>([]);
 
     const {
         setCustomers,
@@ -132,6 +140,20 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
         fetchSuffixes();
     }, []);
 
+    useEffect(() => {
+        const fetchContents = async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-contents');
+                if (res.ok) {
+                    setConstructionContents(await res.json());
+                }
+            } catch (error) {
+                logger.error('Failed to fetch construction contents:', error);
+            }
+        };
+        fetchContents();
+    }, []);
+
     // 正式名称プレビューを生成
     const titlePreview = useMemo(() => {
         const n = formData.name.trim();
@@ -145,7 +167,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
         <>
             <div className="space-y-4">
                 {/* 案件担当者 */}
-                <FormField label="案件責任者" required>
+                <FormField label="案件責任者" required error={errors?.createdBy} fieldId="createdBy">
                     <div className="flex flex-wrap gap-2 min-h-[42px] p-2 border border-slate-300 rounded-lg bg-white">
                         {isLoadingManagers ? (
                             <div className="flex items-center gap-2 text-slate-500">
@@ -176,8 +198,22 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                     </div>
                 </FormField>
 
+                {/* 工事内容 */}
+                <FormField label="工事内容" required error={errors?.constructionContent} fieldId="constructionContent">
+                    <select
+                        value={formData.constructionContent}
+                        onChange={(e) => setFormData({ ...formData, constructionContent: e.target.value })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                    >
+                        <option value="">選択してください</option>
+                        {constructionContents.map((item) => (
+                            <option key={item.id} value={item.name}>{item.name}</option>
+                        ))}
+                    </select>
+                </FormField>
+
                 {/* 現場名（3フィールド分離） */}
-                <FormField label="現場名" required>
+                <FormField label="現場名" required error={errors?.name} fieldId="name">
                     <div className="space-y-3">
                         {/* 1行目: 名前（フル幅） */}
                         <div>
@@ -228,7 +264,7 @@ export function BasicInfoSection({ formData, setFormData }: BasicInfoSectionProp
                 </FormField>
 
                 {/* 元請け（顧客選択） */}
-                <FormField label="元請け" required>
+                <FormField label="元請け" required error={errors?.customerName} fieldId="customerName">
                     <div className="relative" ref={customerDropdownRef}>
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
