@@ -34,6 +34,9 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
         const VALID_STATUSES = ['active', 'completed', 'cancelled'];
 
+        const existing = await prisma.projectMaster.findUnique({ where: { id } });
+        if (!existing) return notFoundResponse('案件マスター');
+
         const updateData: Record<string, unknown> = {};
         if (body.name !== undefined) updateData.name = body.name || null;
         if (body.honorific !== undefined) updateData.honorific = body.honorific ?? null;
@@ -42,17 +45,10 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         // nameがある場合、titleを自動合成
         if (body.name !== undefined) {
             let suffixName = '';
-            const suffixId = body.constructionSuffixId !== undefined ? body.constructionSuffixId : undefined;
+            const suffixId = body.constructionSuffixId !== undefined ? body.constructionSuffixId : existing.constructionSuffixId;
             if (suffixId) {
                 const suffix = await prisma.constructionSuffix.findUnique({ where: { id: suffixId } });
                 suffixName = suffix?.name || '';
-            } else if (suffixId === undefined) {
-                // constructionSuffixIdが変更されていない場合、既存のIDから取得
-                const existing = await prisma.projectMaster.findUnique({ where: { id }, select: { constructionSuffixId: true } });
-                if (existing?.constructionSuffixId) {
-                    const suffix = await prisma.constructionSuffix.findUnique({ where: { id: existing.constructionSuffixId } });
-                    suffixName = suffix?.name || '';
-                }
             }
             const h = body.honorific !== undefined ? (body.honorific || '') : '';
             updateData.title = `${body.name}${h}${suffixName ? ' ' + suffixName : ''}`;
@@ -86,13 +82,40 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;
         if (body.createdBy !== undefined) updateData.createdBy = stringifyJsonField(body.createdBy);
-        updateData.updatedBy = session!.user.id;
 
-        const projectMaster = await prisma.projectMaster.update({ where: { id }, data: updateData });
+        // 既存値と実際に差分があるフィールドだけを残す（updatedAt/updatedBy を無駄に進めないため）
+        const changedData: Record<string, unknown> = {};
+        for (const [key, newValue] of Object.entries(updateData)) {
+            const currentValue = (existing as Record<string, unknown>)[key];
+            if (!isPrismaFieldEqual(currentValue, newValue)) {
+                changedData[key] = newValue;
+            }
+        }
+
+        if (Object.keys(changedData).length === 0) {
+            return NextResponse.json(formatProjectMaster(existing));
+        }
+
+        changedData.updatedBy = session!.user.id;
+        const projectMaster = await prisma.projectMaster.update({ where: { id }, data: changedData });
         return NextResponse.json(formatProjectMaster(projectMaster));
     } catch (error) {
         return serverErrorResponse('案件マスターの更新', error);
     }
+}
+
+function isPrismaFieldEqual(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if ((a === null || a === undefined) && (b === null || b === undefined)) return true;
+    if (a === null || a === undefined || b === null || b === undefined) return false;
+    if (typeof a === 'object' && typeof b === 'object') {
+        try {
+            return JSON.stringify(a) === JSON.stringify(b);
+        } catch {
+            return false;
+        }
+    }
+    return false;
 }
 
 export async function DELETE(_req: NextRequest, context: RouteContext) {

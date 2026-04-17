@@ -57,9 +57,11 @@ describe('/api/project-masters/[id]', () => {
 
     describe('PATCH', () => {
         const validBody = { title: 'Updated Title' };
+        const existingProject = { id: 'pm-1', title: 'Old Title', createdAt: new Date(), updatedAt: new Date() };
 
         it('should update project master', async () => {
-            const updatedProject = { id: 'pm-1', ...validBody, createdAt: new Date(), updatedAt: new Date() };
+            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(existingProject);
+            const updatedProject = { ...existingProject, title: 'Updated Title', updatedAt: new Date() };
             (prisma.projectMaster.update as jest.Mock).mockResolvedValue(updatedProject);
 
             const req = new NextRequest('http://localhost:3000/api/project-masters/pm-1', {
@@ -74,6 +76,20 @@ describe('/api/project-masters/[id]', () => {
                 where: { id: 'pm-1' },
                 data: expect.objectContaining({ title: 'Updated Title' })
             }));
+        });
+
+        it('should skip update when all fields are unchanged', async () => {
+            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ ...existingProject, title: 'Updated Title' });
+
+            const req = new NextRequest('http://localhost:3000/api/project-masters/pm-1', {
+                method: 'PATCH',
+                body: JSON.stringify(validBody),
+            });
+
+            const res = await PATCH(req, mockContext);
+
+            expect(res.status).toBe(200);
+            expect(prisma.projectMaster.update).not.toHaveBeenCalled();
         });
 
         it('should return 403 if user cannot dispatch', async () => {
