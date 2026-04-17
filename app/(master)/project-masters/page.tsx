@@ -2,12 +2,15 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useEstimates } from '@/hooks/useEstimates';
-import { ProjectMaster, ScaffoldingSpec } from '@/types/calendar';
-import { EstimateInput } from '@/types/estimate';
-import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, FileText, Receipt } from 'lucide-react';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useCompany } from '@/hooks/useCompany';
+import { useCustomers } from '@/hooks/useCustomers';
+import { ProjectMaster, ScaffoldingSpec, Project } from '@/types/calendar';
+import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
+import { Invoice, InvoiceInput } from '@/types/invoice';
+import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
@@ -21,11 +24,25 @@ const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
+const EstimateDetailModal = dynamic(
+    () => import('@/components/Estimates/EstimateDetailModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
+const InvoiceModal = dynamic(
+    () => import('@/components/Invoices/InvoiceModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
+const InvoiceDetailModal = dynamic(
+    () => import('@/components/Invoices/InvoiceDetailModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 
 export default function ProjectMasterListPage() {
-    const router = useRouter();
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
-    const { addEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
+    const { addEstimate, updateEstimate, deleteEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
+    const { addInvoice, updateInvoice, deleteInvoice, ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
+    const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
@@ -35,7 +52,15 @@ export default function ProjectMasterListPage() {
     const [openModalInEditMode, setOpenModalInEditMode] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [isEstimateModalOpen, setIsEstimateModalOpen] = useState(false);
-    const [estimateInitialData, setEstimateInitialData] = useState<{ projectId?: string; title?: string }>({});
+    const [estimateInitialData, setEstimateInitialData] = useState<Partial<EstimateInput>>({});
+    const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
+    const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
+    const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+    const [invoiceInitialData, setInvoiceInitialData] = useState<Partial<InvoiceInput>>({});
+    const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+    const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+    // 複数見積/請求がある場合のピッカー
+    const [pickerContext, setPickerContext] = useState<{ pm: ProjectMaster; kind: 'estimate' | 'invoice' } | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
@@ -70,10 +95,13 @@ export default function ProjectMasterListPage() {
         setCurrentPage(1);
     }, [searchTerm, filterStatus]);
 
-    // 「見積書を確認」ボタンのために見積書ストアを遅延ロード
+    // 見積/請求カラムのために各ストアを遅延ロード
     useEffect(() => {
         ensureEstimatesLoaded();
-    }, [ensureEstimatesLoaded]);
+        ensureInvoicesLoaded();
+        ensureCompanyLoaded();
+        ensureCustomersLoaded();
+    }, [ensureEstimatesLoaded, ensureInvoicesLoaded, ensureCompanyLoaded, ensureCustomersLoaded]);
 
     const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
 
@@ -231,6 +259,49 @@ export default function ProjectMasterListPage() {
         }
     }, [detailPm]);
 
+    // 済/未判定: API の hasEstimate/hasInvoice か、クライアント側で作成直後の状態も反映
+    const hasEstimateFor = useCallback((pm: ProjectMaster) => {
+        return pm.hasEstimate || getEstimatesByProject(pm.id).length > 0;
+    }, [getEstimatesByProject]);
+    const hasInvoiceFor = useCallback((pm: ProjectMaster) => {
+        return pm.hasInvoice || getInvoicesByProject(pm.id).length > 0;
+    }, [getInvoicesByProject]);
+
+    // 見積「済/未」セルのクリック
+    const handleEstimateCellClick = useCallback((pm: ProjectMaster) => {
+        const list = getEstimatesByProject(pm.id);
+        if (list.length === 0) {
+            // 未作成 → 作成モーダル
+            setEstimateInitialData({
+                projectId: pm.id,
+                title: `${pm.title} 見積書`,
+            });
+            setEditingEstimate(null);
+            setIsEstimateModalOpen(true);
+        } else if (list.length === 1) {
+            setViewingEstimate(list[0]);
+        } else {
+            setPickerContext({ pm, kind: 'estimate' });
+        }
+    }, [getEstimatesByProject]);
+
+    // 請求「済/未」セルのクリック
+    const handleInvoiceCellClick = useCallback((pm: ProjectMaster) => {
+        const list = getInvoicesByProject(pm.id);
+        if (list.length === 0) {
+            setInvoiceInitialData({
+                projectId: pm.id,
+                title: `${pm.title} 請求書`,
+            });
+            setEditingInvoice(null);
+            setIsInvoiceModalOpen(true);
+        } else if (list.length === 1) {
+            setViewingInvoice(list[0]);
+        } else {
+            setPickerContext({ pm, kind: 'invoice' });
+        }
+    }, [getInvoicesByProject]);
+
     // 詳細モーダル表示中の案件に紐付く最初の見積書
     const estimateForDetailPm = useMemo(() => {
         if (!detailPm) return null;
@@ -240,19 +311,132 @@ export default function ProjectMasterListPage() {
 
     const handleViewEstimate = useCallback(() => {
         if (estimateForDetailPm) {
-            router.push(`/estimates/${estimateForDetailPm.id}`);
+            setViewingEstimate(estimateForDetailPm);
+            setDetailPm(null);
         }
-    }, [estimateForDetailPm, router]);
+    }, [estimateForDetailPm]);
 
     const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
         try {
-            await addEstimate(data);
+            if (editingEstimate) {
+                await updateEstimate(editingEstimate.id, data);
+                toast.success('見積書を更新しました');
+            } else {
+                await addEstimate(data);
+                toast.success('見積書を作成しました');
+            }
             setIsEstimateModalOpen(false);
-            toast.success('見積書を作成しました');
+            setEditingEstimate(null);
         } catch {
-            toast.error('見積書の作成に失敗しました');
+            toast.error(editingEstimate ? '見積書の更新に失敗しました' : '見積書の作成に失敗しました');
         }
-    }, [addEstimate]);
+    }, [addEstimate, updateEstimate, editingEstimate]);
+
+    // 見積詳細モーダルからの編集/削除/原価更新ハンドラ
+    const viewingEstimateProject: Project | null = useMemo(() => {
+        if (!viewingEstimate?.projectId) return null;
+        const pm = projectMasters.find(p => p.id === viewingEstimate.projectId);
+        if (!pm) return null;
+        return {
+            id: pm.id,
+            title: pm.title,
+            startDate: new Date(),
+            category: 'construction' as const,
+            color: '#3B82F6',
+            customer: pm.customerName || pm.customerShortName || '',
+            customerHonorific: '御中',
+            location: pm.location || '',
+            createdAt: pm.createdAt,
+            updatedAt: pm.updatedAt,
+        };
+    }, [viewingEstimate, projectMasters]);
+
+    const viewingEstimateCustomer = useMemo(() => {
+        if (!viewingEstimate?.customerId) return { name: undefined, honorific: undefined };
+        const c = customers.find(c => c.id === viewingEstimate.customerId);
+        return { name: c?.name, honorific: c?.honorific };
+    }, [viewingEstimate, customers]);
+
+    const handleEditEstimateFromDetail = useCallback((est: Estimate) => {
+        setEditingEstimate(est);
+        setEstimateInitialData({});
+        setViewingEstimate(null);
+        setIsEstimateModalOpen(true);
+    }, []);
+
+    const handleDeleteEstimateFromDetail = useCallback(async (id: string) => {
+        try {
+            await deleteEstimate(id);
+            toast.success('見積書を削除しました');
+        } catch {
+            toast.error('見積書の削除に失敗しました');
+        }
+    }, [deleteEstimate]);
+
+    const handleUpdateEstimateCost = useCallback(async (id: string, data: { items: EstimateItem[]; costTotal: number | null }) => {
+        try {
+            await updateEstimate(id, { items: data.items, costTotal: data.costTotal } as Partial<EstimateInput>);
+        } catch (e) {
+            logger.error('予算書の保存に失敗:', e);
+        }
+    }, [updateEstimate]);
+
+    // 請求書: 詳細モーダル用のproject/customer情報
+    const viewingInvoiceProject: Project | null = useMemo(() => {
+        if (!viewingInvoice?.projectId) return null;
+        const pm = projectMasters.find(p => p.id === viewingInvoice.projectId);
+        if (!pm) return null;
+        return {
+            id: pm.id,
+            title: pm.title,
+            startDate: new Date(),
+            category: 'construction' as const,
+            color: '#3B82F6',
+            customer: pm.customerName || pm.customerShortName || '',
+            customerHonorific: '御中',
+            location: pm.location || '',
+            createdAt: pm.createdAt,
+            updatedAt: pm.updatedAt,
+        };
+    }, [viewingInvoice, projectMasters]);
+
+    const viewingInvoiceCustomer = useMemo(() => {
+        if (!viewingInvoice?.customerId) return { name: undefined, honorific: undefined };
+        const c = customers.find(c => c.id === viewingInvoice.customerId);
+        return { name: c?.name, honorific: c?.honorific };
+    }, [viewingInvoice, customers]);
+
+    const handleInvoiceSubmit = useCallback(async (data: InvoiceInput) => {
+        try {
+            if (editingInvoice) {
+                await updateInvoice(editingInvoice.id, data);
+                toast.success('請求書を更新しました');
+            } else {
+                await addInvoice(data);
+                toast.success('請求書を作成しました');
+            }
+            setIsInvoiceModalOpen(false);
+            setEditingInvoice(null);
+        } catch {
+            toast.error(editingInvoice ? '請求書の更新に失敗しました' : '請求書の作成に失敗しました');
+        }
+    }, [addInvoice, updateInvoice, editingInvoice]);
+
+    const handleEditInvoiceFromDetail = useCallback((inv: Invoice) => {
+        setEditingInvoice(inv);
+        setInvoiceInitialData({});
+        setViewingInvoice(null);
+        setIsInvoiceModalOpen(true);
+    }, []);
+
+    const handleDeleteInvoiceFromDetail = useCallback(async (id: string) => {
+        try {
+            await deleteInvoice(id);
+            toast.success('請求書を削除しました');
+        } catch {
+            toast.error('請求書の削除に失敗しました');
+        }
+    }, [deleteInvoice]);
 
     const openDetailModal = (pm: ProjectMaster) => {
         setDetailPm(pm);
@@ -289,10 +473,121 @@ export default function ProjectMasterListPage() {
             />
             <EstimateModal
                 isOpen={isEstimateModalOpen}
-                onClose={() => setIsEstimateModalOpen(false)}
+                onClose={() => { setIsEstimateModalOpen(false); setEditingEstimate(null); }}
                 onSubmit={handleEstimateSubmit}
-                initialData={estimateInitialData}
+                initialData={editingEstimate || estimateInitialData}
             />
+            {companyInfo && (
+                <EstimateDetailModal
+                    isOpen={viewingEstimate !== null}
+                    onClose={() => setViewingEstimate(null)}
+                    estimate={viewingEstimate}
+                    project={viewingEstimateProject}
+                    customerName={viewingEstimateCustomer.name}
+                    customerHonorific={viewingEstimateCustomer.honorific}
+                    companyInfo={companyInfo}
+                    onDelete={handleDeleteEstimateFromDetail}
+                    onEdit={handleEditEstimateFromDetail}
+                    onUpdateEstimate={handleUpdateEstimateCost}
+                />
+            )}
+            <InvoiceModal
+                isOpen={isInvoiceModalOpen}
+                onClose={() => { setIsInvoiceModalOpen(false); setEditingInvoice(null); }}
+                onSubmit={handleInvoiceSubmit}
+                initialData={editingInvoice || invoiceInitialData}
+            />
+            {companyInfo && (
+                <InvoiceDetailModal
+                    isOpen={viewingInvoice !== null}
+                    onClose={() => setViewingInvoice(null)}
+                    invoice={viewingInvoice}
+                    project={viewingInvoiceProject}
+                    customerName={viewingInvoiceCustomer.name}
+                    customerHonorific={viewingInvoiceCustomer.honorific}
+                    companyInfo={companyInfo}
+                    onDelete={handleDeleteInvoiceFromDetail}
+                    onEdit={handleEditInvoiceFromDetail}
+                />
+            )}
+            {/* 複数見積/請求の選択ピッカー */}
+            {pickerContext && (
+                <div
+                    className="fixed inset-0 z-[65] flex items-center justify-center bg-black/50 p-4"
+                    onClick={() => setPickerContext(null)}
+                >
+                    <div
+                        className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[80vh] overflow-hidden flex flex-col"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-5 py-4 border-b border-slate-200">
+                            <h3 className="text-lg font-bold text-slate-800">
+                                {pickerContext.kind === 'estimate' ? '見積書を選択' : '請求書を選択'}
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1">{pickerContext.pm.title}</p>
+                        </div>
+                        <div className="flex-1 overflow-auto divide-y divide-slate-100">
+                            {(pickerContext.kind === 'estimate'
+                                ? getEstimatesByProject(pickerContext.pm.id)
+                                : getInvoicesByProject(pickerContext.pm.id)
+                            ).map((doc) => {
+                                const isEstimate = pickerContext.kind === 'estimate';
+                                const number = isEstimate ? (doc as Estimate).estimateNumber : (doc as Invoice).invoiceNumber;
+                                return (
+                                    <button
+                                        key={doc.id}
+                                        className="w-full text-left px-5 py-3 hover:bg-slate-50 transition-colors"
+                                        onClick={() => {
+                                            if (isEstimate) setViewingEstimate(doc as Estimate);
+                                            else setViewingInvoice(doc as Invoice);
+                                            setPickerContext(null);
+                                        }}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm font-semibold text-slate-700">{number}</span>
+                                            <span className="text-xs text-slate-500">
+                                                ¥{doc.total.toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-slate-500 mt-0.5 truncate">{doc.title}</div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="px-5 py-3 border-t border-slate-200 flex justify-between">
+                            <button
+                                className="px-3 py-1.5 text-sm rounded-lg text-slate-600 hover:bg-slate-50"
+                                onClick={() => setPickerContext(null)}
+                            >
+                                キャンセル
+                            </button>
+                            <button
+                                className="px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-white hover:bg-slate-800"
+                                onClick={() => {
+                                    if (pickerContext.kind === 'estimate') {
+                                        setEstimateInitialData({
+                                            projectId: pickerContext.pm.id,
+                                            title: `${pickerContext.pm.title} 見積書`,
+                                        });
+                                        setEditingEstimate(null);
+                                        setIsEstimateModalOpen(true);
+                                    } else {
+                                        setInvoiceInitialData({
+                                            projectId: pickerContext.pm.id,
+                                            title: `${pickerContext.pm.title} 請求書`,
+                                        });
+                                        setEditingInvoice(null);
+                                        setIsInvoiceModalOpen(true);
+                                    }
+                                    setPickerContext(null);
+                                }}
+                            >
+                                新規作成
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <div className="h-full flex flex-col overflow-hidden bg-slate-50">
                 {/* Header */}
                 <div className="flex-shrink-0 flex items-center justify-between mb-6">
@@ -374,18 +669,6 @@ export default function ProjectMasterListPage() {
                                                 完了
                                             </span>
                                         )}
-                                        {pm.hasEstimate && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200" title="見積書作成済み">
-                                                <FileText className="w-3 h-3" />
-                                                見積
-                                            </span>
-                                        )}
-                                        {pm.hasInvoice && (
-                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200" title="請求書作成済み">
-                                                <Receipt className="w-3 h-3" />
-                                                請求
-                                            </span>
-                                        )}
                                     </div>
                                     <div className="flex items-center gap-3 text-sm text-slate-600 flex-wrap">
                                         {pm.customerName && (
@@ -404,6 +687,31 @@ export default function ProjectMasterListPage() {
                                             <Calendar className="w-3.5 h-3.5" />
                                             {pm.assignmentCount ?? 0}件の配置
                                         </span>
+                                    </div>
+                                    {/* 見積書・請求書 済/未 */}
+                                    <div className="flex items-center gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+                                        {(() => {
+                                            const hasEst = hasEstimateFor(pm);
+                                            const hasInv = hasInvoiceFor(pm);
+                                            return (
+                                                <>
+                                                    <button
+                                                        onClick={() => handleEstimateCellClick(pm)}
+                                                        disabled={!hasEst && isForeman2}
+                                                        className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasEst ? 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                                    >
+                                                        見積: {hasEst ? '済' : '未'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleInvoiceCellClick(pm)}
+                                                        disabled={!hasInv && isForeman2}
+                                                        className={`flex-1 py-2 text-xs font-medium rounded-lg border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasInv ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}
+                                                    >
+                                                        請求: {hasInv ? '済' : '未'}
+                                                    </button>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                     <LastUpdatedLabel updatedAt={pm.updatedAt} updatedBy={pm.updatedBy} />
                                     {/* モバイル: アクションボタン行 */}
@@ -460,6 +768,12 @@ export default function ProjectMasterListPage() {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     配置数
                                 </th>
+                                <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    見積
+                                </th>
+                                <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                    請求
+                                </th>
                                 {!isForeman2 && (
                                     <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
                                         操作
@@ -476,12 +790,14 @@ export default function ProjectMasterListPage() {
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                                        <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
+                                        <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
                                         {!isForeman2 && <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24 ml-auto"></div></td>}
                                     </tr>
                                 ))
                             ) : filteredMasters.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isForeman2 ? 5 : 6} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isForeman2 ? 7 : 8} className="px-6 py-12 text-center text-slate-500">
                                         {searchTerm || filterStatus !== 'all' ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
                                     </td>
                                 </tr>
@@ -500,18 +816,6 @@ export default function ProjectMasterListPage() {
                                                 {pm.status === 'completed' && (
                                                     <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-slate-100 text-slate-600">
                                                         完了
-                                                    </span>
-                                                )}
-                                                {pm.hasEstimate && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-teal-50 text-teal-700 border border-teal-200" title="見積書作成済み">
-                                                        <FileText className="w-3 h-3" />
-                                                        見積
-                                                    </span>
-                                                )}
-                                                {pm.hasInvoice && (
-                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-medium rounded-full bg-amber-50 text-amber-700 border border-amber-200" title="請求書作成済み">
-                                                        <Receipt className="w-3 h-3" />
-                                                        請求
                                                     </span>
                                                 )}
                                             </div>
@@ -533,6 +837,36 @@ export default function ProjectMasterListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {pm.assignmentCount ?? 0}件の配置
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const hasEst = hasEstimateFor(pm);
+                                                return (
+                                                    <button
+                                                        onClick={() => handleEstimateCellClick(pm)}
+                                                        disabled={!hasEst && isForeman2}
+                                                        title={hasEst ? '見積書を確認' : '見積書を作成'}
+                                                        className={`px-3 py-1 text-[12px] font-semibold rounded-full border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasEst ? 'bg-teal-50 text-teal-700 border-teal-200 hover:bg-teal-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                                                    >
+                                                        {hasEst ? '済' : '未'}
+                                                    </button>
+                                                );
+                                            })()}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const hasInv = hasInvoiceFor(pm);
+                                                return (
+                                                    <button
+                                                        onClick={() => handleInvoiceCellClick(pm)}
+                                                        disabled={!hasInv && isForeman2}
+                                                        title={hasInv ? '請求書を確認' : '請求書を作成'}
+                                                        className={`px-3 py-1 text-[12px] font-semibold rounded-full border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${hasInv ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                                                    >
+                                                        {hasInv ? '済' : '未'}
+                                                    </button>
+                                                );
+                                            })()}
                                         </td>
                                         {!isForeman2 && (
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
