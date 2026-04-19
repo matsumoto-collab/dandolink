@@ -96,6 +96,7 @@ export default function ProfitDashboardClient({
     const [sortBy, setSortBy] = useState<SortKey>('profitMargin');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     const [isLoading, setIsLoading] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const isFirstRender = useRef(true);
     useEffect(() => {
@@ -148,6 +149,15 @@ export default function ProfitDashboardClient({
             .slice(0, 5);
     }, [projects]);
 
+    const filteredProjects = useMemo(() => {
+        const q = searchQuery.trim().toLowerCase();
+        if (!q) return projects;
+        return projects.filter(p =>
+            p.title.toLowerCase().includes(q)
+            || (p.customerName ?? '').toLowerCase().includes(q),
+        );
+    }, [projects, searchQuery]);
+
     const hasActiveFilters = !!(
         filters.dateFrom || filters.dateTo
         || filters.customerNames?.length
@@ -174,6 +184,16 @@ export default function ProfitDashboardClient({
 
                 {/* フィルタパネル */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">
+                    <div className="mb-4">
+                        <label className="block text-xs font-medium text-slate-600 mb-1.5">案件名で検索</label>
+                        <input
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            placeholder="案件名・顧客名で絞り込み"
+                            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500 shadow-sm"
+                        />
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                         <FilterField label="開始日">
                             <input
@@ -300,7 +320,11 @@ export default function ProfitDashboardClient({
                                 {tab.label}
                             </button>
                         ))}
-                        <div className="ml-auto px-4 text-xs text-slate-500">{summary.totalProjects}件の案件</div>
+                        <div className="ml-auto px-4 text-xs text-slate-500">
+                            {activeTab === 'project' && searchQuery.trim()
+                                ? `${filteredProjects.length} / ${summary.totalProjects}件の案件`
+                                : `${summary.totalProjects}件の案件`}
+                        </div>
                     </div>
 
                     {activeTab === 'project' ? (
@@ -308,7 +332,7 @@ export default function ProfitDashboardClient({
                             <div className="px-4 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
                                 売上の採用ロジック: <strong className="text-slate-700">請求済</strong> → <strong className="text-slate-700">契約</strong> → <strong className="text-slate-700">見積</strong> の優先順位
                             </div>
-                            <ProjectTable projects={projects} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                            <ProjectTable projects={filteredProjects} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
                         </>
                     ) : (
                         <AggregateTable
