@@ -46,6 +46,7 @@ export default function ProjectMasterListPage() {
     const { data: session } = useSession();
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
+    const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStatus, setFilterStatus] = useState<string>('active');
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
@@ -491,8 +492,8 @@ export default function ProjectMasterListPage() {
                 onClose={closeModal}
                 onUpdate={handleUpdate}
                 initialEditMode={openModalInEditMode}
-                onCreateEstimate={isForeman2 ? undefined : handleCreateEstimate}
-                onViewEstimate={!isForeman2 && estimateForDetailPm ? handleViewEstimate : undefined}
+                onCreateEstimate={isAdminOrManager ? handleCreateEstimate : undefined}
+                onViewEstimate={isAdminOrManager && estimateForDetailPm ? handleViewEstimate : undefined}
                 readOnly={isForeman2}
             />
             <EstimateModal
@@ -715,36 +716,36 @@ export default function ProjectMasterListPage() {
                                             {pm.assignmentCount ?? 0}件
                                         </span>
                                     </div>
-                                    {/* 見積書・請求書 済/未 */}
-                                    <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
-                                        {(() => {
-                                            const hasEst = hasEstimateFor(pm);
-                                            const hasInv = hasInvoiceFor(pm);
-                                            const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
-                                            const done = 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm';
-                                            const todo = 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600';
-                                            return (
-                                                <>
-                                                    <button
-                                                        onClick={() => handleEstimateCellClick(pm)}
-                                                        disabled={!hasEst && isForeman2}
-                                                        className={`${base} ${hasEst ? done : todo}`}
-                                                    >
-                                                        {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                        <span>見積 {hasEst ? '済' : '未'}</span>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleInvoiceCellClick(pm)}
-                                                        disabled={!hasInv && isForeman2}
-                                                        className={`${base} ${hasInv ? done : todo}`}
-                                                    >
-                                                        {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                        <span>請求 {hasInv ? '済' : '未'}</span>
-                                                    </button>
-                                                </>
-                                            );
-                                        })()}
-                                    </div>
+                                    {/* 見積書・請求書 済/未（管理者・マネージャーのみ） */}
+                                    {isAdminOrManager && (
+                                        <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
+                                            {(() => {
+                                                const hasEst = hasEstimateFor(pm);
+                                                const hasInv = hasInvoiceFor(pm);
+                                                const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
+                                                const done = 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm';
+                                                const todo = 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600';
+                                                return (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleEstimateCellClick(pm)}
+                                                            className={`${base} ${hasEst ? done : todo}`}
+                                                        >
+                                                            {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                            <span>見積 {hasEst ? '済' : '未'}</span>
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleInvoiceCellClick(pm)}
+                                                            className={`${base} ${hasInv ? done : todo}`}
+                                                        >
+                                                            {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                            <span>請求 {hasInv ? '済' : '未'}</span>
+                                                        </button>
+                                                    </>
+                                                );
+                                            })()}
+                                        </div>
+                                    )}
                                     <LastUpdatedLabel updatedAt={pm.updatedAt} updatedBy={pm.updatedBy} />
                                     {/* モバイル: アクションボタン行 */}
                                     {!isForeman2 && (
@@ -803,12 +804,16 @@ export default function ProjectMasterListPage() {
                                 <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                     配置数
                                 </th>
-                                <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    見積
-                                </th>
-                                <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                    請求
-                                </th>
+                                {isAdminOrManager && (
+                                    <>
+                                        <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                            見積
+                                        </th>
+                                        <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                            請求
+                                        </th>
+                                    </>
+                                )}
                                 {!isForeman2 && (
                                     <th className="px-6 py-4 text-right text-xs font-bold text-slate-800 uppercase tracking-wider">
                                         操作
@@ -826,14 +831,18 @@ export default function ProjectMasterListPage() {
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
                                         <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                                        <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
-                                        <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
+                                        {isAdminOrManager && (
+                                            <>
+                                                <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
+                                                <td className="px-4 py-4"><div className="h-4 bg-slate-200 rounded w-10 mx-auto"></div></td>
+                                            </>
+                                        )}
                                         {!isForeman2 && <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24 ml-auto"></div></td>}
                                     </tr>
                                 ))
                             ) : filteredMasters.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isForeman2 ? 8 : 9} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={6 + (isAdminOrManager ? 2 : 0) + (!isForeman2 ? 1 : 0)} className="px-6 py-12 text-center text-slate-500">
                                         {searchTerm || filterStatus !== 'all' ? '検索結果が見つかりませんでした' : '案件マスターがありません'}
                                     </td>
                                 </tr>
@@ -877,38 +886,40 @@ export default function ProjectMasterListPage() {
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {pm.assignmentCount ?? 0}件
                                         </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                                            {(() => {
-                                                const hasEst = hasEstimateFor(pm);
-                                                return (
-                                                    <button
-                                                        onClick={() => handleEstimateCellClick(pm)}
-                                                        disabled={!hasEst && isForeman2}
-                                                        title={hasEst ? '見積書を確認' : '見積書を作成'}
-                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ${hasEst ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
-                                                    >
-                                                        {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                        {hasEst ? '済' : '未'}
-                                                    </button>
-                                                );
-                                            })()}
-                                        </td>
-                                        <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                                            {(() => {
-                                                const hasInv = hasInvoiceFor(pm);
-                                                return (
-                                                    <button
-                                                        onClick={() => handleInvoiceCellClick(pm)}
-                                                        disabled={!hasInv && isForeman2}
-                                                        title={hasInv ? '請求書を確認' : '請求書を作成'}
-                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed ${hasInv ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
-                                                    >
-                                                        {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                        {hasInv ? '済' : '未'}
-                                                    </button>
-                                                );
-                                            })()}
-                                        </td>
+                                        {isAdminOrManager && (
+                                            <>
+                                                <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                    {(() => {
+                                                        const hasEst = hasEstimateFor(pm);
+                                                        return (
+                                                            <button
+                                                                onClick={() => handleEstimateCellClick(pm)}
+                                                                title={hasEst ? '見積書を確認' : '見積書を作成'}
+                                                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${hasEst ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
+                                                            >
+                                                                {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                                {hasEst ? '済' : '未'}
+                                                            </button>
+                                                        );
+                                                    })()}
+                                                </td>
+                                                <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                                                    {(() => {
+                                                        const hasInv = hasInvoiceFor(pm);
+                                                        return (
+                                                            <button
+                                                                onClick={() => handleInvoiceCellClick(pm)}
+                                                                title={hasInv ? '請求書を確認' : '請求書を作成'}
+                                                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${hasInv ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
+                                                            >
+                                                                {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                                {hasInv ? '済' : '未'}
+                                                            </button>
+                                                        );
+                                                    })()}
+                                                </td>
+                                            </>
+                                        )}
                                         {!isForeman2 && (
                                             <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium" onClick={(e) => e.stopPropagation()}>
                                                 <button
