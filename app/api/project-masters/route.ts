@@ -22,9 +22,9 @@ export async function GET(req: NextRequest) {
         const ALLOWED_STATUSES = ['active', 'completed', 'cancelled'] as const;
         const where: Record<string, unknown> = {};
 
-        // ロールベースフィルタリング: foreman2, worker, partner はアサイン済み案件のみ
+        // ロールベースフィルタリング: worker, partner はアサイン済み案件のみ（foreman2 は全件閲覧可）
         const role = session!.user.role;
-        if (role === 'foreman2' || role === 'worker' || role === 'partner') {
+        if (role === 'worker' || role === 'partner') {
             const assignedPmIds = await prisma.projectAssignment.findMany({
                 where: { assignedEmployeeId: session!.user.id },
                 select: { projectMasterId: true },
