@@ -23,7 +23,7 @@ async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
     if (typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
         try {
-            await nav.share({ files: [file] });
+            await nav.share({ files: [file], title: fileName });
             return;
         } catch (err) {
             // ユーザーがキャンセルした場合は何もしない
