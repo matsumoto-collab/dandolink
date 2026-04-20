@@ -21,7 +21,8 @@ function sanitizeFileName(name: string): string {
 async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
     const file = new File([blob], fileName, { type: 'application/pdf' });
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
-    if (typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile && typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
         try {
             await nav.share({ files: [file], title: fileName });
             return;
