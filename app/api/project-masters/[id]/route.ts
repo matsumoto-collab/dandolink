@@ -88,6 +88,16 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             if (typeof body.contractAmount === 'number' && body.contractAmount < 0) return validationErrorResponse('契約金額は0以上で指定してください');
             updateData.contractAmount = body.contractAmount;
         }
+        const costFields = ['materialCost', 'subcontractorCost', 'subcontractorAssemblyCost', 'subcontractorDemolitionCost', 'otherExpenses'] as const;
+        for (const field of costFields) {
+            if (body[field] !== undefined) {
+                const value = body[field];
+                if (value !== null && (typeof value !== 'number' || value < 0)) {
+                    return validationErrorResponse(`${field}は0以上の数値で指定してください`);
+                }
+                updateData[field] = value;
+            }
+        }
         if (body.scaffoldingSpec !== undefined) updateData.scaffoldingSpec = body.scaffoldingSpec;
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;

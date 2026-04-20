@@ -154,6 +154,8 @@ export async function fetchProfitDashboardData(
             contractAmount: true,
             materialCost: true,
             subcontractorCost: true,
+            subcontractorAssemblyCost: true,
+            subcontractorDemolitionCost: true,
             otherExpenses: true,
             updatedAt: true,
             _count: {
@@ -366,7 +368,10 @@ export async function fetchProfitDashboardData(
         const loadingCost = loadingCostByProject.get(pm.id) || 0;
         const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
         const materialCost = Number(pm.materialCost || 0);
-        const subcontractorCost = Number(pm.subcontractorCost || 0);
+        const subcontractorCost =
+            Number(pm.subcontractorCost || 0)
+            + Number(pm.subcontractorAssemblyCost || 0)
+            + Number(pm.subcontractorDemolitionCost || 0);
         const otherExpenses = Number(pm.otherExpenses || 0);
 
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;

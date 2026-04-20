@@ -24,6 +24,12 @@ jest.mock('@/lib/prisma', () => ({
         vehicle: {
             findMany: jest.fn(),
         },
+        user: {
+            findMany: jest.fn().mockResolvedValue([]),
+        },
+        worker: {
+            findMany: jest.fn().mockResolvedValue([]),
+        },
         dailyReportWorkItem: {
             groupBy: jest.fn(),
         },
@@ -52,13 +58,15 @@ describe('/api/project-masters/[id]/profit', () => {
     };
 
     const mockSettings = { laborDailyRate: 14400, standardWorkMinutes: 480 }; // rate = 30/min
-    const mockEstimates = [{ total: 100000 }];
-    const mockInvoices = [{ total: 120000 }];
+    const mockEstimates = [{ total: 100000, subtotal: 90909, costTotal: null }];
+    const mockInvoices = [{ total: 120000, subtotal: 109091 }];
     const mockVehicles = [{ id: 'veh-1', dailyRate: 5000 }];
 
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     describe('GET', () => {
@@ -76,11 +84,13 @@ describe('/api/project-masters/[id]/profit', () => {
             const json = await res.json();
 
             expect(res.status).toBe(200);
-            expect(json.revenue).toBe(120000);
+            // Revenue now uses invoice subtotal (税別)
+            expect(json.revenue).toBe(109091);
+            expect(json.revenueSource).toBe('invoice');
             expect(json.estimateAmount).toBe(100000);
             // Costs: Material(10000) + Sub(5000) + Other(2000) = 17000
             expect(json.costBreakdown.totalCost).toBe(17000);
-            expect(json.grossProfit).toBe(120000 - 17000);
+            expect(json.grossProfit).toBe(109091 - 17000);
         });
 
         it('should calculate labor and vehicle costs from assignments', async () => {
@@ -92,6 +102,8 @@ describe('/api/project-masters/[id]/profit', () => {
                     {
                         startTime: '08:00',
                         endTime: '12:00',
+                        breakMinutes: 0,
+                        workerIds: [],
                         dailyReport: {
                             id: 'rep-1',
                             morningLoadingMinutes: 30,

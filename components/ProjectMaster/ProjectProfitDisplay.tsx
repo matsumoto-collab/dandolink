@@ -1,13 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import dynamic from 'next/dynamic';
-import { TrendingUp, TrendingDown, DollarSign, Truck, Users, Wrench, Package, MoreHorizontal } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import { logger } from '@/lib/logger';
-
-const ProjectProfitChart = dynamic(() => import('./ProjectProfitChart'), { ssr: false });
 
 interface CostBreakdown {
     laborCost: number;
@@ -19,11 +16,16 @@ interface CostBreakdown {
     totalCost: number;
 }
 
+type RevenueSource = 'invoice' | 'estimate' | 'none';
+
 interface ProfitData {
     projectMasterId: string;
     projectTitle: string;
     revenue: number;
+    revenueSource?: RevenueSource;
+    invoiceAmount?: number;
     estimateAmount: number;
+    estimateSubtotal?: number;
     estimateCostTotal: number | null;
     costBreakdown: CostBreakdown;
     grossProfit: number;
@@ -33,6 +35,18 @@ interface ProfitData {
 interface ProjectProfitDisplayProps {
     projectMasterId: string;
 }
+
+const BADGE_STYLES: Record<RevenueSource, string> = {
+    invoice: 'border-slate-300 text-slate-700 bg-white',
+    estimate: 'border-amber-300 text-amber-700 bg-amber-50',
+    none: 'border-slate-200 text-slate-500 bg-slate-50',
+};
+
+const BADGE_LABELS: Record<RevenueSource, string> = {
+    invoice: '請求済・税別',
+    estimate: '見積・税別',
+    none: '未入力',
+};
 
 export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitDisplayProps) {
     const [profitData, setProfitData] = useState<ProfitData | null>(null);
@@ -64,7 +78,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
     if (isLoading) {
         return (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white border border-slate-200 rounded-xl p-6">
                 <div className="flex items-center justify-center py-8">
                     <Loading text="利益情報を読み込み中..." />
                 </div>
@@ -74,7 +88,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
     if (error || !profitData) {
         return (
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white border border-slate-200 rounded-xl p-6">
                 <div className="text-center py-8 text-slate-500">
                     {error || '利益情報がありません'}
                 </div>
@@ -82,138 +96,79 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
         );
     }
 
-    const { costBreakdown, grossProfit, profitMargin, revenue, estimateAmount, estimateCostTotal } = profitData;
+    const { costBreakdown, grossProfit, profitMargin, revenue } = profitData;
+    const revenueSource: RevenueSource = profitData.revenueSource
+        ?? (revenue > 0 ? 'invoice' : 'none');
     const isProfit = grossProfit >= 0;
 
+    const costItems = [
+        { label: '人件費', amount: costBreakdown.laborCost },
+        { label: '車両費', amount: costBreakdown.vehicleCost },
+        { label: '材料費', amount: costBreakdown.materialCost },
+        { label: '外注費', amount: costBreakdown.subcontractorCost },
+        { label: '積込費', amount: costBreakdown.loadingCost },
+        { label: 'その他', amount: costBreakdown.otherExpenses },
+    ].sort((a, b) => b.amount - a.amount);
+
     return (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-            {/* ヘッダー */}
-            <div className="px-6 py-4 bg-slate-700">
-                <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <DollarSign className="w-5 h-5" />
-                    利益サマリー
-                </h3>
+        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+            <div className="px-5 py-3 bg-[rgb(var(--color-navy-primary))]">
+                <h3 className="text-base font-semibold text-white">利益サマリー</h3>
             </div>
 
-            <div className="p-6">
-                {/* メイン指標 */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    {/* 売上 */}
-                    <div className="bg-slate-50 rounded-lg p-4">
-                        <div className="text-sm text-slate-600 font-medium">売上（請求済）</div>
-                        <div className="text-2xl font-bold text-slate-700">{formatCurrency(revenue)}</div>
-                        <div className="text-xs text-slate-500 mt-1">見積: {formatCurrency(estimateAmount)}</div>
+            <div className="p-5 space-y-5">
+                <div>
+                    <div className="mb-2">
+                        <span className={`inline-block text-xs px-2 py-0.5 rounded-full border ${BADGE_STYLES[revenueSource]}`}>
+                            {BADGE_LABELS[revenueSource]}
+                        </span>
                     </div>
-
-                    {/* 原価 */}
-                    <div className="bg-slate-50 rounded-lg p-4">
-                        <div className="text-sm text-slate-600 font-medium">原価合計（実績）</div>
-                        <div className="text-2xl font-bold text-slate-700">{formatCurrency(costBreakdown.totalCost)}</div>
-                        {estimateCostTotal != null && (
-                            <div className="text-xs mt-1">
-                                <span className="text-slate-500">見積原価: {formatCurrency(estimateCostTotal)}</span>
-                                {costBreakdown.totalCost > 0 && (
-                                    <span className={`ml-1 font-medium ${costBreakdown.totalCost > estimateCostTotal ? 'text-red-500' : 'text-emerald-500'}`}>
-                                        ({costBreakdown.totalCost > estimateCostTotal ? '+' : ''}{formatCurrency(costBreakdown.totalCost - estimateCostTotal)})
-                                    </span>
-                                )}
-                            </div>
+                    <div className="text-sm text-slate-500 mb-1">利益</div>
+                    <div className={`text-4xl font-bold tracking-tight tabular-nums ${isProfit ? 'text-slate-900' : 'text-red-600'}`}>
+                        {formatCurrency(grossProfit)}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-2">
+                        {isProfit ? (
+                            <TrendingUp className="w-4 h-4 text-slate-400" />
+                        ) : (
+                            <TrendingDown className="w-4 h-4 text-red-500" />
                         )}
-                    </div>
-
-                    {/* 粗利 */}
-                    <div className={`rounded-lg p-4 ${isProfit ? 'bg-slate-50' : 'bg-slate-50'}`}>
-                        <div className={`text-sm font-medium ${isProfit ? 'text-slate-600' : 'text-slate-600'}`}>粗利</div>
-                        <div className={`text-2xl font-bold flex items-center gap-1 ${isProfit ? 'text-slate-700' : 'text-slate-700'}`}>
-                            {isProfit ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
-                            {formatCurrency(grossProfit)}
-                        </div>
-                        <div className={`text-sm font-medium mt-1 ${getProfitMarginColor(profitMargin)}`}>
-                            利益率: {profitMargin}%
-                        </div>
+                        <span className={`text-sm font-medium ${getProfitMarginColor(profitMargin)}`}>
+                            利益率 {profitMargin}%
+                        </span>
                     </div>
                 </div>
 
-                {/* 利益グラフ */}
-                <div className="border-t pt-4">
-                    <ProjectProfitChart
-                        costBreakdown={costBreakdown}
-                        revenue={revenue}
-                        grossProfit={grossProfit}
-                    />
+                <div className="border-t border-slate-100 pt-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">売上</span>
+                        <span className="text-base font-semibold text-slate-800 tabular-nums">{formatCurrency(revenue)}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm text-slate-600">原価</span>
+                        <span className="text-base font-semibold text-slate-800 tabular-nums">{formatCurrency(costBreakdown.totalCost)}</span>
+                    </div>
                 </div>
 
-                {/* 原価内訳 */}
-                <div className="border-t pt-4">
-                    <h4 className="text-sm font-semibold text-slate-600 mb-3">原価内訳</h4>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <CostItem
-                            icon={Users}
-                            label="人件費"
-                            amount={costBreakdown.laborCost}
-                            color="blue"
-                        />
-                        <CostItem
-                            icon={Truck}
-                            label="積込費"
-                            amount={costBreakdown.loadingCost}
-                            color="purple"
-                        />
-                        <CostItem
-                            icon={Truck}
-                            label="車両費"
-                            amount={costBreakdown.vehicleCost}
-                            color="teal"
-                        />
-                        <CostItem
-                            icon={Package}
-                            label="材料費"
-                            amount={costBreakdown.materialCost}
-                            color="amber"
-                        />
-                        <CostItem
-                            icon={Wrench}
-                            label="外注費"
-                            amount={costBreakdown.subcontractorCost}
-                            color="orange"
-                        />
-                        <CostItem
-                            icon={MoreHorizontal}
-                            label="その他"
-                            amount={costBreakdown.otherExpenses}
-                            color="gray"
-                        />
+                <div className="border-t border-slate-100 pt-4">
+                    <h4 className="text-sm font-semibold text-slate-700 mb-3">原価内訳</h4>
+                    <div className="space-y-1.5">
+                        {costItems.map(item => {
+                            const isZero = item.amount === 0;
+                            return (
+                                <div key={item.label} className="flex items-center justify-between">
+                                    <span className={`text-sm ${isZero ? 'text-slate-300' : 'text-slate-600'}`}>
+                                        {item.label}
+                                    </span>
+                                    <span className={`text-sm font-medium tabular-nums ${isZero ? 'text-slate-300' : 'text-slate-700'}`}>
+                                        {formatCurrency(item.amount)}
+                                    </span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
-        </div>
-    );
-}
-
-interface CostItemProps {
-    icon: React.ElementType;
-    label: string;
-    amount: number;
-    color: 'blue' | 'purple' | 'teal' | 'amber' | 'orange' | 'gray';
-}
-
-function CostItem({ icon: Icon, label, amount, color }: CostItemProps) {
-    const colorClasses = {
-        blue: 'bg-slate-50 text-slate-600',
-        purple: 'bg-slate-50 text-slate-600',
-        teal: 'bg-teal-50 text-teal-700',
-        amber: 'bg-slate-50 text-slate-600',
-        orange: 'bg-slate-50 text-slate-600',
-        gray: 'bg-slate-50 text-slate-600',
-    };
-
-    return (
-        <div className={`rounded-lg p-3 ${colorClasses[color]}`}>
-            <div className="flex items-center gap-2 mb-1">
-                <Icon className="w-4 h-4" />
-                <span className="text-xs font-medium">{label}</span>
-            </div>
-            <div className="text-lg font-bold">{formatCurrency(amount)}</div>
         </div>
     );
 }

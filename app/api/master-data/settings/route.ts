@@ -28,9 +28,32 @@ export async function PATCH(request: NextRequest) {
         if (!validation.success) {
             return validationErrorResponse(validation.error, validation.details);
         }
-        const { totalMembers } = validation.data;
+        const {
+            totalMembers,
+            subcontractorRevenueRate,
+            subcontractorAssemblyRate,
+            subcontractorDemolitionRate,
+        } = validation.data;
 
-        const settings = await prisma.systemSettings.upsert({ where: { id: 'default' }, update: { totalMembers }, create: { id: 'default', totalMembers } });
+        const updateData: Record<string, unknown> = {};
+        if (totalMembers !== undefined) updateData.totalMembers = totalMembers;
+        if (subcontractorRevenueRate !== undefined) updateData.subcontractorRevenueRate = subcontractorRevenueRate;
+        if (subcontractorAssemblyRate !== undefined) updateData.subcontractorAssemblyRate = subcontractorAssemblyRate;
+        if (subcontractorDemolitionRate !== undefined) updateData.subcontractorDemolitionRate = subcontractorDemolitionRate;
+
+        const createData = {
+            id: 'default',
+            totalMembers: totalMembers ?? 20,
+            ...(subcontractorRevenueRate !== undefined ? { subcontractorRevenueRate } : {}),
+            ...(subcontractorAssemblyRate !== undefined ? { subcontractorAssemblyRate } : {}),
+            ...(subcontractorDemolitionRate !== undefined ? { subcontractorDemolitionRate } : {}),
+        };
+
+        const settings = await prisma.systemSettings.upsert({
+            where: { id: 'default' },
+            update: updateData,
+            create: createData,
+        });
         return NextResponse.json(settings);
     } catch (error) {
         return serverErrorResponse('システム設定更新', error);

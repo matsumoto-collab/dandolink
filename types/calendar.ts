@@ -138,6 +138,13 @@ export interface ProjectMaster {
     estimatedDemolitionWorkers?: number; // 予定解体人工
     contractAmount?: number;         // 請負金額（円、税抜）
 
+    // 原価（手入力）
+    materialCost?: number | null;                 // 材料費
+    subcontractorCost?: number | null;            // 外注費（旧単一フィールド、残存データ用）
+    subcontractorAssemblyCost?: number | null;    // 協力業者費（組立）
+    subcontractorDemolitionCost?: number | null;  // 協力業者費（解体）
+    otherExpenses?: number | null;                // その他経費
+
     // 足場仕様
     scaffoldingSpec?: ScaffoldingSpec;
 

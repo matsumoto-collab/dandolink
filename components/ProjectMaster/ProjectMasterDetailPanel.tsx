@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ProjectMaster } from '@/types/calendar';
 import WorkHistoryDisplay from './WorkHistoryDisplay';
 import ProjectProfitDisplay from './ProjectProfitDisplay';
+import ProjectCostEditor from './ProjectCostEditor';
 import ProjectMasterFilesView from './ProjectMasterFilesView';
 import ScaffoldingSpecDisplay from './ScaffoldingSpecDisplay';
 import { ExternalLink } from 'lucide-react';
@@ -42,6 +43,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default function ProjectMasterDetailPanel({ pm, hideFinancials }: ProjectMasterDetailPanelProps) {
     const [userMap, setUserMap] = useState<Record<string, string>>({});
+    const [profitVersion, setProfitVersion] = useState(0);
 
     useEffect(() => {
         fetch('/api/users')
@@ -183,7 +185,20 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
             {!hideFinancials && (
                 <>
                     <SectionTitle>利益サマリー</SectionTitle>
-                    <ProjectProfitDisplay projectMasterId={pm.id} />
+                    <ProjectProfitDisplay key={`profit-${profitVersion}`} projectMasterId={pm.id} />
+
+                    <SectionTitle>原価入力</SectionTitle>
+                    <ProjectCostEditor
+                        projectMasterId={pm.id}
+                        initialValues={{
+                            materialCost: pm.materialCost,
+                            subcontractorCost: pm.subcontractorCost,
+                            subcontractorAssemblyCost: pm.subcontractorAssemblyCost,
+                            subcontractorDemolitionCost: pm.subcontractorDemolitionCost,
+                            otherExpenses: pm.otherExpenses,
+                        }}
+                        onSaved={() => setProfitVersion(v => v + 1)}
+                    />
                 </>
             )}
         </div>

@@ -5,16 +5,11 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
 
-// Mock lucide-react icons
-
-
-// Mock Loading component
 jest.mock('@/components/ui/Loading', () => ({
     __esModule: true,
     default: ({ text }: { text?: string }) => <div data-testid="loading">{text}</div>,
 }));
 
-// Mock cost calculation utils
 jest.mock('@/utils/costCalculation', () => ({
     formatCurrency: (amount: number) => `¥${amount.toLocaleString()}`,
     getProfitMarginColor: (margin: number) => margin >= 20 ? 'text-green-600' : 'text-red-600',
@@ -24,7 +19,11 @@ const mockProfitData = {
     projectMasterId: 'pm1',
     projectTitle: 'テスト案件',
     revenue: 1000000,
+    revenueSource: 'invoice' as const,
+    invoiceAmount: 1000000,
     estimateAmount: 1200000,
+    estimateSubtotal: 1090909,
+    estimateCostTotal: null,
     costBreakdown: {
         laborCost: 350000,
         loadingCost: 50000,
@@ -44,13 +43,13 @@ describe('ProjectProfitDisplay', () => {
     });
 
     it('should show loading state initially', () => {
-        global.fetch = jest.fn(() => new Promise(() => { })) as jest.Mock; // Never resolves
+        global.fetch = jest.fn(() => new Promise(() => { })) as jest.Mock;
         render(<ProjectProfitDisplay projectMasterId="pm1" />);
         expect(screen.getByTestId('loading')).toBeInTheDocument();
         expect(screen.getByText('利益情報を読み込み中...')).toBeInTheDocument();
     });
 
-    it('should show profit data after successful fetch', async () => {
+    it('should show profit data with invoice source', async () => {
         global.fetch = jest.fn(() =>
             Promise.resolve({
                 ok: true,
@@ -64,17 +63,43 @@ describe('ProjectProfitDisplay', () => {
             expect(screen.getByText('利益サマリー')).toBeInTheDocument();
         });
 
-        // Revenue
-        expect(screen.getByText('売上（請求済）')).toBeInTheDocument();
-        expect(screen.getByText('¥1,000,000')).toBeInTheDocument();
-
-        // Cost
-        expect(screen.getByText('原価合計')).toBeInTheDocument();
-        expect(screen.getByText('¥700,000')).toBeInTheDocument();
-
-        // Gross profit
-        expect(screen.getByText('粗利')).toBeInTheDocument();
+        expect(screen.getByText('請求済・税別')).toBeInTheDocument();
+        expect(screen.getByText('利益')).toBeInTheDocument();
         expect(screen.getByText('¥300,000')).toBeInTheDocument();
+        expect(screen.getByText('売上')).toBeInTheDocument();
+        expect(screen.getByText('¥1,000,000')).toBeInTheDocument();
+        expect(screen.getByText('原価')).toBeInTheDocument();
+        expect(screen.getByText('¥700,000')).toBeInTheDocument();
+    });
+
+    it('should show estimate badge when revenue source is estimate', async () => {
+        global.fetch = jest.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ ...mockProfitData, revenueSource: 'estimate' }),
+            })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('見積・税別')).toBeInTheDocument();
+        });
+    });
+
+    it('should show none badge when revenue source is none', async () => {
+        global.fetch = jest.fn(() =>
+            Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ ...mockProfitData, revenueSource: 'none', revenue: 0 }),
+            })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+
+        await waitFor(() => {
+            expect(screen.getByText('未入力')).toBeInTheDocument();
+        });
     });
 
     it('should show profit margin percentage', async () => {
@@ -88,11 +113,11 @@ describe('ProjectProfitDisplay', () => {
         render(<ProjectProfitDisplay projectMasterId="pm1" />);
 
         await waitFor(() => {
-            expect(screen.getByText(/利益率: 30%/)).toBeInTheDocument();
+            expect(screen.getByText(/利益率 30%/)).toBeInTheDocument();
         });
     });
 
-    it('should show cost breakdown items', async () => {
+    it('should show cost breakdown items sorted by amount', async () => {
         global.fetch = jest.fn(() =>
             Promise.resolve({
                 ok: true,
@@ -106,27 +131,12 @@ describe('ProjectProfitDisplay', () => {
             expect(screen.getByText('原価内訳')).toBeInTheDocument();
         });
 
-        expect(screen.getAllByText('人件費').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('積込費').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('車両費').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('材料費').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('外注費').length).toBeGreaterThanOrEqual(1);
-        expect(screen.getAllByText('その他').length).toBeGreaterThanOrEqual(1);
-    });
-
-    it('should show estimate amount', async () => {
-        global.fetch = jest.fn(() =>
-            Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockProfitData),
-            })
-        ) as jest.Mock;
-
-        render(<ProjectProfitDisplay projectMasterId="pm1" />);
-
-        await waitFor(() => {
-            expect(screen.getByText(/見積: ¥1,200,000/)).toBeInTheDocument();
-        });
+        expect(screen.getByText('人件費')).toBeInTheDocument();
+        expect(screen.getByText('積込費')).toBeInTheDocument();
+        expect(screen.getByText('車両費')).toBeInTheDocument();
+        expect(screen.getByText('材料費')).toBeInTheDocument();
+        expect(screen.getByText('外注費')).toBeInTheDocument();
+        expect(screen.getByText('その他')).toBeInTheDocument();
     });
 
     it('should show trending up icon for positive profit', async () => {

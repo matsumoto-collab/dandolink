@@ -57,7 +57,10 @@ export const companyInfoSchema = z.object({
 });
 
 export const systemSettingsSchema = z.object({
-    totalMembers: z.number().int().min(1, 'totalMembersは1以上の数値が必要です'),
+    totalMembers: z.number().int().min(1, 'totalMembersは1以上の数値が必要です').optional(),
+    subcontractorRevenueRate: z.number().int().min(0).max(100).optional(),
+    subcontractorAssemblyRate: z.number().int().min(0).max(100).optional(),
+    subcontractorDemolitionRate: z.number().int().min(0).max(100).optional(),
 });
 
 export const scaffoldingSpecItemSchema = z.object({

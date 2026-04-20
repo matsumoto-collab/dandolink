@@ -56,9 +56,11 @@ model ProjectMaster {
   postalCode                 String?
   prefecture                 String?
   scaffoldingSpec            Json?
-  materialCost               Decimal?              @db.Decimal(12, 2)
-  otherExpenses              Decimal?              @db.Decimal(12, 2)
-  subcontractorCost          Decimal?              @db.Decimal(12, 2)
+  materialCost                 Decimal?              @db.Decimal(12, 2)
+  otherExpenses                Decimal?              @db.Decimal(12, 2)
+  subcontractorCost            Decimal?              @db.Decimal(12, 2)
+  subcontractorAssemblyCost    Decimal?              @db.Decimal(12, 2)
+  subcontractorDemolitionCost  Decimal?              @db.Decimal(12, 2)
   customerShortName          String?
   latitude                   Float?
   longitude                  Float?
@@ -362,13 +364,16 @@ model ConstructionType {
 }
 
 model SystemSettings {
-  id                  String   @id @default("default")
-  totalMembers        Int      @default(20)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  laborDailyRate      Decimal  @default(15000) @db.Decimal(10, 2)
-  standardWorkMinutes Int      @default(480)
-  displayedForemanIds String   @default("[]")
+  id                          String   @id @default("default")
+  totalMembers                Int      @default(20)
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+  laborDailyRate              Decimal  @default(15000) @db.Decimal(10, 2)
+  standardWorkMinutes         Int      @default(480)
+  displayedForemanIds         String   @default("[]")
+  subcontractorRevenueRate    Int      @default(60)
+  subcontractorAssemblyRate   Int      @default(60)
+  subcontractorDemolitionRate Int      @default(40)
 
   @@schema("public")
 }

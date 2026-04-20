@@ -17,6 +17,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 title: true,
                 materialCost: true,
                 subcontractorCost: true,
+                subcontractorAssemblyCost: true,
+                subcontractorDemolitionCost: true,
                 otherExpenses: true,
                 assignments: {
                     select: {
@@ -55,7 +57,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         const [settings, estimates, invoices, allVehicles, allUsers, allWorkers] = await Promise.all([
             prisma.systemSettings.findFirst(),
-            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, costTotal: true } }),
+            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
             prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
@@ -80,10 +82,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const vehicleRateMap = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
 
         const estimateAmount = estimates.reduce((sum, e) => sum + Number(e.total), 0);
+        const estimateSubtotal = estimates.reduce((sum, e) => sum + Number(e.subtotal), 0);
         const estimateCostTotal = estimates.some(e => e.costTotal != null)
             ? estimates.reduce((sum, e) => sum + (e.costTotal ?? 0), 0)
             : null;
-        const revenue = invoices.reduce((sum, i) => sum + Number(i.total), 0);
+        const invoiceAmount = invoices.reduce((sum, i) => sum + Number(i.total), 0);
+        const invoiceSubtotal = invoices.reduce((sum, i) => sum + Number(i.subtotal), 0);
+
+        // 売上フォールバック（税別）: 請求書(税別) → 見積書(税別) → 0
+        let revenue = 0;
+        let revenueSource: 'invoice' | 'estimate' | 'none' = 'none';
+        if (invoiceSubtotal > 0) {
+            revenue = invoiceSubtotal;
+            revenueSource = 'invoice';
+        } else if (estimateSubtotal > 0) {
+            revenue = estimateSubtotal;
+            revenueSource = 'estimate';
+        }
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
 
@@ -137,14 +152,19 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         }
 
         const materialCost = Number(projectMaster.materialCost || 0);
-        const subcontractorCost = Number(projectMaster.subcontractorCost || 0);
+        const subcontractorLegacyCost = Number(projectMaster.subcontractorCost || 0);
+        const subcontractorAssemblyCost = Number(projectMaster.subcontractorAssemblyCost || 0);
+        const subcontractorDemolitionCost = Number(projectMaster.subcontractorDemolitionCost || 0);
+        const subcontractorCost = subcontractorLegacyCost + subcontractorAssemblyCost + subcontractorDemolitionCost;
         const otherExpenses = Number(projectMaster.otherExpenses || 0);
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
         const grossProfit = revenue - totalCost;
         const profitMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
 
         return NextResponse.json({
-            projectMasterId: id, projectTitle: projectMaster.title, revenue, estimateAmount, estimateCostTotal,
+            projectMasterId: id, projectTitle: projectMaster.title,
+            revenue, revenueSource,
+            invoiceAmount, invoiceSubtotal, estimateAmount, estimateSubtotal, estimateCostTotal,
             costBreakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
             grossProfit, profitMargin,
         });
