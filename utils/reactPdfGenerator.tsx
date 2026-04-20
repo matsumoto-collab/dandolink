@@ -13,6 +13,34 @@ function sanitizeFileName(name: string): string {
     return name.replace(/[\\/:*?"<>|]/g, '_').trim();
 }
 
+/**
+ * PDF Blob を保存/共有する
+ * モバイル（Web Share API 対応かつファイル共有可）の場合は共有シートを使い、
+ * それ以外は <a download> でダウンロードする
+ */
+async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
+    const file = new File([blob], fileName, { type: 'application/pdf' });
+    const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+    if (typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
+        try {
+            await nav.share({ files: [file] });
+            return;
+        } catch (err) {
+            // ユーザーがキャンセルした場合は何もしない
+            if ((err as Error)?.name === 'AbortError') return;
+            // それ以外はフォールバック
+        }
+    }
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
 // Register fonts on module load
 import '@/components/pdf/styles';
 import { logger } from '@/lib/logger';
@@ -42,15 +70,8 @@ export async function exportEstimatePDFReact(
             />
         ).toBlob();
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
         const titlePart = sanitizeFileName(estimate.title || estimate.estimateNumber);
-        link.download = `${titlePart}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        await savePdfBlob(blob, `${titlePart}.pdf`);
     } catch (error) {
         logger.error('PDF生成エラー:', error);
         throw error;
@@ -106,16 +127,9 @@ export async function exportInvoicePDFReact(
             />
         ).toBlob();
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
         const customerPart = project.customer ? `_${project.customer}${project.customerHonorific || ''}` : '';
         const titlePart = sanitizeFileName((invoice.title || invoice.invoiceNumber) + customerPart);
-        link.download = `請求書_${titlePart}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        await savePdfBlob(blob, `請求書_${titlePart}.pdf`);
     } catch (error) {
         logger.error('PDF生成エラー:', error);
         throw error;
