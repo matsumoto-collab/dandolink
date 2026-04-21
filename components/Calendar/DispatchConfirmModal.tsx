@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { X, Check, Users, Truck } from 'lucide-react';
+import { X, Check, Users, Truck, ChevronDown, ChevronUp } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { Project } from '@/types/calendar';
 import toast from 'react-hot-toast';
@@ -18,6 +18,19 @@ interface DispatchUser {
     displayName: string;
     role: string;
 }
+
+// 手配確定でよく選ばれるロール（常時表示）
+const PRIMARY_ROLES = new Set(['worker', 'foreman1', 'foreman2']);
+
+// ロール優先度（小さいほど上に表示）
+const ROLE_PRIORITY: Record<string, number> = {
+    worker: 1,
+    foreman2: 2,
+    foreman1: 3,
+    support: 4,
+    manager: 5,
+    admin: 6,
+};
 
 interface DispatchConfirmModalProps {
     isOpen: boolean;
@@ -46,10 +59,12 @@ export default function DispatchConfirmModal({
         project.confirmedVehicleIds || []
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showSecondaryWorkers, setShowSecondaryWorkers] = useState(false);
 
     // モーダルが開くたびに選択状態をリセット（登録時のトラックを事前選択）
     useEffect(() => {
         if (!isOpen) return;
+        setShowSecondaryWorkers(false);
         setSelectedWorkerIds(project.confirmedWorkerIds || []);
         if (project.confirmedVehicleIds?.length) {
             setSelectedVehicleIds(project.confirmedVehicleIds);
@@ -120,6 +135,25 @@ export default function DispatchConfirmModal({
         };
     }, [projects, project.id, project.startDate, allForemen]);
 
+    // ロール別に並び替え + よく使う / たまに使う に分割
+    const { primaryWorkers, secondaryWorkers } = useMemo(() => {
+        const sorted = [...workers].sort((a, b) => {
+            const roleA = (a.role || '').toLowerCase();
+            const roleB = (b.role || '').toLowerCase();
+            const priorityDiff = (ROLE_PRIORITY[roleA] ?? 99) - (ROLE_PRIORITY[roleB] ?? 99);
+            if (priorityDiff !== 0) return priorityDiff;
+            return a.displayName.localeCompare(b.displayName, 'ja');
+        });
+        return {
+            primaryWorkers: sorted.filter(w => PRIMARY_ROLES.has((w.role || '').toLowerCase())),
+            secondaryWorkers: sorted.filter(w => !PRIMARY_ROLES.has((w.role || '').toLowerCase())),
+        };
+    }, [workers]);
+
+    // 普段使わないロールで既に選択されているメンバーがいれば自動展開
+    const hasSelectedSecondary = secondaryWorkers.some(w => selectedWorkerIds.includes(w.id));
+    const showSecondaryEffective = showSecondaryWorkers || hasSelectedSecondary;
+
     // 必要メンバー数（案件登録時の人数）と過不足を示すバッジ色
     const requiredMemberCount = project.memberCount ?? 0;
     const memberCountBadgeClass = useMemo(() => {
@@ -129,6 +163,30 @@ export default function DispatchConfirmModal({
         if (selectedWorkerIds.length === requiredMemberCount) return 'bg-emerald-100 text-emerald-700';
         return 'bg-sky-100 text-sky-700';
     }, [selectedWorkerIds.length, requiredMemberCount]);
+
+    const renderWorkerChip = (worker: DispatchUser) => {
+        const teams = workerTeamMap.get(worker.id);
+        const isSelected = selectedWorkerIds.includes(worker.id);
+        return (
+            <button
+                key={worker.id}
+                type="button"
+                onClick={() => handleWorkerToggle(worker.id)}
+                className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${isSelected
+                    ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
+                    : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                    }`}
+            >
+                {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
+                <span className="truncate">{worker.displayName}</span>
+                {teams && (
+                    <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                        {teams.join('・')}
+                    </span>
+                )}
+            </button>
+        );
+    };
 
     const handleWorkerToggle = (workerId: string) => {
         setSelectedWorkerIds(prev =>
@@ -274,32 +332,50 @@ export default function DispatchConfirmModal({
                                         ユーザー管理でworkerロールのユーザーを追加してください
                                     </p>
                                 ) : (
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                        {workers.map(worker => {
-                                            const teams = workerTeamMap.get(worker.id);
-                                            const isSelected = selectedWorkerIds.includes(worker.id);
+                                    <>
+                                        {primaryWorkers.length > 0 && (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                {primaryWorkers.map(worker => renderWorkerChip(worker))}
+                                            </div>
+                                        )}
 
-                                            return (
-                                                <button
-                                                    key={worker.id}
-                                                    type="button"
-                                                    onClick={() => handleWorkerToggle(worker.id)}
-                                                    className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${isSelected
-                                                        ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
-                                                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
-                                                        }`}
-                                                >
-                                                    {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
-                                                    <span className="truncate">{worker.displayName}</span>
-                                                    {teams && (
-                                                        <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
-                                                            {teams.join('・')}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
+                                        {secondaryWorkers.length > 0 && (
+                                            <>
+                                                {showSecondaryEffective ? (
+                                                    <div className="mt-4">
+                                                        <div className="flex items-center gap-2 mb-2">
+                                                            <span className="text-xs font-semibold text-slate-500">
+                                                                管理者・マネージャー等
+                                                            </span>
+                                                            <div className="flex-1 h-px bg-slate-200" />
+                                                            {!hasSelectedSecondary && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowSecondaryWorkers(false)}
+                                                                    className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
+                                                                >
+                                                                    <ChevronUp className="w-3.5 h-3.5" />
+                                                                    閉じる
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                            {secondaryWorkers.map(worker => renderWorkerChip(worker))}
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowSecondaryWorkers(true)}
+                                                        className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-600 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded-xl transition-colors"
+                                                    >
+                                                        <ChevronDown className="w-4 h-4" />
+                                                        もっと見る（管理者・マネージャー等 {secondaryWorkers.length}名）
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
+                                    </>
                                 )}
                             </div>
 
