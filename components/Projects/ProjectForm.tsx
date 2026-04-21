@@ -6,6 +6,8 @@ import { Customer } from '@/types/customer';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
+import { useVacation } from '@/hooks/useVacation';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
@@ -84,6 +86,8 @@ export default function ProjectForm({
     const { projects } = useProjects();
     const { vehicles: mockVehicles, constructionTypes, getTotalMembersForDate } = useMasterData();
     const { getForemanName, allForemen } = useCalendarDisplay();
+    const { getVacationEmployees } = useVacation();
+    const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
 
     // 工事名称マスタ
     const [constructionSuffixes, setConstructionSuffixes] = useState<ConstructionSuffixItem[]>([]);
@@ -243,7 +247,7 @@ export default function ProjectForm({
         fetchManagers();
     }, []);
 
-    // 残りのメンバー数を計算
+    // 残りのメンバー数を計算（カレンダー上部の表示と同じロジック）
     const availableMembers = useMemo(() => {
         const targetDate = initialData?.startDate || defaultDate || new Date();
         const dateKey = formatDateKey(targetDate);
@@ -254,14 +258,15 @@ export default function ProjectForm({
             return pDateKey === dateKey && p.id !== initialData?.id;
         });
 
-        // 職長ごとにグルーピングし、最大人数のみ計上（WeekOverviewBarと同じロジック）
+        // 職長ごとにグルーピングし、最大人数のみ計上
+        // workers配列が空でもmemberCountが入っているケース（複数日スケジュール等）に対応
         const byForeman = new Map<string, number[]>();
         sameDateProjects
             .filter(p => p.assignedEmployeeId && p.assignedEmployeeId !== 'unassigned')
             .forEach(p => {
                 const key = p.assignedEmployeeId!;
                 if (!byForeman.has(key)) byForeman.set(key, []);
-                byForeman.get(key)!.push(p.workers?.length || 0);
+                byForeman.get(key)!.push(p.workers?.length || p.memberCount || 0);
             });
         let usedMembers = 0;
         byForeman.forEach(counts => { usedMembers += Math.max(...counts); });
@@ -269,12 +274,16 @@ export default function ProjectForm({
         // 未割り当て案件の人数も加算
         const unassignedUsed = sameDateProjects
             .filter(p => !p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned')
-            .reduce((sum, p) => sum + (p.workers?.length || 0), 0);
+            .reduce((sum, p) => sum + (p.workers?.length || p.memberCount || 0), 0);
         usedMembers += unassignedUsed;
 
+        // 休暇・手動調整を加味
+        const vacationCount = getVacationEmployees(dateKey).length;
+        const adjustment = memberAdjustments[dateKey] || 0;
+
         // 総メンバー数（マスターデータから日付ベースで取得）
-        return getTotalMembersForDate(dateKey) - usedMembers;
-    }, [projects, initialData, defaultDate, getTotalMembersForDate]);
+        return getTotalMembersForDate(dateKey) + adjustment - usedMembers - vacationCount;
+    }, [projects, initialData, defaultDate, getTotalMembersForDate, getVacationEmployees, memberAdjustments]);
 
     // 複数日スケジュール用：日付ごとの既存配置マップ
     const existingDayMap = useMemo(() => {
