@@ -72,9 +72,14 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
         setSelectedItems(newSelected);
     };
 
-    // 選択した項目を追加
+    // 選択した項目を追加（選択した順番を維持）
     const handleAdd = () => {
-        const itemsToAdd = templateItems.filter(item => selectedItems.has(item.id));
+        const itemMap = new Map(templateItems.map(item => [item.id, item]));
+        const itemsToAdd: UnitPriceMaster[] = [];
+        for (const id of selectedItems) {
+            const item = itemMap.get(id);
+            if (item) itemsToAdd.push(item);
+        }
         onSelect(itemsToAdd);
         setSelectedItems(new Set());
         onClose();
