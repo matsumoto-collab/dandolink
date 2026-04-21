@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         const result = await sendPushToUsers(confirmedWorkerIds, {
             title: `【手配確定】${title}`,
             body: bodyLines.join(' / '),
-            url: '/dispatch',
+            url: '/',
             tag: `dispatch-${assignment.id}`,
             data: { assignmentId: assignment.id, projectMasterId: assignment.projectMasterId },
         });
