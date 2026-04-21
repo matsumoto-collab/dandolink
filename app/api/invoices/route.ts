@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
 import { createInvoiceSchema, validateRequest } from '@/lib/validations';
+import { createInvoiceVersion } from '@/lib/versions/snapshot';
 
 /** 請求書に紐付く案件マスタ情報を取得 */
 async function getInvoiceProjectMasters(invoiceId: string) {
@@ -105,34 +106,36 @@ export async function POST(req: NextRequest) {
             finalInvoiceNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
         }
 
-        const newInvoice = await prisma.invoice.create({
-            data: {
-                projectMasterId: resolvedPmIds[0], // 代表案件（後方互換）
-                customerId: customerId || null,
-                estimateId: estimateId || null,
-                invoiceNumber: finalInvoiceNumber,
-                title,
-                items: JSON.stringify(items || []),
-                subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
-                dueDate: dueDate ? new Date(dueDate) : new Date(),
-                status: status || 'draft',
-                paidDate: paidDate ? new Date(paidDate) : null,
-                notes: notes || null,
-                updatedBy: session!.user.id,
-                ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
-            },
-        });
-
-        // 中間テーブルに案件を登録
-        if (resolvedPmIds.length > 0) {
-            await prisma.invoiceProjectMaster.createMany({
-                data: resolvedPmIds.map((pmId, i) => ({
-                    invoiceId: newInvoice.id,
-                    projectMasterId: pmId,
-                    sortOrder: i,
-                })),
+        const newInvoice = await prisma.$transaction(async (tx) => {
+            const created = await tx.invoice.create({
+                data: {
+                    projectMasterId: resolvedPmIds[0], // 代表案件（後方互換）
+                    customerId: customerId || null,
+                    estimateId: estimateId || null,
+                    invoiceNumber: finalInvoiceNumber,
+                    title,
+                    items: JSON.stringify(items || []),
+                    subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
+                    dueDate: dueDate ? new Date(dueDate) : new Date(),
+                    status: status || 'draft',
+                    paidDate: paidDate ? new Date(paidDate) : null,
+                    notes: notes || null,
+                    updatedBy: session!.user.id,
+                    ...(createdAt ? { createdAt: new Date(createdAt) } : {}),
+                },
             });
-        }
+            if (resolvedPmIds.length > 0) {
+                await tx.invoiceProjectMaster.createMany({
+                    data: resolvedPmIds.map((pmId, i) => ({
+                        invoiceId: created.id,
+                        projectMasterId: pmId,
+                        sortOrder: i,
+                    })),
+                });
+            }
+            await createInvoiceVersion(tx, created.id, session!.user.id);
+            return created;
+        });
 
         const enriched = await enrichInvoice(formatInvoice(newInvoice));
         return NextResponse.json(enriched);

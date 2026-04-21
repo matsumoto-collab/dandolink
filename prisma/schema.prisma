@@ -239,6 +239,58 @@ model InvoiceProjectMaster {
   @@schema("public")
 }
 
+model EstimateVersion {
+  id                 String   @id @default(uuid())
+  estimateId         String
+  versionNumber      Int
+  estimateNumber     String
+  title              String
+  items              String
+  subtotal           Decimal  @db.Decimal(12, 2)
+  tax                Decimal  @db.Decimal(12, 2)
+  total              Decimal  @db.Decimal(12, 2)
+  validUntil         DateTime
+  status             String
+  notes              String?
+  location           String?
+  costTotal          Int?
+  constructionPeriod String?
+  projectMasterId    String?
+  customerId         String?
+  createdAt          DateTime @default(now())
+  createdBy          String?
+
+  @@unique([estimateId, versionNumber])
+  @@index([estimateId, versionNumber(sort: Desc)])
+  @@schema("public")
+}
+
+model InvoiceVersion {
+  id                   String    @id @default(uuid())
+  invoiceId            String
+  versionNumber        Int
+  invoiceNumber        String
+  title                String
+  items                String
+  subtotal             Decimal   @db.Decimal(12, 2)
+  tax                  Decimal   @db.Decimal(12, 2)
+  total                Decimal   @db.Decimal(12, 2)
+  dueDate              DateTime
+  status               String
+  paidDate             DateTime?
+  notes                String?
+  estimateId           String?
+  projectMasterId      String?
+  customerId           String?
+  projectMasterIdsJson String    @default("[]")
+  createdAt            DateTime  @default(now())
+  createdBy            String?
+
+  @@unique([invoiceId, versionNumber])
+  @@index([invoiceId, versionNumber(sort: Desc)])
+  @@schema("public")
+}
+
 model BillingTitle {
   id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   name      String

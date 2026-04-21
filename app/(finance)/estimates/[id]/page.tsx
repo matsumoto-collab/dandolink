@@ -7,7 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useCompany } from '@/hooks/useCompany';
 // PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
-import { ArrowLeft, FileDown, Printer, Trash2, Edit, ExternalLink } from 'lucide-react';
+import { ArrowLeft, FileDown, Printer, Trash2, Edit, ExternalLink, History } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Estimate } from '@/types/estimate';
@@ -23,6 +23,11 @@ const EstimateModal = dynamic(
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"></div> }
 );
 
+const EstimateVersionHistoryModal = dynamic(
+    () => import('@/components/Estimates/EstimateVersionHistoryModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"></div> }
+);
+
 export default function EstimateDetailPage() {
     const params = useParams();
     const router = useRouter();
@@ -35,6 +40,7 @@ export default function EstimateDetailPage() {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
     const estimateId = params.id as string;
     const estimate = estimates.find((e: Estimate) => e.id === estimateId);
@@ -153,13 +159,23 @@ export default function EstimateDetailPage() {
                             <LastUpdatedLabel updatedAt={estimate.updatedAt} updatedBy={estimate.updatedBy} />
                         </div>
                     </div>
-                    <button
-                        onClick={handleEdit}
-                        className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
-                    >
-                        <Edit size={18} />
-                        編集
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setIsHistoryModalOpen(true)}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                            title="保存履歴"
+                        >
+                            <History size={18} />
+                            <span className="hidden sm:inline">履歴</span>
+                        </button>
+                        <button
+                            onClick={handleEdit}
+                            className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                        >
+                            <Edit size={18} />
+                            編集
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -284,6 +300,15 @@ export default function EstimateDetailPage() {
                 onClose={() => setIsEditModalOpen(false)}
                 onSubmit={handleEditSubmit}
                 initialData={estimate}
+            />
+
+            {/* 履歴モーダル */}
+            <EstimateVersionHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                estimateId={estimateId}
+                project={project}
+                companyInfo={companyInfo}
             />
         </div>
     );

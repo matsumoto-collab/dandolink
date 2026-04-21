@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { requireManagerOrAbove, notFoundResponse, serverErrorResponse, validationErrorResponse, deleteSuccessResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
 import { updateInvoiceSchema, validateRequest } from '@/lib/validations';
+import { createInvoiceVersion } from '@/lib/versions/snapshot';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -57,25 +58,29 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (data.createdAt !== undefined) updateData.createdAt = new Date(data.createdAt);
         if (customerId !== undefined) updateData.customerId = customerId || null;
 
-        // 複数案件の更新
+        // 代表案件も更新
         if (Array.isArray(projectMasterIds)) {
-            // 代表案件も更新
             updateData.projectMasterId = projectMasterIds[0] || null;
-
-            // 中間テーブルを差し替え
-            await prisma.invoiceProjectMaster.deleteMany({ where: { invoiceId: id } });
-            if (projectMasterIds.length > 0) {
-                await prisma.invoiceProjectMaster.createMany({
-                    data: projectMasterIds.map((pmId: string, i: number) => ({
-                        invoiceId: id,
-                        projectMasterId: pmId,
-                        sortOrder: i,
-                    })),
-                });
-            }
         }
 
-        const updatedInvoice = await prisma.invoice.update({ where: { id }, data: updateData });
+        const updatedInvoice = await prisma.$transaction(async (tx) => {
+            // 中間テーブルを差し替え
+            if (Array.isArray(projectMasterIds)) {
+                await tx.invoiceProjectMaster.deleteMany({ where: { invoiceId: id } });
+                if (projectMasterIds.length > 0) {
+                    await tx.invoiceProjectMaster.createMany({
+                        data: projectMasterIds.map((pmId: string, i: number) => ({
+                            invoiceId: id,
+                            projectMasterId: pmId,
+                            sortOrder: i,
+                        })),
+                    });
+                }
+            }
+            const updated = await tx.invoice.update({ where: { id }, data: updateData });
+            await createInvoiceVersion(tx, id, session!.user.id);
+            return updated;
+        });
         const formatted = formatInvoice(updatedInvoice);
         const projectMasters = await getInvoiceProjectMasters(id);
         return NextResponse.json({

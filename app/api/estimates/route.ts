@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatEstimate } from '@/lib/formatters';
 import { createEstimateSchema, validateRequest } from '@/lib/validations';
+import { createEstimateVersion } from '@/lib/versions/snapshot';
 
 export async function GET(req: NextRequest) {
     try {
@@ -77,15 +78,19 @@ export async function POST(req: NextRequest) {
             finalEstimateNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
         }
 
-        const newEstimate = await prisma.estimate.create({
-            data: {
-                projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber: finalEstimateNumber, title,
-                items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
-                validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null, location: location || null,
-                costTotal: costTotal ?? null,
-                constructionPeriod: constructionPeriod || null,
-                updatedBy: session!.user.id,
-            },
+        const newEstimate = await prisma.$transaction(async (tx) => {
+            const created = await tx.estimate.create({
+                data: {
+                    projectMasterId: projectMasterId || null, customerId: customerId || null, estimateNumber: finalEstimateNumber, title,
+                    items: JSON.stringify(items || []), subtotal: subtotal || 0, tax: tax || 0, total: total || 0,
+                    validUntil: validUntil ? new Date(validUntil) : new Date(), status: status || 'draft', notes: notes || null, location: location || null,
+                    costTotal: costTotal ?? null,
+                    constructionPeriod: constructionPeriod || null,
+                    updatedBy: session!.user.id,
+                },
+            });
+            await createEstimateVersion(tx, created.id, session!.user.id);
+            return created;
         });
 
         return NextResponse.json(formatEstimate(newEstimate));

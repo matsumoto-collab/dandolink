@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { requireManagerOrAbove, notFoundResponse, serverErrorResponse, validationErrorResponse, deleteSuccessResponse } from '@/lib/api/utils';
 import { formatEstimate } from '@/lib/formatters';
 import { updateEstimateSchema, validateRequest } from '@/lib/validations';
+import { createEstimateVersion } from '@/lib/versions/snapshot';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -38,7 +39,11 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (data.costTotal !== undefined) updateData.costTotal = data.costTotal;
         if (data.constructionPeriod !== undefined) updateData.constructionPeriod = data.constructionPeriod || null;
 
-        const updatedEstimate = await prisma.estimate.update({ where: { id }, data: updateData });
+        const updatedEstimate = await prisma.$transaction(async (tx) => {
+            const updated = await tx.estimate.update({ where: { id }, data: updateData });
+            await createEstimateVersion(tx, id, session!.user.id);
+            return updated;
+        });
         return NextResponse.json(formatEstimate(updatedEstimate));
     } catch (error) {
         return serverErrorResponse('見積の更新', error);

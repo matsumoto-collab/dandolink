@@ -5,11 +5,17 @@ import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
-import { X, FileDown, Printer, Trash2, Edit } from 'lucide-react';
+import { X, FileDown, Printer, Trash2, Edit, History } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
+
+const InvoiceVersionHistoryModal = dynamic(
+    () => import('@/components/Invoices/InvoiceVersionHistoryModal'),
+    { loading: () => null }
+);
 
 interface InvoiceDetailModalProps {
     isOpen: boolean;
@@ -41,6 +47,7 @@ export default function InvoiceDetailModal({
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [includeCopy, setIncludeCopy] = useState<boolean>(true);
     const [includeDetails, setIncludeDetails] = useState<boolean>(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     const effectiveProject: Project = useMemo(() => {
@@ -152,6 +159,14 @@ export default function InvoiceDetailModal({
                         </div>
                         <div className="flex items-center gap-2">
                             <button
+                                onClick={() => setIsHistoryOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                                title="保存履歴"
+                            >
+                                <History size={18} />
+                                <span className="hidden sm:inline">履歴</span>
+                            </button>
+                            <button
                                 onClick={handleEdit}
                                 className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
                             >
@@ -250,6 +265,16 @@ export default function InvoiceDetailModal({
                     }
                 `}</style>
             </div>
+
+            {invoice && (
+                <InvoiceVersionHistoryModal
+                    isOpen={isHistoryOpen}
+                    onClose={() => setIsHistoryOpen(false)}
+                    invoiceId={invoice.id}
+                    project={project}
+                    companyInfo={companyInfo}
+                />
+            )}
         </div>
     );
 }
