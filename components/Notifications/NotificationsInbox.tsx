@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell, Check, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -46,7 +47,12 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     const fetchUnreadCount = useCallback(async () => {
         if (!userId) return;
@@ -188,25 +194,22 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         </button>
     );
 
-    return (
+    const panel = open ? (
         <>
-            {trigger}
-            {open && (
-                <>
-                    {/* モバイル: 全画面オーバーレイ、デスクトップ: 軽いbackdrop */}
-                    <div
-                        className="fixed inset-0 z-40 bg-black/30 lg:bg-transparent"
-                        onClick={() => setOpen(false)}
-                        aria-hidden
-                    />
-                    <div
-                        ref={panelRef}
-                        className="fixed z-50 bg-white rounded-t-2xl lg:rounded-xl shadow-2xl border border-slate-200 flex flex-col
-                                   left-0 right-0 bottom-0 max-h-[80vh]
-                                   lg:left-auto lg:right-4 lg:top-16 lg:bottom-auto lg:w-96 lg:max-h-[70vh]"
-                        role="dialog"
-                        aria-label="通知一覧"
-                    >
+            {/* モバイル: 全画面オーバーレイ、デスクトップ: 軽いbackdrop */}
+            <div
+                className="fixed inset-0 z-[60] bg-black/30 lg:bg-transparent"
+                onClick={() => setOpen(false)}
+                aria-hidden
+            />
+            <div
+                ref={panelRef}
+                className="fixed z-[70] bg-white rounded-t-2xl lg:rounded-xl shadow-2xl border border-slate-200 flex flex-col
+                           left-0 right-0 bottom-0 max-h-[80vh]
+                           lg:left-auto lg:right-4 lg:top-16 lg:bottom-auto lg:w-96 lg:max-h-[70vh]"
+                role="dialog"
+                aria-label="通知一覧"
+            >
                         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
                             <h3 className="font-semibold text-slate-800">通知</h3>
                             <div className="flex items-center gap-1">
@@ -258,10 +261,15 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                                 </ul>
                             )}
                         </div>
-                        <div className="safe-area-bottom" />
-                    </div>
-                </>
-            )}
+                <div className="safe-area-bottom" />
+            </div>
+        </>
+    ) : null;
+
+    return (
+        <>
+            {trigger}
+            {mounted && panel ? createPortal(panel, document.body) : null}
         </>
     );
 }
