@@ -80,12 +80,25 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         }
     }, [userId]);
 
-    // 初回 + 60秒ごとのフォールバック（Realtimeが切れていたとき用）
+    // 初回 + 15秒ごとのフォールバックポーリング（Realtime不達時の即応性確保）
+    // + ブラウザタブにフォーカスが戻ったとき即時再取得
     useEffect(() => {
         if (!userId) return;
         fetchUnreadCount();
-        const iv = setInterval(fetchUnreadCount, 60_000);
-        return () => clearInterval(iv);
+        const iv = setInterval(() => {
+            if (document.visibilityState === 'visible') fetchUnreadCount();
+        }, 15_000);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') fetchUnreadCount();
+        };
+        const onFocus = () => fetchUnreadCount();
+        document.addEventListener('visibilitychange', onVisible);
+        window.addEventListener('focus', onFocus);
+        return () => {
+            clearInterval(iv);
+            document.removeEventListener('visibilitychange', onVisible);
+            window.removeEventListener('focus', onFocus);
+        };
     }, [userId, fetchUnreadCount]);
 
     // Supabase Realtime: 自分宛ての新規通知を即時反映
