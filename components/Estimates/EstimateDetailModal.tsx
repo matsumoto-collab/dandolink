@@ -7,12 +7,18 @@ import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { EstimateItem } from '@/types/estimate';
-import { X, FileDown, Printer, Trash2, Edit, FolderOpen } from 'lucide-react';
+import { X, FileDown, Printer, Trash2, Edit, FolderOpen, History } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import BudgetTab from './BudgetTab';
 import { logger } from '@/lib/logger';
+
+const EstimateVersionHistoryModal = dynamic(
+    () => import('@/components/Estimates/EstimateVersionHistoryModal'),
+    { loading: () => null }
+);
 
 interface EstimateDetailModalProps {
     isOpen: boolean;
@@ -46,6 +52,7 @@ export default function EstimateDetailModal({
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
     const [includeDetails, setIncludeDetails] = useState(false);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // 予算書用: 項目別原価のローカルstate
@@ -191,6 +198,14 @@ export default function EstimateDetailModal({
                         </div>
                         <div className="flex items-center gap-2">
                             <button
+                                onClick={() => setIsHistoryOpen(true)}
+                                className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors"
+                                title="保存履歴"
+                            >
+                                <History size={18} />
+                                <span className="hidden sm:inline">履歴</span>
+                            </button>
+                            <button
                                 onClick={handleEdit}
                                 className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
                             >
@@ -331,6 +346,16 @@ export default function EstimateDetailModal({
                         }
                     `}</style>
             </div>
+
+            {estimate && (
+                <EstimateVersionHistoryModal
+                    isOpen={isHistoryOpen}
+                    onClose={() => setIsHistoryOpen(false)}
+                    estimateId={estimate.id}
+                    project={project}
+                    companyInfo={companyInfo}
+                />
+            )}
         </div>
     );
 }
