@@ -29,10 +29,15 @@ export const createProjectMasterSchema = z.object({
     estimatedDemolitionWorkers: z.number().int().min(0).optional().nullable(),
     contractAmount: z.number().min(0).optional().nullable(),
     materialCost: z.number().min(0).optional().nullable(),
-    subcontractorCost: z.number().min(0).optional().nullable(),
-    subcontractorAssemblyCost: z.number().min(0).optional().nullable(),
-    subcontractorDemolitionCost: z.number().min(0).optional().nullable(),
     otherExpenses: z.number().min(0).optional().nullable(),
+    subcontractorCosts: z
+        .array(
+            z.object({
+                constructionTypeId: z.string().min(1),
+                amount: z.number().min(0),
+            })
+        )
+        .optional(),
     scaffoldingSpec: z.unknown().optional().nullable(),
     description: z.string().optional().nullable(),
     remarks: z.string().max(2000).optional().nullable(),

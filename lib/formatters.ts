@@ -133,16 +133,24 @@ export function formatProjectMaster(pm: RawProjectMaster) {
         const n = Number(v);
         return Number.isFinite(n) ? n : null;
     };
+    const subcontractorCostsRaw = rec.subcontractorCosts as Array<Record<string, unknown>> | undefined;
+    const subcontractorCosts = Array.isArray(subcontractorCostsRaw)
+        ? subcontractorCostsRaw.map(c => ({
+            id: String(c.id ?? ''),
+            constructionTypeId: String(c.constructionTypeId ?? ''),
+            amount: numOrNull(c.amount) ?? 0,
+            sortOrder: typeof c.sortOrder === 'number' ? c.sortOrder : 0,
+        }))
+        : undefined;
+
     return {
         ...pm,
         createdBy: parseJsonField<string[] | null>(pm.createdBy, null),
         createdAt: pm.createdAt.toISOString(),
         updatedAt: pm.updatedAt.toISOString(),
         materialCost: numOrNull(rec.materialCost),
-        subcontractorCost: numOrNull(rec.subcontractorCost),
-        subcontractorAssemblyCost: numOrNull(rec.subcontractorAssemblyCost),
-        subcontractorDemolitionCost: numOrNull(rec.subcontractorDemolitionCost),
         otherExpenses: numOrNull(rec.otherExpenses),
+        subcontractorCosts,
         assignments: pm.assignments?.map(a => formatAssignment(a as RawAssignment)),
         assignmentCount: pm._count?.assignments ?? pm.assignments?.length ?? 0,
     };

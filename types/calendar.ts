@@ -107,6 +107,15 @@ export type ScaffoldingSpec = Record<string, boolean | string | null>;
 // デフォルト足場仕様（空オブジェクト）
 export const DEFAULT_SCAFFOLDING_SPEC: ScaffoldingSpec = {};
 
+// 協力業者費（工事種別ごとの設定額）
+// id / sortOrder はサーバーで採番するため送信時はoptional
+export interface ProjectMasterSubcontractorCost {
+    id?: string;
+    constructionTypeId: string;
+    amount: number;
+    sortOrder?: number;
+}
+
 // 案件マスター（1現場=1レコード）
 export interface ProjectMaster {
     id: string;
@@ -140,10 +149,9 @@ export interface ProjectMaster {
 
     // 原価（手入力）
     materialCost?: number | null;                 // 材料費
-    subcontractorCost?: number | null;            // 外注費（旧単一フィールド、残存データ用）
-    subcontractorAssemblyCost?: number | null;    // 協力業者費（組立）
-    subcontractorDemolitionCost?: number | null;  // 協力業者費（解体）
     otherExpenses?: number | null;                // その他経費
+    // 協力業者費（工事種別ごとの設定額）
+    subcontractorCosts?: ProjectMasterSubcontractorCost[];
 
     // 足場仕様
     scaffoldingSpec?: ScaffoldingSpec;

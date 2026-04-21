@@ -24,8 +24,18 @@ jest.mock('@/lib/prisma', () => ({
         },
         projectAssignment: {
             findMany: jest.fn(),
+            groupBy: jest.fn(),
         },
         vehicle: {
+            findMany: jest.fn(),
+        },
+        user: {
+            findMany: jest.fn(),
+        },
+        worker: {
+            findMany: jest.fn(),
+        },
+        constructionType: {
             findMany: jest.fn(),
         },
     },
@@ -33,25 +43,32 @@ jest.mock('@/lib/prisma', () => ({
 
 describe('lib/profitDashboard', () => {
     // Mock Data
+    // 協力業者費はアサイン無しの場合0になる（手配確定済み & パートナーロール判定が必要）
     const mockProject = {
         id: 'proj-1',
         title: 'Project A',
         customerName: 'Customer A',
         status: 'active',
+        constructionType: null,
+        contractAmount: 0,
         materialCost: 10000,
-        subcontractorCost: 5000,
         otherExpenses: 2000,
+        subcontractorCosts: [],
         updatedAt: new Date(),
         _count: { assignments: 5 },
     };
 
-    const mockEstimates = [{ projectMasterId: 'proj-1', total: 100000 }];
+    const mockEstimates = [{ projectMasterId: 'proj-1', total: 100000, costTotal: null, createdAt: new Date() }];
     const mockInvoices = [{ projectMasterId: 'proj-1', total: 120000 }];
     const mockSettings = { laborDailyRate: 14400, standardWorkMinutes: 480 }; // rate = 30/min
     const mockVehicles = [{ id: 'veh-1', dailyRate: 5000 }];
 
     beforeEach(() => {
         jest.clearAllMocks();
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.projectAssignment.groupBy as jest.Mock).mockResolvedValue([]);
     });
 
     describe('fetchProfitDashboardData', () => {
@@ -99,7 +116,8 @@ describe('lib/profitDashboard', () => {
 
             expect(result.projects[0].revenue).toBe(120000);
             expect(result.projects[0].laborCost).toBe(0);
-            expect(result.projects[0].grossProfit).toBe(120000 - 17000); // 17000 is material+sub+other
+            // material(10000) + other(2000) = 12000 (協力業者費はアサイン無しで0)
+            expect(result.projects[0].grossProfit).toBe(120000 - 12000);
             expect(prisma.projectMaster.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
         });
 
@@ -124,11 +142,19 @@ describe('lib/profitDashboard', () => {
                 {
                     startTime: '08:00',
                     endTime: '12:00',
+                    breakMinutes: 0,
+                    workerIds: [],
                     dailyReport: { morningLoadingMinutes: 30, eveningLoadingMinutes: 30 },
-                    assignment: { projectMasterId: 'proj-1', workers: '["w1", "w2"]' },
+                    assignment: { projectMasterId: 'proj-1', workers: '["w1", "w2"]', memberCount: 2 },
                 },
             ];
-            const mockAssignments = [{ projectMasterId: 'proj-1', vehicles: '["veh-1"]' }];
+            const mockAssignments = [{
+                projectMasterId: 'proj-1',
+                vehicles: '["veh-1"]',
+                assignedEmployeeId: 'user-1',
+                isDispatchConfirmed: false,
+                constructionType: null,
+            }];
 
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([mockProject]);
             (prisma.estimate.findMany as jest.Mock).mockResolvedValue(mockEstimates);
@@ -147,7 +173,9 @@ describe('lib/profitDashboard', () => {
             // Vehicle: 5000 * 1 = 5000
             expect(result.projects[0].vehicleCost).toBe(5000);
 
-            const expectedTotalCost = 14400 + 1800 + 5000 + 17000;
+            // labor(14400) + loading(1800) + vehicle(5000) + material(10000) + other(2000)
+            // 協力業者費は手配確定済み & partner ロール職長のアサインが必要なのでここでは0
+            const expectedTotalCost = 14400 + 1800 + 5000 + 12000;
             expect(result.projects[0].totalCost).toBe(expectedTotalCost);
         });
     });

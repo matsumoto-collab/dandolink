@@ -16,12 +16,15 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 id: true,
                 title: true,
                 materialCost: true,
-                subcontractorCost: true,
-                subcontractorAssemblyCost: true,
-                subcontractorDemolitionCost: true,
                 otherExpenses: true,
+                subcontractorCosts: {
+                    select: { constructionTypeId: true, amount: true },
+                },
                 assignments: {
                     select: {
+                        assignedEmployeeId: true,
+                        isDispatchConfirmed: true,
+                        constructionType: true,
                         workers: true,
                         vehicles: true,
                         dailyReportWorkItems: {
@@ -55,13 +58,19 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             }
         }
 
-        const [settings, estimates, invoices, allVehicles, allUsers, allWorkers] = await Promise.all([
+        // 職長候補ユーザー（手配確定アサインの職長ID）
+        const foremanIds = [...new Set(projectMaster.assignments.map(a => a.assignedEmployeeId).filter(Boolean))] as string[];
+
+        const [settings, estimates, invoices, allVehicles, allUsers, allWorkers, foremanUsers] = await Promise.all([
             prisma.systemSettings.findFirst(),
             prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
             prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
             prisma.worker.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
+            foremanIds.length > 0
+                ? prisma.user.findMany({ where: { id: { in: foremanIds } }, select: { id: true, role: true } })
+                : Promise.resolve([] as { id: string; role: string }[]),
         ]);
 
         const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
@@ -152,10 +161,24 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         }
 
         const materialCost = Number(projectMaster.materialCost || 0);
-        const subcontractorLegacyCost = Number(projectMaster.subcontractorCost || 0);
-        const subcontractorAssemblyCost = Number(projectMaster.subcontractorAssemblyCost || 0);
-        const subcontractorDemolitionCost = Number(projectMaster.subcontractorDemolitionCost || 0);
-        const subcontractorCost = subcontractorLegacyCost + subcontractorAssemblyCost + subcontractorDemolitionCost;
+
+        // 協力業者費: 手配確定済み & 担当職長が partner ロールのアサインから
+        // 該当工事種別を集め、種別ごとの設定金額を1回だけ計上する
+        const partnerForemanIds = new Set(
+            foremanUsers.filter(u => u.role === 'partner').map(u => u.id)
+        );
+        const activeConstructionTypeIds = new Set<string>();
+        for (const a of projectMaster.assignments) {
+            if (!a.isDispatchConfirmed) continue;
+            if (!partnerForemanIds.has(a.assignedEmployeeId)) continue;
+            if (a.constructionType) activeConstructionTypeIds.add(a.constructionType);
+        }
+        const subcontractorCost = projectMaster.subcontractorCosts.reduce((sum, c) => {
+            return activeConstructionTypeIds.has(c.constructionTypeId)
+                ? sum + Number(c.amount || 0)
+                : sum;
+        }, 0);
+
         const otherExpenses = Number(projectMaster.otherExpenses || 0);
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
         const grossProfit = revenue - totalCost;

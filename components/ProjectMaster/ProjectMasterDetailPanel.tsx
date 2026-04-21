@@ -192,10 +192,8 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                         projectMasterId={pm.id}
                         initialValues={{
                             materialCost: pm.materialCost,
-                            subcontractorCost: pm.subcontractorCost,
-                            subcontractorAssemblyCost: pm.subcontractorAssemblyCost,
-                            subcontractorDemolitionCost: pm.subcontractorDemolitionCost,
                             otherExpenses: pm.otherExpenses,
+                            subcontractorCosts: pm.subcontractorCosts ?? [],
                         }}
                         onSaved={() => setProfitVersion(v => v + 1)}
                     />

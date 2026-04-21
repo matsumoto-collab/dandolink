@@ -47,7 +47,10 @@ export async function GET(req: NextRequest) {
             ];
         }
 
-        const include = { _count: { select: { assignments: true } } };
+        const include = {
+            _count: { select: { assignments: true } },
+            subcontractorCosts: { orderBy: { sortOrder: 'asc' as const } },
+        };
         const orderBy = { updatedAt: 'desc' as const };
 
         // 見積書・請求書の有無を一覧で一目でわかるようにするためのフラグ
@@ -133,7 +136,7 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy } = validation.data;
+        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy, subcontractorCosts } = validation.data;
 
         // 正式名称を自動合成（nameがある場合）
         let resolvedTitle = title || '';
@@ -178,7 +181,19 @@ export async function POST(req: NextRequest) {
                 remarks: remarks || null,
                 createdBy: stringifyJsonField(createdBy),
                 updatedBy: session!.user.id,
+                ...(subcontractorCosts && subcontractorCosts.length > 0
+                    ? {
+                        subcontractorCosts: {
+                            create: subcontractorCosts.map((c, idx) => ({
+                                constructionTypeId: c.constructionTypeId,
+                                amount: c.amount,
+                                sortOrder: idx,
+                            })),
+                        },
+                    }
+                    : {}),
             },
+            include: { subcontractorCosts: true },
         });
 
         return NextResponse.json(formatProjectMaster(projectMaster));

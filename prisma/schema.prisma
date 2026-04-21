@@ -58,9 +58,6 @@ model ProjectMaster {
   scaffoldingSpec            Json?
   materialCost                 Decimal?              @db.Decimal(12, 2)
   otherExpenses                Decimal?              @db.Decimal(12, 2)
-  subcontractorCost            Decimal?              @db.Decimal(12, 2)
-  subcontractorAssemblyCost    Decimal?              @db.Decimal(12, 2)
-  subcontractorDemolitionCost  Decimal?              @db.Decimal(12, 2)
   customerShortName          String?
   latitude                   Float?
   longitude                  Float?
@@ -73,6 +70,7 @@ model ProjectMaster {
   assignments                ProjectAssignment[]
   files                      ProjectMasterFile[]
   projectMaterialItems       ProjectMaterialItem[]
+  subcontractorCosts         ProjectMasterSubcontractorCost[]
 
   @@index([title])
   @@index([customerId])
@@ -410,8 +408,27 @@ model ConstructionType {
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now()) @updatedAt
 
+  subcontractorCosts ProjectMasterSubcontractorCost[]
+
   @@index([name])
   @@index([sortOrder])
+  @@schema("public")
+}
+
+model ProjectMasterSubcontractorCost {
+  id                 String           @id @default(uuid())
+  projectMasterId    String
+  constructionTypeId String
+  amount             Decimal          @db.Decimal(12, 2)
+  sortOrder          Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  projectMaster      ProjectMaster    @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  constructionType   ConstructionType @relation(fields: [constructionTypeId], references: [id], onDelete: Restrict)
+
+  @@unique([projectMasterId, constructionTypeId])
+  @@index([projectMasterId])
+  @@index([constructionTypeId])
   @@schema("public")
 }
 

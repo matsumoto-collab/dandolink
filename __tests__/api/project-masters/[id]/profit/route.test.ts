@@ -48,12 +48,14 @@ describe('/api/project-masters/[id]/profit', () => {
     const mockId = 'proj-1';
 
     // Mock Data
+    // 協力業者費は手配確定済み & パートナーロール職長のアサインがある工事種別分のみ計上されるため、
+    // アサインなしのベースケースでは加算されない
     const mockProject = {
         id: mockId,
         title: 'Project A',
         materialCost: 10000,
-        subcontractorCost: 5000,
         otherExpenses: 2000,
+        subcontractorCosts: [],
         assignments: [],
     };
 
@@ -88,9 +90,9 @@ describe('/api/project-masters/[id]/profit', () => {
             expect(json.revenue).toBe(109091);
             expect(json.revenueSource).toBe('invoice');
             expect(json.estimateAmount).toBe(100000);
-            // Costs: Material(10000) + Sub(5000) + Other(2000) = 17000
-            expect(json.costBreakdown.totalCost).toBe(17000);
-            expect(json.grossProfit).toBe(109091 - 17000);
+            // Costs: Material(10000) + Other(2000) = 12000 (協力業者費はアサインなしのため0)
+            expect(json.costBreakdown.totalCost).toBe(12000);
+            expect(json.grossProfit).toBe(109091 - 12000);
         });
 
         it('should calculate labor and vehicle costs from assignments', async () => {

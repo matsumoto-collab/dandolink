@@ -9,6 +9,7 @@ import { CollapsibleSection } from './common/CollapsibleSection';
 import { BasicInfoSection } from './sections/BasicInfoSection';
 import { AddressSection } from './sections/AddressSection';
 import { ConstructionSection } from './sections/ConstructionSection';
+import { SubcontractorCostSection } from './sections/SubcontractorCostSection';
 import { ScaffoldingSection } from './sections/ScaffoldingSection';
 import { RemarksSection } from './sections/RemarksSection';
 import { FilesSection } from './sections/FilesSection';
@@ -18,6 +19,12 @@ export interface WorkDateEntry {
     constructionType: string; // construction type UUID
     date: string;             // YYYY-MM-DD
     foremen: { foremanId: string; memberCount: number }[];
+}
+
+export interface SubcontractorCostEntry {
+    id: string;               // row key (UUID)
+    constructionTypeId: string;
+    amount: string;           // 入力中の文字列。保存時にnumberへ
 }
 
 export interface ProjectMasterFormData {
@@ -43,6 +50,8 @@ export interface ProjectMasterFormData {
     estimatedAssemblyWorkers: string;
     estimatedDemolitionWorkers: string;
     contractAmount: string;
+    // 協力業者費（工事種別ごとの設定額。手配確定 & 職長がパートナーの場合に計上）
+    subcontractorCosts: SubcontractorCostEntry[];
     // 足場仕様
     scaffoldingSpec: ScaffoldingSpec;
     // その他
@@ -74,6 +83,7 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     estimatedAssemblyWorkers: '',
     estimatedDemolitionWorkers: '',
     contractAmount: '',
+    subcontractorCosts: [],
     scaffoldingSpec: DEFAULT_SCAFFOLDING_SPEC,
     remarks: '',
     createdBy: [],
@@ -94,6 +104,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
         basic: true,
         address: true,
         construction: true,
+        subcontractor: false,
         scaffolding: false,
         remarks: true,
         files: true,
@@ -138,6 +149,19 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 onToggle={() => toggleSection('construction')}
             >
                 <ConstructionSection formData={formData} setFormData={setFormData} />
+            </CollapsibleSection>
+
+            {/* 協力業者費セクション */}
+            <CollapsibleSection
+                title="協力業者費（予定）"
+                isExpanded={expandedSections.subcontractor}
+                onToggle={() => toggleSection('subcontractor')}
+            >
+                <SubcontractorCostSection
+                    formData={formData}
+                    setFormData={setFormData}
+                    projectMasterId={projectMasterId}
+                />
             </CollapsibleSection>
 
             {/* 足場仕様セクション */}

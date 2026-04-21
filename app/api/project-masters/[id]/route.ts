@@ -23,7 +23,13 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         if (error) return error;
 
         const { id } = await context.params;
-        const projectMaster = await prisma.projectMaster.findUnique({ where: { id }, include: { assignments: { orderBy: { date: 'desc' } } } });
+        const projectMaster = await prisma.projectMaster.findUnique({
+            where: { id },
+            include: {
+                assignments: { orderBy: { date: 'desc' } },
+                subcontractorCosts: { orderBy: { sortOrder: 'asc' } },
+            },
+        });
 
         if (!projectMaster) return notFoundResponse('案件マスター');
         const flags = await getDocFlags(id);
@@ -88,7 +94,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             if (typeof body.contractAmount === 'number' && body.contractAmount < 0) return validationErrorResponse('契約金額は0以上で指定してください');
             updateData.contractAmount = body.contractAmount;
         }
-        const costFields = ['materialCost', 'subcontractorCost', 'subcontractorAssemblyCost', 'subcontractorDemolitionCost', 'otherExpenses'] as const;
+        const costFields = ['materialCost', 'otherExpenses'] as const;
         for (const field of costFields) {
             if (body[field] !== undefined) {
                 const value = body[field];
@@ -97,6 +103,31 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                 }
                 updateData[field] = value;
             }
+        }
+
+        // 協力業者費（工事種別ごとの設定額）: 渡された配列で完全置き換え
+        let subcontractorCostsInput: { constructionTypeId: string; amount: number }[] | undefined;
+        if (body.subcontractorCosts !== undefined) {
+            if (!Array.isArray(body.subcontractorCosts)) {
+                return validationErrorResponse('subcontractorCostsは配列で指定してください');
+            }
+            const parsed: { constructionTypeId: string; amount: number }[] = [];
+            const seenTypes = new Set<string>();
+            for (const row of body.subcontractorCosts) {
+                if (!row || typeof row !== 'object') continue;
+                const constructionTypeId = typeof row.constructionTypeId === 'string' ? row.constructionTypeId : '';
+                const amount = Number(row.amount);
+                if (!constructionTypeId) continue;
+                if (!Number.isFinite(amount) || amount < 0) {
+                    return validationErrorResponse('協力業者費の金額は0以上の数値で指定してください');
+                }
+                if (seenTypes.has(constructionTypeId)) {
+                    return validationErrorResponse('同じ工事種別が重複しています');
+                }
+                seenTypes.add(constructionTypeId);
+                parsed.push({ constructionTypeId, amount });
+            }
+            subcontractorCostsInput = parsed;
         }
         if (body.scaffoldingSpec !== undefined) updateData.scaffoldingSpec = body.scaffoldingSpec;
         if (body.description !== undefined) updateData.description = body.description;
@@ -112,15 +143,54 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             }
         }
 
-        if (Object.keys(changedData).length === 0) {
+        const hasSubcontractorUpdate = subcontractorCostsInput !== undefined;
+        const hasFieldChanges = Object.keys(changedData).length > 0;
+
+        if (!hasFieldChanges && !hasSubcontractorUpdate) {
+            const current = await prisma.projectMaster.findUnique({
+                where: { id },
+                include: { subcontractorCosts: { orderBy: { sortOrder: 'asc' } } },
+            });
             const flags = await getDocFlags(id);
-            return NextResponse.json({ ...formatProjectMaster(existing), ...flags });
+            return NextResponse.json({ ...formatProjectMaster(current ?? existing), ...flags });
         }
 
-        changedData.updatedBy = session!.user.id;
-        const projectMaster = await prisma.projectMaster.update({ where: { id }, data: changedData });
+        if (hasFieldChanges) {
+            changedData.updatedBy = session!.user.id;
+        }
+
+        const projectMaster = await prisma.$transaction(async (tx) => {
+            if (hasFieldChanges) {
+                await tx.projectMaster.update({ where: { id }, data: changedData });
+            }
+            if (hasSubcontractorUpdate) {
+                await tx.projectMasterSubcontractorCost.deleteMany({ where: { projectMasterId: id } });
+                if (subcontractorCostsInput!.length > 0) {
+                    await tx.projectMasterSubcontractorCost.createMany({
+                        data: subcontractorCostsInput!.map((c, idx) => ({
+                            projectMasterId: id,
+                            constructionTypeId: c.constructionTypeId,
+                            amount: c.amount,
+                            sortOrder: idx,
+                        })),
+                    });
+                }
+                // 協力業者費だけ変更された場合も updatedBy / updatedAt を進める
+                if (!hasFieldChanges) {
+                    await tx.projectMaster.update({
+                        where: { id },
+                        data: { updatedBy: session!.user.id },
+                    });
+                }
+            }
+            return tx.projectMaster.findUnique({
+                where: { id },
+                include: { subcontractorCosts: { orderBy: { sortOrder: 'asc' } } },
+            });
+        });
+
         const flags = await getDocFlags(id);
-        return NextResponse.json({ ...formatProjectMaster(projectMaster), ...flags });
+        return NextResponse.json({ ...formatProjectMaster(projectMaster!), ...flags });
     } catch (error) {
         return serverErrorResponse('案件マスターの更新', error);
     }

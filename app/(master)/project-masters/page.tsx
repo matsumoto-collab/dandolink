@@ -138,6 +138,11 @@ export default function ProjectMasterListPage() {
     }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
+        const subcontractorCosts = data.subcontractorCosts
+            .filter(r => r.constructionTypeId && r.amount !== '')
+            .map(r => ({ constructionTypeId: r.constructionTypeId, amount: Number(r.amount) }))
+            .filter(r => Number.isFinite(r.amount) && r.amount >= 0);
+
         const pm = await createProjectMaster({
             title: data.title,
             name: data.name || undefined,
@@ -163,6 +168,7 @@ export default function ProjectMasterListPage() {
             scaffoldingSpec: data.scaffoldingSpec,
             remarks: data.remarks || undefined,
             createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
+            subcontractorCosts,
         });
 
         // 各作業日のアサインを自動生成
@@ -190,6 +196,11 @@ export default function ProjectMasterListPage() {
     };
 
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
+        const subcontractorCosts = data.subcontractorCosts
+            .filter(r => r.constructionTypeId && r.amount !== '')
+            .map(r => ({ constructionTypeId: r.constructionTypeId, amount: Number(r.amount) }))
+            .filter(r => Number.isFinite(r.amount) && r.amount >= 0);
+
         // null を送ることで API 側でフィールドをクリアできる（undefined だと更新対象外になる）
         const updatePayload: Record<string, unknown> = {
             title: data.title,
@@ -214,6 +225,7 @@ export default function ProjectMasterListPage() {
             scaffoldingSpec: data.scaffoldingSpec as ScaffoldingSpec,
             remarks: data.remarks ?? '',
             createdBy: data.createdBy.length > 0 ? data.createdBy : [],
+            subcontractorCosts,
         };
         await updateProjectMaster(id, updatePayload as Partial<ProjectMaster>);
         // 作業日程から新規アサインを自動生成

@@ -153,11 +153,11 @@ export async function fetchProfitDashboardData(
             constructionType: true,
             contractAmount: true,
             materialCost: true,
-            subcontractorCost: true,
-            subcontractorAssemblyCost: true,
-            subcontractorDemolitionCost: true,
             otherExpenses: true,
             updatedAt: true,
+            subcontractorCosts: {
+                select: { constructionTypeId: true, amount: true },
+            },
             _count: {
                 select: { assignments: true },
             },
@@ -209,18 +209,24 @@ export async function fetchProfitDashboardData(
                 },
             },
         }),
-        // 配置情報
+        // 配置情報（協力業者判定にも使うため isDispatchConfirmed / assignedEmployeeId / constructionType も取得）
         prisma.projectAssignment.findMany({
             where: { projectMasterId: { in: projectIds } },
-            select: { projectMasterId: true, vehicles: true },
+            select: {
+                projectMasterId: true,
+                vehicles: true,
+                assignedEmployeeId: true,
+                isDispatchConfirmed: true,
+                constructionType: true,
+            },
         }),
         // 車両情報
         prisma.vehicle.findMany({
             select: { id: true, dailyRate: true },
         }),
-        // ユーザー時給+表示名
+        // ユーザー時給+表示名+ロール（協力業者判定）
         prisma.user.findMany({
-            select: { id: true, hourlyRate: true, displayName: true },
+            select: { id: true, hourlyRate: true, displayName: true, role: true },
         }),
         // 応援ワーカー時給
         prisma.worker.findMany({
@@ -343,6 +349,25 @@ export async function fetchProfitDashboardData(
         }
     }
 
+    // 協力業者ロールのユーザーIDセット
+    const partnerForemanIdSet = new Set(
+        allUsers.filter(u => u.role === 'partner').map(u => u.id)
+    );
+
+    // 案件ごとに「手配確定済み & 職長がpartnerロール」のアサインから工事種別IDを収集
+    const activeTypeIdsByProject = new Map<string, Set<string>>();
+    for (const a of assignments) {
+        if (!a.isDispatchConfirmed) continue;
+        if (!partnerForemanIdSet.has(a.assignedEmployeeId)) continue;
+        if (!a.constructionType) continue;
+        let set = activeTypeIdsByProject.get(a.projectMasterId);
+        if (!set) {
+            set = new Set<string>();
+            activeTypeIdsByProject.set(a.projectMasterId, set);
+        }
+        set.add(a.constructionType);
+    }
+
     // 結果を組み立て
     const profitSummaries: ProjectProfit[] = projectMasters.map(pm => {
         const estimateAmount = estimateByProject.get(pm.id) || 0;
@@ -368,10 +393,10 @@ export async function fetchProfitDashboardData(
         const loadingCost = loadingCostByProject.get(pm.id) || 0;
         const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
         const materialCost = Number(pm.materialCost || 0);
-        const subcontractorCost =
-            Number(pm.subcontractorCost || 0)
-            + Number(pm.subcontractorAssemblyCost || 0)
-            + Number(pm.subcontractorDemolitionCost || 0);
+        const activeTypeIds = activeTypeIdsByProject.get(pm.id) ?? new Set<string>();
+        const subcontractorCost = pm.subcontractorCosts.reduce((sum, c) =>
+            activeTypeIds.has(c.constructionTypeId) ? sum + Number(c.amount || 0) : sum
+        , 0);
         const otherExpenses = Number(pm.otherExpenses || 0);
 
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;

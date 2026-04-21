@@ -7,7 +7,7 @@ const MaterialsSection = lazy(() => import('@/components/ProjectMasters/sections
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import ProjectMasterDetailPanel from './ProjectMasterDetailPanel';
-import { ProjectMasterForm, ProjectMasterFormData, WorkDateEntry, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
+import { ProjectMasterForm, ProjectMasterFormData, WorkDateEntry, SubcontractorCostEntry, DEFAULT_FORM_DATA } from '@/components/ProjectMasters/ProjectMasterForm';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { ConstructionTypeMaster } from '@/types/calendar';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
@@ -45,6 +45,15 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
     // 3フィールド分離前の古い案件はname=nullなので、titleからフォールバック
     const hasNameField = !!pm.name;
 
+    const subcontractorCosts: SubcontractorCostEntry[] = (pm.subcontractorCosts ?? [])
+        .slice()
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+        .map((c, idx) => ({
+            id: c.id ?? `sc-${idx}`,
+            constructionTypeId: c.constructionTypeId,
+            amount: c.amount != null ? String(c.amount) : '',
+        }));
+
     return {
         title: pm.title,
         name: hasNameField ? pm.name! : pm.title || '',
@@ -66,6 +75,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
         estimatedAssemblyWorkers: pm.estimatedAssemblyWorkers?.toString() || '',
         estimatedDemolitionWorkers: pm.estimatedDemolitionWorkers?.toString() || '',
         contractAmount: pm.contractAmount?.toString() || '',
+        subcontractorCosts,
         scaffoldingSpec: pm.scaffoldingSpec || DEFAULT_FORM_DATA.scaffoldingSpec,
         remarks: pm.remarks || '',
         createdBy: Array.isArray(pm.createdBy) ? pm.createdBy : (pm.createdBy ? [pm.createdBy] : []),
