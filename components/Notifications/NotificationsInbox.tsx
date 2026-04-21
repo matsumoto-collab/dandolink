@@ -2,11 +2,15 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Check, X } from 'lucide-react';
+import { Bell, Check, ChevronDown, Settings, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import NotificationSettings from '@/components/Settings/NotificationSettings';
+
+const INITIAL_LIMIT = 5;
+const LOAD_MORE_STEP = 20;
 
 interface NotificationItem {
     id: string;
@@ -44,10 +48,13 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const router = useRouter();
 
     const [open, setOpen] = useState(false);
+    const [view, setView] = useState<'list' | 'settings'>('list');
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [limit, setLimit] = useState(INITIAL_LIMIT);
+    const [hasMore, setHasMore] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -66,19 +73,26 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         }
     }, [userId]);
 
-    const fetchItems = useCallback(async () => {
+    const fetchItems = useCallback(async (fetchLimit: number = limit) => {
         if (!userId) return;
         setLoading(true);
         try {
-            const res = await fetch('/api/notifications?limit=30', { cache: 'no-store' });
+            const res = await fetch(`/api/notifications?limit=${fetchLimit}`, { cache: 'no-store' });
             if (!res.ok) return;
-            const json = (await res.json()) as { items: NotificationItem[]; unreadCount: number };
+            const json = (await res.json()) as { items: NotificationItem[]; unreadCount: number; hasMore?: boolean };
             setItems(json.items);
             setUnreadCount(json.unreadCount);
+            setHasMore(Boolean(json.hasMore));
         } finally {
             setLoading(false);
         }
-    }, [userId]);
+    }, [userId, limit]);
+
+    const handleLoadMore = () => {
+        const next = limit + LOAD_MORE_STEP;
+        setLimit(next);
+        fetchItems(next);
+    };
 
     // 初回 + 15秒ごとのフォールバックポーリング（Realtime不達時の即応性確保）
     // + ブラウザタブにフォーカスが戻ったとき即時再取得
@@ -119,7 +133,7 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                     },
                     () => {
                         setUnreadCount((c) => c + 1);
-                        if (open) fetchItems();
+                        if (open && view === 'list') fetchItems(limit);
                     }
                 )
                 .subscribe();
@@ -130,12 +144,21 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         return () => {
             if (channel) supabase.removeChannel(channel);
         };
-    }, [userId, open, fetchItems]);
+    }, [userId, open, view, limit, fetchItems]);
 
-    // パネルを開いたときに一覧取得
+    // パネルを開いたときに一覧取得（常に初期limitで再取得）
     useEffect(() => {
-        if (open) fetchItems();
-    }, [open, fetchItems]);
+        if (open && view === 'list') {
+            setLimit(INITIAL_LIMIT);
+            fetchItems(INITIAL_LIMIT);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, view]);
+
+    // パネルを閉じたらビューをlistに戻す
+    useEffect(() => {
+        if (!open) setView('list');
+    }, [open]);
 
     // 外側クリックで閉じる（デスクトップ用ドロップダウン）
     useEffect(() => {
@@ -223,57 +246,96 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                 role="dialog"
                 aria-label="通知一覧"
             >
-                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
-                            <h3 className="font-semibold text-slate-800">通知</h3>
-                            <div className="flex items-center gap-1">
-                                {unreadCount > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+                    <div className="flex items-center gap-2">
+                        {view === 'settings' && (
+                            <button
+                                onClick={() => setView('list')}
+                                className="p-1 text-slate-500 hover:bg-slate-100 rounded-lg"
+                                aria-label="戻る"
+                            >
+                                <ChevronDown className="w-4 h-4 rotate-90" />
+                            </button>
+                        )}
+                        <h3 className="font-semibold text-slate-800">{view === 'settings' ? '通知設定' : '通知'}</h3>
+                    </div>
+                    <div className="flex items-center gap-1">
+                        {view === 'list' && unreadCount > 0 && (
+                            <button
+                                onClick={handleMarkAllRead}
+                                className="flex items-center gap-1 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
+                            >
+                                <Check className="w-3.5 h-3.5" /> すべて既読
+                            </button>
+                        )}
+                        {view === 'list' && (
+                            <button
+                                onClick={() => setView('settings')}
+                                className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"
+                                aria-label="通知設定"
+                                title="通知設定"
+                            >
+                                <Settings className="w-4 h-4" />
+                            </button>
+                        )}
+                        <button
+                            onClick={() => setOpen(false)}
+                            className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"
+                            aria-label="閉じる"
+                        >
+                            <X className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+                <div className="flex-1 overflow-y-auto overscroll-contain">
+                    {view === 'settings' ? (
+                        <div className="p-4">
+                            <NotificationSettings />
+                        </div>
+                    ) : loading && items.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-slate-500">読み込み中...</div>
+                    ) : items.length === 0 ? (
+                        <div className="py-10 text-center text-sm text-slate-500">通知はありません</div>
+                    ) : (
+                        <>
+                            <ul className="divide-y divide-slate-100">
+                                {items.map((n) => {
+                                    const unread = !n.readAt;
+                                    return (
+                                        <li key={n.id}>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleClickItem(n)}
+                                                className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors ${unread ? 'bg-sky-50/60' : ''}`}
+                                            >
+                                                <span className={`flex-shrink-0 mt-1.5 w-2 h-2 rounded-full ${unread ? 'bg-sky-500' : 'bg-transparent'}`} aria-hidden />
+                                                <span className="flex-1 min-w-0">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="font-medium text-sm text-slate-800 line-clamp-2">{n.title}</div>
+                                                        <div className="flex-shrink-0 text-[11px] text-slate-400">{formatRelative(n.createdAt)}</div>
+                                                    </div>
+                                                    <div className="mt-0.5 text-xs text-slate-600 line-clamp-2">{n.body}</div>
+                                                </span>
+                                            </button>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                            {hasMore && (
+                                <div className="p-3 border-t border-slate-100">
                                     <button
-                                        onClick={handleMarkAllRead}
-                                        className="flex items-center gap-1 px-2 py-1 text-xs text-slate-600 hover:bg-slate-100 rounded-lg"
+                                        onClick={handleLoadMore}
+                                        disabled={loading}
+                                        className="w-full py-2 text-sm text-slate-600 hover:bg-slate-50 rounded-lg flex items-center justify-center gap-1 disabled:opacity-50"
                                     >
-                                        <Check className="w-3.5 h-3.5" /> すべて既読
+                                        <ChevronDown className="w-4 h-4" />
+                                        {loading ? '読み込み中...' : 'もっと見る'}
                                     </button>
-                                )}
-                                <button
-                                    onClick={() => setOpen(false)}
-                                    className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg"
-                                    aria-label="閉じる"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto overscroll-contain">
-                            {loading && items.length === 0 ? (
-                                <div className="py-10 text-center text-sm text-slate-500">読み込み中...</div>
-                            ) : items.length === 0 ? (
-                                <div className="py-10 text-center text-sm text-slate-500">通知はありません</div>
-                            ) : (
-                                <ul className="divide-y divide-slate-100">
-                                    {items.map((n) => {
-                                        const unread = !n.readAt;
-                                        return (
-                                            <li key={n.id}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleClickItem(n)}
-                                                    className={`w-full text-left px-4 py-3 flex gap-3 hover:bg-slate-50 transition-colors ${unread ? 'bg-sky-50/60' : ''}`}
-                                                >
-                                                    <span className={`flex-shrink-0 mt-1.5 w-2 h-2 rounded-full ${unread ? 'bg-sky-500' : 'bg-transparent'}`} aria-hidden />
-                                                    <span className="flex-1 min-w-0">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <div className="font-medium text-sm text-slate-800 line-clamp-2">{n.title}</div>
-                                                            <div className="flex-shrink-0 text-[11px] text-slate-400">{formatRelative(n.createdAt)}</div>
-                                                        </div>
-                                                        <div className="mt-0.5 text-xs text-slate-600 line-clamp-2">{n.body}</div>
-                                                    </span>
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                                </div>
                             )}
-                        </div>
+                        </>
+                    )}
+                </div>
                 <div className="safe-area-bottom" />
             </div>
         </>
