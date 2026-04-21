@@ -2,9 +2,11 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
+import { useInvoices } from '@/hooks/useInvoices';
 import Loading from '@/components/ui/Loading';
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import { Check } from 'lucide-react';
 
 interface ProjectMasterSearchModalProps {
     isOpen: boolean;
@@ -20,6 +22,7 @@ export default function ProjectMasterSearchModal({
     onCreateNew,
 }: ProjectMasterSearchModalProps) {
     const { projectMasters, isLoading, fetchProjectMasters } = useProjectMasters();
+    const { ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
     const [searchQuery, setSearchQuery] = useState('');
     const modalRef = useModalKeyboard(isOpen, onClose);
 
@@ -27,15 +30,17 @@ export default function ProjectMasterSearchModal({
     useEffect(() => {
         if (isOpen) {
             fetchProjectMasters();
+            ensureInvoicesLoaded();
         }
-    }, [isOpen, fetchProjectMasters]);
+    }, [isOpen, fetchProjectMasters, ensureInvoicesLoaded]);
 
-    // 検索とフィルタリング
+    // 請求済み判定: API の hasInvoice か、クライアントキャッシュから判定
+    const hasInvoiceFor = (pm: ProjectMaster) =>
+        !!pm.hasInvoice || getInvoicesByProject(pm.id).length > 0;
+
+    // 検索とフィルタリング（同名案件の判別用に完了済みも含める）
     const filteredMasters = useMemo(() => {
-        let results = projectMasters;
-
-        // アクティブな案件のみ
-        results = results.filter(pm => pm.status === 'active');
+        let results = projectMasters.filter(pm => pm.status !== 'cancelled');
 
         // 検索クエリでフィルタリング
         if (searchQuery.trim()) {
@@ -134,42 +139,59 @@ export default function ProjectMasterSearchModal({
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {filteredMasters.map((pm) => (
-                                <div
-                                    key={pm.id}
-                                    onClick={() => handleSelect(pm)}
-                                    className="p-4 border border-slate-200 rounded-lg hover:border-slate-500 hover:shadow-md transition-all cursor-pointer"
-                                >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <h3 className="text-lg font-bold text-slate-800">
-                                                {pm.title}
-                                            </h3>
-                                            <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
-                                                {pm.customerName && (
-                                                    <span>顧客: {pm.customerName}</span>
-                                                )}
-                                                {pm.location && (
-                                                    <span>場所: {pm.location}</span>
-                                                )}
+                            {filteredMasters.map((pm) => {
+                                const hasInv = hasInvoiceFor(pm);
+                                const isCompleted = pm.status === 'completed';
+                                const doneBadge = 'bg-slate-800 text-white border border-slate-800 shadow-sm';
+                                const todoBadge = 'bg-white text-slate-400 border border-slate-200';
+                                return (
+                                    <div
+                                        key={pm.id}
+                                        onClick={() => handleSelect(pm)}
+                                        className="p-4 border border-slate-200 rounded-lg hover:border-slate-500 hover:shadow-md transition-all cursor-pointer"
+                                    >
+                                        <div className="flex items-start justify-between">
+                                            <div className="flex-1">
+                                                <h3 className="text-lg font-bold text-slate-800">
+                                                    {pm.title}
+                                                </h3>
+                                                <div className="flex items-center gap-4 mt-1 text-sm text-slate-600">
+                                                    {pm.customerName && (
+                                                        <span>顧客: {pm.customerName}</span>
+                                                    )}
+                                                    {pm.location && (
+                                                        <span>場所: {pm.location}</span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-1.5 mt-2">
+                                                    <span className={`inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md ${hasInv ? doneBadge : todoBadge}`}>
+                                                        {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                        <span>請求 {hasInv ? '済' : '未'}</span>
+                                                    </span>
+                                                    {isCompleted && (
+                                                        <span className="inline-flex items-center justify-center px-2.5 py-1 text-[11px] font-semibold rounded-md bg-slate-100 text-slate-700 border border-slate-200">
+                                                            完了
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
+                                            <svg
+                                                className="w-6 h-6 text-slate-400"
+                                                fill="none"
+                                                stroke="currentColor"
+                                                viewBox="0 0 24 24"
+                                            >
+                                                <path
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    strokeWidth={2}
+                                                    d="M9 5l7 7-7 7"
+                                                />
+                                            </svg>
                                         </div>
-                                        <svg
-                                            className="w-6 h-6 text-slate-400"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M9 5l7 7-7 7"
-                                            />
-                                        </svg>
                                     </div>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
