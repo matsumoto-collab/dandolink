@@ -91,7 +91,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.estimatedAssemblyWorkers !== undefined) updateData.estimatedAssemblyWorkers = body.estimatedAssemblyWorkers;
         if (body.estimatedDemolitionWorkers !== undefined) updateData.estimatedDemolitionWorkers = body.estimatedDemolitionWorkers;
         if (body.contractAmount !== undefined) {
-            if (typeof body.contractAmount === 'number' && body.contractAmount < 0) return validationErrorResponse('契約金額は0以上で指定してください');
+            if (typeof body.contractAmount === 'number' && body.contractAmount < 0) return validationErrorResponse('足場工事金額は0以上で指定してください');
             updateData.contractAmount = body.contractAmount;
         }
         const costFields = ['materialCost', 'otherExpenses'] as const;

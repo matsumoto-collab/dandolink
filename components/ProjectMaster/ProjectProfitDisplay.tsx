@@ -16,7 +16,7 @@ interface CostBreakdown {
     totalCost: number;
 }
 
-type RevenueSource = 'invoice' | 'estimate' | 'none';
+type RevenueSource = 'invoice' | 'estimate' | 'contract' | 'none';
 
 interface ProfitData {
     projectMasterId: string;
@@ -39,12 +39,14 @@ interface ProjectProfitDisplayProps {
 const BADGE_STYLES: Record<RevenueSource, string> = {
     invoice: 'border-slate-300 text-slate-700 bg-white',
     estimate: 'border-amber-300 text-amber-700 bg-amber-50',
+    contract: 'border-sky-300 text-sky-700 bg-sky-50',
     none: 'border-slate-200 text-slate-500 bg-slate-50',
 };
 
 const BADGE_LABELS: Record<RevenueSource, string> = {
     invoice: '請求済・税別',
     estimate: '見積・税別',
+    contract: '足場工事金額',
     none: '未入力',
 };
 

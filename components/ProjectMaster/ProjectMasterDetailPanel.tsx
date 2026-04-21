@@ -4,7 +4,6 @@ import React, { useState, useEffect } from 'react';
 import { ProjectMaster } from '@/types/calendar';
 import WorkHistoryDisplay from './WorkHistoryDisplay';
 import ProjectProfitDisplay from './ProjectProfitDisplay';
-import ProjectCostEditor from './ProjectCostEditor';
 import ProjectMasterFilesView from './ProjectMasterFilesView';
 import ScaffoldingSpecDisplay from './ScaffoldingSpecDisplay';
 import { ExternalLink } from 'lucide-react';
@@ -43,7 +42,6 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 
 export default function ProjectMasterDetailPanel({ pm, hideFinancials }: ProjectMasterDetailPanelProps) {
     const [userMap, setUserMap] = useState<Record<string, string>>({});
-    const [profitVersion, setProfitVersion] = useState(0);
 
     useEffect(() => {
         fetch('/api/users')
@@ -153,7 +151,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                 <Field label="面積" value={pm.area != null ? `${pm.area}m²` : undefined} />
                 {!hideFinancials && (
                     <Field
-                        label="請負金額"
+                        label="足場工事金額"
                         value={pm.contractAmount != null ? `¥${pm.contractAmount.toLocaleString()}` : undefined}
                     />
                 )}
@@ -185,18 +183,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
             {!hideFinancials && (
                 <>
                     <SectionTitle>利益サマリー</SectionTitle>
-                    <ProjectProfitDisplay key={`profit-${profitVersion}`} projectMasterId={pm.id} />
-
-                    <SectionTitle>原価入力</SectionTitle>
-                    <ProjectCostEditor
-                        projectMasterId={pm.id}
-                        initialValues={{
-                            materialCost: pm.materialCost,
-                            otherExpenses: pm.otherExpenses,
-                            subcontractorCosts: pm.subcontractorCosts ?? [],
-                        }}
-                        onSaved={() => setProfitVersion(v => v + 1)}
-                    />
+                    <ProjectProfitDisplay projectMasterId={pm.id} />
                 </>
             )}
         </div>

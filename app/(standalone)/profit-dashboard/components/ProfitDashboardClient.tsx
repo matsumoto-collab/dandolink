@@ -517,7 +517,7 @@ function ProjectTable({
                                 </div>
                                 <div className="text-xs text-slate-400 mt-0.5">
                                     {p.invoiceAmount > 0 && p.revenueSource !== 'invoice' && <>請求 {formatCurrency(p.invoiceAmount)} </>}
-                                    {p.contractAmount > 0 && p.revenueSource !== 'contract' && <>契約 {formatCurrency(p.contractAmount)} </>}
+                                    {p.contractAmount > 0 && p.revenueSource !== 'contract' && <>足場工事 {formatCurrency(p.contractAmount)} </>}
                                     {p.estimateAmount > 0 && p.revenueSource !== 'estimate' && <>見積 {formatCurrency(p.estimateAmount)}</>}
                                 </div>
                             </td>
@@ -684,7 +684,7 @@ function RevenueSourceBadge({ source }: { source: 'invoice' | 'contract' | 'esti
     if (source === 'none') {
         return <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">未確定</span>;
     }
-    const label = source === 'invoice' ? '請求済' : source === 'contract' ? '契約' : '見積';
+    const label = source === 'invoice' ? '請求済' : source === 'contract' ? '足場工事' : '見積';
     const cls = source === 'invoice'
         ? 'bg-slate-700 text-white border-slate-700'
         : source === 'contract'

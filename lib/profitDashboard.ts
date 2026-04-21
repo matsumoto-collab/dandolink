@@ -375,7 +375,7 @@ export async function fetchProfitDashboardData(
         const invoiceAmount = revenueByProject.get(pm.id) || 0;
         const contractAmount = Number(pm.contractAmount || 0);
 
-        // 売上フォールバック: 請求書 → 契約金額 → 見積金額
+        // 売上フォールバック: 請求書 → 足場工事金額 → 見積金額
         let revenue = 0;
         let revenueSource: RevenueSource = 'none';
         if (invoiceAmount > 0) {

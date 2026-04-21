@@ -15,6 +15,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             select: {
                 id: true,
                 title: true,
+                contractAmount: true,
                 materialCost: true,
                 otherExpenses: true,
                 subcontractorCosts: {
@@ -97,16 +98,20 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             : null;
         const invoiceAmount = invoices.reduce((sum, i) => sum + Number(i.total), 0);
         const invoiceSubtotal = invoices.reduce((sum, i) => sum + Number(i.subtotal), 0);
+        const contractAmount = Number(projectMaster.contractAmount || 0);
 
-        // 売上フォールバック（税別）: 請求書(税別) → 見積書(税別) → 0
+        // 売上フォールバック（税別）: 請求書(税別) → 見積書(税別) → 足場工事金額 → 0
         let revenue = 0;
-        let revenueSource: 'invoice' | 'estimate' | 'none' = 'none';
+        let revenueSource: 'invoice' | 'estimate' | 'contract' | 'none' = 'none';
         if (invoiceSubtotal > 0) {
             revenue = invoiceSubtotal;
             revenueSource = 'invoice';
         } else if (estimateSubtotal > 0) {
             revenue = estimateSubtotal;
             revenueSource = 'estimate';
+        } else if (contractAmount > 0) {
+            revenue = contractAmount;
+            revenueSource = 'contract';
         }
 
         let laborCost = 0, loadingCost = 0, vehicleCost = 0;
@@ -188,6 +193,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             projectMasterId: id, projectTitle: projectMaster.title,
             revenue, revenueSource,
             invoiceAmount, invoiceSubtotal, estimateAmount, estimateSubtotal, estimateCostTotal,
+            contractAmount,
             costBreakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
             grossProfit, profitMargin,
         });

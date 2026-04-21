@@ -145,7 +145,7 @@ export interface ProjectMaster {
     areaRemarks?: string;            // 面積備考
     estimatedAssemblyWorkers?: number;   // 予定組立人工
     estimatedDemolitionWorkers?: number; // 予定解体人工
-    contractAmount?: number;         // 請負金額（円、税抜）
+    contractAmount?: number;         // 足場工事金額（円、税抜）
 
     // 原価（手入力）
     materialCost?: number | null;                 // 材料費

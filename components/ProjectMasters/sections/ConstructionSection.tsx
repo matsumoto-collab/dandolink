@@ -452,8 +452,8 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                 </FormField>
             </div>
 
-            {/* 請負金額 */}
-            <FormField label="請負金額">
+            {/* 足場工事金額 */}
+            <FormField label="足場工事金額">
                 <div className="flex items-center gap-2">
                     <input
                         type="number"
