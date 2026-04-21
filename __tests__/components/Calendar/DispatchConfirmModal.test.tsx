@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import DispatchConfirmModal from '@/components/Calendar/DispatchConfirmModal';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
@@ -33,6 +33,8 @@ jest.mock('lucide-react', () => ({
     Users: () => <span data-testid="icon-users" />,
     Truck: () => <span data-testid="icon-truck" />,
     Loader2: () => <span data-testid="icon-loader" />,
+    ChevronDown: () => <span data-testid="icon-chevron-down" />,
+    ChevronUp: () => <span data-testid="icon-chevron-up" />,
 }));
 
 describe('DispatchConfirmModal', () => {
@@ -122,7 +124,7 @@ describe('DispatchConfirmModal', () => {
         expect(screen.getByText('Vehicle 1')).toBeInTheDocument();
     });
 
-    it('should show used workers/vehicles as disabled', async () => {
+    it('should show team badge for workers/vehicles used in other teams', async () => {
         // Mock p2 uses w2 and v2 on same day
         render(
             <DispatchConfirmModal
@@ -136,15 +138,8 @@ describe('DispatchConfirmModal', () => {
             expect(screen.getByText('Worker 2')).toBeInTheDocument();
         });
 
-        // Worker 2 is used in p2
-        // Find input for Worker 2
-        // We look for text 'Worker 2', then confirm it has (使用中) near it or input is disabled
-        expect(screen.getByText('Worker 2')).toBeInTheDocument();
-        expect(screen.getAllByText('(使用中)').length).toBeGreaterThan(0);
-
-        // Check disabled state via label click or finding input
-        // Using getByLabelText might be tricky if label contains multiple spans.
-        // We can find the container label.
+        // Worker 2 is used in p2 (no assignedEmployeeId → '他班')
+        expect(screen.getAllByText('他班').length).toBeGreaterThan(0);
     });
 
     it('should toggle selection of available workers/vehicles and confirm', async () => {
@@ -160,24 +155,15 @@ describe('DispatchConfirmModal', () => {
             expect(screen.getByText('Worker 1')).toBeInTheDocument();
         });
 
-        // Toggle Worker 1
-        const checkboxes = screen.getAllByRole('checkbox');
-        // Assuming order or finding by parent text is hard, let's look for label containing text
-        const workerLabel = screen.getByText('Worker 1').closest('label');
-        if (workerLabel) {
-            const checkbox = within(workerLabel).getByRole('checkbox');
-            fireEvent.click(checkbox);
-        } else {
-            // Fallback
-            fireEvent.click(checkboxes[0]);
-        }
+        // Toggle Worker 1 — chip button containing the text
+        const workerButton = screen.getByText('Worker 1').closest('button');
+        expect(workerButton).not.toBeNull();
+        fireEvent.click(workerButton!);
 
         // Toggle Vehicle 1
-        const vehicleLabel = screen.getByText('Vehicle 1').closest('label');
-        if (vehicleLabel) {
-            const checkbox = within(vehicleLabel).getByRole('checkbox');
-            fireEvent.click(checkbox);
-        }
+        const vehicleButton = screen.getByText('Vehicle 1').closest('button');
+        expect(vehicleButton).not.toBeNull();
+        fireEvent.click(vehicleButton!);
 
         // Click Confirm
         const confirmButton = screen.getByText('確定');

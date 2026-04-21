@@ -11,18 +11,20 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  username         String   @unique
-  email            String   @unique
-  displayName      String
-  passwordHash     String
-  role             String   @default("manager")
-  assignedProjects String?
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  teamId           String?
-  hourlyRate       Decimal? @db.Decimal(10, 2)
+  id                      String   @id @default(cuid())
+  username                String   @unique
+  email                   String   @unique
+  displayName             String
+  passwordHash            String
+  role                    String   @default("manager")
+  assignedProjects        String?
+  isActive                Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  teamId                  String?
+  hourlyRate              Decimal? @db.Decimal(10, 2)
+  dispatchSortOrder       Int?
+  hideByDefaultInDispatch Boolean  @default(false)
 
   @@index([username])
   @@index([email])

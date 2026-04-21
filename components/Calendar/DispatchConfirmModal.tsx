@@ -17,12 +17,11 @@ interface DispatchUser {
     id: string;
     displayName: string;
     role: string;
+    dispatchSortOrder?: number | null;
+    hideByDefaultInDispatch?: boolean;
 }
 
-// 手配確定でよく選ばれるロール（常時表示）
-const PRIMARY_ROLES = new Set(['worker', 'foreman1', 'foreman2']);
-
-// ロール優先度（小さいほど上に表示）
+// 並び順未設定時のロール優先度フォールバック（小さいほど上）
 const ROLE_PRIORITY: Record<string, number> = {
     worker: 1,
     foreman2: 2,
@@ -135,9 +134,13 @@ export default function DispatchConfirmModal({
         };
     }, [projects, project.id, project.startDate, allForemen]);
 
-    // ロール別に並び替え + よく使う / たまに使う に分割
+    // 並び替え: dispatchSortOrder 昇順 → ロール優先度 → 名前順
+    // 分割: hideByDefaultInDispatch が true のユーザーを「もっと見る」へ
     const { primaryWorkers, secondaryWorkers } = useMemo(() => {
         const sorted = [...workers].sort((a, b) => {
+            const orderA = a.dispatchSortOrder ?? Number.MAX_SAFE_INTEGER;
+            const orderB = b.dispatchSortOrder ?? Number.MAX_SAFE_INTEGER;
+            if (orderA !== orderB) return orderA - orderB;
             const roleA = (a.role || '').toLowerCase();
             const roleB = (b.role || '').toLowerCase();
             const priorityDiff = (ROLE_PRIORITY[roleA] ?? 99) - (ROLE_PRIORITY[roleB] ?? 99);
@@ -145,8 +148,8 @@ export default function DispatchConfirmModal({
             return a.displayName.localeCompare(b.displayName, 'ja');
         });
         return {
-            primaryWorkers: sorted.filter(w => PRIMARY_ROLES.has((w.role || '').toLowerCase())),
-            secondaryWorkers: sorted.filter(w => !PRIMARY_ROLES.has((w.role || '').toLowerCase())),
+            primaryWorkers: sorted.filter(w => !w.hideByDefaultInDispatch),
+            secondaryWorkers: sorted.filter(w => !!w.hideByDefaultInDispatch),
         };
     }, [workers]);
 
@@ -345,7 +348,7 @@ export default function DispatchConfirmModal({
                                                     <div className="mt-4">
                                                         <div className="flex items-center gap-2 mb-2">
                                                             <span className="text-xs font-semibold text-slate-500">
-                                                                管理者・マネージャー等
+                                                                その他メンバー
                                                             </span>
                                                             <div className="flex-1 h-px bg-slate-200" />
                                                             {!hasSelectedSecondary && (
@@ -370,7 +373,7 @@ export default function DispatchConfirmModal({
                                                         className="mt-3 w-full flex items-center justify-center gap-1.5 py-2.5 text-sm text-slate-600 bg-slate-50 hover:bg-slate-100 border border-dashed border-slate-300 rounded-xl transition-colors"
                                                     >
                                                         <ChevronDown className="w-4 h-4" />
-                                                        もっと見る（管理者・マネージャー等 {secondaryWorkers.length}名）
+                                                        もっと見る（その他 {secondaryWorkers.length}名）
                                                     </button>
                                                 )}
                                             </>
