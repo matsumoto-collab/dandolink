@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
-import { sendPushToUsers } from '@/lib/push';
+import { notifyUsers } from '@/lib/notifications';
 
 /**
  * 手配確定時に確定メンバー（confirmedWorkerIds）へプッシュ通知を送る。
@@ -61,11 +61,13 @@ export async function POST(request: NextRequest) {
         if (assignment.meetingTime) bodyLines.push(`集合 ${assignment.meetingTime}`);
         if (foremanName) bodyLines.push(`職長 ${foremanName}`);
 
-        const result = await sendPushToUsers(confirmedWorkerIds, {
+        const result = await notifyUsers({
+            userIds: confirmedWorkerIds,
+            type: 'dispatch-confirmed',
             title: `【手配確定】${title}`,
             body: bodyLines.join(' / '),
             url: '/',
-            tag: `dispatch-${assignment.id}`,
+            pushTag: `dispatch-${assignment.id}`,
             data: { assignmentId: assignment.id, projectMasterId: assignment.projectMasterId },
         });
 

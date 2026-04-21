@@ -1294,6 +1294,22 @@ model PushSubscription {
   @@schema("public")
 }
 
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  type      String    @default("general")
+  title     String
+  body      String
+  url       String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, readAt])
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2
