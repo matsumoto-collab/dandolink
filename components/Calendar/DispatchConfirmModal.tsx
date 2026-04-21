@@ -120,6 +120,16 @@ export default function DispatchConfirmModal({
         };
     }, [projects, project.id, project.startDate, allForemen]);
 
+    // 必要メンバー数（案件登録時の人数）と過不足を示すバッジ色
+    const requiredMemberCount = project.memberCount ?? 0;
+    const memberCountBadgeClass = useMemo(() => {
+        if (selectedWorkerIds.length === 0) return 'bg-slate-100 text-slate-500';
+        if (requiredMemberCount === 0) return 'bg-slate-100 text-slate-700';
+        if (selectedWorkerIds.length < requiredMemberCount) return 'bg-amber-100 text-amber-700';
+        if (selectedWorkerIds.length === requiredMemberCount) return 'bg-emerald-100 text-emerald-700';
+        return 'bg-sky-100 text-sky-700';
+    }, [selectedWorkerIds.length, requiredMemberCount]);
+
     const handleWorkerToggle = (workerId: string) => {
         setSelectedWorkerIds(prev =>
             prev.includes(workerId)
@@ -243,93 +253,101 @@ export default function DispatchConfirmModal({
                         <>
                             {/* 職方選択 */}
                             <div>
-                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                    <Users className="w-4 h-4" />
-                                    職方（メンバー）
-                                </label>
-                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3">
-                                    {workers.length === 0 ? (
-                                        <p className="col-span-2 text-center text-slate-500 py-4">
-                                            ユーザー管理でworkerロールのユーザーを追加してください
-                                        </p>
-                                    ) : (
-                                        workers.map(worker => {
+                                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                        <Users className="w-4 h-4" />
+                                        職方（メンバー）
+                                    </label>
+                                    <div className="flex items-center gap-2 text-xs">
+                                        {requiredMemberCount > 0 && (
+                                            <span className="text-slate-500">
+                                                必要 <span className="font-semibold text-slate-700 text-sm">{requiredMemberCount}</span> 名
+                                            </span>
+                                        )}
+                                        <span className={`px-2.5 py-1 rounded-full font-semibold ${memberCountBadgeClass}`}>
+                                            選択 {selectedWorkerIds.length} 名
+                                        </span>
+                                    </div>
+                                </div>
+                                {workers.length === 0 ? (
+                                    <p className="text-center text-slate-500 py-6 border border-slate-200 rounded-xl">
+                                        ユーザー管理でworkerロールのユーザーを追加してください
+                                    </p>
+                                ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        {workers.map(worker => {
                                             const teams = workerTeamMap.get(worker.id);
                                             const isSelected = selectedWorkerIds.includes(worker.id);
 
                                             return (
-                                                <label
+                                                <button
                                                     key={worker.id}
-                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected
-                                                        ? 'bg-slate-50 border border-slate-300'
-                                                        : 'hover:bg-slate-50'
+                                                    type="button"
+                                                    onClick={() => handleWorkerToggle(worker.id)}
+                                                    className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${isSelected
+                                                        ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
+                                                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                                                         }`}
                                                 >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => handleWorkerToggle(worker.id)}
-                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
-                                                    />
-                                                    <span className="text-sm">
-                                                        {worker.displayName}
-                                                        {teams && <span className="text-xs ml-1 text-slate-400">({teams.join('、')})</span>}
-                                                    </span>
-                                                </label>
+                                                    {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
+                                                    <span className="truncate">{worker.displayName}</span>
+                                                    {teams && (
+                                                        <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                                                            {teams.join('・')}
+                                                        </span>
+                                                    )}
+                                                </button>
                                             );
-                                        })
-                                    )}
-                                </div>
-                                {selectedWorkerIds.length > 0 && (
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        選択中: {selectedWorkerIds.length}名
-                                    </p>
+                                        })}
+                                    </div>
                                 )}
                             </div>
 
                             {/* 車両選択 */}
                             <div>
-                                <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-2">
-                                    <Truck className="w-4 h-4" />
-                                    車両
-                                </label>
-                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-3">
-                                    {vehicles.length === 0 ? (
-                                        <p className="col-span-2 text-center text-slate-500 py-4">
-                                            設定の車両マスターから車両を追加してください
-                                        </p>
-                                    ) : (
-                                        vehicles.map(vehicle => {
+                                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                                    <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                        <Truck className="w-4 h-4" />
+                                        車両
+                                    </label>
+                                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${selectedVehicleIds.length === 0
+                                        ? 'bg-slate-100 text-slate-500'
+                                        : 'bg-slate-100 text-slate-700'
+                                        }`}>
+                                        選択 {selectedVehicleIds.length} 台
+                                    </span>
+                                </div>
+                                {vehicles.length === 0 ? (
+                                    <p className="text-center text-slate-500 py-6 border border-slate-200 rounded-xl">
+                                        設定の車両マスターから車両を追加してください
+                                    </p>
+                                ) : (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                        {vehicles.map(vehicle => {
                                             const teams = vehicleTeamMap.get(vehicle.id);
                                             const isSelected = selectedVehicleIds.includes(vehicle.id);
 
                                             return (
-                                                <label
+                                                <button
                                                     key={vehicle.id}
-                                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${isSelected
-                                                        ? 'bg-slate-50 border border-slate-300'
-                                                        : 'hover:bg-slate-50'
+                                                    type="button"
+                                                    onClick={() => handleVehicleToggle(vehicle.id)}
+                                                    className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${isSelected
+                                                        ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
+                                                        : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                                                         }`}
                                                 >
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={isSelected}
-                                                        onChange={() => handleVehicleToggle(vehicle.id)}
-                                                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
-                                                    />
-                                                    <span className="text-sm">
-                                                        {vehicle.name}
-                                                        {teams && <span className="text-xs ml-1 text-slate-400">({teams.join('、')})</span>}
-                                                    </span>
-                                                </label>
+                                                    {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
+                                                    <span className="truncate">{vehicle.name}</span>
+                                                    {teams && (
+                                                        <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                                                            {teams.join('・')}
+                                                        </span>
+                                                    )}
+                                                </button>
                                             );
-                                        })
-                                    )}
-                                </div>
-                                {selectedVehicleIds.length > 0 && (
-                                    <p className="text-xs text-slate-500 mt-1">
-                                        選択中: {selectedVehicleIds.length}台
-                                    </p>
+                                        })}
+                                    </div>
                                 )}
                             </div>
                         </>
