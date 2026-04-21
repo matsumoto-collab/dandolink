@@ -7,6 +7,7 @@ import {
     ChevronRight,
     X,
 } from 'lucide-react';
+import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 
 interface NavItem {
     name: string;
@@ -252,6 +253,7 @@ export default function Sidebar() {
 
                 {/* Utility Area */}
                 <div className="flex-shrink-0 border-t border-slate-800/50 p-3 space-y-1">
+                    <NotificationsInbox variant="row" />
                     <button className="nav-item-animate w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium text-slate-400 hover:bg-slate-800/60 hover:text-slate-200">
                         <span>ヘルプ</span>
                     </button>

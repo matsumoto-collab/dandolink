@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { Menu } from 'lucide-react';
+import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 
 export default function Header() {
     const { toggleMobileMenu } = useNavigation();
@@ -41,8 +42,8 @@ export default function Header() {
                     </button>
                 </div>
 
-                {/* Spacer for symmetry */}
-                <div className="w-10" />
+                {/* 通知ベル */}
+                <NotificationsInbox variant="icon" />
             </div>
 
             {/* Loading bar */}
