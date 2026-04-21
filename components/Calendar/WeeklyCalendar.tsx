@@ -197,20 +197,32 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
-    // ポーリング: 5秒ごとに最新データを再取得（Supabase Realtime broadcast の補完）
+    // ポーリング: 30秒ごとに最新データを再取得（Supabase Realtime broadcast の補完）
+    // - タブがバックグラウンドのときはスキップ（バッテリー節約）
+    // - タブに戻ったら即時再取得
     // currentDateをrefで参照し、インターバルの再作成を防ぐ
     const currentDateRef = useRef(currentDate);
     currentDateRef.current = currentDate;
     useEffect(() => {
         if (status !== 'authenticated' || !isMounted) return;
-        const intervalId = setInterval(() => {
+        const refresh = () => {
             const weekStart = new Date(currentDateRef.current);
             const weekEnd = addDays(weekStart, 6);
             const rangeStart = addDays(weekStart, -7);
             const rangeEnd = addDays(weekEnd, 7);
             forceRefreshRange(rangeStart, rangeEnd);
-        }, 5000);
-        return () => clearInterval(intervalId);
+        };
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') refresh();
+        }, 30_000);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') refresh();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
     }, [status, isMounted, forceRefreshRange]);
 
     // projectsの参照をrefで保持（クロージャの古い値問題を回避）

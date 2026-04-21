@@ -48,17 +48,27 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
         }
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
-    // Polling
+    // Polling: 30秒ごと（タブ非表示時はスキップ、戻ったら即時再取得）
     useEffect(() => {
         if (status !== 'authenticated' || !isMounted) return;
-        const intervalId = setInterval(() => {
+        const refresh = () => {
             const weekStart = new Date(currentDate);
             const weekEnd = addDays(weekStart, 6);
             const rangeStart = addDays(weekStart, -7);
             const rangeEnd = addDays(weekEnd, 7);
             forceRefreshRange(rangeStart, rangeEnd);
-        }, 5000);
-        return () => clearInterval(intervalId);
+        };
+        const intervalId = setInterval(() => {
+            if (document.visibilityState === 'visible') refresh();
+        }, 30_000);
+        const onVisible = () => {
+            if (document.visibilityState === 'visible') refresh();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return () => {
+            clearInterval(intervalId);
+            document.removeEventListener('visibilitychange', onVisible);
+        };
     }, [status, isMounted, currentDate, forceRefreshRange]);
 
     // Use displayedForemanIds order (same as calendar tab)
