@@ -259,6 +259,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     vehicleNameMap={vehicleNameMap}
                                     foremanId={foreman.id}
                                     allForemen={allForemen}
+                                    onProjectClick={(p) => setSelectedProject(p as Project)}
                                     onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
                                 />
