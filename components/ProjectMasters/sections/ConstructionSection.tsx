@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { AlertCircle, Loader2, Users, X, Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import { FormField } from '../common/FormField';
 import { ProjectMasterFormData, WorkDateEntry } from '../ProjectMasterForm';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
@@ -318,6 +319,9 @@ function WorkDateRow({
 }
 
 export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
+    const { data: session } = useSession();
+    const role = session?.user?.role;
+    const isAdminOrManager = role === 'admin' || role === 'manager';
     const { getForemanName, allForemen, displayedForemanIds } = useCalendarDisplay();
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
     const getTotalMembersForDate = useMasterStore(state => state.getTotalMembersForDate);
@@ -452,25 +456,27 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                 </FormField>
             </div>
 
-            {/* 足場工事金額 */}
-            <FormField label="足場工事金額">
-                <div className="flex items-center gap-2">
-                    <input
-                        type="number"
-                        min="0"
-                        value={formData.contractAmount}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            if (val === '' || Number(val) >= 0) {
-                                setFormData({ ...formData, contractAmount: val });
-                            }
-                        }}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
-                        placeholder="例: 500000"
-                    />
-                    <span className="text-sm text-slate-500">円(税抜)</span>
-                </div>
-            </FormField>
+            {/* 足場工事金額（管理者・マネージャーのみ） */}
+            {isAdminOrManager && (
+                <FormField label="足場工事金額">
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="number"
+                            min="0"
+                            value={formData.contractAmount}
+                            onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === '' || Number(val) >= 0) {
+                                    setFormData({ ...formData, contractAmount: val });
+                                }
+                            }}
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                            placeholder="例: 500000"
+                        />
+                        <span className="text-sm text-slate-500">円(税抜)</span>
+                    </div>
+                </FormField>
+            )}
         </div>
     );
 }

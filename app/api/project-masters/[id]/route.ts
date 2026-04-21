@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, stringifyJsonField, errorResponse, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { canDispatch, isManagerOrAbove } from '@/utils/permissions';
-import { formatProjectMaster } from '@/lib/formatters';
+import { formatProjectMaster, stripProjectMasterFinancials } from '@/lib/formatters';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -19,7 +19,7 @@ async function getDocFlags(pmId: string) {
 
 export async function GET(_req: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
 
         const { id } = await context.params;
@@ -33,7 +33,11 @@ export async function GET(_req: NextRequest, context: RouteContext) {
 
         if (!projectMaster) return notFoundResponse('案件マスター');
         const flags = await getDocFlags(id);
-        return NextResponse.json({ ...formatProjectMaster(projectMaster), ...flags });
+        const role = session!.user.role;
+        const canSeeFinancials = role === 'admin' || role === 'manager';
+        const formatted = formatProjectMaster(projectMaster);
+        const payload = canSeeFinancials ? formatted : stripProjectMasterFinancials(formatted);
+        return NextResponse.json({ ...payload, ...flags });
     } catch (error) {
         return serverErrorResponse('案件マスターの取得', error);
     }

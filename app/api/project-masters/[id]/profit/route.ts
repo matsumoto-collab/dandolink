@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
     try {
-        const { error } = await requireAuth();
+        const { session, error } = await requireAuth();
         if (error) return error;
+
+        const role = session!.user.role;
+        if (role !== 'admin' && role !== 'manager') {
+            return errorResponse('権限がありません', 403);
+        }
 
         const { id } = await context.params;
         const projectMaster = await prisma.projectMaster.findUnique({

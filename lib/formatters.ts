@@ -157,6 +157,23 @@ export function formatProjectMaster(pm: RawProjectMaster) {
 }
 
 /**
+ * 案件マスターのレスポンスから金額情報を除去する
+ * 管理者・マネージャー以外には金額面を伏せるため
+ */
+export function stripProjectMasterFinancials<T extends Record<string, unknown>>(pm: T): T {
+    const {
+        contractAmount: _ca,
+        materialCost: _mc,
+        otherExpenses: _oe,
+        subcontractorCosts: _sc,
+        ...rest
+    } = pm as Record<string, unknown>;
+    // Suppress unused-variable warnings while keeping destructure-to-strip pattern
+    void _ca; void _mc; void _oe; void _sc;
+    return rest as T;
+}
+
+/**
  * 見積をAPIレスポンス用にフォーマット
  * - items: JSON文字列 → パース済み配列
  * - validUntil: Date → ISO文字列

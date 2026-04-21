@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, stringifyJsonField, errorResponse, validationErrorResponse, serverErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { createProjectMasterSchema, validateRequest } from '@/lib/validations';
-import { formatProjectMaster } from '@/lib/formatters';
+import { formatProjectMaster, stripProjectMasterFinancials } from '@/lib/formatters';
 
 /**
  * GET /api/project-masters - 案件マスター一覧取得
@@ -80,6 +80,12 @@ export async function GET(req: NextRequest) {
             return { estimateSet, invoiceSet };
         };
 
+        const canSeeFinancials = role === 'admin' || role === 'manager';
+        const formatForRole = (pm: Parameters<typeof formatProjectMaster>[0]) => {
+            const formatted = formatProjectMaster(pm);
+            return canSeeFinancials ? formatted : stripProjectMasterFinancials(formatted);
+        };
+
         if (page && limit) {
             const pageNum = parseInt(page, 10);
             let limitNum = parseInt(limit, 10);
@@ -97,7 +103,7 @@ export async function GET(req: NextRequest) {
 
             return NextResponse.json({
                 data: projectMasters.map(pm => ({
-                    ...formatProjectMaster(pm),
+                    ...formatForRole(pm),
                     hasEstimate: estimateSet.has(pm.id),
                     hasInvoice: invoiceSet.has(pm.id),
                 })),
@@ -109,7 +115,7 @@ export async function GET(req: NextRequest) {
         const { estimateSet, invoiceSet } = await buildDocFlags(projectMasters.map(pm => pm.id));
         return NextResponse.json(
             projectMasters.map(pm => ({
-                ...formatProjectMaster(pm),
+                ...formatForRole(pm),
                 hasEstimate: estimateSet.has(pm.id),
                 hasInvoice: invoiceSet.has(pm.id),
             })),

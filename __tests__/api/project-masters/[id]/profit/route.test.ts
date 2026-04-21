@@ -41,10 +41,11 @@ jest.mock('@/lib/api/utils', () => ({
     parseJsonField: (val: any) => typeof val === 'string' ? JSON.parse(val) : val,
     notFoundResponse: jest.fn().mockImplementation((msg) => NextResponse.json({ error: `${msg}が見つかりません` }, { status: 404 })),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
+    errorResponse: jest.fn().mockImplementation((msg, status) => NextResponse.json({ error: msg }, { status })),
 }));
 
 describe('/api/project-masters/[id]/profit', () => {
-    const mockSession = { user: { id: 'user-1' } };
+    const mockSession = { user: { id: 'user-1', role: 'admin' } };
     const mockId = 'proj-1';
 
     // Mock Data

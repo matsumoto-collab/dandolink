@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { ProjectMaster } from '@/types/calendar';
 import WorkHistoryDisplay from './WorkHistoryDisplay';
 import ProjectProfitDisplay from './ProjectProfitDisplay';
@@ -41,6 +42,10 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export default function ProjectMasterDetailPanel({ pm, hideFinancials }: ProjectMasterDetailPanelProps) {
+    const { data: session } = useSession();
+    const role = session?.user?.role;
+    const isAdminOrManager = role === 'admin' || role === 'manager';
+    const financialsHidden = hideFinancials || !isAdminOrManager;
     const [userMap, setUserMap] = useState<Record<string, string>>({});
 
     useEffect(() => {
@@ -149,7 +154,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                     value={pm.estimatedDemolitionWorkers != null ? `${pm.estimatedDemolitionWorkers}名` : undefined}
                 />
                 <Field label="面積" value={pm.area != null ? `${pm.area}m²` : undefined} />
-                {!hideFinancials && (
+                {!financialsHidden && (
                     <Field
                         label="足場工事金額"
                         value={pm.contractAmount != null ? `¥${pm.contractAmount.toLocaleString()}` : undefined}
@@ -180,7 +185,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
             <WorkHistoryDisplay projectMasterId={pm.id} />
 
             {/* 利益サマリー */}
-            {!hideFinancials && (
+            {!financialsHidden && (
                 <>
                     <SectionTitle>利益サマリー</SectionTitle>
                     <ProjectProfitDisplay projectMasterId={pm.id} />
