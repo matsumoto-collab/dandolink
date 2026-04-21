@@ -42,6 +42,7 @@
     "recharts": "^3.8.0",
     "sharp": "^0.34.5",
     "uuid": "^13.0.0",
+    "web-push": "^3.6.7",
     "zod": "^4.3.5",
     "zustand": "^5.0.10"
   },
@@ -56,6 +57,7 @@
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
+    "@types/web-push": "^3.6.4",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.57.1",
     "eslint-config-next": "^14.2.0",

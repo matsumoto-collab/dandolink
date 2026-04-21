@@ -1280,6 +1280,20 @@ model Manager {
   @@schema("public")
 }
 
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2

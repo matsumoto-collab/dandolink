@@ -170,6 +170,21 @@ export default function DispatchConfirmModal({
                 toast.success(`他${unconfirmedSameDay.length}件の案件も手配確定しました`);
             }
 
+            // プッシュ通知を送る（失敗しても手配確定自体は成功なので例外は握り潰す）
+            const assignmentIds: string[] = [
+                project.assignmentId || project.id,
+                ...unconfirmedSameDay.map((p) => p.assignmentId || p.id),
+            ];
+            void Promise.all(
+                assignmentIds.map((id) =>
+                    fetch('/api/push/notify-dispatch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ assignmentId: id }),
+                    }).catch(() => undefined)
+                )
+            );
+
             onClose();
         } catch (error) {
             logger.error('Failed to confirm dispatch:', error);
