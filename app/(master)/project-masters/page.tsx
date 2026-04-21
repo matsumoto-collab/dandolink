@@ -426,10 +426,30 @@ export default function ProjectMasterListPage() {
     }, [viewingInvoice, projectMasters]);
 
     const viewingInvoiceCustomer = useMemo(() => {
-        if (!viewingInvoice?.customerId) return { name: undefined, honorific: undefined };
-        const c = customers.find(c => c.id === viewingInvoice.customerId);
-        return { name: c?.name, honorific: c?.honorific };
-    }, [viewingInvoice, customers]);
+        const empty = { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
+        if (!viewingInvoice) return empty;
+        // 1) 請求書に直接紐付いた customerId
+        if (viewingInvoice.customerId) {
+            const c = customers.find(c => c.id === viewingInvoice.customerId);
+            if (c) return { name: c.name, honorific: c.honorific, postalCode: c.postalCode, address: c.address };
+        }
+        // 2) 案件マスター経由（customerId → 顧客名フォールバック）
+        const pm = projectMasters.find(p => p.id === viewingInvoice.projectId);
+        if (!pm) return empty;
+        if (pm.customerId) {
+            const c = customers.find(c => c.id === pm.customerId);
+            if (c) return { name: c.name, honorific: c.honorific, postalCode: c.postalCode, address: c.address };
+        }
+        const customerName = pm.customerName || pm.customerShortName;
+        if (!customerName) return empty;
+        const c = customers.find(c => c.name === customerName || c.shortName === customerName);
+        return {
+            name: c?.name || customerName,
+            honorific: c?.honorific,
+            postalCode: c?.postalCode,
+            address: c?.address,
+        };
+    }, [viewingInvoice, customers, projectMasters]);
 
     const handleInvoiceSubmit = useCallback(async (data: InvoiceInput) => {
         try {
@@ -530,6 +550,8 @@ export default function ProjectMasterListPage() {
                     project={viewingInvoiceProject}
                     customerName={viewingInvoiceCustomer.name}
                     customerHonorific={viewingInvoiceCustomer.honorific}
+                    customerPostalCode={viewingInvoiceCustomer.postalCode}
+                    customerAddress={viewingInvoiceCustomer.address}
                     companyInfo={companyInfo}
                     onDelete={handleDeleteInvoiceFromDetail}
                     onEdit={handleEditInvoiceFromDetail}
