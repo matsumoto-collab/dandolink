@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
+import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 
 const INITIAL_LIMIT = 5;
 const LOAD_MORE_STEP = 20;
@@ -94,14 +95,14 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         fetchItems(next);
     };
 
-    // 初回 + 15秒ごとのフォールバックポーリング（Realtime不達時の即応性確保）
+    // 初回 + 30秒ごとのフォールバックポーリング（Realtime不達時の即応性確保）
     // + ブラウザタブにフォーカスが戻ったとき即時再取得
     useEffect(() => {
         if (!userId) return;
         fetchUnreadCount();
         const iv = setInterval(() => {
             if (document.visibilityState === 'visible') fetchUnreadCount();
-        }, 15_000);
+        }, 30_000);
         const onVisible = () => {
             if (document.visibilityState === 'visible') fetchUnreadCount();
         };
@@ -116,8 +117,10 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     }, [userId, fetchUnreadCount]);
 
     // Supabase Realtime: 自分宛ての新規通知を即時反映
+    // タブ非表示時は接続を閉じる（復帰時にポーリング/focusでキャッチアップ）
+    const isVisible = usePageVisible();
     useEffect(() => {
-        if (!userId) return;
+        if (!userId || !isVisible) return;
 
         let channel: RealtimeChannel | null = null;
         try {
@@ -144,7 +147,7 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         return () => {
             if (channel) supabase.removeChannel(channel);
         };
-    }, [userId, open, view, limit, fetchItems]);
+    }, [userId, isVisible, open, view, limit, fetchItems]);
 
     // パネルを開いたときに一覧取得（常に初期limitで再取得）
     useEffect(() => {

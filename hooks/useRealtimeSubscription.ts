@@ -1,7 +1,27 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { logger } from '@/lib/logger';
+
+/**
+ * タブの可視状態を監視する共通フック
+ * - バックグラウンド時に false を返し、WebSocket購読を停止してバッテリー消費を抑える
+ */
+export function usePageVisible(): boolean {
+    const [isVisible, setIsVisible] = useState(() => {
+        if (typeof document === 'undefined') return true;
+        return document.visibilityState === 'visible';
+    });
+
+    useEffect(() => {
+        if (typeof document === 'undefined') return;
+        const onChange = () => setIsVisible(document.visibilityState === 'visible');
+        document.addEventListener('visibilitychange', onChange);
+        return () => document.removeEventListener('visibilitychange', onChange);
+    }, []);
+
+    return isVisible;
+}
 
 /** Realtimeペイロードの型 */
 export type RealtimePayload = RealtimePostgresChangesPayload<Record<string, unknown>>;
@@ -23,13 +43,15 @@ export function useRealtimeSubscription({
 }: UseRealtimeSubscriptionOptions) {
     const channelRef = useRef<RealtimeChannel | null>(null);
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const isVisible = usePageVisible();
+    const effectivelyEnabled = enabled && isVisible;
 
     // コールバックをrefで保持し、チャンネル再接続を防ぐ
     const onDataChangeRef = useRef(onDataChange);
     onDataChangeRef.current = onDataChange;
 
     useEffect(() => {
-        if (!enabled) {
+        if (!effectivelyEnabled) {
             if (channelRef.current) {
                 supabase.removeChannel(channelRef.current);
                 channelRef.current = null;
@@ -77,7 +99,7 @@ export function useRealtimeSubscription({
             }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [enabled, channelName, table, debounceMs]);
+    }, [effectivelyEnabled, channelName, table, debounceMs]);
 
     const reset = useCallback(() => {
         if (channelRef.current) {
@@ -101,6 +123,9 @@ export function useMultipleRealtimeSubscriptions(
     config: MultipleSubscriptionConfig[],
     enabled: boolean = true
 ) {
+    const isVisible = usePageVisible();
+    const effectivelyEnabled = enabled && isVisible;
+
     // configをrefで保持してJSON.stringifyを避ける
     const configRef = useRef(config);
     const configKeyRef = useRef(config.map(c => `${c.table}:${c.channelName}`).join(','));
@@ -113,7 +138,7 @@ export function useMultipleRealtimeSubscriptions(
     }
 
     useEffect(() => {
-        if (!enabled) return;
+        if (!effectivelyEnabled) return;
 
         const channels: RealtimeChannel[] = [];
 
@@ -134,5 +159,5 @@ export function useMultipleRealtimeSubscriptions(
                 supabase.removeChannel(channel);
             });
         };
-    }, [enabled, configKeyRef.current]);
+    }, [effectivelyEnabled, configKeyRef.current]);
 }

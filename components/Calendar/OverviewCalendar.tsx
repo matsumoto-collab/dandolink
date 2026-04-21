@@ -48,7 +48,7 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
         }
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
-    // Polling: 30秒ごと（タブ非表示時はスキップ、戻ったら即時再取得）
+    // Polling: 60秒ごと（タブ非表示時はスキップ、戻ったら即時再取得）
     useEffect(() => {
         if (status !== 'authenticated' || !isMounted) return;
         const refresh = () => {
@@ -60,7 +60,7 @@ export default function OverviewCalendar({ onNavigationReady }: OverviewCalendar
         };
         const intervalId = setInterval(() => {
             if (document.visibilityState === 'visible') refresh();
-        }, 30_000);
+        }, 60_000);
         const onVisible = () => {
             if (document.visibilityState === 'visible') refresh();
         };
