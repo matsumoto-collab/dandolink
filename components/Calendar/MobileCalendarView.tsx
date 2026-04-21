@@ -592,6 +592,12 @@ export default function MobileCalendarView({
                                                                         )}
                                                                     </div>
                                                                 )}
+                                                                {event.remarks && (
+                                                                    <div className="flex items-start gap-0.5 mt-0.5 text-slate-700">
+                                                                        <MessageSquare className="w-2.5 h-2.5 flex-shrink-0 mt-0.5 text-slate-500" />
+                                                                        <span className="text-[9px] leading-tight truncate">{event.remarks}</span>
+                                                                    </div>
+                                                                )}
                                                             </button>
                                                         );
                                                     })}
