@@ -361,7 +361,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 type: 'success',
                 text: type === 'start'
                     ? `作業開始を通知しました（${timeStr}）`
-                    : `作業終了を通知しました（${timeStr}）`,
+                    : `作業完了を通知しました（${timeStr}）`,
             });
         } catch (error) {
             logger.error('Failed to send work status:', error);
@@ -588,8 +588,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                         const itemBreak = workItem?.breakMinutes ?? 0;
                                                         const netMinutes = Math.max(0, diff - itemBreak);
 
-                                                        const isStarted = !!assignment.workStartedAt;
-                                                        const isEnded = !!assignment.workEndedAt;
                                                         const startBusy = !!workStatusBusy[`${assignment.id}:start`];
                                                         const endBusy = !!workStatusBusy[`${assignment.id}:end`];
 
@@ -606,22 +604,22 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleWorkStatus(assignment.id, 'start')}
-                                                                            disabled={isStarted || startBusy}
+                                                                            disabled={startBusy}
                                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
-                                                                            title={isStarted ? '既に開始済み' : '作業開始を通知'}
+                                                                            title="作業開始を通知"
                                                                         >
                                                                             {startBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                                                                            {isStarted ? '開始済' : '開始'}
+                                                                            開始
                                                                         </button>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleWorkStatus(assignment.id, 'end')}
-                                                                            disabled={isEnded || endBusy}
+                                                                            disabled={endBusy}
                                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-slate-700 text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
-                                                                            title={isEnded ? '既に終了済み' : '作業終了を通知'}
+                                                                            title="作業完了を通知"
                                                                         >
                                                                             {endBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
-                                                                            {isEnded ? '終了済' : '終了'}
+                                                                            完了
                                                                         </button>
                                                                     </div>
                                                                 </div>

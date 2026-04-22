@@ -81,20 +81,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
             return errorResponse('この案件の開始/終了を通知する権限がありません', 403);
         }
 
-        // 重複ブロック
-        if (type === 'start' && assignment.workStartedAt) {
-            return NextResponse.json(
-                { error: 'この案件は既に作業開始が通知されています', code: 'ALREADY_STARTED' },
-                { status: 409 }
-            );
-        }
-        if (type === 'end' && assignment.workEndedAt) {
-            return NextResponse.json(
-                { error: 'この案件は既に作業終了が通知されています', code: 'ALREADY_ENDED' },
-                { status: 409 }
-            );
-        }
-
         const now = new Date();
         const { timeStr, rounded } = roundToNearestQuarterHourJst(now);
 
@@ -165,21 +151,28 @@ export async function POST(req: NextRequest, context: RouteContext) {
             const teamName = foreman?.displayName ? `${foreman.displayName}班` : '班';
 
             const pm = assignment.projectMaster;
-            const siteName = pm.name || pm.title || '案件';
+            const baseName = pm.name || pm.title || '案件';
+            const honorific = pm.honorific || '';
+            const siteName = `${baseName}${honorific}`;
             const suffix = pm.constructionSuffixId
                 ? (await prisma.constructionSuffix.findUnique({ where: { id: pm.constructionSuffixId } }))?.name
                 : undefined;
             const siteTitle = suffix ? `${siteName}（${suffix}）` : siteName;
+            const clientName = pm.customerShortName || pm.customerName || '';
 
-            const actionLabel = type === 'start' ? '作業開始' : '作業終了';
-            const verb = type === 'start' ? '作業開始しました' : '作業終了しました';
+            const actionLabel = type === 'start' ? '作業開始' : '作業完了';
+            const bodyLine = type === 'start'
+                ? `${siteTitle} ${timeStr} から作業開始しました`
+                : `${siteTitle} ${timeStr} に作業完了しました`;
+            const bodyWithClient = clientName ? `${bodyLine}\n元請：${clientName}` : bodyLine;
             await notifyUsers({
                 userIds,
                 type: type === 'start' ? 'work-started' : 'work-ended',
                 title: `【${actionLabel}】${teamName}`,
-                body: `${siteTitle} ${timeStr} から${verb}`,
+                body: bodyWithClient,
                 url: '/',
-                pushTag: `work-${type}-${assignment.id}`,
+                // 再押下のたびに別通知として通知するため時刻をtagに含める
+                pushTag: `work-${type}-${assignment.id}-${timeStr}`,
                 data: {
                     assignmentId: assignment.id,
                     projectMasterId: assignment.projectMasterId,
