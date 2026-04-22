@@ -160,7 +160,7 @@ export default function DesktopCalendarView({
                                     dayEvents.forEach(event => {
                                         const key = event.assignedEmployeeId!;
                                         if (!byForeman.has(key)) byForeman.set(key, []);
-                                        byForeman.get(key)!.push(event.workers?.length || event.memberCount || 0);
+                                        byForeman.get(key)!.push(Math.max(event.memberCount || 0, event.workers?.length || 0));
                                     });
                                     let assignedCount = 0;
                                     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
