@@ -84,6 +84,8 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         confirmedWorkerIds: assignment.confirmedWorkerIds,
         confirmedVehicleIds: assignment.confirmedVehicleIds,
         isDispatchConfirmed: assignment.isDispatchConfirmed,
+        workStartedAt: assignment.workStartedAt ?? null,
+        workEndedAt: assignment.workEndedAt ?? null,
         createdBy: assignment.projectMaster?.createdBy,
         createdAt: assignment.createdAt,
         // 最終更新日は「案件の編集」のみ反映する。スケジュール移動（assignment更新）では変化させない。

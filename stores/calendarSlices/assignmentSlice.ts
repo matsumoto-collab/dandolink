@@ -27,11 +27,13 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             const response = await fetch(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
-                const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({
+                const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; workStartedAt?: string | null; workEndedAt?: string | null; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({
                     ...a,
                     date: new Date(a.date),
                     createdAt: new Date(a.createdAt),
                     updatedAt: new Date(a.updatedAt),
+                    workStartedAt: a.workStartedAt ? new Date(a.workStartedAt) : null,
+                    workEndedAt: a.workEndedAt ? new Date(a.workEndedAt) : null,
                     projectMaster: a.projectMaster ? {
                         ...a.projectMaster,
                         createdAt: new Date(a.projectMaster.createdAt),

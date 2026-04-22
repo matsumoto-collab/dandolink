@@ -192,6 +192,10 @@ export interface ProjectAssignment {
     confirmedVehicleIds?: string[]; // 確定車両ID配列
     isDispatchConfirmed: boolean;   // 手配確定フラグ
 
+    // 作業開始・終了通知済みフラグ（一度押したらブロック）
+    workStartedAt?: Date | null;
+    workEndedAt?: Date | null;
+
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string;
@@ -234,6 +238,8 @@ export interface Project extends CalendarEvent {
     confirmedVehicleIds?: string[];
     isDispatchConfirmed?: boolean;
     constructionContent?: ConstructionContentType; // 工事内容（案件マスターから連携）
+    workStartedAt?: Date | null;
+    workEndedAt?: Date | null;
 }
 
 

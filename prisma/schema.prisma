@@ -104,6 +104,8 @@ model ProjectAssignment {
   constructionType     String?
   estimatedHours       Float                 @default(8.0)
   dispatchRemark       String?
+  workStartedAt        DateTime?
+  workEndedAt          DateTime?
   assignmentVehicles   AssignmentVehicle[]
   assignmentWorkers    AssignmentWorker[]
   dailyReportWorkItems DailyReportWorkItem[]

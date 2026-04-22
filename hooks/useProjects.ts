@@ -429,6 +429,8 @@ export function useProjects() {
             createdBy: a.projectMaster?.createdBy,
             createdAt: a.createdAt,
             updatedAt: a.updatedAt,
+            workStartedAt: a.workStartedAt ?? null,
+            workEndedAt: a.workEndedAt ?? null,
         };
     });
 
