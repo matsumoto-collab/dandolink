@@ -156,6 +156,7 @@ export default function ProjectModal({
                         <ProjectDetailView
                             project={initialData as Project}
                             onClose={onClose}
+                            readOnly={readOnly}
                         />
                     ) : (
                         // 編集モード（新規作成または編集）
