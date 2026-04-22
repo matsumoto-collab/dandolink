@@ -15,16 +15,29 @@ interface RouteContext {
     params: Promise<{ id: string }>;
 }
 
-/** 現在時刻を最も近い15分単位（0/15/30/45）に四捨五入して "HH:MM" を返す */
-function roundToNearestQuarterHour(now: Date): { timeStr: string; rounded: Date } {
-    const rounded = new Date(now);
-    const minutes = now.getMinutes();
-    const remainder = minutes % 15;
+/** 現在時刻をJSTで最も近い15分単位（0/15/30/45）に四捨五入し、JSTの "HH:MM" と丸め後Dateを返す */
+function roundToNearestQuarterHourJst(now: Date): { timeStr: string; rounded: Date } {
+    // JST(UTC+9)上の時/分を取り出す
+    const jstMs = now.getTime() + 9 * 60 * 60 * 1000;
+    const jst = new Date(jstMs);
+    const jstHour = jst.getUTCHours();
+    const jstMinute = jst.getUTCMinutes();
+
+    const remainder = jstMinute % 15;
     const delta = remainder < 8 ? -remainder : 15 - remainder;
-    rounded.setMinutes(minutes + delta, 0, 0);
-    const hh = rounded.getHours().toString().padStart(2, '0');
-    const mm = rounded.getMinutes().toString().padStart(2, '0');
-    return { timeStr: `${hh}:${mm}`, rounded };
+
+    const totalMinJst = jstHour * 60 + jstMinute + delta;
+    const normalized = ((totalMinJst % 1440) + 1440) % 1440;
+    const rh = Math.floor(normalized / 60);
+    const rm = normalized % 60;
+    const timeStr = `${rh.toString().padStart(2, '0')}:${rm.toString().padStart(2, '0')}`;
+
+    // DB保存用: 丸め後のUTC Date（絶対時刻としての now + delta分）
+    const rounded = new Date(now);
+    rounded.setUTCSeconds(0, 0);
+    rounded.setUTCMinutes(rounded.getUTCMinutes() + delta);
+
+    return { timeStr, rounded };
 }
 
 /** 日付部分のみ抽出（時刻は00:00:00にした Date） */
@@ -83,7 +96,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         }
 
         const now = new Date();
-        const { timeStr, rounded } = roundToNearestQuarterHour(now);
+        const { timeStr, rounded } = roundToNearestQuarterHourJst(now);
 
         // 1. 配置本体を更新（通知済みフラグをセット）
         const updated = await prisma.projectAssignment.update({
@@ -138,11 +151,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
             const recipients = await prisma.user.findMany({
                 where: {
                     isActive: true,
-                    role: { in: ['admin', 'manager', 'foreman1', 'foreman2'] },
+                    role: { in: ['admin', 'manager', 'foreman1', 'foreman2'], mode: 'insensitive' },
                 },
                 select: { id: true },
             });
             const userIds = recipients.map((u) => u.id);
+            logger.info('[work-status] notify recipients', { count: userIds.length, type });
 
             const foreman = await prisma.user.findUnique({
                 where: { id: assignment.assignedEmployeeId },
