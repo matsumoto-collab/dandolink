@@ -5,8 +5,9 @@ import { useSession } from 'next-auth/react';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
+import { useCalendarStore } from '@/stores/calendarStore';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
-import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User, Users } from 'lucide-react';
+import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User, Users, Play, Square } from 'lucide-react';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
@@ -28,6 +29,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const { saveDailyReport, getDailyReportByForemanAndDate, fetchDailyReports } = useDailyReports();
     const { projects, fetchForDateRange } = useProjects();
     const { allForemen } = useCalendarDisplay();
+    const upsertAssignmentStore = useCalendarStore((s) => s.upsertAssignment);
 
     const [selectedDate, setSelectedDate] = useState(initialDate || new Date());
     const [selectedForemanId, setSelectedForemanId] = useState<string>(foremanId || '');
@@ -71,6 +73,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [existingWorkItemInfoMap, setExistingWorkItemInfoMap] = useState<Map<string, { title: string; customer?: string }>>(new Map());
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [workStatusBusy, setWorkStatusBusy] = useState<Record<string, boolean>>({});
     // 既存日報 → 詳細ビュー、新規 → 編集モード
     const [isEditMode, setIsEditMode] = useState(!selectedReport);
     const modalRef = useModalKeyboard(isOpen, onClose);
@@ -287,6 +290,91 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return `${hours}:${mins.toString().padStart(2, '0')}`;
     };
 
+    // 作業開始/終了ボタン
+    const handleWorkStatus = async (assignmentId: string, type: 'start' | 'end') => {
+        const key = `${assignmentId}:${type}`;
+        setWorkStatusBusy((prev) => ({ ...prev, [key]: true }));
+        try {
+            const res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type }),
+            });
+
+            if (res.status === 409) {
+                const data = await res.json().catch(() => ({}));
+                setSaveMessage({ type: 'error', text: data?.error || '既に通知済みです' });
+                return;
+            }
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                setSaveMessage({ type: 'error', text: data?.error || '通知の送信に失敗しました' });
+                return;
+            }
+
+            const data = await res.json();
+            const timeStr: string = data?.time || '';
+
+            // 日報側のstartTime/endTime表示も更新
+            setWorkItems((prev) => {
+                const exists = prev.find((w) => w.assignmentId === assignmentId);
+                if (exists) {
+                    return prev.map((w) =>
+                        w.assignmentId === assignmentId
+                            ? { ...w, [type === 'start' ? 'startTime' : 'endTime']: timeStr }
+                            : w
+                    );
+                }
+                return [
+                    ...prev,
+                    {
+                        assignmentId,
+                        startTime: type === 'start' ? timeStr : '08:00',
+                        endTime: type === 'end' ? timeStr : '17:00',
+                        breakMinutes: 0,
+                        workerIds: [],
+                    },
+                ];
+            });
+
+            // ストア側のassignmentを更新（ボタンの無効化反映のため）
+            const a = data?.assignment;
+            if (a) {
+                upsertAssignmentStore({
+                    ...a,
+                    date: new Date(a.date),
+                    createdAt: new Date(a.createdAt),
+                    updatedAt: new Date(a.updatedAt),
+                    workStartedAt: a.workStartedAt ? new Date(a.workStartedAt) : null,
+                    workEndedAt: a.workEndedAt ? new Date(a.workEndedAt) : null,
+                    projectMaster: a.projectMaster
+                        ? {
+                            ...a.projectMaster,
+                            createdAt: new Date(a.projectMaster.createdAt),
+                            updatedAt: new Date(a.projectMaster.updatedAt),
+                        }
+                        : undefined,
+                });
+            }
+
+            setSaveMessage({
+                type: 'success',
+                text: type === 'start'
+                    ? `作業開始を通知しました（${timeStr}）`
+                    : `作業終了を通知しました（${timeStr}）`,
+            });
+        } catch (error) {
+            logger.error('Failed to send work status:', error);
+            setSaveMessage({ type: 'error', text: '通知の送信に失敗しました' });
+        } finally {
+            setWorkStatusBusy((prev) => {
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
+        }
+    };
+
     // 保存
     const handleSave = async () => {
         if (!effectiveForemanId) {
@@ -463,17 +551,20 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         {(() => {
                                             // todayAssignmentsと既存workItemsをマージして表示用リストを構築
                                             const assignmentIds = new Set(todayAssignments.map(a => a.id));
-                                            const displayItems: { id: string; title: string; customer?: string }[] = [
-                                                ...todayAssignments.map(a => ({ id: a.id, title: a.title, customer: a.customer })),
+                                            const displayItems: { id: string; title: string; customer?: string; workStartedAt?: Date | null; workEndedAt?: Date | null }[] = [
+                                                ...todayAssignments.map(a => ({ id: a.id, title: a.title, customer: a.customer, workStartedAt: a.workStartedAt ?? null, workEndedAt: a.workEndedAt ?? null })),
                                             ];
                                             // 既存workItemsにあるがtodayAssignmentsにないassignmentを追加
                                             for (const wi of workItems) {
                                                 if (!assignmentIds.has(wi.assignmentId)) {
                                                     const info = existingWorkItemInfoMap.get(wi.assignmentId);
+                                                    const p = projects.find(pp => pp.id === wi.assignmentId);
                                                     displayItems.push({
                                                         id: wi.assignmentId,
                                                         title: info?.title || '(案件名不明)',
                                                         customer: info?.customer,
+                                                        workStartedAt: p?.workStartedAt ?? null,
+                                                        workEndedAt: p?.workEndedAt ?? null,
                                                     });
                                                     assignmentIds.add(wi.assignmentId);
                                                 }
@@ -497,13 +588,42 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                         const itemBreak = workItem?.breakMinutes ?? 0;
                                                         const netMinutes = Math.max(0, diff - itemBreak);
 
+                                                        const isStarted = !!assignment.workStartedAt;
+                                                        const isEnded = !!assignment.workEndedAt;
+                                                        const startBusy = !!workStatusBusy[`${assignment.id}:start`];
+                                                        const endBusy = !!workStatusBusy[`${assignment.id}:end`];
+
                                                         return (
                                                             <div key={assignment.id} className="p-3 bg-slate-50 rounded-lg">
-                                                                <div className="mb-2">
-                                                                    <div className="font-medium text-slate-800">{assignment.title}</div>
-                                                                    {assignment.customer && (
-                                                                        <div className="text-sm text-slate-500">{assignment.customer}</div>
-                                                                    )}
+                                                                <div className="mb-2 flex items-start justify-between gap-2 flex-wrap">
+                                                                    <div className="min-w-0">
+                                                                        <div className="font-medium text-slate-800">{assignment.title}</div>
+                                                                        {assignment.customer && (
+                                                                            <div className="text-sm text-slate-500">{assignment.customer}</div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2 shrink-0">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleWorkStatus(assignment.id, 'start')}
+                                                                            disabled={isStarted || startBusy}
+                                                                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                                                                            title={isStarted ? '既に開始済み' : '作業開始を通知'}
+                                                                        >
+                                                                            {startBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                                                                            {isStarted ? '開始済' : '開始'}
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleWorkStatus(assignment.id, 'end')}
+                                                                            disabled={isEnded || endBusy}
+                                                                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-slate-700 text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                                                                            title={isEnded ? '既に終了済み' : '作業終了を通知'}
+                                                                        >
+                                                                            {endBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Square className="w-4 h-4" />}
+                                                                            {isEnded ? '終了済' : '終了'}
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                                 <div className="flex flex-wrap items-center gap-2">
                                                                     {/* 開始時間 */}
