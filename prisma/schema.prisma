@@ -106,6 +106,8 @@ model ProjectAssignment {
   dispatchRemark       String?
   workStartedAt        DateTime?
   workEndedAt          DateTime?
+  workStartedComment   String?
+  workEndedComment     String?
   assignmentVehicles   AssignmentVehicle[]
   assignmentWorkers    AssignmentWorker[]
   dailyReportWorkItems DailyReportWorkItem[]

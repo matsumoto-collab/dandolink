@@ -67,6 +67,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
             return validationErrorResponse('type は start または end を指定してください');
         }
 
+        const rawComment: unknown = body?.comment;
+        let comment: string | null = null;
+        if (rawComment !== undefined && rawComment !== null) {
+            if (typeof rawComment !== 'string') {
+                return validationErrorResponse('comment は文字列で指定してください');
+            }
+            const trimmed = rawComment.trim();
+            if (trimmed.length > 100) {
+                return validationErrorResponse('コメントは100文字以内で入力してください');
+            }
+            comment = trimmed.length > 0 ? trimmed : null;
+        }
+
         const assignment = await prisma.projectAssignment.findUnique({
             where: { id },
             include: { projectMaster: true },
@@ -88,8 +101,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
         const updated = await prisma.projectAssignment.update({
             where: { id },
             data: type === 'start'
-                ? { workStartedAt: rounded }
-                : { workEndedAt: rounded },
+                ? { workStartedAt: rounded, workStartedComment: comment }
+                : { workEndedAt: rounded, workEndedComment: comment },
             include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
         });
 
@@ -165,11 +178,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 ? `${siteTitle} ${timeStr} から作業開始しました`
                 : `${siteTitle} ${timeStr} に作業完了しました`;
             const bodyWithClient = clientName ? `${bodyLine}\n元請：${clientName}` : bodyLine;
+            const bodyWithComment = comment ? `${bodyWithClient}\nメモ：${comment}` : bodyWithClient;
             await notifyUsers({
                 userIds,
                 type: type === 'start' ? 'work-started' : 'work-ended',
                 title: `【${actionLabel}】${teamName}`,
-                body: bodyWithClient,
+                body: bodyWithComment,
                 url: '/',
                 // 再押下のたびに別通知として通知するため時刻をtagに含める
                 pushTag: `work-${type}-${assignment.id}-${timeStr}`,
@@ -177,6 +191,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                     assignmentId: assignment.id,
                     projectMasterId: assignment.projectMasterId,
                     time: timeStr,
+                    comment: comment ?? undefined,
                 },
             });
         } catch (e) {

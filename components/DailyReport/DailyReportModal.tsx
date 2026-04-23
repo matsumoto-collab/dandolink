@@ -74,6 +74,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [workStatusBusy, setWorkStatusBusy] = useState<Record<string, boolean>>({});
+    // 開始/完了時の一言メモ入力モーダル
+    const [commentPrompt, setCommentPrompt] = useState<{ assignmentId: string; type: 'start' | 'end'; title: string } | null>(null);
+    const [commentText, setCommentText] = useState('');
     // 既存日報 → 詳細ビュー、新規 → 編集モード
     const [isEditMode, setIsEditMode] = useState(!selectedReport);
     const modalRef = useModalKeyboard(isOpen, onClose);
@@ -291,14 +294,14 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     };
 
     // 作業開始/終了ボタン
-    const handleWorkStatus = async (assignmentId: string, type: 'start' | 'end') => {
+    const handleWorkStatus = async (assignmentId: string, type: 'start' | 'end', comment?: string) => {
         const key = `${assignmentId}:${type}`;
         setWorkStatusBusy((prev) => ({ ...prev, [key]: true }));
         try {
             const res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type }),
+                body: JSON.stringify({ type, comment: comment || undefined }),
             });
 
             if (res.status === 409) {
@@ -430,6 +433,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     if (!isOpen) return null;
 
     return (
+        <>
         <div className="fixed inset-0 lg:left-48 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
             {/* オーバーレイ（PCのみ） */}
             <div className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block" onClick={onClose} />
@@ -603,7 +607,10 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                     <div className="flex items-center gap-2 shrink-0">
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => handleWorkStatus(assignment.id, 'start')}
+                                                                            onClick={() => {
+                                                                                setCommentText('');
+                                                                                setCommentPrompt({ assignmentId: assignment.id, type: 'start', title: assignment.title });
+                                                                            }}
                                                                             disabled={startBusy}
                                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
                                                                             title="作業開始を通知"
@@ -613,7 +620,10 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                         </button>
                                                                         <button
                                                                             type="button"
-                                                                            onClick={() => handleWorkStatus(assignment.id, 'end')}
+                                                                            onClick={() => {
+                                                                                setCommentText('');
+                                                                                setCommentPrompt({ assignmentId: assignment.id, type: 'end', title: assignment.title });
+                                                                            }}
                                                                             disabled={endBusy}
                                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-slate-700 text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
                                                                             title="作業完了を通知"
@@ -927,5 +937,71 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 )}
             </div>
         </div>
+
+        {/* 開始/完了通知の一言メモ入力モーダル */}
+        {commentPrompt && (
+            <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 px-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                        <h3 className="text-base font-semibold text-slate-800">
+                            {commentPrompt.type === 'start' ? '作業開始を通知' : '作業完了を通知'}
+                        </h3>
+                        <button
+                            type="button"
+                            onClick={() => setCommentPrompt(null)}
+                            className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                        >
+                            <X className="w-5 h-5 text-slate-500" />
+                        </button>
+                    </div>
+                    <div className="px-5 py-4 space-y-3">
+                        <div className="text-sm text-slate-600 truncate">{commentPrompt.title}</div>
+                        <div>
+                            <label className="block text-sm text-slate-700 mb-1">
+                                一言メモ（任意・100文字まで）
+                            </label>
+                            <textarea
+                                value={commentText}
+                                onChange={(e) => setCommentText(e.target.value.slice(0, 100))}
+                                rows={3}
+                                maxLength={100}
+                                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                placeholder="例: 資材遅れのため30分押しで開始"
+                                autoFocus
+                            />
+                            <div className="mt-1 text-xs text-slate-400 text-right">
+                                {commentText.length}/100
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+                        <button
+                            type="button"
+                            onClick={() => setCommentPrompt(null)}
+                            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                const p = commentPrompt;
+                                setCommentPrompt(null);
+                                handleWorkStatus(p.assignmentId, p.type, commentText.trim() || undefined);
+                            }}
+                            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-white transition-colors ${
+                                commentPrompt.type === 'start'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                                    : 'bg-slate-700 hover:bg-slate-800'
+                            }`}
+                        >
+                            {commentPrompt.type === 'start' ? <Play className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+                            通知を送信
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 }
