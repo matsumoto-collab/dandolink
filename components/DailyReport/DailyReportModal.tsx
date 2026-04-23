@@ -76,7 +76,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [workStatusBusy, setWorkStatusBusy] = useState<Record<string, boolean>>({});
     // 開始/完了時の一言メモ入力モーダル
-    const [commentPrompt, setCommentPrompt] = useState<{ assignmentId: string; type: 'start' | 'end'; title: string } | null>(null);
+    const [commentPrompt, setCommentPrompt] = useState<{ assignmentId: string; projectMasterId: string; type: 'start' | 'end'; title: string } | null>(null);
     const [commentText, setCommentText] = useState('');
     // 画像アップロード用の状態
     type ImageCategory = 'assembly' | 'demolition' | 'other';
@@ -345,9 +345,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         }
     };
 
-    // 単体画像を並列でアップロードし、成功した件数を返す
+    // 案件登録と同じ方式で /api/project-masters/{id}/files へ並列アップロード
     const uploadImagesSeparately = async (
-        assignmentId: string,
+        projectMasterId: string,
         category: ImageCategory,
         files: File[]
     ): Promise<{ uploadedCount: number; failedCount: number; firstError?: string }> => {
@@ -358,7 +358,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                     const fd = new FormData();
                     fd.append('file', compressed, file.name);
                     fd.append('category', category);
-                    const res = await fetch(`/api/assignments/${assignmentId}/images`, {
+                    const res = await fetch(`/api/project-masters/${projectMasterId}/files`, {
                         method: 'POST',
                         body: fd,
                     });
@@ -382,6 +382,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     // 作業開始/終了ボタン
     const handleWorkStatus = async (
         assignmentId: string,
+        projectMasterId: string,
         type: 'start' | 'end',
         comment?: string,
         images?: { category: ImageCategory; files: File[] }
@@ -389,13 +390,13 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         const key = `${assignmentId}:${type}`;
         setWorkStatusBusy((prev) => ({ ...prev, [key]: true }));
         try {
-            // 1. 画像があれば先に並列アップロード
+            // 1. 画像があれば先に並列アップロード（案件登録と同じ /api/project-masters/{id}/files を利用）
             let uploadedImageCount = 0;
             let uploadFailedCount = 0;
             let uploadFirstError: string | undefined;
             let imageCategoryForBody: ImageCategory | null = null;
-            if (images && images.files.length > 0) {
-                const result = await uploadImagesSeparately(assignmentId, images.category, images.files);
+            if (images && images.files.length > 0 && projectMasterId) {
+                const result = await uploadImagesSeparately(projectMasterId, images.category, images.files);
                 uploadedImageCount = result.uploadedCount;
                 uploadFailedCount = result.failedCount;
                 uploadFirstError = result.firstError;
@@ -672,8 +673,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         {(() => {
                                             // todayAssignmentsと既存workItemsをマージして表示用リストを構築
                                             const assignmentIds = new Set(todayAssignments.map(a => a.id));
-                                            const displayItems: { id: string; title: string; customer?: string; workStartedAt?: Date | null; workEndedAt?: Date | null }[] = [
-                                                ...todayAssignments.map(a => ({ id: a.id, title: a.title, customer: a.customer, workStartedAt: a.workStartedAt ?? null, workEndedAt: a.workEndedAt ?? null })),
+                                            const displayItems: { id: string; projectMasterId: string; title: string; customer?: string; workStartedAt?: Date | null; workEndedAt?: Date | null }[] = [
+                                                ...todayAssignments.map(a => ({ id: a.id, projectMasterId: a.projectMasterId, title: a.title, customer: a.customer, workStartedAt: a.workStartedAt ?? null, workEndedAt: a.workEndedAt ?? null })),
                                             ];
                                             // 既存workItemsにあるがtodayAssignmentsにないassignmentを追加
                                             for (const wi of workItems) {
@@ -682,6 +683,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                     const p = projects.find(pp => pp.id === wi.assignmentId);
                                                     displayItems.push({
                                                         id: wi.assignmentId,
+                                                        projectMasterId: p?.projectMasterId || '',
                                                         title: info?.title || '(案件名不明)',
                                                         customer: info?.customer,
                                                         workStartedAt: p?.workStartedAt ?? null,
@@ -727,7 +729,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                             onClick={() => {
                                                                                 setCommentText('');
                                                                                 setImageCategory('assembly');
-                                                                                setCommentPrompt({ assignmentId: assignment.id, type: 'start', title: assignment.title });
+                                                                                setCommentPrompt({ assignmentId: assignment.id, projectMasterId: assignment.projectMasterId, type: 'start', title: assignment.title });
                                                                             }}
                                                                             disabled={startBusy}
                                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-emerald-600 text-white hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
@@ -741,7 +743,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                             onClick={() => {
                                                                                 setCommentText('');
                                                                                 setImageCategory('demolition');
-                                                                                setCommentPrompt({ assignmentId: assignment.id, type: 'end', title: assignment.title });
+                                                                                setCommentPrompt({ assignmentId: assignment.id, projectMasterId: assignment.projectMasterId, type: 'end', title: assignment.title });
                                                                             }}
                                                                             disabled={endBusy}
                                                                             className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-sm font-medium bg-slate-700 text-white hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
@@ -1169,7 +1171,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     ? { category: imageCategory, files: imageFiles }
                                     : undefined;
                                 setCommentPrompt(null);
-                                handleWorkStatus(p.assignmentId, p.type, commentText.trim() || undefined, imagesPayload);
+                                handleWorkStatus(p.assignmentId, p.projectMasterId, p.type, commentText.trim() || undefined, imagesPayload);
                             }}
                             className={`flex items-center gap-1 px-4 py-2 rounded-xl text-white transition-colors ${
                                 commentPrompt.type === 'start'

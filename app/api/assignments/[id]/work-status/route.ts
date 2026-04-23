@@ -10,12 +10,14 @@ import {
 import { formatAssignment } from '@/lib/formatters';
 import { notifyUsers } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
-import {
-    type ProjectMasterImageCategory,
-    CATEGORY_LABELS,
-} from '@/lib/projectMasterImageUpload';
 
-const IMAGE_CATEGORIES: ProjectMasterImageCategory[] = ['assembly', 'demolition', 'other'];
+type ImageCategory = 'assembly' | 'demolition' | 'other';
+const IMAGE_CATEGORIES: ImageCategory[] = ['assembly', 'demolition', 'other'];
+const CATEGORY_LABELS: Record<ImageCategory, string> = {
+    assembly: '組立',
+    demolition: '解体',
+    other: 'その他',
+};
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -87,11 +89,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
             comment = trimmed.length > 0 ? trimmed : null;
         }
 
-        // 画像アップロード件数・カテゴリ（別エンドポイントで先にアップロード済みの想定）
-        let imageCategory: ProjectMasterImageCategory | null = null;
+        // 画像アップロード件数・カテゴリ（クライアントが先に/api/project-masters/[id]/filesへアップロード済みの想定）
+        let imageCategory: ImageCategory | null = null;
         const rawImageCategory: unknown = body?.imageCategory;
-        if (typeof rawImageCategory === 'string' && IMAGE_CATEGORIES.includes(rawImageCategory as ProjectMasterImageCategory)) {
-            imageCategory = rawImageCategory as ProjectMasterImageCategory;
+        if (typeof rawImageCategory === 'string' && IMAGE_CATEGORIES.includes(rawImageCategory as ImageCategory)) {
+            imageCategory = rawImageCategory as ImageCategory;
         }
         const rawUploadedCount: unknown = body?.uploadedImageCount;
         const uploadedImageCount = typeof rawUploadedCount === 'number' && rawUploadedCount > 0
