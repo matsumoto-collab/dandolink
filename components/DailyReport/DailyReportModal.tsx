@@ -332,9 +332,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         assignmentId: string,
         category: ImageCategory,
         files: File[]
-    ): Promise<{ uploadedCount: number; failedCount: number }> => {
+    ): Promise<{ uploadedCount: number; failedCount: number; firstError?: string }> => {
         const results = await Promise.all(
-            files.map(async (file) => {
+            files.map(async (file): Promise<{ ok: boolean; error?: string }> => {
                 const fd = new FormData();
                 fd.append('file', file);
                 fd.append('category', category);
@@ -343,15 +343,21 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                         method: 'POST',
                         body: fd,
                     });
-                    return res.ok;
+                    if (res.ok) return { ok: true };
+                    const data = await res.json().catch(() => ({}));
+                    const msg = data?.error || `status ${res.status}`;
+                    logger.error('Image upload failed', msg, { fileName: file.name, mimeType: file.type, size: file.size });
+                    return { ok: false, error: msg };
                 } catch (e) {
-                    logger.error('Image upload failed:', e);
-                    return false;
+                    const msg = e instanceof Error ? e.message : String(e);
+                    logger.error('Image upload threw', e, { fileName: file.name });
+                    return { ok: false, error: msg };
                 }
             })
         );
-        const uploadedCount = results.filter(Boolean).length;
-        return { uploadedCount, failedCount: results.length - uploadedCount };
+        const uploadedCount = results.filter(r => r.ok).length;
+        const firstError = results.find(r => !r.ok)?.error;
+        return { uploadedCount, failedCount: results.length - uploadedCount, firstError };
     };
 
     // 作業開始/終了ボタン
@@ -367,11 +373,13 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             // 1. 画像があれば先に並列アップロード
             let uploadedImageCount = 0;
             let uploadFailedCount = 0;
+            let uploadFirstError: string | undefined;
             let imageCategoryForBody: ImageCategory | null = null;
             if (images && images.files.length > 0) {
                 const result = await uploadImagesSeparately(assignmentId, images.category, images.files);
                 uploadedImageCount = result.uploadedCount;
                 uploadFailedCount = result.failedCount;
+                uploadFirstError = result.firstError;
                 imageCategoryForBody = images.category;
             }
 
@@ -448,7 +456,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 ? `・${categoryLabelMap[imageCategoryForBody]}に${uploadedImageCount}枚保存`
                 : '';
             const failSuffix = uploadFailedCount > 0
-                ? `（${uploadFailedCount}枚の画像アップロードに失敗）`
+                ? `（${uploadFailedCount}枚の画像アップロードに失敗${uploadFirstError ? `: ${uploadFirstError}` : ''}）`
                 : '';
             setSaveMessage({
                 type: uploadFailedCount > 0 ? 'error' : 'success',

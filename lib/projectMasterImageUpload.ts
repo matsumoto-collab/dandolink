@@ -56,13 +56,22 @@ export async function uploadProjectMasterImage(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    const rotated = sharp(buffer).rotate();
-    const rotatedBuffer = await rotated.toBuffer();
-    const [origWebp, displayWebp, thumbWebp] = await Promise.all([
-        sharp(rotatedBuffer).webp({ quality: 90, effort: 2 }).toBuffer(),
-        sharp(rotatedBuffer).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78, effort: 2 }).toBuffer(),
-        sharp(rotatedBuffer).resize(200, 200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 50, effort: 0 }).toBuffer(),
-    ]);
+    let origWebp: Buffer;
+    let displayWebp: Buffer;
+    let thumbWebp: Buffer;
+    try {
+        const rotated = sharp(buffer).rotate();
+        const rotatedBuffer = await rotated.toBuffer();
+        [origWebp, displayWebp, thumbWebp] = await Promise.all([
+            sharp(rotatedBuffer).webp({ quality: 90, effort: 2 }).toBuffer(),
+            sharp(rotatedBuffer).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78, effort: 2 }).toBuffer(),
+            sharp(rotatedBuffer).resize(200, 200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 50, effort: 0 }).toBuffer(),
+        ]);
+    } catch (e) {
+        logger.error('[uploadProjectMasterImage] sharp processing failed', { fileName: file.name, mimeType: file.type, size: file.size, error: e });
+        const msg = e instanceof Error ? e.message : String(e);
+        return { ok: false, error: `画像変換に失敗: ${msg}` };
+    }
 
     const storagePath = `${projectMasterId}/${fileId}.webp`;
     const thumbnailPath: string = `${projectMasterId}/${fileId}_thumb.webp`;
@@ -75,10 +84,10 @@ export async function uploadProjectMasterImage(
     ]);
 
     if (displayResult.error) {
-        logger.error('[uploadProjectMasterImage] display upload error', displayResult.error);
+        logger.error('[uploadProjectMasterImage] display upload error', { fileName: file.name, error: displayResult.error });
         const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
         if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
-        return { ok: false, error: 'ファイルのアップロードに失敗しました' };
+        return { ok: false, error: `ストレージ保存失敗: ${displayResult.error.message || 'unknown'}` };
     }
 
     let finalThumbnailPath: string | null = thumbnailPath;
@@ -133,10 +142,11 @@ export async function uploadProjectMasterImage(
             },
         });
     } catch (e) {
-        logger.error('[uploadProjectMasterImage] DB insert failed', e);
+        logger.error('[uploadProjectMasterImage] DB insert failed', { fileName: file.name, error: e });
         const cleanupPaths = [storagePath, finalThumbnailPath, originalStoragePath].filter(Boolean) as string[];
         if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
-        return { ok: false, error: 'DB登録に失敗しました' };
+        const msg = e instanceof Error ? e.message : String(e);
+        return { ok: false, error: `DB登録失敗: ${msg}` };
     }
 
     return { ok: true, fileId };
