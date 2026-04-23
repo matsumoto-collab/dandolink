@@ -26,7 +26,7 @@ const navigationSections: NavSection[] = [
             { name: 'スケジュール管理', page: 'schedule' },
             { name: 'マイスケジュール', page: 'my-schedule' },
             { name: '案件一覧', page: 'project-masters' },
-            { name: '日報一覧', page: 'reports' },
+            { name: '報告一覧', page: 'reports' },
         ],
     },
     {

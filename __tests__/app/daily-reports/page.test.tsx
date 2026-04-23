@@ -106,7 +106,7 @@ describe('DailyReportPage', () => {
 
     it('should render daily report list', () => {
         render(<DailyReportPage />);
-        expect(screen.getByText('日報一覧')).toBeInTheDocument();
+        expect(screen.getByText('報告一覧')).toBeInTheDocument();
         // Reports show foreman names and notes
         expect(screen.getAllByText('Foreman A').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Foreman B').length).toBeGreaterThan(0);
@@ -118,10 +118,10 @@ describe('DailyReportPage', () => {
         fireEvent.change(searchInput, { target: { value: 'Foreman A' } });
 
         // After filtering by 'Foreman A', only 1 report should be shown (not 2)
-        // The footer shows "全 N 件の日報 (2件中)" - so check for 1 matching report
+        // The footer shows "全 N 件の報告 (2件中)" - so check for 1 matching report
         await waitFor(() => {
             // The status text shows how many results are shown
-            const statusText = screen.getByText(/件の日報/i);
+            const statusText = screen.getByText(/件の報告/i);
             expect(statusText.textContent).toContain('1');
         });
     });
@@ -140,7 +140,7 @@ describe('DailyReportPage', () => {
 
     it('should open modal on "New Report" click', () => {
         render(<DailyReportPage />);
-        fireEvent.click(screen.getByText('新規日報追加'));
+        fireEvent.click(screen.getByText('新規報告追加'));
         expect(screen.getAllByTestId('mock-dynamic-component')).toHaveLength(1);
     });
 

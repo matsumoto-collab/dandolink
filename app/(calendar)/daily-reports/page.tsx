@@ -207,9 +207,9 @@ export default function DailyReportPage() {
             {/* ヘッダー */}
             <div className="mb-6 flex-shrink-0">
                 <h1 className="text-2xl font-bold text-slate-800">
-                    日報一覧
+                    報告一覧
                 </h1>
-                <p className="text-sm text-slate-500 mt-1">登録されている日報を管理できます</p>
+                <p className="text-sm text-slate-500 mt-1">登録されている報告を管理できます</p>
             </div>
 
             {/* ツールバー */}
@@ -230,7 +230,7 @@ export default function DailyReportPage() {
                         onClick={handleAddNew}
                         leftIcon={<Plus className="w-5 h-5" />}
                     >
-                        <span className="hidden sm:inline">新規日報追加</span>
+                        <span className="hidden sm:inline">新規報告追加</span>
                         <span className="sm:hidden">新規追加</span>
                     </Button>
                 </div>
@@ -442,7 +442,7 @@ export default function DailyReportPage() {
 
             {/* 統計情報 */}
             <div className="mt-2 flex-shrink-0 text-sm text-slate-600">
-                全 {filteredReports.length} 件の日報
+                全 {filteredReports.length} 件の報告
                 {(searchTerm || foremanFilter !== 'all') && ` (${dailyReports.length}件中)`}
             </div>
 
