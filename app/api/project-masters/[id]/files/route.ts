@@ -124,13 +124,24 @@ export async function POST(req: NextRequest, context: RouteContext) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
-        if (!canDispatch(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
 
         // 案件マスターの存在確認
         const projectMaster = await prisma.projectMaster.findUnique({ where: { id } });
         if (!projectMaster) return notFoundResponse('案件マスター');
+
+        // 権限:
+        //  - canDispatch（admin/manager/foreman1）は全カテゴリに直接アップロード可能
+        //  - それ以外（foreman2 等）は当該案件に配置されている本人のみ許可（報告時の画像添付に対応）
+        const userCanDispatch = canDispatch(session!.user);
+        if (!userCanDispatch) {
+            const myAssignment = await prisma.projectAssignment.findFirst({
+                where: { projectMasterId: id, assignedEmployeeId: session!.user.id },
+                select: { id: true },
+            });
+            if (!myAssignment) return errorResponse('権限がありません', 403);
+        }
 
         const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction', 'document'];
 
