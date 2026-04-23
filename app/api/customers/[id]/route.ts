@@ -62,9 +62,30 @@ export async function PATCH(
         if (notes !== undefined) updateData.notes = notes || null;
         updateData.updatedBy = session!.user.id;
 
-        const updated = await prisma.customer.update({
-            where: { id },
-            data: updateData,
+        // name/shortName が変わる場合、関連する ProjectMaster の
+        // 非正規化フィールド（customerName / customerShortName）も同期する。
+        // これをしないと案件一覧・カレンダーカード・日報などで古い名前が残る。
+        const nameChanged = name !== undefined && name !== existing.name;
+        const shortNameChanged =
+            shortName !== undefined && (shortName || null) !== (existing.shortName ?? null);
+
+        const updated = await prisma.$transaction(async (tx) => {
+            const u = await tx.customer.update({
+                where: { id },
+                data: updateData,
+            });
+
+            if (nameChanged || shortNameChanged) {
+                const syncData: Record<string, unknown> = {};
+                if (nameChanged) syncData.customerName = u.name;
+                if (shortNameChanged) syncData.customerShortName = u.shortName || null;
+                await tx.projectMaster.updateMany({
+                    where: { customerId: id },
+                    data: syncData,
+                });
+            }
+
+            return u;
         });
 
         return NextResponse.json(parseCustomer(updated));

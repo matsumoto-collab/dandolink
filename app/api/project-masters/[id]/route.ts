@@ -77,6 +77,40 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         }
         if (body.customerId !== undefined) updateData.customerId = body.customerId;
         if (body.customerName !== undefined) updateData.customerName = body.customerName;
+
+        // customerId または customerName が変わる場合は、Customer テーブルから
+        // shortName を引き直して customerShortName も更新する。
+        // （customerShortName が明示的に送られた場合はそちらを優先）
+        if (body.customerShortName !== undefined) {
+            updateData.customerShortName = body.customerShortName || null;
+        } else {
+            const nextCustomerId =
+                body.customerId !== undefined ? body.customerId : existing.customerId;
+            const nextCustomerName =
+                body.customerName !== undefined ? body.customerName : existing.customerName;
+            const customerIdChanged =
+                body.customerId !== undefined && body.customerId !== existing.customerId;
+            const customerNameChanged =
+                body.customerName !== undefined && body.customerName !== existing.customerName;
+
+            if (customerIdChanged || customerNameChanged) {
+                let resolvedShortName: string | null = null;
+                if (nextCustomerId) {
+                    const customer = await prisma.customer.findUnique({
+                        where: { id: nextCustomerId },
+                        select: { shortName: true },
+                    });
+                    resolvedShortName = customer?.shortName || null;
+                } else if (nextCustomerName) {
+                    const customer = await prisma.customer.findFirst({
+                        where: { name: nextCustomerName },
+                        select: { shortName: true },
+                    });
+                    resolvedShortName = customer?.shortName || null;
+                }
+                updateData.customerShortName = resolvedShortName;
+            }
+        }
         if (body.constructionType !== undefined) updateData.constructionType = body.constructionType;
         if (body.constructionContent !== undefined) updateData.constructionContent = body.constructionContent;
         if (body.status !== undefined) {
