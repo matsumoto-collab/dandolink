@@ -1088,7 +1088,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                 maxLength={100}
                                 className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                 placeholder="例: 資材遅れのため30分押しで開始"
-                                autoFocus
                             />
                             <div className="mt-1 text-xs text-slate-400 text-right">
                                 {commentText.length}/100
