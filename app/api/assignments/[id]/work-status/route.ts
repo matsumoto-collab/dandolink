@@ -10,6 +10,13 @@ import {
 import { formatAssignment } from '@/lib/formatters';
 import { notifyUsers } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
+import {
+    uploadProjectMasterImage,
+    type ProjectMasterImageCategory,
+    CATEGORY_LABELS,
+} from '@/lib/projectMasterImageUpload';
+
+const IMAGE_CATEGORIES: ProjectMasterImageCategory[] = ['assembly', 'demolition', 'other'];
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -61,13 +68,36 @@ export async function POST(req: NextRequest, context: RouteContext) {
         if (error) return error;
 
         const { id } = await context.params;
-        const body = await req.json().catch(() => ({}));
-        const type: unknown = body?.type;
+
+        // multipart/form-data（画像あり）または application/json（画像なし）を両方受け付ける
+        const contentType = req.headers.get('content-type') || '';
+        const isMultipart = contentType.includes('multipart/form-data');
+
+        let type: unknown;
+        let rawComment: unknown;
+        let imageCategory: ProjectMasterImageCategory | null = null;
+        let imageFiles: File[] = [];
+
+        if (isMultipart) {
+            const form = await req.formData();
+            type = form.get('type');
+            rawComment = form.get('comment');
+            const rawCategory = form.get('category');
+            if (typeof rawCategory === 'string' && IMAGE_CATEGORIES.includes(rawCategory as ProjectMasterImageCategory)) {
+                imageCategory = rawCategory as ProjectMasterImageCategory;
+            }
+            const rawFiles = form.getAll('images');
+            imageFiles = rawFiles.filter((f): f is File => f instanceof File && f.size > 0);
+        } else {
+            const body = await req.json().catch(() => ({}));
+            type = body?.type;
+            rawComment = body?.comment;
+        }
+
         if (type !== 'start' && type !== 'end') {
             return validationErrorResponse('type は start または end を指定してください');
         }
 
-        const rawComment: unknown = body?.comment;
         let comment: string | null = null;
         if (rawComment !== undefined && rawComment !== null) {
             if (typeof rawComment !== 'string') {
@@ -78,6 +108,10 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 return validationErrorResponse('コメントは100文字以内で入力してください');
             }
             comment = trimmed.length > 0 ? trimmed : null;
+        }
+
+        if (imageFiles.length > 0 && !imageCategory) {
+            return validationErrorResponse('画像カテゴリ（assembly/demolition/other）を指定してください');
         }
 
         const assignment = await prisma.projectAssignment.findUnique({
@@ -145,7 +179,27 @@ export async function POST(req: NextRequest, context: RouteContext) {
             // 通知自体は継続する
         }
 
-        // 3. 通知送信（admin/manager/foreman1/foreman2）
+        // 3. 画像アップロード（指定された場合）
+        let uploadedImageCount = 0;
+        if (imageFiles.length > 0 && imageCategory) {
+            const results = await Promise.all(
+                imageFiles.map((file) =>
+                    uploadProjectMasterImage({
+                        projectMasterId: assignment.projectMasterId,
+                        uploadedBy: session!.user.id,
+                        category: imageCategory!,
+                        file,
+                    })
+                )
+            );
+            uploadedImageCount = results.filter((r) => r.ok).length;
+            const failedCount = results.length - uploadedImageCount;
+            if (failedCount > 0) {
+                logger.error('[work-status] some image uploads failed', { failedCount, total: results.length });
+            }
+        }
+
+        // 4. 通知送信（admin/manager/foreman1/foreman2）
         try {
             const recipients = await prisma.user.findMany({
                 where: {
@@ -179,11 +233,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 : `${siteTitle} ${timeStr} に作業完了しました`;
             const bodyWithClient = clientName ? `${bodyLine}\n元請：${clientName}` : bodyLine;
             const bodyWithComment = comment ? `${bodyWithClient}\nメモ：${comment}` : bodyWithClient;
+            const bodyWithImages = (uploadedImageCount > 0 && imageCategory)
+                ? `${bodyWithComment}\n${CATEGORY_LABELS[imageCategory]}に${uploadedImageCount}枚画像保存されました`
+                : bodyWithComment;
             await notifyUsers({
                 userIds,
                 type: type === 'start' ? 'work-started' : 'work-ended',
                 title: `【${actionLabel}】${teamName}`,
-                body: bodyWithComment,
+                body: bodyWithImages,
                 url: '/',
                 // 再押下のたびに別通知として通知するため時刻をtagに含める
                 pushTag: `work-${type}-${assignment.id}-${timeStr}`,
@@ -192,6 +249,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
                     projectMasterId: assignment.projectMasterId,
                     time: timeStr,
                     comment: comment ?? undefined,
+                    imageCategory: imageCategory ?? undefined,
+                    imageCount: uploadedImageCount || undefined,
                 },
             });
         } catch (e) {
@@ -201,6 +260,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
         return NextResponse.json({
             assignment: formatAssignment(updated),
             time: timeStr,
+            uploadedImageCount,
+            imageCategory: imageCategory ?? null,
         });
     } catch (error) {
         return serverErrorResponse('作業状況の更新', error);

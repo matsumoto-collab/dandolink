@@ -7,7 +7,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
-import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User, Users, Play, Square } from 'lucide-react';
+import { X, Clock, Save, Loader2, FileText, Truck, AlertCircle, ChevronLeft, ChevronRight, User, Users, Play, Square, ImagePlus, Trash2 } from 'lucide-react';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
@@ -77,6 +77,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     // 開始/完了時の一言メモ入力モーダル
     const [commentPrompt, setCommentPrompt] = useState<{ assignmentId: string; type: 'start' | 'end'; title: string } | null>(null);
     const [commentText, setCommentText] = useState('');
+    // 画像アップロード用の状態
+    type ImageCategory = 'assembly' | 'demolition' | 'other';
+    const [imageCategory, setImageCategory] = useState<ImageCategory>('assembly');
+    const [imageFiles, setImageFiles] = useState<File[]>([]);
+    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     // 既存日報 → 詳細ビュー、新規 → 編集モード
     const [isEditMode, setIsEditMode] = useState(!selectedReport);
     const modalRef = useModalKeyboard(isOpen, onClose);
@@ -293,16 +298,64 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return `${hours}:${mins.toString().padStart(2, '0')}`;
     };
 
+    // 画像選択
+    const handleImagesSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []).filter(f => f.type.startsWith('image/'));
+        if (files.length === 0) return;
+        setImageFiles(prev => [...prev, ...files]);
+        const newPreviews = files.map(f => URL.createObjectURL(f));
+        setImagePreviews(prev => [...prev, ...newPreviews]);
+        // 同じファイルを再選択できるようにinputをリセット
+        e.target.value = '';
+    };
+
+    const removeImage = (index: number) => {
+        setImageFiles(prev => prev.filter((_, i) => i !== index));
+        setImagePreviews(prev => {
+            const toRevoke = prev[index];
+            if (toRevoke) URL.revokeObjectURL(toRevoke);
+            return prev.filter((_, i) => i !== index);
+        });
+    };
+
+    // commentPromptが閉じた時にプレビューURLを解放
+    useEffect(() => {
+        if (!commentPrompt) {
+            imagePreviews.forEach(url => URL.revokeObjectURL(url));
+            setImageFiles([]);
+            setImagePreviews([]);
+        }
+    }, [commentPrompt]); // eslint-disable-line react-hooks/exhaustive-deps
+
     // 作業開始/終了ボタン
-    const handleWorkStatus = async (assignmentId: string, type: 'start' | 'end', comment?: string) => {
+    const handleWorkStatus = async (
+        assignmentId: string,
+        type: 'start' | 'end',
+        comment?: string,
+        images?: { category: ImageCategory; files: File[] }
+    ) => {
         const key = `${assignmentId}:${type}`;
         setWorkStatusBusy((prev) => ({ ...prev, [key]: true }));
         try {
-            const res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ type, comment: comment || undefined }),
-            });
+            const hasImages = images && images.files.length > 0;
+            let res: Response;
+            if (hasImages) {
+                const fd = new FormData();
+                fd.append('type', type);
+                if (comment) fd.append('comment', comment);
+                fd.append('category', images.category);
+                images.files.forEach(f => fd.append('images', f));
+                res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
+                    method: 'POST',
+                    body: fd,
+                });
+            } else {
+                res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type, comment: comment || undefined }),
+                });
+            }
 
             if (res.status === 409) {
                 const data = await res.json().catch(() => ({}));
@@ -360,11 +413,17 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 });
             }
 
+            const categoryLabelMap: Record<ImageCategory, string> = { assembly: '組立', demolition: '解体', other: 'その他' };
+            const uploadedCount: number = data?.uploadedImageCount || 0;
+            const uploadedCategory: ImageCategory | null = data?.imageCategory ?? null;
+            const imageSuffix = uploadedCount > 0 && uploadedCategory
+                ? `・${categoryLabelMap[uploadedCategory]}に${uploadedCount}枚保存`
+                : '';
             setSaveMessage({
                 type: 'success',
                 text: type === 'start'
-                    ? `作業開始を通知しました（${timeStr}）`
-                    : `作業完了を通知しました（${timeStr}）`,
+                    ? `作業開始を通知しました（${timeStr}）${imageSuffix}`
+                    : `作業完了を通知しました（${timeStr}）${imageSuffix}`,
             });
         } catch (error) {
             logger.error('Failed to send work status:', error);
@@ -609,6 +668,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setCommentText('');
+                                                                                setImageCategory('assembly');
                                                                                 setCommentPrompt({ assignmentId: assignment.id, type: 'start', title: assignment.title });
                                                                             }}
                                                                             disabled={startBusy}
@@ -622,6 +682,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setCommentText('');
+                                                                                setImageCategory('demolition');
                                                                                 setCommentPrompt({ assignmentId: assignment.id, type: 'end', title: assignment.title });
                                                                             }}
                                                                             disabled={endBusy}
@@ -954,7 +1015,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                             <X className="w-5 h-5 text-slate-500" />
                         </button>
                     </div>
-                    <div className="px-5 py-4 space-y-3">
+                    <div className="px-5 py-4 space-y-3 max-h-[70vh] overflow-y-auto">
                         <div className="text-sm text-slate-600 truncate">{commentPrompt.title}</div>
                         <div>
                             <label className="block text-sm text-slate-700 mb-1">
@@ -973,6 +1034,66 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                 {commentText.length}/100
                             </div>
                         </div>
+                        {/* 画像アップロード */}
+                        <div className="pt-2 border-t border-slate-200">
+                            <label className="block text-sm text-slate-700 mb-2">
+                                画像（任意・案件フォルダに保存されます）
+                            </label>
+                            <div className="flex gap-2 mb-2">
+                                {(['assembly', 'demolition', 'other'] as const).map(cat => {
+                                    const label = cat === 'assembly' ? '組立' : cat === 'demolition' ? '解体' : 'その他';
+                                    const active = imageCategory === cat;
+                                    return (
+                                        <button
+                                            key={cat}
+                                            type="button"
+                                            onClick={() => setImageCategory(cat)}
+                                            className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
+                                                active
+                                                    ? 'bg-slate-800 text-white border-slate-800'
+                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <label className="flex items-center justify-center gap-2 px-3 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors">
+                                <ImagePlus className="w-4 h-4" />
+                                画像を選択（複数可）
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={handleImagesSelected}
+                                    className="hidden"
+                                />
+                            </label>
+                            {imagePreviews.length > 0 && (
+                                <div className="grid grid-cols-3 gap-2 mt-3">
+                                    {imagePreviews.map((src, idx) => (
+                                        <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                            <img src={src} alt={`preview-${idx}`} className="w-full h-full object-cover" />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeImage(idx)}
+                                                className="absolute top-1 right-1 p-1 bg-white/90 rounded-full hover:bg-white transition-colors shadow-sm"
+                                                title="削除"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5 text-slate-700" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            {imageFiles.length > 0 && (
+                                <div className="mt-2 text-xs text-slate-500">
+                                    {imageFiles.length}枚選択中
+                                </div>
+                            )}
+                        </div>
                     </div>
                     <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
                         <button
@@ -986,8 +1107,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                             type="button"
                             onClick={() => {
                                 const p = commentPrompt;
+                                const imagesPayload = imageFiles.length > 0
+                                    ? { category: imageCategory, files: imageFiles }
+                                    : undefined;
                                 setCommentPrompt(null);
-                                handleWorkStatus(p.assignmentId, p.type, commentText.trim() || undefined);
+                                handleWorkStatus(p.assignmentId, p.type, commentText.trim() || undefined, imagesPayload);
                             }}
                             className={`flex items-center gap-1 px-4 py-2 rounded-xl text-white transition-colors ${
                                 commentPrompt.type === 'start'
@@ -996,7 +1120,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                             }`}
                         >
                             {commentPrompt.type === 'start' ? <Play className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                            通知を送信
+                            {imageFiles.length > 0 ? `通知を送信（画像${imageFiles.length}枚）` : '通知を送信'}
                         </button>
                     </div>
                 </div>
