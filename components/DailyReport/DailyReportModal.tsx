@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import imageCompression from 'browser-image-compression';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
@@ -327,6 +328,23 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         }
     }, [commentPrompt]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // 1画像をクライアント側で圧縮（3MB以上の場合のみ）してVercelの4.5MB上限を回避
+    const compressIfNeeded = async (file: File): Promise<File | Blob> => {
+        if (!file.type.startsWith('image/') || file.size <= 3 * 1024 * 1024) return file;
+        try {
+            const blob = await imageCompression(file, {
+                maxSizeMB: 3,
+                maxWidthOrHeight: 3000,
+                useWebWorker: true,
+                initialQuality: 0.9,
+            });
+            return blob;
+        } catch (e) {
+            logger.error('Client-side image compression failed', e, { fileName: file.name });
+            return file;
+        }
+    };
+
     // 単体画像を並列でアップロードし、成功した件数を返す
     const uploadImagesSeparately = async (
         assignmentId: string,
@@ -335,10 +353,11 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     ): Promise<{ uploadedCount: number; failedCount: number; firstError?: string }> => {
         const results = await Promise.all(
             files.map(async (file): Promise<{ ok: boolean; error?: string }> => {
-                const fd = new FormData();
-                fd.append('file', file);
-                fd.append('category', category);
                 try {
+                    const compressed = await compressIfNeeded(file);
+                    const fd = new FormData();
+                    fd.append('file', compressed, file.name);
+                    fd.append('category', category);
                     const res = await fetch(`/api/assignments/${assignmentId}/images`, {
                         method: 'POST',
                         body: fd,
