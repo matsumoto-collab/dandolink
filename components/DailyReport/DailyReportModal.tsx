@@ -327,6 +327,33 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         }
     }, [commentPrompt]); // eslint-disable-line react-hooks/exhaustive-deps
 
+    // 単体画像を並列でアップロードし、成功した件数を返す
+    const uploadImagesSeparately = async (
+        assignmentId: string,
+        category: ImageCategory,
+        files: File[]
+    ): Promise<{ uploadedCount: number; failedCount: number }> => {
+        const results = await Promise.all(
+            files.map(async (file) => {
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('category', category);
+                try {
+                    const res = await fetch(`/api/assignments/${assignmentId}/images`, {
+                        method: 'POST',
+                        body: fd,
+                    });
+                    return res.ok;
+                } catch (e) {
+                    logger.error('Image upload failed:', e);
+                    return false;
+                }
+            })
+        );
+        const uploadedCount = results.filter(Boolean).length;
+        return { uploadedCount, failedCount: results.length - uploadedCount };
+    };
+
     // 作業開始/終了ボタン
     const handleWorkStatus = async (
         assignmentId: string,
@@ -337,25 +364,28 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         const key = `${assignmentId}:${type}`;
         setWorkStatusBusy((prev) => ({ ...prev, [key]: true }));
         try {
-            const hasImages = images && images.files.length > 0;
-            let res: Response;
-            if (hasImages) {
-                const fd = new FormData();
-                fd.append('type', type);
-                if (comment) fd.append('comment', comment);
-                fd.append('category', images.category);
-                images.files.forEach(f => fd.append('images', f));
-                res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
-                    method: 'POST',
-                    body: fd,
-                });
-            } else {
-                res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type, comment: comment || undefined }),
-                });
+            // 1. 画像があれば先に並列アップロード
+            let uploadedImageCount = 0;
+            let uploadFailedCount = 0;
+            let imageCategoryForBody: ImageCategory | null = null;
+            if (images && images.files.length > 0) {
+                const result = await uploadImagesSeparately(assignmentId, images.category, images.files);
+                uploadedImageCount = result.uploadedCount;
+                uploadFailedCount = result.failedCount;
+                imageCategoryForBody = images.category;
             }
+
+            // 2. work-statusはJSONで件数だけ渡す
+            const res = await fetch(`/api/assignments/${assignmentId}/work-status`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type,
+                    comment: comment || undefined,
+                    uploadedImageCount: uploadedImageCount || undefined,
+                    imageCategory: imageCategoryForBody || undefined,
+                }),
+            });
 
             if (res.status === 409) {
                 const data = await res.json().catch(() => ({}));
@@ -414,16 +444,17 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             }
 
             const categoryLabelMap: Record<ImageCategory, string> = { assembly: '組立', demolition: '解体', other: 'その他' };
-            const uploadedCount: number = data?.uploadedImageCount || 0;
-            const uploadedCategory: ImageCategory | null = data?.imageCategory ?? null;
-            const imageSuffix = uploadedCount > 0 && uploadedCategory
-                ? `・${categoryLabelMap[uploadedCategory]}に${uploadedCount}枚保存`
+            const imageSuffix = uploadedImageCount > 0 && imageCategoryForBody
+                ? `・${categoryLabelMap[imageCategoryForBody]}に${uploadedImageCount}枚保存`
+                : '';
+            const failSuffix = uploadFailedCount > 0
+                ? `（${uploadFailedCount}枚の画像アップロードに失敗）`
                 : '';
             setSaveMessage({
-                type: 'success',
-                text: type === 'start'
+                type: uploadFailedCount > 0 ? 'error' : 'success',
+                text: (type === 'start'
                     ? `作業開始を通知しました（${timeStr}）${imageSuffix}`
-                    : `作業完了を通知しました（${timeStr}）${imageSuffix}`,
+                    : `作業完了を通知しました（${timeStr}）${imageSuffix}`) + failSuffix,
             });
         } catch (error) {
             logger.error('Failed to send work status:', error);

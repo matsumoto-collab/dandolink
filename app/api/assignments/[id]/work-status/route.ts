@@ -11,7 +11,6 @@ import { formatAssignment } from '@/lib/formatters';
 import { notifyUsers } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
 import {
-    uploadProjectMasterImage,
     type ProjectMasterImageCategory,
     CATEGORY_LABELS,
 } from '@/lib/projectMasterImageUpload';
@@ -69,35 +68,13 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
 
-        // multipart/form-data（画像あり）または application/json（画像なし）を両方受け付ける
-        const contentType = req.headers.get('content-type') || '';
-        const isMultipart = contentType.includes('multipart/form-data');
-
-        let type: unknown;
-        let rawComment: unknown;
-        let imageCategory: ProjectMasterImageCategory | null = null;
-        let imageFiles: File[] = [];
-
-        if (isMultipart) {
-            const form = await req.formData();
-            type = form.get('type');
-            rawComment = form.get('comment');
-            const rawCategory = form.get('category');
-            if (typeof rawCategory === 'string' && IMAGE_CATEGORIES.includes(rawCategory as ProjectMasterImageCategory)) {
-                imageCategory = rawCategory as ProjectMasterImageCategory;
-            }
-            const rawFiles = form.getAll('images');
-            imageFiles = rawFiles.filter((f): f is File => f instanceof File && f.size > 0);
-        } else {
-            const body = await req.json().catch(() => ({}));
-            type = body?.type;
-            rawComment = body?.comment;
-        }
-
+        const body = await req.json().catch(() => ({}));
+        const type: unknown = body?.type;
         if (type !== 'start' && type !== 'end') {
             return validationErrorResponse('type は start または end を指定してください');
         }
 
+        const rawComment: unknown = body?.comment;
         let comment: string | null = null;
         if (rawComment !== undefined && rawComment !== null) {
             if (typeof rawComment !== 'string') {
@@ -110,9 +87,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
             comment = trimmed.length > 0 ? trimmed : null;
         }
 
-        if (imageFiles.length > 0 && !imageCategory) {
-            return validationErrorResponse('画像カテゴリ（assembly/demolition/other）を指定してください');
+        // 画像アップロード件数・カテゴリ（別エンドポイントで先にアップロード済みの想定）
+        let imageCategory: ProjectMasterImageCategory | null = null;
+        const rawImageCategory: unknown = body?.imageCategory;
+        if (typeof rawImageCategory === 'string' && IMAGE_CATEGORIES.includes(rawImageCategory as ProjectMasterImageCategory)) {
+            imageCategory = rawImageCategory as ProjectMasterImageCategory;
         }
+        const rawUploadedCount: unknown = body?.uploadedImageCount;
+        const uploadedImageCount = typeof rawUploadedCount === 'number' && rawUploadedCount > 0
+            ? Math.floor(rawUploadedCount)
+            : 0;
 
         const assignment = await prisma.projectAssignment.findUnique({
             where: { id },
@@ -179,27 +163,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             // 通知自体は継続する
         }
 
-        // 3. 画像アップロード（指定された場合）
-        let uploadedImageCount = 0;
-        if (imageFiles.length > 0 && imageCategory) {
-            const results = await Promise.all(
-                imageFiles.map((file) =>
-                    uploadProjectMasterImage({
-                        projectMasterId: assignment.projectMasterId,
-                        uploadedBy: session!.user.id,
-                        category: imageCategory!,
-                        file,
-                    })
-                )
-            );
-            uploadedImageCount = results.filter((r) => r.ok).length;
-            const failedCount = results.length - uploadedImageCount;
-            if (failedCount > 0) {
-                logger.error('[work-status] some image uploads failed', { failedCount, total: results.length });
-            }
-        }
-
-        // 4. 通知送信（admin/manager/foreman1/foreman2）
+        // 3. 通知送信（admin/manager/foreman1/foreman2）
         try {
             const recipients = await prisma.user.findMany({
                 where: {
