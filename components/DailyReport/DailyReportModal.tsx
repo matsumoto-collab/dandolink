@@ -80,7 +80,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const [commentText, setCommentText] = useState('');
     // 画像アップロード用の状態
     type ImageCategory = 'assembly' | 'demolition' | 'other';
-    const [imageCategory, setImageCategory] = useState<ImageCategory>('assembly');
+    const [imageCategory, setImageCategory] = useState<ImageCategory | null>(null);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     // 既存日報 → 詳細ビュー、新規 → 編集モード
@@ -728,7 +728,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setCommentText('');
-                                                                                setImageCategory('assembly');
+                                                                                setImageCategory(null);
                                                                                 setCommentPrompt({ assignmentId: assignment.id, projectMasterId: assignment.projectMasterId, type: 'start', title: assignment.title });
                                                                             }}
                                                                             disabled={startBusy}
@@ -742,7 +742,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setCommentText('');
-                                                                                setImageCategory('demolition');
+                                                                                setImageCategory(null);
                                                                                 setCommentPrompt({ assignmentId: assignment.id, projectMasterId: assignment.projectMasterId, type: 'end', title: assignment.title });
                                                                             }}
                                                                             disabled={endBusy}
@@ -1094,66 +1094,73 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                 {commentText.length}/100
                             </div>
                         </div>
-                        {/* 画像アップロード */}
-                        <div className="pt-2 border-t border-slate-200">
-                            <label className="block text-sm text-slate-700 mb-2">
-                                画像（任意・案件フォルダに保存されます）
-                            </label>
-                            <div className="flex gap-2 mb-2">
-                                {(['assembly', 'demolition', 'other'] as const).map(cat => {
-                                    const label = cat === 'assembly' ? '組立' : cat === 'demolition' ? '解体' : 'その他';
-                                    const active = imageCategory === cat;
-                                    return (
-                                        <button
-                                            key={cat}
-                                            type="button"
-                                            onClick={() => setImageCategory(cat)}
-                                            className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
-                                                active
-                                                    ? 'bg-slate-800 text-white border-slate-800'
-                                                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                                            }`}
-                                        >
-                                            {label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            <label className="flex items-center justify-center gap-2 px-3 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors">
-                                <ImagePlus className="w-4 h-4" />
-                                画像を選択（複数可）
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    multiple
-                                    onChange={handleImagesSelected}
-                                    className="hidden"
-                                />
-                            </label>
-                            {imagePreviews.length > 0 && (
-                                <div className="grid grid-cols-3 gap-2 mt-3">
-                                    {imagePreviews.map((src, idx) => (
-                                        <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={src} alt={`preview-${idx}`} className="w-full h-full object-cover" />
+                        {/* 画像アップロード（完了時のみ） */}
+                        {commentPrompt.type === 'end' && (
+                            <div className="pt-2 border-t border-slate-200">
+                                <label className="block text-sm text-slate-700 mb-2">
+                                    画像（任意・案件フォルダに保存されます）
+                                </label>
+                                <div className="flex gap-2 mb-2">
+                                    {(['assembly', 'demolition', 'other'] as const).map(cat => {
+                                        const label = cat === 'assembly' ? '組立' : cat === 'demolition' ? '解体' : 'その他';
+                                        const active = imageCategory === cat;
+                                        return (
                                             <button
+                                                key={cat}
                                                 type="button"
-                                                onClick={() => removeImage(idx)}
-                                                className="absolute top-1 right-1 p-1 bg-white/90 rounded-full hover:bg-white transition-colors shadow-sm"
-                                                title="削除"
+                                                onClick={() => setImageCategory(cat)}
+                                                className={`flex-1 px-3 py-2 text-sm rounded-xl border transition-colors ${
+                                                    active
+                                                        ? 'bg-slate-800 text-white border-slate-800'
+                                                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                                                }`}
                                             >
-                                                <Trash2 className="w-3.5 h-3.5 text-slate-700" />
+                                                {label}
                                             </button>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
-                            )}
-                            {imageFiles.length > 0 && (
-                                <div className="mt-2 text-xs text-slate-500">
-                                    {imageFiles.length}枚選択中
-                                </div>
-                            )}
-                        </div>
+                                <label className="flex items-center justify-center gap-2 px-3 py-2.5 border border-dashed border-slate-300 rounded-xl text-sm text-slate-600 hover:bg-slate-50 cursor-pointer transition-colors">
+                                    <ImagePlus className="w-4 h-4" />
+                                    画像を選択（複数可）
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        multiple
+                                        onChange={handleImagesSelected}
+                                        className="hidden"
+                                    />
+                                </label>
+                                {imageFiles.length > 0 && !imageCategory && (
+                                    <div className="mt-2 text-xs text-red-500">
+                                        画像を保存するカテゴリ（組立/解体/その他）を選択してください
+                                    </div>
+                                )}
+                                {imagePreviews.length > 0 && (
+                                    <div className="grid grid-cols-3 gap-2 mt-3">
+                                        {imagePreviews.map((src, idx) => (
+                                            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border border-slate-200 bg-slate-100">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={src} alt={`preview-${idx}`} className="w-full h-full object-cover" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeImage(idx)}
+                                                    className="absolute top-1 right-1 p-1 bg-white/90 rounded-full hover:bg-white transition-colors shadow-sm"
+                                                    title="削除"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5 text-slate-700" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                {imageFiles.length > 0 && (
+                                    <div className="mt-2 text-xs text-slate-500">
+                                        {imageFiles.length}枚選択中
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     <div className="flex justify-end gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
                         <button
@@ -1165,22 +1172,23 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                         </button>
                         <button
                             type="button"
+                            disabled={commentPrompt.type === 'end' && imageFiles.length > 0 && !imageCategory}
                             onClick={() => {
                                 const p = commentPrompt;
-                                const imagesPayload = imageFiles.length > 0
+                                const imagesPayload = (p.type === 'end' && imageFiles.length > 0 && imageCategory)
                                     ? { category: imageCategory, files: imageFiles }
                                     : undefined;
                                 setCommentPrompt(null);
                                 handleWorkStatus(p.assignmentId, p.projectMasterId, p.type, commentText.trim() || undefined, imagesPayload);
                             }}
-                            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-white transition-colors ${
+                            className={`flex items-center gap-1 px-4 py-2 rounded-xl text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                                 commentPrompt.type === 'start'
                                     ? 'bg-emerald-600 hover:bg-emerald-700'
                                     : 'bg-slate-700 hover:bg-slate-800'
                             }`}
                         >
                             {commentPrompt.type === 'start' ? <Play className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                            {imageFiles.length > 0 ? `通知を送信（画像${imageFiles.length}枚）` : '通知を送信'}
+                            {commentPrompt.type === 'end' && imageFiles.length > 0 ? `通知を送信（画像${imageFiles.length}枚）` : '通知を送信'}
                         </button>
                     </div>
                 </div>
