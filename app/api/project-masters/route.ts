@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
                     type: 'project-master-created',
                     title: `【新規案件登録】${projectDisplayName}`,
                     body: `顧客: ${customerDisplay} / 登録者: ${creatorName} / ${timeStr}`,
-                    url: '/project-masters',
+                    url: '/?page=project-masters',
                     pushTag: `pm-created-${projectMaster.id}`,
                     data: { projectMasterId: projectMaster.id, createdBy: session!.user.id },
                 });

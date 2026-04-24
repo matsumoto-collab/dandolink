@@ -1,10 +1,18 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import dynamic from 'next/dynamic';
-import { useNavigation } from '@/contexts/NavigationContext';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession } from 'next-auth/react';
 import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
+
+const VALID_PAGES: PageType[] = [
+    'schedule', 'my-schedule', 'project-masters', 'reports',
+    'profit-dashboard', 'estimates', 'invoices', 'orders',
+    'partners', 'customers', 'company',
+    'materials', 'inventory', 'loading-list', 'settings',
+];
 
 // 簡易ローディングコンポーネント
 function LoadingSpinner() {
@@ -75,8 +83,20 @@ function PlaceholderPage({ title }: { title: string }) {
 }
 
 export default function MainContent() {
-    const { activePage } = useNavigation();
+    const { activePage, setActivePage } = useNavigation();
     const { data: session } = useSession();
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+
+    // 通知などからのディープリンク: ?page=project-masters 等で activePage を切替
+    useEffect(() => {
+        const pageParam = searchParams?.get('page');
+        if (pageParam && VALID_PAGES.includes(pageParam as PageType)) {
+            setActivePage(pageParam as PageType);
+            router.replace(pathname);
+        }
+    }, [searchParams, setActivePage, router, pathname]);
     const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
     const [calendarNav, setCalendarNav] = useState<{
         goToPreviousWeek: () => void;
