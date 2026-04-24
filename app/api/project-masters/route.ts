@@ -208,7 +208,10 @@ export async function POST(req: NextRequest) {
         try {
             const [recipients, creator] = await Promise.all([
                 prisma.user.findMany({
-                    where: { role: { in: ['admin', 'manager'] }, isActive: true },
+                    where: {
+                        isActive: true,
+                        role: { in: ['admin', 'manager'], mode: 'insensitive' },
+                    },
                     select: { id: true },
                 }),
                 prisma.user.findUnique({
@@ -217,6 +220,10 @@ export async function POST(req: NextRequest) {
                 }),
             ]);
             const recipientIds = recipients.map(u => u.id);
+            logger.info('[ProjectMaster] notify recipients', {
+                count: recipientIds.length,
+                projectMasterId: projectMaster.id,
+            });
 
             if (recipientIds.length > 0) {
                 const creatorName = creator?.displayName || 'ユーザー';
@@ -228,7 +235,7 @@ export async function POST(req: NextRequest) {
                     timeZone: 'Asia/Tokyo',
                 }).format(projectMaster.createdAt);
 
-                await notifyUsers({
+                const result = await notifyUsers({
                     userIds: recipientIds,
                     type: 'project-master-created',
                     title: `【新規案件登録】${projectDisplayName}`,
@@ -236,6 +243,12 @@ export async function POST(req: NextRequest) {
                     url: '/project-masters',
                     pushTag: `pm-created-${projectMaster.id}`,
                     data: { projectMasterId: projectMaster.id, createdBy: session!.user.id },
+                });
+                logger.info('[ProjectMaster] notify result', {
+                    notificationIds: result.notificationIds.length,
+                    pushSent: result.push.sent,
+                    pushRemoved: result.push.removed,
+                    pushFailed: result.push.failed,
                 });
             }
         } catch (notifyError) {
