@@ -219,7 +219,9 @@ export async function POST(req: NextRequest) {
                     select: { displayName: true },
                 }),
             ]);
-            const recipientIds = recipients.map(u => u.id);
+            const recipientIds = recipients
+                .map(u => u.id)
+                .filter(id => id !== session!.user.id);
             logger.info('[ProjectMaster] notify recipients', {
                 count: recipientIds.length,
                 projectMasterId: projectMaster.id,
