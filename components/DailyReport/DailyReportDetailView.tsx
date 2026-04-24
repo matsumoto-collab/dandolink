@@ -5,7 +5,7 @@ import { DailyReport } from '@/types/dailyReport';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useProjects } from '@/hooks/useProjects';
 import { formatDate } from '@/utils/dateUtils';
-import { Clock, FileText, Truck, User, Users, Calendar, Trash2 } from 'lucide-react';
+import { Clock, FileText, User, Users, Calendar, Trash2 } from 'lucide-react';
 
 interface DailyReportDetailViewProps {
     report: DailyReport;
@@ -148,56 +148,6 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                     </div>
                 )}
             </div>
-
-            {/* 積込時間 */}
-            <div>
-                <h4 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                    <Truck className="w-4 h-4" />
-                    積込時間
-                </h4>
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-slate-50 rounded-lg">
-                        <div className="text-xs text-slate-500 mb-1">朝積込</div>
-                        <div className="text-base font-medium text-slate-900">
-                            {formatMinutes(report.morningLoadingMinutes)}
-                        </div>
-                    </div>
-                    <div className="p-3 bg-slate-50 rounded-lg">
-                        <div className="text-xs text-slate-500 mb-1">夕積込</div>
-                        <div className="text-base font-medium text-slate-900">
-                            {formatMinutes(report.eveningLoadingMinutes)}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* 早出・残業 */}
-            {(report.earlyStartMinutes > 0 || report.overtimeMinutes > 0) && (
-                <div>
-                    <h4 className="text-sm font-medium text-slate-700 mb-3 flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        早出・残業
-                    </h4>
-                    <div className="grid grid-cols-2 gap-3">
-                        {report.earlyStartMinutes > 0 && (
-                            <div className="p-3 bg-slate-50 rounded-lg">
-                                <div className="text-xs text-slate-500 mb-1">早出</div>
-                                <div className="text-base font-medium text-slate-900">
-                                    {formatMinutes(report.earlyStartMinutes)}
-                                </div>
-                            </div>
-                        )}
-                        {report.overtimeMinutes > 0 && (
-                            <div className="p-3 bg-slate-50 rounded-lg">
-                                <div className="text-xs text-slate-500 mb-1">残業</div>
-                                <div className="text-base font-medium text-slate-900">
-                                    {formatMinutes(report.overtimeMinutes)}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
 
             {/* 備考 */}
             {report.notes && (

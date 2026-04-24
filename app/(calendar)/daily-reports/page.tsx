@@ -51,7 +51,7 @@ export default function DailyReportPage() {
     const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
 
     // ソート
-    type SortKey = 'date' | 'foreman' | 'workTime' | 'loading' | 'earlyStart' | 'overtime';
+    type SortKey = 'date' | 'foreman' | 'workTime';
     type SortDir = 'asc' | 'desc';
     const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -140,15 +140,6 @@ export default function DailyReportPage() {
                         cmp = totalA - totalB;
                         break;
                     }
-                    case 'loading':
-                        cmp = (a.morningLoadingMinutes + a.eveningLoadingMinutes) - (b.morningLoadingMinutes + b.eveningLoadingMinutes);
-                        break;
-                    case 'earlyStart':
-                        cmp = a.earlyStartMinutes - b.earlyStartMinutes;
-                        break;
-                    case 'overtime':
-                        cmp = a.overtimeMinutes - b.overtimeMinutes;
-                        break;
                 }
                 return sortDir === 'asc' ? cmp : -cmp;
             });
@@ -279,7 +270,7 @@ export default function DailyReportPage() {
             <div className="flex-1 min-h-0 overflow-y-auto md:border md:border-slate-200 md:rounded-xl md:bg-white">
             {/* デスクトップ: テーブルヘッダー（sticky） */}
             <div className="hidden md:block bg-slate-100 border-b border-slate-200 select-none sticky top-0 z-10 md:rounded-t-xl">
-                <div className="grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 text-xs font-bold text-slate-800 uppercase tracking-wider">
+                <div className="grid grid-cols-[120px_100px_1fr_50px] gap-2 px-4 py-3 text-xs font-bold text-slate-800 uppercase tracking-wider">
                     <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('date')}>
                         <Calendar className="w-3.5 h-3.5" />
                         日付
@@ -293,18 +284,6 @@ export default function DailyReportPage() {
                         <Clock className="w-3.5 h-3.5" />
                         作業時間
                         <SortIcon column="workTime" />
-                    </div>
-                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('loading')}>
-                        積込時間
-                        <SortIcon column="loading" />
-                    </div>
-                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('earlyStart')}>
-                        早出
-                        <SortIcon column="earlyStart" />
-                    </div>
-                    <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('overtime')}>
-                        残業
-                        <SortIcon column="overtime" />
                     </div>
                     <div></div>
                 </div>
@@ -363,16 +342,11 @@ export default function DailyReportPage() {
                                                 </div>
                                             ))}
                                         </div>
-                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
-                                            <span>積込 朝{formatMinutes(report.morningLoadingMinutes)} / 夕{formatMinutes(report.eveningLoadingMinutes)}</span>
-                                            {report.earlyStartMinutes > 0 && <span>早出 {formatMinutes(report.earlyStartMinutes)}</span>}
-                                            {report.overtimeMinutes > 0 && <span>残業 {formatMinutes(report.overtimeMinutes)}</span>}
-                                        </div>
                                         <LastUpdatedLabel updatedAt={report.updatedAt} updatedBy={report.updatedBy} />
                                     </div>
 
                                     {/* デスクトップ表示 */}
-                                    <div className="hidden md:grid grid-cols-[120px_100px_1fr_140px_80px_80px_50px] gap-2 px-4 py-3 items-center">
+                                    <div className="hidden md:grid grid-cols-[120px_100px_1fr_50px] gap-2 px-4 py-3 items-center">
                                         <div className="text-[12px] font-semibold text-slate-900">
                                             {formatDate(report.date, 'full')}
                                         </div>
@@ -388,17 +362,6 @@ export default function DailyReportPage() {
                                                 </span>
                                             ))}
                                             {workItemSummaries.length === 0 && <span className="text-slate-400">-</span>}
-                                        </div>
-                                        <div className="text-[12px] text-slate-700">
-                                            <span className="text-slate-500">朝</span> {formatMinutes(report.morningLoadingMinutes)}
-                                            <span className="mx-1.5 text-slate-300">|</span>
-                                            <span className="text-slate-500">夕</span> {formatMinutes(report.eveningLoadingMinutes)}
-                                        </div>
-                                        <div className="text-[12px] text-slate-700">
-                                            {report.earlyStartMinutes > 0 ? formatMinutes(report.earlyStartMinutes) : <span className="text-slate-300">-</span>}
-                                        </div>
-                                        <div className="text-[12px] text-slate-700">
-                                            {report.overtimeMinutes > 0 ? formatMinutes(report.overtimeMinutes) : <span className="text-slate-300">-</span>}
                                         </div>
                                         <div className="flex justify-end">
                                             <button
