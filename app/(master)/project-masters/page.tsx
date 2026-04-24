@@ -38,7 +38,7 @@ const InvoiceDetailModal = dynamic(
 );
 
 export default function ProjectMasterListPage() {
-    const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById } = useProjectMasters();
+    const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById, fetchProjectMasters } = useProjectMasters();
     const { addEstimate, updateEstimate, deleteEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
     const { addInvoice, updateInvoice, deleteInvoice, ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
@@ -96,6 +96,13 @@ export default function ProjectMasterListPage() {
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, filterStatus]);
+
+    // 通知からの遷移など、ページを開いたタイミングで最新データを取得
+    // （ストアが初期化済みでも、hidden中に発生した新規案件を取りこぼさないため）
+    useEffect(() => {
+        fetchProjectMasters();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // 見積/請求カラムのために各ストアを遅延ロード
     useEffect(() => {

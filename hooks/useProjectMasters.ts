@@ -3,7 +3,7 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
+import { useRealtimeSubscription, usePageVisible } from '@/hooks/useRealtimeSubscription';
 import { ProjectMaster } from '@/types/calendar';
 import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
 
@@ -112,6 +112,22 @@ export function useProjectMasters() {
         ];
         return () => cleanups.forEach(c => c());
     }, [status, debouncedFetch]);
+
+    // タブが hidden → visible に戻ったら取りこぼしを埋めるため再フェッチ
+    // （非表示中は Realtime WebSocket が切断されるため、その間の変更を補完）
+    const isVisible = usePageVisible();
+    const wasHiddenRef = useRef(false);
+    useEffect(() => {
+        if (status !== 'authenticated' || !isInitialized) return;
+        if (!isVisible) {
+            wasHiddenRef.current = true;
+            return;
+        }
+        if (wasHiddenRef.current) {
+            wasHiddenRef.current = false;
+            debouncedFetch();
+        }
+    }, [isVisible, status, isInitialized, debouncedFetch]);
 
     return {
         projectMasters,
