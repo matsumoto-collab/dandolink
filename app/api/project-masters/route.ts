@@ -216,9 +216,7 @@ export async function POST(req: NextRequest) {
                     select: { displayName: true },
                 }),
             ]);
-            const recipientIds = recipients
-                .map(u => u.id)
-                .filter(id => id !== session!.user.id);
+            const recipientIds = recipients.map(u => u.id);
 
             if (recipientIds.length > 0) {
                 const creatorName = creator?.displayName || 'ユーザー';
