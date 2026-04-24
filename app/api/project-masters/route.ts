@@ -4,6 +4,8 @@ import { requireAuth, stringifyJsonField, errorResponse, validationErrorResponse
 import { canDispatch } from '@/utils/permissions';
 import { createProjectMasterSchema, validateRequest } from '@/lib/validations';
 import { formatProjectMaster, stripProjectMasterFinancials } from '@/lib/formatters';
+import { notifyUsers } from '@/lib/notifications';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/project-masters - 案件マスター一覧取得
@@ -201,6 +203,46 @@ export async function POST(req: NextRequest) {
             },
             include: { subcontractorCosts: true },
         });
+
+        // 管理者・マネージャーへ新規案件登録の通知（失敗しても案件作成は成功扱い）
+        try {
+            const [recipients, creator] = await Promise.all([
+                prisma.user.findMany({
+                    where: { role: { in: ['admin', 'manager'] }, isActive: true },
+                    select: { id: true },
+                }),
+                prisma.user.findUnique({
+                    where: { id: session!.user.id },
+                    select: { displayName: true },
+                }),
+            ]);
+            const recipientIds = recipients
+                .map(u => u.id)
+                .filter(id => id !== session!.user.id);
+
+            if (recipientIds.length > 0) {
+                const creatorName = creator?.displayName || 'ユーザー';
+                const projectDisplayName = projectMaster.name || projectMaster.title || '（名称未設定）';
+                const customerDisplay = projectMaster.customerShortName || projectMaster.customerName || '未設定';
+                const timeStr = new Intl.DateTimeFormat('ja-JP', {
+                    year: 'numeric', month: 'numeric', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit',
+                    timeZone: 'Asia/Tokyo',
+                }).format(projectMaster.createdAt);
+
+                await notifyUsers({
+                    userIds: recipientIds,
+                    type: 'project-master-created',
+                    title: `【新規案件登録】${projectDisplayName}`,
+                    body: `顧客: ${customerDisplay} / 登録者: ${creatorName} / ${timeStr}`,
+                    url: '/project-masters',
+                    pushTag: `pm-created-${projectMaster.id}`,
+                    data: { projectMasterId: projectMaster.id, createdBy: session!.user.id },
+                });
+            }
+        } catch (notifyError) {
+            logger.error('[ProjectMaster] 新規案件通知の送信に失敗', notifyError);
+        }
 
         return NextResponse.json(formatProjectMaster(projectMaster));
     } catch (error) {
