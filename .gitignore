@@ -40,6 +40,10 @@ TESTING_STATUS.md
 # Vercel
 .vercel
 
+# pdfjs-dist assets (postinstall/buildでscripts/copy-pdfjs-assets.jsが生成)
+public/cmaps/
+public/standard_fonts/
+
 # Secrets and tokens
 *.pem
 *パスワード*.txt

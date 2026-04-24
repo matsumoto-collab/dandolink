@@ -48,7 +48,14 @@ async function pdfToImages(pdfFile: Blob): Promise<{ blob: Blob; name: string }[
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
     const arrayBuffer = await pdfFile.arrayBuffer();
-    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    // CJK(日本語等)の CIDフォント描画には cMaps が、PDF標準14フォントには standard_fonts が必要
+    // public/ 配下に scripts/copy-pdfjs-assets.js で配置している
+    const pdf = await pdfjs.getDocument({
+        data: arrayBuffer,
+        cMapUrl: '/cmaps/',
+        cMapPacked: true,
+        standardFontDataUrl: '/standard_fonts/',
+    }).promise;
     const results: { blob: Blob; name: string }[] = [];
 
     for (let i = 1; i <= pdf.numPages; i++) {
