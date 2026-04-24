@@ -12,7 +12,7 @@ export async function GET() {
             orderBy: { startDate: 'asc' },
         });
         return NextResponse.json(history, {
-            headers: { 'Cache-Control': 'no-store' },
+            headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=120, must-revalidate' },
         });
     } catch (error) {
         return serverErrorResponse('メンバー数履歴取得', error);

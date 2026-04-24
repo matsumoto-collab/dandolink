@@ -95,16 +95,22 @@ export function useProjects() {
                 currentDateRangeRef.current = { start: startStr, end: endStr };
                 await fetchAssignmentsStore(startStr, endStr);
 
-                // Fetch cell remarks if not initialized
-                if (!useCalendarStore.getState().cellRemarksInitialized) {
-                    fetchCellRemarksStore();
-                }
-                // Fetch member adjustments if not initialized
-                if (!useCalendarStore.getState().memberAdjustmentsInitialized) {
-                    fetchMemberAdjustmentsStore();
-                }
-
                 resolvers.forEach(r => r());
+
+                // 副次データ（カードに直接出ない）は初回paintを邪魔しないよう遅延フェッチ
+                const idle = (cb: () => void) => {
+                    const w = typeof window !== 'undefined' ? window as Window & { requestIdleCallback?: (cb: () => void) => void } : null;
+                    if (w?.requestIdleCallback) w.requestIdleCallback(cb);
+                    else setTimeout(cb, 500);
+                };
+                idle(() => {
+                    if (!useCalendarStore.getState().cellRemarksInitialized) {
+                        fetchCellRemarksStore();
+                    }
+                    if (!useCalendarStore.getState().memberAdjustmentsInitialized) {
+                        fetchMemberAdjustmentsStore();
+                    }
+                });
             }, 300);
         });
     }, [fetchAssignmentsStore, fetchCellRemarksStore, fetchMemberAdjustmentsStore]);
@@ -229,10 +235,11 @@ export function useProjects() {
     }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore, updateProjectMasterInAssignmentsStore]);
 
     // Supabase broadcast シングルトンを初期化し、案件配置・セル備考の受信リスナーを登録
+    // 起動直後のネットワーク集中を避けるため、初期化を少し遅らせる
     useEffect(() => {
         if (status !== 'authenticated') return;
 
-        initBroadcastChannel();
+        const initTimer = setTimeout(() => initBroadcastChannel(), 800);
 
         const cleanups = [
             onBroadcast('assignment_updated', (payload) => {
@@ -258,7 +265,10 @@ export function useProjects() {
             }),
         ];
 
-        return () => cleanups.forEach(cleanup => cleanup());
+        return () => {
+            clearTimeout(initTimer);
+            cleanups.forEach(cleanup => cleanup());
+        };
     }, [status, fetchAndUpsertAssignment, removeAssignmentByIdStore]);
 
     // BroadcastChannel セットアップ（同一デバイスの別タブへ通知）

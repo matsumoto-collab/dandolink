@@ -18,7 +18,7 @@ export async function GET() {
             orderBy: { displayName: 'asc' },
         });
 
-        return NextResponse.json(foremen, { headers: { 'Cache-Control': 'no-store' } });
+        return NextResponse.json(foremen, { headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=120, must-revalidate' } });
     } catch (error) {
         return serverErrorResponse('職長一覧取得', error);
     }

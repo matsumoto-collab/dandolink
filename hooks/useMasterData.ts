@@ -39,14 +39,11 @@ export function useMasterData() {
     }, [status, isInitialized, fetchMasterData]);
 
     // Setup realtime subscription when authenticated
+    // マスタデータは変更頻度が低いので、初回paintを邪魔しないよう少し遅延させる
     useEffect(() => {
-        if (status === 'authenticated') {
-            setupRealtimeSubscription();
-        }
-
-        return () => {
-            // Cleanup is handled by the store
-        };
+        if (status !== 'authenticated') return;
+        const timer = setTimeout(() => setupRealtimeSubscription(), 1000);
+        return () => clearTimeout(timer);
     }, [status, setupRealtimeSubscription]);
 
     return {

@@ -197,7 +197,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         return () => { if (fetchTimerRef.current) clearTimeout(fetchTimerRef.current); };
     }, [currentDate, status, isMounted, fetchForDateRange]);
 
-    // ポーリング: 60秒ごとに最新データを再取得（Supabase Realtime broadcast の補完）
+    // ポーリング: 120秒ごとに最新データを再取得（Supabase Realtime broadcast の補完）
     // - タブがバックグラウンドのときはスキップ（バッテリー節約）
     // - タブに戻ったら即時再取得
     // currentDateをrefで参照し、インターバルの再作成を防ぐ
@@ -214,7 +214,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         };
         const intervalId = setInterval(() => {
             if (document.visibilityState === 'visible') refresh();
-        }, 60_000);
+        }, 120_000);
         const onVisible = () => {
             if (document.visibilityState === 'visible') refresh();
         };

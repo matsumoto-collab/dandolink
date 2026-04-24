@@ -70,10 +70,11 @@ export const useMasterStore = create<MasterStore>()(
             set({ isLoading: true });
             try {
                 // Fetch master data and construction types in parallel
+                // 初回はブラウザHTTPキャッシュ(private, max-age=10〜30)を活用してラウンドトリップを削減
                 const [masterResponse, constructionTypesResponse, historyResponse] = await Promise.all([
-                    fetch('/api/master-data', { cache: 'no-store' }),
-                    fetch('/api/master-data/construction-types', { cache: 'no-store' }),
-                    fetch('/api/master-data/member-count-history', { cache: 'no-store' }),
+                    fetch('/api/master-data'),
+                    fetch('/api/master-data/construction-types'),
+                    fetch('/api/master-data/member-count-history'),
                 ]);
 
                 let constructionTypes: ConstructionTypeMaster[] = [];
@@ -104,7 +105,7 @@ export const useMasterStore = create<MasterStore>()(
         },
 
         refreshMasterData: async () => {
-            // Force refresh without checking isLoading
+            // Realtime通知後の強制再フェッチなのでキャッシュをバイパスする
             try {
                 const [masterResponse, constructionTypesResponse, historyResponse] = await Promise.all([
                     fetch('/api/master-data', { cache: 'no-store' }),
@@ -177,7 +178,7 @@ export const useMasterStore = create<MasterStore>()(
         // Member count history
         fetchMemberCountHistory: async () => {
             try {
-                const res = await fetch('/api/master-data/member-count-history', { cache: 'no-store' });
+                const res = await fetch('/api/master-data/member-count-history');
                 if (res.ok) {
                     const history: MemberCountHistoryEntry[] = await res.json();
                     set({ memberCountHistory: history });

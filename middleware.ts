@@ -21,12 +21,16 @@ export default withAuth(
     async function middleware(req: NextRequestWithAuth) {
         // APIルートへのアクセスに対してのみレートリミットを適用
         if (req.nextUrl.pathname.startsWith('/api/') && apiRateLimiter) {
+            // 認証済みなら userId をキーに（同一拠点NAT配下で誤発動するのを防ぐ）
+            // 未認証は IP にフォールバック
+            const userId = (req.nextauth?.token?.sub || req.nextauth?.token?.id) as string | undefined;
             const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
                 || req.headers.get('x-real-ip')
                 || 'unknown';
+            const limitKey = userId ? `user:${userId}` : `ip:${ip}`;
 
             try {
-                const { success, limit, remaining, reset } = await apiRateLimiter.limit(ip);
+                const { success, limit, remaining, reset } = await apiRateLimiter.limit(limitKey);
                 if (!success) {
                     return NextResponse.json(
                         { error: 'リクエスト数が上限を超えました。しばらく待ってから再試行してください。' },
