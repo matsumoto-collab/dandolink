@@ -212,6 +212,21 @@ export function addDays(date: Date, days: number): Date {
 }
 
 /**
+ * "HH:MM" 形式の開始/終了時刻から差分を分単位で算出。
+ * 終了時刻が開始時刻より前の場合は翌日扱いで24時間を加算する（夜間作業対応）。
+ * 不正な入力（NaN等）は0を返す。
+ */
+export function calcTimeDiffMinutes(startTime: string, endTime: string): number {
+    if (!startTime || !endTime) return 0;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    if ([sh, sm, eh, em].some(v => Number.isNaN(v))) return 0;
+    let diff = (eh * 60 + em) - (sh * 60 + sm);
+    if (diff < 0) diff += 24 * 60;
+    return diff;
+}
+
+/**
  * 月の最初の日を取得
  * @param date 基準となる日付
  * @returns 月の最初の日

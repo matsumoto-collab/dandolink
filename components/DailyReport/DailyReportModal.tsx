@@ -10,6 +10,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { DailyReport, DailyReportInput } from '@/types/dailyReport';
 import { X, Clock, Save, Loader2, FileText, AlertCircle, ChevronLeft, ChevronRight, User, Users, Play, Square, ImagePlus, Trash2 } from 'lucide-react';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { calcTimeDiffMinutes } from '@/utils/dateUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import DailyReportDetailView from './DailyReportDetailView';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
@@ -150,11 +151,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
     };
 
-    // 時間差分を分数で計算
+    // 時間差分を分数で計算（終了が開始より前なら翌日扱い）
     const calcMinutesDiff = (start: string, end: string): number => {
-        const s = parseTimeString(start, 0, 0);
-        const e = parseTimeString(end, 0, 0);
-        return (e.hour * 60 + e.minute) - (s.hour * 60 + s.minute);
+        return calcTimeDiffMinutes(start, end);
     };
 
     // モーダルオープン時のみ日付を初期化（日付ナビゲーション時はリセットしない）

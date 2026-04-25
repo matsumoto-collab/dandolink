@@ -1,4 +1,5 @@
 // 原価計算ユーティリティ
+import { calcTimeDiffMinutes } from './dateUtils';
 
 export interface LaborSettings {
     laborDailyRate: number;      // 基本日当（円）
@@ -39,9 +40,7 @@ export function calculateLaborCost(
     if (!startTime || !endTime) return 0;
     const { laborDailyRate, standardWorkMinutes } = settings;
     const minuteRate = laborDailyRate / standardWorkMinutes;
-    const [sh, sm] = startTime.split(':').map(Number);
-    const [eh, em] = endTime.split(':').map(Number);
-    const workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+    const workMinutes = calcTimeDiffMinutes(startTime, endTime);
     return Math.round(workMinutes * workerCount * minuteRate);
 }
 

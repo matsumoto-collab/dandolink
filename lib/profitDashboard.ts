@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { parseJsonField } from '@/lib/json-utils';
+import { calcTimeDiffMinutes } from '@/utils/dateUtils';
 
 export type RevenueSource = 'invoice' | 'contract' | 'estimate' | 'none';
 
@@ -302,12 +303,10 @@ export async function fetchProfitDashboardData(
             ? workerIds.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
             : (item.assignment.memberCount || 1) * defaultMinuteRate;
 
-        // startTime/endTimeから作業分数を計算（休憩時間を差し引き）
+        // startTime/endTimeから作業分数を計算（休憩時間を差し引き、夜間作業は翌日扱い）
         let workMinutes = 0;
         if (item.startTime && item.endTime) {
-            const [sh, sm] = item.startTime.split(':').map(Number);
-            const [eh, em] = item.endTime.split(':').map(Number);
-            workMinutes = Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (item.breakMinutes || 0));
+            workMinutes = Math.max(0, calcTimeDiffMinutes(item.startTime, item.endTime) - (item.breakMinutes || 0));
         }
 
         // 人件費

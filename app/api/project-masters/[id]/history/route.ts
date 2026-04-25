@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, parseJsonField, serverErrorResponse } from '@/lib/api/utils';
+import { calcTimeDiffMinutes } from '@/utils/dateUtils';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -51,10 +52,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                 isConfirmed: a.isDispatchConfirmed, remarks: a.remarks,
                 workTimeMinutes: a.dailyReportWorkItems.reduce((sum, wi) => {
                     if (!wi.startTime || !wi.endTime) return sum;
-                    const [sh, sm] = wi.startTime.split(':').map(Number);
-                    const [eh, em] = wi.endTime.split(':').map(Number);
-                    const total = (eh * 60 + em) - (sh * 60 + sm) - (wi.breakMinutes || 0);
-                    return sum + Math.max(0, total);
+                    return sum + Math.max(0, calcTimeDiffMinutes(wi.startTime, wi.endTime) - (wi.breakMinutes || 0));
                 }, 0) || null,
                 createdAt: a.createdAt.toISOString(),
             };

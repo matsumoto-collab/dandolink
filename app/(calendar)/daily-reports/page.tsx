@@ -8,7 +8,7 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useDebounce } from '@/hooks/useDebounce';
 import { DailyReport } from '@/types/dailyReport';
 import { formatDateKey } from '@/utils/employeeUtils';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, calcTimeDiffMinutes } from '@/utils/dateUtils';
 import { Plus, Search, Trash2, Clock, Calendar, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import { Button } from '@/components/ui/Button';
@@ -95,9 +95,7 @@ export default function DailyReportPage() {
                 : pm?.title || '(案件名不明)';
             let minutes = 0;
             if (item.startTime && item.endTime) {
-                const [sh, sm] = item.startTime.split(':').map(Number);
-                const [eh, em] = item.endTime.split(':').map(Number);
-                const gross = (eh * 60 + em) - (sh * 60 + sm);
+                const gross = calcTimeDiffMinutes(item.startTime, item.endTime);
                 minutes = Math.max(0, gross - (item.breakMinutes ?? 0));
             }
             return { title, minutes };
@@ -132,18 +130,12 @@ export default function DailyReportPage() {
                         cmp = getForemanName(a.foremanId).localeCompare(getForemanName(b.foremanId));
                         break;
                     case 'workTime': {
-                        const totalA = a.workItems.reduce((s, i) => {
+                        const sumNet = (items: typeof a.workItems) => items.reduce((s, i) => {
                             if (!i.startTime || !i.endTime) return s;
-                            const [sh, sm] = i.startTime.split(':').map(Number);
-                            const [eh, em] = i.endTime.split(':').map(Number);
-                            return s + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (i.breakMinutes ?? 0));
+                            return s + Math.max(0, calcTimeDiffMinutes(i.startTime, i.endTime) - (i.breakMinutes ?? 0));
                         }, 0);
-                        const totalB = b.workItems.reduce((s, i) => {
-                            if (!i.startTime || !i.endTime) return s;
-                            const [sh, sm] = i.startTime.split(':').map(Number);
-                            const [eh, em] = i.endTime.split(':').map(Number);
-                            return s + Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - (i.breakMinutes ?? 0));
-                        }, 0);
+                        const totalA = sumNet(a.workItems);
+                        const totalB = sumNet(b.workItems);
                         cmp = totalA - totalB;
                         break;
                     }

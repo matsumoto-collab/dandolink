@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, parseJsonField, notFoundResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
+import { calcTimeDiffMinutes } from '@/utils/dateUtils';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -123,9 +124,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null, breakMins: number): number => {
             if (!startTime || !endTime) return 0;
-            const [sh, sm] = startTime.split(':').map(Number);
-            const [eh, em] = endTime.split(':').map(Number);
-            return Math.max(0, (eh * 60 + em) - (sh * 60 + sm) - breakMins);
+            return Math.max(0, calcTimeDiffMinutes(startTime, endTime) - breakMins);
         };
 
         // 各dailyReport配下の全workItemの合計作業分数を計算（積込費按分用）

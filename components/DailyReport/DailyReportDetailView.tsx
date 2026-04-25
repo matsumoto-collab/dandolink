@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { DailyReport } from '@/types/dailyReport';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useProjects } from '@/hooks/useProjects';
-import { formatDate } from '@/utils/dateUtils';
+import { formatDate, calcTimeDiffMinutes } from '@/utils/dateUtils';
 import { Clock, FileText, User, Users, Calendar, Trash2 } from 'lucide-react';
 
 interface DailyReportDetailViewProps {
@@ -43,11 +43,9 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
         return `${hours}:${mins.toString().padStart(2, '0')}`;
     };
 
-    // 作業時間の差分計算
+    // 作業時間の差分計算（終了が開始より前なら翌日扱い）
     const calcWorkMinutes = (startTime: string, endTime: string): number => {
-        const [sh, sm] = startTime.split(':').map(Number);
-        const [eh, em] = endTime.split(':').map(Number);
-        return Math.max(0, (eh * 60 + em) - (sh * 60 + sm));
+        return calcTimeDiffMinutes(startTime, endTime);
     };
 
     // 総作業時間（休憩差引後）
