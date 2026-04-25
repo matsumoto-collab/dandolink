@@ -103,6 +103,7 @@ export default function ProjectCostEditor({ projectMasterId, initialValues, onSa
     };
 
     const handleAutoCalc = async () => {
+        if (!projectMasterId) return;
         setIsCalculating(true);
         try {
             const [profitRes, settingsRes] = await Promise.all([
@@ -164,6 +165,7 @@ export default function ProjectCostEditor({ projectMasterId, initialValues, onSa
     };
 
     const handleSave = async () => {
+        if (!projectMasterId) return;
         // バリデーション: 種別未選択 / 重複のチェック
         const seen = new Set<string>();
         for (const r of rows) {

@@ -78,6 +78,7 @@ export default function MySchedulePage() {
     const [detailPm, setDetailPm] = useState<ProjectMaster | null>(null);
 
     const handleProjectClick = useCallback(async (projectMasterId: string) => {
+        if (!projectMasterId) return;
         try {
             const res = await fetch(`/api/project-masters/${projectMasterId}`, { cache: 'no-store' });
             if (!res.ok) throw new Error('案件情報の取得に失敗しました');
@@ -204,6 +205,7 @@ export default function MySchedulePage() {
     }, [session?.user, debouncedFetchData]);
 
     const handleUpdateProjectMaster = useCallback(async (id: string, formData: ProjectMasterFormData) => {
+        if (!id) return;
         isUpdatingRef.current = true;
         try {
             const res = await fetch(`/api/project-masters/${id}`, {

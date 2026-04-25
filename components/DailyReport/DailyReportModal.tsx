@@ -350,6 +350,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         category: ImageCategory,
         files: File[]
     ): Promise<{ uploadedCount: number; failedCount: number; firstError?: string }> => {
+        if (!projectMasterId) return { uploadedCount: 0, failedCount: files.length, firstError: 'projectMasterId is missing' };
         const results = await Promise.all(
             files.map(async (file): Promise<{ ok: boolean; error?: string }> => {
                 try {

@@ -68,6 +68,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
      */
     const handleDownload = useCallback(async (file: ProjectMasterFileData, format?: string) => {
         if (downloadingId) return;
+        if (!projectMasterId) return;
         setDownloadingId(file.id);
         try {
             const params = new URLSearchParams();
@@ -108,6 +109,10 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     }, [downloadingId, projectMasterId]);
 
     const fetchFiles = useCallback(async () => {
+        if (!projectMasterId) {
+            setIsLoading(false);
+            return;
+        }
         try {
             const res = await fetch(`/api/project-masters/${projectMasterId}/files`);
             if (!res.ok) return;

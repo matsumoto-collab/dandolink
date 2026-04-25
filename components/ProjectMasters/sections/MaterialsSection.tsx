@@ -24,6 +24,10 @@ export default function MaterialsSection({ projectMasterId }: MaterialsSectionPr
 
     // Fetch project materials
     const fetchProjectMaterials = useCallback(async () => {
+        if (!projectMasterId) {
+            setIsLoading(false);
+            return;
+        }
         setIsLoading(true);
         try {
             const res = await fetch(`/api/project-masters/${projectMasterId}/materials`, { cache: 'no-store' });
@@ -79,6 +83,7 @@ export default function MaterialsSection({ projectMasterId }: MaterialsSectionPr
     };
 
     const handleSave = async () => {
+        if (!projectMasterId) return;
         setIsSaving(true);
         try {
             const items = Object.entries(quantities)

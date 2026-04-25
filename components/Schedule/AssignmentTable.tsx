@@ -20,7 +20,7 @@ interface AssignmentTableProps {
 
 export default function AssignmentTable({ userRole = 'manager', userTeamId }: AssignmentTableProps) {
     const { status } = useSession();
-    const { projects, fetchForDateRange, updateProject } = useProjects();
+    const { projects, fetchForDateRange, updateProject, isLoading } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
     const { constructionTypes } = useMasterData();
 
@@ -171,7 +171,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 <div className="flex items-center justify-between gap-3">
                     <button
                         onClick={() => changeDate(-1)}
-                        className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        disabled={isLoading}
+                        className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <ChevronLeft className="w-5 h-5 text-slate-500" />
                     </button>
@@ -198,7 +199,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
 
                     <button
                         onClick={() => changeDate(1)}
-                        className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors"
+                        disabled={isLoading}
+                        className="p-2.5 rounded-xl hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <ChevronRight className="w-5 h-5 text-slate-500" />
                     </button>

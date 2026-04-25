@@ -8,6 +8,9 @@ import toast from 'react-hot-toast';
 const MAX_RETRY_COUNT = 3;
 const DEFAULT_RETRY_DELAY_MS = 2000;
 
+// 連打時に前回の in-flight リクエストをキャンセルするためのコントローラ
+let currentAbortController: AbortController | null = null;
+
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
     Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
 
@@ -17,14 +20,21 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     projectsInitialized: false,
 
     fetchAssignments: async (startDate, endDate, _retryCount = 0) => {
-        if (_retryCount === 0) set({ projectsLoading: true });
+        if (_retryCount === 0) {
+            if (currentAbortController) {
+                currentAbortController.abort();
+            }
+            currentAbortController = new AbortController();
+            set({ projectsLoading: true });
+        }
+        const signal = currentAbortController?.signal;
         try {
             const params = new URLSearchParams();
             if (startDate) params.append('startDate', startDate);
             if (endDate) params.append('endDate', endDate);
             const url = `/api/assignments${params.toString() ? `?${params}` : ''}`;
 
-            const response = await fetch(url, { cache: 'no-store' });
+            const response = await fetch(url, { cache: 'no-store', signal });
             if (response.ok) {
                 const data = await response.json();
                 const parsed = data.map((a: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; workStartedAt?: string | null; workEndedAt?: string | null; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } }) => ({
@@ -55,10 +65,14 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 set({ projectsInitialized: true });
             }
         } catch (error) {
+            // 新しいリクエストに abort された場合は無視
+            if (error instanceof DOMException && error.name === 'AbortError') {
+                return;
+            }
             logger.error('Failed to fetch assignments:', error);
             set({ projectsInitialized: true });
         } finally {
-            if (_retryCount === 0) set({ projectsLoading: false });
+            if (_retryCount === 0 && !signal?.aborted) set({ projectsLoading: false });
         }
     },
 

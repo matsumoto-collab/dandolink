@@ -196,8 +196,10 @@ export function useProjects() {
                             if (!isUpdatingRef.current) {
                                 // DELETE の場合は対応するアサインも削除されるので無視
                                 if (payload.eventType === 'DELETE') return;
+                                const pmId = (payload.new as { id?: string })?.id;
+                                if (!pmId) return;
                                 try {
-                                    const res = await fetch(`/api/project-masters/${payload.new.id}`);
+                                    const res = await fetch(`/api/project-masters/${pmId}`);
                                     if (res.ok) {
                                         const pm = await res.json();
                                         updateProjectMasterInAssignmentsStore({

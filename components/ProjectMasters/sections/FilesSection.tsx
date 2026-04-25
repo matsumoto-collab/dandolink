@@ -105,6 +105,10 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchFiles = useCallback(async () => {
+        if (!projectMasterId) {
+            setIsLoading(false);
+            return;
+        }
         try {
             const res = await fetch(`/api/project-masters/${projectMasterId}/files`);
             if (!res.ok) throw new Error('取得失敗');
@@ -125,6 +129,10 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
     const handleUpload = async (fileList: FileList | null) => {
         if (!fileList || fileList.length === 0) return;
+        if (!projectMasterId) {
+            toast.error('案件保存後にアップロードできます');
+            return;
+        }
 
         const rawFiles = Array.from(fileList);
         setUploading(true);
@@ -227,6 +235,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
     const handleDelete = async (fileId: string, fileName: string) => {
         if (!confirm(`「${fileName}」を削除しますか？`)) return;
+        if (!projectMasterId) return;
 
         setDeletingId(fileId);
         try {
@@ -253,6 +262,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     const [downloadMenuId, setDownloadMenuId] = useState<string | null>(null);
 
     const handleDownload = (file: ProjectMasterFileData, format?: string) => {
+        if (!projectMasterId) return;
         const params = new URLSearchParams();
         if (format) {
             params.set('format', format);
