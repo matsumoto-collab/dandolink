@@ -6,6 +6,7 @@ import {
     notFoundResponse,
     serverErrorResponse,
     validationErrorResponse,
+    parseJsonField,
 } from '@/lib/api/utils';
 import { formatAssignment } from '@/lib/formatters';
 import { notifyUsers } from '@/lib/notifications';
@@ -106,30 +107,42 @@ export async function POST(req: NextRequest, context: RouteContext) {
         });
         if (!assignment) return notFoundResponse('配置');
 
-        // 権限: 担当職長本人 もしくは admin/manager のみ押せる
+        // 権限: 担当職長本人 / 確定メンバー / admin・manager のみ押せる
         const role = session!.user.role;
         const isOwner = session!.user.id === assignment.assignedEmployeeId;
         const isManager = role === 'admin' || role === 'manager';
-        if (!isOwner && !isManager) {
+        const confirmedWorkerIds = parseJsonField<string[]>(assignment.confirmedWorkerIds, []);
+        const isConfirmedWorker = confirmedWorkerIds.includes(session!.user.id);
+        if (!isOwner && !isManager && !isConfirmedWorker) {
             return errorResponse('この案件の開始/終了を通知する権限がありません', 403);
         }
 
         const now = new Date();
         const { timeStr, rounded } = roundToNearestQuarterHourJst(now);
 
-        // 1. 配置本体を更新（通知済みフラグをセット）
-        const updated = await prisma.projectAssignment.update({
-            where: { id },
-            data: type === 'start'
-                ? { workStartedAt: rounded, workStartedComment: comment }
-                : { workEndedAt: rounded, workEndedComment: comment },
-            include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
-        });
+        // 1. 配置本体を更新（担当職長は常に上書き、それ以外は最初の押下のみ反映）
+        const canOverwriteAssignmentTime =
+            isOwner ||
+            (type === 'start' && !assignment.workStartedAt) ||
+            (type === 'end' && !assignment.workEndedAt);
 
-        // 2. 日報の該当案件のstartTime/endTimeを更新（upsert）
+        const updated = canOverwriteAssignmentTime
+            ? await prisma.projectAssignment.update({
+                where: { id },
+                data: type === 'start'
+                    ? { workStartedAt: rounded, workStartedComment: comment }
+                    : { workEndedAt: rounded, workEndedComment: comment },
+                include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
+            })
+            : await prisma.projectAssignment.findUniqueOrThrow({
+                where: { id },
+                include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
+            });
+
+        // 2. 押下者本人の日報のWorkItemに開始/終了時刻を反映（upsert）
         try {
             const dateOnly = toDateOnly(assignment.date);
-            const foremanId = assignment.assignedEmployeeId;
+            const foremanId = session!.user.id;
 
             const report = await prisma.dailyReport.upsert({
                 where: { foremanId_date: { foremanId, date: dateOnly } },
@@ -177,11 +190,24 @@ export async function POST(req: NextRequest, context: RouteContext) {
             const userIds = recipients.map((u) => u.id);
             logger.info('[work-status] notify recipients', { count: userIds.length, type });
 
-            const foreman = await prisma.user.findUnique({
-                where: { id: assignment.assignedEmployeeId },
-                select: { displayName: true },
-            });
+            // 担当職長と押下者を並行取得
+            const [foreman, pressor] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: assignment.assignedEmployeeId },
+                    select: { displayName: true },
+                }),
+                isOwner
+                    ? Promise.resolve(null)
+                    : prisma.user.findUnique({
+                        where: { id: session!.user.id },
+                        select: { displayName: true },
+                    }),
+            ]);
             const teamName = foreman?.displayName ? `${foreman.displayName}班` : '班';
+            // 押下者が担当職長と異なる場合はタイトルに押下者名を含める
+            const titleSuffix = pressor?.displayName
+                ? `${pressor.displayName}（${teamName}）`
+                : teamName;
 
             const pm = assignment.projectMaster;
             const baseName = pm.name || pm.title || '案件';
@@ -205,7 +231,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             await notifyUsers({
                 userIds,
                 type: type === 'start' ? 'work-started' : 'work-ended',
-                title: `【${actionLabel}】${teamName}`,
+                title: `【${actionLabel}】${titleSuffix}`,
                 body: bodyWithImages,
                 url: '/',
                 // 再押下のたびに別通知として通知するため時刻をtagに含める

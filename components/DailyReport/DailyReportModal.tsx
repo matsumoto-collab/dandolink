@@ -124,10 +124,15 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     }, [isOpen, foremanId, isAdminOrManager, allForemen]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // この日の配置を取得
+    // 自分の日報を編集中の場合は「自分が職長 OR 確定メンバー」の案件を表示し、
+    // 管理者・マネージャーが他人の日報を見るときは従来どおり担当職長の案件のみ表示
+    const isOwnReport = effectiveForemanId === session?.user?.id;
     const todayAssignments = projects.filter(p => {
         const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
-        return formatDateKey(projectDate) === dateStr &&
-            p.assignedEmployeeId === effectiveForemanId;
+        if (formatDateKey(projectDate) !== dateStr) return false;
+        if (p.assignedEmployeeId === effectiveForemanId) return true;
+        if (isOwnReport && (p.confirmedWorkerIds || []).includes(effectiveForemanId)) return true;
+        return false;
     }).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
 
     // 時間文字列をパース ("HH:MM" → hour, minute)
