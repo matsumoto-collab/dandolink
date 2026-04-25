@@ -47,7 +47,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const dateStr = formatDateKey(selectedDate);
 
     // 時間セレクト用の定数
-    const hourOptions = Array.from({ length: 16 }, (_, i) => i + 6); // 6〜21
+    const hourOptions = Array.from({ length: 24 }, (_, i) => i); // 0〜23
     const minuteOptions = [0, 15, 30, 45];
     const breakHourOptions = [0, 1, 2]; // 0〜2時間（休憩用）
 
