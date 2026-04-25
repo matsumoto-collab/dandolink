@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -30,8 +31,14 @@ const getInitialRange = () => {
 };
 
 export default function DailyReportPage() {
+    const { data: session } = useSession();
     const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports({ autoFetch: false });
     const { allForemen, getForemanName } = useCalendarDisplay();
+
+    // 削除可能か: 本人または管理者・マネージャーのみ
+    const userRole = session?.user?.role;
+    const canDeleteReport = (foremanId: string) =>
+        userRole === 'admin' || userRole === 'manager' || foremanId === session?.user?.id;
 
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -325,12 +332,14 @@ export default function DailyReportPage() {
                                                     {getForemanName(report.foremanId)}
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={(e) => handleDelete(e, report.id)}
-                                                className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                                            {canDeleteReport(report.foremanId) && (
+                                                <button
+                                                    onClick={(e) => handleDelete(e, report.id)}
+                                                    className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
                                         </div>
                                         {/* 案件ごとの作業時間 */}
                                         <div className="space-y-1 mb-2">
@@ -364,12 +373,14 @@ export default function DailyReportPage() {
                                             {workItemSummaries.length === 0 && <span className="text-slate-400">-</span>}
                                         </div>
                                         <div className="flex justify-end">
-                                            <button
-                                                onClick={(e) => handleDelete(e, report.id)}
-                                                className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                                            >
-                                                削除
-                                            </button>
+                                            {canDeleteReport(report.foremanId) && (
+                                                <button
+                                                    onClick={(e) => handleDelete(e, report.id)}
+                                                    className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                                >
+                                                    削除
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

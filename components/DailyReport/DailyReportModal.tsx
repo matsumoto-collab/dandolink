@@ -588,6 +588,10 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     onClose();
                                 }
                             }}
+                            canModify={
+                                isAdminOrManager ||
+                                selectedReport.foremanId === session?.user?.id
+                            }
                         />
                     ) : (
                         <>
