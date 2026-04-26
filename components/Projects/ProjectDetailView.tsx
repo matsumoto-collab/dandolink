@@ -10,6 +10,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
+import WorkStatusReportSection from './WorkStatusReportSection';
 import { ExternalLink } from 'lucide-react';
 import { logger } from '@/lib/logger';
 
@@ -51,6 +52,17 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
     const liveConfirmedCount = liveAssignment?.confirmedWorkerIds?.length ?? project.confirmedWorkerIds?.length ?? 0;
     const liveIsDispatchConfirmed = liveAssignment?.isDispatchConfirmed ?? project.isDispatchConfirmed ?? false;
     const remainingCount = Math.max(0, liveMemberCount - liveConfirmedCount);
+
+    // 協力会社向け: 自分が担当 or 確定メンバーのときだけ作業開始/完了の報告セクションを表示
+    const userId = session?.user?.id;
+    const liveAssignedEmployeeId = liveAssignment?.assignedEmployeeId ?? project.assignedEmployeeId;
+    const liveConfirmedWorkerIds = liveAssignment?.confirmedWorkerIds ?? project.confirmedWorkerIds ?? [];
+    const canReportWorkStatus =
+        userRole === 'partner' &&
+        !!userId &&
+        (liveAssignedEmployeeId === userId || liveConfirmedWorkerIds.includes(userId));
+    const liveWorkStartedAt = liveAssignment?.workStartedAt ?? project.workStartedAt ?? null;
+    const liveWorkEndedAt = liveAssignment?.workEndedAt ?? project.workEndedAt ?? null;
 
     const commitMemberCount = async (next: number) => {
         const safe = Math.max(0, next);
@@ -179,6 +191,17 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                     )}
                 </div>
             </div>
+
+            {/* 作業時間の報告（協力会社のみ） */}
+            {canReportWorkStatus && (
+                <WorkStatusReportSection
+                    assignmentId={project.id}
+                    projectMasterId={project.projectMasterId}
+                    title={project.title}
+                    workStartedAt={liveWorkStartedAt}
+                    workEndedAt={liveWorkEndedAt}
+                />
+            )}
 
             {/* 詳細情報 */}
             <div className="space-y-4">
