@@ -216,10 +216,61 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         let cancelled = false;
 
         const loadExistingData = async () => {
-            await fetchDailyReports({ foremanId: effectiveForemanId, date: dateStr });
+            // 自分の日報＋todayAssignmentsの各担当職長の日報を並列取得
+            // （2番手の新規追加では「自分の日報」は無いが、確定メンバー案件の
+            //  時間情報は職長の日報側に保存されているのでそちらから引いてくる）
+            const foremenToFetch = new Set<string>([effectiveForemanId]);
+            for (const a of todayAssignments) {
+                if (a.assignedEmployeeId) foremenToFetch.add(a.assignedEmployeeId);
+            }
+            await Promise.all(
+                Array.from(foremenToFetch).map(fid =>
+                    fetchDailyReports({ foremanId: fid, date: dateStr })
+                )
+            );
             if (cancelled) return;
 
             const existing = getDailyReportByForemanAndDate(effectiveForemanId, dateStr);
+
+            // todayAssignments の各案件について、担当職長の日報の WorkItem から時間を引いてマージ
+            const knownIds = new Set<string>();
+            const merged: typeof workItems = [];
+            for (const a of todayAssignments) {
+                const fid = a.assignedEmployeeId || effectiveForemanId;
+                const sourceReport = fid === effectiveForemanId
+                    ? existing
+                    : getDailyReportByForemanAndDate(fid, dateStr);
+                const sourceItem = sourceReport?.workItems.find(wi => wi.assignmentId === a.id);
+                merged.push({
+                    assignmentId: a.id,
+                    startTime: sourceItem?.startTime || '08:00',
+                    endTime: sourceItem?.endTime || '17:00',
+                    breakMinutes: sourceItem?.breakMinutes ?? 0,
+                    workerIds: (sourceItem?.workerIds && sourceItem.workerIds.length > 0)
+                        ? sourceItem.workerIds
+                        : (a.confirmedWorkerIds || []),
+                });
+                knownIds.add(a.id);
+            }
+
+            // 既存の自分の日報に todayAssignments に無い WorkItem があれば残す（レガシー対応）
+            if (existing) {
+                for (const item of existing.workItems) {
+                    if (!knownIds.has(item.assignmentId)) {
+                        merged.push({
+                            assignmentId: item.assignmentId,
+                            startTime: item.startTime || '08:00',
+                            endTime: item.endTime || '17:00',
+                            breakMinutes: item.breakMinutes ?? 0,
+                            workerIds: item.workerIds && item.workerIds.length > 0 ? item.workerIds : [],
+                        });
+                    }
+                }
+            }
+
+            setWorkItems(merged);
+
+            // 上位フィールドと案件情報マップは「自分の日報」から取り込む
             if (existing) {
                 setMorningLoadingMinutes(existing.morningLoadingMinutes);
                 setEveningLoadingMinutes(existing.eveningLoadingMinutes);
@@ -227,18 +278,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 setOvertimeMinutes(existing.overtimeMinutes);
                 setBreakMinutes(existing.breakMinutes ?? 0);
                 setNotes(existing.notes || '');
-                setWorkItems(existing.workItems.map(item => {
-                    // workerIdsが未保存の場合、手配確定メンバーをフォールバック
-                    const savedWorkerIds = item.workerIds && item.workerIds.length > 0 ? item.workerIds : null;
-                    const fallbackWorkerIds = todayAssignments.find(a => a.id === item.assignmentId)?.confirmedWorkerIds || [];
-                    return {
-                        assignmentId: item.assignmentId,
-                        startTime: item.startTime || '08:00',
-                        endTime: item.endTime || '17:00',
-                        breakMinutes: item.breakMinutes ?? 0,
-                        workerIds: savedWorkerIds || fallbackWorkerIds,
-                    };
-                }));
                 const infoMap = new Map<string, { title: string; customer?: string }>();
                 for (const item of existing.workItems) {
                     if (item.assignment?.projectMaster) {
@@ -253,7 +292,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 }
                 setExistingWorkItemInfoMap(infoMap);
             }
-            // existing がない場合は上のリセットで設定済みのデフォルトがそのまま使われる
         };
 
         loadExistingData();
@@ -261,19 +299,54 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         return () => { cancelled = true; };
     }, [isOpen, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // projects が非同期で到着した後、新規日報かつ workItems が空なら todayAssignments から再生成
+    // projects が非同期で到着した後の再マージ
+    // モーダルオープン時に projects がまだ空だった場合、上の effect では確定メンバー案件が
+    // todayAssignments に含まれず、各職長の日報も fetch されない。
+    // projects 到着後に「workItems が空 or デフォルト値のまま」のときだけ再マージする。
     useEffect(() => {
         if (!isOpen) return;
-        if (selectedReport) return; // 既存日報を編集中は触らない
-        if (workItems.length > 0) return; // 既に入力がある場合は上書きしない
+        if (selectedReport) return; // 既存日報編集中はそちらの effect 経由で読み込む
         if (todayAssignments.length === 0) return;
-        setWorkItems(todayAssignments.map(a => ({
-            assignmentId: a.id,
-            startTime: '08:00',
-            endTime: '17:00',
-            breakMinutes: 0,
-            workerIds: a.confirmedWorkerIds || [],
-        })));
+
+        // ユーザーが既に編集している場合は上書きしない:
+        //   - workItems が空 (= 1度目の effect でも取得できなかった)
+        //   - もしくは todayAssignments の数より workItems の数が少ない
+        //     (新着 assignment がまだ反映されていない)
+        const allDefault = workItems.length === 0
+            || workItems.length < todayAssignments.length
+            || workItems.every(w => w.startTime === '08:00' && w.endTime === '17:00' && w.breakMinutes === 0);
+        if (!allDefault) return;
+
+        let cancelled = false;
+        (async () => {
+            const foremenToFetch = new Set<string>([effectiveForemanId]);
+            for (const a of todayAssignments) {
+                if (a.assignedEmployeeId) foremenToFetch.add(a.assignedEmployeeId);
+            }
+            await Promise.all(
+                Array.from(foremenToFetch).map(fid =>
+                    fetchDailyReports({ foremanId: fid, date: dateStr })
+                )
+            );
+            if (cancelled) return;
+
+            const merged = todayAssignments.map(a => {
+                const fid = a.assignedEmployeeId || effectiveForemanId;
+                const sourceReport = getDailyReportByForemanAndDate(fid, dateStr);
+                const sourceItem = sourceReport?.workItems.find(wi => wi.assignmentId === a.id);
+                return {
+                    assignmentId: a.id,
+                    startTime: sourceItem?.startTime || '08:00',
+                    endTime: sourceItem?.endTime || '17:00',
+                    breakMinutes: sourceItem?.breakMinutes ?? 0,
+                    workerIds: (sourceItem?.workerIds && sourceItem.workerIds.length > 0)
+                        ? sourceItem.workerIds
+                        : (a.confirmedWorkerIds || []),
+                };
+            });
+            setWorkItems(merged);
+        })();
+        return () => { cancelled = true; };
     }, [isOpen, selectedReport, projects, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // 日付ナビゲーション
