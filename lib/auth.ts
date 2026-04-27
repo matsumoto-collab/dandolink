@@ -90,17 +90,19 @@ export const authOptions: NextAuthOptions = {
                 token.role = user.role;
                 token.assignedProjects = user.assignedProjects;
                 token.isActive = user.isActive;
+                token.name = user.displayName; // session.user.name に displayName を流す
                 token.lastDbCheck = Date.now();
             } else if (token?.id) {
                 // 以降のリクエスト時のDB再検証 (5分 = 300,000ms ごと)
                 const lastCheck = (token.lastDbCheck as number) || 0;
                 const now = Date.now();
+                const needsDisplayName = !token.name; // 旧トークンに displayName が無い場合は即時更新
 
-                if (now - lastCheck > 300000) {
+                if (needsDisplayName || now - lastCheck > 300000) {
                     try {
                         const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
-                            select: { isActive: true, role: true }
+                            select: { isActive: true, role: true, displayName: true }
                         });
 
                         if (!dbUser || !dbUser.isActive) {
@@ -110,6 +112,7 @@ export const authOptions: NextAuthOptions = {
                             // 状態が有効であれば更新
                             token.isActive = dbUser.isActive;
                             token.role = dbUser.role.toLowerCase() as UserRole;
+                            token.name = dbUser.displayName;
                             token.lastDbCheck = now;
                         }
                     } catch (error) {
@@ -127,6 +130,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.role = token.role;
                 session.user.assignedProjects = token.assignedProjects;
                 session.user.isActive = token.isActive;
+                session.user.name = token.name ?? session.user.name ?? null;
             }
             return session;
         },

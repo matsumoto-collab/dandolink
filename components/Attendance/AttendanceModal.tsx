@@ -125,7 +125,14 @@ export default function AttendanceModal({
         if (!isAdminOrManager) return;
         fetch('/api/dispatch/foremen', { cache: 'no-store' })
             .then(r => r.json())
-            .then((data: MemberUser[]) => setForemen(data.filter(f => f.role === 'foreman1' || f.role === 'foreman2' || f.role === 'admin' || f.role === 'manager')))
+            .then((data: MemberUser[]) => {
+                // DB の role は大文字保存（FOREMAN1 等）なので case-insensitive に判定
+                const filtered = data.filter(f => {
+                    const r = (f.role ?? '').toLowerCase();
+                    return r === 'foreman1' || r === 'foreman2' || r === 'admin' || r === 'manager';
+                });
+                setForemen(filtered);
+            })
             .catch(err => logger.error('職長一覧取得失敗:', err));
     }, [isOpen, isAdminOrManager]);
 
