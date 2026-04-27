@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { Plus, Trash2, Calendar, Users, Download, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Plus, Trash2, Calendar, Users, Download, ChevronUp, ChevronDown, ChevronsUpDown, ListChecks, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Loading from '@/components/ui/Loading';
 import toast from 'react-hot-toast';
@@ -12,6 +12,12 @@ import { logger } from '@/lib/logger';
 const AttendanceModal = dynamic(() => import('./AttendanceModal'), {
     loading: () => <Loading overlay />,
 });
+
+const MonthlyAttendanceView = dynamic(() => import('./MonthlyAttendanceView'), {
+    loading: () => <Loading overlay />,
+});
+
+type AttendanceTab = 'daily' | 'monthly';
 
 interface AttendanceRecord {
     id: string;
@@ -104,6 +110,9 @@ export default function AttendancePage() {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editTarget, setEditTarget] = useState<{ date: Date; foremanId: string } | null>(null);
+
+    const [activeTab, setActiveTab] = useState<AttendanceTab>('daily');
+    const [monthlyRefreshKey, setMonthlyRefreshKey] = useState(0);
 
     type SortKey = 'date' | 'foreman' | 'count';
     type SortDir = 'asc' | 'desc';
@@ -285,11 +294,47 @@ export default function AttendancePage() {
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
-            <div className="mb-6 flex-shrink-0">
+            <div className="mb-4 flex-shrink-0">
                 <h1 className="text-2xl font-bold text-slate-800">出勤簿一覧</h1>
-                <p className="text-sm text-slate-500 mt-1">職長が登録した出勤簿を管理できます</p>
+                <p className="text-sm text-slate-500 mt-1">
+                    {activeTab === 'daily'
+                        ? '職長が登録した出勤簿を管理できます'
+                        : '個人ごとの累計と月次明細を確認できます（閲覧専用）'}
+                </p>
             </div>
 
+            {/* タブ */}
+            <div className="mb-4 flex-shrink-0 flex items-center gap-1 border-b border-slate-200 overflow-x-auto">
+                <button
+                    onClick={() => setActiveTab('daily')}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === 'daily'
+                            ? 'border-slate-800 text-slate-800'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <ListChecks className="w-4 h-4" />
+                    日次（職長別）
+                </button>
+                <button
+                    onClick={() => setActiveTab('monthly')}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                        activeTab === 'monthly'
+                            ? 'border-slate-800 text-slate-800'
+                            : 'border-transparent text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    <UserCircle className="w-4 h-4" />
+                    月次（個人別）
+                </button>
+            </div>
+
+            {activeTab === 'monthly' ? (
+                <div className="flex-1 min-h-0 overflow-y-auto pb-4">
+                    <MonthlyAttendanceView refreshKey={monthlyRefreshKey} />
+                </div>
+            ) : (
+            <>
             {/* ツールバー */}
             <div className="mb-6 flex-shrink-0 flex flex-col gap-3 sm:gap-4">
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
@@ -482,6 +527,8 @@ export default function AttendancePage() {
             <div className="mt-2 flex-shrink-0 text-sm text-slate-600">
                 全 {groups.length} 件
             </div>
+            </>
+            )}
 
             {/* モーダル */}
             <AttendanceModal
@@ -489,7 +536,10 @@ export default function AttendancePage() {
                 onClose={() => setIsModalOpen(false)}
                 initialDate={editTarget?.date}
                 initialForemanId={editTarget?.foremanId}
-                onSaved={fetchRecords}
+                onSaved={() => {
+                    fetchRecords();
+                    setMonthlyRefreshKey(k => k + 1);
+                }}
             />
         </div>
     );
