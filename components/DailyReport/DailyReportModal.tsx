@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import imageCompression from 'browser-image-compression';
 import { useDailyReports } from '@/hooks/useDailyReports';
@@ -303,19 +303,19 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     // モーダルオープン時に projects がまだ空だった場合、上の effect では確定メンバー案件が
     // todayAssignments に含まれず、各職長の日報も fetch されない。
     // projects 到着後に「workItems が空 or デフォルト値のまま」のときだけ再マージする。
+    //
+    // ⚠️ 過去事故 (2026-04-27): この effect は元々 deps に projects を含み、
+    // allDefault 判定の再現性により無限ループに陥って
+    // /api/daily-reports に 20req/秒の暴走を起こし DB 接続上限を枯渇させた。
+    // 対策として ref ベースの (foremanId, date, assignmentCount) 単位の
+    // 1回限りガードに置き換えている。
+    const fetchedKeyRef = useRef<string>('');
     useEffect(() => {
-        if (!isOpen) return;
-        if (selectedReport) return; // 既存日報編集中はそちらの effect 経由で読み込む
-        if (todayAssignments.length === 0) return;
-
-        // ユーザーが既に編集している場合は上書きしない:
-        //   - workItems が空 (= 1度目の effect でも取得できなかった)
-        //   - もしくは todayAssignments の数より workItems の数が少ない
-        //     (新着 assignment がまだ反映されていない)
-        const allDefault = workItems.length === 0
-            || workItems.length < todayAssignments.length
-            || workItems.every(w => w.startTime === '08:00' && w.endTime === '17:00' && w.breakMinutes === 0);
-        if (!allDefault) return;
+        if (!isOpen || selectedReport || todayAssignments.length === 0) return;
+        if (!effectiveForemanId) return;
+        const key = `${effectiveForemanId}__${dateStr}__${todayAssignments.length}`;
+        if (fetchedKeyRef.current === key) return; // 同じ条件では再fetchしない
+        fetchedKeyRef.current = key;
 
         let cancelled = false;
         (async () => {
@@ -347,7 +347,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
             setWorkItems(merged);
         })();
         return () => { cancelled = true; };
-    }, [isOpen, selectedReport, projects, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [isOpen, selectedReport, todayAssignments.length, effectiveForemanId, dateStr]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // モーダルが閉じたら fetch ガードをリセット（次回オープン時に1度だけ走らせるため）
+    useEffect(() => {
+        if (!isOpen) fetchedKeyRef.current = '';
+    }, [isOpen]);
 
     // 日付ナビゲーション
     const goPreviousDay = () => {

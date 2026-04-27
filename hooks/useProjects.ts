@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useCallback, useRef, useState } from 'react';
+import { useEffect, useCallback, useRef, useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { Project, CalendarEvent, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
@@ -392,7 +392,10 @@ export function useProjects() {
     const constructionTypes = useMasterStore((state) => state.constructionTypes);
 
     // Get projects from store (now reactive because we subscribe to assignments)
-    const projects = assignments.map((a) => {
+    // useMemo化: assignments / constructionTypes が変わらない限り同じ参照を返す。
+    // これを毎レンダー新しい配列で返すと、これを deps に持つ useEffect が
+    // 暴走（無限ループ）する原因になる（過去事故あり）。
+    const projects = useMemo(() => assignments.map((a) => {
         // 配置ごとのconstructionTypeを優先、なければProjectMasterから取得
         const constructionType = a.constructionType || a.projectMaster?.constructionType || 'other';
         // マスターデータから色を取得
@@ -441,7 +444,7 @@ export function useProjects() {
             workStartedAt: a.workStartedAt ?? null,
             workEndedAt: a.workEndedAt ?? null,
         };
-    });
+    }), [assignments, constructionTypes]);
 
     return {
         projects,
