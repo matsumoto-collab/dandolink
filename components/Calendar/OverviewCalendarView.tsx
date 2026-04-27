@@ -139,7 +139,7 @@ export default function OverviewCalendarView({
                                 dayEvents.forEach(e => {
                                     const key = e.assignedEmployeeId!;
                                     if (!byForeman.has(key)) byForeman.set(key, []);
-                                    byForeman.get(key)!.push(Math.max(e.memberCount || 0, e.workers?.length || 0));
+                                    byForeman.get(key)!.push((e.memberCount ?? 0) > 0 ? e.memberCount! : (e.workers?.length || 0));
                                 });
                                 let assigned = 0;
                                 byForeman.forEach(counts => { assigned += Math.max(...counts); });
