@@ -4,10 +4,18 @@ import { requireAuth, errorResponse, serverErrorResponse, validationErrorRespons
 
 const FOREMAN_ROLES = ['admin', 'manager', 'foreman1', 'foreman2'];
 
-function parseDateOnly(s: string): Date | null {
+/**
+ * 入力 "YYYY-MM-DD"（JST日付）を JST 0時起点の24時間範囲に変換
+ * ProjectAssignment.date は JST 0時 = UTC前日15時 で保存されているため、
+ * UTC 0時起点で範囲指定すると日がズレる。
+ */
+function parseJstDayRange(s: string): { start: Date; end: Date } | null {
     if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
     const [y, m, d] = s.split('-').map(Number);
-    return new Date(Date.UTC(y, m - 1, d));
+    // JST 00:00 = UTC 前日 15:00（hourを-9にしてDate.UTCに渡す）
+    const start = new Date(Date.UTC(y, m - 1, d, -9, 0, 0, 0));
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    return { start, end };
 }
 
 /**
@@ -30,14 +38,14 @@ export async function GET(req: NextRequest) {
         const date = url.searchParams.get('date');
         if (!foremanId || !date) return validationErrorResponse('foremanId と date が必要です');
 
-        const d = parseDateOnly(date);
-        if (!d) return validationErrorResponse('date が不正です');
+        const range = parseJstDayRange(date);
+        if (!range) return validationErrorResponse('date が不正です');
 
-        // 職長としての当日アサインメント
+        // 職長としての当日アサインメント（JST日境界で取得）
         const assignments = await prisma.projectAssignment.findMany({
             where: {
                 assignedEmployeeId: foremanId,
-                date: { gte: d, lt: new Date(d.getTime() + 24 * 60 * 60 * 1000) },
+                date: { gte: range.start, lt: range.end },
             },
             select: { confirmedWorkerIds: true, isDispatchConfirmed: true },
         });
