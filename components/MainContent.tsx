@@ -8,7 +8,7 @@ import { useSession } from 'next-auth/react';
 import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 
 const VALID_PAGES: PageType[] = [
-    'schedule', 'my-schedule', 'project-masters', 'reports',
+    'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'orders',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings',
@@ -67,6 +67,9 @@ const LoadingListPage = dynamic(() => import('@/components/Materials/LoadingList
     loading: () => <LoadingSpinner />,
 });
 const MySchedulePage = dynamic(() => import('@/components/MySchedule/MySchedulePage'), {
+    loading: () => <LoadingSpinner />,
+});
+const AttendancePage = dynamic(() => import('@/components/Attendance/AttendancePage'), {
     loading: () => <LoadingSpinner />,
 });
 
@@ -168,6 +171,9 @@ export default function MainContent() {
 
             case 'reports':
                 return <DailyReportPage />;
+
+            case 'attendance':
+                return <AttendancePage />;
 
             case 'profit-dashboard':
                 return <ProfitDashboardWrapper />;

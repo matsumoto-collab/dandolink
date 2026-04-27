@@ -17,6 +17,7 @@ export type PageType =
     | 'materials'        // 材料出庫伝票
     | 'inventory'        // 在庫管理
     | 'loading-list'     // 積込リスト
+    | 'attendance'       // 出勤簿
     | 'settings';        // 設定
 
 interface NavigationContextType {

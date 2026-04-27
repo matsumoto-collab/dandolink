@@ -11,7 +11,7 @@ import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'settings';
 }
 
 interface NavSection {
@@ -27,6 +27,7 @@ const navigationSections: NavSection[] = [
             { name: 'マイスケジュール', page: 'my-schedule' },
             { name: '案件一覧', page: 'project-masters' },
             { name: '報告一覧', page: 'reports' },
+            { name: '出勤簿', page: 'attendance' },
         ],
     },
     {
@@ -211,7 +212,7 @@ export default function Sidebar() {
                             // 職長1/2: 業務管理 + 材料管理
                             if (session?.user?.role === 'foreman1' || session?.user?.role === 'foreman2') {
                                 if (section.title === '業務管理') {
-                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports') };
+                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance') };
                                 }
                                 if (section.title === '材料管理') return section;
                                 return null;

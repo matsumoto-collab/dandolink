@@ -663,6 +663,32 @@ model DailyReportWorkItem {
   @@schema("public")
 }
 
+// 出勤簿（分数+早終時刻ベース）
+// 定時 8:00-17:00、職長が代表入力
+model AttendanceRecord {
+  id                    String   @id @default(uuid())
+  userId                String   // 出勤者のユーザーID
+  date                  DateTime @db.Date
+  foremanId             String   // 入力した職長のユーザーID
+  status                String   @default("present") // present|absent|paid_leave|holiday （管理者が後で調整）
+  earlyStartMinutes     Int      @default(0) // 早出（分）
+  morningLoadingMinutes Int      @default(0) // 朝積（分）
+  overtimeMinutes       Int      @default(0) // 残業（分）
+  eveningLoadingMinutes Int      @default(0) // 夕積（分）
+  earlyEndTime          String?  // 早終時刻 "16:30" 形式 / null=早終なし
+  note                  String?
+  createdBy             String
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([userId, date])
+  @@index([date])
+  @@index([userId])
+  @@index([foremanId])
+  @@index([foremanId, date])
+  @@schema("public")
+}
+
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model audit_log_entries {
