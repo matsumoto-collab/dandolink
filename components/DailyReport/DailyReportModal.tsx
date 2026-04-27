@@ -7,7 +7,7 @@ import { useDailyReports } from '@/hooks/useDailyReports';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { DailyReport, DailyReportInput } from '@/types/dailyReport';
+import { DailyReport } from '@/types/dailyReport';
 import { X, Clock, Save, Loader2, FileText, AlertCircle, ChevronLeft, ChevronRight, User, Users, Play, Square, ImagePlus, Trash2 } from 'lucide-react';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { calcTimeDiffMinutes } from '@/utils/dateUtils';
@@ -124,31 +124,43 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         }
     }, [isOpen, foremanId, isAdminOrManager, allForemen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // この日の配置を取得（担当職長 = effectiveForemanId のもののみ）
+    // この日の配置を取得
+    //   - effectiveForemanId が担当職長の案件
+    //   - 自分の日報（新規追加含む）を編集中なら、自分が確定メンバーの案件も追加表示
+    //     ※ 確定メンバーの案件は assignment.assignedEmployeeId は別人（職長）なので、
+    //       保存時に職長別にグループ化して各職長の日報へ書き込む
+    const userId = session?.user?.id || '';
+    const isOwnReport = effectiveForemanId === userId;
     const todayAssignments = projects.filter(p => {
         const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
         if (formatDateKey(projectDate) !== dateStr) return false;
-        return p.assignedEmployeeId === effectiveForemanId;
+        if (p.assignedEmployeeId === effectiveForemanId) return true;
+        if (isOwnReport && (p.confirmedWorkerIds || []).includes(userId)) return true;
+        return false;
     }).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+    // 自分が確定メンバーの案件IDセット（部分編集モードや保存時のグループ分けで使う）
+    const myConfirmedAssignmentIds = React.useMemo(() => {
+        if (!userId) return new Set<string>();
+        return new Set(
+            todayAssignments
+                .filter(a => a.assignedEmployeeId !== userId && (a.confirmedWorkerIds || []).includes(userId))
+                .map(a => a.id)
+        );
+    }, [userId, todayAssignments]);
 
     // 編集権限の判定
     //  - canFullEdit: 担当職長本人 / admin / manager  → 全体編集（備考・workItems全件）
-    //  - canPartialEdit: 上記以外で、todayAssignments のうち自分が confirmedWorkerIds に含まれる
-    //                    案件が1つ以上ある場合 → 自分の WorkItem だけ編集可
+    //  - canPartialEdit: 他人の日報を見ていて、todayAssignments の中に自分が確定メンバーの
+    //                    案件がある場合 → 自分の WorkItem だけ編集可（職長の日報を共有編集）
     //  - canDelete: canFullEdit のみ（2番手は削除不可）
-    const userId = session?.user?.id || '';
-    const canFullEdit = isAdminOrManager || effectiveForemanId === userId;
-    const myConfirmedAssignmentIds = React.useMemo(() => {
-        if (canFullEdit || !userId) return new Set<string>();
-        return new Set(
-            todayAssignments
-                .filter(a => (a.confirmedWorkerIds || []).includes(userId))
-                .map(a => a.id)
-        );
-    }, [canFullEdit, userId, todayAssignments]);
+    const canFullEdit = isAdminOrManager || isOwnReport;
     const canPartialEdit = !canFullEdit && myConfirmedAssignmentIds.size > 0;
     const canEdit = canFullEdit || canPartialEdit;
     const canDelete = canFullEdit;
+
+    // 自分の担当（assignedEmployeeId === self）の案件が今日あるか
+    const hasOwnAssignmentToday = isOwnReport && todayAssignments.some(a => a.assignedEmployeeId === userId);
 
     // 時間文字列をパース ("HH:MM" → hour, minute)
     const parseTimeString = (timeStr: string | null | undefined, defaultHour: number, defaultMinute: number) => {
@@ -525,31 +537,97 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         setSaveMessage(null);
 
         try {
-            // 部分編集モード（2番手）は自分が確定メンバーの案件だけ送信。
-            // API側でも権限チェックされるが、不要なペイロードを送らない。
-            const itemsToSend = canPartialEdit
-                ? workItems.filter(w => myConfirmedAssignmentIds.has(w.assignmentId))
-                : workItems;
+            const validItems = workItems.filter(w => w.startTime && w.endTime);
+            const toItemPayload = (w: typeof validItems[number]) => ({
+                assignmentId: w.assignmentId,
+                startTime: w.startTime,
+                endTime: w.endTime,
+                breakMinutes: w.breakMinutes,
+                workerIds: w.workerIds,
+            });
 
-            const input: DailyReportInput = {
-                foremanId: effectiveForemanId,
-                date: dateStr,
-                morningLoadingMinutes,
-                eveningLoadingMinutes,
-                earlyStartMinutes,
-                overtimeMinutes,
-                breakMinutes,
-                notes: notes || undefined,
-                workItems: itemsToSend.filter(w => w.startTime && w.endTime).map(w => ({
-                    assignmentId: w.assignmentId,
-                    startTime: w.startTime,
-                    endTime: w.endTime,
-                    breakMinutes: w.breakMinutes,
-                    workerIds: w.workerIds,
-                })),
-            };
+            if (canPartialEdit) {
+                // 部分編集モード: 他人の日報を編集中。自分が確定メンバーの案件だけを送信
+                const partialItems = validItems.filter(w => myConfirmedAssignmentIds.has(w.assignmentId));
+                if (partialItems.length === 0) {
+                    setSaveMessage({ type: 'error', text: '保存対象がありません' });
+                    return;
+                }
+                await saveDailyReport({
+                    foremanId: effectiveForemanId,
+                    date: dateStr,
+                    morningLoadingMinutes,
+                    eveningLoadingMinutes,
+                    earlyStartMinutes,
+                    overtimeMinutes,
+                    breakMinutes,
+                    notes: notes || undefined,
+                    workItems: partialItems.map(toItemPayload),
+                });
+            } else if (isAdminOrManager) {
+                // 管理者・マネージャー: 選択中foreman単一に保存（従来どおり）
+                await saveDailyReport({
+                    foremanId: effectiveForemanId,
+                    date: dateStr,
+                    morningLoadingMinutes,
+                    eveningLoadingMinutes,
+                    earlyStartMinutes,
+                    overtimeMinutes,
+                    breakMinutes,
+                    notes: notes || undefined,
+                    workItems: validItems.map(toItemPayload),
+                });
+            } else {
+                // 自分の日報（職長/2番手）: WorkItemを担当職長ごとにグループ化して保存
+                //   - 自分担当 → 自分の日報（フル編集）
+                //   - 他職長担当（自分が確定メンバー）→ その職長の日報（部分編集）
+                type Item = typeof validItems[number];
+                const groups = new Map<string, Item[]>();
+                for (const w of validItems) {
+                    const a = projects.find(p => p.id === w.assignmentId);
+                    const target = a?.assignedEmployeeId || userId;
+                    const existing = groups.get(target);
+                    if (existing) existing.push(w);
+                    else groups.set(target, [w]);
+                }
 
-            await saveDailyReport(input);
+                if (groups.size === 0) {
+                    // 入力なしでも自分の備考だけは保存したいケースがあるので
+                    // hasOwnAssignmentToday の場合のみ自分の日報を upsert
+                    if (hasOwnAssignmentToday) {
+                        await saveDailyReport({
+                            foremanId: userId,
+                            date: dateStr,
+                            morningLoadingMinutes,
+                            eveningLoadingMinutes,
+                            earlyStartMinutes,
+                            overtimeMinutes,
+                            breakMinutes,
+                            notes: notes || undefined,
+                            workItems: [],
+                        });
+                    } else {
+                        setSaveMessage({ type: 'error', text: '保存対象がありません' });
+                        return;
+                    }
+                } else {
+                    for (const [groupForemanId, groupItems] of groups) {
+                        const isSelfGroup = groupForemanId === userId;
+                        await saveDailyReport({
+                            foremanId: groupForemanId,
+                            date: dateStr,
+                            morningLoadingMinutes: isSelfGroup ? morningLoadingMinutes : 0,
+                            eveningLoadingMinutes: isSelfGroup ? eveningLoadingMinutes : 0,
+                            earlyStartMinutes: isSelfGroup ? earlyStartMinutes : 0,
+                            overtimeMinutes: isSelfGroup ? overtimeMinutes : 0,
+                            breakMinutes: isSelfGroup ? breakMinutes : 0,
+                            notes: isSelfGroup ? (notes || undefined) : undefined,
+                            workItems: groupItems.map(toItemPayload),
+                        });
+                    }
+                }
+            }
+
             setSaveMessage({ type: 'success', text: '日報を保存しました' });
             onSaved?.();
 
@@ -927,8 +1005,9 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         })()}
                                     </div>
 
-                                    {/* 備考（職長本人 / 管理者のみ編集可。2番手は表示しない） */}
-                                    {canFullEdit && (
+                                    {/* 備考: 管理者/マネージャー、または自分の担当案件がある場合のみ表示
+                                        （自分の日報を編集中で確定メンバー案件しかない2番手は備考の保存先がないので非表示） */}
+                                    {(isAdminOrManager || (canFullEdit && hasOwnAssignmentToday)) && (
                                         <div>
                                             <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
                                                 <FileText className="w-5 h-5" />

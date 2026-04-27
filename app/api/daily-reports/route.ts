@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validationErrorResponse, serverErrorResponse, errorResponse, notFoundResponse } from '@/lib/api/utils';
+import { requireAuth, validationErrorResponse, serverErrorResponse, errorResponse } from '@/lib/api/utils';
 import { createDailyReportApiSchema, validateRequest } from '@/lib/validations';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { parseJsonField } from '@/lib/json-utils';
@@ -87,21 +87,17 @@ export async function POST(request: NextRequest) {
                 return errorResponse('編集権限のある作業項目がありません', 403);
             }
 
-            // 既存の日報が必須（職長以外は新規作成しない）
-            const existingReport = await prisma.dailyReport.findUnique({
-                where: { foremanId_date: { foremanId, date: targetDate } },
-            });
-            if (!existingReport) return notFoundResponse('日報');
-
-            // 対象 assignment の confirmedWorkerIds を確認し、自分が含まれるものだけ許可
+            // 対象 assignment を取得し、確認: confirmedWorkerIds に自分が含まれ、
+            // かつ assignedEmployeeId === foremanId（指定された職長の手配）の案件のみ許可
             const requestedAssignmentIds = items.map((i) => i.assignmentId);
             const assignmentsInRequest = await prisma.projectAssignment.findMany({
                 where: { id: { in: requestedAssignmentIds } },
-                select: { id: true, confirmedWorkerIds: true },
+                select: { id: true, assignedEmployeeId: true, confirmedWorkerIds: true },
             });
             const allowedAssignmentIds = new Set(
                 assignmentsInRequest
                     .filter((a) =>
+                        a.assignedEmployeeId === foremanId &&
                         parseJsonField<string[]>(a.confirmedWorkerIds, []).includes(session!.user.id)
                     )
                     .map((a) => a.id)
@@ -111,10 +107,17 @@ export async function POST(request: NextRequest) {
                 return errorResponse('編集権限のある作業項目がありません', 403);
             }
 
+            // 既存日報が無ければ職長空きシェルを作成（上位フィールドはデフォルト値）
+            const dailyReport = await prisma.dailyReport.upsert({
+                where: { foremanId_date: { foremanId, date: targetDate } },
+                update: { updatedBy: session!.user.id },
+                create: { foremanId, date: targetDate, updatedBy: session!.user.id },
+            });
+
             // 許可された workItem だけ個別 upsert（deleteMany はしない＝他のWorkItemは保持）
             for (const item of allowedItems) {
                 const existingItem = await prisma.dailyReportWorkItem.findFirst({
-                    where: { dailyReportId: existingReport.id, assignmentId: item.assignmentId },
+                    where: { dailyReportId: dailyReport.id, assignmentId: item.assignmentId },
                 });
                 if (existingItem) {
                     await prisma.dailyReportWorkItem.update({
@@ -129,7 +132,7 @@ export async function POST(request: NextRequest) {
                 } else {
                     await prisma.dailyReportWorkItem.create({
                         data: {
-                            dailyReportId: existingReport.id,
+                            dailyReportId: dailyReport.id,
                             assignmentId: item.assignmentId,
                             startTime: item.startTime || null,
                             endTime: item.endTime || null,
@@ -140,14 +143,8 @@ export async function POST(request: NextRequest) {
                 }
             }
 
-            // updatedBy のみ更新
-            await prisma.dailyReport.update({
-                where: { id: existingReport.id },
-                data: { updatedBy: session!.user.id },
-            });
-
             const result = await prisma.dailyReport.findUnique({
-                where: { id: existingReport.id },
+                where: { id: dailyReport.id },
                 select: reportSelect,
             });
             return NextResponse.json(result, { status: 200 });
