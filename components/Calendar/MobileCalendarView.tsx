@@ -299,7 +299,7 @@ export default function MobileCalendarView({
                             return (
                                 <div
                                     key={dateKey}
-                                    className={`flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
+                                    className={`grow flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
                                         isToday ? 'bg-slate-700'
                                         : isSat ? 'bg-blue-50'
                                         : isSun ? 'bg-rose-50'
@@ -351,7 +351,7 @@ export default function MobileCalendarView({
                             return (
                                 <div
                                     key={dateKey}
-                                    className={`flex-shrink-0 border-r border-slate-200 flex items-center justify-center gap-0.5 ${
+                                    className={`grow flex-shrink-0 border-r border-slate-200 flex items-center justify-center gap-0.5 ${
                                         isSat ? 'bg-slate-50/30' : isSun ? 'bg-slate-50/30' : ''
                                     }`}
                                     style={{ width: COL_W }}
@@ -401,7 +401,7 @@ export default function MobileCalendarView({
                                 return (
                                     <div
                                         key={dateKey}
-                                        className="flex-shrink-0 border-r border-slate-200 p-1"
+                                        className="grow flex-shrink-0 border-r border-slate-200 p-1"
                                         style={{ width: COL_W }}
                                     >
                                         {/* 休暇バッジ（コンパクト版） */}
@@ -486,7 +486,7 @@ export default function MobileCalendarView({
                                                     handleCellClick?.(row.employeeId, day.date);
                                                 }
                                             }}
-                                            className={`flex-shrink-0 border-r border-slate-200 p-1 transition-colors ${
+                                            className={`grow flex-shrink-0 border-r border-slate-200 p-1 transition-colors ${
                                                 isMovingSource
                                                     ? 'bg-slate-100/60 ring-2 ring-inset ring-slate-400'
                                                     : movingEvent
