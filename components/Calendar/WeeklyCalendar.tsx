@@ -61,7 +61,9 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
     const isReadOnly = partnerMode || isForeman2;
-    const isMobile = useMediaQuery('(max-width: 1023px)');
+    // Tailwindの`lg`と同条件で「デスクトップではない」= モバイルレイアウト判定
+    // （iPad横向きはアスペクト比が16:10未満なのでモバイル扱いになる）
+    const isMobile = useMediaQuery('not all and (min-width: 1024px) and (min-aspect-ratio: 16/10)');
 
     // 職長2用: 案件マスター詳細モーダル
     const [foreman2DetailPm, setForeman2DetailPm] = useState<import('@/types/calendar').ProjectMaster | null>(null);

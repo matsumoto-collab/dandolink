@@ -113,7 +113,8 @@ export default function GanttChart({
     isAdmin,
     onProjectClick,
 }: GanttChartProps) {
-    const isMobile = useMediaQuery('(max-width: 1023px)');
+    // Tailwindの`lg`と同条件で「デスクトップではない」= モバイル扱い（iPad横向きも含む）
+    const isMobile = useMediaQuery('not all and (min-width: 1024px) and (min-aspect-ratio: 16/10)');
     const leftColWidth = isMobile ? LEFT_COL_WIDTH_MOBILE : LEFT_COL_WIDTH_PC;
 
     const headerScrollRef = useRef<HTMLDivElement>(null);
