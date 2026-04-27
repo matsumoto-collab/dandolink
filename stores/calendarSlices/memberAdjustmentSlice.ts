@@ -16,9 +16,13 @@ export const createMemberAdjustmentSlice: CalendarSlice<MemberAdjustmentSlice> =
             if (response.ok) {
                 const data = await response.json();
                 set({ memberAdjustments: data, memberAdjustmentsInitialized: true });
+            } else {
+                // 失敗時もinitializedを立ててUIをアンブロック（調整0として扱う）
+                set({ memberAdjustmentsInitialized: true });
             }
         } catch (error) {
             logger.error('Failed to fetch member adjustments:', error);
+            set({ memberAdjustmentsInitialized: true });
         }
     },
 

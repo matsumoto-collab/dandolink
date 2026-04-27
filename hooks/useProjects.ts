@@ -93,24 +93,21 @@ export function useProjects() {
                 fetchResolversRef.current = [];
 
                 currentDateRangeRef.current = { start: startStr, end: endStr };
-                await fetchAssignmentsStore(startStr, endStr);
+
+                // セルメモ・人数調整はカレンダーヘッダー/セルに直接効く一次データ。
+                // 遅延フェッチすると初回paintで残り人数が誤算出され、メモも欠落するため
+                // assignmentsと並列で即時フェッチする（!Initialized ガードで重複は防ぐ）
+                const storeBefore = useCalendarStore.getState();
+                const sideFetches: Promise<void>[] = [];
+                if (!storeBefore.cellRemarksInitialized) sideFetches.push(fetchCellRemarksStore());
+                if (!storeBefore.memberAdjustmentsInitialized) sideFetches.push(fetchMemberAdjustmentsStore());
+
+                await Promise.all([
+                    fetchAssignmentsStore(startStr, endStr),
+                    ...sideFetches,
+                ]);
 
                 resolvers.forEach(r => r());
-
-                // 副次データ（カードに直接出ない）は初回paintを邪魔しないよう遅延フェッチ
-                const idle = (cb: () => void) => {
-                    const w = typeof window !== 'undefined' ? window as Window & { requestIdleCallback?: (cb: () => void) => void } : null;
-                    if (w?.requestIdleCallback) w.requestIdleCallback(cb);
-                    else setTimeout(cb, 500);
-                };
-                idle(() => {
-                    if (!useCalendarStore.getState().cellRemarksInitialized) {
-                        fetchCellRemarksStore();
-                    }
-                    if (!useCalendarStore.getState().memberAdjustmentsInitialized) {
-                        fetchMemberAdjustmentsStore();
-                    }
-                });
             }, 300);
         });
     }, [fetchAssignmentsStore, fetchCellRemarksStore, fetchMemberAdjustmentsStore]);

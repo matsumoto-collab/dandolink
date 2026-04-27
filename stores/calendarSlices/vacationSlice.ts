@@ -25,9 +25,13 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
                 if (!savingVacation) {
                     set({ vacations: data, vacationsInitialized: true });
                 }
+            } else {
+                // 失敗時もinitializedを立ててUIをアンブロック（休暇なしとして扱う）
+                if (!savingVacation) set({ vacationsInitialized: true });
             }
         } catch (error) {
             logger.error('Failed to fetch vacations:', error);
+            if (!savingVacation) set({ vacationsInitialized: true });
         } finally {
             set({ vacationsLoading: false });
         }

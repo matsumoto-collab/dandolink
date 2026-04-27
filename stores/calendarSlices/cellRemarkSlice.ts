@@ -18,9 +18,13 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
             if (response.ok) {
                 const data = await response.json();
                 set({ cellRemarks: data, cellRemarksInitialized: true });
+            } else {
+                // 失敗時もinitializedを立ててUIをアンブロック（空メモとして扱う）
+                set({ cellRemarksInitialized: true });
             }
         } catch (error) {
             logger.error('Failed to fetch cell remarks:', error);
+            set({ cellRemarksInitialized: true });
         } finally {
             set({ cellRemarksLoading: false });
         }

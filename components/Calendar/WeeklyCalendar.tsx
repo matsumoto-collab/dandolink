@@ -373,6 +373,12 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     // 日別メンバー調整
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
     const setMemberAdjustment = useCalendarStore((state) => state.setMemberAdjustment);
+
+    // ヘッダー残り人数・セルメモが揃っているか（部分ロードで誤値表示を防ぐ）
+    const cellRemarksInitialized = useCalendarStore((state) => state.cellRemarksInitialized);
+    const memberAdjustmentsInitialized = useCalendarStore((state) => state.memberAdjustmentsInitialized);
+    const vacationsInitialized = useCalendarStore((state) => state.vacationsInitialized);
+    const calendarDataReady = cellRemarksInitialized && memberAdjustmentsInitialized && vacationsInitialized;
     // 連打対応: pendingは即時UI反映、一定時間後にまとめて確認ダイアログ
     const [pendingAdjustments, setPendingAdjustments] = useState<Record<string, number>>({});
     const pendingTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
@@ -486,7 +492,10 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     }, []);
 
     // ローディング（isMobileがnullの間 = SSR/マウント前も含む）
-    if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null) {
+    // 残り人数・セルメモは副次データに見えるが実際にはヘッダーとセルに直接効くため、
+    // 初期化が完了するまで描画しない（部分ロード状態で誤った値が表示されるのを防ぐ）
+    if (!isMounted || isCalendarLoading || !isInitialized || isMobile === null
+        || !calendarDataReady) {
         return (
             <div className="h-full flex flex-col items-center justify-center bg-white rounded-lg shadow-sm border border-slate-200 min-h-[400px]">
                 <Loading size="lg" text="週間スケジュールを読み込み中..." />
