@@ -124,17 +124,31 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         }
     }, [isOpen, foremanId, isAdminOrManager, allForemen]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // この日の配置を取得
-    // 自分の日報を編集中の場合は「自分が職長 OR 確定メンバー」の案件を表示し、
-    // 管理者・マネージャーが他人の日報を見るときは従来どおり担当職長の案件のみ表示
-    const isOwnReport = effectiveForemanId === session?.user?.id;
+    // この日の配置を取得（担当職長 = effectiveForemanId のもののみ）
     const todayAssignments = projects.filter(p => {
         const projectDate = p.startDate instanceof Date ? p.startDate : new Date(p.startDate);
         if (formatDateKey(projectDate) !== dateStr) return false;
-        if (p.assignedEmployeeId === effectiveForemanId) return true;
-        if (isOwnReport && (p.confirmedWorkerIds || []).includes(effectiveForemanId)) return true;
-        return false;
+        return p.assignedEmployeeId === effectiveForemanId;
     }).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+
+    // 編集権限の判定
+    //  - canFullEdit: 担当職長本人 / admin / manager  → 全体編集（備考・workItems全件）
+    //  - canPartialEdit: 上記以外で、todayAssignments のうち自分が confirmedWorkerIds に含まれる
+    //                    案件が1つ以上ある場合 → 自分の WorkItem だけ編集可
+    //  - canDelete: canFullEdit のみ（2番手は削除不可）
+    const userId = session?.user?.id || '';
+    const canFullEdit = isAdminOrManager || effectiveForemanId === userId;
+    const myConfirmedAssignmentIds = React.useMemo(() => {
+        if (canFullEdit || !userId) return new Set<string>();
+        return new Set(
+            todayAssignments
+                .filter(a => (a.confirmedWorkerIds || []).includes(userId))
+                .map(a => a.id)
+        );
+    }, [canFullEdit, userId, todayAssignments]);
+    const canPartialEdit = !canFullEdit && myConfirmedAssignmentIds.size > 0;
+    const canEdit = canFullEdit || canPartialEdit;
+    const canDelete = canFullEdit;
 
     // 時間文字列をパース ("HH:MM" → hour, minute)
     const parseTimeString = (timeStr: string | null | undefined, defaultHour: number, defaultMinute: number) => {
@@ -511,6 +525,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
         setSaveMessage(null);
 
         try {
+            // 部分編集モード（2番手）は自分が確定メンバーの案件だけ送信。
+            // API側でも権限チェックされるが、不要なペイロードを送らない。
+            const itemsToSend = canPartialEdit
+                ? workItems.filter(w => myConfirmedAssignmentIds.has(w.assignmentId))
+                : workItems;
+
             const input: DailyReportInput = {
                 foremanId: effectiveForemanId,
                 date: dateStr,
@@ -520,7 +540,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 overtimeMinutes,
                 breakMinutes,
                 notes: notes || undefined,
-                workItems: workItems.filter(w => w.startTime && w.endTime).map(w => ({
+                workItems: itemsToSend.filter(w => w.startTime && w.endTime).map(w => ({
                     assignmentId: w.assignmentId,
                     startTime: w.startTime,
                     endTime: w.endTime,
@@ -592,10 +612,8 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                     onClose();
                                 }
                             }}
-                            canModify={
-                                isAdminOrManager ||
-                                selectedReport.foremanId === session?.user?.id
-                            }
+                            canEdit={canEdit}
+                            canDelete={canDelete}
                         />
                     ) : (
                         <>
@@ -701,7 +719,12 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                                 }
                                             }
 
-                                            if (displayItems.length === 0) {
+                                            // 部分編集モード（2番手等）は自分が確定メンバーの案件だけに絞る
+                                            const visibleItems = canPartialEdit
+                                                ? displayItems.filter(d => myConfirmedAssignmentIds.has(d.id))
+                                                : displayItems;
+
+                                            if (visibleItems.length === 0) {
                                                 return (
                                                     <div className="p-4 bg-slate-50 rounded-lg text-slate-500 text-center">
                                                         この日の配置はありません
@@ -711,7 +734,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
 
                                             return (
                                                 <div className="space-y-3">
-                                                    {displayItems.map(assignment => {
+                                                    {visibleItems.map(assignment => {
                                                         const workItem = workItems.find(w => w.assignmentId === assignment.id);
                                                         const st = parseTimeString(workItem?.startTime, 8, 0);
                                                         const et = parseTimeString(workItem?.endTime, 17, 0);
@@ -904,20 +927,22 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         })()}
                                     </div>
 
-                                    {/* 備考 */}
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                                            <FileText className="w-5 h-5" />
-                                            備考
-                                        </h3>
-                                        <textarea
-                                            value={notes}
-                                            onChange={(e) => setNotes(e.target.value)}
-                                            rows={3}
-                                            className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                            placeholder="備考があれば入力..."
-                                        />
-                                    </div>
+                                    {/* 備考（職長本人 / 管理者のみ編集可。2番手は表示しない） */}
+                                    {canFullEdit && (
+                                        <div>
+                                            <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                                                <FileText className="w-5 h-5" />
+                                                備考
+                                            </h3>
+                                            <textarea
+                                                value={notes}
+                                                onChange={(e) => setNotes(e.target.value)}
+                                                rows={3}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                placeholder="備考があれば入力..."
+                                            />
+                                        </div>
+                                    )}
                                 </>
                             )}
                         </>

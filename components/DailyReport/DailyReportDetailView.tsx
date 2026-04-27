@@ -12,10 +12,11 @@ interface DailyReportDetailViewProps {
     onEdit: () => void;
     onClose: () => void;
     onDelete: () => void;
-    canModify?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
 }
 
-export default function DailyReportDetailView({ report, onEdit, onClose, onDelete, canModify = true }: DailyReportDetailViewProps) {
+export default function DailyReportDetailView({ report, onEdit, onClose, onDelete, canEdit = true, canDelete = true }: DailyReportDetailViewProps) {
     const { getForemanName } = useCalendarDisplay();
     const { projects } = useProjects();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -192,7 +193,7 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
 
             {/* アクションボタン */}
             <div className="space-y-3 pt-4 border-t border-slate-200">
-                {canModify && (
+                {canDelete && (
                     <button
                         onClick={() => setShowDeleteConfirm(true)}
                         className="w-full px-4 py-2 border border-slate-300 bg-slate-50 rounded-md text-slate-700 hover:bg-slate-100 transition-colors font-medium flex items-center justify-center gap-2"
@@ -204,11 +205,11 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className={`px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors font-medium ${canModify ? 'flex-1' : 'w-full'}`}
+                        className={`px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors font-medium ${canEdit ? 'flex-1' : 'w-full'}`}
                     >
                         閉じる
                     </button>
-                    {canModify && (
+                    {canEdit && (
                         <button
                             onClick={onEdit}
                             className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors font-medium"

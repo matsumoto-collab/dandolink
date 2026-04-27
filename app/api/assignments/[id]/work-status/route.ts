@@ -139,10 +139,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
             });
 
-        // 2. 押下者本人の日報のWorkItemに開始/終了時刻を反映（upsert）
+        // 2. 担当職長の日報のWorkItemに開始/終了時刻を反映（upsert）
+        //    押下者が2番手等であっても、書き込み先は assignedEmployeeId の日報に統一する
+        //    （職長の日報を共有編集するイメージ。別レコードを作らない）
         try {
             const dateOnly = toDateOnly(assignment.date);
-            const foremanId = session!.user.id;
+            const foremanId = assignment.assignedEmployeeId;
 
             const report = await prisma.dailyReport.upsert({
                 where: { foremanId_date: { foremanId, date: dateOnly } },
