@@ -13,6 +13,19 @@ import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 const INITIAL_LIMIT = 5;
 const LOAD_MORE_STEP = 20;
 
+// サイドバーとヘッダーに同居する2つの NotificationsInbox インスタンス間で
+// 既読状態を同期するためのウィンドウイベント。発火元は自身のIDを source に入れ、
+// 受信側は source が一致する場合は無視（重複適用を防ぐ）。
+const NOTIFICATION_SYNC_EVENT = 'dandolink:notification-sync';
+type NotificationSyncDetail =
+    | { kind: 'read'; id: string; source: string }
+    | { kind: 'read-all'; source: string };
+
+function dispatchNotificationSync(detail: NotificationSyncDetail) {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new CustomEvent<NotificationSyncDetail>(NOTIFICATION_SYNC_EVENT, { detail }));
+}
+
 interface NotificationItem {
     id: string;
     type: string;
@@ -57,9 +70,42 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const [limit, setLimit] = useState(INITIAL_LIMIT);
     const [hasMore, setHasMore] = useState(false);
     const panelRef = useRef<HTMLDivElement>(null);
+    const instanceIdRef = useRef<string>('');
+    if (!instanceIdRef.current) {
+        instanceIdRef.current =
+            typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                ? crypto.randomUUID()
+                : `inbox-${Math.random().toString(36).slice(2)}`;
+    }
 
     useEffect(() => {
         setMounted(true);
+    }, []);
+
+    // 別インスタンス（サイドバー/ヘッダーのもう片方）で既読化された時にローカルステートを追従させる
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const ce = e as CustomEvent<NotificationSyncDetail>;
+            const detail = ce.detail;
+            if (!detail || detail.source === instanceIdRef.current) return;
+            if (detail.kind === 'read') {
+                const targetId = detail.id;
+                setItems((prev) =>
+                    prev.map((x) =>
+                        x.id === targetId && !x.readAt
+                            ? { ...x, readAt: new Date().toISOString() }
+                            : x
+                    )
+                );
+                // 未読カウントはグローバル値なので、items に未ロードのIDでも 1 減らす
+                setUnreadCount((c) => Math.max(0, c - 1));
+            } else if (detail.kind === 'read-all') {
+                setItems((prev) => prev.map((x) => (x.readAt ? x : { ...x, readAt: new Date().toISOString() })));
+                setUnreadCount(0);
+            }
+        };
+        window.addEventListener(NOTIFICATION_SYNC_EVENT, handler);
+        return () => window.removeEventListener(NOTIFICATION_SYNC_EVENT, handler);
     }, []);
 
     const fetchUnreadCount = useCallback(async () => {
@@ -185,6 +231,7 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         if (!n.readAt) {
             setItems((prev) => prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x)));
             setUnreadCount((c) => Math.max(0, c - 1));
+            dispatchNotificationSync({ kind: 'read', id: n.id, source: instanceIdRef.current });
             fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).catch(() => undefined);
         }
         setOpen(false);
@@ -194,6 +241,7 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const handleMarkAllRead = async () => {
         setItems((prev) => prev.map((x) => (x.readAt ? x : { ...x, readAt: new Date().toISOString() })));
         setUnreadCount(0);
+        dispatchNotificationSync({ kind: 'read-all', source: instanceIdRef.current });
         try {
             await fetch('/api/notifications/mark-all-read', { method: 'POST' });
         } catch {
