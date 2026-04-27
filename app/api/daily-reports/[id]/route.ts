@@ -20,7 +20,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 workItems: {
                     select: {
                         id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
-                        assignment: { select: { id: true, date: true, projectMaster: { select: { id: true, title: true, name: true, honorific: true, customerName: true } } } },
+                        assignment: { select: { id: true, date: true, sortOrder: true, projectMaster: { select: { id: true, title: true, name: true, honorific: true, customerName: true } } } },
                     },
                 },
             },

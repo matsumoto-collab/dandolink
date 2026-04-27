@@ -12,6 +12,7 @@ export interface DailyReportWorkItem {
     assignment?: {
         id: string;
         date: Date;
+        sortOrder?: number | null;
         projectMaster?: {
             id: string;
             title: string;

@@ -86,9 +86,14 @@ export default function DailyReportPage() {
         return `${hours}:${mins.toString().padStart(2, '0')}`;
     };
 
-    // 案件ごとの実作業時間を取得
+    // 案件ごとの実作業時間を取得（カレンダーと同じ sortOrder 順でソート）
     const getWorkItemSummaries = (report: DailyReport): { title: string; minutes: number }[] => {
-        return report.workItems.map(item => {
+        const sorted = [...report.workItems].sort((a, b) => {
+            const ao = a.assignment?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+            const bo = b.assignment?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+            return ao - bo;
+        });
+        return sorted.map(item => {
             const pm = item.assignment?.projectMaster;
             const title = pm?.name
                 ? `${pm.name}${pm.honorific || ''}`

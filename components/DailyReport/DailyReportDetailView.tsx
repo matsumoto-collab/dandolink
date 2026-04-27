@@ -49,6 +49,15 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
         return calcTimeDiffMinutes(startTime, endTime);
     };
 
+    // 表示用に sortOrder（カレンダーと同じ並び順）でソート
+    const sortedWorkItems = React.useMemo(() => {
+        return [...report.workItems].sort((a, b) => {
+            const ao = a.assignment?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+            const bo = b.assignment?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+            return ao - bo;
+        });
+    }, [report.workItems]);
+
     // 総作業時間（休憩差引後）
     const totalNetWorkMinutes = report.workItems.reduce((sum, item) => {
         if (item.startTime && item.endTime) {
@@ -87,13 +96,13 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                     <Clock className="w-4 h-4" />
                     案件ごとの作業時間
                 </h4>
-                {report.workItems.length === 0 ? (
+                {sortedWorkItems.length === 0 ? (
                     <div className="p-4 bg-slate-50 rounded-lg text-slate-500 text-center text-sm">
                         登録された案件はありません
                     </div>
                 ) : (
                     <div className="space-y-2">
-                        {report.workItems.map((item) => {
+                        {sortedWorkItems.map((item) => {
                             const pm = item.assignment?.projectMaster;
                             const title = pm?.name
                                 ? `${pm.name}${pm.honorific || ''}`
