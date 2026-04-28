@@ -38,6 +38,7 @@ export function useProjects() {
     const getCalendarEventsStore = useCalendarStore((state) => state.getCalendarEvents);
     const fetchCellRemarksStore = useCalendarStore((state) => state.fetchCellRemarks);
     const fetchMemberAdjustmentsStore = useCalendarStore((state) => state.fetchMemberAdjustments);
+    const fetchVacationsStore = useCalendarStore((state) => state.fetchVacations);
     const upsertAssignmentStore = useCalendarStore((state) => state.upsertAssignment);
     const removeAssignmentByIdStore = useCalendarStore((state) => state.removeAssignmentById);
     const updateProjectMasterInAssignmentsStore = useCalendarStore((state) => state.updateProjectMasterInAssignments);
@@ -381,14 +382,22 @@ export function useProjects() {
     }, [fetchAssignmentsStore]);
 
     // ポーリング用: 指定範囲を強制再フェッチ（Realtime補完）
+    // 副次データ（memberAdjustments / vacations / cellRemarks）はbroadcast頼みで
+    // 一度欠落するとリロードまで自己回復しなかったため、ここでまとめて再フェッチして
+    // 残り人数の整合を保証する
     const forceRefreshRange = useCallback(async (startDate: Date, endDate: Date) => {
         if (isUpdatingRef.current) return; // 自分が更新中なら跳ばす
         const startStr = formatDateKey(startDate);
         const endStr = formatDateKey(endDate);
         currentDateRangeRef.current = null; // キャッシュをクリアして強制再フェッチ
-        await fetchAssignmentsStore(startStr, endStr);
+        await Promise.all([
+            fetchAssignmentsStore(startStr, endStr),
+            fetchMemberAdjustmentsStore(),
+            fetchVacationsStore(),
+            fetchCellRemarksStore(),
+        ]);
         currentDateRangeRef.current = { start: startStr, end: endStr };
-    }, [fetchAssignmentsStore]);
+    }, [fetchAssignmentsStore, fetchMemberAdjustmentsStore, fetchVacationsStore, fetchCellRemarksStore]);
 
     // Subscribe to assignments changes to trigger re-renders
     const assignments = useCalendarStore((state) => state.assignments);
