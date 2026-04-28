@@ -6,6 +6,7 @@ import { X, ChevronLeft, ChevronRight, Save, Users, User, Copy, Clock } from 'lu
 import { Button } from '@/components/ui/Button';
 import Loading from '@/components/ui/Loading';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 
@@ -289,6 +290,9 @@ export default function AttendanceModal({
                 throw new Error(err.error || `status ${res.status}`);
             }
             toast.success('保存しました');
+            // 別端末（同一ログイン）へ即時通知。Supabase broadcast は self: false なので
+            // 自端末は onSaved 経由で再取得するルートを維持
+            sendBroadcast('attendance_updated', { foremanId: selectedForemanId, date: dateKey });
             onSaved?.();
             onClose();
         } catch (err) {

@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 import { Plus, Trash2, Calendar, Users, Download, ChevronUp, ChevronDown, ChevronsUpDown, ListChecks, UserCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import Loading from '@/components/ui/Loading';
+import { initBroadcastChannel, onBroadcast, sendBroadcast } from '@/lib/broadcastChannel';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 
@@ -172,6 +173,18 @@ export default function AttendancePage() {
         fetchRecords();
     }, [fetchRecords]);
 
+    // Supabase broadcast 経由で別端末の保存・削除を即時反映
+    // self: false のため自分自身の操作は受信しない（自分は onSaved / 削除直後の fetch で更新）
+    useEffect(() => {
+        if (!session) return;
+        initBroadcastChannel();
+        const cleanup = onBroadcast('attendance_updated', () => {
+            fetchRecords();
+            setMonthlyRefreshKey(k => k + 1);
+        });
+        return cleanup;
+    }, [session, fetchRecords]);
+
     // (foremanId, date) でグルーピング
     const groups: Group[] = useMemo(() => {
         const map = new Map<string, Group>();
@@ -251,7 +264,10 @@ export default function AttendancePage() {
             });
             if (!res.ok) throw new Error(`status ${res.status}`);
             toast.success('削除しました');
+            // 別端末（同一ログイン）へ即時通知
+            sendBroadcast('attendance_updated', { foremanId: g.foremanId, date: g.date });
             await fetchRecords();
+            setMonthlyRefreshKey(k => k + 1);
         } catch (err) {
             logger.error('削除失敗:', err);
             toast.error('削除に失敗しました');
