@@ -114,6 +114,9 @@ export function useProjects() {
 
     // 単一配置をAPIから取得してstoreに差し込む（Realtime incremental sync用）
     const fetchAndUpsertAssignment = useCallback(async (id: string) => {
+        // ガード: broadcast/Realtime payload に id が欠けて undefined が流入することがあり、
+        // 文字列 "undefined" として URL に埋め込まれて 404 を量産する事故を防ぐ
+        if (!id) return;
         try {
             const response = await fetch(`/api/assignments/${id}`);
             if (!response.ok) return;
@@ -339,7 +342,9 @@ export function useProjects() {
         setIsUpdating(true);
         try {
             await updateProjectsStore(updates);
-            const ids = updates.map(u => u.id);
+            // 万一 updates 側で id が欠落していても broadcast 経由で
+            // /api/assignments/undefined を叩かないよう truthy チェック
+            const ids = updates.map(u => u.id).filter((id): id is string => Boolean(id));
             // 同一デバイスの別タブへ即時通知
             broadcastRef.current?.postMessage({ type: 'assignments_batch_updated', ids });
             // 別デバイスへ即時通知（Supabase Realtime broadcast）
