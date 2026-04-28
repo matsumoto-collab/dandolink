@@ -154,15 +154,21 @@ export default function DesktopCalendarView({
                                     const dateKey = formatDateKey(day.date);
                                     const isSaturday = day.dayOfWeek === 6;
                                     const isSunday = day.dayOfWeek === 0;
-                                    const dayEvents = events.filter(event => formatDateKey(event.startDate) === dateKey && event.assignedEmployeeId !== 'unassigned');
-                                    // 職長ごとに最大人数のみ計上
+                                    const dayEvents = events.filter(event => formatDateKey(event.startDate) === dateKey);
+                                    // 職長ごとに最大人数を取り、未割当は単純加算（人数ソースは memberCount のみ）
                                     const byForeman = new Map<string, number[]>();
+                                    let unassignedCount = 0;
                                     dayEvents.forEach(event => {
-                                        const key = event.assignedEmployeeId!;
+                                        const count = event.memberCount ?? 0;
+                                        const key = event.assignedEmployeeId;
+                                        if (!key || key === 'unassigned') {
+                                            unassignedCount += count;
+                                            return;
+                                        }
                                         if (!byForeman.has(key)) byForeman.set(key, []);
-                                        byForeman.get(key)!.push((event.memberCount ?? 0) > 0 ? event.memberCount! : (event.workers?.length || 0));
+                                        byForeman.get(key)!.push(count);
                                     });
-                                    let assignedCount = 0;
+                                    let assignedCount = unassignedCount;
                                     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                                     const vacationCount = getVacationEmployees(dateKey).length;
                                     const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;

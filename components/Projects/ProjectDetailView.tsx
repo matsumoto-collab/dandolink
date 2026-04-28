@@ -48,7 +48,7 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
 
     // ストアから最新の配置を購読（モーダルのinitialDataはクリック時のスナップショットなので古くなる）
     const liveAssignment = useCalendarStore((state) => state.assignments.find(a => a.id === project.id));
-    const liveMemberCount = liveAssignment?.memberCount ?? project.memberCount ?? project.workers?.length ?? 0;
+    const liveMemberCount = liveAssignment?.memberCount ?? project.memberCount ?? 0;
     const liveConfirmedCount = liveAssignment?.confirmedWorkerIds?.length ?? project.confirmedWorkerIds?.length ?? 0;
     const liveIsDispatchConfirmed = liveAssignment?.isDispatchConfirmed ?? project.isDispatchConfirmed ?? false;
     const remainingCount = Math.max(0, liveMemberCount - liveConfirmedCount);
@@ -301,7 +301,7 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                                     <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                                     </svg>
-                                    <span className="text-base text-slate-900 font-medium">{liveMemberCount || project.workers?.length || 0}名</span>
+                                    <span className="text-base text-slate-900 font-medium">{liveMemberCount}名</span>
                                 </div>
                                 {liveIsDispatchConfirmed && (
                                     <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-700">

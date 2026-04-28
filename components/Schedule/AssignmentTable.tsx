@@ -402,7 +402,6 @@ function ProjectCard({
     onEditClick,
     constructionTypeMap,
 }: ProjectCardProps) {
-    const workerCount = project.workers?.length || 0;
     const vehicleCount = project.confirmedVehicleIds?.length || project.trucks?.length || project.vehicles?.length || 0;
     const foremanName = showForemanBadge
         ? allForemen.find(u => u.id === project.assignedEmployeeId)?.displayName
@@ -419,7 +418,7 @@ function ProjectCard({
         : [];
 
     const isConfirmed = project.isDispatchConfirmed;
-    const memberCount = project.memberCount || workerCount || 0;
+    const memberCount = project.memberCount ?? 0;
     const constructionTypeInfo = project.constructionType ? constructionTypeMap.get(project.constructionType) : null;
 
     return (

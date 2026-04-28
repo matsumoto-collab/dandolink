@@ -134,14 +134,20 @@ export default function OverviewCalendarView({
                             </td>
                             {weekDays.map((day, i) => {
                                 const dateKey = formatDateKey(day.date);
-                                const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey && e.assignedEmployeeId !== 'unassigned');
+                                const dayEvents = events.filter(e => formatDateKey(e.startDate) === dateKey);
                                 const byForeman = new Map<string, number[]>();
+                                let unassignedCount = 0;
                                 dayEvents.forEach(e => {
-                                    const key = e.assignedEmployeeId!;
+                                    const count = e.memberCount ?? 0;
+                                    const key = e.assignedEmployeeId;
+                                    if (!key || key === 'unassigned') {
+                                        unassignedCount += count;
+                                        return;
+                                    }
                                     if (!byForeman.has(key)) byForeman.set(key, []);
-                                    byForeman.get(key)!.push((e.memberCount ?? 0) > 0 ? e.memberCount! : (e.workers?.length || 0));
+                                    byForeman.get(key)!.push(count);
                                 });
-                                let assigned = 0;
+                                let assigned = unassignedCount;
                                 byForeman.forEach(counts => { assigned += Math.max(...counts); });
                                 const vacation = getVacationEmployees(dateKey).length;
                                 const adj = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;

@@ -258,15 +258,14 @@ export default function ProjectForm({
             return pDateKey === dateKey && p.id !== initialData?.id;
         });
 
-        // 職長ごとにグルーピングし、最大人数のみ計上
-        // workers配列が空でもmemberCountが入っているケース（複数日スケジュール等）に対応
+        // 職長ごとに最大人数を取り、未割当は単純加算（人数ソースは memberCount のみ）
         const byForeman = new Map<string, number[]>();
         sameDateProjects
             .filter(p => p.assignedEmployeeId && p.assignedEmployeeId !== 'unassigned')
             .forEach(p => {
                 const key = p.assignedEmployeeId!;
                 if (!byForeman.has(key)) byForeman.set(key, []);
-                byForeman.get(key)!.push(p.workers?.length || p.memberCount || 0);
+                byForeman.get(key)!.push(p.memberCount ?? 0);
             });
         let usedMembers = 0;
         byForeman.forEach(counts => { usedMembers += Math.max(...counts); });
@@ -274,7 +273,7 @@ export default function ProjectForm({
         // 未割り当て案件の人数も加算
         const unassignedUsed = sameDateProjects
             .filter(p => !p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned')
-            .reduce((sum, p) => sum + (p.workers?.length || p.memberCount || 0), 0);
+            .reduce((sum, p) => sum + (p.memberCount ?? 0), 0);
         usedMembers += unassignedUsed;
 
         // 休暇・手動調整を加味
@@ -292,7 +291,7 @@ export default function ProjectForm({
             if (!p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned') return;
             const dateKey = formatDateKey(p.startDate);
             if (!map[dateKey]) map[dateKey] = [];
-            const mc = p.workers?.length || p.memberCount || 0;
+            const mc = p.memberCount ?? 0;
             map[dateKey].push({
                 foremanId: p.assignedEmployeeId,
                 foremanName: getForemanName(p.assignedEmployeeId) || '不明',

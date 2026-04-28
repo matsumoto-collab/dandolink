@@ -457,9 +457,16 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                         </div>
                     </div>
                 ),
-                { duration: 8000 }
+                { duration: 8000, position: 'bottom-center' }
             );
             pendingToastIdsRef.current[dateKey] = id;
+            // トーストが自動消滅した時に pending が残るのを防ぐ（duration と同期して破棄）
+            setTimeout(() => {
+                if (pendingToastIdsRef.current[dateKey] === id) {
+                    delete pendingToastIdsRef.current[dateKey];
+                    clearPending(dateKey);
+                }
+            }, 8000);
             return prev;
         });
     }, [commitPending, clearPending]);
