@@ -79,6 +79,9 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
     addProject: async (project) => {
         let projectMasterId: string;
         let broadcastMasterId: string | null = null;
+        // 新規作成した配置IDを集めて、最後にbroadcast送信する。
+        // 送らないと別端末がpostgres_changes(WAL)経由でしか拾えず、反映が1分前後遅れる。
+        const newAssignmentIds: string[] = [];
 
         if (project.projectMasterId) {
             projectMasterId = project.projectMasterId;
@@ -207,6 +210,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             }
 
             const parsed = newAssignments.map((a: Parameters<typeof parseAssignmentResponse>[0]) => parseAssignmentResponse(a));
+            parsed.forEach((a: { id: string }) => newAssignmentIds.push(a.id));
             set((state) => {
                 const newIds = new Set(parsed.map((a: { id: string }) => a.id));
                 const filtered = state.assignments.filter(a => !newIds.has(a.id));
@@ -243,6 +247,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             }
 
             const newAssignment = await response.json();
+            newAssignmentIds.push(newAssignment.id);
             set((state) => ({
                 assignments: [...state.assignments, parseAssignmentResponse(newAssignment)],
                 projectMasters: state.projectMasters.map((pm) =>
@@ -251,6 +256,13 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         : pm
                 ),
             }));
+        }
+
+        // 新規配置を別端末へ即時通知（postgres_changesの遅延を回避）
+        if (newAssignmentIds.length === 1) {
+            sendBroadcast('assignment_updated', { id: newAssignmentIds[0] });
+        } else if (newAssignmentIds.length > 1) {
+            sendBroadcast('assignments_batch_updated', { ids: newAssignmentIds });
         }
 
         // 新規マスター作成時は配置作成完了後にブロードキャスト（配置数を正確に反映するため）
