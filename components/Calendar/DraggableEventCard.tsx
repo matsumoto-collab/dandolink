@@ -1,11 +1,13 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent, EditingUser } from '@/types/calendar';
 import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
+import EventCardHoverPreview from './EventCardHoverPreview';
 
 const LONG_PRESS_MS = 500;
 const LONG_PRESS_TOLERANCE = 6;
+const HOVER_DELAY_MS = 200;
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -107,9 +109,44 @@ export default function DraggableEventCard({
         longPressStart.current = null;
     }, [clearLongPressTimer]);
 
+    // ── ホバープレビュー ──
+    const cardElRef = useRef<HTMLDivElement | null>(null);
+    const setCardRef = useCallback((el: HTMLDivElement | null) => {
+        cardElRef.current = el;
+        setNodeRef(el);
+    }, [setNodeRef]);
+    const [hoverRect, setHoverRect] = useState<DOMRect | null>(null);
+    const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const clearHoverTimer = useCallback(() => {
+        if (hoverTimerRef.current) {
+            clearTimeout(hoverTimerRef.current);
+            hoverTimerRef.current = null;
+        }
+    }, []);
+    useEffect(() => () => clearHoverTimer(), [clearHoverTimer]);
+    // ドラッグ・移動モード中はプレビューを隠す
+    useEffect(() => {
+        if (isDragging || isMovingSource) {
+            clearHoverTimer();
+            setHoverRect(null);
+        }
+    }, [isDragging, isMovingSource, clearHoverTimer]);
+    const onCardMouseEnter = useCallback(() => {
+        if (isDragging || isMovingSource) return;
+        clearHoverTimer();
+        hoverTimerRef.current = setTimeout(() => {
+            const el = cardElRef.current;
+            if (el) setHoverRect(el.getBoundingClientRect());
+        }, HOVER_DELAY_MS);
+    }, [isDragging, isMovingSource, clearHoverTimer]);
+    const onCardMouseLeave = useCallback(() => {
+        clearHoverTimer();
+        setHoverRect(null);
+    }, [clearHoverTimer]);
+
     return (
         <div
-            ref={setNodeRef}
+            ref={setCardRef}
             style={style}
             {...attributes}
             {...(disabled ? {} : listeners)}
@@ -117,6 +154,8 @@ export default function DraggableEventCard({
             onPointerMoveCapture={onCardPointerMove}
             onPointerUpCapture={onCardPointerEnd}
             onPointerCancelCapture={onCardPointerEnd}
+            onMouseEnter={onCardMouseEnter}
+            onMouseLeave={onCardMouseLeave}
             data-event-card="true"
             data-project-id={projectId}
             className={`
@@ -295,6 +334,10 @@ export default function DraggableEventCard({
                     </div>
                 </div>
             </div>
+
+            {hoverRect && !isDragging && !isMovingSource && (
+                <EventCardHoverPreview event={event} anchorRect={hoverRect} />
+            )}
         </div>
     );
 }
