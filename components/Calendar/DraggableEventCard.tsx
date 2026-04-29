@@ -2,7 +2,7 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent, EditingUser } from '@/types/calendar';
-import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
+import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy, Edit3, MoveRight } from 'lucide-react';
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -17,6 +17,7 @@ interface DraggableEventCardProps {
     canDispatch?: boolean;
     disabled?: boolean;
     onCopy?: () => void;
+    onMove?: () => void;
 }
 
 export default function DraggableEventCard({
@@ -31,6 +32,7 @@ export default function DraggableEventCard({
     canDispatch = false,
     disabled = false,
     onCopy,
+    onMove,
     editingUsers = [],
 }: DraggableEventCardProps) {
     const hasOtherEditors = editingUsers.length > 0;
@@ -187,6 +189,21 @@ export default function DraggableEventCard({
                             >
                                 <ChevronDown className="w-4 h-4 sm:w-3 sm:h-3" />
                             </button>
+
+                            {/* 移動ボタン（別の日・職長） */}
+                            {onMove && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        onMove();
+                                    }}
+                                    className="p-1 sm:p-0.5 rounded transition-colors hover:bg-slate-500 hover:bg-opacity-20 text-slate-700"
+                                    title="別の日・職長に移動"
+                                    aria-label="別の日・職長に移動"
+                                >
+                                    <MoveRight className="w-4 h-4 sm:w-3 sm:h-3" />
+                                </button>
+                            )}
 
                             {/* コピーボタン */}
                             {onCopy && (
