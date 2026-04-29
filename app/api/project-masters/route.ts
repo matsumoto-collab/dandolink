@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
         const validation = validateRequest(createProjectMasterSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error, validation.details);
 
-        const { title, name, honorific, constructionSuffixId, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy, subcontractorCosts } = validation.data;
+        const { title, name, honorific, constructionSuffixId, siteShortName, customerId, customerName, customerShortName, constructionType, constructionContent, status, location, postalCode, prefecture, city, plusCode, latitude, longitude, area, areaRemarks, estimatedAssemblyWorkers, estimatedDemolitionWorkers, contractAmount, scaffoldingSpec, description, remarks, createdBy, subcontractorCosts } = validation.data;
 
         // 正式名称を自動合成（nameがある場合）
         let resolvedTitle = title || '';
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
 
         const projectMaster = await prisma.projectMaster.create({
             data: {
-                title: resolvedTitle || title, name: name || null, honorific: honorific ?? null, constructionSuffixId: constructionSuffixId || null,
+                title: resolvedTitle || title, name: name || null, honorific: honorific ?? null, constructionSuffixId: constructionSuffixId || null, siteShortName: siteShortName || null,
                 customerId: resolvedCustomerId, customerName: customerName || null, customerShortName: resolvedCustomerShortName,
                 constructionType: constructionType || 'other', constructionContent: constructionContent || null,
                 status: status || 'active', location: location || null, postalCode: postalCode || null,

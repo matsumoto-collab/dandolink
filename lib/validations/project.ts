@@ -11,6 +11,7 @@ export const createProjectMasterSchema = z.object({
     name: z.string().max(100, '名前は100文字以内で入力してください').optional().nullable(),
     honorific: z.string().max(20).optional().nullable(),
     constructionSuffixId: z.string().optional().nullable(),
+    siteShortName: z.string().max(100, '場所は100文字以内で入力してください').optional().nullable(),
     customerId: z.string().optional().nullable(),
     customerName: z.string().max(200).optional().nullable(),
     customerShortName: z.string().max(100).optional().nullable(),

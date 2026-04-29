@@ -61,6 +61,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.name !== undefined) updateData.name = body.name || null;
         if (body.honorific !== undefined) updateData.honorific = body.honorific ?? null;
         if (body.constructionSuffixId !== undefined) updateData.constructionSuffixId = body.constructionSuffixId || null;
+        if (body.siteShortName !== undefined) updateData.siteShortName = body.siteShortName || null;
 
         // nameがある場合、titleを自動合成
         if (body.name !== undefined) {

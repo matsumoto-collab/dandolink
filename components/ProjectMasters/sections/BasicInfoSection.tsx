@@ -212,22 +212,21 @@ export function BasicInfoSection({ formData, setFormData, errors }: BasicInfoSec
                     </select>
                 </FormField>
 
-                {/* 現場名（3フィールド分離） */}
+                {/* 現場名（4フィールド分離: 名前/敬称/場所/工事名称） */}
                 <FormField label="現場名" required error={errors?.name} fieldId="name">
                     <div className="space-y-3">
-                        {/* 1行目: 名前（フル幅） */}
-                        <div>
-                            <label className="block text-xs text-slate-500 mb-1">名前</label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
-                                placeholder="例: 佐藤"
-                            />
-                        </div>
-                        {/* 2行目: 敬称 + 工事名称 */}
+                        {/* 1行目: 名前 + 敬称 */}
                         <div className="flex gap-3">
+                            <div className="flex-[2]">
+                                <label className="block text-xs text-slate-500 mb-1">名前</label>
+                                <input
+                                    type="text"
+                                    value={formData.name}
+                                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                    placeholder="例: 佐藤"
+                                />
+                            </div>
                             <div className="flex-1">
                                 <label className="block text-xs text-slate-500 mb-1">敬称</label>
                                 <select
@@ -239,6 +238,18 @@ export function BasicInfoSection({ formData, setFormData, errors }: BasicInfoSec
                                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                                     ))}
                                 </select>
+                            </div>
+                        </div>
+                        {/* 2行目: 場所 + 工事名称 */}
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs text-slate-500 mb-1">場所</label>
+                                <input
+                                    type="text"
+                                    value={formData.siteShortName}
+                                    onChange={(e) => setFormData({ ...formData, siteShortName: e.target.value })}
+                                    className="w-full px-3 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 text-base"
+                                />
                             </div>
                             <div className="flex-[2]">
                                 <label className="block text-xs text-slate-500 mb-1">工事名称</label>

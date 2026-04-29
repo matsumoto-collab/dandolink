@@ -416,11 +416,12 @@ export function useProjects() {
         const masterType = constructionTypes.find(ct => ct.id === constructionType || ct.name === constructionType);
         const color = masterType?.color || DEFAULT_CONSTRUCTION_TYPE_COLORS[constructionType] || DEFAULT_CONSTRUCTION_TYPE_COLORS.other;
 
-        // カード表示用: name+honorific（工事名称なし）。nameが無い旧データはtitleにフォールバック
+        // カード表示用: name+honorific+siteShortName（工事名称なし）。nameが無い旧データはtitleにフォールバック
         const pm = a.projectMaster;
         const hasNameField = !!pm?.name;
+        const site = (pm as any)?.siteShortName ? ` ${(pm as any).siteShortName}` : '';
         const displayTitle = hasNameField
-            ? `${pm!.name}${(pm as any)?.honorific || ''}` || pm?.title || '不明な案件'
+            ? `${pm!.name}${(pm as any)?.honorific || ''}${site}` || pm?.title || '不明な案件'
             : pm?.title || '不明な案件';
 
         return {
@@ -429,6 +430,7 @@ export function useProjects() {
             name: hasNameField ? pm!.name : undefined,
             honorific: hasNameField ? (pm as any)?.honorific : undefined,
             constructionSuffixId: (pm as any)?.constructionSuffixId,
+            siteShortName: (pm as any)?.siteShortName ?? null,
             startDate: a.date,
             category: 'construction' as const,
             color,

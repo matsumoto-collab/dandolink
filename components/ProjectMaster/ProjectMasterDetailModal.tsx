@@ -59,6 +59,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
         name: hasNameField ? pm.name! : pm.title || '',
         honorific: hasNameField ? (pm.honorific ?? '様邸') : '',
         constructionSuffixId: pm.constructionSuffixId || '',
+        siteShortName: pm.siteShortName || '',
         customerId: pm.customerId || '',
         customerName: pm.customerName || '',
         constructionContent: pm.constructionContent || '',

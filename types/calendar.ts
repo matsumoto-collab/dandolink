@@ -124,6 +124,7 @@ export interface ProjectMaster {
     honorific?: string;              // 敬称（様邸/様/御中/空文字）
     constructionSuffixId?: string;   // 工事名称マスタID
     constructionSuffixName?: string; // 工事名称（表示用、APIレスポンス）
+    siteShortName?: string | null;   // 場所（個人名案件の識別用メモ。PDFには反映しない）
     customerId?: string;             // 顧客ID
     customerName?: string;           // 顧客名（表示用）
     customerShortName?: string;      // 顧客略称（表示用）
@@ -221,6 +222,7 @@ export interface Project extends CalendarEvent {
     name?: string;
     honorific?: string;
     constructionSuffixId?: string;
+    siteShortName?: string | null;
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string;

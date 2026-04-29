@@ -50,9 +50,11 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
     const resolvedName = hasNameField ? pm!.name : pm?.title || '';
     const resolvedHonorific = hasNameField ? (pm!.honorific ?? '様邸') : '';
 
-    // カード表示用: name+honorific（工事名称は非表示）
+    // カード表示用: name+honorific+siteShortName（工事名称は非表示）
+    // siteShortName は個人名案件の識別メモ。"佐藤様 新宿" のようにスペース区切りで表示
+    const site = pm?.siteShortName ? ` ${pm.siteShortName}` : '';
     const cardTitle = hasNameField
-        ? `${pm!.name || ''}${pm!.honorific || ''}` || '不明な案件'
+        ? `${pm!.name || ''}${pm!.honorific || ''}${site}` || '不明な案件'
         : pm?.title || '不明な案件';
 
     return {
@@ -61,6 +63,7 @@ export function assignmentToProject(assignment: ProjectAssignment & { projectMas
         name: resolvedName,
         honorific: resolvedHonorific,
         constructionSuffixId: pm?.constructionSuffixId,
+        siteShortName: pm?.siteShortName ?? null,
         startDate: assignment.date,
         category: 'construction',
         color,

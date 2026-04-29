@@ -32,6 +32,7 @@ export interface ProjectMasterFormData {
     name: string;
     honorific: string;
     constructionSuffixId: string;
+    siteShortName: string;
     customerId: string;
     customerName: string;
     constructionContent: string;
@@ -64,6 +65,7 @@ export const DEFAULT_FORM_DATA: ProjectMasterFormData = {
     name: '',
     honorific: '様邸',
     constructionSuffixId: '',
+    siteShortName: '',
     customerId: '',
     customerName: '',
     constructionContent: '',

@@ -66,6 +66,7 @@ model ProjectMaster {
   constructionSuffixId       String?
   honorific                  String?
   name                       String?
+  siteShortName              String?
   scheduledStartDate         DateTime?
   scheduledEndDate           DateTime?
   managerIds                 String[]              @default([])

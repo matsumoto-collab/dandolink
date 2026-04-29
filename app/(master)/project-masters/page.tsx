@@ -63,6 +63,7 @@ export default function ProjectMasterListPage() {
     // 複数見積/請求がある場合のピッカー
     const [pickerContext, setPickerContext] = useState<{ pm: ProjectMaster; kind: 'estimate' | 'invoice' } | null>(null);
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
+    const [suffixMap, setSuffixMap] = useState<Record<string, string>>({});
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
@@ -137,6 +138,36 @@ export default function ProjectMasterListPage() {
         return ids.map(id => managerMap[id] || '...').join('、');
     }, [managerMap]);
 
+    // 工事名称マスタを取得（表示用「〇〇様 場所 工事名称」の合成に使用）
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/master-data/construction-suffixes', { cache: 'no-store' });
+                if (!res.ok) return;
+                const suffixes: { id: string; name: string }[] = await res.json();
+                if (cancelled) return;
+                const map: Record<string, string> = {};
+                suffixes.forEach(s => { map[s.id] = s.name; });
+                setSuffixMap(map);
+            } catch (e) {
+                logger.error('工事名称マスタの取得に失敗:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    // 案件一覧の表示タイトル: name + honorific + siteShortName + 工事名称
+    // 旧データ（name 未設定）は pm.title をそのまま使用
+    const buildListTitle = useCallback((pm: ProjectMaster): string => {
+        if (!pm.name) return pm.title;
+        const honorific = pm.honorific || '';
+        const place = pm.siteShortName ? ` ${pm.siteShortName}` : '';
+        const suffixName = pm.constructionSuffixId ? suffixMap[pm.constructionSuffixId] || '' : '';
+        const suffixPart = suffixName ? ` ${suffixName}` : '';
+        return `${pm.name}${honorific}${place}${suffixPart}`;
+    }, [suffixMap]);
+
     const totalPages = Math.ceil(filteredMasters.length / ITEMS_PER_PAGE);
 
     const paginatedMasters = useMemo(() => {
@@ -155,6 +186,7 @@ export default function ProjectMasterListPage() {
             name: data.name || undefined,
             honorific: data.honorific ?? undefined,
             constructionSuffixId: data.constructionSuffixId || undefined,
+            siteShortName: data.siteShortName || undefined,
             customerId: data.customerId || undefined,
             customerName: data.customerName || undefined,
             constructionType: 'other',
@@ -214,6 +246,7 @@ export default function ProjectMasterListPage() {
             name: data.name || null,
             honorific: data.honorific ?? null,
             constructionSuffixId: data.constructionSuffixId || null,
+            siteShortName: data.siteShortName || null,
             customerId: data.customerId || null,
             customerName: data.customerName || null,
             constructionContent: (data.constructionContent as string) || null,
@@ -721,7 +754,7 @@ export default function ProjectMasterListPage() {
                             >
                                 <div className="p-3">
                                     <div className="flex items-center gap-2 flex-wrap mb-1">
-                                        <h3 className="text-base font-bold text-slate-800">{pm.title}</h3>
+                                        <h3 className="text-base font-bold text-slate-800">{buildListTitle(pm)}</h3>
                                         {pm.constructionContent && (
                                             <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
                                                 {getConstructionContentLabel(pm.constructionContent)}
@@ -897,7 +930,7 @@ export default function ProjectMasterListPage() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[12px] font-semibold text-slate-900">
-                                                    {pm.title}
+                                                    {buildListTitle(pm)}
                                                 </span>
                                                 {pm.status === 'completed' && (
                                                     <span className="px-2 py-0.5 text-[12px] font-medium rounded-full bg-slate-100 text-slate-600">

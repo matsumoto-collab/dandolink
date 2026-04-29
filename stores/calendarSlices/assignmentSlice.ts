@@ -138,6 +138,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                         name: project.name,
                         honorific: project.honorific,
                         constructionSuffixId: project.constructionSuffixId,
+                        siteShortName: project.siteShortName,
                         customerName: project.customer,
                         constructionType: project.constructionType || 'other',
                         constructionContent: project.constructionContent,
@@ -287,6 +288,9 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 }
                 if (updates.constructionSuffixId !== undefined && (updates.constructionSuffixId || null) !== (currentPm?.constructionSuffixId ?? null)) {
                     projectMasterUpdates.constructionSuffixId = updates.constructionSuffixId || null;
+                }
+                if (updates.siteShortName !== undefined && (updates.siteShortName || null) !== (currentPm?.siteShortName ?? null)) {
+                    projectMasterUpdates.siteShortName = updates.siteShortName || null;
                 }
                 if (updates.createdBy && JSON.stringify(currentPm?.createdBy ?? null) !== JSON.stringify(updates.createdBy)) {
                     projectMasterUpdates.createdBy = updates.createdBy;
