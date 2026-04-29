@@ -564,6 +564,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     moveForeman={isReadOnly ? undefined : moveForeman}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
+                    handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     goToPreviousWeek={goToPreviousWeek}

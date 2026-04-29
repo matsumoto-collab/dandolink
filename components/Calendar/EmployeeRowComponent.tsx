@@ -1,11 +1,11 @@
 import React from 'react';
-import { EmployeeRow, Project, EditingUser } from '@/types/calendar';
+import { EmployeeRow, Project, EditingUser, CalendarEvent } from '@/types/calendar';
 import { WeekDay } from '@/types/calendar';
 import { getEventsForDate, formatDateKey } from '@/utils/employeeUtils';
 import DraggableEventCard from './DraggableEventCard';
 import DroppableCell from './DroppableCell';
 import CellRemarkInput from './CellRemarkInput';
-import { X, ChevronUp, ChevronDown } from 'lucide-react';
+import { X, ChevronUp, ChevronDown, Plus } from 'lucide-react';
 
 interface EmployeeRowComponentProps {
     row: EmployeeRow;
@@ -24,6 +24,10 @@ interface EmployeeRowComponentProps {
     isReadOnly?: boolean;
     onCopyEvent?: (eventId: string) => void;
     getEditingUsers?: (assignmentId: string) => EditingUser[];
+    movingEventId?: string | null;
+    onLongPressEvent?: (event: CalendarEvent) => void;
+    onCommitMove?: (employeeId: string, date: Date) => void;
+    onCancelMove?: () => void;
 }
 
 export default function EmployeeRowComponent({
@@ -43,7 +47,12 @@ export default function EmployeeRowComponent({
     isReadOnly = false,
     onCopyEvent,
     getEditingUsers,
+    movingEventId = null,
+    onLongPressEvent,
+    onCommitMove,
+    onCancelMove,
 }: EmployeeRowComponentProps) {
+    const isMoving = movingEventId !== null;
 
     const handleDelete = () => {
         if (onRemoveForeman) {
@@ -123,6 +132,20 @@ export default function EmployeeRowComponent({
                 const events = getEventsForDate(row, day.date);
                 const dateKey = formatDateKey(day.date);
                 const dropId = `${row.employeeId}-${dateKey}`;
+                const cellHasSource = events.some(e => e.id === movingEventId);
+
+                // 移動モード中はセルクリックで commitMove、それ以外は通常の onCellClick
+                const handleCellClickMaybeMove = () => {
+                    if (isMoving) {
+                        if (cellHasSource) {
+                            onCancelMove?.();
+                        } else {
+                            onCommitMove?.(row.employeeId, day.date);
+                        }
+                        return;
+                    }
+                    onCellClick?.(row.employeeId, day.date);
+                };
 
                 return (
                     <DroppableCell
@@ -130,18 +153,29 @@ export default function EmployeeRowComponent({
                         id={dropId}
                         dayOfWeek={day.dayOfWeek}
                         events={events}
-                        onClick={() => onCellClick?.(row.employeeId, day.date)}
+                        onClick={handleCellClickMaybeMove}
                     >
                         {events.map((event, eventIndex) => {
                             // イベントIDからプロジェクトIDを取得
                             const projectId = event.id.replace(/-assembly$|-demolition$/, '');
                             const project = projects.find(p => p.id === projectId);
+                            const isThisMoving = event.id === movingEventId;
 
                             return (
                                 <DraggableEventCard
                                     key={event.id}
                                     event={event}
-                                    onClick={() => onEventClick?.(event.id)}
+                                    onClick={() => {
+                                        if (isMoving) {
+                                            if (isThisMoving) {
+                                                onCancelMove?.();
+                                            } else {
+                                                onCommitMove?.(row.employeeId, day.date);
+                                            }
+                                            return;
+                                        }
+                                        onEventClick?.(event.id);
+                                    }}
                                     onMoveUp={() => onMoveEvent?.(event.id, 'up')}
                                     onMoveDown={() => onMoveEvent?.(event.id, 'down')}
                                     canMoveUp={eventIndex > 0}
@@ -149,12 +183,20 @@ export default function EmployeeRowComponent({
                                     onDispatch={() => onDispatch?.(projectId)}
                                     isDispatchConfirmed={project?.isDispatchConfirmed || false}
                                     canDispatch={canDispatch}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || isMoving}
                                     onCopy={onCopyEvent ? () => onCopyEvent(event.id) : undefined}
                                     editingUsers={getEditingUsers?.(projectId)}
+                                    onLongPress={onLongPressEvent && !isMoving ? () => onLongPressEvent(event) : undefined}
+                                    isMovingSource={isThisMoving}
                                 />
                             );
                         })}
+                        {/* 移動モード中: 移動先候補オーバーレイ（ターゲットを視覚化） */}
+                        {isMoving && !cellHasSource && (
+                            <div className="pointer-events-none flex items-center justify-center min-h-[32px] my-1 border border-dashed border-slate-400 text-slate-400 rounded">
+                                <Plus className="w-4 h-4" />
+                            </div>
+                        )}
                         <CellRemarkInput
                             foremanId={row.employeeId}
                             dateKey={dateKey}

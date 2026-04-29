@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
-import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core';
+import React, { useState, useCallback } from 'react';
+import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
+import { MoveRight, X } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -35,6 +36,7 @@ interface DesktopCalendarViewProps {
     moveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
+    handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     // Navigation
@@ -70,6 +72,7 @@ export default function DesktopCalendarView({
     moveForeman,
     handleOpenDispatchModal,
     handleCopyEvent,
+    handleMoveToCell,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     goToPreviousWeek,
@@ -80,14 +83,52 @@ export default function DesktopCalendarView({
     weekLabel,
     hideRemarks = false,
 }: DesktopCalendarViewProps) {
+    // PointerSensor を距離アクティベーション化（長押しと共存させる）
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+        useSensor(KeyboardSensor)
+    );
+
+    // 移動モード（モバイルと同じ：長押し → ターゲットセルクリックで移動）
+    const [movingEvent, setMovingEvent] = useState<CalendarEvent | null>(null);
+    const cancelMoving = useCallback(() => setMovingEvent(null), []);
+    const startMoving = useCallback((event: CalendarEvent) => {
+        if (isReadOnly || !handleMoveToCell) return;
+        setMovingEvent(event);
+    }, [isReadOnly, handleMoveToCell]);
+    const commitMove = useCallback((employeeId: string, date: Date) => {
+        if (!movingEvent || !handleMoveToCell) return;
+        handleMoveToCell(movingEvent.id, employeeId, date);
+        setMovingEvent(null);
+    }, [movingEvent, handleMoveToCell]);
+
     return (
         <DndContext
+            sensors={sensors}
             collisionDetection={closestCenter}
-            onDragStart={isReadOnly ? undefined : handleDragStart}
-            onDragOver={isReadOnly ? undefined : handleDragOver}
-            onDragEnd={isReadOnly ? undefined : handleDragEnd}
-            onDragCancel={isReadOnly ? undefined : handleDragCancel}
+            onDragStart={isReadOnly || movingEvent ? undefined : handleDragStart}
+            onDragOver={isReadOnly || movingEvent ? undefined : handleDragOver}
+            onDragEnd={isReadOnly || movingEvent ? undefined : handleDragEnd}
+            onDragCancel={isReadOnly || movingEvent ? undefined : handleDragCancel}
         >
+            {/* ── 移動モードバナー ── */}
+            {movingEvent && (
+                <div className="flex-shrink-0 bg-slate-700 text-white px-4 py-2 mb-2 flex items-center gap-3 rounded-lg shadow">
+                    <MoveRight className="w-4 h-4 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                        <span className="text-sm font-bold truncate block">「{movingEvent.title}」を移動中</span>
+                        <span className="text-xs text-slate-200">移動先のセルをクリック（前週/翌週ボタンで週送り可）</span>
+                    </div>
+                    <button
+                        onClick={cancelMoving}
+                        className="flex items-center gap-1 bg-slate-600 hover:bg-slate-500 active:bg-slate-800 rounded-lg px-3 py-1.5 flex-shrink-0 transition-colors"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                        <span className="text-xs font-medium">キャンセル</span>
+                    </button>
+                </div>
+            )}
+
             {/* ── ナビゲーション ── */}
             {goToPreviousWeek && goToNextWeek && goToToday && (
                 <div className="flex-shrink-0 bg-white border border-slate-200 rounded-lg shadow-sm mb-2 px-4 py-1.5 flex items-center justify-between">
@@ -225,6 +266,10 @@ export default function DesktopCalendarView({
                                     isReadOnly={isReadOnly}
                                     onCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                                     getEditingUsers={getEditingUsers}
+                                    movingEventId={movingEvent?.id ?? null}
+                                    onLongPressEvent={handleMoveToCell ? startMoving : undefined}
+                                    onCommitMove={movingEvent ? commitMove : undefined}
+                                    onCancelMove={cancelMoving}
                                 />
                             ))}
                         </div>

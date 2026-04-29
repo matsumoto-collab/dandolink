@@ -1,8 +1,11 @@
-import React from 'react';
+import React, { useRef, useCallback } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { CalendarEvent, EditingUser } from '@/types/calendar';
 import { ChevronUp, ChevronDown, ClipboardCheck, CheckCircle, Copy, Edit3 } from 'lucide-react';
+
+const LONG_PRESS_MS = 500;
+const LONG_PRESS_TOLERANCE = 6;
 
 interface DraggableEventCardProps {
     event: CalendarEvent;
@@ -17,6 +20,8 @@ interface DraggableEventCardProps {
     canDispatch?: boolean;
     disabled?: boolean;
     onCopy?: () => void;
+    onLongPress?: () => void;
+    isMovingSource?: boolean;
 }
 
 export default function DraggableEventCard({
@@ -31,6 +36,8 @@ export default function DraggableEventCard({
     canDispatch = false,
     disabled = false,
     onCopy,
+    onLongPress,
+    isMovingSource = false,
     editingUsers = [],
 }: DraggableEventCardProps) {
     const hasOtherEditors = editingUsers.length > 0;
@@ -49,8 +56,51 @@ export default function DraggableEventCard({
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: isDragging ? 0.5 : isMovingSource ? 0.7 : 1,
     };
+
+    // 長押し検出（マウス／タッチ／ペン共通）
+    // - PointerSensor は distance:8 でアクティベートされるため、
+    //   8px未満の動きで500ms保持されたら長押し成立
+    const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const longPressStart = useRef<{ x: number; y: number } | null>(null);
+    const longPressFired = useRef(false);
+
+    const clearLongPressTimer = useCallback(() => {
+        if (longPressTimer.current) {
+            clearTimeout(longPressTimer.current);
+            longPressTimer.current = null;
+        }
+    }, []);
+
+    const onCardPointerDown = useCallback((e: React.PointerEvent) => {
+        if (!onLongPress || disabled) return;
+        // 主ボタンのみ
+        if (e.button !== undefined && e.button !== 0) return;
+        longPressFired.current = false;
+        longPressStart.current = { x: e.clientX, y: e.clientY };
+        clearLongPressTimer();
+        longPressTimer.current = setTimeout(() => {
+            longPressTimer.current = null;
+            longPressFired.current = true;
+            onLongPress();
+        }, LONG_PRESS_MS);
+    }, [onLongPress, disabled, clearLongPressTimer]);
+
+    const onCardPointerMove = useCallback((e: React.PointerEvent) => {
+        if (!longPressStart.current) return;
+        const dx = Math.abs(e.clientX - longPressStart.current.x);
+        const dy = Math.abs(e.clientY - longPressStart.current.y);
+        if (dx > LONG_PRESS_TOLERANCE || dy > LONG_PRESS_TOLERANCE) {
+            clearLongPressTimer();
+            longPressStart.current = null;
+        }
+    }, [clearLongPressTimer]);
+
+    const onCardPointerEnd = useCallback(() => {
+        clearLongPressTimer();
+        longPressStart.current = null;
+    }, [clearLongPressTimer]);
 
     return (
         <div
@@ -58,6 +108,10 @@ export default function DraggableEventCard({
             style={style}
             {...attributes}
             {...(disabled ? {} : listeners)}
+            onPointerDownCapture={onCardPointerDown}
+            onPointerMoveCapture={onCardPointerMove}
+            onPointerUpCapture={onCardPointerEnd}
+            onPointerCancelCapture={onCardPointerEnd}
             data-event-card="true"
             className={`
         mb-1 p-1 rounded-lg
@@ -65,6 +119,7 @@ export default function DraggableEventCard({
         text-[11px] relative overflow-hidden
         ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}
         ${isDragging ? 'shadow-lg z-50 opacity-90' : 'shadow-sm hover:brightness-105'}
+        ${isMovingSource ? 'ring-2 ring-slate-700 ring-offset-1' : ''}
       `}
         >
             <div
@@ -104,6 +159,11 @@ export default function DraggableEventCard({
                             onPointerDown={(e) => e.stopPropagation()}
                             onClick={(e) => {
                                 e.stopPropagation();
+                                // 長押し成立直後のクリックはスキップ
+                                if (longPressFired.current) {
+                                    longPressFired.current = false;
+                                    return;
+                                }
                                 if (!isDragging && onClick) {
                                     onClick();
                                 }
