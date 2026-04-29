@@ -28,6 +28,7 @@ interface EmployeeRowComponentProps {
     onLongPressEvent?: (event: CalendarEvent) => void;
     onCommitMove?: (employeeId: string, date: Date) => void;
     onCancelMove?: () => void;
+    highlightedEventId?: string | null;
 }
 
 export default function EmployeeRowComponent({
@@ -51,6 +52,7 @@ export default function EmployeeRowComponent({
     onLongPressEvent,
     onCommitMove,
     onCancelMove,
+    highlightedEventId = null,
 }: EmployeeRowComponentProps) {
     const isMoving = movingEventId !== null;
 
@@ -188,6 +190,7 @@ export default function EmployeeRowComponent({
                                     editingUsers={getEditingUsers?.(projectId)}
                                     onLongPress={onLongPressEvent && !isMoving ? () => onLongPressEvent(event) : undefined}
                                     isMovingSource={isThisMoving}
+                                    isHighlighted={highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)}
                                 />
                             );
                         })}

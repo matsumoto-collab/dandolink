@@ -22,6 +22,7 @@ interface DraggableEventCardProps {
     onCopy?: () => void;
     onLongPress?: () => void;
     isMovingSource?: boolean;
+    isHighlighted?: boolean;
 }
 
 export default function DraggableEventCard({
@@ -38,6 +39,7 @@ export default function DraggableEventCard({
     onCopy,
     onLongPress,
     isMovingSource = false,
+    isHighlighted = false,
     editingUsers = [],
 }: DraggableEventCardProps) {
     const hasOtherEditors = editingUsers.length > 0;
@@ -120,6 +122,7 @@ export default function DraggableEventCard({
         ${disabled ? '' : 'cursor-grab active:cursor-grabbing'}
         ${isDragging ? 'shadow-lg z-50 opacity-90' : 'shadow-sm hover:brightness-105'}
         ${isMovingSource ? 'ring-2 ring-slate-700 ring-offset-1' : ''}
+        ${isHighlighted ? 'ring-4 ring-amber-400 ring-offset-2 animate-pulse' : ''}
       `}
         >
             <div

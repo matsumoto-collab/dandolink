@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
@@ -34,6 +34,8 @@ interface MobileCalendarViewProps {
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
     handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
+    handleOpenSearch?: () => void;
+    highlightedEventId?: string | null;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     hideRemarks?: boolean;
@@ -73,6 +75,8 @@ export default function MobileCalendarView({
     handleOpenDispatchModal,
     handleCopyEvent,
     handleMoveToCell,
+    handleOpenSearch,
+    highlightedEventId = null,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     hideRemarks = false,
@@ -218,7 +222,7 @@ export default function MobileCalendarView({
                         </button>
                     </div>
 
-                    {/* Center: week label + today + remarks toggle */}
+                    {/* Center: week label + today + remarks toggle + search */}
                     <div className="flex items-center gap-2">
                         <button
                             onClick={goToToday}
@@ -226,6 +230,16 @@ export default function MobileCalendarView({
                         >
                             {weekLabel}
                         </button>
+                        {handleOpenSearch && (
+                            <button
+                                onClick={handleOpenSearch}
+                                className={`rounded-lg text-slate-500 hover:bg-slate-100 active:bg-slate-200 transition-colors ${isLandscape ? 'p-0.5' : 'p-1.5'}`}
+                                aria-label="案件を検索"
+                                title="案件を検索"
+                            >
+                                <Search className={isLandscape ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+                            </button>
+                        )}
                         {isLandscape && !hideRemarks && (
                             <button
                                 onClick={() => setShowRemarks(prev => !prev)}
@@ -565,6 +579,8 @@ export default function MobileCalendarView({
                                                                 className={`w-full text-left rounded p-1 transition-all relative select-none ${
                                                                     isThisMoving
                                                                         ? 'ring-2 ring-white ring-offset-1 ring-offset-blue-400 opacity-70 scale-95'
+                                                                        : highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)
+                                                                        ? 'ring-4 ring-amber-400 ring-offset-2 animate-pulse'
                                                                         : 'active:brightness-90'
                                                                 }`}
                                                                 style={{ backgroundColor: event.color }}

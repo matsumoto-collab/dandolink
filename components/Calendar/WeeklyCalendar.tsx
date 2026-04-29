@@ -41,6 +41,9 @@ const CopyAssignmentModal = dynamic(() => import('./CopyAssignmentModal'), {
 const ProjectSelectionModal = dynamic(() => import('./ProjectSelectionModal'), {
     loading: () => <Loading overlay />
 });
+const ScheduleSearchPanel = dynamic(() => import('./ScheduleSearchPanel'), {
+    loading: () => <Loading overlay />
+});
 const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'));
 
 interface WeeklyCalendarProps {
@@ -174,7 +177,27 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         }
     }, [updateProject]);
 
-    const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday } = useCalendar(events);
+    const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
+
+    // 検索パネルの開閉
+    const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const handleOpenSearch = useCallback(() => setIsSearchOpen(true), []);
+    const handleCloseSearch = useCallback(() => setIsSearchOpen(false), []);
+
+    // 検索結果クリック時のハイライト（3秒間）
+    const [highlightedEventId, setHighlightedEventId] = useState<string | null>(null);
+    const highlightTimerRef = useRef<NodeJS.Timeout | null>(null);
+    useEffect(() => {
+        return () => {
+            if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        };
+    }, []);
+    const handleSearchJump = useCallback((date: Date, assignmentId: string) => {
+        goToDate(date);
+        setHighlightedEventId(assignmentId);
+        if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+        highlightTimerRef.current = setTimeout(() => setHighlightedEventId(null), 3000);
+    }, [goToDate]);
 
     // ナビゲーション関数を親に公開
     useEffect(() => {
@@ -536,6 +559,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
+                    handleOpenSearch={handleOpenSearch}
+                    highlightedEventId={highlightedEventId}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
@@ -565,6 +590,8 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
+                    handleOpenSearch={handleOpenSearch}
+                    highlightedEventId={highlightedEventId}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     goToPreviousWeek={goToPreviousWeek}
@@ -627,6 +654,12 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                 onResolve={handleConflictResolution}
                 latestData={conflictData?.latestData}
                 conflictMessage={conflictData?.message}
+            />
+
+            <ScheduleSearchPanel
+                isOpen={isSearchOpen}
+                onClose={handleCloseSearch}
+                onJump={handleSearchJump}
             />
 
             {/* 職長2用: 案件マスター詳細モーダル（閲覧のみ） */}

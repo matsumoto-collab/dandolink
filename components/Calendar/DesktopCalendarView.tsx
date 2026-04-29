@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from 'react';
 import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
-import { MoveRight, X } from 'lucide-react';
+import { MoveRight, X, Search } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -37,6 +37,8 @@ interface DesktopCalendarViewProps {
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
     handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
+    handleOpenSearch?: () => void;
+    highlightedEventId?: string | null;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     // Navigation
@@ -73,6 +75,8 @@ export default function DesktopCalendarView({
     handleOpenDispatchModal,
     handleCopyEvent,
     handleMoveToCell,
+    handleOpenSearch,
+    highlightedEventId = null,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     goToPreviousWeek,
@@ -142,9 +146,21 @@ export default function DesktopCalendarView({
                             </button>
                         )}
                     </div>
-                    <button onClick={goToToday} className="font-bold text-sm text-slate-800 px-3 py-1 rounded-lg hover:bg-slate-100 transition-colors">
-                        {weekLabel || '今週'}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        <button onClick={goToToday} className="font-bold text-sm text-slate-800 px-3 py-1 rounded-lg hover:bg-slate-100 transition-colors">
+                            {weekLabel || '今週'}
+                        </button>
+                        {handleOpenSearch && (
+                            <button
+                                onClick={handleOpenSearch}
+                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
+                                aria-label="案件を検索"
+                                title="案件を検索"
+                            >
+                                <Search className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                     <div className="flex items-center gap-1">
                         {goToNextDay && (
                             <button onClick={goToNextDay} className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors" aria-label="1日後">
@@ -270,6 +286,7 @@ export default function DesktopCalendarView({
                                     onLongPressEvent={handleMoveToCell ? startMoving : undefined}
                                     onCommitMove={movingEvent ? commitMove : undefined}
                                     onCancelMove={cancelMoving}
+                                    highlightedEventId={highlightedEventId}
                                 />
                             ))}
                         </div>

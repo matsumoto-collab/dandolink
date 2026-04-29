@@ -10,6 +10,7 @@ interface UseCalendarReturn {
     goToPreviousDay: () => void;
     goToNextDay: () => void;
     goToToday: () => void;
+    goToDate: (date: Date) => void;
     setEvents: (events: CalendarEvent[]) => void;
 }
 
@@ -71,6 +72,11 @@ export function useCalendar(initialEvents: CalendarEvent[] = []): UseCalendarRet
         setCurrentDate(getMonday(new Date()));
     };
 
+    // 任意の日付を含む週へ移動（その日付の週の月曜日にスナップ）
+    const goToDate = (date: Date) => {
+        setCurrentDate(getMonday(date));
+    };
+
     // イベントを設定
     const setEvents = (newEvents: CalendarEvent[]) => {
         setEventsState(newEvents);
@@ -84,6 +90,7 @@ export function useCalendar(initialEvents: CalendarEvent[] = []): UseCalendarRet
         goToPreviousDay,
         goToNextDay,
         goToToday,
+        goToDate,
         setEvents,
     };
 }
