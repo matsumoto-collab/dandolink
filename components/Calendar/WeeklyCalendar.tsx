@@ -196,8 +196,34 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         goToDate(date);
         setHighlightedEventId(assignmentId);
         if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
-        highlightTimerRef.current = setTimeout(() => setHighlightedEventId(null), 3000);
+        highlightTimerRef.current = setTimeout(() => setHighlightedEventId(null), 4000);
     }, [goToDate]);
+
+    // ハイライト対象が画面に入っていなければ自動スクロール
+    // - ジャンプ後にprojectsが揃うまで何回かリトライ（最大1.5秒）
+    useEffect(() => {
+        if (!highlightedEventId) return;
+        let cancelled = false;
+        let attempts = 0;
+        const maxAttempts = 8; // 200ms * 8 = 1.6秒
+        const tryScroll = () => {
+            if (cancelled) return;
+            const el = document.querySelector<HTMLElement>(`[data-project-id="${highlightedEventId}"]`);
+            if (el) {
+                el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                return;
+            }
+            if (++attempts < maxAttempts) {
+                setTimeout(tryScroll, 200);
+            }
+        };
+        // 初回は次のpaintを待ってから
+        const t = setTimeout(tryScroll, 100);
+        return () => {
+            cancelled = true;
+            clearTimeout(t);
+        };
+    }, [highlightedEventId, projects]);
 
     // ナビゲーション関数を親に公開
     useEffect(() => {

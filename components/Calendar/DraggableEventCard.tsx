@@ -61,6 +61,9 @@ export default function DraggableEventCard({
         opacity: isDragging ? 0.5 : isMovingSource ? 0.7 : 1,
     };
 
+    // assignment id（-assembly/-demolitionサフィックスを除去）
+    const projectId = event.id.replace(/-assembly$|-demolition$/, '');
+
     // 長押し検出（マウス／タッチ／ペン共通）
     // - PointerSensor は distance:8 でアクティベートされるため、
     //   8px未満の動きで500ms保持されたら長押し成立
@@ -115,6 +118,7 @@ export default function DraggableEventCard({
             onPointerUpCapture={onCardPointerEnd}
             onPointerCancelCapture={onCardPointerEnd}
             data-event-card="true"
+            data-project-id={projectId}
             className={`
         mb-1 p-1 rounded-lg
         transition-colors duration-150

@@ -558,6 +558,7 @@ export default function MobileCalendarView({
                                                         return (
                                                             <button
                                                                 key={event.id}
+                                                                data-project-id={projectId}
                                                                 onTouchStart={() => onCardTouchStart(event)}
                                                                 onTouchEnd={onCardTouchEnd}
                                                                 onTouchCancel={onCardTouchEnd}
