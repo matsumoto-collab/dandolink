@@ -365,7 +365,8 @@ export default function MobileCalendarView({
                             byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                             const vacationCount = getVacationEmployees(dateKey).length;
                             const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                            const remaining = getTotalMembersForDate(dateKey) + adjustment - assignedCount - vacationCount;
+                            const total = getTotalMembersForDate(dateKey) + adjustment;
+                            const remaining = total - assignedCount - vacationCount;
                             return (
                                 <div
                                     key={dateKey}
@@ -382,10 +383,10 @@ export default function MobileCalendarView({
                                             −
                                         </button>
                                     )}
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white ${
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white whitespace-nowrap ${
                                         remaining > 0 ? 'bg-slate-500' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-700'
                                     }`}>
-                                        {remaining}人
+                                        {remaining}<span className="opacity-70">/{total}</span>
                                     </span>
                                     {onMemberAdjustmentChange && (
                                         <button

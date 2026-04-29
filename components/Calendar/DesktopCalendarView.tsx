@@ -229,7 +229,8 @@ export default function DesktopCalendarView({
                                     byForeman.forEach(counts => { assignedCount += Math.max(...counts); });
                                     const vacationCount = getVacationEmployees(dateKey).length;
                                     const adjustment = getMemberAdjustment ? getMemberAdjustment(dateKey) : 0;
-                                    const remainingCount = getTotalMembersForDate(dateKey) + adjustment - assignedCount - vacationCount;
+                                    const totalCount = getTotalMembersForDate(dateKey) + adjustment;
+                                    const remainingCount = totalCount - assignedCount - vacationCount;
 
                                     return (
                                         <div key={index} className={`flex-1 min-w-[110px] xl:min-w-[140px] h-full border-r border-slate-100 p-1 flex items-center justify-center gap-1 ${isSaturday ? 'bg-slate-50/30' : isSunday ? 'bg-slate-50/30' : 'bg-white'}`}>
@@ -243,7 +244,7 @@ export default function DesktopCalendarView({
                                                 </button>
                                             )}
                                             <span className={`inline-block px-1.5 py-0.5 rounded-full text-xs font-bold shadow-sm text-white ${remainingCount > 0 ? 'bg-slate-600' : remainingCount === 0 ? 'bg-slate-400' : 'bg-slate-700'}`}>
-                                                {remainingCount}人
+                                                {remainingCount}人<span className="opacity-70">/{totalCount}人</span>
                                             </span>
                                             {onMemberAdjustmentChange && (
                                                 <button
