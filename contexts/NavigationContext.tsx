@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 
 export type PageType =
     | 'schedule'         // スケジュール管理
-    | 'my-schedule'      // マイスケジュール管理
+    | 'my-schedule'      // マイ工程管理
     | 'project-masters'  // 案件マスター管理
     | 'reports'          // 日報入力
     | 'profit-dashboard' // 利益ダッシュボード

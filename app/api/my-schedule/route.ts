@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, serverErrorResponse } from '@/lib/api/utils';
 
 /**
- * GET /api/my-schedule - マイスケジュール用の案件別工程データ取得
+ * GET /api/my-schedule - マイ工程用の案件別工程データ取得
  *
  * Query params:
  *   startDate: YYYY-MM-DD
@@ -184,6 +184,6 @@ export async function GET(req: NextRequest) {
             headers: { 'Cache-Control': 'no-store' },
         });
     } catch (error) {
-        return serverErrorResponse('マイスケジュール取得', error);
+        return serverErrorResponse('マイ工程取得', error);
     }
 }

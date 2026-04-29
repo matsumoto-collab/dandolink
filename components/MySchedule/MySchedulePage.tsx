@@ -237,7 +237,7 @@ export default function MySchedulePage() {
         <div className="max-w-[1800px] mx-auto">
             <div className="mb-6">
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">
-                    マイスケジュール管理
+                    マイ工程管理
                 </h1>
                 <p className="text-sm text-slate-500 mt-1">案件ごとの工程をバーチャートで確認</p>
             </div>
