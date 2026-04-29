@@ -41,9 +41,6 @@ const CopyAssignmentModal = dynamic(() => import('./CopyAssignmentModal'), {
 const ProjectSelectionModal = dynamic(() => import('./ProjectSelectionModal'), {
     loading: () => <Loading overlay />
 });
-const MoveAssignmentModal = dynamic(() => import('./MoveAssignmentModal'), {
-    loading: () => <Loading overlay />
-});
 const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'));
 
 interface WeeklyCalendarProps {
@@ -343,7 +340,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
         }
     }, [modalInitialData.id, updateProjectWithConflictHandling, addProject]);
 
-    // PC/モバイル: 別セルへ移動（モバイルは長押し、PCはモーダル経由）
+    // モバイル: 長押しで別セルに移動
     const handleMoveToCell = useCallback(async (eventId: string, targetEmployeeId: string, targetDate: Date) => {
         const projectId = eventId.replace(/-assembly$|-demolition$/, '');
         const targetDateKey = formatDateKey(targetDate);
@@ -372,19 +369,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
 
         await updateProjectWithConflictHandling(projectId, updates);
     }, [updateProjectWithConflictHandling, projectsRef]);
-
-    // PC: 移動モーダル
-    const [moveModalEventId, setMoveModalEventId] = useState<string | null>(null);
-    const handleOpenMoveModal = useCallback((eventId: string) => {
-        setMoveModalEventId(eventId);
-    }, []);
-    const handleCloseMoveModal = useCallback(() => {
-        setMoveModalEventId(null);
-    }, []);
-    const moveModalEvent = useMemo(
-        () => (moveModalEventId ? events.find(e => e.id === moveModalEventId) ?? null : null),
-        [moveModalEventId, events]
-    );
 
     // 日別メンバー調整
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
@@ -580,7 +564,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     moveForeman={isReadOnly ? undefined : moveForeman}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
-                    handleOpenMoveModal={isReadOnly ? undefined : handleOpenMoveModal}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     goToPreviousWeek={goToPreviousWeek}
@@ -625,14 +608,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                 event={copyEvent}
                 employees={allForemen.map(f => ({ id: f.id, name: f.displayName }))}
                 onCopy={handleCopyAssignment}
-            />
-
-            <MoveAssignmentModal
-                isOpen={moveModalEventId !== null}
-                onClose={handleCloseMoveModal}
-                event={moveModalEvent}
-                employees={allForemen.map(f => ({ id: f.id, name: f.displayName }))}
-                onMove={handleMoveToCell}
             />
 
             <ProjectSelectionModal

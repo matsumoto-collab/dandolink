@@ -35,7 +35,6 @@ interface DesktopCalendarViewProps {
     moveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
-    handleOpenMoveModal?: (eventId: string) => void;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
     // Navigation
@@ -71,7 +70,6 @@ export default function DesktopCalendarView({
     moveForeman,
     handleOpenDispatchModal,
     handleCopyEvent,
-    handleOpenMoveModal,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     goToPreviousWeek,
@@ -226,7 +224,6 @@ export default function DesktopCalendarView({
                                     projects={projects}
                                     isReadOnly={isReadOnly}
                                     onCopyEvent={isReadOnly ? undefined : handleCopyEvent}
-                                    onMoveEventToCell={isReadOnly ? undefined : handleOpenMoveModal}
                                     getEditingUsers={getEditingUsers}
                                 />
                             ))}

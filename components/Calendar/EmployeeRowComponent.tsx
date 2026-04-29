@@ -23,7 +23,6 @@ interface EmployeeRowComponentProps {
     isLast?: boolean;
     isReadOnly?: boolean;
     onCopyEvent?: (eventId: string) => void;
-    onMoveEventToCell?: (eventId: string) => void;
     getEditingUsers?: (assignmentId: string) => EditingUser[];
 }
 
@@ -43,7 +42,6 @@ export default function EmployeeRowComponent({
     isLast = false,
     isReadOnly = false,
     onCopyEvent,
-    onMoveEventToCell,
     getEditingUsers,
 }: EmployeeRowComponentProps) {
 
@@ -153,7 +151,6 @@ export default function EmployeeRowComponent({
                                     canDispatch={canDispatch}
                                     disabled={isReadOnly}
                                     onCopy={onCopyEvent ? () => onCopyEvent(event.id) : undefined}
-                                    onMove={onMoveEventToCell ? () => onMoveEventToCell(event.id) : undefined}
                                     editingUsers={getEditingUsers?.(projectId)}
                                 />
                             );
