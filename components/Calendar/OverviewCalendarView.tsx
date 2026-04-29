@@ -36,7 +36,9 @@ function MiniCard({ event }: { event: CalendarEvent }) {
             }}
         >
             <div className="font-medium text-slate-800 truncate text-[7px] leading-[8px]">
-                {(event as any).name ? `${(event as any).name}${(event as any).honorific || ''}` : event.title}
+                {(event as any).name
+                    ? `${(event as any).name}${(event as any).honorific || ''}${(event as any).siteShortName ? ' ' + (event as any).siteShortName : ''}`
+                    : event.title}
             </div>
             {event.customer && (
                 <div className="text-[7px] leading-[8px] text-slate-600 truncate">

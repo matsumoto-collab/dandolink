@@ -109,9 +109,11 @@ export default function DraggableEventCard({
                                 }
                             }}
                         >
-                            {/* 1段目: 現場名（短縮表示: 名前+敬称のみ） */}
+                            {/* 1段目: 現場名（短縮表示: 名前+敬称+その他） */}
                             <div className="font-medium text-slate-900 truncate">
-                                {(event as any).name ? `${(event as any).name}${(event as any).honorific || ''}` : event.title}
+                                {(event as any).name
+                                    ? `${(event as any).name}${(event as any).honorific || ''}${(event as any).siteShortName ? ' ' + (event as any).siteShortName : ''}`
+                                    : event.title}
                             </div>
 
                             {/* 2段目: 元請名 */}

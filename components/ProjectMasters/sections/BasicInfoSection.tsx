@@ -243,7 +243,7 @@ export function BasicInfoSection({ formData, setFormData, errors }: BasicInfoSec
                         {/* 2行目: 場所 + 工事名称 */}
                         <div className="flex gap-3">
                             <div className="flex-1">
-                                <label className="block text-xs text-slate-500 mb-1">場所</label>
+                                <label className="block text-xs text-slate-500 mb-1">その他</label>
                                 <input
                                     type="text"
                                     value={formData.siteShortName}

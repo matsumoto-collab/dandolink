@@ -24,9 +24,11 @@ const EventCard = memo(function EventCard({ event, onClick, compact = false }: E
                     backgroundColor: event.color,
                 }}
             >
-                {/* 1段目: 現場名 */}
+                {/* 1段目: 現場名（名前+敬称+その他） */}
                 <div className="font-medium text-white truncate">
-                    {(event as any).name ? `${(event as any).name}${(event as any).honorific || ''}` : event.title}
+                    {(event as any).name
+                        ? `${(event as any).name}${(event as any).honorific || ''}${(event as any).siteShortName ? ' ' + (event as any).siteShortName : ''}`
+                        : event.title}
                 </div>
 
                 {/* 2段目: 元請名 */}
@@ -88,7 +90,9 @@ const EventCard = memo(function EventCard({ event, onClick, compact = false }: E
             <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                     <h4 className="font-medium text-sm text-white truncate">
-                        {(event as any).name ? `${(event as any).name}${(event as any).honorific || ''}` : event.title}
+                        {(event as any).name
+                            ? `${(event as any).name}${(event as any).honorific || ''}${(event as any).siteShortName ? ' ' + (event as any).siteShortName : ''}`
+                            : event.title}
                     </h4>
 
                     {event.customer && (
