@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
 import { MoveRight, X, Search } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
@@ -95,12 +95,20 @@ export default function DesktopCalendarView({
 
     // 移動モード（モバイルと同じ：長押し → ターゲットセルクリックで移動）
     const [movingEvent, setMovingEvent] = useState<CalendarEvent | null>(null);
-    const cancelMoving = useCallback(() => setMovingEvent(null), []);
+    // 長押し直後のクリックで即cancel/commitしないようにするクールダウン
+    const moveStartedAtRef = useRef<number>(0);
+    const COMMIT_COOLDOWN_MS = 350;
+    const cancelMoving = useCallback(() => {
+        if (Date.now() - moveStartedAtRef.current < COMMIT_COOLDOWN_MS) return;
+        setMovingEvent(null);
+    }, []);
     const startMoving = useCallback((event: CalendarEvent) => {
         if (isReadOnly || !handleMoveToCell) return;
+        moveStartedAtRef.current = Date.now();
         setMovingEvent(event);
     }, [isReadOnly, handleMoveToCell]);
     const commitMove = useCallback((employeeId: string, date: Date) => {
+        if (Date.now() - moveStartedAtRef.current < COMMIT_COOLDOWN_MS) return;
         if (!movingEvent || !handleMoveToCell) return;
         handleMoveToCell(movingEvent.id, employeeId, date);
         setMovingEvent(null);
@@ -115,13 +123,13 @@ export default function DesktopCalendarView({
             onDragEnd={isReadOnly || movingEvent ? undefined : handleDragEnd}
             onDragCancel={isReadOnly || movingEvent ? undefined : handleDragCancel}
         >
-            {/* ── 移動モードバナー ── */}
+            {/* ── 移動モードバナー（fixed: レイアウトシフトしないように） ── */}
             {movingEvent && (
-                <div className="flex-shrink-0 bg-slate-700 text-white px-4 py-2 mb-2 flex items-center gap-3 rounded-lg shadow">
+                <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-white px-4 py-2 flex items-center gap-3 rounded-xl shadow-2xl ring-1 ring-slate-900/10 max-w-[min(90vw,640px)] w-[max-content]">
                     <MoveRight className="w-4 h-4 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <span className="text-sm font-bold truncate block">「{movingEvent.title}」を移動中</span>
-                        <span className="text-xs text-slate-200">移動先のセルをクリック（前週/翌週ボタンで週送り可）</span>
+                        <span className="text-xs text-slate-200">移動先のセルをクリック</span>
                     </div>
                     <button
                         onClick={cancelMoving}
