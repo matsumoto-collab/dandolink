@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 export type PageType =
     | 'schedule'         // スケジュール管理
@@ -26,16 +26,44 @@ interface NavigationContextType {
     isMobileMenuOpen: boolean;
     toggleMobileMenu: () => void;
     closeMobileMenu: () => void;
+    isSidebarCollapsed: boolean;
+    toggleSidebarCollapse: () => void;
 }
 
 const NavigationContext = createContext<NavigationContextType | undefined>(undefined);
 
+const SIDEBAR_COLLAPSED_KEY = 'dandolink:sidebarCollapsed';
+
 export function NavigationProvider({ children }: { children: ReactNode }) {
     const [activePage, setActivePage] = useState<PageType>('schedule');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const toggleMobileMenu = () => setIsMobileMenuOpen(prev => !prev);
     const closeMobileMenu = () => setIsMobileMenuOpen(false);
+    const toggleSidebarCollapse = () => setIsSidebarCollapsed(prev => !prev);
+
+    // localStorageから初期値を復元
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
+            if (stored === 'true') setIsSidebarCollapsed(true);
+        } catch {
+            // localStorage 不可環境は無視
+        }
+    }, []);
+
+    // 永続化 + body data attr 同期（CSSフックとして利用）
+    useEffect(() => {
+        try {
+            localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isSidebarCollapsed));
+        } catch {
+            // ignore
+        }
+        if (typeof document !== 'undefined') {
+            document.body.dataset.sidebarCollapsed = String(isSidebarCollapsed);
+        }
+    }, [isSidebarCollapsed]);
 
     return (
         <NavigationContext.Provider value={{
@@ -44,6 +72,8 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
             isMobileMenuOpen,
             toggleMobileMenu,
             closeMobileMenu,
+            isSidebarCollapsed,
+            toggleSidebarCollapse,
         }}>
             {children}
         </NavigationContext.Provider>

@@ -5,6 +5,7 @@ import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession, signOut } from 'next-auth/react';
 import {
     ChevronRight,
+    ChevronLeft,
     X,
 } from 'lucide-react';
 import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
@@ -59,7 +60,7 @@ const navigationSections: NavSection[] = [
 ];
 
 export default function Sidebar() {
-    const { activePage, setActivePage, isMobileMenuOpen, closeMobileMenu } = useNavigation();
+    const { activePage, setActivePage, isMobileMenuOpen, closeMobileMenu, isSidebarCollapsed, toggleSidebarCollapse } = useNavigation();
     const { data: session } = useSession();
     const [isReloading, setIsReloading] = useState(false);
 
@@ -134,7 +135,7 @@ export default function Sidebar() {
                     border-r border-slate-800/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
                     w-48 pwa-sidebar-safe
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-                    lg:translate-x-0
+                    ${isSidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0'}
                 `}
             >
                 {/* Logo Area */}
@@ -151,6 +152,15 @@ export default function Sidebar() {
                             alt="DandLink"
                             className={`h-6 w-auto ${isReloading ? 'animate-pulse opacity-50' : ''}`}
                         />
+                    </button>
+                    {/* Desktop Collapse Button */}
+                    <button
+                        onClick={toggleSidebarCollapse}
+                        className="hidden lg:flex p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                        aria-label="サイドバーを折りたたむ"
+                        title="サイドバーを折りたたむ"
+                    >
+                        <ChevronLeft className="w-5 h-5 text-slate-400" />
                     </button>
                     {/* Mobile Close Button */}
                     <button

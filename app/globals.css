@@ -187,3 +187,11 @@ body {
     transform: none !important;
   }
 }
+
+/* サイドバー折りたたみ時: lg:left-48 で固定された要素 (メイン本体・モーダル等) を
+   左端まで広げる。data-sidebar-collapsed="true" は NavigationContext が body に付与。 */
+@media (min-width: 1024px) {
+  body[data-sidebar-collapsed='true'] .lg\:left-48 {
+    left: 0 !important;
+  }
+}

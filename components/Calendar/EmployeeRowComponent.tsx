@@ -85,7 +85,7 @@ export default function EmployeeRowComponent({
         <div className="flex border-b border-slate-200 hover:bg-slate-50 transition-all duration-200 min-h-[80px] sm:min-h-[90px] xl:min-h-[120px]">
             {/* 班長セル（固定） */}
             <div className="sticky left-0 z-10 bg-white border-r-2 border-slate-200 shadow-sm">
-                <div className="w-20 sm:w-24 xl:w-32 h-full flex items-center justify-center px-1 sm:px-2 relative group">
+                <div className="w-20 lg:w-24 xl:w-32 h-full flex items-center justify-center px-1 sm:px-2 relative group">
                     {showEmployeeName && (
                         <>
                             <span className="text-xs font-semibold text-slate-700 tracking-wide">

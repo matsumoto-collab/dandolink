@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession } from 'next-auth/react';
+import { ChevronRight } from 'lucide-react';
 import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 
 const VALID_PAGES: PageType[] = [
@@ -86,7 +87,7 @@ function PlaceholderPage({ title }: { title: string }) {
 }
 
 export default function MainContent() {
-    const { activePage, setActivePage } = useNavigation();
+    const { activePage, setActivePage, isSidebarCollapsed, toggleSidebarCollapse } = useNavigation();
     const { data: session } = useSession();
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -205,20 +206,34 @@ export default function MainContent() {
     };
 
     return (
-        <main className="
-            fixed top-0 bottom-0 bg-slate-50 overflow-auto
+        <>
+            <main className="
+                fixed top-0 bottom-0 bg-slate-50 overflow-auto
 
-            /* Mobile: Full width with top padding for header */
-            left-0 right-0 pt-16
+                /* Mobile: Full width with top padding for header */
+                left-0 right-0 pt-16
 
-            /* Desktop: Offset by sidebar width, no top padding */
-            lg:left-48 lg:pt-0 lg:right-0
+                /* Desktop: Offset by sidebar width, no top padding */
+                lg:left-48 lg:pt-0 lg:right-0
 
-            pwa-main-safe
-        ">
-            <div key={activePage} className={`${['schedule', 'estimates', 'project-masters', 'reports', 'invoices', 'customers'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
-                {renderContent()}
-            </div>
-        </main>
+                pwa-main-safe
+            ">
+                <div key={activePage} className={`${['schedule', 'estimates', 'project-masters', 'reports', 'invoices', 'customers'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                    {renderContent()}
+                </div>
+            </main>
+
+            {/* サイドバー折りたたみ中のフローティング展開ボタン (デスクトップのみ) */}
+            {isSidebarCollapsed && (
+                <button
+                    onClick={toggleSidebarCollapse}
+                    className="hidden lg:flex fixed left-0 top-3 z-[60] items-center justify-center w-7 h-12 bg-slate-900 hover:bg-slate-800 text-slate-200 rounded-r-lg shadow-lg border border-l-0 border-slate-700 transition-colors"
+                    aria-label="サイドバーを開く"
+                    title="サイドバーを開く"
+                >
+                    <ChevronRight className="w-4 h-4" />
+                </button>
+            )}
+        </>
     );
 }
