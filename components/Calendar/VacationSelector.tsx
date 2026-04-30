@@ -1,10 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Plus } from 'lucide-react';
-
-interface Member {
-    id: string;
-    displayName: string;
-}
+import { useCalendarStore } from '@/stores/calendarStore';
 
 interface VacationSelectorProps {
     dateKey: string;
@@ -23,17 +19,17 @@ export default function VacationSelector({
 }: VacationSelectorProps) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const [members, setMembers] = useState<Member[]>([]);
 
-    // 全アクティブユーザーを取得
+    // 全アクティブユーザーは calendarStore から共有取得（同時マウントでも fetchAllMembers が重複排除）
+    const members = useCalendarStore((state) => state.allMembers);
+    const allMembersInitialized = useCalendarStore((state) => state.allMembersInitialized);
+    const fetchAllMembers = useCalendarStore((state) => state.fetchAllMembers);
+
     useEffect(() => {
-        let cancelled = false;
-        fetch('/api/calendar/members')
-            .then(res => res.ok ? res.json() : [])
-            .then(data => { if (!cancelled) setMembers(data); })
-            .catch(() => {});
-        return () => { cancelled = true; };
-    }, []);
+        if (!allMembersInitialized) {
+            fetchAllMembers();
+        }
+    }, [allMembersInitialized, fetchAllMembers]);
 
     // 選択されていないメンバーのみを表示
     const availableMembers = members.filter(

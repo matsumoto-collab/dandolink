@@ -22,6 +22,11 @@ export interface ForemanUser {
     role: string;
 }
 
+export interface MemberUser {
+    id: string;
+    displayName: string;
+}
+
 // Helper functions
 export function parseProjectMasterDates(pm: ProjectMaster & { createdAt: string; updatedAt: string }): ProjectMaster {
     return {
@@ -110,6 +115,10 @@ export interface CalendarState {
     foremanSettingsLoading: boolean;
     foremanSettingsInitialized: boolean;
 
+    // All active members (含worker) - VacationSelectorなどで使用。fetchはfetchAllMembers経由で重複排除
+    allMembers: MemberUser[];
+    allMembersInitialized: boolean;
+
     // Daily Reports
     dailyReports: DailyReport[];
     dailyReportsLoading: boolean;
@@ -151,6 +160,7 @@ export interface CalendarActions {
     // Calendar Display (Foreman settings)
     fetchForemen: () => Promise<void>;
     fetchForemanSettings: () => Promise<void>;
+    fetchAllMembers: () => Promise<void>;
     addForeman: (employeeId: string) => Promise<void>;
     removeForeman: (employeeId: string) => Promise<void>;
     moveForeman: (employeeId: string, direction: 'up' | 'down') => Promise<void>;

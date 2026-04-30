@@ -20,6 +20,8 @@ const initialState: CalendarState = {
     allForemen: [],
     foremanSettingsLoading: false,
     foremanSettingsInitialized: false,
+    allMembers: [],
+    allMembersInitialized: false,
     dailyReports: [],
     dailyReportsLoading: false,
     dailyReportsInitialized: false,

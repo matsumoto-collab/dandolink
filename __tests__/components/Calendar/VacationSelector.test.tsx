@@ -4,6 +4,7 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import VacationSelector from '@/components/Calendar/VacationSelector';
+import { useCalendarStore } from '@/stores/calendarStore';
 
 // Mock icons
 jest.mock('lucide-react', () => ({
@@ -23,9 +24,9 @@ describe('VacationSelector', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
-        global.fetch = jest.fn().mockResolvedValue({
-            ok: true,
-            json: () => Promise.resolve(mockMembers),
+        useCalendarStore.setState({
+            allMembers: mockMembers,
+            allMembersInitialized: true,
         });
     });
 

@@ -1,15 +1,20 @@
-import { CalendarSlice, CalendarActions, CalendarState, ForemanUser } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, ForemanUser, MemberUser } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
-type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized'> &
-    Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
+type ForemanSlice = Pick<CalendarState, 'displayedForemanIds' | 'allForemen' | 'foremanSettingsLoading' | 'foremanSettingsInitialized' | 'allMembers' | 'allMembersInitialized'> &
+    Pick<CalendarActions, 'fetchForemen' | 'fetchForemanSettings' | 'fetchAllMembers' | 'addForeman' | 'removeForeman' | 'moveForeman' | 'getAvailableForemen' | 'getForemanName' | 'initializeForemenFromAll'>;
+
+// 同時マウント時の重複fetch排除（同一Promise共有）
+let allMembersFetchPromise: Promise<void> | null = null;
 
 export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
     displayedForemanIds: [],
     allForemen: [],
     foremanSettingsLoading: false,
     foremanSettingsInitialized: false,
+    allMembers: [],
+    allMembersInitialized: false,
 
     fetchForemen: async () => {
         try {
@@ -23,6 +28,28 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         } catch (error) {
             logger.error('Failed to fetch foremen:', error);
         }
+    },
+
+    fetchAllMembers: async () => {
+        if (get().allMembersInitialized) return;
+        if (allMembersFetchPromise) return allMembersFetchPromise;
+        allMembersFetchPromise = (async () => {
+            try {
+                const response = await fetch('/api/calendar/members');
+                if (response.ok) {
+                    const data: MemberUser[] = await response.json();
+                    set({ allMembers: data, allMembersInitialized: true });
+                } else {
+                    set({ allMembersInitialized: true });
+                }
+            } catch (error) {
+                logger.error('Failed to fetch all members:', error);
+                set({ allMembersInitialized: true });
+            } finally {
+                allMembersFetchPromise = null;
+            }
+        })();
+        return allMembersFetchPromise;
     },
 
     fetchForemanSettings: async () => {

@@ -9,11 +9,14 @@ import { CalendarProviders } from './providers/CalendarProviders';
 import { FinanceProviders } from './providers/FinanceProviders';
 import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const notoSansJP = Noto_Sans_JP({
     subsets: ["latin"],
     weight: ["400", "500", "700"],
     variable: "--font-noto",
+    display: "swap",
+    // unicode-range 分割で 40+ chunk が <link rel="preload"> として吐かれ初回ロードを膨らませるため、preload は無効化。実際に必要なchunkだけ後続で読み込まれる
+    preload: false,
 });
 
 // viewport は metadata とは別に定義（Next.js 14+ 推奨）
