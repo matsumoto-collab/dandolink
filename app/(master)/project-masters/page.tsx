@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -108,30 +107,28 @@ export default function ProjectMasterListPage() {
 
     // 通知ディープリンク: ?pmId=<id> で案件詳細モーダルを自動オープン
     // 画像通知時は ?scrollTo=files で添付ファイルセクションへスクロール
-    const searchParams = useSearchParams();
-    const router = useRouter();
-    const pathname = usePathname();
     useEffect(() => {
-        const pmId = searchParams?.get('pmId');
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const pmId = params.get('pmId');
         if (!pmId) return;
         const pm = getProjectMasterById(pmId);
         if (!pm) return; // データ未到着の場合は次回 projectMasters 更新で再評価
         setDetailPm(pm);
         setOpenModalInEditMode(false);
-        const scrollTo = searchParams?.get('scrollTo');
+        const scrollTo = params.get('scrollTo');
         if (scrollTo === 'files') {
-            // モーダル描画後にスクロール
             setTimeout(() => {
                 const el = document.getElementById('pm-files-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 300);
         }
-        const next = new URLSearchParams(searchParams?.toString() || '');
-        next.delete('pmId');
-        next.delete('scrollTo');
-        const qs = next.toString();
-        router.replace(qs ? `${pathname}?${qs}` : pathname);
-    }, [searchParams, projectMasters, getProjectMasterById, router, pathname]);
+        params.delete('pmId');
+        params.delete('scrollTo');
+        const qs = params.toString();
+        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+    }, [projectMasters, getProjectMasterById]);
 
     // 見積/請求カラムのために各ストアを遅延ロード
     useEffect(() => {
