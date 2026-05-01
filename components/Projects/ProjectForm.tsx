@@ -702,6 +702,7 @@ export default function ProjectForm({
                                     constructionTypes={constructionTypes}
                                     existingDayMap={existingDayMap}
                                     getTotalMembersForDate={getTotalMembersForDate}
+                                    getVacationCountForDate={(dateStr) => getVacationEmployees(dateStr).length}
                                 />
                             </div>
                         </div>

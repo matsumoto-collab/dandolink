@@ -51,6 +51,7 @@ interface MultiDayScheduleEditorProps {
     constructionTypes?: ConstructionTypeOption[];
     existingDayMap?: Record<string, DayExistingInfo[]>;
     getTotalMembersForDate?: (dateStr: string) => number;
+    getVacationCountForDate?: (dateStr: string) => number;
 }
 
 export default function MultiDayScheduleEditor({
@@ -62,6 +63,7 @@ export default function MultiDayScheduleEditor({
     constructionTypes = [],
     existingDayMap = {},
     getTotalMembersForDate,
+    getVacationCountForDate,
 }: MultiDayScheduleEditorProps) {
     const [mode, setMode] = useState<'range' | 'individual'>('range');
     const [rangeStart, setRangeStart] = useState('');
@@ -135,7 +137,7 @@ export default function MultiDayScheduleEditor({
         onChange(dailySchedules.map((s, i) => i === index ? { ...s, ...updates } : s));
     };
 
-    // 特定日の残り人数を計算
+    // 特定日の残り人数を計算（休暇分も控除）
     const getRemainingForDate = (date: Date): number => {
         const key = toDateKey(date);
         const existing = existingDayMap[key] || [];
@@ -146,11 +148,33 @@ export default function MultiDayScheduleEditor({
         let used = 0;
         byForeman.forEach(v => { used += v; });
         const total = getTotalMembersForDate ? getTotalMembersForDate(key) : 0;
-        return total - used;
+        const vacation = getVacationCountForDate ? getVacationCountForDate(key) : 0;
+        return total - used - vacation;
     };
 
-    const getExistingForDate = (date: Date): DayExistingInfo[] => {
-        return existingDayMap[toDateKey(date)] || [];
+    // 職長ごとに集約（同職長の最大人数を採用、0名は除外）
+    const getExistingByForeman = (date: Date): { foremanId: string; foremanName: string; memberCount: number; titles: string[] }[] => {
+        const list = existingDayMap[toDateKey(date)] || [];
+        const map = new Map<string, { foremanId: string; foremanName: string; memberCount: number; titles: string[] }>();
+        list.forEach(e => {
+            const cur = map.get(e.foremanId);
+            if (!cur) {
+                map.set(e.foremanId, {
+                    foremanId: e.foremanId,
+                    foremanName: e.foremanName,
+                    memberCount: e.memberCount,
+                    titles: e.projectTitle ? [e.projectTitle] : [],
+                });
+            } else {
+                cur.memberCount = Math.max(cur.memberCount, e.memberCount);
+                if (e.projectTitle && !cur.titles.includes(e.projectTitle)) cur.titles.push(e.projectTitle);
+            }
+        });
+        return Array.from(map.values()).filter(e => e.memberCount > 0);
+    };
+
+    const getVacationForDate = (date: Date): number => {
+        return getVacationCountForDate ? getVacationCountForDate(toDateKey(date)) : 0;
     };
 
     return (
@@ -299,7 +323,8 @@ export default function MultiDayScheduleEditor({
                     </div>
                     <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                         {dailySchedules.map((schedule, index) => {
-                            const existing = getExistingForDate(schedule.date);
+                            const existing = getExistingByForeman(schedule.date);
+                            const vacationCount = getVacationForDate(schedule.date);
                             const remaining = getRemainingForDate(schedule.date);
                             const selectedTrucks = schedule.trucks || [];
 
@@ -346,26 +371,28 @@ export default function MultiDayScheduleEditor({
                                         </button>
                                     </div>
 
-                                    {/* 既存職長バッジ + 残り人数 */}
+                                    {/* 既存職長（職長ごと集約） + 休暇 + 残り人数 */}
                                     <div className="flex items-center flex-wrap gap-1.5 text-xs min-h-[24px]">
                                         {existing.length > 0 ? (
-                                            <>
-                                                <span className="text-slate-400">既存:</span>
-                                                {existing.map((e, i) => (
-                                                    <span
-                                                        key={i}
-                                                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full"
-                                                    >
-                                                        {e.foremanName}
-                                                        {e.projectTitle && <span className="text-slate-500">{e.projectTitle}</span>}
-                                                        <span className="font-medium">{e.memberCount}名</span>
-                                                    </span>
-                                                ))}
-                                            </>
+                                            existing.map((e) => (
+                                                <span
+                                                    key={e.foremanId}
+                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full"
+                                                    title={e.titles.join(' / ')}
+                                                >
+                                                    <span className="font-medium">{e.foremanName}</span>
+                                                    <span className="text-slate-600">{e.memberCount}名</span>
+                                                </span>
+                                            ))
                                         ) : (
-                                            <span className="text-slate-300 text-xs">配置なし</span>
+                                            <span className="text-slate-300">配置なし</span>
                                         )}
-                                        <span className={`ml-auto font-bold px-2 py-0.5 rounded-full text-xs text-white shadow-sm ${remaining < 0 ? 'bg-slate-700' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-600'}`}>
+                                        {vacationCount > 0 && (
+                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-full">
+                                                休暇 {vacationCount}名
+                                            </span>
+                                        )}
+                                        <span className={`ml-auto font-bold px-2 py-0.5 rounded-full text-xs text-white shadow-sm ${remaining < 0 ? 'bg-rose-600' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-600'}`}>
                                             残り {remaining}名
                                         </span>
                                     </div>
