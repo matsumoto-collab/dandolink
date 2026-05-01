@@ -310,9 +310,14 @@ export default function ProjectForm({
             return;
         }
         const [startStr, endStr] = rangeKey.split('_');
+        // JST境界: 'YYYY-MM-DD' のみ送ると new Date() がUTC 0時に解釈され
+        // JST 0時=UTC前日15時で保存された当日アサインを取りこぼすため、
+        // 明示的に +09:00 のISO文字列で送る
+        const startISO = `${startStr}T00:00:00+09:00`;
+        const endISO = `${endStr}T23:59:59+09:00`;
         let cancelled = false;
         const t = setTimeout(() => {
-            fetch(`/api/assignments?startDate=${startStr}&endDate=${endStr}`, { cache: 'no-store' })
+            fetch(`/api/assignments?startDate=${encodeURIComponent(startISO)}&endDate=${encodeURIComponent(endISO)}`, { cache: 'no-store' })
                 .then(r => r.ok ? r.json() : [])
                 .then((data: RangeAssignment[]) => { if (!cancelled) setRangeAssignments(Array.isArray(data) ? data : []); })
                 .catch(() => { if (!cancelled) setRangeAssignments([]); });

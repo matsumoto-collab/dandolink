@@ -290,8 +290,8 @@ export default function MultiDayScheduleEditor({
                 if (e.projectTitle && !cur.titles.includes(e.projectTitle)) cur.titles.push(e.projectTitle);
             }
         });
-        // 協力業者は0件除外せず、それ以外は0名除外
-        return Array.from(map.values()).filter(e => e.isPartner ? e.projectCount > 0 : e.memberCount > 0);
+        // 案件があれば0名でも表示（人数未設定アサインも既存配置として可視化する）
+        return Array.from(map.values()).filter(e => e.projectCount > 0);
     };
 
     const getVacationForDate = (date: Date): number => {
