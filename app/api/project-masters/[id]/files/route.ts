@@ -6,6 +6,7 @@ import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
+import { parseJsonField } from '@/lib/json-utils';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -133,14 +134,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
         // 権限:
         //  - canDispatch（admin/manager/foreman1）は全カテゴリに直接アップロード可能
-        //  - それ以外（foreman2 等）は当該案件に配置されている本人のみ許可（報告時の画像添付に対応）
+        //  - それ以外（foreman2 等）は当該案件で
+        //      a) 自分が職長として配置されている、または
+        //      b) 確定メンバー（confirmedWorkerIds）に含まれている
+        //    場合に許可（報告時の画像添付に対応）
         const userCanDispatch = canDispatch(session!.user);
         if (!userCanDispatch) {
-            const myAssignment = await prisma.projectAssignment.findFirst({
-                where: { projectMasterId: id, assignedEmployeeId: session!.user.id },
-                select: { id: true },
+            const candidates = await prisma.projectAssignment.findMany({
+                where: { projectMasterId: id },
+                select: { id: true, assignedEmployeeId: true, confirmedWorkerIds: true },
             });
-            if (!myAssignment) return errorResponse('権限がありません', 403);
+            const allowed = candidates.some(
+                (a) =>
+                    a.assignedEmployeeId === session!.user.id ||
+                    parseJsonField<string[]>(a.confirmedWorkerIds, []).includes(session!.user.id)
+            );
+            if (!allowed) return errorResponse('権限がありません', 403);
         }
 
         const VALID_CATEGORIES = ['survey', 'assembly', 'demolition', 'other', 'instruction', 'document'];
