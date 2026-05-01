@@ -230,12 +230,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
             const bodyWithImages = (uploadedImageCount > 0 && imageCategory)
                 ? `${bodyWithComment}\n${CATEGORY_LABELS[imageCategory]}に${uploadedImageCount}枚画像保存されました`
                 : bodyWithComment;
+            const notifyUrl = (uploadedImageCount > 0 && assignment.projectMasterId)
+                ? `/?page=project-masters&pmId=${assignment.projectMasterId}&scrollTo=files`
+                : '/?page=reports';
             await notifyUsers({
                 userIds,
                 type: type === 'start' ? 'work-started' : 'work-ended',
                 title: `【${actionLabel}】${titleSuffix}`,
                 body: bodyWithImages,
-                url: '/',
+                url: notifyUrl,
                 // 再押下のたびに別通知として通知するため時刻をtagに含める
                 pushTag: `work-${type}-${assignment.id}-${timeStr}`,
                 data: {

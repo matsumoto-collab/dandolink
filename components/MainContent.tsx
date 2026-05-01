@@ -93,15 +93,33 @@ export default function MainContent() {
     const router = useRouter();
     const pathname = usePathname();
 
-    // 通知などからのディープリンク: ?page=project-masters 等で activePage を切替
+    const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
+
+    // 通知などからのディープリンク:
+    //   ?page=schedule&view=assignment    → 手配表タブを開く
+    //   ?page=project-masters&pmId=...    → 案件詳細モーダルを開く（page側で処理）
+    // page/view は処理後にURLから除去するが、pmId/scrollTo は遷移先ページが消費するため残す
     useEffect(() => {
         const pageParam = searchParams?.get('page');
-        if (pageParam && VALID_PAGES.includes(pageParam as PageType)) {
+        const viewParam = searchParams?.get('view');
+        if (!pageParam) return;
+        let consumed = false;
+        if (VALID_PAGES.includes(pageParam as PageType)) {
             setActivePage(pageParam as PageType);
-            router.replace(pathname);
+            consumed = true;
+        }
+        if (pageParam === 'schedule' && (viewParam === 'calendar' || viewParam === 'overview' || viewParam === 'assignment')) {
+            setScheduleView(viewParam);
+            consumed = true;
+        }
+        if (consumed) {
+            const next = new URLSearchParams(searchParams?.toString() || '');
+            next.delete('page');
+            next.delete('view');
+            const qs = next.toString();
+            router.replace(qs ? `${pathname}?${qs}` : pathname);
         }
     }, [searchParams, setActivePage, router, pathname]);
-    const [scheduleView, setScheduleView] = useState<ScheduleView>('calendar');
     const [calendarNav, setCalendarNav] = useState<{
         goToPreviousWeek: () => void;
         goToNextWeek: () => void;

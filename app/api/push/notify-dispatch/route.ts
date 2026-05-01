@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
             type: 'dispatch-confirmed',
             title: `【手配確定】${title}`,
             body: bodyLines.join(' / '),
-            url: '/',
+            url: '/?page=schedule&view=assignment',
             pushTag: `dispatch-${assignment.id}`,
             data: { assignmentId: assignment.id, projectMasterId: assignment.projectMasterId },
         });

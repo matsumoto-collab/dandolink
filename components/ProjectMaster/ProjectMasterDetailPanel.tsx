@@ -177,8 +177,10 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
             )}
 
             {/* 添付ファイル */}
-            <SectionTitle>添付ファイル</SectionTitle>
-            <ProjectMasterFilesView projectMasterId={pm.id} />
+            <div id="pm-files-section">
+                <SectionTitle>添付ファイル</SectionTitle>
+                <ProjectMasterFilesView projectMasterId={pm.id} />
+            </div>
 
             {/* 作業履歴 */}
             <SectionTitle>作業履歴</SectionTitle>
