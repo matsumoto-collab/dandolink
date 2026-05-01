@@ -29,13 +29,16 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 },
                 assignments: {
                     select: {
+                        id: true,
                         assignedEmployeeId: true,
                         isDispatchConfirmed: true,
                         constructionType: true,
                         workers: true,
+                        memberCount: true,
                         vehicles: true,
                         dailyReportWorkItems: {
                             select: {
+                                id: true,
                                 startTime: true,
                                 endTime: true,
                                 breakMinutes: true,
@@ -43,8 +46,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                                 dailyReport: {
                                     select: {
                                         id: true,
-                                        morningLoadingMinutes: true,
-                                        eveningLoadingMinutes: true,
+                                        date: true,
                                     },
                                 },
                             },
@@ -73,25 +75,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
-            prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
-            prisma.worker.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, hourlyRate: true } }),
+            prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, dailyRate: true } }),
+            prisma.worker.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, dailyRate: true } }),
             foremanIds.length > 0
                 ? prisma.user.findMany({ where: { id: { in: foremanIds } }, select: { id: true, role: true } })
                 : Promise.resolve([] as { id: string; role: string }[]),
         ]);
 
-        const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
-        const standardWorkMinutes = settings?.standardWorkMinutes ?? 480;
-        const defaultMinuteRate = laborDailyRate / standardWorkMinutes;
+        const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
 
-        // ユーザー/応援ごとの分単価マップ（hourlyRate / 60）、未設定はシステムデフォルト
-        const minuteRateMap = new Map<string, number>();
+        // ユーザー/応援ごとの日給マップ
+        const dailyRateMap = new Map<string, number>();
         for (const u of allUsers) {
-            minuteRateMap.set(u.id, u.hourlyRate ? Number(u.hourlyRate) / 60 : defaultMinuteRate);
+            dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
         }
         for (const w of allWorkers) {
-            if (!minuteRateMap.has(w.id)) {
-                minuteRateMap.set(w.id, w.hourlyRate ? Number(w.hourlyRate) / 60 : defaultMinuteRate);
+            if (!dailyRateMap.has(w.id)) {
+                dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
             }
         }
 
@@ -120,53 +120,113 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             revenueSource = 'contract';
         }
 
-        let laborCost = 0, loadingCost = 0, vehicleCost = 0;
+        let vehicleCost = 0;
+        const loadingCost = 0;
 
         const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null, breakMins: number): number => {
             if (!startTime || !endTime) return 0;
             return Math.max(0, calcTimeDiffMinutes(startTime, endTime) - breakMins);
         };
 
-        // 各dailyReport配下の全workItemの合計作業分数を計算（積込費按分用）
-        const reportTotalsMap = new Map<string, number>();
+        // 車両費
+        for (const assignment of projectMaster.assignments) {
+            const vehicles = parseJsonField<string[]>(assignment.vehicles, []);
+            vehicles.forEach(vid => { vehicleCost += vehicleRateMap.get(vid) || 0; });
+        }
+
+        // (workerId, date) ごとに minutes を集計（この案件分のみ）
+        // 同一workerの同日が他案件に跨る可能性があるため、本APIでは「この案件分の按分」だけが必要。
+        // ただし他案件の作業時間を加味しないと按分の母数が不正確になるため、
+        // 当該workerの当該日の全workItem（他案件含む）を取得して母数を算出する。
+        const workerDateKeys = new Set<string>();
         for (const assignment of projectMaster.assignments) {
             for (const workItem of assignment.dailyReportWorkItems) {
-                if (workItem.dailyReport) {
-                    const reportId = workItem.dailyReport.id;
-                    const mins = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime, workItem.breakMinutes);
-                    reportTotalsMap.set(reportId, (reportTotalsMap.get(reportId) || 0) + mins);
+                if (!workItem.dailyReport) continue;
+                const dateStr = new Date(workItem.dailyReport.date).toISOString().slice(0, 10);
+                const ids = workItem.workerIds.length > 0
+                    ? workItem.workerIds
+                    : parseJsonField<string[]>(assignment.workers, []);
+                for (const wid of ids) workerDateKeys.add(`${wid}|${dateStr}`);
+            }
+        }
+
+        // 同workerの同日における他案件含む全作業分数を取得（按分母数）
+        const otherWorkItems = workerDateKeys.size > 0
+            ? await prisma.dailyReportWorkItem.findMany({
+                where: {
+                    OR: Array.from(workerDateKeys).map(k => {
+                        const [wid, dateStr] = k.split('|');
+                        return {
+                            workerIds: { has: wid },
+                            dailyReport: { date: new Date(`${dateStr}T00:00:00.000Z`) },
+                        };
+                    }),
+                },
+                select: {
+                    startTime: true,
+                    endTime: true,
+                    breakMinutes: true,
+                    workerIds: true,
+                    assignment: { select: { projectMasterId: true, workers: true } },
+                    dailyReport: { select: { date: true } },
+                },
+            })
+            : [];
+
+        // (workerId, dateStr) -> 同日全分数
+        const workerDayTotalMinutes = new Map<string, number>();
+        for (const item of otherWorkItems) {
+            if (!item.dailyReport) continue;
+            const mins = calcWorkMinutesFromItem(item.startTime, item.endTime, item.breakMinutes);
+            if (mins <= 0) continue;
+            const dateStr = new Date(item.dailyReport.date).toISOString().slice(0, 10);
+            const ids = item.workerIds.length > 0 ? item.workerIds : parseJsonField<string[]>(item.assignment.workers, []);
+            for (const wid of ids) {
+                const key = `${wid}|${dateStr}`;
+                workerDayTotalMinutes.set(key, (workerDayTotalMinutes.get(key) || 0) + mins);
+            }
+        }
+
+        // 当案件における (workerId, dateStr) -> 当案件分数
+        const workerDayThisProjectMinutes = new Map<string, number>();
+        const fallbackByItem = new Map<string, number>(); // workerIds 完全空のときのフォールバック用 minutes
+        for (const assignment of projectMaster.assignments) {
+            for (const workItem of assignment.dailyReportWorkItems) {
+                if (!workItem.dailyReport) continue;
+                const mins = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime, workItem.breakMinutes);
+                if (mins <= 0) continue;
+                const dateStr = new Date(workItem.dailyReport.date).toISOString().slice(0, 10);
+                let ids = workItem.workerIds.length > 0
+                    ? workItem.workerIds
+                    : parseJsonField<string[]>(assignment.workers, []);
+                if (ids.length === 0) {
+                    // memberCount フォールバック: 合成IDで本案件のみに帰属
+                    const count = assignment.memberCount || 1;
+                    ids = Array.from({ length: count }, (_, i) => `__fb__:${workItem.id}:${i}`);
+                    // 合成IDの母数は当案件分のみ
+                    for (const wid of ids) {
+                        const key = `${wid}|${dateStr}`;
+                        workerDayTotalMinutes.set(key, (workerDayTotalMinutes.get(key) || 0) + mins);
+                    }
+                    fallbackByItem.set(workItem.id, count);
+                }
+                for (const wid of ids) {
+                    const key = `${wid}|${dateStr}`;
+                    workerDayThisProjectMinutes.set(key, (workerDayThisProjectMinutes.get(key) || 0) + mins);
                 }
             }
         }
 
-        for (const assignment of projectMaster.assignments) {
-            const vehicles = parseJsonField<string[]>(assignment.vehicles, []);
-            vehicles.forEach(vid => { vehicleCost += vehicleRateMap.get(vid) || 0; });
-
-            for (const workItem of assignment.dailyReportWorkItems) {
-                const workMinutes = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime, workItem.breakMinutes);
-
-                // 日報workItemのworkerIdsを優先、なければassignment.workersにフォールバック
-                const workerIds = workItem.workerIds.length > 0
-                    ? workItem.workerIds
-                    : parseJsonField<string[]>(assignment.workers, []);
-
-                // ワーカーごとの分単価合計
-                const sumMinuteRate = workerIds.length > 0
-                    ? workerIds.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
-                    : defaultMinuteRate;
-
-                laborCost += Math.round(workMinutes * sumMinuteRate);
-
-                if (workItem.dailyReport) {
-                    const totalWorkMinutes = reportTotalsMap.get(workItem.dailyReport.id) || 0;
-                    if (totalWorkMinutes > 0) {
-                        const ratio = workMinutes / totalWorkMinutes;
-                        const loadingMinutes = (workItem.dailyReport.morningLoadingMinutes + workItem.dailyReport.eveningLoadingMinutes) * ratio;
-                        loadingCost += Math.round(loadingMinutes * sumMinuteRate);
-                    }
-                }
-            }
+        // 各 (workerId, dateStr) ごとに dailyRate × (本案件分数 / 当日総分数) を加算
+        // 100円単位四捨五入。単一案件なので端数吸収はworker内合算後に1度行う。
+        let laborCost = 0;
+        for (const [key, thisMins] of workerDayThisProjectMinutes) {
+            const [wid] = key.split('|');
+            const totalMins = workerDayTotalMinutes.get(key) || thisMins;
+            const dailyRate = dailyRateMap.get(wid) ?? defaultDailyRate;
+            const raw = dailyRate * (thisMins / totalMins);
+            const rounded = Math.round(raw / 100) * 100;
+            laborCost += rounded;
         }
 
         const materialCost = Number(projectMaster.materialCost || 0);

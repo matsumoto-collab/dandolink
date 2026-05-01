@@ -82,6 +82,7 @@ export default function ProjectMasterListPage() {
             results = results.filter(pm =>
                 pm.title.toLowerCase().includes(lower) ||
                 pm.customerName?.toLowerCase().includes(lower) ||
+                pm.customerShortName?.toLowerCase().includes(lower) ||
                 pm.location?.toLowerCase().includes(lower) ||
                 pm.city?.toLowerCase().includes(lower)
             );

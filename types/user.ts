@@ -12,7 +12,7 @@ export interface User {
     email: string;
     role: UserRole;
     assignedProjects?: string[];
-    hourlyRate?: number;
+    dailyRate?: number;
     isActive: boolean;
     createdAt?: Date;
     updatedAt?: Date;

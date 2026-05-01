@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
         const users = await prisma.user.findMany({
             where: whereClause,
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, hourlyRate: true, createdAt: true, updatedAt: true },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, createdAt: true, updatedAt: true },
             orderBy: { createdAt: 'desc' },
         });
 
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
                     username: user.username,
                     email: user.email,
                     assignedProjects: parseJsonField<string[]>(user.assignedProjects, []),
-                    hourlyRate: user.hourlyRate ? Number(user.hourlyRate) : null,
+                    dailyRate: user.dailyRate ? Number(user.dailyRate) : null,
                     createdAt: user.createdAt,
                     updatedAt: user.updatedAt,
                 };
@@ -71,13 +71,13 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
 
-        // 応援ユーザーは名前と時給のみで作成可能
+        // 応援ユーザーは名前と日給のみで作成可能
         if (body.role === 'support') {
             const validation = validateRequest(createSupportUserSchema, body);
             if (!validation.success) {
                 return validationErrorResponse(validation.error!, validation.details);
             }
-            const { displayName, hourlyRate } = validation.data;
+            const { displayName, dailyRate } = validation.data;
             const uniqueId = `support_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             const newUser = await prisma.user.create({
                 data: {
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
                     displayName,
                     passwordHash: '!nologin',
                     role: 'SUPPORT',
-                    hourlyRate: hourlyRate != null ? hourlyRate : null,
+                    dailyRate: dailyRate != null ? dailyRate : null,
                     isActive: true,
                 },
             });
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
                 id: newUser.id, username: newUser.username, email: newUser.email, displayName: newUser.displayName,
                 role: newUser.role.toLowerCase(),
                 assignedProjects: [],
-                hourlyRate: newUser.hourlyRate ? Number(newUser.hourlyRate) : null,
+                dailyRate: newUser.dailyRate ? Number(newUser.dailyRate) : null,
                 isActive: newUser.isActive, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt,
             });
         }
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
             return validationErrorResponse(validation.error!, validation.details);
         }
 
-        const { username, email, displayName, password, role, assignedProjects, hourlyRate } = validation.data;
+        const { username, email, displayName, password, role, assignedProjects, dailyRate } = validation.data;
 
         const existingUser = await prisma.user.findUnique({ where: { username } });
         if (existingUser) return errorResponse('このユーザー名は既に使用されています', 400);
@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
                 passwordHash: hashedPassword,
                 role: role.toUpperCase(),
                 assignedProjects: stringifyJsonField(assignedProjects),
-                hourlyRate: hourlyRate != null ? hourlyRate : null,
+                dailyRate: dailyRate != null ? dailyRate : null,
                 isActive: true,
             },
         });
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
             id: newUser.id, username: newUser.username, email: newUser.email, displayName: newUser.displayName,
             role: newUser.role.toLowerCase(),
             assignedProjects: parseJsonField<string[]>(newUser.assignedProjects, []),
-            hourlyRate: newUser.hourlyRate ? Number(newUser.hourlyRate) : null,
+            dailyRate: newUser.dailyRate ? Number(newUser.dailyRate) : null,
             isActive: newUser.isActive, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt,
         });
     } catch (error) {

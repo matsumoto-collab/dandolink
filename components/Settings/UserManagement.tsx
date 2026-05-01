@@ -96,7 +96,7 @@ export default function UserManagement() {
         }
     };
 
-    const handleSaveUser = async (userData: Partial<User> & { password?: string; hourlyRate?: number | null }) => {
+    const handleSaveUser = async (userData: Partial<User> & { password?: string; dailyRate?: number | null }) => {
         try {
             const url = modalMode === 'create' ? '/api/users' : `/api/users/${selectedUser?.id}`;
             const method = modalMode === 'create' ? 'POST' : 'PATCH';
@@ -254,7 +254,7 @@ export default function UserManagement() {
                                 </th>
                                 {isAdminOrManager && (
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                        時給
+                                        日給
                                     </th>
                                 )}
                                 <th className="px-6 py-4 text-right text-xs font-semibold text-slate-700 uppercase tracking-wider">
@@ -295,7 +295,7 @@ export default function UserManagement() {
                                     {isAdminOrManager && (
                                         <td className="px-6 py-4 text-right">
                                             <span className="text-sm text-slate-700 font-medium">
-                                                {user.hourlyRate != null ? `¥${Number(user.hourlyRate).toLocaleString()}` : '-'}
+                                                {user.dailyRate != null ? `¥${Number(user.dailyRate).toLocaleString()}` : '-'}
                                             </span>
                                         </td>
                                     )}
@@ -364,9 +364,9 @@ export default function UserManagement() {
                                     {user.isActive ? 'アクティブ' : '無効'}
                                 </span>
                             </div>
-                            {isAdminOrManager && user.hourlyRate != null && (
+                            {isAdminOrManager && user.dailyRate != null && (
                                 <div className="text-xs text-slate-500 mt-1">
-                                    時給: ¥{Number(user.hourlyRate).toLocaleString()}
+                                    日給: ¥{Number(user.dailyRate).toLocaleString()}
                                 </div>
                             )}
                         </div>

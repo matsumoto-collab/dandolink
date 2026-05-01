@@ -17,7 +17,7 @@ export const createUserSchema = z.object({
     password: passwordSchema,
     role: userRoleSchema,
     assignedProjects: z.array(z.string()).optional(),
-    hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
+    dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
 });
 
 export const createSupportUserSchema = z.object({
@@ -26,7 +26,7 @@ export const createSupportUserSchema = z.object({
         .min(1, '表示名は必須です')
         .max(100, '表示名は100文字以内で入力してください'),
     role: z.literal('support'),
-    hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
+    dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
 });
 
 export const updateUserSchema = z.object({
@@ -40,7 +40,7 @@ export const updateUserSchema = z.object({
     role: userRoleSchema.optional(),
     isActive: z.boolean().optional(),
     assignedProjects: z.array(z.string()).optional(),
-    hourlyRate: z.number().min(0, '時給は0以上で入力してください').optional().nullable(),
+    dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

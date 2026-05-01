@@ -12,7 +12,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if (!isManagerOrAbove(session!.user)) return errorResponse('権限がありません', 403);
 
         const { id } = await context.params;
-        const { name, hourlyRate } = await request.json();
+        const { name, dailyRate } = await request.json();
 
         const data: Record<string, unknown> = {};
         if (name !== undefined) {
@@ -20,8 +20,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             if (validatedName instanceof NextResponse) return validatedName;
             data.name = validatedName;
         }
-        if (hourlyRate !== undefined) {
-            data.hourlyRate = hourlyRate;
+        if (dailyRate !== undefined) {
+            data.dailyRate = dailyRate;
         }
 
         const worker = await prisma.worker.update({ where: { id }, data });

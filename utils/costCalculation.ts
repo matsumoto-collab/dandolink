@@ -1,5 +1,4 @@
 // 原価計算ユーティリティ
-import { calcTimeDiffMinutes } from './dateUtils';
 
 export interface LaborSettings {
     laborDailyRate: number;      // 基本日当（円）
@@ -8,7 +7,7 @@ export interface LaborSettings {
 
 export interface CostBreakdown {
     laborCost: number;           // 人件費
-    loadingCost: number;         // 積込費（朝積込・夕積込）
+    loadingCost: number;         // 積込費（廃止: 常に0）
     vehicleCost: number;         // 車両費
     materialCost: number;        // 材料費
     subcontractorCost: number;   // 外注費
@@ -22,45 +21,6 @@ export interface ProfitSummary {
     costBreakdown: CostBreakdown;
     grossProfit: number;         // 粗利
     profitMargin: number;        // 利益率（%）
-}
-
-/**
- * 作業時間から人件費を計算
- * @param startTime 開始時間 (例: "08:00")
- * @param endTime 終了時間 (例: "17:00")
- * @param workerCount 作業者数
- * @param settings 日当設定
- */
-export function calculateLaborCost(
-    startTime: string | null | undefined,
-    endTime: string | null | undefined,
-    workerCount: number,
-    settings: LaborSettings
-): number {
-    if (!startTime || !endTime) return 0;
-    const { laborDailyRate, standardWorkMinutes } = settings;
-    const minuteRate = laborDailyRate / standardWorkMinutes;
-    const workMinutes = calcTimeDiffMinutes(startTime, endTime);
-    return Math.round(workMinutes * workerCount * minuteRate);
-}
-
-/**
- * 積込時間から積込費を計算
- * @param morningMinutes 朝積込（分）
- * @param eveningMinutes 夕積込（分）
- * @param workerCount 作業者数
- * @param settings 日当設定
- */
-export function calculateLoadingCost(
-    morningMinutes: number,
-    eveningMinutes: number,
-    workerCount: number,
-    settings: LaborSettings
-): number {
-    const { laborDailyRate, standardWorkMinutes } = settings;
-    const minuteRate = laborDailyRate / standardWorkMinutes;
-    const totalMinutes = morningMinutes + eveningMinutes;
-    return Math.round(totalMinutes * workerCount * minuteRate);
 }
 
 /**

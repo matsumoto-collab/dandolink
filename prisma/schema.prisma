@@ -22,7 +22,7 @@ model User {
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
   teamId                  String?
-  hourlyRate              Decimal? @db.Decimal(10, 2)
+  dailyRate               Decimal? @db.Decimal(10, 2)
   dispatchSortOrder       Int?
   hideByDefaultInDispatch Boolean  @default(false)
 
@@ -342,7 +342,7 @@ model Worker {
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  hourlyRate Decimal?
+  dailyRate  Decimal?
 
   @@index([name])
   @@schema("public")
@@ -444,7 +444,7 @@ model SystemSettings {
   totalMembers                Int      @default(20)
   createdAt                   DateTime @default(now())
   updatedAt                   DateTime @updatedAt
-  laborDailyRate              Decimal  @default(15000) @db.Decimal(10, 2)
+  laborDailyRate              Decimal  @default(18000) @db.Decimal(10, 2)
   standardWorkMinutes         Int      @default(480)
   displayedForemanIds         String   @default("[]")
   subcontractorRevenueRate    Int      @default(60)

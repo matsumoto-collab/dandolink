@@ -191,18 +191,19 @@ export async function fetchProfitDashboardData(
                 },
             },
             select: {
+                id: true,
                 startTime: true,
                 endTime: true,
                 breakMinutes: true,
                 workerIds: true,
                 dailyReport: {
                     select: {
-                        morningLoadingMinutes: true,
-                        eveningLoadingMinutes: true,
+                        date: true,
                     },
                 },
                 assignment: {
                     select: {
+                        id: true,
                         projectMasterId: true,
                         workers: true,
                         memberCount: true,
@@ -225,13 +226,13 @@ export async function fetchProfitDashboardData(
         prisma.vehicle.findMany({
             select: { id: true, dailyRate: true },
         }),
-        // ユーザー時給+表示名+ロール（協力業者判定）
+        // ユーザー日給+表示名+ロール（協力業者判定）
         prisma.user.findMany({
-            select: { id: true, hourlyRate: true, displayName: true, role: true },
+            select: { id: true, dailyRate: true, displayName: true, role: true },
         }),
-        // 応援ワーカー時給
+        // 応援ワーカー日給
         prisma.worker.findMany({
-            select: { id: true, hourlyRate: true },
+            select: { id: true, dailyRate: true },
         }),
         // 職長別アサイン件数(各案件における按分計算用)
         prisma.projectAssignment.groupBy({
@@ -270,60 +271,87 @@ export async function fetchProfitDashboardData(
         }
     }
 
-    // システム設定から単価計算（個別時給未設定時のフォールバック）
-    const laborDailyRate = Number(settings?.laborDailyRate ?? 15000);
-    const standardWorkMinutes = settings?.standardWorkMinutes ?? 480;
-    const defaultMinuteRate = laborDailyRate / standardWorkMinutes;
+    // システム設定: 日給未設定時のデフォルト
+    const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
 
-    // ユーザー/応援ごとの分単価マップ（hourlyRate / 60）
-    const minuteRateMap = new Map<string, number>();
+    // ユーザー/応援ごとの日給マップ
+    const dailyRateMap = new Map<string, number>();
     for (const u of allUsers) {
-        minuteRateMap.set(u.id, u.hourlyRate ? Number(u.hourlyRate) / 60 : defaultMinuteRate);
+        dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
     }
     for (const w of allWorkers) {
-        if (!minuteRateMap.has(w.id)) {
-            minuteRateMap.set(w.id, w.hourlyRate ? Number(w.hourlyRate) / 60 : defaultMinuteRate);
+        if (!dailyRateMap.has(w.id)) {
+            dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
         }
     }
 
-    // 日報データをプロジェクトごとに集計
-    const laborCostByProject = new Map<string, number>();
-    const loadingCostByProject = new Map<string, number>();
+    // (workerId, dateStr) ごとに { projectId, minutes } を集める
+    type WorkerDayEntry = { projectId: string; minutes: number };
+    const workerDayMap = new Map<string, Map<string, WorkerDayEntry[]>>();
 
     for (const item of workItems) {
-        const projectId = item.assignment.projectMasterId;
+        if (!item.dailyReport) continue;
+        const dateStr = new Date(item.dailyReport.date).toISOString().slice(0, 10);
+
+        let minutes = 0;
+        if (item.startTime && item.endTime) {
+            minutes = Math.max(0, calcTimeDiffMinutes(item.startTime, item.endTime) - (item.breakMinutes || 0));
+        }
+        if (minutes <= 0) continue;
 
         // 日報workItemのworkerIdsを優先、なければassignment.workersにフォールバック
-        const workerIds = item.workerIds.length > 0
+        let workerIds = item.workerIds.length > 0
             ? item.workerIds
             : parseJsonField<string[]>(item.assignment.workers, []);
 
-        // ワーカーごとの分単価合計
-        const sumMinuteRate = workerIds.length > 0
-            ? workerIds.reduce((sum, wid) => sum + (minuteRateMap.get(wid) ?? defaultMinuteRate), 0)
-            : (item.assignment.memberCount || 1) * defaultMinuteRate;
-
-        // startTime/endTimeから作業分数を計算（休憩時間を差し引き、夜間作業は翌日扱い）
-        let workMinutes = 0;
-        if (item.startTime && item.endTime) {
-            workMinutes = Math.max(0, calcTimeDiffMinutes(item.startTime, item.endTime) - (item.breakMinutes || 0));
+        // それでも空ならmemberCountから合成IDを生成（assignment+itemに紐づく一人として扱う）
+        if (workerIds.length === 0) {
+            const count = item.assignment.memberCount || 1;
+            workerIds = Array.from({ length: count }, (_, i) => `__fb__:${item.id}:${i}`);
         }
 
-        // 人件費
-        const laborCost = Math.round(workMinutes * sumMinuteRate);
-        laborCostByProject.set(
-            projectId,
-            (laborCostByProject.get(projectId) || 0) + laborCost
-        );
+        for (const wid of workerIds) {
+            let dayMap = workerDayMap.get(wid);
+            if (!dayMap) { dayMap = new Map(); workerDayMap.set(wid, dayMap); }
+            const arr = dayMap.get(dateStr);
+            if (arr) arr.push({ projectId: item.assignment.projectMasterId, minutes });
+            else dayMap.set(dateStr, [{ projectId: item.assignment.projectMasterId, minutes }]);
+        }
+    }
 
-        // 積込費
-        if (item.dailyReport) {
-            const loadingMinutes = item.dailyReport.morningLoadingMinutes + item.dailyReport.eveningLoadingMinutes;
-            const loadingCost = Math.round(loadingMinutes * 0.5 * sumMinuteRate);
-            loadingCostByProject.set(
-                projectId,
-                (loadingCostByProject.get(projectId) || 0) + loadingCost
-            );
+    // 日当ベースで按分計算（100円単位、最大案件で端数吸収）
+    const laborCostByProject = new Map<string, number>();
+
+    for (const [wid, dayMap] of workerDayMap) {
+        const dailyRate = dailyRateMap.get(wid) ?? defaultDailyRate;
+        for (const entries of dayMap.values()) {
+            // 同一workerの同日エントリをproject単位で合算
+            const projectMinutes = new Map<string, number>();
+            let totalMinutes = 0;
+            for (const e of entries) {
+                projectMinutes.set(e.projectId, (projectMinutes.get(e.projectId) || 0) + e.minutes);
+                totalMinutes += e.minutes;
+            }
+            if (totalMinutes <= 0) continue;
+
+            // 100円単位四捨五入
+            const allocations = Array.from(projectMinutes.entries()).map(([pid, mins]) => ({
+                projectId: pid,
+                minutes: mins,
+                amount: Math.round((dailyRate * mins / totalMinutes) / 100) * 100,
+            }));
+
+            // 端数を最大案件で吸収
+            const allocSum = allocations.reduce((s, a) => s + a.amount, 0);
+            const diff = dailyRate - allocSum;
+            if (diff !== 0 && allocations.length > 0) {
+                const maxIdx = allocations.reduce((mi, a, i, arr) => a.minutes > arr[mi].minutes ? i : mi, 0);
+                allocations[maxIdx].amount += diff;
+            }
+
+            for (const a of allocations) {
+                laborCostByProject.set(a.projectId, (laborCostByProject.get(a.projectId) || 0) + a.amount);
+            }
         }
     }
 
@@ -389,7 +417,7 @@ export async function fetchProfitDashboardData(
         }
 
         const laborCost = laborCostByProject.get(pm.id) || 0;
-        const loadingCost = loadingCostByProject.get(pm.id) || 0;
+        const loadingCost = 0;
         const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
         const materialCost = Number(pm.materialCost || 0);
         const activeTypeIds = activeTypeIdsByProject.get(pm.id) ?? new Set<string>();

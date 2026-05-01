@@ -9,7 +9,7 @@ import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 interface UserModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (user: Partial<User> & { password?: string; hourlyRate?: number | null }) => Promise<void>;
+    onSave: (user: Partial<User> & { password?: string; dailyRate?: number | null }) => Promise<void>;
     user?: User | null;
     mode: 'create' | 'edit';
     isAdminOrManager?: boolean;
@@ -24,7 +24,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
         role: 'worker' as UserRole,
         isActive: true,
         assignedProjects: [] as string[],
-        hourlyRate: '' as string | number,
+        dailyRate: '' as string | number,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -40,7 +40,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 role: user.role,
                 isActive: user.isActive,
                 assignedProjects: user.assignedProjects || [],
-                hourlyRate: user.hourlyRate != null ? user.hourlyRate : '',
+                dailyRate: user.dailyRate != null ? user.dailyRate : '',
             });
         } else {
             setFormData({
@@ -51,7 +51,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 role: 'worker',
                 isActive: true,
                 assignedProjects: [],
-                hourlyRate: '',
+                dailyRate: '',
             });
         }
         setError('');
@@ -63,7 +63,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
         setIsLoading(true);
 
         try {
-            const dataToSave: Partial<User> & { password?: string; username?: string; hourlyRate?: number | null } = {
+            const dataToSave: Partial<User> & { password?: string; username?: string; dailyRate?: number | null } = {
                 email: formData.email,
                 displayName: formData.displayName,
                 role: formData.role,
@@ -72,11 +72,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
             };
 
             if (isAdminOrManager) {
-                dataToSave.hourlyRate = formData.hourlyRate !== '' ? Number(formData.hourlyRate) : undefined;
+                dataToSave.dailyRate = formData.dailyRate !== '' ? Number(formData.dailyRate) : undefined;
             }
 
             if (formData.role === 'support') {
-                // 応援は名前・時給・ロールのみ
+                // 応援は名前・日給・ロールのみ
             } else if (mode === 'create') {
                 dataToSave.username = formData.username;
                 dataToSave.password = formData.password;
@@ -241,21 +241,21 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                             </label>
                         </div>
 
-                        {/* Hourly Rate - admin/manager only */}
+                        {/* Daily Rate - admin/manager only */}
                         {isAdminOrManager && (
                             <div>
-                                <label htmlFor="hourlyRate" className="block text-sm font-medium text-slate-700 mb-2">
-                                    時給（円/時間）
+                                <label htmlFor="dailyRate" className="block text-sm font-medium text-slate-700 mb-2">
+                                    日給（円/日）
                                 </label>
                                 <input
-                                    id="hourlyRate"
+                                    id="dailyRate"
                                     type="number"
                                     min="0"
                                     step="1"
-                                    value={formData.hourlyRate}
-                                    onChange={(e) => setFormData({ ...formData, hourlyRate: e.target.value })}
+                                    value={formData.dailyRate}
+                                    onChange={(e) => setFormData({ ...formData, dailyRate: e.target.value })}
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
-                                    placeholder="例: 2500"
+                                    placeholder="例: 18000"
                                 />
                             </div>
                         )}

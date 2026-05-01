@@ -19,14 +19,14 @@ export async function POST(request: NextRequest) {
         const { error } = await requireManagerOrAbove();
         if (error) return error;
 
-        const { name, hourlyRate } = await request.json();
+        const { name, dailyRate } = await request.json();
         const validatedName = validateStringField(name, '名前', 100);
         if (validatedName instanceof NextResponse) return validatedName;
 
         const worker = await prisma.worker.create({
             data: {
                 name: validatedName,
-                ...(hourlyRate !== undefined ? { hourlyRate } : {}),
+                ...(dailyRate !== undefined ? { dailyRate } : {}),
             },
         });
         return NextResponse.json(worker, { status: 201 });
