@@ -11,7 +11,6 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
-import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
 import { canDispatch as canDispatchCheck } from '@/utils/permissions';
@@ -21,7 +20,6 @@ import Loading from '@/components/ui/Loading';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import DesktopCalendarView from './DesktopCalendarView';
 import MobileCalendarView from './MobileCalendarView';
-import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
 
@@ -58,8 +56,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     const { getTotalMembersForDate } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
-    const { getProjectMasterById } = useProjectMasters();
-
     const [isMounted, setIsMounted] = useState(false);
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
@@ -67,9 +63,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     // Tailwindの`lg`と同条件で「デスクトップではない」= モバイルレイアウト判定
     // （iPad横向きはアスペクト比が16:10未満なのでモバイル扱いになる）
     const isMobile = useMediaQuery('not all and (min-width: 1024px) and (min-aspect-ratio: 16/10)');
-
-    // 職長2用: 案件マスター詳細モーダル
-    const [foreman2DetailPm, setForeman2DetailPm] = useState<import('@/types/calendar').ProjectMaster | null>(null);
 
     // Presence機能: 編集中ユーザーの追跡
     const { getEditingUsers } = useAssignmentPresence();
@@ -100,22 +93,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     // 手配確定権限チェック
     const canDispatch = useMemo(() => canDispatchCheck(session?.user), [session?.user]);
 
-    // 職長2用: カードクリックで案件マスター詳細を直接表示
-    const handleForeman2EventClick = useCallback((eventId: string) => {
-        const projectId = eventId.replace(/-assembly$|-demolition$/, '');
-        const project = projects.find(p => p.id === projectId);
-        if (project?.projectMasterId) {
-            const pm = getProjectMasterById(project.projectMasterId);
-            if (pm) {
-                setForeman2DetailPm(pm);
-                return;
-            }
-        }
-        // projectMasterIdがない場合はProjectModalを読み取り専用で開く
-        handleEventClick(eventId);
-    }, [projects, getProjectMasterById, handleEventClick]);
-
-    useEffect(() => { setIsMounted(true); }, []);
+useEffect(() => { setIsMounted(true); }, []);
 
     // 競合解決ハンドラー
     const handleConflictResolution = useCallback(async (action: ConflictResolutionAction) => {
@@ -579,7 +557,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     goToPreviousDay={goToPreviousDay}
                     goToNextDay={goToNextDay}
                     goToToday={goToToday}
-                    handleEventClick={isForeman2 ? handleForeman2EventClick : handleEventClick}
+                    handleEventClick={handleEventClick}
                     handleCellClick={isReadOnly ? undefined : handleCellClick}
                     handleMoveEvent={isReadOnly ? undefined : handleMoveEvent}
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
@@ -608,7 +586,7 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                     handleDragOver={handleDragOver}
                     handleDragEnd={handleDragEnd}
                     handleDragCancel={handleDragCancel}
-                    handleEventClick={isForeman2 ? handleForeman2EventClick : handleEventClick}
+                    handleEventClick={handleEventClick}
                     handleCellClick={isReadOnly ? undefined : handleCellClick}
                     handleMoveEvent={isReadOnly ? undefined : handleMoveEvent}
                     removeForeman={isReadOnly ? undefined : removeForeman}
@@ -688,15 +666,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
                 onJump={handleSearchJump}
             />
 
-            {/* 職長2用: 案件マスター詳細モーダル（閲覧のみ） */}
-            {isForeman2 && (
-                <ProjectMasterDetailModal
-                    pm={foreman2DetailPm}
-                    onClose={() => setForeman2DetailPm(null)}
-                    onUpdate={async () => {}}
-                    readOnly={true}
-                />
-            )}
         </>
     );
 }
