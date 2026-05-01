@@ -11,6 +11,7 @@ import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, Ca
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
+import { useCalendarStore, selectCellRemarks } from '@/stores/calendarStore';
 
 interface AssignmentTableProps {
     userRole?: string;
@@ -23,6 +24,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const { projects, fetchForDateRange, updateProject, isLoading } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
     const { constructionTypes } = useMasterData();
+    const cellRemarks = useCalendarStore(selectCellRemarks);
 
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
@@ -68,6 +70,8 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         tomorrow.setHours(0, 0, 0, 0);
         return tomorrow;
     });
+
+    const selectedDateKey = useMemo(() => formatDateKey(selectedDate), [selectedDate]);
 
     // 手配表マウント時にアサインメントデータを取得（カレンダーを経由しない場合の対策）
     useEffect(() => {
@@ -242,6 +246,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                         onProjectClick={(p) => setSelectedProject(p as Project)}
                                         onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
+                                    foremanRemark={cellRemarks[`${foremanId}-${selectedDateKey}`] || ''}
                                     />
                                 );
                             })
@@ -264,6 +269,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     onProjectClick={(p) => setSelectedProject(p as Project)}
                                     onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
+                                    foremanRemark={cellRemarks[`${foreman.id}-${selectedDateKey}`] || ''}
                                 />
                             );
                         })
@@ -310,6 +316,7 @@ interface ForemanSectionProps {
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     onEditClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     constructionTypeMap: Map<string, { name: string; color: string }>;
+    foremanRemark?: string;
 }
 
 function ForemanSection({
@@ -326,6 +333,7 @@ function ForemanSection({
     onProjectClick,
     onEditClick,
     constructionTypeMap,
+    foremanRemark,
 }: ForemanSectionProps) {
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
 
@@ -346,6 +354,16 @@ function ForemanSection({
                     </span>
                 )}
             </div>
+
+            {/* 職長メモ（カレンダーのセルメモ） */}
+            {foremanRemark && (
+                <div className="px-5 py-2.5 bg-amber-50 border-b border-amber-100">
+                    <div className="flex items-start gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-500" />
+                        <p className="text-sm text-amber-900 whitespace-pre-wrap break-words">{foremanRemark}</p>
+                    </div>
+                </div>
+            )}
 
             {/* 案件リスト */}
             <div className="divide-y divide-slate-100">
