@@ -75,6 +75,7 @@ export interface DailySchedule {
     trucks?: string[];             // 車両
     remarks?: string;              // 備考
     sortOrder?: number;            // カレンダー内での表示順序
+    constructionType?: ConstructionType; // 行ごとの工事種別（未設定時は親フォームの種別を継承）
 }
 
 // 作業スケジュール（組立、解体など）

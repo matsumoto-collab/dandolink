@@ -30,6 +30,11 @@ interface VehicleOption {
     name: string;
 }
 
+interface ConstructionTypeOption {
+    id: string;
+    name: string;
+}
+
 export interface DayExistingInfo {
     foremanId: string;
     foremanName: string;
@@ -43,16 +48,18 @@ interface MultiDayScheduleEditorProps {
     onChange: (schedules: DailySchedule[]) => void;
     foremen?: ForemanOption[];
     vehicles?: VehicleOption[];
+    constructionTypes?: ConstructionTypeOption[];
     existingDayMap?: Record<string, DayExistingInfo[]>;
     getTotalMembersForDate?: (dateStr: string) => number;
 }
 
 export default function MultiDayScheduleEditor({
-    type: _type,
+    type,
     dailySchedules,
     onChange,
     foremen = [],
     vehicles = [],
+    constructionTypes = [],
     existingDayMap = {},
     getTotalMembersForDate,
 }: MultiDayScheduleEditorProps) {
@@ -61,6 +68,8 @@ export default function MultiDayScheduleEditor({
     const [rangeEnd, setRangeEnd] = useState('');
     const [defaultLeader, setDefaultLeader] = useState('');
     const [defaultMemberCount, setDefaultMemberCount] = useState(0);
+    const [defaultType, setDefaultType] = useState<ConstructionType>(type);
+    const [bulkType, setBulkType] = useState<ConstructionType>('');
 
     const generateFromRange = (weekdaysOnly = false) => {
         if (!rangeStart || !rangeEnd) {
@@ -87,6 +96,7 @@ export default function MultiDayScheduleEditor({
                     trucks: [],
                     remarks: '',
                     sortOrder: 0,
+                    constructionType: defaultType || type,
                 });
             }
             current.setDate(current.getDate() + 1);
@@ -104,7 +114,17 @@ export default function MultiDayScheduleEditor({
             trucks: [],
             remarks: '',
             sortOrder: 0,
+            constructionType: defaultType || type,
         }]);
+    };
+
+    const applyBulkType = () => {
+        if (!bulkType) {
+            toast.error('適用する工事種別を選択してください');
+            return;
+        }
+        onChange(dailySchedules.map(s => ({ ...s, constructionType: bulkType })));
+        toast.success('全日程の工事種別を更新しました');
     };
 
     const removeSchedule = (index: number) => {
@@ -176,6 +196,21 @@ export default function MultiDayScheduleEditor({
                             />
                         </div>
                     </div>
+                    {constructionTypes.length > 0 && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">工事種別（デフォルト）</label>
+                            <select
+                                value={defaultType}
+                                onChange={(e) => setDefaultType(e.target.value)}
+                                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            >
+                                <option value="">未設定</option>
+                                {constructionTypes.map((t) => (
+                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">職長（デフォルト）</label>
@@ -235,9 +270,33 @@ export default function MultiDayScheduleEditor({
             {/* 日程リスト */}
             {dailySchedules.length > 0 && (
                 <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-slate-700">
-                        登録済みの日程（{dailySchedules.length}日間）
-                    </h4>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-medium text-slate-700">
+                            登録済みの日程（{dailySchedules.length}日間）
+                        </h4>
+                        {constructionTypes.length > 0 && (
+                            <div className="flex items-center gap-1.5">
+                                <span className="text-xs text-slate-500">一括変更:</span>
+                                <select
+                                    value={bulkType}
+                                    onChange={(e) => setBulkType(e.target.value)}
+                                    className="px-2 py-1 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                >
+                                    <option value="">種別を選択</option>
+                                    {constructionTypes.map((t) => (
+                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={applyBulkType}
+                                    className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
+                                >
+                                    全日程に適用
+                                </button>
+                            </div>
+                        )}
+                    </div>
                     <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
                         {dailySchedules.map((schedule, index) => {
                             const existing = getExistingForDate(schedule.date);
@@ -249,9 +308,9 @@ export default function MultiDayScheduleEditor({
                                     key={index}
                                     className="bg-white border border-slate-200 rounded-lg p-3 space-y-2.5"
                                 >
-                                    {/* 日付ヘッダー + 削除ボタン */}
+                                    {/* 日付ヘッダー + 種別 + 削除ボタン */}
                                     <div className="flex items-center justify-between gap-2">
-                                        <div className="flex items-center gap-3 min-w-0">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
                                             <span className="text-base font-bold text-slate-700 shrink-0">
                                                 {formatDateDisplay(schedule.date)}
                                             </span>
@@ -262,6 +321,19 @@ export default function MultiDayScheduleEditor({
                                                     onChange={(e) => updateSchedule(index, { date: new Date(e.target.value) })}
                                                     className="px-2 py-1 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400"
                                                 />
+                                            )}
+                                            {constructionTypes.length > 0 && (
+                                                <select
+                                                    value={schedule.constructionType ?? ''}
+                                                    onChange={(e) => updateSchedule(index, { constructionType: e.target.value })}
+                                                    className="ml-auto px-2 py-1 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[100px]"
+                                                    title="工事種別"
+                                                >
+                                                    <option value="">種別を選択</option>
+                                                    {constructionTypes.map((t) => (
+                                                        <option key={t.id} value={t.id}>{t.name}</option>
+                                                    ))}
+                                                </select>
                                             )}
                                         </div>
                                         <button

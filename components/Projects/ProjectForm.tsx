@@ -304,13 +304,6 @@ export default function ProjectForm({
         return map;
     }, [projects, getForemanName]);
 
-    // 選択中の工事種別名を取得（マスターデータのIDからnameを解決）
-    const selectedConstructionTypeName = useMemo(() => {
-        const ct = constructionTypes.find(t => t.id === formData.constructionType);
-        // マスターデータにあればname、なければレガシーコード（assembly/demolition/other）をそのまま使用
-        return ct?.name || formData.constructionType;
-    }, [constructionTypes, formData.constructionType]);
-
     // 車両使用状況を計算（同日の他案件で使用中の車両を取得）
     const vehicleUsageMap = useMemo(() => {
         const targetDate = initialData?.startDate || defaultDate || new Date();
@@ -698,7 +691,7 @@ export default function ProjectForm({
                         <div className="space-y-4 border border-slate-200 rounded-md p-4 bg-slate-50">
                             <div className="bg-white p-4 rounded-lg border border-slate-200">
                                 <h3 className="text-lg font-semibold text-slate-700 mb-3">
-                                    {selectedConstructionTypeName || '工事'}スケジュール
+                                    作業日程
                                 </h3>
                                 <MultiDayScheduleEditor
                                     type={formData.constructionType}
@@ -706,6 +699,7 @@ export default function ProjectForm({
                                     onChange={setMultiDaySchedules}
                                     foremen={allForemen}
                                     vehicles={mockVehicles}
+                                    constructionTypes={constructionTypes}
                                     existingDayMap={existingDayMap}
                                     getTotalMembersForDate={getTotalMembersForDate}
                                 />

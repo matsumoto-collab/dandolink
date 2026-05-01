@@ -193,7 +193,7 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 meetingTime: project.meetingTime,
                 sortOrder: schedule.sortOrder || 0,
                 remarks: schedule.remarks || project.remarks,
-                constructionType: project.constructionType,
+                constructionType: schedule.constructionType ?? project.constructionType,
                 estimatedHours: project.estimatedHours ?? 8.0,
             }));
 
