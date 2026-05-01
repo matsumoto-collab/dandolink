@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { DailySchedule, ConstructionType } from '@/types/calendar';
-import { Plus, X } from 'lucide-react';
+import { Check, ChevronDown, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const DOW_JP = ['日', '月', '火', '水', '木', '金', '土'];
@@ -23,6 +23,109 @@ function toDateKey(date: Date): string {
 interface ForemanOption {
     id: string;
     displayName: string;
+    role?: string;
+}
+
+// 共通ドロップダウン（単一/複数選択切替）
+interface SelectDropdownOption {
+    id: string;
+    label: string;
+}
+
+interface SelectDropdownProps {
+    options: SelectDropdownOption[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+    multiple?: boolean;
+    placeholder?: string;
+    emptyOptionLabel?: string; // 単一選択時の「選択なし」相当
+    className?: string;
+}
+
+function SelectDropdown({
+    options,
+    selected,
+    onChange,
+    multiple = false,
+    placeholder = '選択',
+    emptyOptionLabel,
+    className = '',
+}: SelectDropdownProps) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const handler = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [open]);
+
+    const selectedSet = new Set(selected);
+    const selectedLabels = options.filter(o => selectedSet.has(o.id)).map(o => o.label);
+
+    const buttonText = (() => {
+        if (selectedLabels.length === 0) return placeholder;
+        if (!multiple) return selectedLabels[0];
+        if (selectedLabels.length <= 2) return selectedLabels.join('、');
+        return `${selectedLabels[0]} 他${selectedLabels.length - 1}件`;
+    })();
+
+    const toggle = (id: string) => {
+        if (multiple) {
+            onChange(selectedSet.has(id) ? selected.filter(s => s !== id) : [...selected, id]);
+        } else {
+            onChange(selectedSet.has(id) ? [] : [id]);
+            setOpen(false);
+        }
+    };
+
+    return (
+        <div ref={ref} className={`relative ${className}`}>
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                className={`w-full flex items-center justify-between gap-2 px-2 py-1.5 text-sm bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500 ${selectedLabels.length === 0 ? 'text-slate-400' : 'text-slate-700'}`}
+            >
+                <span className="truncate text-left">{buttonText}</span>
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+            </button>
+            {open && (
+                <div className="absolute z-20 mt-1 w-full max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-md shadow-lg">
+                    {!multiple && emptyOptionLabel && (
+                        <button
+                            type="button"
+                            onClick={() => { onChange([]); setOpen(false); }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 ${selectedLabels.length === 0 ? 'bg-slate-50 font-medium text-slate-700' : 'text-slate-500'}`}
+                        >
+                            <span className="w-4 h-4 shrink-0">{selectedLabels.length === 0 && <Check className="w-4 h-4 text-slate-700" />}</span>
+                            <span>{emptyOptionLabel}</span>
+                        </button>
+                    )}
+                    {options.length === 0 ? (
+                        <div className="px-3 py-2 text-sm text-slate-400">候補がありません</div>
+                    ) : (
+                        options.map(o => {
+                            const isSelected = selectedSet.has(o.id);
+                            return (
+                                <button
+                                    key={o.id}
+                                    type="button"
+                                    onClick={() => toggle(o.id)}
+                                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 ${isSelected ? 'bg-slate-50 font-medium text-slate-700' : 'text-slate-700'}`}
+                                >
+                                    <span className="w-4 h-4 shrink-0">{isSelected && <Check className="w-4 h-4 text-slate-700" />}</span>
+                                    <span className="truncate">{o.label}</span>
+                                </button>
+                            );
+                        })
+                    )}
+                </div>
+            )}
+        </div>
+    );
 }
 
 interface VehicleOption {
@@ -152,25 +255,31 @@ export default function MultiDayScheduleEditor({
         return total - used - vacation;
     };
 
-    // 職長ごとに集約（同職長の最大人数を採用、0名は除外）
-    const getExistingByForeman = (date: Date): { foremanId: string; foremanName: string; memberCount: number; titles: string[] }[] => {
+    // 職長ごとに集約。協力業者(partner)は案件数で表示、それ以外は最大人数を採用（0名は除外）
+    const foremanRoleMap = new Map(foremen.map(f => [f.id, f.role]));
+    const getExistingByForeman = (date: Date): { foremanId: string; foremanName: string; memberCount: number; projectCount: number; titles: string[]; isPartner: boolean }[] => {
         const list = existingDayMap[toDateKey(date)] || [];
-        const map = new Map<string, { foremanId: string; foremanName: string; memberCount: number; titles: string[] }>();
+        const map = new Map<string, { foremanId: string; foremanName: string; memberCount: number; projectCount: number; titles: string[]; isPartner: boolean }>();
         list.forEach(e => {
+            const isPartner = foremanRoleMap.get(e.foremanId) === 'partner';
             const cur = map.get(e.foremanId);
             if (!cur) {
                 map.set(e.foremanId, {
                     foremanId: e.foremanId,
                     foremanName: e.foremanName,
                     memberCount: e.memberCount,
+                    projectCount: 1,
                     titles: e.projectTitle ? [e.projectTitle] : [],
+                    isPartner,
                 });
             } else {
                 cur.memberCount = Math.max(cur.memberCount, e.memberCount);
+                cur.projectCount += 1;
                 if (e.projectTitle && !cur.titles.includes(e.projectTitle)) cur.titles.push(e.projectTitle);
             }
         });
-        return Array.from(map.values()).filter(e => e.memberCount > 0);
+        // 協力業者は0件除外せず、それ以外は0名除外
+        return Array.from(map.values()).filter(e => e.isPartner ? e.projectCount > 0 : e.memberCount > 0);
     };
 
     const getVacationForDate = (date: Date): number => {
@@ -238,16 +347,13 @@ export default function MultiDayScheduleEditor({
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">職長（デフォルト）</label>
-                            <select
-                                value={defaultLeader}
-                                onChange={(e) => setDefaultLeader(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                            >
-                                <option value="">選択なし</option>
-                                {foremen.map((f) => (
-                                    <option key={f.id} value={f.id}>{f.displayName}</option>
-                                ))}
-                            </select>
+                            <SelectDropdown
+                                options={foremen.map(f => ({ id: f.id, label: f.displayName }))}
+                                selected={defaultLeader ? [defaultLeader] : []}
+                                onChange={(ids) => setDefaultLeader(ids[0] ?? '')}
+                                placeholder="選択なし"
+                                emptyOptionLabel="選択なし"
+                            />
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">人数（デフォルト）</label>
@@ -377,11 +483,13 @@ export default function MultiDayScheduleEditor({
                                             existing.map((e) => (
                                                 <span
                                                     key={e.foremanId}
-                                                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-full"
+                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 border rounded-full ${e.isPartner ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-slate-100 border-slate-200 text-slate-700'}`}
                                                     title={e.titles.join(' / ')}
                                                 >
                                                     <span className="font-medium">{e.foremanName}</span>
-                                                    <span className="text-slate-600">{e.memberCount}名</span>
+                                                    <span className={e.isPartner ? 'text-indigo-600' : 'text-slate-600'}>
+                                                        {e.isPartner ? `${e.projectCount}件` : `${e.memberCount}名`}
+                                                    </span>
                                                 </span>
                                             ))
                                         ) : (
@@ -400,16 +508,13 @@ export default function MultiDayScheduleEditor({
                                     {/* 職長 */}
                                     <div>
                                         <label className="block text-xs text-slate-500 mb-1">職長</label>
-                                        <select
-                                            value={schedule.assignedEmployeeId || ''}
-                                            onChange={(e) => updateSchedule(index, { assignedEmployeeId: e.target.value || undefined })}
-                                            className="w-full px-2 py-1.5 text-sm border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                        >
-                                            <option value="">選択なし</option>
-                                            {foremen.map((f) => (
-                                                <option key={f.id} value={f.id}>{f.displayName}</option>
-                                            ))}
-                                        </select>
+                                        <SelectDropdown
+                                            options={foremen.map(f => ({ id: f.id, label: f.displayName }))}
+                                            selected={schedule.assignedEmployeeId ? [schedule.assignedEmployeeId] : []}
+                                            onChange={(ids) => updateSchedule(index, { assignedEmployeeId: ids[0] || undefined })}
+                                            placeholder="選択なし"
+                                            emptyOptionLabel="選択なし"
+                                        />
                                     </div>
 
                                     {/* 人数 + 予定作業時間 */}
@@ -436,34 +541,13 @@ export default function MultiDayScheduleEditor({
                                     {vehicles.length > 0 && (
                                         <div>
                                             <label className="block text-xs text-slate-500 mb-1">車両</label>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {vehicles.map((v) => {
-                                                    const checked = selectedTrucks.includes(v.name);
-                                                    return (
-                                                        <label
-                                                            key={v.id}
-                                                            className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg border transition-colors select-none cursor-pointer hover:bg-slate-100 ${
-                                                                checked
-                                                                    ? 'bg-slate-100 border-slate-400 text-slate-700 font-medium'
-                                                                    : 'bg-slate-50 border-slate-200 text-slate-600'
-                                                            }`}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={checked}
-                                                                onChange={() => {
-                                                                    const next = checked
-                                                                        ? selectedTrucks.filter(t => t !== v.name)
-                                                                        : [...selectedTrucks, v.name];
-                                                                    updateSchedule(index, { trucks: next });
-                                                                }}
-                                                                className="w-3 h-3"
-                                                            />
-                                                            {v.name}
-                                                        </label>
-                                                    );
-                                                })}
-                                            </div>
+                                            <SelectDropdown
+                                                options={vehicles.map(v => ({ id: v.name, label: v.name }))}
+                                                selected={selectedTrucks}
+                                                onChange={(names) => updateSchedule(index, { trucks: names })}
+                                                multiple
+                                                placeholder="車両を選択"
+                                            />
                                             {selectedTrucks.length > 0 && (
                                                 <div className="mt-1.5 flex flex-wrap gap-1">
                                                     {selectedTrucks.map((t, i) => (
