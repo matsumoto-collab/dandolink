@@ -286,23 +286,76 @@ export default function ProjectForm({
         return getTotalMembersForDate(dateKey) + adjustment - usedMembers - vacationCount;
     }, [projects, initialData, defaultDate, getTotalMembersForDate, getVacationEmployees, memberAdjustments]);
 
-    // 複数日スケジュール用：日付ごとの既存配置マップ
+    // 複数日スケジュール用: 日程範囲の全アサインを別途フェッチ（カレンダーストアは現在週しか保持しないため）
+    type RangeAssignment = {
+        id: string;
+        date: string;
+        assignedEmployeeId: string | null;
+        memberCount: number | null;
+        vehicles: string[];
+        projectMasterId: string;
+        projectMaster?: { title?: string | null } | null;
+    };
+    const [rangeAssignments, setRangeAssignments] = useState<RangeAssignment[]>([]);
+    const rangeKey = useMemo(() => {
+        if (multiDaySchedules.length === 0) return '';
+        const ts = multiDaySchedules.map(s => new Date(s.date).getTime());
+        const start = new Date(Math.min(...ts));
+        const end = new Date(Math.max(...ts));
+        return `${formatDateKey(start)}_${formatDateKey(end)}`;
+    }, [multiDaySchedules]);
+    useEffect(() => {
+        if (!useMultiDaySchedule || !rangeKey) {
+            setRangeAssignments([]);
+            return;
+        }
+        const [startStr, endStr] = rangeKey.split('_');
+        let cancelled = false;
+        const t = setTimeout(() => {
+            fetch(`/api/assignments?startDate=${startStr}&endDate=${endStr}`, { cache: 'no-store' })
+                .then(r => r.ok ? r.json() : [])
+                .then((data: RangeAssignment[]) => { if (!cancelled) setRangeAssignments(Array.isArray(data) ? data : []); })
+                .catch(() => { if (!cancelled) setRangeAssignments([]); });
+        }, 200);
+        return () => { cancelled = true; clearTimeout(t); };
+    }, [useMultiDaySchedule, rangeKey]);
+
+    // 複数日スケジュール用：日付ごとの既存配置マップ（rangeAssignmentsベース、編集中の案件は除外）
     const existingDayMap = useMemo(() => {
         const map: Record<string, { foremanId: string; foremanName: string; memberCount: number; projectTitle?: string }[]> = {};
-        projects.forEach(p => {
-            if (!p.assignedEmployeeId || p.assignedEmployeeId === 'unassigned') return;
-            const dateKey = formatDateKey(p.startDate);
+        const selfPmId = initialData?.id;
+        rangeAssignments.forEach(a => {
+            if (!a.assignedEmployeeId) return;
+            if (selfPmId && a.projectMasterId === selfPmId) return;
+            const dateKey = formatDateKey(new Date(a.date));
             if (!map[dateKey]) map[dateKey] = [];
-            const mc = p.memberCount ?? 0;
             map[dateKey].push({
-                foremanId: p.assignedEmployeeId,
-                foremanName: getForemanName(p.assignedEmployeeId) || '不明',
-                memberCount: mc,
-                projectTitle: p.title,
+                foremanId: a.assignedEmployeeId,
+                foremanName: getForemanName(a.assignedEmployeeId) || '不明',
+                memberCount: a.memberCount ?? 0,
+                projectTitle: a.projectMaster?.title || undefined,
             });
         });
         return map;
-    }, [projects, getForemanName]);
+    }, [rangeAssignments, initialData?.id, getForemanName]);
+
+    // 日付ごとの車両使用マップ（同日の他案件で使われている車両名 → 件数）
+    const vehicleUsageByDate = useMemo(() => {
+        const map: Record<string, Record<string, number>> = {};
+        const selfPmId = initialData?.id;
+        rangeAssignments.forEach(a => {
+            if (selfPmId && a.projectMasterId === selfPmId) return;
+            const dateKey = formatDateKey(new Date(a.date));
+            const arr = Array.isArray(a.vehicles) ? a.vehicles : [];
+            if (arr.length === 0) return;
+            if (!map[dateKey]) map[dateKey] = {};
+            arr.forEach(v => {
+                if (!v) return;
+                map[dateKey][v] = (map[dateKey][v] ?? 0) + 1;
+            });
+        });
+        return map;
+    }, [rangeAssignments, initialData?.id]);
 
     // 車両使用状況を計算（同日の他案件で使用中の車両を取得）
     const vehicleUsageMap = useMemo(() => {
@@ -701,6 +754,7 @@ export default function ProjectForm({
                                     vehicles={mockVehicles}
                                     constructionTypes={constructionTypes}
                                     existingDayMap={existingDayMap}
+                                    vehicleUsageByDate={vehicleUsageByDate}
                                     getTotalMembersForDate={getTotalMembersForDate}
                                     getVacationCountForDate={(dateStr) => getVacationEmployees(dateStr).length}
                                 />

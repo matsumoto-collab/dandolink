@@ -30,6 +30,8 @@ interface ForemanOption {
 interface SelectDropdownOption {
     id: string;
     label: string;
+    subLabel?: string;
+    subLabelTone?: 'info' | 'warn';
 }
 
 interface SelectDropdownProps {
@@ -109,6 +111,9 @@ function SelectDropdown({
                     ) : (
                         options.map(o => {
                             const isSelected = selectedSet.has(o.id);
+                            const toneClass = o.subLabelTone === 'warn'
+                                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                : 'bg-indigo-50 text-indigo-700 border-indigo-200';
                             return (
                                 <button
                                     key={o.id}
@@ -117,7 +122,12 @@ function SelectDropdown({
                                     className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-left hover:bg-slate-50 ${isSelected ? 'bg-slate-50 font-medium text-slate-700' : 'text-slate-700'}`}
                                 >
                                     <span className="w-4 h-4 shrink-0">{isSelected && <Check className="w-4 h-4 text-slate-700" />}</span>
-                                    <span className="truncate">{o.label}</span>
+                                    <span className="truncate flex-1">{o.label}</span>
+                                    {o.subLabel && (
+                                        <span className={`shrink-0 text-[10px] px-1.5 py-0.5 border rounded-full ${toneClass}`}>
+                                            {o.subLabel}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })
@@ -153,6 +163,7 @@ interface MultiDayScheduleEditorProps {
     vehicles?: VehicleOption[];
     constructionTypes?: ConstructionTypeOption[];
     existingDayMap?: Record<string, DayExistingInfo[]>;
+    vehicleUsageByDate?: Record<string, Record<string, number>>;
     getTotalMembersForDate?: (dateStr: string) => number;
     getVacationCountForDate?: (dateStr: string) => number;
 }
@@ -165,6 +176,7 @@ export default function MultiDayScheduleEditor({
     vehicles = [],
     constructionTypes = [],
     existingDayMap = {},
+    vehicleUsageByDate = {},
     getTotalMembersForDate,
     getVacationCountForDate,
 }: MultiDayScheduleEditorProps) {
@@ -433,6 +445,30 @@ export default function MultiDayScheduleEditor({
                             const vacationCount = getVacationForDate(schedule.date);
                             const remaining = getRemainingForDate(schedule.date);
                             const selectedTrucks = schedule.trucks || [];
+                            const dateKeyForRow = toDateKey(schedule.date);
+                            const foremanCountForRow = new Map<string, number>();
+                            (existingDayMap[dateKeyForRow] || []).forEach(e => {
+                                foremanCountForRow.set(e.foremanId, (foremanCountForRow.get(e.foremanId) ?? 0) + 1);
+                            });
+                            const vehicleUsageForRow = vehicleUsageByDate[dateKeyForRow] || {};
+                            const foremanOptions: SelectDropdownOption[] = foremen.map(f => {
+                                const count = foremanCountForRow.get(f.id) ?? 0;
+                                return {
+                                    id: f.id,
+                                    label: f.displayName,
+                                    subLabel: count > 0 ? `${count}件` : undefined,
+                                    subLabelTone: 'info',
+                                };
+                            });
+                            const vehicleOptions: SelectDropdownOption[] = vehicles.map(v => {
+                                const count = vehicleUsageForRow[v.name] ?? 0;
+                                return {
+                                    id: v.name,
+                                    label: v.name,
+                                    subLabel: count > 0 ? '使用中' : undefined,
+                                    subLabelTone: 'warn',
+                                };
+                            });
 
                             return (
                                 <div
@@ -509,7 +545,7 @@ export default function MultiDayScheduleEditor({
                                     <div>
                                         <label className="block text-xs text-slate-500 mb-1">職長</label>
                                         <SelectDropdown
-                                            options={foremen.map(f => ({ id: f.id, label: f.displayName }))}
+                                            options={foremanOptions}
                                             selected={schedule.assignedEmployeeId ? [schedule.assignedEmployeeId] : []}
                                             onChange={(ids) => updateSchedule(index, { assignedEmployeeId: ids[0] || undefined })}
                                             placeholder="選択なし"
@@ -542,7 +578,7 @@ export default function MultiDayScheduleEditor({
                                         <div>
                                             <label className="block text-xs text-slate-500 mb-1">車両</label>
                                             <SelectDropdown
-                                                options={vehicles.map(v => ({ id: v.name, label: v.name }))}
+                                                options={vehicleOptions}
                                                 selected={selectedTrucks}
                                                 onChange={(names) => updateSchedule(index, { trucks: names })}
                                                 multiple
