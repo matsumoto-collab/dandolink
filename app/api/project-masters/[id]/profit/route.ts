@@ -5,6 +5,35 @@ import { calcTimeDiffMinutes } from '@/utils/dateUtils';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
+interface LaborRow {
+    assignmentId: string;
+    date: string;
+    constructionTypeName: string | null;
+    hours: number;
+    foremanName: string | null;
+    memberCount: number;
+    autoCost: number;
+    override: number | null;
+    effectiveCost: number;
+}
+interface VehicleRow {
+    assignmentId: string;
+    date: string;
+    vehicleNames: string[];
+    autoCost: number;
+    override: number | null;
+    effectiveCost: number;
+}
+interface SubcontractorRow {
+    assignmentId: string;
+    date: string;
+    constructionTypeName: string | null;
+    foremanName: string | null;
+    autoCost: number;
+    override: number | null;
+    effectiveCost: number;
+}
+
 export async function GET(_request: NextRequest, context: RouteContext) {
     try {
         const { session, error } = await requireAuth();
@@ -24,18 +53,23 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 contractAmount: true,
                 materialCost: true,
                 otherExpenses: true,
+                loadingCost: true,
                 subcontractorCosts: {
                     select: { constructionTypeId: true, amount: true },
                 },
                 assignments: {
                     select: {
                         id: true,
+                        date: true,
                         assignedEmployeeId: true,
                         isDispatchConfirmed: true,
                         constructionType: true,
                         workers: true,
                         memberCount: true,
                         vehicles: true,
+                        laborCostOverride: true,
+                        vehicleCostOverride: true,
+                        subcontractorCostOverride: true,
                         dailyReportWorkItems: {
                             select: {
                                 id: true,
@@ -43,12 +77,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                                 endTime: true,
                                 breakMinutes: true,
                                 workerIds: true,
-                                dailyReport: {
-                                    select: {
-                                        id: true,
-                                        date: true,
-                                    },
-                                },
+                                dailyReport: { select: { id: true, date: true } },
                             },
                         },
                     },
@@ -57,7 +86,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         });
         if (!projectMaster) return notFoundResponse('案件');
 
-        // 全workItemのworkerIds + assignment.workersからworker IDを収集
         const allWorkerIdSet = new Set<string>();
         for (const assignment of projectMaster.assignments) {
             const workers = parseJsonField<string[]>(assignment.workers, []);
@@ -67,35 +95,32 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             }
         }
 
-        // 職長候補ユーザー（手配確定アサインの職長ID）
         const foremanIds = [...new Set(projectMaster.assignments.map(a => a.assignedEmployeeId).filter(Boolean))] as string[];
 
-        const [settings, estimates, invoices, allVehicles, allUsers, allWorkers, foremanUsers] = await Promise.all([
+        const [settings, estimates, invoices, allVehicles, allUsers, allWorkers, foremanUsers, constructionTypes] = await Promise.all([
             prisma.systemSettings.findFirst(),
             prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
-            prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
+            prisma.vehicle.findMany({ select: { id: true, name: true, dailyRate: true } }),
             prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, dailyRate: true } }),
             prisma.worker.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, dailyRate: true } }),
             foremanIds.length > 0
-                ? prisma.user.findMany({ where: { id: { in: foremanIds } }, select: { id: true, role: true } })
-                : Promise.resolve([] as { id: string; role: string }[]),
+                ? prisma.user.findMany({ where: { id: { in: foremanIds } }, select: { id: true, displayName: true, role: true } })
+                : Promise.resolve([] as { id: string; displayName: string; role: string }[]),
+            prisma.constructionType.findMany({ select: { id: true, name: true } }),
         ]);
 
         const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
 
-        // ユーザー/応援ごとの日給マップ
         const dailyRateMap = new Map<string, number>();
-        for (const u of allUsers) {
-            dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
-        }
+        for (const u of allUsers) dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
         for (const w of allWorkers) {
-            if (!dailyRateMap.has(w.id)) {
-                dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
-            }
+            if (!dailyRateMap.has(w.id)) dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
         }
-
         const vehicleRateMap = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
+        const vehicleNameMap = new Map(allVehicles.map(v => [v.id, v.name]));
+        const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
+        const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
 
         const estimateAmount = estimates.reduce((sum, e) => sum + Number(e.total), 0);
         const estimateSubtotal = estimates.reduce((sum, e) => sum + Number(e.subtotal), 0);
@@ -106,38 +131,18 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const invoiceSubtotal = invoices.reduce((sum, i) => sum + Number(i.subtotal), 0);
         const contractAmount = Number(projectMaster.contractAmount || 0);
 
-        // 売上フォールバック（税別）: 請求書(税別) → 見積書(税別) → 足場工事金額 → 0
         let revenue = 0;
         let revenueSource: 'invoice' | 'estimate' | 'contract' | 'none' = 'none';
-        if (invoiceSubtotal > 0) {
-            revenue = invoiceSubtotal;
-            revenueSource = 'invoice';
-        } else if (estimateSubtotal > 0) {
-            revenue = estimateSubtotal;
-            revenueSource = 'estimate';
-        } else if (contractAmount > 0) {
-            revenue = contractAmount;
-            revenueSource = 'contract';
-        }
-
-        let vehicleCost = 0;
-        const loadingCost = 0;
+        if (invoiceSubtotal > 0) { revenue = invoiceSubtotal; revenueSource = 'invoice'; }
+        else if (estimateSubtotal > 0) { revenue = estimateSubtotal; revenueSource = 'estimate'; }
+        else if (contractAmount > 0) { revenue = contractAmount; revenueSource = 'contract'; }
 
         const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null, breakMins: number): number => {
             if (!startTime || !endTime) return 0;
             return Math.max(0, calcTimeDiffMinutes(startTime, endTime) - breakMins);
         };
 
-        // 車両費
-        for (const assignment of projectMaster.assignments) {
-            const vehicles = parseJsonField<string[]>(assignment.vehicles, []);
-            vehicles.forEach(vid => { vehicleCost += vehicleRateMap.get(vid) || 0; });
-        }
-
-        // (workerId, date) ごとに minutes を集計（この案件分のみ）
-        // 同一workerの同日が他案件に跨る可能性があるため、本APIでは「この案件分の按分」だけが必要。
-        // ただし他案件の作業時間を加味しないと按分の母数が不正確になるため、
-        // 当該workerの当該日の全workItem（他案件含む）を取得して母数を算出する。
+        // ---- 按分母数（worker,date）の集計 ----
         const workerDateKeys = new Set<string>();
         for (const assignment of projectMaster.assignments) {
             for (const workItem of assignment.dailyReportWorkItems) {
@@ -149,8 +154,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 for (const wid of ids) workerDateKeys.add(`${wid}|${dateStr}`);
             }
         }
-
-        // 同workerの同日における他案件含む全作業分数を取得（按分母数）
         const otherWorkItems = workerDateKeys.size > 0
             ? await prisma.dailyReportWorkItem.findMany({
                 where: {
@@ -172,8 +175,6 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 },
             })
             : [];
-
-        // (workerId, dateStr) -> 同日全分数
         const workerDayTotalMinutes = new Map<string, number>();
         for (const item of otherWorkItems) {
             if (!item.dailyReport) continue;
@@ -187,68 +188,119 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             }
         }
 
-        // 当案件における (workerId, dateStr) -> 当案件分数
-        const workerDayThisProjectMinutes = new Map<string, number>();
-        const fallbackByItem = new Map<string, number>(); // workerIds 完全空のときのフォールバック用 minutes
-        for (const assignment of projectMaster.assignments) {
-            for (const workItem of assignment.dailyReportWorkItems) {
+        // partnerForemanIds for subcontractor calc
+        const partnerForemanIds = new Set(foremanUsers.filter(u => u.role === 'partner').map(u => u.id));
+
+        // 工事種別ごとの subcontractor 単価
+        const subcontractorTypeAmount = new Map<string, number>(
+            projectMaster.subcontractorCosts.map(c => [c.constructionTypeId, Number(c.amount || 0)])
+        );
+
+        const laborRows: LaborRow[] = [];
+        const vehicleRows: VehicleRow[] = [];
+        const subcontractorRows: SubcontractorRow[] = [];
+
+        let laborCost = 0;
+        let vehicleCost = 0;
+        let subcontractorCost = 0;
+        const subcontractorTypeUsed = new Set<string>(); // 上書きが無い場合の従来計算用
+
+        for (const a of projectMaster.assignments) {
+            const dateStr = new Date(a.date).toISOString().slice(0, 10);
+            const ctName = a.constructionType ? (ctNameMap.get(a.constructionType) ?? null) : null;
+            const foremanName = foremanNameMap.get(a.assignedEmployeeId) ?? null;
+
+            // ----- 労務費（assignment単位に集計） -----
+            let assignmentLaborRaw = 0;
+            let assignmentMinutes = 0;
+            for (const workItem of a.dailyReportWorkItems) {
                 if (!workItem.dailyReport) continue;
                 const mins = calcWorkMinutesFromItem(workItem.startTime, workItem.endTime, workItem.breakMinutes);
                 if (mins <= 0) continue;
-                const dateStr = new Date(workItem.dailyReport.date).toISOString().slice(0, 10);
+                assignmentMinutes += mins;
+                const wDateStr = new Date(workItem.dailyReport.date).toISOString().slice(0, 10);
                 let ids = workItem.workerIds.length > 0
                     ? workItem.workerIds
-                    : parseJsonField<string[]>(assignment.workers, []);
+                    : parseJsonField<string[]>(a.workers, []);
                 if (ids.length === 0) {
-                    // memberCount フォールバック: 合成IDで本案件のみに帰属
-                    const count = assignment.memberCount || 1;
+                    const count = a.memberCount || 1;
                     ids = Array.from({ length: count }, (_, i) => `__fb__:${workItem.id}:${i}`);
-                    // 合成IDの母数は当案件分のみ
                     for (const wid of ids) {
-                        const key = `${wid}|${dateStr}`;
-                        workerDayTotalMinutes.set(key, (workerDayTotalMinutes.get(key) || 0) + mins);
+                        const key = `${wid}|${wDateStr}`;
+                        workerDayTotalMinutes.set(key, mins);
                     }
-                    fallbackByItem.set(workItem.id, count);
                 }
                 for (const wid of ids) {
-                    const key = `${wid}|${dateStr}`;
-                    workerDayThisProjectMinutes.set(key, (workerDayThisProjectMinutes.get(key) || 0) + mins);
+                    const key = `${wid}|${wDateStr}`;
+                    const totalMins = workerDayTotalMinutes.get(key) || mins;
+                    const dailyRate = dailyRateMap.get(wid) ?? defaultDailyRate;
+                    assignmentLaborRaw += dailyRate * (mins / totalMins);
                 }
             }
-        }
+            const autoLaborCost = Math.round(assignmentLaborRaw / 100) * 100;
+            const effectiveLabor = a.laborCostOverride != null ? a.laborCostOverride : autoLaborCost;
+            laborCost += effectiveLabor;
+            const hours = Math.round((assignmentMinutes / 60) * 10) / 10;
+            laborRows.push({
+                assignmentId: a.id,
+                date: dateStr,
+                constructionTypeName: ctName,
+                hours,
+                foremanName,
+                memberCount: a.memberCount || 0,
+                autoCost: autoLaborCost,
+                override: a.laborCostOverride,
+                effectiveCost: effectiveLabor,
+            });
 
-        // 各 (workerId, dateStr) ごとに dailyRate × (本案件分数 / 当日総分数) を加算
-        // 100円単位四捨五入。単一案件なので端数吸収はworker内合算後に1度行う。
-        let laborCost = 0;
-        for (const [key, thisMins] of workerDayThisProjectMinutes) {
-            const [wid] = key.split('|');
-            const totalMins = workerDayTotalMinutes.get(key) || thisMins;
-            const dailyRate = dailyRateMap.get(wid) ?? defaultDailyRate;
-            const raw = dailyRate * (thisMins / totalMins);
-            const rounded = Math.round(raw / 100) * 100;
-            laborCost += rounded;
+            // ----- 車両費 -----
+            const vehIds = parseJsonField<string[]>(a.vehicles, []);
+            const autoVehicle = vehIds.reduce((sum, vid) => sum + (vehicleRateMap.get(vid) || 0), 0);
+            const effectiveVehicle = a.vehicleCostOverride != null ? a.vehicleCostOverride : autoVehicle;
+            // 行は車両がある or 上書きがある場合のみ表示
+            if (vehIds.length > 0 || a.vehicleCostOverride != null) {
+                vehicleRows.push({
+                    assignmentId: a.id,
+                    date: dateStr,
+                    vehicleNames: vehIds.map(vid => vehicleNameMap.get(vid) ?? '不明').filter(Boolean),
+                    autoCost: autoVehicle,
+                    override: a.vehicleCostOverride,
+                    effectiveCost: effectiveVehicle,
+                });
+            }
+            vehicleCost += effectiveVehicle;
+
+            // ----- 外注費（協力業者） -----
+            const isPartnerSubcontractor = a.isDispatchConfirmed
+                && partnerForemanIds.has(a.assignedEmployeeId)
+                && !!a.constructionType
+                && subcontractorTypeAmount.has(a.constructionType);
+            const autoSubFromType = isPartnerSubcontractor && a.constructionType && !subcontractorTypeUsed.has(a.constructionType)
+                ? (subcontractorTypeAmount.get(a.constructionType) ?? 0)
+                : 0;
+            // 自動値は「種別ごとに最初の対象アサインへ計上」
+            if (autoSubFromType > 0 && a.constructionType) subcontractorTypeUsed.add(a.constructionType);
+
+            const hasSubOverride = a.subcontractorCostOverride != null;
+            const effectiveSub = hasSubOverride ? (a.subcontractorCostOverride as number) : autoSubFromType;
+            if (isPartnerSubcontractor || hasSubOverride) {
+                subcontractorRows.push({
+                    assignmentId: a.id,
+                    date: dateStr,
+                    constructionTypeName: ctName,
+                    foremanName,
+                    autoCost: autoSubFromType,
+                    override: a.subcontractorCostOverride,
+                    effectiveCost: effectiveSub,
+                });
+            }
+            subcontractorCost += effectiveSub;
         }
 
         const materialCost = Number(projectMaster.materialCost || 0);
-
-        // 協力業者費: 手配確定済み & 担当職長が partner ロールのアサインから
-        // 該当工事種別を集め、種別ごとの設定金額を1回だけ計上する
-        const partnerForemanIds = new Set(
-            foremanUsers.filter(u => u.role === 'partner').map(u => u.id)
-        );
-        const activeConstructionTypeIds = new Set<string>();
-        for (const a of projectMaster.assignments) {
-            if (!a.isDispatchConfirmed) continue;
-            if (!partnerForemanIds.has(a.assignedEmployeeId)) continue;
-            if (a.constructionType) activeConstructionTypeIds.add(a.constructionType);
-        }
-        const subcontractorCost = projectMaster.subcontractorCosts.reduce((sum, c) => {
-            return activeConstructionTypeIds.has(c.constructionTypeId)
-                ? sum + Number(c.amount || 0)
-                : sum;
-        }, 0);
-
         const otherExpenses = Number(projectMaster.otherExpenses || 0);
+        const loadingCost = Number(projectMaster.loadingCost || 0);
+
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
         const grossProfit = revenue - totalCost;
         const profitMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
@@ -259,6 +311,14 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             invoiceAmount, invoiceSubtotal, estimateAmount, estimateSubtotal, estimateCostTotal,
             contractAmount,
             costBreakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
+            breakdown: {
+                labor: laborRows.sort((a, b) => a.date.localeCompare(b.date)),
+                vehicle: vehicleRows.sort((a, b) => a.date.localeCompare(b.date)),
+                subcontractor: subcontractorRows.sort((a, b) => a.date.localeCompare(b.date)),
+                materialCost,
+                otherExpenses,
+                loadingCost,
+            },
             grossProfit, profitMargin,
         });
     } catch (error) {

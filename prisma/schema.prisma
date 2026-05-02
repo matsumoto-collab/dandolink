@@ -60,6 +60,7 @@ model ProjectMaster {
   scaffoldingSpec            Json?
   materialCost                 Decimal?              @db.Decimal(12, 2)
   otherExpenses                Decimal?              @db.Decimal(12, 2)
+  loadingCost                  Decimal?              @db.Decimal(12, 2)
   customerShortName          String?
   latitude                   Float?
   longitude                  Float?
@@ -109,6 +110,9 @@ model ProjectAssignment {
   workEndedAt          DateTime?
   workStartedComment   String?
   workEndedComment     String?
+  laborCostOverride        Int?
+  vehicleCostOverride      Int?
+  subcontractorCostOverride Int?
   assignmentVehicles   AssignmentVehicle[]
   assignmentWorkers    AssignmentWorker[]
   dailyReportWorkItems DailyReportWorkItem[]
