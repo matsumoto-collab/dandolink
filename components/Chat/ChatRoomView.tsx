@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import InviteMembersModal from './InviteMembersModal';
@@ -23,6 +23,15 @@ import MentionChip from './MentionChip';
 import MentionSuggestPopover from './MentionSuggestPopover';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
+
+const PRESET_STAMPS: { emoji: string; text: string }[] = [
+    { emoji: '👍', text: '了解しました' },
+    { emoji: '🙏', text: 'ありがとうございます' },
+    { emoji: '🙇', text: 'よろしくお願いします' },
+    { emoji: '😊', text: 'とんでもございません！' },
+    { emoji: '💪', text: 'がんばります！' },
+    { emoji: '🙏💦', text: 'ごめんなさい' },
+];
 
 interface UploadedAttachment {
     fileType: string;
@@ -107,6 +116,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const [showInvite, setShowInvite] = useState(false);
     const [pendingAttachments, setPendingAttachments] = useState<UploadedAttachment[]>([]);
     const [uploadingCount, setUploadingCount] = useState(0);
+    const [showStamps, setShowStamps] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -209,6 +219,13 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
         setPendingAttachments((prev) => prev.filter((_, i) => i !== idx));
     };
 
+    const sendStamp = async (stamp: { emoji: string; text: string }) => {
+        if (isSending) return;
+        setShowStamps(false);
+        const body = `${stamp.text} ${stamp.emoji}`;
+        await sendMessage(roomId, body, [], []);
+    };
+
     const onTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
         setText(value);
@@ -246,10 +263,8 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
             setMentionTrigger(null);
             return;
         }
-        // モバイル/タブレットでは Enter = 改行（送信は送信ボタンから）
-        // デスクトップは Enter = 送信 / Shift+Enter = 改行
-        if (!isDesktop) return;
-        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+        // 送信は常に送信ボタン or Shift+Enter から。Enter単体は改行
+        if (isDesktop && e.key === 'Enter' && e.shiftKey && !e.nativeEvent.isComposing) {
             if (mentionTrigger) return;
             e.preventDefault();
             onSend();
@@ -414,6 +429,34 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                     >
                         <Paperclip className="w-5 h-5" />
                     </button>
+                    <div className="relative flex-shrink-0">
+                        <button
+                            type="button"
+                            onClick={() => setShowStamps((v) => !v)}
+                            className={`inline-flex items-center justify-center w-11 h-11 rounded-xl border ${showStamps ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                            aria-label="スタンプ"
+                        >
+                            <Smile className="w-5 h-5" />
+                        </button>
+                        {showStamps && (
+                            <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 z-30 p-2">
+                                <ul className="grid grid-cols-1 gap-1">
+                                    {PRESET_STAMPS.map((s) => (
+                                        <li key={s.text}>
+                                            <button
+                                                type="button"
+                                                onClick={() => sendStamp(s)}
+                                                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm text-slate-700 hover:bg-slate-50"
+                                            >
+                                                <span className="flex-1">{s.text}</span>
+                                                <span className="text-lg leading-none">{s.emoji}</span>
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+                    </div>
                     <button
                         type="button"
                         onClick={() => cameraInputRef.current?.click()}
@@ -431,7 +474,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
                             rows={1}
                             placeholder={isDesktop
-                                ? 'メッセージを入力（Enterで送信、Shift+Enterで改行）'
+                                ? 'メッセージを入力（Shift+Enterで送信）'
                                 : 'メッセージを入力'}
                             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
                             style={{ minHeight: 44 }}
