@@ -12,7 +12,7 @@ const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'invoices', 'orders',
     'partners', 'customers', 'company',
-    'materials', 'inventory', 'loading-list', 'settings',
+    'materials', 'inventory', 'loading-list', 'settings', 'chat',
 ];
 
 // 簡易ローディングコンポーネント
@@ -71,6 +71,9 @@ const MySchedulePage = dynamic(() => import('@/components/MySchedule/MyScheduleP
     loading: () => <LoadingSpinner />,
 });
 const AttendancePage = dynamic(() => import('@/components/Attendance/AttendancePage'), {
+    loading: () => <LoadingSpinner />,
+});
+const ChatPage = dynamic(() => import('@/components/Chat/ChatPage'), {
     loading: () => <LoadingSpinner />,
 });
 
@@ -194,6 +197,9 @@ export default function MainContent() {
             case 'attendance':
                 return <AttendancePage />;
 
+            case 'chat':
+                return <ChatPage />;
+
             case 'profit-dashboard':
                 return <ProfitDashboardWrapper />;
 
@@ -236,7 +242,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${['schedule', 'estimates', 'project-masters', 'reports', 'invoices', 'customers'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                <div key={activePage} className={`${['schedule', 'estimates', 'project-masters', 'reports', 'invoices', 'customers', 'chat'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                     {renderContent()}
                 </div>
             </main>

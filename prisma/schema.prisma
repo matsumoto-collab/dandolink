@@ -1343,6 +1343,116 @@ model Notification {
   @@schema("public")
 }
 
+model ChatRoom {
+  id                 String       @id @default(uuid())
+  type               String       // 'dm' | 'group' | 'project'
+  name               String?
+  projectMasterId    String?
+  createdBy          String
+  lastMessageAt      DateTime?
+  lastMessagePreview String?
+  isArchived         Boolean      @default(false)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  members            ChatMember[]
+  messages           Message[]
+
+  @@index([projectMasterId])
+  @@index([type])
+  @@index([lastMessageAt(sort: Desc)])
+  @@schema("public")
+}
+
+model ChatMember {
+  id                String    @id @default(uuid())
+  roomId            String
+  userId            String
+  role              String    @default("member") // 'owner' | 'member'
+  joinedAt          DateTime  @default(now())
+  lastReadAt        DateTime?
+  lastReadMessageId String?
+  isMuted           Boolean   @default(false)
+  isPinned          Boolean   @default(false)
+  leftAt            DateTime?
+
+  room              ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([userId, lastReadAt])
+  @@schema("public")
+}
+
+model Message {
+  id          String              @id @default(uuid())
+  roomId      String
+  senderId    String
+  body        String
+  contentType String              @default("text") // 'text' | 'image' | 'pdf' | 'system'
+  parentId    String?
+  editedAt    DateTime?
+  deletedAt   DateTime?
+  createdAt   DateTime            @default(now())
+
+  room        ChatRoom            @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  attachments MessageAttachment[]
+  mentions    MessageMention[]
+  reads       MessageRead[]
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@index([senderId])
+  @@schema("public")
+}
+
+model MessageAttachment {
+  id                          String    @id @default(uuid())
+  messageId                   String
+  fileType                    String    // 'image' | 'pdf'
+  storagePath                 String
+  thumbnailPath               String?
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+  mimeType                    String
+  fileSize                    Int
+  width                       Int?
+  height                      Int?
+  createdAt                   DateTime  @default(now())
+
+  message                     Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@schema("public")
+}
+
+model MessageMention {
+  id         String   @id @default(uuid())
+  messageId  String
+  targetType String   // 'user' | 'project' | 'role'
+  targetId   String   // userId / projectMasterId / 'admin' or 'admin,manager'
+  createdAt  DateTime @default(now())
+
+  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([targetType, targetId])
+  @@schema("public")
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+  @@schema("public")
+}
+
 enum aal_level {
   aal1
   aal2

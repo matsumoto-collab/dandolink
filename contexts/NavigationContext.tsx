@@ -18,6 +18,7 @@ export type PageType =
     | 'inventory'        // 在庫管理
     | 'loading-list'     // 積込リスト
     | 'attendance'       // 出勤簿
+    | 'chat'             // チャット
     | 'settings';        // 設定
 
 interface NavigationContextType {

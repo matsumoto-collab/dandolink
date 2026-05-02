@@ -9,10 +9,11 @@ import {
     X,
 } from 'lucide-react';
 import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
+import { useChatStore } from '@/stores/chatStore';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'settings';
 }
 
 interface NavSection {
@@ -29,6 +30,7 @@ const navigationSections: NavSection[] = [
             { name: '案件一覧', page: 'project-masters' },
             { name: '報告一覧', page: 'reports' },
             { name: '出勤簿', page: 'attendance' },
+            { name: 'チャット', page: 'chat' },
         ],
     },
     {
@@ -63,6 +65,7 @@ export default function Sidebar() {
     const { activePage, setActivePage, isMobileMenuOpen, closeMobileMenu, isSidebarCollapsed, toggleSidebarCollapse } = useNavigation();
     const { data: session } = useSession();
     const [isReloading, setIsReloading] = useState(false);
+    const totalChatUnread = useChatStore((s) => s.totalUnread);
 
     const handleReload = () => {
         setIsReloading(true);
@@ -202,27 +205,27 @@ export default function Sidebar() {
                 <nav className="flex-1 overflow-y-auto py-6 px-3">
                     {navigationSections
                         .map(section => {
-                            // workerロール: スケジュール + 積込リスト
+                            // workerロール: スケジュール + 積込リスト + チャット
                             if (session?.user?.role === 'worker') {
                                 if (section.title === '業務管理') {
-                                    return { ...section, items: section.items.filter(item => item.page === 'schedule') };
+                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
                                 }
                                 if (section.title === '材料管理') {
                                     return { ...section, items: section.items.filter(item => item.page === 'loading-list' || item.page === 'inventory') };
                                 }
                                 return null;
                             }
-                            // partnerロール: スケジュールのみ
+                            // partnerロール: スケジュール + チャット
                             if (session?.user?.role === 'partner') {
                                 if (section.title !== '業務管理') return null;
-                                const filteredItems = section.items.filter(item => item.page === 'schedule');
+                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'chat');
                                 if (filteredItems.length === 0) return null;
                                 return { ...section, items: filteredItems };
                             }
                             // 職長1/2: 業務管理 + 材料管理
                             if (session?.user?.role === 'foreman1' || session?.user?.role === 'foreman2') {
                                 if (section.title === '業務管理') {
-                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance') };
+                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'chat') };
                                 }
                                 if (section.title === '材料管理') return section;
                                 return null;
@@ -252,6 +255,11 @@ export default function Sidebar() {
                                                 `}
                                                 >
                                                     <span className="flex-1 text-left">{item.name}</span>
+                                                    {item.page === 'chat' && totalChatUnread > 0 && (
+                                                        <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-rose-500 text-white text-[11px] font-semibold">
+                                                            {totalChatUnread > 99 ? '99+' : totalChatUnread}
+                                                        </span>
+                                                    )}
                                                     {isActive && <ChevronRight className="w-4 h-4 text-teal-200" />}
                                                 </button>
                                             </li>
