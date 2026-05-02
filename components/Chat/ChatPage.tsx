@@ -30,6 +30,9 @@ export default function ChatPage() {
 
     const [showNewRoomModal, setShowNewRoomModal] = useState(false);
     const [search, setSearch] = useState('');
+    // 職方・協力業者・応援はチャット新規作成不可
+    const myRole = session?.user?.role;
+    const canCreateRoom = myRole !== 'worker' && myRole !== 'partner' && myRole !== 'support';
 
     useEffect(() => {
         fetchRooms();
@@ -65,13 +68,15 @@ export default function ChatPage() {
                 <div className="p-3 border-b border-slate-200 bg-white">
                     <div className="flex items-center gap-2 mb-2">
                         <h2 className="text-base font-bold text-slate-900 flex-1">チャット</h2>
-                        <button
-                            onClick={() => setShowNewRoomModal(true)}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 shadow-sm"
-                            aria-label="新規チャット"
-                        >
-                            <Plus className="w-5 h-5" />
-                        </button>
+                        {canCreateRoom && (
+                            <button
+                                onClick={() => setShowNewRoomModal(true)}
+                                className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                                aria-label="新規チャット"
+                            >
+                                <Plus className="w-5 h-5" />
+                            </button>
+                        )}
                     </div>
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
