@@ -4,18 +4,16 @@ import { requireAuth, serverErrorResponse, notFoundResponse } from '@/lib/api/ut
 
 /**
  * POST /api/chat/projects/[projectId]/ensure-room
+ * body: { memberIds?: string[] }
  *
- * 案件専用チャットルーム（type='project'）を冪等で作成・取得する。
- *  - 既存ルームがあればそれを返す
- *  - 無ければ新規作成し、初期メンバーとして
- *      - 案件マスタの managers
- *      - 全アサインの confirmedWorkerIds（手配確定メンバー）
- *      - 全 admin
- *      - リクエスト元
- *    を参加させる
- *  - 既存ルームの場合は不足メンバーを追加（手配確定メンバーが後から増えた場合に追従）
+ * 案件専用チャットルームを取得 or 作成。
+ *  - 既存があればそれを返す（不足メンバーは差分追加しない仕様に変更:
+ *    新規作成時のメンバー編集を尊重するため）
+ *  - 無ければ作成。memberIds が指定されればそれを採用、無ければ
+ *    案件の managers + 全アサイン assignedEmployeeId + confirmedWorkerIds
+ *    + 全admin + リクエスト元 をデフォルトで参加させる
  */
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ projectId: string }> }) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
@@ -35,7 +33,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ pr
         });
         if (!project) return notFoundResponse('案件');
 
-        // ルーム名（顧客略称 案件名）
+        // 既存ルーム
+        const existing = await prisma.chatRoom.findFirst({
+            where: { type: 'project', projectMasterId: projectId },
+            select: { id: true },
+        });
+        if (existing) {
+            return NextResponse.json({ roomId: existing.id, existing: true });
+        }
+
+        // ルーム名
         const projectPart =
             (project.name ? project.name + (project.honorific || '') : '') ||
             project.title;
@@ -43,61 +50,45 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ pr
             ? `${project.customerShortName} ${projectPart}`.trim()
             : projectPart;
 
-        // 期待メンバーIDを集める
+        // メンバー決定: ボディ指定 or デフォルト
+        let body: unknown = null;
+        try { body = await req.json(); } catch { /* noop */ }
+        const explicit = body && typeof body === 'object' && Array.isArray((body as { memberIds?: unknown }).memberIds)
+            ? ((body as { memberIds: unknown[] }).memberIds as unknown[]).filter((x): x is string => typeof x === 'string')
+            : null;
+
         const memberIds = new Set<string>();
         memberIds.add(userId);
-        (project.managerIds || []).forEach((id) => memberIds.add(id));
 
-        const assignments = await prisma.projectAssignment.findMany({
-            where: { projectMasterId: projectId },
-            select: { assignedEmployeeId: true, confirmedWorkerIds: true },
-        });
-        for (const a of assignments) {
-            if (a.assignedEmployeeId) memberIds.add(a.assignedEmployeeId);
-            if (a.confirmedWorkerIds) {
-                try {
-                    const ids = JSON.parse(a.confirmedWorkerIds);
-                    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
-                } catch { /* noop */ }
+        if (explicit) {
+            explicit.forEach((id) => memberIds.add(id));
+        } else {
+            (project.managerIds || []).forEach((id) => memberIds.add(id));
+            const assignments = await prisma.projectAssignment.findMany({
+                where: { projectMasterId: projectId },
+                select: { assignedEmployeeId: true, confirmedWorkerIds: true },
+            });
+            for (const a of assignments) {
+                if (a.assignedEmployeeId) memberIds.add(a.assignedEmployeeId);
+                if (a.confirmedWorkerIds) {
+                    try {
+                        const ids = JSON.parse(a.confirmedWorkerIds);
+                        if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
+                    } catch { /* noop */ }
+                }
             }
+            const admins = await prisma.user.findMany({
+                where: { role: 'admin', isActive: true },
+                select: { id: true },
+            });
+            admins.forEach((u) => memberIds.add(u.id));
         }
-        const admins = await prisma.user.findMany({
-            where: { role: 'admin', isActive: true },
-            select: { id: true },
-        });
-        admins.forEach((u) => memberIds.add(u.id));
 
-        // 有効ユーザーのみに絞る
         const validUsers = await prisma.user.findMany({
             where: { id: { in: Array.from(memberIds) }, isActive: true },
             select: { id: true },
         });
         const validIds = validUsers.map((u) => u.id);
-
-        // 既存ルーム
-        const existing = await prisma.chatRoom.findFirst({
-            where: { type: 'project', projectMasterId: projectId },
-            include: { members: true },
-        });
-
-        if (existing) {
-            const currentMemberIds = new Set(
-                existing.members.filter((m) => !m.leftAt).map((m) => m.userId)
-            );
-            const toAdd = validIds.filter((id) => !currentMemberIds.has(id));
-            if (toAdd.length > 0) {
-                await prisma.$transaction(
-                    toAdd.map((id) =>
-                        prisma.chatMember.upsert({
-                            where: { roomId_userId: { roomId: existing.id, userId: id } },
-                            create: { roomId: existing.id, userId: id, role: 'member' },
-                            update: { leftAt: null },
-                        })
-                    )
-                );
-            }
-            return NextResponse.json({ roomId: existing.id, existing: true });
-        }
 
         const room = await prisma.chatRoom.create({
             data: {
