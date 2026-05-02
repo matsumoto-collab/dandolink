@@ -8,6 +8,9 @@ import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime, useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
 
+// 空配列の安定参照（?? [] が毎レンダー新参照を返してループする問題の回避）
+const EMPTY_MESSAGES: ChatMessage[] = [];
+
 interface UserOption {
     id: string;
     displayName: string;
@@ -194,14 +197,18 @@ interface ChatRoomViewProps {
 }
 
 function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
-    const messages = useChatStore((s) => s.messagesByRoom[roomId] ?? []);
-    const hasMore = useChatStore((s) => s.hasMoreByRoom[roomId] ?? false);
-    const rooms = useChatStore((s) => s.rooms);
+    // ?? [] / ?? false を使うと毎レンダー新参照を返してリレンダーループを誘発するため避ける
+    const rawMessages = useChatStore((s) => s.messagesByRoom[roomId]);
+    const rawHasMore = useChatStore((s) => s.hasMoreByRoom[roomId]);
+    const messages = rawMessages ?? EMPTY_MESSAGES;
+    const hasMore = rawHasMore ?? false;
+    const room = useChatStore(
+        useCallback((s) => s.rooms.find((r) => r.id === roomId), [roomId])
+    );
     const fetchMessages = useChatStore((s) => s.fetchMessages);
     const sendMessage = useChatStore((s) => s.sendMessage);
     const markRead = useChatStore((s) => s.markRead);
 
-    const room = useMemo(() => rooms.find((r) => r.id === roomId), [rooms, roomId]);
     const memberMap = useMemo(() => {
         const m = new Map<string, string>();
         room?.members.forEach((mm) => m.set(mm.userId, mm.displayName));
@@ -212,24 +219,41 @@ function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
     const [isSending, setIsSending] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
+    const lastReadIdRef = useRef<string | null>(null);
 
     useChatRealtime(roomId);
 
     // 初期ロード + ルーム切替時
     useEffect(() => {
+        lastMessageIdRef.current = null;
+        lastReadIdRef.current = null;
         fetchMessages(roomId);
     }, [roomId, fetchMessages]);
 
-    // 新着で最下部にスクロール + 既読更新
+    // 最新メッセージID（プリミティブ）だけで効果を発火
+    const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
+
+    // 新着で最下部にスクロール
     useEffect(() => {
-        const last = messages[messages.length - 1];
-        if (!last) return;
-        if (last.id !== lastMessageIdRef.current) {
-            lastMessageIdRef.current = last.id;
-            scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-            markRead(roomId, last.id);
+        if (!lastMessageId) return;
+        if (lastMessageId !== lastMessageIdRef.current) {
+            lastMessageIdRef.current = lastMessageId;
+            requestAnimationFrame(() => {
+                scrollRef.current?.scrollTo({
+                    top: scrollRef.current.scrollHeight,
+                    behavior: 'smooth',
+                });
+            });
         }
-    }, [messages, roomId, markRead]);
+    }, [lastMessageId]);
+
+    // 既読更新（連鎖re-render対策で別effect・ref guard）
+    useEffect(() => {
+        if (!lastMessageId) return;
+        if (lastMessageId === lastReadIdRef.current) return;
+        lastReadIdRef.current = lastMessageId;
+        markRead(roomId, lastMessageId);
+    }, [lastMessageId, roomId, markRead]);
 
     const onSend = useCallback(async () => {
         const body = text.trim();
