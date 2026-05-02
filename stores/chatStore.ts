@@ -129,41 +129,56 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         set((s) => {
             const list = s.messagesByRoom[msg.roomId] ?? [];
             const idx = list.findIndex((m) => m.id === msg.id);
-            const next = idx >= 0
-                ? [...list.slice(0, idx), msg, ...list.slice(idx + 1)]
-                : [...list, msg];
-            // ルーム一覧の lastMessage 更新
-            const rooms = s.rooms.map((r) =>
-                r.id === msg.roomId
-                    ? {
-                        ...r,
-                        lastMessageAt: msg.createdAt,
-                        lastMessagePreview:
-                            msg.body.length > 80 ? msg.body.slice(0, 80) + '…' : msg.body,
-                    }
-                    : r
-            );
+            const isNew = idx < 0;
+            const next = isNew
+                ? [...list, msg]
+                : [...list.slice(0, idx), msg, ...list.slice(idx + 1)];
+            // ルーム一覧の lastMessage / 未読を楽観更新
+            const rooms = s.rooms.map((r) => {
+                if (r.id !== msg.roomId) return r;
+                const isFromOther = msg.senderId !== ''; // senderId 自体は myUserId と比較不可なのでフラグ運用
+                const incUnread = isNew && r.id !== s.activeRoomId && isFromOther;
+                return {
+                    ...r,
+                    lastMessageAt: msg.createdAt,
+                    lastMessagePreview:
+                        msg.body.length > 80 ? msg.body.slice(0, 80) + '…' : msg.body,
+                    unreadCount: incUnread ? (r.unreadCount || 0) + 1 : r.unreadCount,
+                };
+            });
+            const totalUnread = rooms
+                .filter((r) => !r.isMuted)
+                .reduce((sum, r) => sum + (r.unreadCount || 0), 0);
             return {
                 messagesByRoom: { ...s.messagesByRoom, [msg.roomId]: next },
                 rooms,
+                totalUnread,
             };
         });
     },
 
     markRead: async (roomId, messageId) => {
+        // 楽観更新: バッジを即時0に
+        set((s) => {
+            const prev = s.rooms.find((r) => r.id === roomId)?.unreadCount ?? 0;
+            return {
+                rooms: s.rooms.map((r) =>
+                    r.id === roomId ? { ...r, unreadCount: 0 } : r
+                ),
+                totalUnread: Math.max(0, s.totalUnread - prev),
+            };
+        });
         try {
             await fetch(`/api/chat/rooms/${roomId}/read`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(messageId ? { messageId } : {}),
             });
-            set((s) => ({
-                rooms: s.rooms.map((r) =>
-                    r.id === roomId ? { ...r, unreadCount: 0 } : r
-                ),
-            }));
-            // 合算未読を再取得
-            get().fetchUnreadCount();
+            // 別端末・送信者へ既読通知（送信者UIが「既読N」即時更新できるように）
+            try {
+                const { sendBroadcast } = await import('@/lib/broadcastChannel');
+                sendBroadcast('chat:message-read', { roomId });
+            } catch { /* noop */ }
         } catch (e) {
             logger.error('[chat] markRead', e);
         }

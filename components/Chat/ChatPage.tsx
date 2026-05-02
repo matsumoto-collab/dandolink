@@ -5,7 +5,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { Search, Plus, ArrowLeft, Send, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
-import { useChatRealtime, useChatRoomsRealtime } from '@/hooks/useChatRealtime';
+import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
 import {
     detectMentionTrigger,
@@ -45,7 +45,7 @@ export default function ChatPage() {
     const [showNewRoomModal, setShowNewRoomModal] = useState(false);
     const [search, setSearch] = useState('');
 
-    useChatRoomsRealtime(true);
+    // useChatRoomsRealtime は Sidebar でグローバル購読しているのでここでは呼ばない
 
     useEffect(() => {
         fetchRooms();

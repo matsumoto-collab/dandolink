@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 import { useChatStore } from '@/stores/chatStore';
+import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
@@ -66,6 +67,16 @@ export default function Sidebar() {
     const { data: session } = useSession();
     const [isReloading, setIsReloading] = useState(false);
     const totalChatUnread = useChatStore((s) => s.totalUnread);
+    const fetchRooms = useChatStore((s) => s.fetchRooms);
+
+    // 全ページで未読バッジを即時更新するためグローバル購読
+    useChatRoomsRealtime(!!session?.user?.id, session?.user?.id);
+
+    React.useEffect(() => {
+        if (session?.user?.id) {
+            fetchRooms();
+        }
+    }, [session?.user?.id, fetchRooms]);
 
     const handleReload = () => {
         setIsReloading(true);
