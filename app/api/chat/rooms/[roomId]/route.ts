@@ -105,10 +105,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ro
             select: { type: true },
         });
 
-        // メンバー追加: グループ/案件は参加メンバー誰でも可能
+        // メンバー追加: グループ/案件は参加メンバー誰でも可能（協力業者は除く）
         if (Array.isArray(body.addMemberIds) && body.addMemberIds.length > 0) {
             if (roomMeta?.type === 'dm') {
                 return errorResponse('DMにはメンバーを追加できません', 400);
+            }
+            if (session!.user.role === 'partner') {
+                return errorResponse('メンバー追加権限がありません', 403);
             }
             await prisma.$transaction(
                 (body.addMemberIds as string[]).map((id) =>

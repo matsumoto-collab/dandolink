@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import InviteMembersModal from './InviteMembersModal';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
@@ -76,6 +77,8 @@ interface ChatRoomViewProps {
 }
 
 export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
+    const { data: session } = useSession();
+    const canInvite = session?.user?.role !== 'partner';
     const rawMessages = useChatStore((s) => s.messagesByRoom[roomId]);
     const rawHasMore = useChatStore((s) => s.hasMoreByRoom[roomId]);
     const messages = rawMessages ?? EMPTY_MESSAGES;
@@ -288,14 +291,16 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                     <div className="px-3 pb-3 border-t border-slate-100 bg-slate-50/60">
                         <div className="pt-2 flex items-center justify-between mb-2">
                             <span className="text-[11px] font-semibold text-slate-500">参加メンバー</span>
-                            <button
-                                type="button"
-                                onClick={() => setShowInvite(true)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 shadow-sm"
-                            >
-                                <UserPlus className="w-3.5 h-3.5" />
-                                追加
-                            </button>
+                            {canInvite && (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowInvite(true)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                                >
+                                    <UserPlus className="w-3.5 h-3.5" />
+                                    追加
+                                </button>
+                            )}
                         </div>
                         <div className="flex flex-wrap gap-1.5">
                             {room.members.map((mm) => (
