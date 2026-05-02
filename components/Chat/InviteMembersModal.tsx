@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
 
 interface UserOption {
     id: string;
@@ -70,7 +71,7 @@ export default function InviteMembersModal({
             onClose();
         } catch (e) {
             logger.error('[chat] invite', e);
-            alert('メンバー追加に失敗しました');
+            toast.error('メンバー追加に失敗しました', { position: 'bottom-center' });
         } finally {
             setIsSubmitting(false);
         }
@@ -136,7 +137,7 @@ export default function InviteMembersModal({
                     <button
                         onClick={onSubmit}
                         disabled={selected.size === 0 || isSubmitting}
-                        className="px-4 py-2 text-sm rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white disabled:opacity-40 hover:opacity-90"
+                        className="px-4 py-2 text-sm rounded-xl bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 hover:opacity-90"
                     >
                         {isSubmitting ? '追加中...' : `追加（${selected.size}）`}
                     </button>

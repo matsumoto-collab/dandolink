@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react';
 import { Plus, Users } from 'lucide-react';
 import ChatRoomView from './ChatRoomView';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
 
 interface ProjectChatTabProps {
     projectId: string;
@@ -112,7 +113,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
             setRoomId(data.roomId);
         } catch (e) {
             logger.error('[ProjectChatTab] create', e);
-            alert('チャットルーム作成に失敗しました');
+            toast.error('チャットルーム作成に失敗しました', { position: 'bottom-center' });
         } finally {
             setIsCreating(false);
         }
@@ -163,7 +164,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
                     <button
                         type="button"
                         onClick={() => setShowAddPicker(true)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 shadow-sm"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 shadow-sm"
                     >
                         <Plus className="w-3.5 h-3.5" />
                         追加
@@ -179,7 +180,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
                                     onChange={() => toggle(m.userId)}
                                     className="w-4 h-4"
                                 />
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-slate-400 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                                     {m.displayName.charAt(0)}
                                 </div>
                                 <span className="text-sm text-slate-900 flex-1">{m.displayName}</span>
@@ -197,7 +198,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
                     type="button"
                     onClick={onCreate}
                     disabled={selectedIds.size === 0 || isCreating}
-                    className="px-5 py-2.5 text-sm font-medium rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm"
+                    className="px-5 py-2.5 text-sm font-medium rounded-xl bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm"
                 >
                     {isCreating ? '作成中...' : 'チャットを作成'}
                 </button>

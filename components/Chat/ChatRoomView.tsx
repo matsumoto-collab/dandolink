@@ -4,6 +4,7 @@ import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText } from 'lucide-react';
 import InviteMembersModal from './InviteMembersModal';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
 import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
@@ -187,7 +188,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                 setPendingAttachments((prev) => [...prev, data]);
             } catch (e) {
                 logger.error('[chat] upload', e);
-                alert(`アップロードに失敗しました: ${f.name}`);
+                toast.error(`アップロード失敗: ${f.name}`, { position: 'bottom-center' });
             } finally {
                 setUploadingCount((c) => c - 1);
             }
@@ -290,7 +291,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             <button
                                 type="button"
                                 onClick={() => setShowInvite(true)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 shadow-sm"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 shadow-sm"
                             >
                                 <UserPlus className="w-3.5 h-3.5" />
                                 追加
@@ -306,7 +307,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                                             : 'bg-white text-slate-700 ring-slate-200'
                                     }`}
                                 >
-                                    <span className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                    <span className="w-5 h-5 rounded-full bg-slate-400 text-white text-[10px] font-bold flex items-center justify-center">
                                         {mm.displayName.charAt(0)}
                                     </span>
                                     <span>{mm.displayName}</span>
@@ -435,7 +436,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                     <button
                         onClick={onSend}
                         disabled={(!text.trim() && pendingAttachments.length === 0) || isSending || uploadingCount > 0}
-                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm flex-shrink-0"
+                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm flex-shrink-0"
                         aria-label="送信"
                     >
                         <Send className="w-5 h-5" />
@@ -532,7 +533,7 @@ function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
                         isDeleted
                             ? 'bg-slate-100 text-slate-400 italic border border-slate-200'
                             : isMine
-                                ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white'
+                                ? 'bg-teal-600 text-white'
                                 : 'bg-white text-slate-900 border border-slate-200'
                     }`}
                 >

@@ -67,7 +67,7 @@ export default function ChatPage() {
                         <h2 className="text-base font-bold text-slate-900 flex-1">チャット</h2>
                         <button
                             onClick={() => setShowNewRoomModal(true)}
-                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 shadow-sm"
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 shadow-sm"
                             aria-label="新規チャット"
                         >
                             <Plus className="w-5 h-5" />
@@ -100,7 +100,7 @@ export default function ChatPage() {
                                     className={`w-full text-left px-3 py-3 hover:bg-white transition-colors ${activeRoomId === room.id ? 'bg-white' : ''}`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${room.type === 'project' ? 'bg-gradient-to-br from-sky-400 to-sky-600' : 'bg-gradient-to-br from-slate-300 to-slate-500'}`}>
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${room.type === 'project' ? 'bg-sky-500' : 'bg-slate-400'}`}>
                                             {room.type === 'project' ? '案' : roomTitle(room, myUserId).charAt(0)}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -298,7 +298,7 @@ function NewRoomModal({ onClose, onCreated }: NewRoomModalProps) {
                     <button
                         onClick={onCreate}
                         disabled={selected.size === 0 || isLoading}
-                        className="px-4 py-2 text-sm rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white disabled:opacity-40 hover:opacity-90"
+                        className="px-4 py-2 text-sm rounded-xl bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 hover:opacity-90"
                     >
                         {isLoading ? '作成中...' : selected.size <= 1 ? 'DM開始' : 'グループ作成'}
                     </button>

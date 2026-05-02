@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, serverErrorResponse, errorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { notifyUsers } from '@/lib/notifications';
+import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
+import { logger } from '@/lib/logger';
+
+const SIGNED_URL_TTL = 3600;
+const SIGNED_URL_BUFFER_MS = 5 * 60 * 1000;
 
 const MESSAGE_MAX_LENGTH = 4000;
 
@@ -50,6 +55,58 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ room
         });
         const hasMore = rows.length > limit;
         const items = (hasMore ? rows.slice(0, limit) : rows).reverse(); // 古い順で返却
+
+        // 添付の signedUrl 期限チェック → 期限間近は再生成して DB 更新
+        const now = new Date();
+        await Promise.all(
+            items.flatMap((m) =>
+                m.attachments.map(async (att) => {
+                    const updates: Record<string, unknown> = {};
+                    const mainExpired = !att.signedUrl || !att.signedUrlExpiresAt
+                        || att.signedUrlExpiresAt.getTime() - now.getTime() < SIGNED_URL_BUFFER_MS;
+                    if (mainExpired && att.storagePath) {
+                        try {
+                            const { data } = await supabaseAdmin.storage
+                                .from(STORAGE_BUCKET)
+                                .createSignedUrl(att.storagePath, SIGNED_URL_TTL);
+                            if (data?.signedUrl) {
+                                att.signedUrl = data.signedUrl;
+                                att.signedUrlExpiresAt = new Date(now.getTime() + SIGNED_URL_TTL * 1000);
+                                updates.signedUrl = att.signedUrl;
+                                updates.signedUrlExpiresAt = att.signedUrlExpiresAt;
+                            }
+                        } catch (e) {
+                            logger.error('[chat] sign main', e);
+                        }
+                    }
+                    if (att.thumbnailPath) {
+                        const thumbExpired = !att.thumbnailSignedUrl || !att.thumbnailSignedUrlExpiresAt
+                            || att.thumbnailSignedUrlExpiresAt.getTime() - now.getTime() < SIGNED_URL_BUFFER_MS;
+                        if (thumbExpired) {
+                            try {
+                                const { data } = await supabaseAdmin.storage
+                                    .from(STORAGE_BUCKET)
+                                    .createSignedUrl(att.thumbnailPath, SIGNED_URL_TTL);
+                                if (data?.signedUrl) {
+                                    att.thumbnailSignedUrl = data.signedUrl;
+                                    att.thumbnailSignedUrlExpiresAt = new Date(now.getTime() + SIGNED_URL_TTL * 1000);
+                                    updates.thumbnailSignedUrl = att.thumbnailSignedUrl;
+                                    updates.thumbnailSignedUrlExpiresAt = att.thumbnailSignedUrlExpiresAt;
+                                }
+                            } catch (e) {
+                                logger.error('[chat] sign thumb', e);
+                            }
+                        }
+                    }
+                    if (Object.keys(updates).length > 0) {
+                        await prisma.messageAttachment.update({
+                            where: { id: att.id },
+                            data: updates,
+                        }).catch(() => { /* noop */ });
+                    }
+                })
+            )
+        );
 
         return NextResponse.json(
             { items, hasMore },
