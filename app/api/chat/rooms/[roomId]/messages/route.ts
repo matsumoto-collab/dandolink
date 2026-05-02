@@ -79,7 +79,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
 
         const body = await req.json();
         const text = typeof body.body === 'string' ? body.body.trim() : '';
-        if (!text) return validationErrorResponse('メッセージ本文は必須です');
+        const attachments = Array.isArray(body.attachments) ? body.attachments : [];
+        if (!text && attachments.length === 0) {
+            return validationErrorResponse('メッセージ本文または添付ファイルが必要です');
+        }
         if (text.length > MESSAGE_MAX_LENGTH) {
             return validationErrorResponse(`メッセージは${MESSAGE_MAX_LENGTH}文字以内で入力してください`);
         }
@@ -88,7 +91,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
         const parentId = typeof body.parentId === 'string' ? body.parentId : null;
         const mentions = Array.isArray(body.mentions) ? body.mentions : [];
 
-        const preview = text.length > 80 ? text.slice(0, 80) + '…' : text;
+        const previewBase = text || (attachments.length > 0
+            ? attachments.some((a: { fileType?: unknown }) => (a as { fileType?: string }).fileType === 'image')
+                ? '📷 画像'
+                : '📎 添付ファイル'
+            : '');
+        const preview = previewBase.length > 80 ? previewBase.slice(0, 80) + '…' : previewBase;
         const now = new Date();
 
         const message = await prisma.$transaction(async (tx) => {
@@ -113,6 +121,45 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
                                     targetType: m.targetType,
                                     targetId: m.targetId,
                                     label: typeof m.label === 'string' ? m.label : null,
+                                })),
+                        }
+                        : undefined,
+                    attachments: attachments.length
+                        ? {
+                            create: attachments
+                                .filter(
+                                    (a: unknown): a is {
+                                        fileType: string; storagePath: string; mimeType: string; fileSize: number;
+                                        thumbnailPath?: string | null; signedUrl?: string | null;
+                                        signedUrlExpiresAt?: string | null; thumbnailSignedUrl?: string | null;
+                                        thumbnailSignedUrlExpiresAt?: string | null;
+                                        width?: number | null; height?: number | null;
+                                    } =>
+                                        !!a &&
+                                        typeof (a as { fileType?: unknown }).fileType === 'string' &&
+                                        typeof (a as { storagePath?: unknown }).storagePath === 'string' &&
+                                        typeof (a as { mimeType?: unknown }).mimeType === 'string' &&
+                                        typeof (a as { fileSize?: unknown }).fileSize === 'number'
+                                )
+                                .map((a: {
+                                    fileType: string; storagePath: string; mimeType: string; fileSize: number;
+                                    thumbnailPath?: string | null; signedUrl?: string | null;
+                                    signedUrlExpiresAt?: string | null; thumbnailSignedUrl?: string | null;
+                                    thumbnailSignedUrlExpiresAt?: string | null;
+                                    width?: number | null; height?: number | null;
+                                }) => ({
+                                    fileType: a.fileType,
+                                    storagePath: a.storagePath,
+                                    thumbnailPath: a.thumbnailPath ?? null,
+                                    signedUrl: a.signedUrl ?? null,
+                                    signedUrlExpiresAt: a.signedUrlExpiresAt ? new Date(a.signedUrlExpiresAt) : null,
+                                    thumbnailSignedUrl: a.thumbnailSignedUrl ?? null,
+                                    thumbnailSignedUrlExpiresAt: a.thumbnailSignedUrlExpiresAt
+                                        ? new Date(a.thumbnailSignedUrlExpiresAt) : null,
+                                    mimeType: a.mimeType,
+                                    fileSize: a.fileSize,
+                                    width: a.width ?? null,
+                                    height: a.height ?? null,
                                 })),
                         }
                         : undefined,

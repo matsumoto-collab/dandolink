@@ -20,7 +20,20 @@ interface ChatActions {
     sendMessage: (
         roomId: string,
         body: string,
-        mentions?: { targetType: 'user' | 'project' | 'role'; targetId: string; label?: string }[]
+        mentions?: { targetType: 'user' | 'project' | 'role'; targetId: string; label?: string }[],
+        attachments?: Array<{
+            fileType: string;
+            storagePath: string;
+            thumbnailPath?: string | null;
+            signedUrl?: string | null;
+            signedUrlExpiresAt?: string | null;
+            thumbnailSignedUrl?: string | null;
+            thumbnailSignedUrlExpiresAt?: string | null;
+            mimeType: string;
+            fileSize: number;
+            width?: number | null;
+            height?: number | null;
+        }>
     ) => Promise<ChatMessage | null>;
     upsertMessage: (msg: ChatMessage) => void;
     markRead: (roomId: string, messageId?: string) => Promise<void>;
@@ -100,12 +113,12 @@ export const useChatStore = create<ChatState & ChatActions>((set, get) => ({
         }
     },
 
-    sendMessage: async (roomId, body, mentions = []) => {
+    sendMessage: async (roomId, body, mentions = [], attachments = []) => {
         try {
             const res = await fetch(`/api/chat/rooms/${roomId}/messages`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ body, mentions }),
+                body: JSON.stringify({ body, mentions, attachments }),
             });
             if (!res.ok) throw new Error('send failed');
             const data = await res.json();

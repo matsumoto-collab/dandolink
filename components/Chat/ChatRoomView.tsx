@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText } from 'lucide-react';
 import InviteMembersModal from './InviteMembersModal';
+import { logger } from '@/lib/logger';
 import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
@@ -19,6 +20,52 @@ import MentionChip from './MentionChip';
 import MentionSuggestPopover from './MentionSuggestPopover';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
+
+interface UploadedAttachment {
+    fileType: string;
+    storagePath: string;
+    thumbnailPath?: string | null;
+    signedUrl?: string | null;
+    signedUrlExpiresAt?: string | null;
+    thumbnailSignedUrl?: string | null;
+    thumbnailSignedUrlExpiresAt?: string | null;
+    mimeType: string;
+    fileSize: number;
+    originalFileName?: string;
+    width?: number | null;
+    height?: number | null;
+}
+
+function PendingAttachmentChip({ attachment, onRemove }: { attachment: UploadedAttachment; onRemove: () => void }) {
+    const isImage = attachment.fileType === 'image';
+    return (
+        <div className="relative group">
+            {isImage && (attachment.thumbnailSignedUrl || attachment.signedUrl) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                    src={attachment.thumbnailSignedUrl || attachment.signedUrl || ''}
+                    alt=""
+                    className="w-16 h-16 object-cover rounded-xl border border-slate-200"
+                />
+            ) : (
+                <div className="w-16 h-16 flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
+                    <FileText className="w-6 h-6 text-slate-500" />
+                    <span className="text-[9px] text-slate-500 mt-1 truncate max-w-[3.5rem] px-1">
+                        {attachment.originalFileName || 'PDF'}
+                    </span>
+                </div>
+            )}
+            <button
+                type="button"
+                onClick={onRemove}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shadow"
+                aria-label="削除"
+            >
+                <X className="w-3 h-3" />
+            </button>
+        </div>
+    );
+}
 
 interface ChatRoomViewProps {
     roomId: string;
@@ -52,6 +99,10 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
     const [showMembers, setShowMembers] = useState(false);
     const [showInvite, setShowInvite] = useState(false);
+    const [pendingAttachments, setPendingAttachments] = useState<UploadedAttachment[]>([]);
+    const [uploadingCount, setUploadingCount] = useState(0);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
@@ -91,7 +142,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
 
     const onSend = useCallback(async () => {
         const body = text.trim();
-        if (!body || isSending) return;
+        if ((!body && pendingAttachments.length === 0) || isSending) return;
         setIsSending(true);
         const active = filterActiveMentions(text, selectedMentions);
         const seen = new Set<string>();
@@ -106,14 +157,51 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
             targetId: m.targetId,
             label: m.label,
         }));
-        const result = await sendMessage(roomId, body, apiMentions);
+        const result = await sendMessage(roomId, body, apiMentions, pendingAttachments);
         setIsSending(false);
         if (result) {
             setText('');
             setSelectedMentions([]);
             setMentionTrigger(null);
+            setPendingAttachments([]);
         }
-    }, [text, isSending, sendMessage, roomId, selectedMentions]);
+    }, [text, isSending, sendMessage, roomId, selectedMentions, pendingAttachments]);
+
+    const uploadFiles = useCallback(async (files: FileList | File[]) => {
+        const list = Array.from(files);
+        if (list.length === 0) return;
+        setUploadingCount((c) => c + list.length);
+        for (const f of list) {
+            try {
+                const fd = new FormData();
+                fd.append('file', f);
+                const res = await fetch(`/api/chat/rooms/${roomId}/attachments`, {
+                    method: 'POST',
+                    body: fd,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error((err as { error?: string }).error || 'upload failed');
+                }
+                const data: UploadedAttachment = await res.json();
+                setPendingAttachments((prev) => [...prev, data]);
+            } catch (e) {
+                logger.error('[chat] upload', e);
+                alert(`アップロードに失敗しました: ${f.name}`);
+            } finally {
+                setUploadingCount((c) => c - 1);
+            }
+        }
+    }, [roomId]);
+
+    const onPickFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files) uploadFiles(e.target.files);
+        e.target.value = '';
+    };
+
+    const removePending = (idx: number) => {
+        setPendingAttachments((prev) => prev.filter((_, i) => i !== idx));
+    };
 
     const onTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
@@ -271,10 +359,58 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
             </div>
 
             <div className="p-3 border-t border-slate-200 bg-white">
+                {pendingAttachments.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-2">
+                        {pendingAttachments.map((a, idx) => (
+                            <PendingAttachmentChip
+                                key={a.storagePath}
+                                attachment={a}
+                                onRemove={() => removePending(idx)}
+                            />
+                        ))}
+                        {uploadingCount > 0 && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-xl text-xs text-slate-500 bg-slate-100">
+                                アップロード中...
+                            </span>
+                        )}
+                    </div>
+                )}
                 <p className="text-[10px] text-slate-400 mb-1">
                     @ でユーザー/ロール、# で案件をメンション
                 </p>
                 <div className="flex items-end gap-2 relative">
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,application/pdf"
+                        multiple
+                        onChange={onPickFiles}
+                        className="hidden"
+                    />
+                    <input
+                        ref={cameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={onPickFiles}
+                        className="hidden"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 flex-shrink-0"
+                        aria-label="ファイル添付"
+                    >
+                        <Paperclip className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 flex-shrink-0 lg:hidden"
+                        aria-label="カメラ"
+                    >
+                        <Camera className="w-5 h-5" />
+                    </button>
                     <div className="flex-1 relative">
                         <textarea
                             ref={textareaRef}
@@ -298,7 +434,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                     </div>
                     <button
                         onClick={onSend}
-                        disabled={!text.trim() || isSending}
+                        disabled={(!text.trim() && pendingAttachments.length === 0) || isSending || uploadingCount > 0}
                         className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm flex-shrink-0"
                         aria-label="送信"
                     >
@@ -348,6 +484,41 @@ interface MessageBubbleProps {
     senderName: string;
 }
 
+interface AttachmentViewProps {
+    att: NonNullable<ChatMessage['attachments']>[number];
+    isMine: boolean;
+}
+
+function AttachmentView({ att, isMine }: AttachmentViewProps) {
+    const url = att.signedUrl || '';
+    const thumb = att.thumbnailSignedUrl || att.signedUrl || '';
+    if (att.fileType === 'image') {
+        return (
+            <a href={url} target="_blank" rel="noopener noreferrer" className="block">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                    src={thumb}
+                    alt=""
+                    className="max-w-[220px] max-h-[220px] rounded-lg object-cover border border-white/20"
+                />
+            </a>
+        );
+    }
+    return (
+        <a
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-medium ${
+                isMine ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+            }`}
+        >
+            <FileText className="w-4 h-4" />
+            <span>PDFを開く</span>
+        </a>
+    );
+}
+
 function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
     const isDeleted = !!message.deletedAt;
     return (
@@ -365,22 +536,31 @@ function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
                                 : 'bg-white text-slate-900 border border-slate-200'
                     }`}
                 >
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                        {parseMessageParts(
-                            message.body,
-                            (message.mentions ?? []).map((mm) => ({
-                                targetType: mm.targetType,
-                                targetId: mm.targetId,
-                                label: mm.label ?? undefined,
-                            }))
-                        ).map((part, i) =>
-                            part.kind === 'text' ? (
-                                <React.Fragment key={i}>{part.text}</React.Fragment>
-                            ) : (
-                                <MentionChip key={i} token={part.token} onMine={isMine} />
-                            )
-                        )}
-                    </p>
+                    {message.body && (
+                        <p className="text-sm whitespace-pre-wrap break-words">
+                            {parseMessageParts(
+                                message.body,
+                                (message.mentions ?? []).map((mm) => ({
+                                    targetType: mm.targetType,
+                                    targetId: mm.targetId,
+                                    label: mm.label ?? undefined,
+                                }))
+                            ).map((part, i) =>
+                                part.kind === 'text' ? (
+                                    <React.Fragment key={i}>{part.text}</React.Fragment>
+                                ) : (
+                                    <MentionChip key={i} token={part.token} onMine={isMine} />
+                                )
+                            )}
+                        </p>
+                    )}
+                    {message.attachments && message.attachments.length > 0 && (
+                        <div className={`flex flex-wrap gap-2 ${message.body ? 'mt-2' : ''}`}>
+                            {message.attachments.map((att) => (
+                                <AttachmentView key={att.id} att={att} isMine={isMine} />
+                            ))}
+                        </div>
+                    )}
                 </div>
                 <span className={`text-[10px] text-slate-400 mt-0.5 px-1 ${isMine ? 'text-right' : 'text-left'}`}>
                     {formatTime(message.createdAt)}
