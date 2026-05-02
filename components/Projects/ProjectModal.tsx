@@ -7,7 +7,10 @@ import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
-import { FileText, Pencil, Trash2 } from 'lucide-react';
+import { FileText, Pencil, Trash2, MessageSquare } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const ProjectChatTab = dynamic(() => import('@/components/Chat/ProjectChatTab'), { ssr: false });
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 
@@ -40,6 +43,12 @@ export default function ProjectModal({
     // 既存案件の場合は閲覧モード、新規作成の場合は編集モード
     const [isEditMode, setIsEditMode] = useState(!initialData?.id);
     const [isSaving, setIsSaving] = useState(false);
+    const [showChat, setShowChat] = useState(false);
+
+    // モーダル開時 / 別案件切替時は常に「詳細表示」へリセット
+    useEffect(() => {
+        if (isOpen) setShowChat(false);
+    }, [isOpen, initialData?.id]);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // Presence機能: 編集中ユーザーの追跡
@@ -111,7 +120,20 @@ export default function ProjectModal({
                         )}
                     </div>
                     <div className="flex items-center gap-2">
-                        {!readOnly && !isEditMode && initialData?.id && (
+                        {!isEditMode && initialData?.id && initialData?.projectMasterId && (
+                            <button
+                                onClick={() => setShowChat((v) => !v)}
+                                className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-xl transition-colors ${
+                                    showChat
+                                        ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                        : 'border-slate-300 text-slate-700 hover:bg-slate-50'
+                                }`}
+                            >
+                                <MessageSquare className="w-4 h-4" />
+                                {showChat ? '詳細を表示' : 'チャット'}
+                            </button>
+                        )}
+                        {!readOnly && !isEditMode && !showChat && initialData?.id && (
                             <button
                                 onClick={() => setIsEditMode(true)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
@@ -151,7 +173,9 @@ export default function ProjectModal({
 
                 {/* コンテンツ */}
                 <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
-                    {initialData?.id && (!isEditMode || readOnly) ? (
+                    {initialData?.id && showChat && initialData?.projectMasterId ? (
+                        <ProjectChatTab projectId={initialData.projectMasterId} />
+                    ) : initialData?.id && (!isEditMode || readOnly) ? (
                         // 既存案件の閲覧モード（readOnlyの場合は常に閲覧モード）
                         <ProjectDetailView
                             project={initialData as Project}
