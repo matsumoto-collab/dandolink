@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
@@ -49,6 +49,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const [isSending, setIsSending] = useState(false);
     const [mentionTrigger, setMentionTrigger] = useState<MentionTriggerState | null>(null);
     const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
+    const [showMembers, setShowMembers] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
@@ -158,24 +159,69 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
 
     return (
         <div className="flex flex-col h-full min-h-0 bg-white">
-            <header className="flex items-center gap-2 px-3 py-3 border-b border-slate-200 bg-white">
-                {onBack && (
-                    <button
-                        onClick={onBack}
-                        className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-slate-100"
-                        aria-label="戻る"
-                    >
-                        <ArrowLeft className="w-5 h-5 text-slate-600" />
-                    </button>
-                )}
-                <div className="flex-1 min-w-0">
-                    <h2 className="text-base font-bold text-slate-900 truncate">
-                        {room ? roomLabel(room, myUserId) : '...'}
-                    </h2>
+            <header className="flex-shrink-0 border-b border-slate-200 bg-white">
+                <div className="flex items-center gap-2 px-3 py-3">
+                    {onBack && (
+                        <button
+                            onClick={onBack}
+                            className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-slate-100"
+                            aria-label="戻る"
+                        >
+                            <ArrowLeft className="w-5 h-5 text-slate-600" />
+                        </button>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <h2 className="text-base font-bold text-slate-900 truncate">
+                            {room ? roomLabel(room, myUserId) : '...'}
+                        </h2>
+                        {room && room.type !== 'dm' && (
+                            <p className="text-xs text-slate-500 truncate">
+                                {room.members.length}名が参加
+                            </p>
+                        )}
+                    </div>
                     {room && room.type !== 'dm' && (
-                        <p className="text-xs text-slate-500 truncate">{room.members.length}名</p>
+                        <button
+                            type="button"
+                            onClick={() => setShowMembers((v) => !v)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-medium text-slate-600 hover:bg-slate-100"
+                            aria-label="参加メンバー"
+                        >
+                            <Users className="w-4 h-4" />
+                            <span>{room.members.length}</span>
+                            {showMembers ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
                     )}
                 </div>
+                {room && showMembers && (
+                    <div className="px-3 pb-3 border-t border-slate-100 bg-slate-50/60">
+                        <div className="pt-2 flex flex-wrap gap-1.5">
+                            {room.members.map((mm) => (
+                                <span
+                                    key={mm.userId}
+                                    className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[12px] font-medium ring-1 ${
+                                        mm.userId === myUserId
+                                            ? 'bg-teal-50 text-teal-700 ring-teal-200'
+                                            : 'bg-white text-slate-700 ring-slate-200'
+                                    }`}
+                                >
+                                    <span className="w-5 h-5 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                        {mm.displayName.charAt(0)}
+                                    </span>
+                                    <span>{mm.displayName}</span>
+                                    {mm.userRole && (
+                                        <span className="text-[10px] text-slate-400">
+                                            {roleLabel(mm.userRole)}
+                                        </span>
+                                    )}
+                                    {mm.role === 'owner' && (
+                                        <span className="text-[10px] text-amber-600 font-semibold">主</span>
+                                    )}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </header>
 
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 bg-slate-50">
@@ -242,6 +288,18 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
             </div>
         </div>
     );
+}
+
+function roleLabel(role: string): string {
+    switch (role) {
+        case 'admin': return '管理者';
+        case 'manager': return 'マネージャー';
+        case 'foreman1': return '職長1';
+        case 'foreman2': return '職長2';
+        case 'worker': return '職方';
+        case 'partner': return '協力業者';
+        default: return role;
+    }
 }
 
 function roomLabel(room: ChatRoomSummary, myUserId: string | undefined): string {
