@@ -75,13 +75,21 @@ export default function MentionSuggestPopover({
             {!isHash && (
                 <div className="flex border-b border-slate-200">
                     <button
-                        onClick={() => setMode('user')}
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            setMode('user');
+                        }}
                         className={`flex-1 px-3 py-2 text-xs font-semibold ${mode === 'user' ? 'bg-teal-50 text-teal-700' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
                         ユーザー
                     </button>
                     <button
-                        onClick={() => setMode('role')}
+                        type="button"
+                        onMouseDown={(e) => {
+                            e.preventDefault();
+                            setMode('role');
+                        }}
                         className={`flex-1 px-3 py-2 text-xs font-semibold ${mode === 'role' ? 'bg-amber-50 text-amber-700' : 'text-slate-500 hover:bg-slate-50'}`}
                     >
                         ロール

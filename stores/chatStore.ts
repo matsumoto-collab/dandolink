@@ -20,7 +20,7 @@ interface ChatActions {
     sendMessage: (
         roomId: string,
         body: string,
-        mentions?: { targetType: 'user' | 'project' | 'role'; targetId: string }[]
+        mentions?: { targetType: 'user' | 'project' | 'role'; targetId: string; label?: string }[]
     ) => Promise<ChatMessage | null>;
     upsertMessage: (msg: ChatMessage) => void;
     markRead: (roomId: string, messageId?: string) => Promise<void>;

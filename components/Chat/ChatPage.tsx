@@ -9,11 +9,12 @@ import { useChatRealtime, useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
 import {
     detectMentionTrigger,
-    extractMentions,
     parseMessageParts,
-    replaceTriggerWithToken,
+    replaceTriggerWithVisible,
+    filterActiveMentions,
     type MentionToken,
     type MentionTriggerState,
+    type SelectedMention,
 } from '@/lib/chat/mentionParser';
 import MentionChip from './MentionChip';
 import MentionSuggestPopover from './MentionSuggestPopover';
@@ -228,6 +229,7 @@ function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
     const [text, setText] = useState('');
     const [isSending, setIsSending] = useState(false);
     const [mentionTrigger, setMentionTrigger] = useState<MentionTriggerState | null>(null);
+    const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
@@ -271,27 +273,54 @@ function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
         const body = text.trim();
         if (!body || isSending) return;
         setIsSending(true);
-        const mentions = extractMentions(body);
-        const result = await sendMessage(roomId, body, mentions);
+        const active = filterActiveMentions(text, selectedMentions);
+        // 同一(targetType,targetId)の重複を排除
+        const seen = new Set<string>();
+        const dedup = active.filter((m) => {
+            const k = `${m.type}:${m.targetId}`;
+            if (seen.has(k)) return false;
+            seen.add(k);
+            return true;
+        });
+        const apiMentions = dedup.map((m) => ({
+            targetType: m.type,
+            targetId: m.targetId,
+            label: m.label,
+        }));
+        const result = await sendMessage(roomId, body, apiMentions);
         setIsSending(false);
         if (result) {
             setText('');
+            setSelectedMentions([]);
             setMentionTrigger(null);
         }
-    }, [text, isSending, sendMessage, roomId]);
+    }, [text, isSending, sendMessage, roomId, selectedMentions]);
 
     const onTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         const value = e.target.value;
         setText(value);
+        // 本文に登場しなくなったメンションは除外
+        setSelectedMentions((prev) => prev.filter((m) => value.includes(m.visible)));
         const cursor = e.target.selectionStart ?? value.length;
         setMentionTrigger(detectMentionTrigger(value, cursor));
     };
 
     const onSelectMention = (token: MentionToken) => {
         if (!mentionTrigger) return;
-        const { newText, newCursor } = replaceTriggerWithToken(text, mentionTrigger, token);
+        const { newText, newCursor, visible } = replaceTriggerWithVisible(text, mentionTrigger, token);
         setText(newText);
-        setMentionTrigger(null);
+        setSelectedMentions((prev) => {
+            // 同じ targetId は1件だけ保持
+            const next = prev.filter((m) => !(m.type === token.type && m.targetId === token.targetId));
+            return [...next, { ...token, visible }];
+        });
+        // 連続選択用: 同じトリガで empty query の状態を維持
+        setMentionTrigger({
+            trigger: mentionTrigger.trigger,
+            query: '',
+            startIdx: newCursor,
+            endIdx: newCursor,
+        });
         requestAnimationFrame(() => {
             const ta = textareaRef.current;
             if (ta) {
@@ -430,7 +459,14 @@ function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
                     }`}
                 >
                     <p className="text-sm whitespace-pre-wrap break-words">
-                        {parseMessageParts(message.body).map((part, i) =>
+                        {parseMessageParts(
+                            message.body,
+                            (message.mentions ?? []).map((mm) => ({
+                                targetType: mm.targetType,
+                                targetId: mm.targetId,
+                                label: mm.label ?? undefined,
+                            }))
+                        ).map((part, i) =>
                             part.kind === 'text' ? (
                                 <React.Fragment key={i}>{part.text}</React.Fragment>
                             ) : (

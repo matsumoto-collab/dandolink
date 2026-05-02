@@ -1431,6 +1431,7 @@ model MessageMention {
   messageId  String
   targetType String   // 'user' | 'project' | 'role'
   targetId   String   // userId / projectMasterId / 'admin' or 'admin,manager'
+  label      String?  // 表示名（@山田太郎の "山田太郎"）。古いレコードは null
   createdAt  DateTime @default(now())
 
   message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)

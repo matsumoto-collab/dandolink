@@ -52,17 +52,23 @@ export async function GET(req: NextRequest) {
                     id: true,
                     title: true,
                     name: true,
+                    honorific: true,
                     customerShortName: true,
                     siteShortName: true,
                 },
                 orderBy: { updatedAt: 'desc' },
                 take: 20,
             });
-            const items = projects.map((p) => ({
-                id: p.id,
-                label: p.siteShortName || p.name || p.title,
-                sub: p.customerShortName || '',
-            }));
+            const items = projects.map((p) => {
+                const projectPart =
+                    (p.name ? p.name + (p.honorific || '') : '') ||
+                    p.siteShortName ||
+                    p.title;
+                const label = p.customerShortName
+                    ? `${p.customerShortName} ${projectPart}`.trim()
+                    : projectPart;
+                return { id: p.id, label, sub: '' };
+            });
             return NextResponse.json(
                 { items },
                 { headers: { 'Cache-Control': 'private, max-age=30, stale-while-revalidate=60' } }

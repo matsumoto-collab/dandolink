@@ -104,14 +104,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
                         ? {
                             create: mentions
                                 .filter(
-                                    (m: unknown): m is { targetType: string; targetId: string } =>
+                                    (m: unknown): m is { targetType: string; targetId: string; label?: string } =>
                                         !!m &&
                                         typeof (m as { targetType?: unknown }).targetType === 'string' &&
                                         typeof (m as { targetId?: unknown }).targetId === 'string'
                                 )
-                                .map((m: { targetType: string; targetId: string }) => ({
+                                .map((m: { targetType: string; targetId: string; label?: string }) => ({
                                     targetType: m.targetType,
                                     targetId: m.targetId,
+                                    label: typeof m.label === 'string' ? m.label : null,
                                 })),
                         }
                         : undefined,

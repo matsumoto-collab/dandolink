@@ -28,6 +28,7 @@ export interface MessageMention {
     messageId: string;
     targetType: 'user' | 'project' | 'role';
     targetId: string;
+    label?: string | null;
 }
 
 export interface MessageAttachment {
