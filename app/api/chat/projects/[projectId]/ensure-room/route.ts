@@ -29,6 +29,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pro
                 honorific: true,
                 customerShortName: true,
                 managerIds: true,
+                createdBy: true,
             },
         });
         if (!project) return notFoundResponse('案件');
@@ -64,6 +65,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pro
             explicit.forEach((id) => memberIds.add(id));
         } else {
             (project.managerIds || []).forEach((id) => memberIds.add(id));
+            // 案件担当者（createdBy は JSON配列文字列）
+            if (project.createdBy) {
+                try {
+                    const ids = JSON.parse(project.createdBy);
+                    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
+                    else if (typeof ids === 'string') memberIds.add(ids);
+                } catch {
+                    memberIds.add(project.createdBy);
+                }
+            }
             const assignments = await prisma.projectAssignment.findMany({
                 where: { projectMasterId: projectId },
                 select: { assignedEmployeeId: true, confirmedWorkerIds: true },

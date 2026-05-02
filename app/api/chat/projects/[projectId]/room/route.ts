@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
 
         const project = await prisma.projectMaster.findUnique({
             where: { id: projectId },
-            select: { id: true, managerIds: true },
+            select: { id: true, managerIds: true, createdBy: true },
         });
         if (!project) return notFoundResponse('案件');
 
@@ -50,6 +50,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
         const memberIds = new Set<string>();
         memberIds.add(userId);
         (project.managerIds || []).forEach((id) => memberIds.add(id));
+        // 案件担当者（createdBy は JSON文字列の配列で保存される）
+        if (project.createdBy) {
+            try {
+                const ids = JSON.parse(project.createdBy);
+                if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
+                else if (typeof ids === 'string') memberIds.add(ids);
+            } catch {
+                // 単一文字列として保存されているケース
+                memberIds.add(project.createdBy);
+            }
+        }
 
         const assignments = await prisma.projectAssignment.findMany({
             where: { projectMasterId: projectId },
