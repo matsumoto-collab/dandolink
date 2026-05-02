@@ -7,6 +7,16 @@ import { Search, Plus, ArrowLeft, Send, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime, useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
+import {
+    detectMentionTrigger,
+    extractMentions,
+    parseMessageParts,
+    replaceTriggerWithToken,
+    type MentionToken,
+    type MentionTriggerState,
+} from '@/lib/chat/mentionParser';
+import MentionChip from './MentionChip';
+import MentionSuggestPopover from './MentionSuggestPopover';
 
 // 空配列の安定参照（?? [] が毎レンダー新参照を返してループする問題の回避）
 const EMPTY_MESSAGES: ChatMessage[] = [];
@@ -217,7 +227,9 @@ function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
 
     const [text, setText] = useState('');
     const [isSending, setIsSending] = useState(false);
+    const [mentionTrigger, setMentionTrigger] = useState<MentionTriggerState | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
     const lastReadIdRef = useRef<string | null>(null);
 
@@ -259,13 +271,45 @@ function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
         const body = text.trim();
         if (!body || isSending) return;
         setIsSending(true);
-        const result = await sendMessage(roomId, body);
+        const mentions = extractMentions(body);
+        const result = await sendMessage(roomId, body, mentions);
         setIsSending(false);
-        if (result) setText('');
+        if (result) {
+            setText('');
+            setMentionTrigger(null);
+        }
     }, [text, isSending, sendMessage, roomId]);
 
+    const onTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+        const value = e.target.value;
+        setText(value);
+        const cursor = e.target.selectionStart ?? value.length;
+        setMentionTrigger(detectMentionTrigger(value, cursor));
+    };
+
+    const onSelectMention = (token: MentionToken) => {
+        if (!mentionTrigger) return;
+        const { newText, newCursor } = replaceTriggerWithToken(text, mentionTrigger, token);
+        setText(newText);
+        setMentionTrigger(null);
+        requestAnimationFrame(() => {
+            const ta = textareaRef.current;
+            if (ta) {
+                ta.focus();
+                ta.setSelectionRange(newCursor, newCursor);
+            }
+        });
+    };
+
     const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Escape' && mentionTrigger) {
+            e.preventDefault();
+            setMentionTrigger(null);
+            return;
+        }
         if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+            // メンションサジェスト表示中は送信を抑止
+            if (mentionTrigger) return;
             e.preventDefault();
             onSend();
         }
@@ -323,16 +367,31 @@ function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
 
             {/* Composer */}
             <div className="p-3 border-t border-slate-200 bg-white">
-                <div className="flex items-end gap-2">
-                    <textarea
-                        value={text}
-                        onChange={(e) => setText(e.target.value)}
-                        onKeyDown={onKeyDown}
-                        rows={1}
-                        placeholder="メッセージを入力（Enterで送信、Shift+Enterで改行）"
-                        className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
-                        style={{ minHeight: 44 }}
-                    />
+                <p className="text-[10px] text-slate-400 mb-1">
+                    @ でユーザー/ロール、# で案件をメンション
+                </p>
+                <div className="flex items-end gap-2 relative">
+                    <div className="flex-1 relative">
+                        <textarea
+                            ref={textareaRef}
+                            value={text}
+                            onChange={onTextChange}
+                            onKeyDown={onKeyDown}
+                            onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
+                            rows={1}
+                            placeholder="メッセージを入力（Enterで送信、Shift+Enterで改行）"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
+                            style={{ minHeight: 44 }}
+                        />
+                        {mentionTrigger && (
+                            <MentionSuggestPopover
+                                trigger={mentionTrigger.trigger}
+                                query={mentionTrigger.query}
+                                onSelect={onSelectMention}
+                                onClose={() => setMentionTrigger(null)}
+                            />
+                        )}
+                    </div>
                     <button
                         onClick={onSend}
                         disabled={!text.trim() || isSending}
@@ -370,7 +429,15 @@ function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
                                 : 'bg-white text-slate-900 border border-slate-200'
                     }`}
                 >
-                    <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">
+                        {parseMessageParts(message.body).map((part, i) =>
+                            part.kind === 'text' ? (
+                                <React.Fragment key={i}>{part.text}</React.Fragment>
+                            ) : (
+                                <MentionChip key={i} token={part.token} onMine={isMine} />
+                            )
+                        )}
+                    </p>
                 </div>
                 <span className={`text-[10px] text-slate-400 mt-0.5 px-1 ${isMine ? 'text-right' : 'text-left'}`}>
                     {formatTime(message.createdAt)}
