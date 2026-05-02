@@ -167,6 +167,47 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
             }
         }
 
+        // 案件メンション拡散: その案件の手配確定メンバー＋managerIdsへ通知
+        const projectMentions = mentions.filter(
+            (m: unknown): m is { targetType: string; targetId: string } =>
+                !!m && (m as { targetType?: unknown }).targetType === 'project'
+        );
+        if (projectMentions.length > 0) {
+            const projectIds: string[] = Array.from(
+                new Set(projectMentions.map((p: { targetType: string; targetId: string }) => p.targetId).filter(Boolean))
+            );
+            const pmRows = await prisma.projectMaster.findMany({
+                where: { id: { in: projectIds } },
+                select: { managerIds: true },
+            });
+            pmRows.forEach((pm) => {
+                (pm.managerIds || []).forEach((id) => {
+                    if (id !== userId && !targetUserIds.includes(id)) targetUserIds.push(id);
+                });
+            });
+            const pmAssignments = await prisma.projectAssignment.findMany({
+                where: { projectMasterId: { in: projectIds } },
+                select: { confirmedWorkerIds: true, assignedEmployeeId: true },
+            });
+            for (const a of pmAssignments) {
+                if (a.assignedEmployeeId && a.assignedEmployeeId !== userId && !targetUserIds.includes(a.assignedEmployeeId)) {
+                    targetUserIds.push(a.assignedEmployeeId);
+                }
+                if (a.confirmedWorkerIds) {
+                    try {
+                        const ids = JSON.parse(a.confirmedWorkerIds);
+                        if (Array.isArray(ids)) {
+                            ids.forEach((id) => {
+                                if (typeof id === 'string' && id !== userId && !targetUserIds.includes(id)) {
+                                    targetUserIds.push(id);
+                                }
+                            });
+                        }
+                    } catch { /* noop */ }
+                }
+            }
+        }
+
         if (targetUserIds.length > 0) {
             const room = await prisma.chatRoom.findUnique({
                 where: { id: roomId },

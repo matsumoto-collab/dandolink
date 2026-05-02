@@ -1,26 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Search, Plus, ArrowLeft, Send, X } from 'lucide-react';
+import { Search, Plus, X } from 'lucide-react';
 import { useChatStore } from '@/stores/chatStore';
-import { useChatRealtime } from '@/hooks/useChatRealtime';
-import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
-import {
-    detectMentionTrigger,
-    parseMessageParts,
-    replaceTriggerWithVisible,
-    filterActiveMentions,
-    type MentionToken,
-    type MentionTriggerState,
-    type SelectedMention,
-} from '@/lib/chat/mentionParser';
-import MentionChip from './MentionChip';
-import MentionSuggestPopover from './MentionSuggestPopover';
-
-// 空配列の安定参照（?? [] が毎レンダー新参照を返してループする問題の回避）
-const EMPTY_MESSAGES: ChatMessage[] = [];
+import type { ChatRoomSummary } from '@/types/chat';
+import ChatRoomView from './ChatRoomView';
 
 interface UserOption {
     id: string;
@@ -45,14 +31,11 @@ export default function ChatPage() {
     const [showNewRoomModal, setShowNewRoomModal] = useState(false);
     const [search, setSearch] = useState('');
 
-    // useChatRoomsRealtime は Sidebar でグローバル購読しているのでここでは呼ばない
-
     useEffect(() => {
         fetchRooms();
         fetchUnreadCount();
     }, [fetchRooms, fetchUnreadCount]);
 
-    // 通知タップで ?roomId=... 付きで来た場合
     useEffect(() => {
         const rid = searchParams?.get('roomId');
         if (rid) {
@@ -76,7 +59,6 @@ export default function ChatPage() {
 
     return (
         <div className="flex h-full min-h-0 -m-4 sm:-m-6 bg-white rounded-xl border border-slate-200 overflow-hidden">
-            {/* Room List */}
             <aside
                 className={`${activeRoomId ? 'hidden lg:flex' : 'flex'} flex-col w-full lg:w-80 border-r border-slate-200 bg-slate-50 min-h-0`}
             >
@@ -118,8 +100,8 @@ export default function ChatPage() {
                                     className={`w-full text-left px-3 py-3 hover:bg-white transition-colors ${activeRoomId === room.id ? 'bg-white' : ''}`}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 flex items-center justify-center text-white font-bold flex-shrink-0">
-                                            {roomTitle(room, myUserId).charAt(0)}
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 ${room.type === 'project' ? 'bg-gradient-to-br from-sky-400 to-sky-600' : 'bg-gradient-to-br from-slate-300 to-slate-500'}`}>
+                                            {room.type === 'project' ? '案' : roomTitle(room, myUserId).charAt(0)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
@@ -151,7 +133,6 @@ export default function ChatPage() {
                 </div>
             </aside>
 
-            {/* Room View */}
             <section
                 className={`${activeRoomId ? 'flex' : 'hidden lg:flex'} flex-col flex-1 min-h-0 min-w-0`}
             >
@@ -199,292 +180,6 @@ function formatTime(d: string | Date): string {
         return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
     }
     return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
-interface ChatRoomViewProps {
-    roomId: string;
-    myUserId: string | undefined;
-    onBack: () => void;
-}
-
-function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
-    // ?? [] / ?? false を使うと毎レンダー新参照を返してリレンダーループを誘発するため避ける
-    const rawMessages = useChatStore((s) => s.messagesByRoom[roomId]);
-    const rawHasMore = useChatStore((s) => s.hasMoreByRoom[roomId]);
-    const messages = rawMessages ?? EMPTY_MESSAGES;
-    const hasMore = rawHasMore ?? false;
-    const room = useChatStore(
-        useCallback((s) => s.rooms.find((r) => r.id === roomId), [roomId])
-    );
-    const fetchMessages = useChatStore((s) => s.fetchMessages);
-    const sendMessage = useChatStore((s) => s.sendMessage);
-    const markRead = useChatStore((s) => s.markRead);
-
-    const memberMap = useMemo(() => {
-        const m = new Map<string, string>();
-        room?.members.forEach((mm) => m.set(mm.userId, mm.displayName));
-        return m;
-    }, [room]);
-
-    const [text, setText] = useState('');
-    const [isSending, setIsSending] = useState(false);
-    const [mentionTrigger, setMentionTrigger] = useState<MentionTriggerState | null>(null);
-    const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
-    const scrollRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const lastMessageIdRef = useRef<string | null>(null);
-    const lastReadIdRef = useRef<string | null>(null);
-
-    useChatRealtime(roomId);
-
-    // 初期ロード + ルーム切替時
-    useEffect(() => {
-        lastMessageIdRef.current = null;
-        lastReadIdRef.current = null;
-        fetchMessages(roomId);
-    }, [roomId, fetchMessages]);
-
-    // 最新メッセージID（プリミティブ）だけで効果を発火
-    const lastMessageId = messages.length > 0 ? messages[messages.length - 1].id : null;
-
-    // 新着で最下部にスクロール
-    useEffect(() => {
-        if (!lastMessageId) return;
-        if (lastMessageId !== lastMessageIdRef.current) {
-            lastMessageIdRef.current = lastMessageId;
-            requestAnimationFrame(() => {
-                scrollRef.current?.scrollTo({
-                    top: scrollRef.current.scrollHeight,
-                    behavior: 'smooth',
-                });
-            });
-        }
-    }, [lastMessageId]);
-
-    // 既読更新（連鎖re-render対策で別effect・ref guard）
-    useEffect(() => {
-        if (!lastMessageId) return;
-        if (lastMessageId === lastReadIdRef.current) return;
-        lastReadIdRef.current = lastMessageId;
-        markRead(roomId, lastMessageId);
-    }, [lastMessageId, roomId, markRead]);
-
-    const onSend = useCallback(async () => {
-        const body = text.trim();
-        if (!body || isSending) return;
-        setIsSending(true);
-        const active = filterActiveMentions(text, selectedMentions);
-        // 同一(targetType,targetId)の重複を排除
-        const seen = new Set<string>();
-        const dedup = active.filter((m) => {
-            const k = `${m.type}:${m.targetId}`;
-            if (seen.has(k)) return false;
-            seen.add(k);
-            return true;
-        });
-        const apiMentions = dedup.map((m) => ({
-            targetType: m.type,
-            targetId: m.targetId,
-            label: m.label,
-        }));
-        const result = await sendMessage(roomId, body, apiMentions);
-        setIsSending(false);
-        if (result) {
-            setText('');
-            setSelectedMentions([]);
-            setMentionTrigger(null);
-        }
-    }, [text, isSending, sendMessage, roomId, selectedMentions]);
-
-    const onTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-        const value = e.target.value;
-        setText(value);
-        // 本文に登場しなくなったメンションは除外
-        setSelectedMentions((prev) => prev.filter((m) => value.includes(m.visible)));
-        const cursor = e.target.selectionStart ?? value.length;
-        setMentionTrigger(detectMentionTrigger(value, cursor));
-    };
-
-    const onSelectMention = (token: MentionToken) => {
-        if (!mentionTrigger) return;
-        const { newText, newCursor, visible } = replaceTriggerWithVisible(text, mentionTrigger, token);
-        setText(newText);
-        setSelectedMentions((prev) => {
-            // 同じ targetId は1件だけ保持
-            const next = prev.filter((m) => !(m.type === token.type && m.targetId === token.targetId));
-            return [...next, { ...token, visible }];
-        });
-        // 連続選択用: 同じトリガで empty query の状態を維持
-        setMentionTrigger({
-            trigger: mentionTrigger.trigger,
-            query: '',
-            startIdx: newCursor,
-            endIdx: newCursor,
-        });
-        requestAnimationFrame(() => {
-            const ta = textareaRef.current;
-            if (ta) {
-                ta.focus();
-                ta.setSelectionRange(newCursor, newCursor);
-            }
-        });
-    };
-
-    const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Escape' && mentionTrigger) {
-            e.preventDefault();
-            setMentionTrigger(null);
-            return;
-        }
-        if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
-            // メンションサジェスト表示中は送信を抑止
-            if (mentionTrigger) return;
-            e.preventDefault();
-            onSend();
-        }
-    };
-
-    return (
-        <>
-            {/* Header */}
-            <header className="flex items-center gap-2 px-3 py-3 border-b border-slate-200 bg-white">
-                <button
-                    onClick={onBack}
-                    className="lg:hidden inline-flex items-center justify-center w-9 h-9 rounded-xl hover:bg-slate-100"
-                    aria-label="戻る"
-                >
-                    <ArrowLeft className="w-5 h-5 text-slate-600" />
-                </button>
-                <div className="flex-1 min-w-0">
-                    <h2 className="text-base font-bold text-slate-900 truncate">
-                        {room ? roomTitle(room, myUserId) : '...'}
-                    </h2>
-                    {room && room.type !== 'dm' && (
-                        <p className="text-xs text-slate-500 truncate">
-                            {room.members.length}名
-                        </p>
-                    )}
-                </div>
-            </header>
-
-            {/* Messages */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-4 bg-slate-50">
-                {hasMore && (
-                    <div className="text-center mb-3">
-                        <button
-                            onClick={() => {
-                                const oldest = messages[0];
-                                if (oldest) fetchMessages(roomId, { before: oldest.id });
-                            }}
-                            className="text-xs text-slate-500 hover:text-slate-700 underline"
-                        >
-                            過去のメッセージを読み込む
-                        </button>
-                    </div>
-                )}
-                <ul className="space-y-3">
-                    {messages.map((msg) => (
-                        <MessageBubble
-                            key={msg.id}
-                            message={msg}
-                            isMine={msg.senderId === myUserId}
-                            senderName={memberMap.get(msg.senderId) ?? '(不明)'}
-                        />
-                    ))}
-                </ul>
-            </div>
-
-            {/* Composer */}
-            <div className="p-3 border-t border-slate-200 bg-white">
-                <p className="text-[10px] text-slate-400 mb-1">
-                    @ でユーザー/ロール、# で案件をメンション
-                </p>
-                <div className="flex items-end gap-2 relative">
-                    <div className="flex-1 relative">
-                        <textarea
-                            ref={textareaRef}
-                            value={text}
-                            onChange={onTextChange}
-                            onKeyDown={onKeyDown}
-                            onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
-                            rows={1}
-                            placeholder="メッセージを入力（Enterで送信、Shift+Enterで改行）"
-                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
-                            style={{ minHeight: 44 }}
-                        />
-                        {mentionTrigger && (
-                            <MentionSuggestPopover
-                                trigger={mentionTrigger.trigger}
-                                query={mentionTrigger.query}
-                                onSelect={onSelectMention}
-                                onClose={() => setMentionTrigger(null)}
-                            />
-                        )}
-                    </div>
-                    <button
-                        onClick={onSend}
-                        disabled={!text.trim() || isSending}
-                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm flex-shrink-0"
-                        aria-label="送信"
-                    >
-                        <Send className="w-5 h-5" />
-                    </button>
-                </div>
-            </div>
-        </>
-    );
-}
-
-interface MessageBubbleProps {
-    message: ChatMessage;
-    isMine: boolean;
-    senderName: string;
-}
-
-function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
-    const isDeleted = !!message.deletedAt;
-    return (
-        <li className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[80%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
-                {!isMine && (
-                    <span className="text-[11px] text-slate-500 mb-0.5 px-1">{senderName}</span>
-                )}
-                <div
-                    className={`rounded-xl px-3 py-2 shadow-sm ${
-                        isDeleted
-                            ? 'bg-slate-100 text-slate-400 italic border border-slate-200'
-                            : isMine
-                                ? 'bg-gradient-to-br from-teal-500 to-teal-700 text-white'
-                                : 'bg-white text-slate-900 border border-slate-200'
-                    }`}
-                >
-                    <p className="text-sm whitespace-pre-wrap break-words">
-                        {parseMessageParts(
-                            message.body,
-                            (message.mentions ?? []).map((mm) => ({
-                                targetType: mm.targetType,
-                                targetId: mm.targetId,
-                                label: mm.label ?? undefined,
-                            }))
-                        ).map((part, i) =>
-                            part.kind === 'text' ? (
-                                <React.Fragment key={i}>{part.text}</React.Fragment>
-                            ) : (
-                                <MentionChip key={i} token={part.token} onMine={isMine} />
-                            )
-                        )}
-                    </p>
-                </div>
-                <span className={`text-[10px] text-slate-400 mt-0.5 px-1 ${isMine ? 'text-right' : 'text-left'}`}>
-                    {formatTime(message.createdAt)}
-                    {message.editedAt && '（編集済み）'}
-                    {isMine && message.reads && message.reads.length > 0 && (
-                        <span className="ml-2 text-teal-600 font-medium">既読 {message.reads.length}</span>
-                    )}
-                </span>
-            </div>
-        </li>
-    );
 }
 
 interface NewRoomModalProps {
