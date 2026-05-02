@@ -40,6 +40,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
     const [showAddPicker, setShowAddPicker] = useState(false);
     const [allUsers, setAllUsers] = useState<UserOption[]>([]);
     const [pickerSearch, setPickerSearch] = useState('');
+    const [canEditMembers, setCanEditMembers] = useState(true);
 
     useEffect(() => {
         let cancelled = false;
@@ -58,6 +59,7 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
                     const members: MemberInfo[] = data.members ?? [];
                     setSetupMembers(members);
                     setSelectedIds(new Set(data.suggestedMemberIds ?? members.map((m: MemberInfo) => m.userId)));
+                    setCanEditMembers(data.canEditMembers !== false);
                 }
             } catch (e) {
                 logger.error('[ProjectChatTab] room status', e);
@@ -159,27 +161,33 @@ export default function ProjectChatTab({ projectId }: ProjectChatTabProps) {
             <div className="border border-slate-200 rounded-xl bg-white">
                 <div className="px-4 py-3 border-b border-slate-200 flex items-center">
                     <span className="text-xs font-semibold text-slate-700 flex-1">
-                        {selectedIds.size} / {setupMembers.length} 名が選択中
+                        {canEditMembers
+                            ? `${selectedIds.size} / ${setupMembers.length} 名が選択中`
+                            : `${setupMembers.length} 名で作成`}
                     </span>
-                    <button
-                        type="button"
-                        onClick={() => setShowAddPicker(true)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 shadow-sm"
-                    >
-                        <Plus className="w-3.5 h-3.5" />
-                        追加
-                    </button>
+                    {canEditMembers && (
+                        <button
+                            type="button"
+                            onClick={() => setShowAddPicker(true)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-teal-600 hover:bg-teal-700 text-white shadow-sm"
+                        >
+                            <Plus className="w-3.5 h-3.5" />
+                            追加
+                        </button>
+                    )}
                 </div>
                 <ul className="divide-y divide-slate-200 max-h-96 overflow-y-auto">
                     {setupMembers.map((m) => (
                         <li key={m.userId}>
-                            <label className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={selectedIds.has(m.userId)}
-                                    onChange={() => toggle(m.userId)}
-                                    className="w-4 h-4"
-                                />
+                            <label className={`flex items-center gap-3 px-4 py-2.5 ${canEditMembers ? 'hover:bg-slate-50 cursor-pointer' : ''}`}>
+                                {canEditMembers && (
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedIds.has(m.userId)}
+                                        onChange={() => toggle(m.userId)}
+                                        className="w-4 h-4"
+                                    />
+                                )}
                                 <div className="w-8 h-8 rounded-full bg-slate-400 text-white text-xs font-bold flex items-center justify-center flex-shrink-0">
                                     {m.displayName.charAt(0)}
                                 </div>

@@ -57,29 +57,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
                 if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
                 else if (typeof ids === 'string') memberIds.add(ids);
             } catch {
-                // 単一文字列として保存されているケース
                 memberIds.add(project.createdBy);
             }
         }
 
-        const assignments = await prisma.projectAssignment.findMany({
-            where: { projectMasterId: projectId },
-            select: { assignedEmployeeId: true, confirmedWorkerIds: true },
-        });
-        for (const a of assignments) {
-            if (a.assignedEmployeeId) memberIds.add(a.assignedEmployeeId);
-            if (a.confirmedWorkerIds) {
-                try {
-                    const ids = JSON.parse(a.confirmedWorkerIds);
-                    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
-                } catch { /* noop */ }
+        // 協力業者は「自分 + 案件担当者(createdBy/managerIds)」のみ。
+        // 職長/確定メンバー/admin は含めない
+        const isPartner = session!.user.role === 'partner';
+        if (!isPartner) {
+            const assignments = await prisma.projectAssignment.findMany({
+                where: { projectMasterId: projectId },
+                select: { assignedEmployeeId: true, confirmedWorkerIds: true },
+            });
+            for (const a of assignments) {
+                if (a.assignedEmployeeId) memberIds.add(a.assignedEmployeeId);
+                if (a.confirmedWorkerIds) {
+                    try {
+                        const ids = JSON.parse(a.confirmedWorkerIds);
+                        if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
+                    } catch { /* noop */ }
+                }
             }
+            const admins = await prisma.user.findMany({
+                where: { role: 'admin', isActive: true },
+                select: { id: true },
+            });
+            admins.forEach((u) => memberIds.add(u.id));
         }
-        const admins = await prisma.user.findMany({
-            where: { role: 'admin', isActive: true },
-            select: { id: true },
-        });
-        admins.forEach((u) => memberIds.add(u.id));
 
         const validUsers = await prisma.user.findMany({
             where: { id: { in: Array.from(memberIds) }, isActive: true },
@@ -88,6 +92,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
 
         return NextResponse.json({
             roomId: null,
+            canEditMembers: !isPartner,
             suggestedMemberIds: validUsers.map((u) => u.id),
             members: validUsers.map((u) => ({
                 userId: u.id,

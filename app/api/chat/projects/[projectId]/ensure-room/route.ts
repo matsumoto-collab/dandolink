@@ -61,7 +61,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pro
         const memberIds = new Set<string>();
         memberIds.add(userId);
 
-        if (explicit) {
+        const isPartner = session!.user.role === 'partner';
+        if (isPartner) {
+            // 協力業者: 「自分 + 案件担当者(managerIds + createdBy)」に強制
+            (project.managerIds || []).forEach((id) => memberIds.add(id));
+            if (project.createdBy) {
+                try {
+                    const ids = JSON.parse(project.createdBy);
+                    if (Array.isArray(ids)) ids.forEach((id) => typeof id === 'string' && memberIds.add(id));
+                    else if (typeof ids === 'string') memberIds.add(ids);
+                } catch {
+                    memberIds.add(project.createdBy);
+                }
+            }
+        } else if (explicit) {
             explicit.forEach((id) => memberIds.add(id));
         } else {
             (project.managerIds || []).forEach((id) => memberIds.add(id));
