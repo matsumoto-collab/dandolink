@@ -15,8 +15,8 @@ interface ProjectChatModalProps {
  */
 export default function ProjectChatModal({ projectId, title, onClose }: ProjectChatModalProps) {
     return (
-        <div className="fixed inset-0 z-[60] bg-black/50 flex items-end lg:items-center justify-center">
-            <div className="relative bg-white w-full h-[92vh] lg:h-[85vh] lg:max-w-2xl lg:rounded-xl rounded-t-2xl shadow-xl flex flex-col">
+        <div className="fixed inset-0 z-[60] bg-black/50 flex items-stretch lg:items-center justify-center">
+            <div className="relative bg-white w-full h-full lg:h-[85vh] lg:max-w-2xl lg:rounded-xl shadow-xl flex flex-col pwa-main-safe">
                 <div className="flex-shrink-0 flex items-center px-4 py-3 border-b border-slate-200">
                     <h3 className="text-base font-bold text-slate-900 flex-1 truncate">
                         {title ? `${title} のチャット` : '案件チャット'}
