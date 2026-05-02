@@ -54,6 +54,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 materialCost: true,
                 otherExpenses: true,
                 loadingCost: true,
+                revenueOverride: true,
                 subcontractorCosts: {
                     select: { constructionTypeId: true, amount: true },
                 },
@@ -99,7 +100,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         const [settings, estimates, invoices, allVehicles, allUsers, allWorkers, foremanUsers, constructionTypes] = await Promise.all([
             prisma.systemSettings.findFirst(),
-            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true } }),
+            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true, updatedAt: true }, orderBy: { updatedAt: 'desc' } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, name: true, dailyRate: true } }),
             prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, dailyRate: true } }),
@@ -122,20 +123,30 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
         const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
 
-        const estimateAmount = estimates.reduce((sum, e) => sum + Number(e.total), 0);
-        const estimateSubtotal = estimates.reduce((sum, e) => sum + Number(e.subtotal), 0);
-        const estimateCostTotal = estimates.some(e => e.costTotal != null)
-            ? estimates.reduce((sum, e) => sum + (e.costTotal ?? 0), 0)
-            : null;
+        // 同一案件に複数の見積書がある場合は最新1件のみを採用
+        const latestEstimate = estimates[0];
+        const estimateAmount = latestEstimate ? Number(latestEstimate.total) : 0;
+        const estimateSubtotal = latestEstimate ? Number(latestEstimate.subtotal) : 0;
+        const estimateCostTotal = latestEstimate?.costTotal ?? null;
         const invoiceAmount = invoices.reduce((sum, i) => sum + Number(i.total), 0);
         const invoiceSubtotal = invoices.reduce((sum, i) => sum + Number(i.subtotal), 0);
         const contractAmount = Number(projectMaster.contractAmount || 0);
 
         let revenue = 0;
-        let revenueSource: 'invoice' | 'estimate' | 'contract' | 'none' = 'none';
-        if (invoiceSubtotal > 0) { revenue = invoiceSubtotal; revenueSource = 'invoice'; }
-        else if (estimateSubtotal > 0) { revenue = estimateSubtotal; revenueSource = 'estimate'; }
-        else if (contractAmount > 0) { revenue = contractAmount; revenueSource = 'contract'; }
+        let revenueSource: 'invoice' | 'estimate' | 'contract' | 'override' | 'none' = 'none';
+        let autoRevenue = 0;
+        let autoRevenueSource: 'invoice' | 'estimate' | 'contract' | 'none' = 'none';
+        if (invoiceSubtotal > 0) { autoRevenue = invoiceSubtotal; autoRevenueSource = 'invoice'; }
+        else if (estimateSubtotal > 0) { autoRevenue = estimateSubtotal; autoRevenueSource = 'estimate'; }
+        else if (contractAmount > 0) { autoRevenue = contractAmount; autoRevenueSource = 'contract'; }
+
+        if (projectMaster.revenueOverride != null) {
+            revenue = projectMaster.revenueOverride;
+            revenueSource = 'override';
+        } else {
+            revenue = autoRevenue;
+            revenueSource = autoRevenueSource;
+        }
 
         const calcWorkMinutesFromItem = (startTime: string | null, endTime: string | null, breakMins: number): number => {
             if (!startTime || !endTime) return 0;
@@ -307,7 +318,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         return NextResponse.json({
             projectMasterId: id, projectTitle: projectMaster.title,
-            revenue, revenueSource,
+            revenue, revenueSource, autoRevenue, revenueOverride: projectMaster.revenueOverride,
             invoiceAmount, invoiceSubtotal, estimateAmount, estimateSubtotal, estimateCostTotal,
             contractAmount,
             costBreakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },

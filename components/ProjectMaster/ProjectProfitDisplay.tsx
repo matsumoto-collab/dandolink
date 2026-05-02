@@ -16,7 +16,7 @@ interface CostBreakdown {
     otherExpenses: number;
     totalCost: number;
 }
-type RevenueSource = 'invoice' | 'estimate' | 'contract' | 'none';
+type RevenueSource = 'invoice' | 'estimate' | 'contract' | 'override' | 'none';
 
 interface LaborRow {
     assignmentId: string;
@@ -52,6 +52,8 @@ interface ProfitData {
     projectTitle: string;
     revenue: number;
     revenueSource?: RevenueSource;
+    autoRevenue?: number;
+    revenueOverride?: number | null;
     invoiceAmount?: number;
     estimateAmount: number;
     estimateSubtotal?: number;
@@ -77,6 +79,7 @@ const BADGE_STYLES: Record<RevenueSource, string> = {
     invoice: 'border-slate-300 text-slate-700 bg-white',
     estimate: 'border-amber-300 text-amber-700 bg-amber-50',
     contract: 'border-sky-300 text-sky-700 bg-sky-50',
+    override: 'border-amber-400 text-amber-800 bg-amber-100',
     none: 'border-slate-200 text-slate-500 bg-slate-50',
 };
 
@@ -84,6 +87,7 @@ const BADGE_LABELS: Record<RevenueSource, string> = {
     invoice: '請求済・税別',
     estimate: '見積・税別',
     contract: '足場工事金額',
+    override: '手動入力',
     none: '未入力',
 };
 
@@ -280,7 +284,13 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                 <div className="border-t border-slate-100 pt-4 space-y-2">
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-slate-600">売上</span>
-                        <span className="text-base font-semibold text-slate-800 tabular-nums">{formatCurrency(revenue)}</span>
+                        <InlineAmountEdit
+                            value={revenue}
+                            auto={profitData.autoRevenue ?? revenue}
+                            canClear={profitData.revenueOverride != null}
+                            onSave={(v) => patchProjectCost({ revenueOverride: v })}
+                            onClear={() => patchProjectCost({ revenueOverride: null })}
+                        />
                     </div>
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-slate-600">原価</span>
