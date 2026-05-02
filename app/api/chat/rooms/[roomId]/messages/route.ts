@@ -178,7 +178,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
             return msg;
         });
 
-        // 通知対象（送信者除く・mute除く・離脱除く）
+        // 通知対象: そのチャットルームの参加メンバーのみ（送信者・mute・離脱除く）
+        // ロール/案件メンションは表示・拡散ロジック上の意味は持つが、通知は
+        // チャット参加者に限定（外部の人を勝手に巻き込まない方針）
         const otherMembers = await prisma.chatMember.findMany({
             where: {
                 roomId,
@@ -188,72 +190,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
             },
             select: { userId: true },
         });
-        const targetUserIds = otherMembers.map((m) => m.userId);
-
-        // ロールメンション拡散（@[role:...](admin,manager) のような token を targetType='role' で正規化済み）
-        const roleMentions = mentions.filter(
-            (m: unknown): m is { targetType: string; targetId: string } =>
-                !!m && (m as { targetType?: unknown }).targetType === 'role'
+        const targetUserIds = Array.from(
+            new Set(otherMembers.map((m) => m.userId).filter((id) => id && id !== userId))
         );
-        if (roleMentions.length > 0) {
-            const roles: string[] = Array.from(
-                new Set(
-                    roleMentions.flatMap((rm: { targetType: string; targetId: string }) =>
-                        String(rm.targetId).split(',').map((r) => r.trim()).filter(Boolean)
-                    )
-                )
-            );
-            if (roles.length > 0) {
-                const roleUsers = await prisma.user.findMany({
-                    where: { role: { in: roles }, isActive: true, id: { not: userId } },
-                    select: { id: true },
-                });
-                roleUsers.forEach((u) => {
-                    if (!targetUserIds.includes(u.id)) targetUserIds.push(u.id);
-                });
-            }
-        }
-
-        // 案件メンション拡散: その案件の手配確定メンバー＋managerIdsへ通知
-        const projectMentions = mentions.filter(
-            (m: unknown): m is { targetType: string; targetId: string } =>
-                !!m && (m as { targetType?: unknown }).targetType === 'project'
-        );
-        if (projectMentions.length > 0) {
-            const projectIds: string[] = Array.from(
-                new Set(projectMentions.map((p: { targetType: string; targetId: string }) => p.targetId).filter(Boolean))
-            );
-            const pmRows = await prisma.projectMaster.findMany({
-                where: { id: { in: projectIds } },
-                select: { managerIds: true },
-            });
-            pmRows.forEach((pm) => {
-                (pm.managerIds || []).forEach((id) => {
-                    if (id !== userId && !targetUserIds.includes(id)) targetUserIds.push(id);
-                });
-            });
-            const pmAssignments = await prisma.projectAssignment.findMany({
-                where: { projectMasterId: { in: projectIds } },
-                select: { confirmedWorkerIds: true, assignedEmployeeId: true },
-            });
-            for (const a of pmAssignments) {
-                if (a.assignedEmployeeId && a.assignedEmployeeId !== userId && !targetUserIds.includes(a.assignedEmployeeId)) {
-                    targetUserIds.push(a.assignedEmployeeId);
-                }
-                if (a.confirmedWorkerIds) {
-                    try {
-                        const ids = JSON.parse(a.confirmedWorkerIds);
-                        if (Array.isArray(ids)) {
-                            ids.forEach((id) => {
-                                if (typeof id === 'string' && id !== userId && !targetUserIds.includes(id)) {
-                                    targetUserIds.push(id);
-                                }
-                            });
-                        }
-                    } catch { /* noop */ }
-                }
-            }
-        }
 
         if (targetUserIds.length > 0) {
             const room = await prisma.chatRoom.findUnique({
