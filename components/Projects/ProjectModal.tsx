@@ -44,6 +44,11 @@ export default function ProjectModal({
     const [isEditMode, setIsEditMode] = useState(!initialData?.id);
     const [isSaving, setIsSaving] = useState(false);
     const [showChat, setShowChat] = useState(false);
+
+    // モーダルを開くたび / 別案件に切り替わるたびに常に「詳細表示」へリセット
+    useEffect(() => {
+        if (isOpen) setShowChat(false);
+    }, [isOpen, initialData?.id]);
     const modalRef = useModalKeyboard(isOpen, onClose);
 
     // Presence機能: 編集中ユーザーの追跡
