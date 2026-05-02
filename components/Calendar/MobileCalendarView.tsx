@@ -9,6 +9,9 @@ import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarStore } from '@/stores/calendarStore';
 import VacationSelector from './VacationSelector';
+import dynamic from 'next/dynamic';
+
+const ProjectChatModal = dynamic(() => import('@/components/Chat/ProjectChatModal'), { ssr: false });
 
 interface MobileCalendarViewProps {
     weekDays: WeekDay[];
@@ -124,6 +127,7 @@ export default function MobileCalendarView({
     }, [editingCellMemo, cellMemoTemp, setCellRemark]);
 
     // ── アクションシート ──
+    const [chatProjectId, setChatProjectId] = useState<{ id: string; title: string } | null>(null);
     const [actionSheet, setActionSheet] = useState<ActionSheetState>({
         isOpen: false, event: null, project: null,
     });
@@ -720,6 +724,21 @@ export default function MobileCalendarView({
                                 詳細を見る・編集
                             </button>
 
+                            {actionSheet.project?.projectMasterId && (
+                                <button
+                                    onClick={() => {
+                                        const pmId = actionSheet.project!.projectMasterId!;
+                                        const evTitle = actionSheet.event?.title || '案件';
+                                        closeActionSheet();
+                                        setChatProjectId({ id: pmId, title: evTitle });
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <MessageSquare className="w-5 h-5 text-slate-500" />
+                                    チャット
+                                </button>
+                            )}
+
                             {!isReadOnly && handleMoveToCell && (
                                 <button
                                     onClick={() => {
@@ -808,6 +827,15 @@ export default function MobileCalendarView({
                         </div>
                     </div>
                 </>
+            )}
+
+            {/* 案件チャットモーダル */}
+            {chatProjectId && (
+                <ProjectChatModal
+                    projectId={chatProjectId.id}
+                    title={chatProjectId.title}
+                    onClose={() => setChatProjectId(null)}
+                />
             )}
 
             {/* 保存中オーバーレイ */}
