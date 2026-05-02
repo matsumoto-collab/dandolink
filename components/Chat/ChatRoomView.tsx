@@ -120,7 +120,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
-    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
     const lastMessageIdRef = useRef<string | null>(null);
     const lastReadIdRef = useRef<string | null>(null);
 
@@ -404,23 +404,105 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                 <p className="text-[10px] text-slate-400 mb-1">
                     @ でユーザー/ロール、# で案件をメンション
                 </p>
-                <div className="flex items-end gap-2 relative">
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,application/pdf"
-                        multiple
-                        onChange={onPickFiles}
-                        className="hidden"
-                    />
-                    <input
-                        ref={cameraInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={onPickFiles}
-                        className="hidden"
-                    />
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,application/pdf"
+                    multiple
+                    onChange={onPickFiles}
+                    className="hidden"
+                />
+                <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={onPickFiles}
+                    className="hidden"
+                />
+                {/* モバイル: テキスト欄を1段目、ボタン群を2段目に分離 */}
+                <div className="lg:hidden flex flex-col gap-2 relative">
+                    <div className="relative">
+                        <textarea
+                            ref={textareaRef}
+                            value={text}
+                            onChange={onTextChange}
+                            onKeyDown={onKeyDown}
+                            onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
+                            rows={2}
+                            placeholder="メッセージを入力"
+                            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-40"
+                            style={{ minHeight: 64 }}
+                        />
+                        {mentionTrigger && (
+                            <MentionSuggestPopover
+                                trigger={mentionTrigger.trigger}
+                                query={mentionTrigger.query}
+                                roomId={roomId}
+                                onSelect={onSelectMention}
+                                onClose={() => setMentionTrigger(null)}
+                            />
+                        )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 flex-shrink-0"
+                            aria-label="ファイル添付"
+                        >
+                            <Paperclip className="w-5 h-5" />
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => cameraInputRef.current?.click()}
+                            className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 flex-shrink-0"
+                            aria-label="カメラ"
+                        >
+                            <Camera className="w-5 h-5" />
+                        </button>
+                        <div className="relative flex-shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setShowStamps((v) => !v)}
+                                className={`inline-flex items-center justify-center w-11 h-11 rounded-xl border ${showStamps ? 'border-teal-500 bg-teal-50 text-teal-700' : 'border-slate-200 hover:bg-slate-50 text-slate-600'}`}
+                                aria-label="スタンプ"
+                            >
+                                <Smile className="w-5 h-5" />
+                            </button>
+                            {showStamps && (
+                                <div className="absolute bottom-full left-0 mb-2 w-64 bg-white rounded-xl shadow-lg border border-slate-200 z-30 p-2">
+                                    <ul className="grid grid-cols-1 gap-1">
+                                        {PRESET_STAMPS.map((s) => (
+                                            <li key={s.text}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => sendStamp(s)}
+                                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-sm text-slate-700 hover:bg-slate-50"
+                                                >
+                                                    <span className="flex-1">{s.text}</span>
+                                                    <span className="text-lg leading-none">{s.emoji}</span>
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex-1" />
+                        <button
+                            onClick={onSend}
+                            disabled={(!text.trim() && pendingAttachments.length === 0) || isSending || uploadingCount > 0}
+                            className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 shadow-sm flex-shrink-0"
+                            aria-label="送信"
+                        >
+                            <Send className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* PC: 横一列レイアウト（mobileと同じrefを使うのでカスタムrefは省略・popoverは PC 側に再掲） */}
+                <div className="hidden lg:flex items-end gap-2 relative">
                     <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
@@ -457,25 +539,15 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             </div>
                         )}
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => cameraInputRef.current?.click()}
-                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 flex-shrink-0 lg:hidden"
-                        aria-label="カメラ"
-                    >
-                        <Camera className="w-5 h-5" />
-                    </button>
                     <div className="flex-1 relative">
                         <textarea
-                            ref={textareaRef}
+                            ref={(el) => { if (el) textareaRef.current = el; }}
                             value={text}
                             onChange={onTextChange}
                             onKeyDown={onKeyDown}
                             onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
                             rows={1}
-                            placeholder={isDesktop
-                                ? 'メッセージを入力（Shift+Enterで送信）'
-                                : 'メッセージを入力'}
+                            placeholder="メッセージを入力（Shift+Enterで送信）"
                             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
                             style={{ minHeight: 44 }}
                         />
@@ -492,7 +564,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                     <button
                         onClick={onSend}
                         disabled={(!text.trim() && pendingAttachments.length === 0) || isSending || uploadingCount > 0}
-                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white hover:opacity-90 disabled:opacity-40 shadow-sm flex-shrink-0"
+                        className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40 shadow-sm flex-shrink-0"
                         aria-label="送信"
                     >
                         <Send className="w-5 h-5" />
