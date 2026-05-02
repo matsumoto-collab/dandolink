@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus } from 'lucide-react';
+import InviteMembersModal from './InviteMembersModal';
 import { useChatStore } from '@/stores/chatStore';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatRoomSummary, ChatMessage } from '@/types/chat';
@@ -50,6 +51,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const [mentionTrigger, setMentionTrigger] = useState<MentionTriggerState | null>(null);
     const [selectedMentions, setSelectedMentions] = useState<SelectedMention[]>([]);
     const [showMembers, setShowMembers] = useState(false);
+    const [showInvite, setShowInvite] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const lastMessageIdRef = useRef<string | null>(null);
@@ -195,7 +197,18 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                 </div>
                 {room && showMembers && (
                     <div className="px-3 pb-3 border-t border-slate-100 bg-slate-50/60">
-                        <div className="pt-2 flex flex-wrap gap-1.5">
+                        <div className="pt-2 flex items-center justify-between mb-2">
+                            <span className="text-[11px] font-semibold text-slate-500">参加メンバー</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowInvite(true)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-xs font-medium bg-gradient-to-r from-teal-500 to-teal-700 text-white hover:opacity-90 shadow-sm"
+                            >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                追加
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
                             {room.members.map((mm) => (
                                 <span
                                     key={mm.userId}
@@ -221,6 +234,13 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             ))}
                         </div>
                     </div>
+                )}
+                {showInvite && room && (
+                    <InviteMembersModal
+                        roomId={roomId}
+                        existingMemberIds={room.members.map((mm) => mm.userId)}
+                        onClose={() => setShowInvite(false)}
+                    />
                 )}
             </header>
 

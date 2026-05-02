@@ -99,10 +99,16 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ro
             await prisma.chatRoom.update({ where: { id: roomId }, data: roomPatch });
         }
 
-        // メンバー追加/削除
+        // ルーム種別の取得（DMはメンバー追加不可）
+        const roomMeta = await prisma.chatRoom.findUnique({
+            where: { id: roomId },
+            select: { type: true },
+        });
+
+        // メンバー追加: グループ/案件は参加メンバー誰でも可能
         if (Array.isArray(body.addMemberIds) && body.addMemberIds.length > 0) {
-            if (member.role !== 'owner') {
-                return errorResponse('メンバー追加はオーナーのみ可能です', 403);
+            if (roomMeta?.type === 'dm') {
+                return errorResponse('DMにはメンバーを追加できません', 400);
             }
             await prisma.$transaction(
                 (body.addMemberIds as string[]).map((id) =>
@@ -114,12 +120,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ro
                 )
             );
         }
+        // メンバー削除: オーナーのみ。自分自身（退室）はメンバー誰でも可
         if (Array.isArray(body.removeMemberIds) && body.removeMemberIds.length > 0) {
-            if (member.role !== 'owner') {
+            const removeIds = body.removeMemberIds as string[];
+            const isSelfOnly = removeIds.length === 1 && removeIds[0] === userId;
+            if (!isSelfOnly && member.role !== 'owner') {
                 return errorResponse('メンバー削除はオーナーのみ可能です', 403);
             }
             await prisma.chatMember.updateMany({
-                where: { roomId, userId: { in: body.removeMemberIds as string[] } },
+                where: { roomId, userId: { in: removeIds } },
                 data: { leftAt: new Date() },
             });
         }
