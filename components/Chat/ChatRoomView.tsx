@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import InviteMembersModal from './InviteMembersModal';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
@@ -79,6 +80,7 @@ interface ChatRoomViewProps {
 export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewProps) {
     const { data: session } = useSession();
     const canInvite = session?.user?.role !== 'partner';
+    const isDesktop = useMediaQuery('(min-width: 1024px)');
     const rawMessages = useChatStore((s) => s.messagesByRoom[roomId]);
     const rawHasMore = useChatStore((s) => s.hasMoreByRoom[roomId]);
     const messages = rawMessages ?? EMPTY_MESSAGES;
@@ -244,6 +246,9 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
             setMentionTrigger(null);
             return;
         }
+        // モバイル/タブレットでは Enter = 改行（送信は送信ボタンから）
+        // デスクトップは Enter = 送信 / Shift+Enter = 改行
+        if (!isDesktop) return;
         if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
             if (mentionTrigger) return;
             e.preventDefault();
@@ -425,7 +430,9 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             onKeyDown={onKeyDown}
                             onBlur={() => setTimeout(() => setMentionTrigger(null), 100)}
                             rows={1}
-                            placeholder="メッセージを入力（Enterで送信、Shift+Enterで改行）"
+                            placeholder={isDesktop
+                                ? 'メッセージを入力（Enterで送信、Shift+Enterで改行）'
+                                : 'メッセージを入力'}
                             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm resize-none max-h-32"
                             style={{ minHeight: 44 }}
                         />
