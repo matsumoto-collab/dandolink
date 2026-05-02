@@ -379,6 +379,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             message={msg}
                             isMine={msg.senderId === myUserId}
                             senderName={memberMap.get(msg.senderId) ?? '(不明)'}
+                            memberMap={memberMap}
                         />
                     ))}
                 </ul>
@@ -611,6 +612,7 @@ interface MessageBubbleProps {
     message: ChatMessage;
     isMine: boolean;
     senderName: string;
+    memberMap: Map<string, string>;
 }
 
 interface AttachmentViewProps {
@@ -648,8 +650,9 @@ function AttachmentView({ att, isMine }: AttachmentViewProps) {
     );
 }
 
-function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
+function MessageBubble({ message, isMine, senderName, memberMap }: MessageBubbleProps) {
     const isDeleted = !!message.deletedAt;
+    const [showReaders, setShowReaders] = useState(false);
     return (
         <li className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
@@ -695,7 +698,36 @@ function MessageBubble({ message, isMine, senderName }: MessageBubbleProps) {
                     {formatTime(message.createdAt)}
                     {message.editedAt && '（編集済み）'}
                     {isMine && message.reads && message.reads.length > 0 && (
-                        <span className="ml-2 text-teal-600 font-medium">既読 {message.reads.length}</span>
+                        <span className="relative inline-block ml-2">
+                            <button
+                                type="button"
+                                onClick={() => setShowReaders((v) => !v)}
+                                className="text-teal-600 font-medium hover:underline"
+                            >
+                                既読 {message.reads.length}
+                            </button>
+                            {showReaders && (
+                                <span
+                                    className="absolute right-0 bottom-full mb-1 z-20 w-48 max-h-56 overflow-y-auto bg-white rounded-xl shadow-lg border border-slate-200 p-2 text-left"
+                                    onMouseLeave={() => setShowReaders(false)}
+                                >
+                                    <span className="block text-[10px] font-semibold text-slate-500 px-1 mb-1">既読者</span>
+                                    <ul className="space-y-1">
+                                        {message.reads.map((r) => (
+                                            <li
+                                                key={r.userId}
+                                                className="flex items-center justify-between gap-2 px-1 text-[11px] text-slate-700"
+                                            >
+                                                <span className="truncate">{memberMap.get(r.userId) ?? '(不明)'}</span>
+                                                <span className="text-[10px] text-slate-400 flex-shrink-0">
+                                                    {formatTime(r.readAt)}
+                                                </span>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </span>
+                            )}
+                        </span>
                     )}
                 </span>
             </div>
