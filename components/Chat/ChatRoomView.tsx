@@ -483,6 +483,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             <MentionSuggestPopover
                                 trigger={mentionTrigger.trigger}
                                 query={mentionTrigger.query}
+                                roomId={roomId}
                                 onSelect={onSelectMention}
                                 onClose={() => setMentionTrigger(null)}
                             />

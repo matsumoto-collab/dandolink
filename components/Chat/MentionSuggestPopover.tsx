@@ -17,6 +17,8 @@ interface MentionSuggestPopoverProps {
     trigger: '@' | '#';
     /** 検索クエリ（カーソル直前の文字列） */
     query: string;
+    /** ユーザー候補をこのルームの参加者に限定するためのID */
+    roomId?: string;
     onSelect: (token: MentionToken) => void;
     onClose: () => void;
 }
@@ -29,6 +31,7 @@ interface MentionSuggestPopoverProps {
 export default function MentionSuggestPopover({
     trigger,
     query,
+    roomId,
     onSelect,
     onClose,
 }: MentionSuggestPopoverProps) {
@@ -42,8 +45,12 @@ export default function MentionSuggestPopover({
         const seq = ++fetchSeqRef.current;
         const run = async () => {
             try {
+                const params = new URLSearchParams();
+                params.set('type', mode);
+                params.set('q', query);
+                if (mode === 'user' && roomId) params.set('roomId', roomId);
                 const res = await fetch(
-                    `/api/chat/mentions/suggest?type=${mode}&q=${encodeURIComponent(query)}`,
+                    `/api/chat/mentions/suggest?${params.toString()}`,
                     { cache: 'no-store' }
                 );
                 if (!res.ok) return;
@@ -57,7 +64,7 @@ export default function MentionSuggestPopover({
         };
         const t = setTimeout(run, 120);
         return () => clearTimeout(t);
-    }, [mode, query]);
+    }, [mode, query, roomId]);
 
     // キー操作はComposer側でハンドリング想定だが、
     // 単独利用時のクリック選択はサポート

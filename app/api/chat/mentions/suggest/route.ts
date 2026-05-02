@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const type = searchParams.get('type') ?? 'user';
         const q = (searchParams.get('q') ?? '').trim();
+        const roomId = searchParams.get('roomId');
 
         if (type === 'role') {
             const items = q
@@ -76,9 +77,19 @@ export async function GET(req: NextRequest) {
         }
 
         // type === 'user'
+        // roomId 指定時はそのチャットルームの参加メンバーに限定
+        let memberIdFilter: { in: string[] } | undefined;
+        if (roomId) {
+            const members = await prisma.chatMember.findMany({
+                where: { roomId, leftAt: null },
+                select: { userId: true },
+            });
+            memberIdFilter = { in: members.map((m) => m.userId) };
+        }
         const users = await prisma.user.findMany({
             where: {
                 isActive: true,
+                ...(memberIdFilter ? { id: memberIdFilter } : {}),
                 ...(q
                     ? {
                         OR: [
