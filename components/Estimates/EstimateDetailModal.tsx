@@ -48,7 +48,8 @@ export default function EstimateDetailModal({
     customerHonorific,
 }: EstimateDetailModalProps) {
     const { data: session } = useSession();
-    const creatorName = session?.user?.name || '';
+    const sessionName = session?.user?.name || '';
+    const creatorName = estimate?.createdByName || sessionName;
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
     const [includeDetails, setIncludeDetails] = useState(false);

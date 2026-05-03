@@ -194,6 +194,8 @@ model Estimate {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
   updatedBy          String?
+  createdById        String?
+  createdByName      String?
   projectMasterId    String?
   customerId         String?
 

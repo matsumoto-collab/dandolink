@@ -78,6 +78,9 @@ export async function POST(req: NextRequest) {
             finalEstimateNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
         }
 
+        const creator = await prisma.user.findUnique({ where: { id: session!.user.id }, select: { displayName: true, username: true } });
+        const creatorDisplayName = creator?.displayName || creator?.username || session!.user.name || null;
+
         const newEstimate = await prisma.$transaction(async (tx) => {
             const created = await tx.estimate.create({
                 data: {
@@ -87,6 +90,8 @@ export async function POST(req: NextRequest) {
                     costTotal: costTotal ?? null,
                     constructionPeriod: constructionPeriod || null,
                     updatedBy: session!.user.id,
+                    createdById: session!.user.id,
+                    createdByName: creatorDisplayName,
                 },
             });
             await createEstimateVersion(tx, created.id, session!.user.id);

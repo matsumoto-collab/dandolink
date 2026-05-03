@@ -36,7 +36,7 @@ function getDefault30DaysLater(): string {
 
 export default function EstimateForm({ initialData, onSubmit, onCancel }: EstimateFormProps) {
     const { data: session } = useSession();
-    const creatorName = session?.user?.name || '';
+    const creatorName = initialData?.createdByName || session?.user?.name || '';
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { customers, addCustomer, ensureDataLoaded } = useCustomers();
     const { unitPrices, unitPriceCategories, unitPriceSpecifications, ensureDataLoaded: ensureUnitPricesLoaded } = useUnitPriceMaster();

@@ -39,6 +39,8 @@ export interface Estimate {
     createdAt: Date;
     updatedAt: Date;
     updatedBy?: string;
+    createdById?: string | null;
+    createdByName?: string | null;
 }
 
 // 見積書作成時の入力データ

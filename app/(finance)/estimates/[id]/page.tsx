@@ -35,7 +35,7 @@ export default function EstimateDetailPage() {
     const { projects } = useProjects();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { data: session } = useSession();
-    const creatorName = session?.user?.name || '';
+    const sessionName = session?.user?.name || '';
 
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'estimate' | 'budget'>('estimate');
@@ -59,7 +59,7 @@ export default function EstimateDetailPage() {
                 try {
                     const { generateEstimatePDFBlobReact } = await loadPdfGenerator();
                     const effectiveProject = estimate.location ? { ...project, location: estimate.location } : project;
-                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { creatorName });
+                    const url = await generateEstimatePDFBlobReact(estimate, effectiveProject, companyInfo, { creatorName: estimate.createdByName || sessionName });
                     currentUrl = url;
                     setPdfUrl(url);
                 } catch (error) {
@@ -77,13 +77,13 @@ export default function EstimateDetailPage() {
                 URL.revokeObjectURL(currentUrl);
             }
         };
-    }, [estimate, project, companyInfo, creatorName]);
+    }, [estimate, project, companyInfo, sessionName]);
 
     const handleDownload = async () => {
         if (estimate && project && companyInfo) {
             const { exportEstimatePDFReact } = await loadPdfGenerator();
             const effectiveProject = estimate.location ? { ...project, location: estimate.location } : project;
-            exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { creatorName });
+            exportEstimatePDFReact(estimate, effectiveProject, companyInfo, { creatorName: estimate.createdByName || sessionName });
         }
     };
 
