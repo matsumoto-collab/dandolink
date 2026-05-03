@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { Menu } from 'lucide-react';
 import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
+import { APP_NAME, APP_LOGO } from '@/lib/branding';
 
 export default function Header() {
     const { toggleMobileMenu } = useNavigation();
@@ -35,8 +36,8 @@ export default function Header() {
                         aria-label="ホームに戻る（更新）"
                     >
                         <img
-                            src="/dandlink-logo.svg"
-                            alt="DandLink"
+                            src={APP_LOGO}
+                            alt={APP_NAME}
                             className={`h-6 w-auto ${isReloading ? 'animate-pulse opacity-50' : ''}`}
                         />
                     </button>

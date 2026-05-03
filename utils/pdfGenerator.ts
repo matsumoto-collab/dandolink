@@ -64,7 +64,7 @@ export function exportEstimatePDF(
             subject: `${project.title}の見積書`,
             author: companyInfo.name,
             keywords: '見積書, estimate',
-            creator: 'DandoLink'
+            creator: process.env.NEXT_PUBLIC_APP_NAME || 'DandoLink'
         });
 
         // 表紙を生成

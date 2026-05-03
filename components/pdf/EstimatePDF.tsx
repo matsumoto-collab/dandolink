@@ -637,7 +637,7 @@ export function EstimatePDF({ estimate, project, companyInfo, includeDetails = t
             author={companyInfo.name}
             subject={`${estimateTitle}の見積書`}
             keywords="見積書, estimate"
-            creator="DandoLink"
+            creator={process.env.NEXT_PUBLIC_APP_NAME || 'DandoLink'}
         >
             <CoverPage estimate={estimate} project={project} companyInfo={companyInfo} creatorName={creatorName} />
 

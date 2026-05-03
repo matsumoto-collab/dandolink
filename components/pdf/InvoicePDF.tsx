@@ -521,7 +521,7 @@ export function InvoicePDF({
             author={companyInfo.name}
             subject={`${invoice.title || project.title}の請求書`}
             keywords="請求書, invoice"
-            creator="DandoLink"
+            creator={process.env.NEXT_PUBLIC_APP_NAME || 'DandoLink'}
         >
             <CoverPage
                 invoice={invoice}

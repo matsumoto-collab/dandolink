@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 import { useChatStore } from '@/stores/chatStore';
+import { APP_NAME, APP_LOGO } from '@/lib/branding';
 import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
@@ -162,8 +163,8 @@ export default function Sidebar() {
                         aria-label="ホームに戻る（更新）"
                     >
                         <img
-                            src="/dandlink-logo.svg"
-                            alt="DandLink"
+                            src={APP_LOGO}
+                            alt={APP_NAME}
                             className={`h-6 w-auto ${isReloading ? 'animate-pulse opacity-50' : ''}`}
                         />
                     </button>

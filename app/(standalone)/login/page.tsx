@@ -5,6 +5,7 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock, User } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
+import { APP_NAME, APP_LOGO, APP_TAGLINE } from '@/lib/branding';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -47,9 +48,9 @@ export default function LoginPage() {
                     {/* Logo/Title */}
                     <div className="text-center mb-8">
                         <div className="inline-block bg-slate-900 rounded-xl px-6 py-3 mb-3">
-                            <img src="/dandlink-logo.svg" alt="DandLink" className="h-8 w-auto" />
+                            <img src={APP_LOGO} alt={APP_NAME} className="h-8 w-auto" />
                         </div>
-                        <p className="text-slate-500 text-sm">施工管理システム</p>
+                        <p className="text-slate-500 text-sm">{APP_TAGLINE}</p>
                     </div>
 
                     {/* Error Message */}
