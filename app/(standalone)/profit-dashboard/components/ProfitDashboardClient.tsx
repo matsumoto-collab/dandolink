@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import type {
     DashboardSummary, AggregateRow, FilterOptions, DashboardFilters,
@@ -98,6 +99,9 @@ export default function ProfitDashboardClient({
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
+    // フィルタ連打時に重い集計APIを叩かないよう300msデバウンス
+    const debouncedFilters = useDebounce(filters, 300);
+
     const isFirstRender = useRef(true);
     useEffect(() => {
         if (isFirstRender.current) {
@@ -108,7 +112,7 @@ export default function ProfitDashboardClient({
         const run = async () => {
             setIsLoading(true);
             try {
-                const qs = buildQuery(filters);
+                const qs = buildQuery(debouncedFilters);
                 const res = await fetch(`/api/profit-dashboard?${qs}`, { cache: 'no-store' });
                 if (!res.ok) throw new Error('fetch failed');
                 const data = await res.json();
@@ -127,7 +131,7 @@ export default function ProfitDashboardClient({
         };
         run();
         return () => { cancelled = true; };
-    }, [filters]);
+    }, [debouncedFilters]);
 
     const handleSort = (field: SortKey) => {
         if (sortBy === field) setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc');
