@@ -122,6 +122,10 @@ export default function GanttChart({
     const leftBodyRef = useRef<HTMLDivElement>(null);
     const todayRef = useRef<HTMLDivElement>(null);
     const [cellWidth, setCellWidth] = useState(30);
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [showEmptyProjects, setShowEmptyProjects] = useState(false);
+    const [statusFilters, setStatusFilters] = useState<string[]>(['active']);
 
     const days = useMemo(() => getDaysBetween(viewStartDate, viewEndDate), [viewStartDate, viewEndDate]);
     const today = useMemo(() => formatDate(new Date()), []);
@@ -201,8 +205,18 @@ export default function GanttChart({
         return Array.from(names).sort();
     }, [projects]);
 
-    // フィルタ適用
-    const filteredProjects = useMemo(() => {
+    const normalizeText = (s: string) => s.normalize('NFKC').toLowerCase();
+    const viewStartStr = useMemo(() => formatDate(viewStartDate), [viewStartDate]);
+    const viewEndStr = useMemo(() => formatDate(viewEndDate), [viewEndDate]);
+
+    const projectStatusKey = useCallback((status: string): 'active' | 'completed' | 'cancelled' => {
+        if (status === 'active') return 'active';
+        if (status === 'completed') return 'completed';
+        return 'cancelled';
+    }, []);
+
+    // 既存フィルタ＋担当者の適用結果（件数表示の母数となる）
+    const baseFilteredProjects = useMemo(() => {
         return projects.filter(p => {
             if (filterManagerId && !p.managerIds.includes(filterManagerId)) return false;
             if (filterSuffixIds.length > 0 && (!p.constructionSuffixId || !filterSuffixIds.includes(p.constructionSuffixId))) return false;
@@ -211,6 +225,27 @@ export default function GanttChart({
             return true;
         });
     }, [projects, filterManagerId, filterSuffixIds, filterCustomerNames, filterProjectIds]);
+
+    // 新規追加フィルタ（検索/ステータス/空案件）も含めた最終結果
+    const filteredProjects = useMemo(() => {
+        const q = normalizeText(searchQuery.trim());
+        return baseFilteredProjects.filter(p => {
+            // ステータス
+            if (statusFilters.length > 0 && !statusFilters.includes(projectStatusKey(p.status))) return false;
+            // 検索（案件名/正式名称どちらかに部分一致）
+            if (q) {
+                const name = normalizeText(p.projectName || '');
+                const title = normalizeText(p.projectTitle || '');
+                if (!name.includes(q) && !title.includes(q)) return false;
+            }
+            // 空案件
+            if (!showEmptyProjects) {
+                const hasEntryInView = p.workEntries.some(e => e.date >= viewStartStr && e.date <= viewEndStr);
+                if (!hasEntryInView) return false;
+            }
+            return true;
+        });
+    }, [baseFilteredProjects, searchQuery, statusFilters, showEmptyProjects, viewStartStr, viewEndStr, projectStatusKey]);
 
     // 案件ごとのworkEntriesをdateでインデックス
     const projectWorkMap = useMemo(() => {
@@ -305,8 +340,93 @@ export default function GanttChart({
                 </div>
             </div>
 
-            {/* Filter bar */}
-            <div className="flex-shrink-0 flex items-center gap-3 px-4 py-2 border-b border-slate-200 bg-slate-50/50 flex-wrap">
+            {/* Filter toggle button + search/status/empty-toggle/count */}
+            <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-slate-200 bg-slate-50/50 flex-wrap">
+                <button
+                    type="button"
+                    onClick={() => setFiltersOpen(o => !o)}
+                    aria-expanded={filtersOpen}
+                    aria-controls="my-schedule-filter-panel"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors shadow-sm"
+                    style={{ fontSize: 12 }}
+                >
+                    <span>絞り込み{(filterSuffixIds.length + filterCustomerNames.length + filterProjectIds.length) > 0 ? ` (${filterSuffixIds.length + filterCustomerNames.length + filterProjectIds.length})` : ''}</span>
+                    <span aria-hidden className="text-slate-400" style={{ fontSize: 10 }}>{filtersOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {/* 案件名検索 */}
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="案件名で検索"
+                        aria-label="案件名で検索"
+                        className="border border-slate-200 rounded-xl pl-3 pr-7 py-1.5 bg-white shadow-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                        style={{ fontSize: 12, width: 180 }}
+                    />
+                    {searchQuery && (
+                        <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            aria-label="検索をクリア"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 w-5 h-5 inline-flex items-center justify-center text-slate-400 hover:text-red-500 rounded-full"
+                            style={{ fontSize: 12 }}
+                        >
+                            ×
+                        </button>
+                    )}
+                </div>
+
+                {/* ステータスチェックボックス */}
+                <div className="inline-flex items-center gap-2 px-2 py-1 bg-white border border-slate-200 rounded-xl shadow-sm" style={{ fontSize: 12 }}>
+                    <span className="text-slate-500" style={{ fontSize: 11 }}>ステータス:</span>
+                    {([
+                        { key: 'active', label: '進行中' },
+                        { key: 'completed', label: '完了' },
+                        { key: 'cancelled', label: '中止' },
+                    ] as const).map(s => (
+                        <label key={s.key} className="inline-flex items-center gap-1 cursor-pointer text-slate-700">
+                            <input
+                                type="checkbox"
+                                checked={statusFilters.includes(s.key)}
+                                onChange={(e) => {
+                                    setStatusFilters(prev =>
+                                        e.target.checked ? [...prev, s.key] : prev.filter(x => x !== s.key)
+                                    );
+                                }}
+                                className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                            />
+                            <span>{s.label}</span>
+                        </label>
+                    ))}
+                </div>
+
+                {/* 空案件トグル */}
+                <label className="inline-flex items-center gap-1.5 px-2 py-1 bg-white border border-slate-200 rounded-xl shadow-sm cursor-pointer text-slate-700" style={{ fontSize: 12 }}>
+                    <input
+                        type="checkbox"
+                        checked={showEmptyProjects}
+                        onChange={(e) => setShowEmptyProjects(e.target.checked)}
+                        className="rounded border-slate-300 text-teal-600 focus:ring-teal-500"
+                    />
+                    <span>空の案件も表示</span>
+                </label>
+
+                {/* 件数表示 */}
+                <span className="ml-auto text-slate-500" style={{ fontSize: 11 }}>
+                    全{baseFilteredProjects.length}件中{filteredProjects.length}件を表示
+                </span>
+            </div>
+
+            {/* Filter bar (collapsible) */}
+            <div
+                id="my-schedule-filter-panel"
+                className="flex-shrink-0 overflow-hidden border-b border-slate-200 bg-slate-50/50 transition-[max-height,opacity] duration-300 ease-in-out"
+                style={{ maxHeight: filtersOpen ? 400 : 0, opacity: filtersOpen ? 1 : 0 }}
+                aria-hidden={!filtersOpen}
+            >
+              <div className="flex items-center gap-3 px-4 py-2 flex-wrap">
                 {/* 工事名称フィルタ */}
                 <div className="flex items-center gap-1.5">
                     <span className="text-slate-500 whitespace-nowrap" style={{ fontSize: 11 }}>工事:</span>
@@ -405,6 +525,7 @@ export default function GanttChart({
                         クリア
                     </button>
                 )}
+              </div>
             </div>
 
             {/* Header row (fixed) */}
@@ -491,7 +612,7 @@ export default function GanttChart({
 
                     {filteredProjects.length === 0 && (
                         <div className="flex items-center justify-center h-32 text-sm text-slate-400">
-                            表示できる案件がありません
+                            該当する案件がありません
                         </div>
                     )}
                     {/* 右側の横スクロールバー分のスペーサー */}
