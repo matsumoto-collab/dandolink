@@ -7,8 +7,8 @@ import { requireManagerOrAbove } from '@/lib/api/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock dependencies
-jest.mock('@/lib/prisma', () => ({
-    prisma: {
+jest.mock('@/lib/prisma', () => {
+    const prisma: any = {
         customer: {
             findUnique: jest.fn(),
             update: jest.fn(),
@@ -17,8 +17,11 @@ jest.mock('@/lib/prisma', () => ({
         projectMaster: {
             count: jest.fn(),
         },
-    },
-}));
+        $executeRaw: jest.fn(),
+    };
+    prisma.$transaction = jest.fn(async (cb: any) => cb(prisma));
+    return { prisma };
+});
 
 jest.mock('@/lib/api/utils', () => ({
     requireManagerOrAbove: jest.fn(),
@@ -79,6 +82,31 @@ describe('/api/customers/[id]', () => {
             const invalidBody = { name: '' }; // name is required
             const res = await PATCH(createReq(invalidBody), context);
             expect(res.status).toBe(400);
+        });
+
+        it('should sync customerName via raw SQL without touching ProjectMaster.updatedAt', async () => {
+            (prisma.customer.findUnique as jest.Mock).mockResolvedValue(mockCustomer);
+            (prisma.customer.update as jest.Mock).mockResolvedValue({
+                ...mockCustomer,
+                name: 'Renamed Customer',
+            });
+            (prisma.$executeRaw as jest.Mock).mockResolvedValue(1);
+
+            const res = await PATCH(createReq({ name: 'Renamed Customer' }), context);
+            expect(res.status).toBe(200);
+
+            // raw SQL が呼ばれたことを確認
+            expect(prisma.$executeRaw).toHaveBeenCalled();
+
+            // Tagged Template の第1引数は文字列配列（テンプレートリテラルの静的部分）
+            const callArgs = (prisma.$executeRaw as jest.Mock).mock.calls[0];
+            const sqlStrings: string[] = callArgs[0];
+            const sqlJoined = sqlStrings.join(' ');
+
+            // updatedAt を SET 句に含めていないことを保証（リグレッション防止）
+            expect(sqlJoined).not.toMatch(/updatedAt/i);
+            expect(sqlJoined).toContain('"customerName"');
+            expect(sqlJoined).toContain('"customerId"');
         });
 
         it('should return 401 if unauthorized', async () => {

@@ -75,14 +75,29 @@ export async function PATCH(
                 data: updateData,
             });
 
-            if (nameChanged || shortNameChanged) {
-                const syncData: Record<string, unknown> = {};
-                if (nameChanged) syncData.customerName = u.name;
-                if (shortNameChanged) syncData.customerShortName = u.shortName || null;
-                await tx.projectMaster.updateMany({
-                    where: { customerId: id },
-                    data: syncData,
-                });
+            // ProjectMaster.updatedAt の意図しない更新を防ぐため、Prisma の updateMany ではなく
+            // raw SQL を使用しています。Prisma の updateMany は @updatedAt 自動更新により
+            // updatedAt が必ず進んでしまうため、顧客名同期だけのために案件の最終更新日が
+            // 動いてしまう問題がありました。SET句に updatedAt を含めないことで自動更新を回避します。
+            // ※ この実装は意図的なので、updateMany に戻さないでください。
+            if (nameChanged && shortNameChanged) {
+                await tx.$executeRaw`
+                    UPDATE "ProjectMaster"
+                    SET "customerName" = ${u.name}, "customerShortName" = ${u.shortName || null}
+                    WHERE "customerId" = ${id}
+                `;
+            } else if (nameChanged) {
+                await tx.$executeRaw`
+                    UPDATE "ProjectMaster"
+                    SET "customerName" = ${u.name}
+                    WHERE "customerId" = ${id}
+                `;
+            } else if (shortNameChanged) {
+                await tx.$executeRaw`
+                    UPDATE "ProjectMaster"
+                    SET "customerShortName" = ${u.shortName || null}
+                    WHERE "customerId" = ${id}
+                `;
             }
 
             return u;
