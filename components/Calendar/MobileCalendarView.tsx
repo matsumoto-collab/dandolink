@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
@@ -157,73 +157,12 @@ export default function MobileCalendarView({
     const touchMoved = useRef(false);
     const touchStart = useRef({ x: 0, y: 0 });
 
-    // ── 軸ロック用 ──
-    // モバイルで斜めスクロール（誤操作の元）を防ぐため、最初に検知した
-    // 軸方向のみにロック。touchstart でリセット → 初回 touchmove で軸確定
-    // → 以降は preventDefault でロック軸以外の動きを無効化。
-    // React の onTouchMove はパッシブで preventDefault 不可のため
-    // 非パッシブリスナを直接登録する。
-    const scrollAreaRef = useRef<HTMLDivElement | null>(null);
-    const lockedAxis = useRef<'x' | 'y' | null>(null);
-    const lastTouch = useRef({ x: 0, y: 0 });
-    const AXIS_LOCK_THRESHOLD = 8; // px。小さすぎると手の震えで誤発動するため8pxに固定
-
-    useEffect(() => {
-        const el = scrollAreaRef.current;
-        if (!el) return;
-
-        const onTouchMoveNative = (e: TouchEvent) => {
-            if (e.touches.length !== 1) return;
-            const t = e.touches[0];
-            const dx = t.clientX - lastTouch.current.x;
-            const dy = t.clientY - lastTouch.current.y;
-
-            if (lockedAxis.current === null) {
-                // ロック前：両軸の動きをブラウザに任せる（素直に追従）
-                const totalDx = Math.abs(t.clientX - touchStart.current.x);
-                const totalDy = Math.abs(t.clientY - touchStart.current.y);
-                if (totalDx > AXIS_LOCK_THRESHOLD || totalDy > AXIS_LOCK_THRESHOLD) {
-                    lockedAxis.current = totalDx > totalDy ? 'x' : 'y';
-                    // 動作確認後消去予定
-                    console.log('[MobileCalendarView] axis locked:', lockedAxis.current);
-                }
-                lastTouch.current = { x: t.clientX, y: t.clientY };
-                return;
-            }
-
-            // ロック後：ロック軸方向だけ手動でスクロール、他軸は preventDefault で無効化
-            e.preventDefault();
-            if (lockedAxis.current === 'x') {
-                el.scrollLeft -= dx;
-            } else {
-                el.scrollTop -= dy;
-            }
-            lastTouch.current = { x: t.clientX, y: t.clientY };
-        };
-
-        const onTouchEndNative = () => {
-            lockedAxis.current = null;
-        };
-
-        el.addEventListener('touchmove', onTouchMoveNative, { passive: false });
-        el.addEventListener('touchend', onTouchEndNative);
-        el.addEventListener('touchcancel', onTouchEndNative);
-        return () => {
-            el.removeEventListener('touchmove', onTouchMoveNative);
-            el.removeEventListener('touchend', onTouchEndNative);
-            el.removeEventListener('touchcancel', onTouchEndNative);
-        };
-    }, []);
-
     // ── 長押しタイマー ──
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const onScrollAreaTouchStart = useCallback((e: React.TouchEvent) => {
         touchMoved.current = false;
         touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        // 軸ロックも初期化（前回ジェスチャの残りを引きずらない）
-        lastTouch.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-        lockedAxis.current = null;
     }, []);
 
     const onScrollAreaTouchMove = useCallback((e: React.TouchEvent) => {
@@ -355,17 +294,8 @@ export default function MobileCalendarView({
             )}
 
             {/* ── グリッド本体（縦横スクロール） ── */}
-            {/* スクロール終端で最寄りの「日付カラム」「班行」境界に吸い付くようにする。
-                proximity を採用しているのは mandatory だと中途半端な位置で離した時に
-                強制ジャンプして違和感が出るため。 */}
             <div
-                ref={scrollAreaRef}
                 className="flex-1 overflow-auto"
-                style={{
-                    scrollSnapType: 'both proximity',
-                    scrollPaddingTop: isLandscape ? 28 + 20 : 40 + 28, // sticky ヘッダー2段分
-                    scrollPaddingLeft: LABEL_W,                         // sticky 左ラベル幅
-                }}
                 onTouchStart={onScrollAreaTouchStart}
                 onTouchMove={onScrollAreaTouchMove}
             >
@@ -393,8 +323,7 @@ export default function MobileCalendarView({
                                         : isSun ? 'bg-rose-50'
                                         : 'bg-slate-100'
                                     }`}
-                                    // 横スナップ：日付カラム境界に吸い付く
-                                    style={{ width: COL_W, scrollSnapAlign: 'start' }}
+                                    style={{ width: COL_W }}
                                 >
                                     <span className={`text-[11px] font-bold ${
                                         isToday ? 'text-white' : isSat ? 'text-slate-700' : isSun ? 'text-slate-600' : 'text-slate-700'
@@ -544,8 +473,6 @@ export default function MobileCalendarView({
                             <div
                                 key={`${row.employeeId}-${row.rowIndex}`}
                                 className={`flex border-b border-slate-200 ${isLandscape ? 'min-h-[52px]' : 'min-h-[80px]'}`}
-                                // 縦スナップ：班行境界に吸い付く
-                                style={{ scrollSnapAlign: 'start' }}
                             >
                                 {/* 職長名（左固定） */}
                                 <div
