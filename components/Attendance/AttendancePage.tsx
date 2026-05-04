@@ -378,26 +378,32 @@ export default function AttendancePage() {
                             <option key={f.id} value={f.id}>{f.displayName}</option>
                         ))}
                     </select>
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm text-slate-600 whitespace-nowrap">期間</span>
-                        <input
-                            type="date"
-                            value={rangeStart}
-                            max={rangeEnd || undefined}
-                            onChange={(e) => setRangeStart(e.target.value)}
-                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                        />
-                        <span className="text-slate-400">〜</span>
-                        <input
-                            type="date"
-                            value={rangeEnd}
-                            min={rangeStart || undefined}
-                            onChange={(e) => setRangeEnd(e.target.value)}
-                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                        />
+                    {/* モバイルでは「期間ラベル + 日付2つ」を1行・「直近30日」を全幅の別行へ。
+                        md: 以上は従来の1行レイアウトを維持 */}
+                    <div className="flex flex-col md:flex-row md:items-center md:gap-2 md:flex-wrap">
+                        <div className="flex items-center gap-2">
+                            <span className="text-sm text-slate-600 whitespace-nowrap">期間</span>
+                            <input
+                                type="date"
+                                value={rangeStart}
+                                max={rangeEnd || undefined}
+                                onChange={(e) => setRangeStart(e.target.value)}
+                                // モバイルで input が縮まずボタンを押し出さないよう flex-1 min-w-0
+                                className="flex-1 md:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                            />
+                            <span className="text-slate-400">〜</span>
+                            <input
+                                type="date"
+                                value={rangeEnd}
+                                min={rangeStart || undefined}
+                                onChange={(e) => setRangeEnd(e.target.value)}
+                                className="flex-1 md:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                            />
+                        </div>
                         <button
                             onClick={resetRange}
-                            className="px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
+                            // モバイルでは別行・全幅。md: 以上は元通りインライン
+                            className="mt-2 w-full md:mt-0 md:w-auto px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
                         >
                             直近30日
                         </button>

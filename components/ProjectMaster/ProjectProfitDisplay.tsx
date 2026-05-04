@@ -123,7 +123,9 @@ function AmountCell({
 
     if (!editMode) {
         return (
-            <span className="inline-flex items-center gap-1.5">
+            // 親が flex justify-between の右側に置かれるので、モバイルで金額が
+            // 縮められないよう flex-shrink-0 を付与（左ラベル側で truncate させる）
+            <span className="inline-flex items-center gap-1.5 flex-shrink-0">
                 <span className={`tabular-nums font-medium ${hasOverride ? 'text-amber-700' : 'text-slate-700'}`}>
                     {formatCurrency(value)}
                 </span>
@@ -135,11 +137,12 @@ function AmountCell({
     }
 
     return (
-        <span className="inline-flex items-center gap-1">
+        // 編集モードも同様に flex-shrink-0。input はモバイルで w-24 に縮め、md: 以上で従来の w-32
+        <span className="inline-flex items-center gap-1 flex-shrink-0">
             <input
                 type="number"
                 inputMode="numeric"
-                className={`w-32 px-2 py-0.5 text-sm border rounded-md tabular-nums text-right ${isDirty ? 'border-amber-400 bg-amber-50' : 'border-slate-300'}`}
+                className={`w-24 md:w-32 px-2 py-0.5 text-sm border rounded-md tabular-nums text-right ${isDirty ? 'border-amber-400 bg-amber-50' : 'border-slate-300'}`}
                 value={effectiveOverride ?? auto}
                 placeholder={String(auto)}
                 onChange={e => {
@@ -396,7 +399,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                         <button
                                             type="button"
                                             onClick={() => section.expandable && toggle(section.key)}
-                                            className={`flex items-center gap-1 text-sm ${section.expandable ? 'text-slate-700 hover:text-slate-900' : 'text-slate-700 cursor-default'}`}
+                                            // モバイルで右側 AmountCell が押し出されないよう、
+                                            // ラベル側を min-w-0 truncate で収縮可能に
+                                            className={`flex items-center gap-1 text-sm min-w-0 truncate ${section.expandable ? 'text-slate-700 hover:text-slate-900' : 'text-slate-700 cursor-default'}`}
                                             disabled={!section.expandable}
                                         >
                                             {section.expandable ? (

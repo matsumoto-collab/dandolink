@@ -350,12 +350,14 @@ export default function EstimateListPage() {
                                     </div>
 
                                     {/* ステータスと日付 */}
-                                    <div className="flex items-center justify-between">
-                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
-                                            <StatusIcon className="w-4 h-4" />
-                                            {statusInfo.label}
+                                    <div className="flex items-center justify-between gap-2">
+                                        {/* バッジ側はモバイルで縮められるよう min-w-0 truncate */}
+                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold min-w-0 ${statusInfo.bg} ${statusInfo.color}`}>
+                                            <StatusIcon className="w-4 h-4 flex-shrink-0" />
+                                            <span className="truncate">{statusInfo.label}</span>
                                         </span>
-                                        <span className="text-xs text-slate-500">
+                                        {/* 有効期限が右端で見切れないよう flex-shrink-0 + whitespace-nowrap */}
+                                        <span className="text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">
                                             有効期限: {formatDate(estimate.validUntil, 'short')}
                                         </span>
                                     </div>

@@ -735,12 +735,14 @@ export default function ProjectMasterListPage() {
                         />
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    {/* モバイルではフィルタとボタンを縦積みにし、ボタンを全幅にして
+                        「新規登録」テキストの右端見切れを防ぐ。md: 以上は従来の横並びを維持 */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-3">
                         {/* Status Filter */}
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value)}
-                            className="flex-1 md:flex-none px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
+                            className="w-full md:w-auto md:flex-none px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 shadow-sm"
                         >
                             <option value="all">全てのステータス</option>
                             <option value="active">進行中</option>
@@ -752,6 +754,8 @@ export default function ProjectMasterListPage() {
                                 variant="primary"
                                 onClick={() => setIsCreating(true)}
                                 leftIcon={<Plus className="w-5 h-5" />}
+                                // モバイルで全幅、md: 以上はコンテンツ幅で右寄せ表示
+                                className="w-full md:w-auto"
                             >
                                 <span className="hidden sm:inline">新規案件登録</span>
                                 <span className="sm:hidden">新規登録</span>
