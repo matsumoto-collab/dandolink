@@ -205,7 +205,8 @@ export default function ProfitDashboardClient({
                                 type="date"
                                 value={filters.dateFrom ?? ''}
                                 onChange={e => updateFilter('dateFrom', e.target.value || undefined)}
-                                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                // iOS Safariのdate input強制最小幅を抑えるため min-w-0 / モバイルは padding 縮小
+                                className="w-full min-w-0 border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500 shadow-sm"
                             />
                         </FilterField>
                         <FilterField label="終了日">
@@ -213,7 +214,8 @@ export default function ProfitDashboardClient({
                                 type="date"
                                 value={filters.dateTo ?? ''}
                                 onChange={e => updateFilter('dateTo', e.target.value || undefined)}
-                                className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                // iOS Safariのdate input強制最小幅を抑えるため min-w-0 / モバイルは padding 縮小
+                                className="w-full min-w-0 border border-slate-200 rounded-xl px-2 sm:px-3 py-2 text-sm focus:ring-2 focus:ring-slate-500 shadow-sm"
                             />
                         </FilterField>
                         <FilterField label="ステータス">
@@ -269,7 +271,8 @@ export default function ProfitDashboardClient({
                 </div>
 
                 {/* サマリーカード */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                {/* スマホ縦は1列、タブレット縦は2列、PCは4列 */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                     <SummaryCard title="総売上" value={formatCurrency(summary.totalRevenue)} />
                     <SummaryCard title="総原価" value={formatCurrency(summary.totalCost)} />
                     <SummaryCard
@@ -373,7 +376,9 @@ export default function ProfitDashboardClient({
 
 function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
     return (
-        <div>
+        // grid 子の min-content デフォルトを上書きし、内部の date input 等が
+        // ブラウザ強制最小幅で親をはみ出させないよう min-w-0 を付与
+        <div className="min-w-0">
             <label className="block text-xs font-medium text-slate-600 mb-1.5">{label}</label>
             {children}
         </div>
@@ -905,11 +910,16 @@ function SummaryCard({
         : emphasis === 'warn' ? 'text-amber-600'
             : 'text-slate-800';
     return (
-        // モバイル(2列レイアウト)で大きな数値（億単位等）がはみ出すのを防ぐため
-        // フォントを縮小し、数字幅を tabular-nums で均一化
+        // モバイルでは1列縦積みになるためフォントは text-2xl で統一。
+        // 兆単位など極端な値でも安全なよう truncate + title でフォロー。
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
             <div className="text-sm font-medium text-slate-500 mb-2">{title}</div>
-            <div className={`text-xl md:text-2xl font-bold tabular-nums ${valueColor}`}>{value}</div>
+            <div
+                className={`text-2xl font-bold tabular-nums truncate ${valueColor}`}
+                title={value}
+            >
+                {value}
+            </div>
         </div>
     );
 }
