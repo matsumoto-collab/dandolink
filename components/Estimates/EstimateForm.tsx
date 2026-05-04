@@ -569,7 +569,9 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                         </button>
                     </div>
                     <div className="flex-1 overflow-auto bg-slate-100 flex justify-center">
-                        <div className="w-full max-w-[calc(100vw-256px)] h-full">
+                        {/* PDFプレビュー本体はモーダル(fixed inset-0)でサイドバーの上に被さるため、
+                            サイドバー幅を引く必要はない。max-w-5xl で超広画面のみ最大幅を制限。 */}
+                        <div className="w-full max-w-5xl h-full">
                             <InlinePdfViewer url={previewPdfUrl} />
                         </div>
                     </div>
