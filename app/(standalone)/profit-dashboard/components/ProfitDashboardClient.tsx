@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
+import { ChevronRight } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
@@ -311,7 +312,8 @@ export default function ProfitDashboardClient({
 
                 {/* タブ */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="flex items-center border-b border-slate-200 overflow-x-auto">
+                    {/* モバイルでタブが多い時の折返し対応 + 件数表示が縦書き化しないよう whitespace-nowrap */}
+                    <div className="flex items-center border-b border-slate-200 overflow-x-auto flex-wrap">
                         {TABS.map(tab => (
                             <button
                                 key={tab.key}
@@ -324,7 +326,7 @@ export default function ProfitDashboardClient({
                                 {tab.label}
                             </button>
                         ))}
-                        <div className="ml-auto px-4 text-xs text-slate-500">
+                        <div className="ml-auto px-4 py-2 text-xs text-slate-500 whitespace-nowrap">
                             {activeTab === 'project' && searchQuery.trim()
                                 ? `${filteredProjects.length} / ${summary.totalProjects}件の案件`
                                 : `${summary.totalProjects}件の案件`}
@@ -336,7 +338,7 @@ export default function ProfitDashboardClient({
                             <div className="px-4 py-2 text-xs text-slate-500 bg-slate-50 border-b border-slate-200">
                                 売上の採用ロジック: <strong className="text-slate-700">請求済</strong> → <strong className="text-slate-700">契約</strong> → <strong className="text-slate-700">見積</strong> の優先順位
                             </div>
-                            <ProjectTable projects={filteredProjects} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+                            <ProjectTable projects={filteredProjects} sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} setSortBy={setSortBy} setSortOrder={setSortOrder} />
                         </>
                     ) : (
                         <AggregateTable
@@ -349,6 +351,8 @@ export default function ProfitDashboardClient({
                             sortBy={sortBy}
                             sortOrder={sortOrder}
                             onSort={handleSort}
+                            setSortBy={setSortBy}
+                            setSortOrder={setSortOrder}
                             note={activeTab === 'foreman'
                                 ? '※ 各案件の売上・原価を職長のアサイン件数で按分しています'
                                 : undefined}
@@ -470,12 +474,14 @@ function MultiSelect({
 const PAGE_SIZE = 20;
 
 function ProjectTable({
-    projects, sortBy, sortOrder, onSort,
+    projects, sortBy, sortOrder, onSort, setSortBy, setSortOrder,
 }: {
     projects: SerializedProjectProfit[];
     sortBy: SortKey;
     sortOrder: 'asc' | 'desc';
     onSort: (k: SortKey) => void;
+    setSortBy: (k: SortKey) => void;
+    setSortOrder: (o: 'asc' | 'desc') => void;
 }) {
     const sorted = useMemo(() => projects.slice().sort((a, b) => {
         const av = a[sortBy], bv = b[sortBy];
@@ -489,7 +495,77 @@ function ProjectTable({
 
     return (
         <div>
-        <div className="overflow-auto max-h-[70vh]">
+        {/* モバイル用カードビュー */}
+        <div className="md:hidden">
+            <MobileSortSelector sortBy={sortBy} sortOrder={sortOrder} setSortBy={setSortBy} setSortOrder={setSortOrder} />
+            {sorted.length === 0 ? (
+                <div className="px-4 py-8 text-center text-sm text-slate-500">該当する案件がありません</div>
+            ) : (
+                <div className="space-y-3 px-4 py-4">
+                    {pageItems.map(p => (
+                        <div key={p.id} className="rounded-xl border border-slate-200 bg-white shadow-sm p-4">
+                            <div className="font-medium text-slate-800 break-words">{p.title}</div>
+                            <div className="text-xs text-slate-500 mt-0.5">
+                                {p.status === 'completed' ? '完了' : '進行中'}
+                                {p.customerName && <span className="mx-1.5 text-slate-300">|</span>}
+                                {p.customerName}
+                            </div>
+                            <div className="mt-3 divide-y divide-slate-100 text-sm">
+                                <div className="flex items-start justify-between py-1.5 gap-2">
+                                    <span className="text-slate-500 flex-shrink-0">売上</span>
+                                    <div className="text-right min-w-0">
+                                        <div className="flex items-center justify-end gap-2">
+                                            <span className="font-medium text-slate-800 tabular-nums">{formatCurrency(p.revenue)}</span>
+                                            <RevenueSourceBadge source={p.revenueSource} />
+                                        </div>
+                                        {(p.invoiceAmount > 0 || p.contractAmount > 0 || p.estimateAmount > 0) && (
+                                            <div className="text-[10px] text-slate-400 mt-0.5">
+                                                {p.invoiceAmount > 0 && p.revenueSource !== 'invoice' && <>請求 {formatCurrency(p.invoiceAmount)} </>}
+                                                {p.contractAmount > 0 && p.revenueSource !== 'contract' && <>足場工事 {formatCurrency(p.contractAmount)} </>}
+                                                {p.estimateAmount > 0 && p.revenueSource !== 'estimate' && <>見積 {formatCurrency(p.estimateAmount)}</>}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-start justify-between py-1.5 gap-2">
+                                    <span className="text-slate-500 flex-shrink-0">原価</span>
+                                    <div className="text-right min-w-0">
+                                        <div className="text-slate-600 tabular-nums">{formatCurrency(p.totalCost)}</div>
+                                        {p.estimateCostTotal != null && (
+                                            <div className="text-[10px] text-slate-400">
+                                                見積: {formatCurrency(p.estimateCostTotal)}
+                                                {p.totalCost > 0 && (
+                                                    <span className={`ml-1 ${p.totalCost > p.estimateCostTotal ? 'text-red-500' : 'text-emerald-600'}`}>
+                                                        ({p.totalCost > p.estimateCostTotal ? '+' : ''}{formatCurrency(p.totalCost - p.estimateCostTotal)})
+                                                    </span>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between py-1.5 gap-2">
+                                    <span className="text-slate-500 flex-shrink-0">粗利</span>
+                                    <span className={`font-medium tabular-nums ${p.grossProfit >= 0 ? 'text-slate-800' : 'text-red-600'}`}>
+                                        {formatCurrency(p.grossProfit)}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between py-1.5 gap-2">
+                                    <span className="text-slate-500 flex-shrink-0">利益率</span>
+                                    <span className={`font-bold tabular-nums ${getProfitMarginColor(p.profitMargin)}`}>{p.profitMargin}%</span>
+                                </div>
+                                <div className="flex items-center justify-between py-1.5 gap-2">
+                                    <span className="text-slate-500 flex-shrink-0">配置</span>
+                                    <span className="text-slate-500 tabular-nums">{p.assignmentCount}件</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+
+        {/* PC用テーブルビュー（既存挙動を維持） */}
+        <div className="hidden md:block overflow-auto max-h-[70vh]">
             <table className="w-full">
                 <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                     <tr>
@@ -558,13 +634,15 @@ function ProjectTable({
 }
 
 function AggregateTable({
-    label, rows, sortBy, sortOrder, onSort, note, onRowClick,
+    label, rows, sortBy, sortOrder, onSort, setSortBy, setSortOrder, note, onRowClick,
 }: {
     label: string;
     rows: AggregateRow[];
     sortBy: SortKey;
     sortOrder: 'asc' | 'desc';
     onSort: (k: SortKey) => void;
+    setSortBy: (k: SortKey) => void;
+    setSortOrder: (o: 'asc' | 'desc') => void;
     note?: string;
     onRowClick?: (row: AggregateRow) => void;
 }) {
@@ -588,7 +666,60 @@ function AggregateTable({
                     行をクリックすると、その項目で絞り込んで案件別タブで詳細を確認できます
                 </div>
             )}
-            <div className="overflow-auto max-h-[70vh]">
+
+            {/* モバイル用カードビュー */}
+            <div className="md:hidden">
+                <MobileSortSelector sortBy={sortBy} sortOrder={sortOrder} setSortBy={setSortBy} setSortOrder={setSortOrder} />
+                {sorted.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-slate-500">データがありません</div>
+                ) : (
+                    <div className="space-y-3 px-4 py-4">
+                        {pageItems.map(r => {
+                            // タップでフィードバックが出るよう active:bg-slate-100 + scale を併用
+                            const cardClass = `w-full text-left rounded-xl border border-slate-200 bg-white shadow-sm p-4 transition-all ${onRowClick ? 'active:bg-slate-100 active:scale-[0.99]' : ''}`;
+                            const inner = (
+                                <>
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <div className="font-medium text-slate-800 break-words">{r.name}</div>
+                                            <div className="text-xs text-slate-500 mt-0.5">案件数: {r.projectCount}件</div>
+                                        </div>
+                                        {onRowClick && <ChevronRight className="w-4 h-4 text-slate-400 flex-shrink-0 mt-1" />}
+                                    </div>
+                                    <div className="mt-3 divide-y divide-slate-100 text-sm">
+                                        <div className="flex items-center justify-between py-1.5 gap-2">
+                                            <span className="text-slate-500 flex-shrink-0">売上</span>
+                                            <span className="font-medium text-slate-800 tabular-nums">{formatCurrency(r.revenue)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-1.5 gap-2">
+                                            <span className="text-slate-500 flex-shrink-0">原価</span>
+                                            <span className="text-slate-600 tabular-nums">{formatCurrency(r.totalCost)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-1.5 gap-2">
+                                            <span className="text-slate-500 flex-shrink-0">粗利</span>
+                                            <span className={`font-medium tabular-nums ${r.grossProfit >= 0 ? 'text-slate-800' : 'text-red-600'}`}>
+                                                {formatCurrency(r.grossProfit)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between py-1.5 gap-2">
+                                            <span className="text-slate-500 flex-shrink-0">利益率</span>
+                                            <span className={`font-bold tabular-nums ${getProfitMarginColor(r.profitMargin)}`}>{r.profitMargin}%</span>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                            return onRowClick ? (
+                                <button key={r.key} type="button" onClick={() => onRowClick(r)} className={cardClass}>{inner}</button>
+                            ) : (
+                                <div key={r.key} className={cardClass}>{inner}</div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
+
+            {/* PC用テーブルビュー（既存挙動を維持） */}
+            <div className="hidden md:block overflow-auto max-h-[70vh]">
                 <table className="w-full">
                     <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                         <tr>
@@ -645,41 +776,77 @@ function Pagination({
     const start = (page - 1) * PAGE_SIZE + 1;
     const end = Math.min(page * PAGE_SIZE, totalItems);
     return (
-        <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 bg-white text-sm">
-            <div className="text-slate-500">
+        // モバイルでは縦積み・件数表示を中央寄せ。md: 以上は従来の左右両端配置
+        <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between px-4 py-3 border-t border-slate-200 bg-white text-sm">
+            <div className="text-slate-500 text-center md:text-left whitespace-nowrap">
                 {start}〜{end} / {totalItems}件
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 justify-center md:justify-end">
+                {/* 「最初」「最後」はモバイルで非表示にしてコンパクト化 */}
                 <button
                     onClick={() => onChange(1)}
                     disabled={page <= 1}
-                    className="px-2 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="hidden md:inline-flex flex-shrink-0 px-2 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     最初
                 </button>
                 <button
                     onClick={() => onChange(page - 1)}
                     disabled={page <= 1}
-                    className="px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-shrink-0 px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     前へ
                 </button>
-                <span className="text-slate-600 px-2">{page} / {totalPages}</span>
+                <span className="text-slate-600 px-2 whitespace-nowrap">{page} / {totalPages}</span>
                 <button
                     onClick={() => onChange(page + 1)}
                     disabled={page >= totalPages}
-                    className="px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-shrink-0 px-3 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     次へ
                 </button>
                 <button
                     onClick={() => onChange(totalPages)}
                     disabled={page >= totalPages}
-                    className="px-2 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="hidden md:inline-flex flex-shrink-0 px-2 py-1 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                 >
                     最後
                 </button>
             </div>
+        </div>
+    );
+}
+
+// モバイル用のソート切替（昇順/降順を選択肢として明示）
+function MobileSortSelector({
+    sortBy, sortOrder, setSortBy, setSortOrder,
+}: {
+    sortBy: SortKey;
+    sortOrder: 'asc' | 'desc';
+    setSortBy: (k: SortKey) => void;
+    setSortOrder: (o: 'asc' | 'desc') => void;
+}) {
+    const value = `${sortBy}:${sortOrder}`;
+    const onChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const [k, o] = e.target.value.split(':') as [SortKey, 'asc' | 'desc'];
+        setSortBy(k);
+        setSortOrder(o);
+    };
+    return (
+        <div className="px-4 py-3 border-b border-slate-200 bg-slate-50 flex items-center gap-2">
+            <label className="text-xs text-slate-500 whitespace-nowrap">並び順</label>
+            <select
+                value={value}
+                onChange={onChange}
+                className="flex-1 min-w-0 border border-slate-200 rounded-xl px-3 py-1.5 text-sm bg-white shadow-sm focus:ring-2 focus:ring-slate-500"
+            >
+                <option value="revenue:desc">売上 ↓（高い順）</option>
+                <option value="revenue:asc">売上 ↑（低い順）</option>
+                <option value="grossProfit:desc">粗利 ↓（高い順）</option>
+                <option value="grossProfit:asc">粗利 ↑（低い順）</option>
+                <option value="profitMargin:desc">利益率 ↓（高い順）</option>
+                <option value="profitMargin:asc">利益率 ↑（低い順）</option>
+            </select>
         </div>
     );
 }
@@ -738,9 +905,11 @@ function SummaryCard({
         : emphasis === 'warn' ? 'text-amber-600'
             : 'text-slate-800';
     return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        // モバイル(2列レイアウト)で大きな数値（億単位等）がはみ出すのを防ぐため
+        // フォントを縮小し、数字幅を tabular-nums で均一化
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm min-w-0">
             <div className="text-sm font-medium text-slate-500 mb-2">{title}</div>
-            <div className={`text-2xl font-bold ${valueColor}`}>{value}</div>
+            <div className={`text-xl md:text-2xl font-bold tabular-nums ${valueColor}`}>{value}</div>
         </div>
     );
 }
