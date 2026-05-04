@@ -260,18 +260,52 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
     };
 
     const [downloadMenuId, setDownloadMenuId] = useState<string | null>(null);
+    const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-    const handleDownload = (file: ProjectMasterFileData, format?: string) => {
+    /**
+     * iOS Safari / Android / PWA でも確実に保存できるダウンロード処理:
+     * fetch → Blob → object URL → <a download> → click → revoke
+     * (window.open で cross-origin の Supabase signed URL を開くと iOS では表示のみで保存されない)
+     */
+    const handleDownload = async (file: ProjectMasterFileData, format?: string) => {
         if (!projectMasterId) return;
-        const params = new URLSearchParams();
-        if (format) {
-            params.set('format', format);
-        } else {
-            params.set('quality', file.originalStoragePath ? 'original' : 'display');
-        }
-        const url = `/api/project-masters/${projectMasterId}/files/${file.id}?${params}`;
-        window.open(url, '_blank');
+        if (downloadingId) return;
         setDownloadMenuId(null);
+        setDownloadingId(file.id);
+        try {
+            const params = new URLSearchParams();
+            if (format) {
+                params.set('format', format);
+            } else {
+                params.set('quality', file.originalStoragePath ? 'original' : 'display');
+            }
+            const apiUrl = `/api/project-masters/${projectMasterId}/files/${file.id}?${params}`;
+
+            const res = await fetch(apiUrl, { cache: 'no-store' });
+            if (!res.ok) throw new Error('download failed');
+            const blob = await res.blob();
+
+            let downloadName = file.fileName;
+            if (format) {
+                const base = file.fileName.replace(/\.[^.]+$/, '');
+                const ext = format === 'jpeg' ? 'jpg' : format;
+                downloadName = `${base}.${ext}`;
+            }
+
+            const objectUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = objectUrl;
+            a.download = downloadName;
+            a.rel = 'noopener';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+        } catch {
+            toast.error('ダウンロードに失敗しました');
+        } finally {
+            setDownloadingId(null);
+        }
     };
 
     const tabFiles = files.filter(f => f.category === activeTab);
