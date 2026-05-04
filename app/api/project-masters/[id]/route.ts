@@ -1,8 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, stringifyJsonField, errorResponse, notFoundResponse, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { canDispatch, isManagerOrAbove } from '@/utils/permissions';
 import { formatProjectMaster, stripProjectMasterFinancials } from '@/lib/formatters';
+
+// 配置の副作用としての同期更新では、ProjectMaster.updatedAt を進めない。
+// ユーザーが案件詳細を明示的に編集していないのに「最終更新日」が
+// 変わると混乱を招くため、syncOnly フラグで raw SQL 更新に切り替える。
+// ※この設計は意図的なので、通常の update に戻さないでください。
+//
+// カラム識別子は SQL インジェクション防止のためホワイトリストで
+// ハードコード。値は ${} で渡し Prisma 側でパラメータ化させる。
+// 対応カラムは PATCH の updateData が書き込みうるカラム集合と一致させる。
+const SYNC_COLUMN_FRAGMENTS: Record<string, (v: unknown) => Prisma.Sql> = {
+    name: (v) => Prisma.sql`"name" = ${v}`,
+    honorific: (v) => Prisma.sql`"honorific" = ${v}`,
+    constructionSuffixId: (v) => Prisma.sql`"constructionSuffixId" = ${v}`,
+    siteShortName: (v) => Prisma.sql`"siteShortName" = ${v}`,
+    title: (v) => Prisma.sql`"title" = ${v}`,
+    customerId: (v) => Prisma.sql`"customerId" = ${v}`,
+    customerName: (v) => Prisma.sql`"customerName" = ${v}`,
+    customerShortName: (v) => Prisma.sql`"customerShortName" = ${v}`,
+    constructionType: (v) => Prisma.sql`"constructionType" = ${v}`,
+    constructionContent: (v) => Prisma.sql`"constructionContent" = ${v}`,
+    status: (v) => Prisma.sql`"status" = ${v}`,
+    location: (v) => Prisma.sql`"location" = ${v}`,
+    postalCode: (v) => Prisma.sql`"postalCode" = ${v}`,
+    prefecture: (v) => Prisma.sql`"prefecture" = ${v}`,
+    city: (v) => Prisma.sql`"city" = ${v}`,
+    plusCode: (v) => Prisma.sql`"plusCode" = ${v}`,
+    latitude: (v) => Prisma.sql`"latitude" = ${v}`,
+    longitude: (v) => Prisma.sql`"longitude" = ${v}`,
+    area: (v) => Prisma.sql`"area" = ${v}`,
+    areaRemarks: (v) => Prisma.sql`"areaRemarks" = ${v}`,
+    estimatedAssemblyWorkers: (v) => Prisma.sql`"estimatedAssemblyWorkers" = ${v}`,
+    estimatedDemolitionWorkers: (v) => Prisma.sql`"estimatedDemolitionWorkers" = ${v}`,
+    contractAmount: (v) => Prisma.sql`"contractAmount" = ${v}`,
+    materialCost: (v) => Prisma.sql`"materialCost" = ${v}`,
+    otherExpenses: (v) => Prisma.sql`"otherExpenses" = ${v}`,
+    scaffoldingSpec: (v) => Prisma.sql`"scaffoldingSpec" = ${v === null ? null : JSON.stringify(v)}::jsonb`,
+    description: (v) => Prisma.sql`"description" = ${v}`,
+    remarks: (v) => Prisma.sql`"remarks" = ${v}`,
+    createdBy: (v) => Prisma.sql`"createdBy" = ${v}`,
+};
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -51,6 +92,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
         const body = await req.json();
+        const syncOnly = new URL(req.url).searchParams.get('syncOnly') === 'true';
 
         const VALID_STATUSES = ['active', 'completed', 'cancelled'];
 
@@ -194,13 +236,35 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             return NextResponse.json({ ...formatProjectMaster(current ?? existing), ...flags });
         }
 
-        if (hasFieldChanges) {
+        // syncOnly=true の時は updatedBy も更新しない（呼び出し元が
+        // 明示指定しても無視）。通常時のみ updatedBy を進める。
+        if (hasFieldChanges && !syncOnly) {
             changedData.updatedBy = session!.user.id;
+        }
+        if (syncOnly) {
+            delete changedData.updatedBy;
         }
 
         const projectMaster = await prisma.$transaction(async (tx) => {
             if (hasFieldChanges) {
-                await tx.projectMaster.update({ where: { id }, data: changedData });
+                if (syncOnly) {
+                    // 配置の副作用としての同期更新では、ProjectMaster.updatedAt を進めない。
+                    // Prisma の update は @updatedAt で自動更新されてしまうため raw SQL を使用。
+                    // SET 句に updatedAt / updatedBy を含めない。
+                    // ※この実装は意図的なので、通常の update に戻さないでください。
+                    const setFragments: Prisma.Sql[] = [];
+                    for (const [key, value] of Object.entries(changedData)) {
+                        const fragmentBuilder = SYNC_COLUMN_FRAGMENTS[key];
+                        if (fragmentBuilder) setFragments.push(fragmentBuilder(value));
+                    }
+                    if (setFragments.length > 0) {
+                        await tx.$executeRaw(
+                            Prisma.sql`UPDATE "ProjectMaster" SET ${Prisma.join(setFragments, ', ')} WHERE "id" = ${id}`
+                        );
+                    }
+                } else {
+                    await tx.projectMaster.update({ where: { id }, data: changedData });
+                }
             }
             if (hasSubcontractorUpdate) {
                 await tx.projectMasterSubcontractorCost.deleteMany({ where: { projectMasterId: id } });
@@ -215,7 +279,8 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                     });
                 }
                 // 協力業者費だけ変更された場合も updatedBy / updatedAt を進める
-                if (!hasFieldChanges) {
+                // （ただし syncOnly=true の時は updatedAt 抑止のため進めない）
+                if (!hasFieldChanges && !syncOnly) {
                     await tx.projectMaster.update({
                         where: { id },
                         data: { updatedBy: session!.user.id },

@@ -20,6 +20,13 @@ describe('/api/project-masters/[id]', () => {
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (canDispatch as jest.Mock).mockReturnValue(true);
         (isManagerOrAbove as jest.Mock).mockReturnValue(true);
+        // getDocFlags が参照する count 系を 0 で固定
+        (prisma.estimate.count as jest.Mock).mockResolvedValue(0);
+        (prisma.invoice.count as jest.Mock).mockResolvedValue(0);
+        (prisma as any).invoiceProjectMaster = {
+            ...((prisma as any).invoiceProjectMaster || {}),
+            count: jest.fn().mockResolvedValue(0),
+        };
     });
 
     describe('GET', () => {
@@ -90,6 +97,72 @@ describe('/api/project-masters/[id]', () => {
 
             expect(res.status).toBe(200);
             expect(prisma.projectMaster.update).not.toHaveBeenCalled();
+        });
+
+        it('a) syncOnly=true: should update via $executeRaw without updatedAt/updatedBy in SQL', async () => {
+            const originalUpdatedAt = new Date('2026-01-01T00:00:00.000Z');
+            (prisma.projectMaster.findUnique as jest.Mock)
+                .mockResolvedValueOnce({ ...existingProject, updatedAt: originalUpdatedAt })
+                .mockResolvedValueOnce({ ...existingProject, title: 'Updated Title', updatedAt: originalUpdatedAt });
+            (prisma as any).$executeRaw = jest.fn().mockResolvedValue(1);
+
+            const req = new NextRequest('http://localhost:3000/api/project-masters/pm-1?syncOnly=true', {
+                method: 'PATCH',
+                body: JSON.stringify(validBody),
+            });
+
+            const res = await PATCH(req, mockContext);
+            expect(res.status).toBe(200);
+
+            // raw SQL が呼ばれ、通常の update は呼ばれない
+            expect((prisma as any).$executeRaw).toHaveBeenCalled();
+            expect(prisma.projectMaster.update).not.toHaveBeenCalled();
+
+            // SQL に updatedAt / updatedBy が含まれないことを保証（リグレッション防止）
+            const sqlArg = (prisma as any).$executeRaw.mock.calls[0][0];
+            // Prisma.sql の `strings` から SQL 本体を組み立てて検査
+            const sqlText = (sqlArg.strings ?? []).join(' ');
+            expect(sqlText).not.toMatch(/updatedAt/i);
+            expect(sqlText).not.toMatch(/updatedBy/i);
+            expect(sqlText).toContain('"ProjectMaster"');
+            expect(sqlText).toContain('"title"');
+        });
+
+        it('b) syncOnly absent: should update via prisma.projectMaster.update with updatedBy (unchanged behavior)', async () => {
+            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(existingProject);
+            (prisma.projectMaster.update as jest.Mock).mockResolvedValue({ ...existingProject, title: 'Updated Title', updatedAt: new Date() });
+
+            const req = new NextRequest('http://localhost:3000/api/project-masters/pm-1', {
+                method: 'PATCH',
+                body: JSON.stringify(validBody),
+            });
+
+            const res = await PATCH(req, mockContext);
+            expect(res.status).toBe(200);
+
+            expect(prisma.projectMaster.update).toHaveBeenCalledWith(expect.objectContaining({
+                where: { id: 'pm-1' },
+                data: expect.objectContaining({ title: 'Updated Title', updatedBy: 'user-1' }),
+            }));
+        });
+
+        it('c) syncOnly=true: response.updatedAt should equal pre-request value', async () => {
+            const originalUpdatedAt = new Date('2026-01-01T00:00:00.000Z');
+            // findUnique は2回呼ばれる: existing 取得用と、トランザクション末尾の取り直し用
+            (prisma.projectMaster.findUnique as jest.Mock)
+                .mockResolvedValueOnce({ ...existingProject, updatedAt: originalUpdatedAt })
+                .mockResolvedValueOnce({ ...existingProject, title: 'Updated Title', updatedAt: originalUpdatedAt });
+            (prisma as any).$executeRaw = jest.fn().mockResolvedValue(1);
+
+            const req = new NextRequest('http://localhost:3000/api/project-masters/pm-1?syncOnly=true', {
+                method: 'PATCH',
+                body: JSON.stringify(validBody),
+            });
+
+            const res = await PATCH(req, mockContext);
+            expect(res.status).toBe(200);
+            const json = await res.json();
+            expect(json.updatedAt).toBe(originalUpdatedAt.toISOString());
         });
 
         it('should return 403 if user cannot dispatch', async () => {

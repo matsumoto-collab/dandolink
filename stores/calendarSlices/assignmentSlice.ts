@@ -99,7 +99,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 updateData.constructionContent = project.constructionContent;
             }
             if (Object.keys(updateData).length > 0) {
-                const patchRes = await fetch(`/api/project-masters/${project.projectMasterId}`, {
+                // 配置の副作用としての同期更新では、ProjectMaster.updatedAt を進めない。
+                // ユーザーが案件詳細を明示的に編集していないのに「最終更新日」が
+                // 変わると混乱を招くため、syncOnly フラグで raw SQL 更新に切り替える。
+                // ※この設計は意図的なので、通常の update に戻さないでください。
+                const patchRes = await fetch(`/api/project-masters/${project.projectMasterId}?syncOnly=true`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updateData),
@@ -125,7 +129,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                     updateData.constructionContent = project.constructionContent;
                 }
                 if (Object.keys(updateData).length > 0) {
-                    const patchExistingRes = await fetch(`/api/project-masters/${existing.id}`, {
+                    // 配置の副作用としての同期更新では、ProjectMaster.updatedAt を進めない。
+                    // ユーザーが案件詳細を明示的に編集していないのに「最終更新日」が
+                    // 変わると混乱を招くため、syncOnly フラグで raw SQL 更新に切り替える。
+                    // ※この設計は意図的なので、通常の update に戻さないでください。
+                    const patchExistingRes = await fetch(`/api/project-masters/${existing.id}?syncOnly=true`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(updateData),
@@ -312,7 +320,11 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 }
 
                 if (Object.keys(projectMasterUpdates).length > 0) {
-                    await fetch(`/api/project-masters/${assignment.projectMasterId}`, {
+                    // 配置の副作用としての同期更新では、ProjectMaster.updatedAt を進めない。
+                    // ユーザーが案件詳細を明示的に編集していないのに「最終更新日」が
+                    // 変わると混乱を招くため、syncOnly フラグで raw SQL 更新に切り替える。
+                    // ※この設計は意図的なので、通常の update に戻さないでください。
+                    await fetch(`/api/project-masters/${assignment.projectMasterId}?syncOnly=true`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(projectMasterUpdates),
