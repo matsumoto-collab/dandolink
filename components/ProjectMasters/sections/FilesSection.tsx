@@ -264,8 +264,9 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
 
     /**
      * iOS Safari / Android / PWA でも確実に保存できるダウンロード処理:
-     * fetch → Blob → object URL → <a download> → click → revoke
-     * (window.open で cross-origin の Supabase signed URL を開くと iOS では表示のみで保存されない)
+     * 1) Web Share API (navigator.canShare with files) → 共有シートから「画像/ファイルに保存」可能 (iOS 15+)
+     * 2) フォールバック: fetch → Blob → object URL → <a download>
+     * (iOS Safari は <a download> を cross-origin blob で無視することがあるため Share API を優先)
      */
     const handleDownload = async (file: ProjectMasterFileData, format?: string) => {
         if (!projectMasterId) return;
@@ -292,6 +293,25 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 downloadName = `${base}.${ext}`;
             }
 
+            const fileObj = new File([blob], downloadName, { type: blob.type || 'application/octet-stream' });
+
+            // iOS / Android: 共有シートで「画像に保存」「ファイルに保存」が選べる
+            const nav = navigator as Navigator & {
+                canShare?: (data: { files: File[] }) => boolean;
+                share?: (data: { files: File[]; title?: string }) => Promise<void>;
+            };
+            if (nav.canShare && nav.share && nav.canShare({ files: [fileObj] })) {
+                try {
+                    await nav.share({ files: [fileObj], title: downloadName });
+                    return;
+                } catch (e) {
+                    // ユーザーがキャンセルした場合は何もしない
+                    if ((e as Error)?.name === 'AbortError') return;
+                    // それ以外はフォールバックへ
+                }
+            }
+
+            // フォールバック: <a download>
             const objectUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = objectUrl;

@@ -91,6 +91,20 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                 downloadName = `${base}.${ext}`;
             }
 
+            const fileObj = new File([blob], downloadName, { type: blob.type || 'application/octet-stream' });
+            const nav = navigator as Navigator & {
+                canShare?: (data: { files: File[] }) => boolean;
+                share?: (data: { files: File[]; title?: string }) => Promise<void>;
+            };
+            if (nav.canShare && nav.share && nav.canShare({ files: [fileObj] })) {
+                try {
+                    await nav.share({ files: [fileObj], title: downloadName });
+                    return;
+                } catch (e) {
+                    if ((e as Error)?.name === 'AbortError') return;
+                }
+            }
+
             const objectUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = objectUrl;
@@ -99,7 +113,6 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
             document.body.appendChild(a);
             a.click();
             a.remove();
-            // Safari/iOSのために少し遅延してrevoke
             setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
         } catch {
             toast.error('ダウンロードに失敗しました');
