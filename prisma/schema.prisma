@@ -76,6 +76,7 @@ model ProjectMaster {
   files                      ProjectMasterFile[]
   projectMaterialItems       ProjectMaterialItem[]
   subcontractorCosts         ProjectMasterSubcontractorCost[]
+  siteSurveys                SiteSurvey[]
 
   @@index([title])
   @@index([customerId])
@@ -694,6 +695,38 @@ model AttendanceRecord {
   @@index([userId])
   @@index([foremanId])
   @@index([foremanId, date])
+  @@schema("public")
+}
+
+// 作図機能用。次タスクで prisma migrate dev によりテーブル作成予定。
+// それまではこのモデルを参照する API・コードを書かないこと。
+model SiteSurvey {
+  id              String         @id @default(uuid())
+  projectMasterId String?
+  title           String
+  customerName    String?
+  workType        String?
+  managerIds      String[]       @default([])
+  scheduledDate   DateTime?
+  notes           String?
+  handoffNotes    String?
+  arrivalTime     String?
+  vehicleSpec     String?
+  drawingData     Json
+  scaffoldSpec    Json?
+  surroundings    Json?
+  perimeter       Float?
+  floorArea       Float?
+  scaffoldArea    Float?
+  createdBy       String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  updatedBy       String?
+
+  projectMaster   ProjectMaster? @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+
+  @@index([projectMasterId])
+  @@index([createdAt])
   @@schema("public")
 }
 
