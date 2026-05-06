@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import MainContent from '@/components/MainContent';
+import SiteSurveyEditorOverlay from '@/components/SiteSurvey/SiteSurveyEditorOverlay';
 
 export default async function Home() {
     const session = await getServerSession(authOptions);
@@ -17,6 +18,7 @@ export default async function Home() {
             <Sidebar />
             <Header />
             <MainContent />
+            <SiteSurveyEditorOverlay />
         </div>
     );
 }

@@ -58,6 +58,23 @@ export function computeStats(section: Section, correctionM = 0): DrawingStats {
     };
 }
 
+// 全セクション合算の統計
+export function computeTotalStats(
+    sections: Section[],
+    correctionM: number = 0,
+): DrawingStats {
+    let perimeter = 0;
+    let floorArea = 0;
+    let scaffoldArea = 0;
+    for (const s of sections) {
+        const partial = computeStats(s, correctionM);
+        perimeter += partial.perimeter;
+        floorArea += partial.floorArea;
+        scaffoldArea += partial.scaffoldArea;
+    }
+    return { perimeter, floorArea, scaffoldArea };
+}
+
 // 8 方向の単位ベクトル
 const DIRECTION_VECTORS: Record<Direction, { dx: number; dy: number }> = {
     N: { dx: 0, dy: -1 },
@@ -124,9 +141,100 @@ export function fitToCanvas(
     return { scale, offsetX, offsetY };
 }
 
+// px → mm
+export function pxToMm(px: { x: number; y: number }, fit: CanvasFit): Point {
+    return {
+        x: (px.x - fit.offsetX) / fit.scale,
+        y: (px.y - fit.offsetY) / fit.scale,
+    };
+}
+
+// mm → px
+export function mmToPx(mm: Point, fit: CanvasFit): { x: number; y: number } {
+    return {
+        x: mm.x * fit.scale + fit.offsetX,
+        y: mm.y * fit.scale + fit.offsetY,
+    };
+}
+
+// 起点との距離が threshold(mm) 以内なら閉じ可能
+export function canCloseAt(section: Section, candidateMm: Point, thresholdMm = 800): boolean {
+    const pts = section.polygon.points;
+    if (section.polygon.closed) return false;
+    if (pts.length < 3) return false;
+    return distance(pts[0], candidateMm) <= thresholdMm;
+}
+
+export const SNAP_GRID_MM = 100; // 10cm 単位スナップ
+
+// mm 座標を 10mm 単位の最も近い角に丸める
+export function snapToGrid(p: Point, gridMm: number = SNAP_GRID_MM): Point {
+    return {
+        x: Math.round(p.x / gridMm) * gridMm,
+        y: Math.round(p.y / gridMm) * gridMm,
+    };
+}
+
+// 現在のスケールに応じて、画面上で見やすい minor / major グリッド間隔を返す
+// scale: px/mm
+export function chooseGridSpacing(
+    scale: number,
+    minPxBetweenLines: number = 8,
+): { minor: number; major: number } {
+    const candidates = [100, 500, 1000, 5000, 10000, 50000]; // mm
+    let minor = candidates[candidates.length - 1];
+    for (const c of candidates) {
+        if (c * scale >= minPxBetweenLines) {
+            minor = c;
+            break;
+        }
+    }
+    let major = minor * 10;
+    if (!candidates.includes(major)) {
+        major = candidates.find((c) => c >= minor * 5) ?? minor * 10;
+    }
+    return { minor, major };
+}
+
 // 線中点の座標を返す（寸法ラベル配置用）
 export function midpoint(a: Point, b: Point): Point {
     return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+}
+
+// 線分 (a → b) と点 p の最短距離を mm で返す。t は線分上の投影位置 (0..1, クランプ)
+export function distancePointToSegment(
+    p: Point,
+    a: Point,
+    b: Point,
+): { distance: number; t: number } {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len2 = dx * dx + dy * dy;
+    if (len2 === 0) return { distance: distance(p, a), t: 0 };
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2;
+    t = Math.max(0, Math.min(1, t));
+    const projX = a.x + t * dx;
+    const projY = a.y + t * dy;
+    const d = Math.hypot(p.x - projX, p.y - projY);
+    return { distance: d, t };
+}
+
+// section の壁一覧（閉じてる場合は wrap-around も含む）
+export function getWalls(section: Section): Array<{
+    a: Point;
+    b: Point;
+    wallIndex: number;
+    length: number;
+}> {
+    const pts = section.polygon.points;
+    const out: Array<{ a: Point; b: Point; wallIndex: number; length: number }> = [];
+    const last = section.polygon.closed ? pts.length : pts.length - 1;
+    for (let i = 0; i < last; i++) {
+        const a = pts[i];
+        const b = pts[(i + 1) % pts.length];
+        out.push({ a, b, wallIndex: i, length: distance(a, b) });
+    }
+    return out;
 }
 
 // 線に垂直な単位ベクトル（ティック線・ラベル位置決め用）

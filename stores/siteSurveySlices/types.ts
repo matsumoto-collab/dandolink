@@ -25,17 +25,26 @@ export interface Section {
     openings: Opening[];
 }
 
-export interface Pin {
+export type MarkerColor = 'red' | 'blue' | 'green' | 'yellow';
+
+export interface Marker {
+    id: string;
+    points: Point[];
+    color: MarkerColor;
+}
+
+export interface TextAnnotation {
     id: string;
     x: number;
     y: number;
-    memo: string;
+    text: string;
 }
 
 export interface DrawingData {
     version: '1.0';
     sections: Section[];
-    pins: Pin[];
+    markers: Marker[];
+    texts: TextAnnotation[];
 }
 
 export interface DrawingStats {

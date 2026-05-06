@@ -10,7 +10,7 @@ import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
-    'profit-dashboard', 'estimates', 'invoices', 'orders',
+    'profit-dashboard', 'estimates', 'site-surveys', 'invoices', 'orders',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
 ];
@@ -41,6 +41,9 @@ const ProjectMasterListPage = dynamic(() => import('@/app/(master)/project-maste
     loading: () => <LoadingSpinner />,
 });
 const EstimateListPage = dynamic(() => import('@/app/(finance)/estimates/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const SiteSurveyListPage = dynamic(() => import('@/app/(finance)/site-surveys/page'), {
     loading: () => <LoadingSpinner />,
 });
 const InvoiceListPage = dynamic(() => import('@/app/(finance)/invoices/page'), {
@@ -188,6 +191,12 @@ export default function MainContent() {
             case 'estimates':
                 return <EstimateListPage />;
 
+            case 'site-surveys':
+                if (userRole !== 'admin' && userRole !== 'manager') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <SiteSurveyListPage />;
+
             case 'invoices':
                 return <InvoiceListPage />;
 
@@ -242,7 +251,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${['schedule', 'estimates', 'project-masters', 'reports', 'invoices', 'customers', 'chat'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                     {renderContent()}
                 </div>
             </main>

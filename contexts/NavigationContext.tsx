@@ -9,6 +9,7 @@ export type PageType =
     | 'reports'          // 日報入力
     | 'profit-dashboard' // 利益ダッシュボード
     | 'estimates'        // 見積書
+    | 'site-surveys'     // 図面（現場調査）
     | 'invoices'         // 請求書
     | 'orders'           // 発注書
     | 'partners'         // 協力会社

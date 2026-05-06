@@ -7,8 +7,11 @@ import {
     snapTo8Dir,
     computeBoundingBox,
     fitToCanvas,
+    pxToMm,
+    mmToPx,
+    canCloseAt,
 } from '@/utils/drawingMath';
-import type { Point, Section } from '@/stores/siteSurveySlices/types';
+import type { Point, Section, CanvasFit } from '@/stores/siteSurveySlices/types';
 
 describe('drawingMath', () => {
     describe('distance', () => {
@@ -141,6 +144,52 @@ describe('drawingMath', () => {
         it('computes min/max', () => {
             const pts: Point[] = [{ x: 100, y: 200 }, { x: 5000, y: 50 }, { x: 0, y: 3000 }];
             expect(computeBoundingBox(pts)).toEqual({ minX: 0, maxX: 5000, minY: 50, maxY: 3000 });
+        });
+    });
+
+    describe('pxToMm / mmToPx round-trip', () => {
+        const fit: CanvasFit = { scale: 0.05, offsetX: 60, offsetY: 80 };
+        it('mm→px→mm restores original', () => {
+            const mm: Point = { x: 1234, y: 5678 };
+            const px = mmToPx(mm, fit);
+            const back = pxToMm(px, fit);
+            expect(back.x).toBeCloseTo(mm.x, 5);
+            expect(back.y).toBeCloseTo(mm.y, 5);
+        });
+        it('px→mm→px restores original', () => {
+            const px = { x: 200, y: 350 };
+            const mm = pxToMm(px, fit);
+            const back = mmToPx(mm, fit);
+            expect(back.x).toBeCloseTo(px.x, 5);
+            expect(back.y).toBeCloseTo(px.y, 5);
+        });
+    });
+
+    describe('canCloseAt', () => {
+        const open3: Section = {
+            id: 's', name: '', height: 8000,
+            polygon: {
+                points: [{ x: 0, y: 0 }, { x: 5000, y: 0 }, { x: 5000, y: 3000 }],
+                closed: false,
+            },
+            openings: [],
+        };
+        it('within threshold → true', () => {
+            expect(canCloseAt(open3, { x: 500, y: 500 }, 800)).toBe(true);
+        });
+        it('outside threshold → false', () => {
+            expect(canCloseAt(open3, { x: 2000, y: 2000 }, 800)).toBe(false);
+        });
+        it('already closed → false', () => {
+            const closed = { ...open3, polygon: { ...open3.polygon, closed: true } };
+            expect(canCloseAt(closed, { x: 0, y: 0 }, 800)).toBe(false);
+        });
+        it('fewer than 3 points → false', () => {
+            const sparse: Section = {
+                ...open3,
+                polygon: { points: [{ x: 0, y: 0 }, { x: 100, y: 0 }], closed: false },
+            };
+            expect(canCloseAt(sparse, { x: 0, y: 0 }, 800)).toBe(false);
         });
     });
 

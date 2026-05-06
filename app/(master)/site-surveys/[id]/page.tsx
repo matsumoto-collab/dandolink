@@ -1,42 +1,63 @@
-// プレースホルダー実装。Phase 1 の次タスクで実機能に置き換え予定。
-import Link from 'next/link';
-import { ArrowLeft, FileSearch } from 'lucide-react';
+// /site-surveys/[id] フル画面エディタ。既存の現場調査を読み込んで編集する
+'use client';
 
-interface PageProps {
-    params: { id: string };
-}
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { useSiteSurvey } from '@/hooks/useSiteSurveys';
 
-export default function SiteSurveyPage({ params }: PageProps) {
-    return (
-        <div className="max-w-[1800px] mx-auto p-6">
-            <div className="flex items-center gap-3 mb-6">
-                <FileSearch className="w-6 h-6 text-teal-600" />
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-teal-600 to-cyan-600 bg-clip-text text-transparent">
-                    現場調査
-                </h1>
-                <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 border border-amber-300">
-                    未実装
-                </span>
+const SiteSurveyEditor = dynamic(
+    () => import('@/components/SiteSurvey/SiteSurveyEditor'),
+    {
+        ssr: false,
+        loading: () => (
+            <div className="fixed inset-0 z-30 bg-slate-50 flex items-center justify-center">
+                <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
             </div>
+        ),
+    },
+);
 
-            <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                <p className="text-sm text-slate-700 mb-2">
-                    <span className="font-medium">ID:</span> {params.id}
-                </p>
-                <p className="text-sm text-slate-600">
-                    現場調査機能は次のタスクで実装されます。
-                </p>
-            </div>
+export default function SiteSurveyEditPage() {
+    const params = useParams();
+    const router = useRouter();
+    const { data: session, status } = useSession();
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+        const role = session?.user?.role;
+        if (role !== 'admin' && role !== 'manager') {
+            router.replace('/');
+        }
+    }, [status, session, router]);
+    const id = (params?.id as string) ?? '';
+    const { siteSurvey, isLoading, error } = useSiteSurvey(id);
 
-            <div className="mt-6">
-                <Link
-                    href="/?page=project-masters"
-                    className="inline-flex items-center gap-1.5 text-sm text-teal-600 hover:text-teal-700"
-                >
-                    <ArrowLeft className="w-4 h-4" />
-                    案件一覧へ戻る
-                </Link>
+    if (status === 'authenticated') {
+        const role = session?.user?.role;
+        if (role !== 'admin' && role !== 'manager') return null;
+    }
+
+    if (isLoading || siteSurvey === null) {
+        return (
+            <div className="fixed inset-0 z-30 bg-slate-50 flex flex-col items-center justify-center gap-3">
+                {error ? (
+                    <>
+                        <p className="text-sm text-red-600">{error}</p>
+                        <button
+                            onClick={() => router.push('/site-surveys')}
+                            className="px-4 py-2 rounded-lg bg-teal-600 text-white text-sm font-medium"
+                        >
+                            一覧へ戻る
+                        </button>
+                    </>
+                ) : (
+                    <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
+                )}
             </div>
-        </div>
-    );
+        );
+    }
+
+    return <SiteSurveyEditor mode="edit" initial={siteSurvey} />;
 }

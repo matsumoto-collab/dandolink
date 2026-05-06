@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'settings';
 }
 
 interface NavSection {
@@ -40,6 +40,7 @@ const navigationSections: NavSection[] = [
         items: [
             { name: '見積書', page: 'estimates' },
             { name: '請求書', page: 'invoices' },
+            { name: '図面', page: 'site-surveys' },
             { name: '発注書', page: 'orders' },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
@@ -241,6 +242,16 @@ export default function Sidebar() {
                                 }
                                 if (section.title === '材料管理') return section;
                                 return null;
+                            }
+                            // admin/manager 以外は図面（site-surveys）を非表示
+                            const role = session?.user?.role;
+                            if (role !== 'admin' && role !== 'manager') {
+                                if (section.title === '書類・経理') {
+                                    return {
+                                        ...section,
+                                        items: section.items.filter(item => item.page !== 'site-surveys'),
+                                    };
+                                }
                             }
                             return section;
                         })
