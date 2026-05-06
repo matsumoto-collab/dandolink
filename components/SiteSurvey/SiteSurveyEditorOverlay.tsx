@@ -14,7 +14,7 @@ const SiteSurveyEditor = dynamic(
     {
         ssr: false,
         loading: () => (
-            <div className="fixed inset-0 z-[80] bg-slate-50 flex items-center justify-center">
+            <div className="fixed inset-0 z-[80] bg-slate-50 flex items-center justify-center pwa-modal-safe">
                 <Loader2 className="w-6 h-6 animate-spin text-teal-500" />
             </div>
         ),
@@ -62,7 +62,7 @@ function EditMount({ surveyId, onClose }: { surveyId: string; onClose: () => voi
 
     if (isLoading || siteSurvey === null) {
         return (
-            <div className="fixed inset-0 z-[80] bg-slate-50 flex flex-col items-center justify-center gap-3">
+            <div className="fixed inset-0 z-[80] bg-slate-50 flex flex-col items-center justify-center gap-3 pwa-modal-safe">
                 {error ? (
                     <>
                         <p className="text-sm text-red-600">{error}</p>
