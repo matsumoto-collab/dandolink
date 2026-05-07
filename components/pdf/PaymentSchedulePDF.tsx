@@ -168,17 +168,18 @@ const styles = StyleSheet.create({
 
 // カラム幅（A4横向き 765pt 使用可能領域に合わせて）
 const COL = {
-    po: 28,
-    payee: 220,
-    check1: 28,
-    fee: 35,
-    amount: 80,
-    check2: 28,
-    bank: 95,
-    branch: 90,
-    type: 35,
-    account: 80,
-    check3: 28,
+    po: 24,
+    payee: 165,
+    check1: 22,
+    fee: 28,
+    amount: 75,
+    check2: 22,
+    bank: 75,
+    branch: 65,
+    type: 28,
+    account: 60,
+    holder: 110,
+    check3: 22,
 };
 
 const ROWS_PER_PAGE = 22;
@@ -222,6 +223,9 @@ function TableContent({ rows, startIndex }: PageContentProps) {
                 </View>
                 <View style={[styles.cell, { width: COL.account }]}>
                     <Text style={styles.headerText}>口座番号</Text>
+                </View>
+                <View style={[styles.cell, { width: COL.holder }]}>
+                    <Text style={styles.headerText}>口座名義</Text>
                 </View>
                 <View style={[styles.cell, { width: COL.check3, borderRightWidth: 0 }]}>
                     <View style={styles.checkbox} />
@@ -296,6 +300,14 @@ function TableContent({ rows, startIndex }: PageContentProps) {
                             ]}
                         >
                             <Text style={styles.cellTextRight}>{item.accountNumber ?? ''}</Text>
+                        </View>
+                        <View
+                            style={[
+                                styles.cell,
+                                { width: COL.holder, paddingLeft: 4, justifyContent: 'flex-start' },
+                            ]}
+                        >
+                            <Text style={styles.cellTextLeft}>{item.accountHolder ?? ''}</Text>
                         </View>
                         <View style={[styles.cell, { width: COL.check3, borderRightWidth: 0 }]}>
                             <View style={styles.checkbox}>

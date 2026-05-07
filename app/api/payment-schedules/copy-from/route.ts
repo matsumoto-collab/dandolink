@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
                 branchName: item.branchName,
                 accountType: item.accountType,
                 accountNumber: item.accountNumber,
+                accountHolder: item.accountHolder,
                 isPaid: false, // コピー先は必ず未払
                 paidAt: null,
                 paidBy: null,

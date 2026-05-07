@@ -27,6 +27,7 @@ const paymentScheduleImportSchema = z.object({
     branchName: z.string().nullable().optional(),
     accountType: z.string().nullable().optional(),
     accountNumber: z.string().nullable().optional(),
+    accountHolder: z.string().nullable().optional(),
     notes: z.string().nullable().optional(),
     sortOrder: z.number().default(0),
 });
@@ -178,6 +179,7 @@ export async function POST(req: NextRequest) {
                     branchName: ps.branchName ?? null,
                     accountType: accountType,
                     accountNumber: ps.accountNumber ?? null,
+                    accountHolder: ps.accountHolder ?? null,
                     notes: ps.notes ?? null,
                     sortOrder: ps.sortOrder ?? 0,
                     isPaid: shouldMarkPaid,

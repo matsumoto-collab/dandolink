@@ -105,6 +105,7 @@ export async function POST(req: NextRequest) {
         let branchName = data.branchName ?? null;
         let accountType = data.accountType ?? null;
         let accountNumber = data.accountNumber ?? null;
+        let accountHolder = data.accountHolder ?? null;
         let feeFlag = data.feeFlag ?? false;
 
         if (data.payeeId) {
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
                 if (data.branchName === undefined) branchName = payee.branchName;
                 if (data.accountType === undefined) accountType = payee.accountType as '普通' | '当座' | null;
                 if (data.accountNumber === undefined) accountNumber = payee.accountNumber;
+                if (data.accountHolder === undefined) accountHolder = payee.accountHolder;
                 if (data.feeFlag === undefined) feeFlag = payee.feeBearer === 'us';
             }
         }
@@ -131,6 +133,7 @@ export async function POST(req: NextRequest) {
                 branchName,
                 accountType,
                 accountNumber,
+                accountHolder,
                 isPaid: data.isPaid ?? false,
                 notes: data.notes || null,
                 sortOrder: data.sortOrder ?? 0,

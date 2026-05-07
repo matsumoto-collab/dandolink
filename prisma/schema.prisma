@@ -1533,6 +1533,7 @@ model PaymentSchedule {
   branchName    String? // 支店名
   accountType   String? // 口座種別
   accountNumber String? // 口座番号
+  accountHolder String? // 口座名義（カナ等）
   isPaid        Boolean   @default(false) // 支払済みフラグ
   paidAt        DateTime? // 支払完了日時
   paidBy        String? // 支払処理した人

@@ -358,6 +358,11 @@ export default function PaymentSchedulesPage() {
                                                         </span>
                                                     )}
                                                 </div>
+                                                {item.accountHolder && (
+                                                    <div className="mt-0.5 text-xs text-slate-500">
+                                                        名義: {item.accountHolder}
+                                                    </div>
+                                                )}
                                                 {item.dueDate && (
                                                     <div className="mt-1 text-xs text-amber-700">
                                                         振込期日: {formatDateLabel(item.dueDate)}

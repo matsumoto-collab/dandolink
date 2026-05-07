@@ -67,6 +67,7 @@ export async function PATCH(
         if (data.branchName !== undefined) updateData.branchName = data.branchName || null;
         if (data.accountType !== undefined) updateData.accountType = data.accountType || null;
         if (data.accountNumber !== undefined) updateData.accountNumber = data.accountNumber || null;
+        if (data.accountHolder !== undefined) updateData.accountHolder = data.accountHolder || null;
         if (data.notes !== undefined) updateData.notes = data.notes || null;
         if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
 

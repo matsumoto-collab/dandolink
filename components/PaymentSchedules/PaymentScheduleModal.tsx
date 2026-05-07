@@ -39,6 +39,7 @@ const empty: PaymentScheduleInput = {
     branchName: '',
     accountType: '普通',
     accountNumber: '',
+    accountHolder: '',
     isPaid: false,
     notes: '',
     sortOrder: 0,
@@ -71,6 +72,7 @@ export default function PaymentScheduleModal({
                 branchName: initial.branchName ?? '',
                 accountType: initial.accountType ?? '普通',
                 accountNumber: initial.accountNumber ?? '',
+                accountHolder: initial.accountHolder ?? '',
                 isPaid: initial.isPaid,
                 notes: initial.notes ?? '',
                 sortOrder: initial.sortOrder,
@@ -107,6 +109,7 @@ export default function PaymentScheduleModal({
             branchName: p.branchName ?? '',
             accountType: (p.accountType as '普通' | '当座' | null) ?? '普通',
             accountNumber: p.accountNumber ?? '',
+            accountHolder: p.accountHolder ?? '',
             feeFlag: p.feeBearer === 'us',
         });
         setPayeeSearch('');
@@ -399,6 +402,16 @@ export default function PaymentScheduleModal({
                                         value={form.accountNumber ?? ''}
                                         onChange={(e) => setForm({ ...form, accountNumber: e.target.value })}
                                         className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                                    />
+                                </div>
+                                <div className="md:col-span-4">
+                                    <label className="mb-1 block text-xs font-medium text-slate-600">口座名義</label>
+                                    <input
+                                        type="text"
+                                        value={form.accountHolder ?? ''}
+                                        onChange={(e) => setForm({ ...form, accountHolder: e.target.value })}
+                                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+                                        placeholder="例：カ）オーケーグランデ"
                                     />
                                 </div>
                             </div>

@@ -16,6 +16,7 @@ export interface PaymentSchedule {
     branchName?: string | null;
     accountType?: AccountType | null;
     accountNumber?: string | null;
+    accountHolder?: string | null;
     isPaid: boolean;
     paidAt?: string | null;
     paidBy?: string | null;
@@ -40,6 +41,7 @@ export interface PaymentScheduleInput {
     branchName?: string | null;
     accountType?: AccountType | null;
     accountNumber?: string | null;
+    accountHolder?: string | null;
     isPaid?: boolean;
     notes?: string | null;
     sortOrder?: number;

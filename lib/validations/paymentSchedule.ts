@@ -29,6 +29,7 @@ export const createPaymentScheduleSchema = z.object({
     branchName: z.string().max(100).optional().nullable(),
     accountType: z.enum(['普通', '当座']).optional().nullable(),
     accountNumber: z.string().max(20).optional().nullable(),
+    accountHolder: z.string().max(200).optional().nullable(),
     isPaid: z.boolean().optional().default(false),
     notes: z.string().max(2000, '備考は2000文字以内で入力してください').optional().nullable(),
     sortOrder: z.number().int().optional().default(0),
