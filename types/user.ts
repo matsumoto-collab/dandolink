@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner' | 'support';
+export type UserRole = 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner' | 'partner_member' | 'support';
 
 export interface Permission {
     resource: string;
@@ -14,6 +14,8 @@ export interface User {
     assignedProjects?: string[];
     dailyRate?: number;
     isActive: boolean;
+    companyId?: string | null;
+    isLoginEnabled?: boolean;
     createdAt?: Date;
     updatedAt?: Date;
 }

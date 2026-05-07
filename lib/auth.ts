@@ -43,6 +43,10 @@ export const authOptions: NextAuthOptions = {
                         throw new Error('このアカウントは無効化されています');
                     }
 
+                    if (!user.isLoginEnabled) {
+                        throw new Error('このアカウントはログインが許可されていません');
+                    }
+
                     // Verify password
                     const isPasswordValid = await bcrypt.compare(
                         credentials.password,
@@ -102,10 +106,10 @@ export const authOptions: NextAuthOptions = {
                     try {
                         const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
-                            select: { isActive: true, role: true, displayName: true }
+                            select: { isActive: true, isLoginEnabled: true, role: true, displayName: true }
                         });
 
-                        if (!dbUser || !dbUser.isActive) {
+                        if (!dbUser || !dbUser.isActive || !dbUser.isLoginEnabled) {
                             // ユーザー削除済み、または無効化された場合
                             token.isActive = false;
                         } else {

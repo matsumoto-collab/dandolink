@@ -25,11 +25,16 @@ model User {
   dailyRate               Decimal? @db.Decimal(10, 2)
   dispatchSortOrder       Int?
   hideByDefaultInDispatch Boolean  @default(false)
+  companyId               String?
+  isLoginEnabled          Boolean  @default(true)
+  company                 User?    @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
+  members                 User[]   @relation("CompanyMembers")
 
   @@index([username])
   @@index([email])
   @@index([teamId])
   @@index([role])
+  @@index([companyId])
   @@schema("public")
 }
 
@@ -140,6 +145,7 @@ model AssignmentWorker {
 
   @@index([assignmentId])
   @@index([workerName])
+  @@index([workerId])
   @@schema("public")
 }
 
