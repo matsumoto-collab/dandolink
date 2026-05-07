@@ -15,7 +15,9 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'payees' | 'settings';
+    /** このメニュー項目を表示できるロール。指定なし=全員 */
+    requiredRoles?: string[];
 }
 
 interface NavSection {
@@ -42,6 +44,7 @@ const navigationSections: NavSection[] = [
             { name: '請求書', page: 'invoices' },
             { name: '図面', page: 'site-surveys' },
             { name: '発注書', page: 'orders' },
+            { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
     },
@@ -58,6 +61,7 @@ const navigationSections: NavSection[] = [
         items: [
             { name: '協力会社', page: 'partners' },
             { name: '顧客管理', page: 'customers' },
+            { name: '振込先マスター', page: 'payees', requiredRoles: ['admin'] },
             { name: '自社情報', page: 'company' },
             { name: '設定', page: 'settings' },
         ],
@@ -218,44 +222,50 @@ export default function Sidebar() {
                 <nav className="flex-1 overflow-y-auto py-6 px-3">
                     {navigationSections
                         .map(section => {
+                            const role = session?.user?.role;
+                            // requiredRoles で各アイテムを事前フィルタ（管理者専用メニューの非表示）
+                            const allowedItems = section.items.filter(item =>
+                                !item.requiredRoles || (role !== undefined && item.requiredRoles.includes(role))
+                            );
+                            const filteredSection = { ...section, items: allowedItems };
+
                             // workerロール: スケジュール + 積込リスト + チャット
-                            if (session?.user?.role === 'worker') {
-                                if (section.title === '業務管理') {
-                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
+                            if (role === 'worker') {
+                                if (filteredSection.title === '業務管理') {
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
                                 }
-                                if (section.title === '材料管理') {
-                                    return { ...section, items: section.items.filter(item => item.page === 'loading-list' || item.page === 'inventory') };
+                                if (filteredSection.title === '材料管理') {
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'loading-list' || item.page === 'inventory') };
                                 }
                                 return null;
                             }
                             // partnerロール: スケジュール + チャット
-                            if (session?.user?.role === 'partner') {
-                                if (section.title !== '業務管理') return null;
-                                const filteredItems = section.items.filter(item => item.page === 'schedule' || item.page === 'chat');
+                            if (role === 'partner') {
+                                if (filteredSection.title !== '業務管理') return null;
+                                const filteredItems = filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat');
                                 if (filteredItems.length === 0) return null;
-                                return { ...section, items: filteredItems };
+                                return { ...filteredSection, items: filteredItems };
                             }
                             // 職長1/2: 業務管理 + 材料管理
-                            if (session?.user?.role === 'foreman1' || session?.user?.role === 'foreman2') {
-                                if (section.title === '業務管理') {
-                                    return { ...section, items: section.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'chat') };
+                            if (role === 'foreman1' || role === 'foreman2') {
+                                if (filteredSection.title === '業務管理') {
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'project-masters' || item.page === 'reports' || item.page === 'attendance' || item.page === 'chat') };
                                 }
-                                if (section.title === '材料管理') return section;
+                                if (filteredSection.title === '材料管理') return filteredSection;
                                 return null;
                             }
                             // admin/manager 以外は図面（site-surveys）を非表示
-                            const role = session?.user?.role;
                             if (role !== 'admin' && role !== 'manager') {
-                                if (section.title === '書類・経理') {
+                                if (filteredSection.title === '書類・経理') {
                                     return {
-                                        ...section,
-                                        items: section.items.filter(item => item.page !== 'site-surveys'),
+                                        ...filteredSection,
+                                        items: filteredSection.items.filter(item => item.page !== 'site-surveys'),
                                     };
                                 }
                             }
-                            return section;
+                            return filteredSection;
                         })
-                        .filter((section): section is NavSection => section !== null)
+                        .filter((section): section is NavSection => section !== null && section.items.length > 0)
                         .map((section, sectionIndex) => (
                             <div key={section.title} className={sectionIndex > 0 ? 'mt-8' : ''}>
                                 <h3 className="px-3 mb-3 text-[13px] font-semibold text-slate-400 tracking-wider">

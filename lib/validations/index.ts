@@ -4,6 +4,10 @@ export { userRoleSchema, createUserSchema, createSupportUserSchema, updateUserSc
 export type { CreateUserInput, UpdateUserInput } from './user';
 export { contactPersonSchema, createCustomerSchema, updateCustomerSchema } from './customer';
 export type { CreateCustomerInput, UpdateCustomerInput } from './customer';
+export { createPayeeSchema, updatePayeeSchema } from './payee';
+export type { CreatePayeeInput, UpdatePayeeInput } from './payee';
+export { createPaymentScheduleSchema, updatePaymentScheduleSchema } from './paymentSchedule';
+export type { CreatePaymentScheduleInput, UpdatePaymentScheduleInput } from './paymentSchedule';
 export { constructionTypeSchema, createProjectMasterSchema, updateProjectMasterSchema } from './project';
 export type { CreateProjectMasterInput, UpdateProjectMasterInput } from './project';
 export { createAssignmentSchema, updateAssignmentSchema, batchUpdateAssignmentsSchema } from './assignment';

@@ -20,6 +20,8 @@ export type PageType =
     | 'loading-list'     // 積込リスト
     | 'attendance'       // 出勤簿
     | 'chat'             // チャット
+    | 'payment-schedules'// 支払予定
+    | 'payees'           // 振込先マスター
     | 'settings';        // 設定
 
 interface NavigationContextType {

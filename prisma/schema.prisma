@@ -34,16 +34,16 @@ model User {
 }
 
 model ProjectMaster {
-  id                         String                @id @default(uuid())
+  id                         String                           @id @default(uuid())
   title                      String
-  constructionType           String                @default("other")
-  status                     String                @default("active")
+  constructionType           String                           @default("other")
+  status                     String                           @default("active")
   location                   String?
   description                String?
   remarks                    String?
   createdBy                  String?
-  createdAt                  DateTime              @default(now())
-  updatedAt                  DateTime              @updatedAt
+  createdAt                  DateTime                         @default(now())
+  updatedAt                  DateTime                         @updatedAt
   updatedBy                  String?
   area                       Float?
   areaRemarks                String?
@@ -58,10 +58,10 @@ model ProjectMaster {
   postalCode                 String?
   prefecture                 String?
   scaffoldingSpec            Json?
-  materialCost                 Decimal?              @db.Decimal(12, 2)
-  otherExpenses                Decimal?              @db.Decimal(12, 2)
-  loadingCost                  Decimal?              @db.Decimal(12, 2)
-  revenueOverride              Int?
+  materialCost               Decimal?                         @db.Decimal(12, 2)
+  otherExpenses              Decimal?                         @db.Decimal(12, 2)
+  loadingCost                Decimal?                         @db.Decimal(12, 2)
+  revenueOverride            Int?
   customerShortName          String?
   latitude                   Float?
   longitude                  Float?
@@ -71,7 +71,7 @@ model ProjectMaster {
   siteShortName              String?
   scheduledStartDate         DateTime?
   scheduledEndDate           DateTime?
-  managerIds                 String[]              @default([])
+  managerIds                 String[]                         @default([])
   assignments                ProjectAssignment[]
   files                      ProjectMasterFile[]
   projectMaterialItems       ProjectMaterialItem[]
@@ -89,36 +89,36 @@ model ProjectMaster {
 }
 
 model ProjectAssignment {
-  id                   String                @id @default(uuid())
-  projectMasterId      String
-  assignedEmployeeId   String
-  date                 DateTime
-  memberCount          Int                   @default(0)
-  workers              String?
-  vehicles             String?
-  meetingTime          String?
-  sortOrder            Int                   @default(0)
-  remarks              String?
-  confirmedWorkerIds   String?
-  confirmedVehicleIds  String?
-  isDispatchConfirmed  Boolean               @default(false)
-  createdAt            DateTime              @default(now())
-  updatedAt            DateTime              @updatedAt
-  updatedBy            String?
-  constructionType     String?
-  estimatedHours       Float                 @default(8.0)
-  dispatchRemark       String?
-  workStartedAt        DateTime?
-  workEndedAt          DateTime?
-  workStartedComment   String?
-  workEndedComment     String?
-  laborCostOverride        Int?
-  vehicleCostOverride      Int?
+  id                        String                @id @default(uuid())
+  projectMasterId           String
+  assignedEmployeeId        String
+  date                      DateTime
+  memberCount               Int                   @default(0)
+  workers                   String?
+  vehicles                  String?
+  meetingTime               String?
+  sortOrder                 Int                   @default(0)
+  remarks                   String?
+  confirmedWorkerIds        String?
+  confirmedVehicleIds       String?
+  isDispatchConfirmed       Boolean               @default(false)
+  createdAt                 DateTime              @default(now())
+  updatedAt                 DateTime              @updatedAt
+  updatedBy                 String?
+  constructionType          String?
+  estimatedHours            Float                 @default(8.0)
+  dispatchRemark            String?
+  workStartedAt             DateTime?
+  workEndedAt               DateTime?
+  workStartedComment        String?
+  workEndedComment          String?
+  laborCostOverride         Int?
+  vehicleCostOverride       Int?
   subcontractorCostOverride Int?
-  assignmentVehicles   AssignmentVehicle[]
-  assignmentWorkers    AssignmentWorker[]
-  dailyReportWorkItems DailyReportWorkItem[]
-  projectMaster        ProjectMaster         @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
+  assignmentVehicles        AssignmentVehicle[]
+  assignmentWorkers         AssignmentWorker[]
+  dailyReportWorkItems      DailyReportWorkItem[]
+  projectMaster             ProjectMaster         @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
   @@index([assignedEmployeeId])
@@ -345,12 +345,12 @@ model Vehicle {
 }
 
 model Worker {
-  id         String   @id @default(uuid())
-  name       String
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  dailyRate  Decimal?
+  id        String   @id @default(uuid())
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  dailyRate Decimal?
 
   @@index([name])
   @@schema("public")
@@ -676,15 +676,15 @@ model DailyReportWorkItem {
 // 定時 8:00-17:00、職長が代表入力
 model AttendanceRecord {
   id                    String   @id @default(uuid())
-  userId                String   // 出勤者のユーザーID
+  userId                String // 出勤者のユーザーID
   date                  DateTime @db.Date
-  foremanId             String   // 入力した職長のユーザーID
+  foremanId             String // 入力した職長のユーザーID
   status                String   @default("present") // present|absent|paid_leave|holiday （管理者が後で調整）
   earlyStartMinutes     Int      @default(0) // 早出（分）
   morningLoadingMinutes Int      @default(0) // 朝積（分）
   overtimeMinutes       Int      @default(0) // 残業（分）
   eveningLoadingMinutes Int      @default(0) // 夕積（分）
-  earlyEndTime          String?  // 早終時刻 "16:30" 形式 / null=早終なし
+  earlyEndTime          String? // 早終時刻 "16:30" 形式 / null=早終なし
   note                  String?
   createdBy             String
   createdAt             DateTime @default(now())
@@ -701,12 +701,12 @@ model AttendanceRecord {
 // 作図機能用。次タスクで prisma migrate dev によりテーブル作成予定。
 // それまではこのモデルを参照する API・コードを書かないこと。
 model SiteSurvey {
-  id              String         @id @default(uuid())
+  id              String    @id @default(uuid())
   projectMasterId String?
   title           String
   customerName    String?
   workType        String?
-  managerIds      String[]       @default([])
+  managerIds      String[]  @default([])
   scheduledDate   DateTime?
   notes           String?
   handoffNotes    String?
@@ -719,11 +719,11 @@ model SiteSurvey {
   floorArea       Float?
   scaffoldArea    Float?
   createdBy       String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
   updatedBy       String?
 
-  projectMaster   ProjectMaster? @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+  projectMaster ProjectMaster? @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
 
   @@index([projectMasterId])
   @@index([createdAt])
@@ -1172,7 +1172,7 @@ model ProjectMasterFile {
   originalSignedUrl           String?
   originalSignedUrlExpiresAt  DateTime?
   originalStoragePath         String?
-  sourceType                  String?       // 'pdf' if converted from PDF
+  sourceType                  String? // 'pdf' if converted from PDF
   projectMaster               ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
@@ -1384,19 +1384,19 @@ model Notification {
 }
 
 model ChatRoom {
-  id                 String       @id @default(uuid())
-  type               String       // 'dm' | 'group' | 'project'
+  id                 String    @id @default(uuid())
+  type               String // 'dm' | 'group' | 'project'
   name               String?
   projectMasterId    String?
   createdBy          String
   lastMessageAt      DateTime?
   lastMessagePreview String?
-  isArchived         Boolean      @default(false)
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  isArchived         Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
-  members            ChatMember[]
-  messages           Message[]
+  members  ChatMember[]
+  messages Message[]
 
   @@index([projectMasterId])
   @@index([type])
@@ -1416,7 +1416,7 @@ model ChatMember {
   isPinned          Boolean   @default(false)
   leftAt            DateTime?
 
-  room              ChatRoom  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@unique([roomId, userId])
   @@index([userId, lastReadAt])
@@ -1424,15 +1424,15 @@ model ChatMember {
 }
 
 model Message {
-  id          String              @id @default(uuid())
+  id          String    @id @default(uuid())
   roomId      String
   senderId    String
   body        String
-  contentType String              @default("text") // 'text' | 'image' | 'pdf' | 'system'
+  contentType String    @default("text") // 'text' | 'image' | 'pdf' | 'system'
   parentId    String?
   editedAt    DateTime?
   deletedAt   DateTime?
-  createdAt   DateTime            @default(now())
+  createdAt   DateTime  @default(now())
 
   room        ChatRoom            @relation(fields: [roomId], references: [id], onDelete: Cascade)
   attachments MessageAttachment[]
@@ -1447,7 +1447,7 @@ model Message {
 model MessageAttachment {
   id                          String    @id @default(uuid())
   messageId                   String
-  fileType                    String    // 'image' | 'pdf'
+  fileType                    String // 'image' | 'pdf'
   storagePath                 String
   thumbnailPath               String?
   signedUrl                   String?
@@ -1460,7 +1460,7 @@ model MessageAttachment {
   height                      Int?
   createdAt                   DateTime  @default(now())
 
-  message                     Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
   @@schema("public")
@@ -1469,12 +1469,12 @@ model MessageAttachment {
 model MessageMention {
   id         String   @id @default(uuid())
   messageId  String
-  targetType String   // 'user' | 'project' | 'role'
-  targetId   String   // userId / projectMasterId / 'admin' or 'admin,manager'
-  label      String?  // 表示名（@山田太郎の "山田太郎"）。古いレコードは null
+  targetType String // 'user' | 'project' | 'role'
+  targetId   String // userId / projectMasterId / 'admin' or 'admin,manager'
+  label      String? // 表示名（@山田太郎の "山田太郎"）。古いレコードは null
   createdAt  DateTime @default(now())
 
-  message    Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@index([messageId])
   @@index([targetType, targetId])
@@ -1487,10 +1487,68 @@ model MessageRead {
   userId    String
   readAt    DateTime @default(now())
 
-  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
 
   @@unique([messageId, userId])
   @@index([userId])
+  @@schema("public")
+}
+
+// 振込先マスター（取引先の銀行口座台帳）
+model Payee {
+  id            String   @id @default(uuid())
+  name          String // 入金先名（例：㈱開成工業）
+  nameKana      String? // フリガナ（カ）オーケーグランデなど
+  alias         String? // 略称・別名
+  feeBearer     String   @default("them") // 手数料負担: "us"=当社負担(●), "them"=先方負担
+  bankName      String? // 銀行名（例：愛媛銀行）
+  branchName    String? // 支店名（例：見奈良支店）
+  accountType   String? // 口座種別: "普通" | "当座"
+  accountNumber String? // 口座番号
+  accountHolder String? // 口座名義（カナ）
+  notes         String? // 備考
+  isActive      Boolean  @default(true) // 利用中かどうか
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  updatedBy     String?
+
+  paymentSchedules PaymentSchedule[]
+
+  @@index([name])
+  @@index([isActive])
+  @@schema("public")
+}
+
+// 支払予定（毎月の支払スケジュール）
+model PaymentSchedule {
+  id            String    @id @default(uuid())
+  paymentDate   DateTime // 支払日（4月10日、4月末など）
+  paymentType   String    @default("transfer") // "transfer"=銀行振込, "payment_slip"=払込用紙
+  payeeId       String? // 振込先マスターへの参照（マスターから選択した場合）
+  payeeName     String // 入金先名（スナップショット保持。マスター変更後も予定は変わらない）
+  amount        Decimal   @db.Decimal(12, 2) // 金額
+  feeFlag       Boolean   @default(false) // 当社が手数料を負担するか（Excelの●に相当）
+  dueDate       DateTime? // 振込期日（払込用紙の場合）
+  bankName      String? // 銀行名（スナップショット）
+  branchName    String? // 支店名
+  accountType   String? // 口座種別
+  accountNumber String? // 口座番号
+  isPaid        Boolean   @default(false) // 支払済みフラグ
+  paidAt        DateTime? // 支払完了日時
+  paidBy        String? // 支払処理した人
+  notes         String? // 備考
+  sortOrder     Int       @default(0) // 同じ支払日内の表示順
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  updatedBy     String?
+
+  payee Payee? @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+
+  @@index([paymentDate])
+  @@index([payeeId])
+  @@index([paymentType])
+  @@index([isPaid])
+  @@index([paymentDate, paymentType])
   @@schema("public")
 }
 

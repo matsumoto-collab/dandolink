@@ -13,6 +13,7 @@ const VALID_PAGES: PageType[] = [
     'profit-dashboard', 'estimates', 'site-surveys', 'invoices', 'orders',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
+    'payment-schedules', 'payees',
 ];
 
 // 簡易ローディングコンポーネント
@@ -77,6 +78,12 @@ const AttendancePage = dynamic(() => import('@/components/Attendance/AttendanceP
     loading: () => <LoadingSpinner />,
 });
 const ChatPage = dynamic(() => import('@/components/Chat/ChatPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const PaymentSchedulesPage = dynamic(() => import('@/app/(finance)/payment-schedules/page'), {
+    loading: () => <LoadingSpinner />,
+});
+const PayeesPage = dynamic(() => import('@/app/(master)/payees/page'), {
     loading: () => <LoadingSpinner />,
 });
 
@@ -230,6 +237,18 @@ export default function MainContent() {
             case 'customers':
                 return <CustomersPage />;
 
+            case 'payment-schedules':
+                if (userRole !== 'admin') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <PaymentSchedulesPage />;
+
+            case 'payees':
+                if (userRole !== 'admin') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <PayeesPage />;
+
             case 'company':
                 return <CompanyInfoSettings />;
 
@@ -251,7 +270,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                     {renderContent()}
                 </div>
             </main>
