@@ -6,6 +6,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Trash2, Edit, Plus, Check, X } from 'lucide-react';
 import UnitPriceMasterSettings from '@/components/Settings/UnitPriceMasterSettings';
 import UserManagement from '@/components/Settings/UserManagement';
+import PartnerListPage from '@/components/Settings/PartnerListPage';
 import ConstructionTypeSettings from '@/components/Settings/ConstructionTypeSettings';
 import ConstructionSuffixSettings from '@/components/Settings/ConstructionSuffixSettings';
 import ConstructionContentSettings from '@/components/Settings/ConstructionContentSettings';
@@ -31,7 +32,7 @@ export default function SettingsPage() {
         deleteMemberCountEntry,
     } = useMasterData();
 
-    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'dispatchOrder'>('vehicles');
+    const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
     const [newItemName, setNewItemName] = useState('');
@@ -49,7 +50,7 @@ export default function SettingsPage() {
 
     // Build tabs array based on user permissions
     const tabs = React.useMemo(() => {
-        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'dispatchOrder'; label: string; count: number | null }> = [
+        const baseTabs: Array<{ id: 'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder'; label: string; count: number | null }> = [
             { id: 'vehicles' as const, label: '車両管理', count: null },
             { id: 'members' as const, label: '総メンバー数設定', count: null },
             { id: 'constructionTypes' as const, label: '工事種別', count: null },
@@ -68,6 +69,7 @@ export default function SettingsPage() {
         // Add user management tab if user is admin
         if (isUserAdmin) {
             baseTabs.push({ id: 'users' as const, label: 'ユーザー管理', count: null });
+            baseTabs.push({ id: 'partners' as const, label: '協力会社', count: null });
         }
 
         return baseTabs;
@@ -349,6 +351,9 @@ export default function SettingsPage() {
                         ) : activeTab === 'users' ? (
                             // ユーザー管理
                             <UserManagement />
+                        ) : activeTab === 'partners' ? (
+                            // 協力会社管理
+                            <PartnerListPage />
                         ) : activeTab === 'dispatchOrder' ? (
                             // 手配確定の並び順
                             <DispatchOrderSettings />
