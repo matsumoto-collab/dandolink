@@ -117,6 +117,55 @@
 
 詳細指示書: `docs/handoff/partner-member-step6-instructions.md`
 
+### Step 7-A: 手配ピッカーで partner / partner_member を選択可に ✓ 完了 (2026-05-08)
+
+**設計の要点:**
+- `/api/dispatch/workers` の role allowlist に partner / partner_member を追加（呼び出し側=管理者ロールの認可は据え置き）
+- select に companyId と company リレーション (親会社 displayName) を追加
+- DispatchConfirmModal: ROLE_PRIORITY に partner_member=1.5, partner=1.7 を挿入（worker と foreman2 の間）
+- partner_member のチップだけ親会社名を上段に小さく併記。partner 本人や他ロールは1段表示のまま
+
+**修正したファイル (3):**
+1. `app/api/dispatch/workers/route.ts`: allowlist + select 拡張
+2. `components/Calendar/DispatchConfirmModal.tsx`: 型・並び順・チップ表示
+3. `__tests__/api/dispatch/workers/route.test.ts`: 期待値を現状実装に追従（support 追加 / dispatchSortOrder / orderBy 配列化を含む既存 rot も同時に解消）
+
+詳細指示書: `docs/handoff/partner-member-step7a-instructions.md`
+
+### Step 7-B: partner / partner_member の手配表ビュー（今日明日のみ）✓ 完了 (2026-05-08)
+
+**設計の要点:**
+- partner / partner_member ログイン時の `case 'schedule'` を **タブ式の新スクリーン** に差し替え
+  - 「今日明日」タブ = 新規 PartnerScheduleView（カードリスト形式）
+  - 「週間」タブ = 既存 WeeklyCalendar (partnerMode) を引き続き利用
+- 期間は **当日 + 翌日のみ** （server-side で JST 基準に強制）
+- スコープは会社単位: partner=自分.id / partner_member=companyId
+- 自社班 (assignedEmployeeId === 親会社id) と自社メンバーが他班に手配されている案件を両方表示
+- 表示項目: 工事種別バッジ / 案件名 / 顧客名 / 現場 / 集合時間 / メンバー名 / 班長名 / 備考
+- 機微情報 (金額系・添付ファイル) は API レスポンスに含めない
+- 手配確定済 (`isDispatchConfirmed=true`) のみ
+- companyId 未設定の partner_member は 403 ではなく空配列を返す
+
+**タイムゾーン処理:**
+- サーバ TZ (Vercel UTC) に依存しないよう、`Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo' })` で JST 暦日を計算
+- frontend は `localDateKey()` (browser local = JST 前提) でフィルタキー生成
+- 双方とも JST 暦日で一致する設計
+
+**追加したファイル (3):**
+1. `app/api/partner-schedule/route.ts` (GET only)
+2. `components/PartnerSchedule/PartnerScheduleView.tsx` (今日明日のカードリスト)
+3. `components/PartnerSchedule/PartnerScheduleScreen.tsx` (タブラッパー)
+
+**修正したファイル (1):**
+4. `components/MainContent.tsx`: partner/partner_member の case 'schedule' を PartnerScheduleScreen に差替（既存 companyId 未設定ガードは据え置き）
+
+詳細指示書: `docs/handoff/partner-member-step7b-instructions.md`
+
+**既知の限界 / 将来検討:**
+- 案件の写真は API レスポンスから除外する形で保存抑制（ブラウザ表示すると完全保護不可のため）
+- vehicles は MVP で空配列。AssignmentVehicle テーブル参照は後続で追加可能
+- 翌々日以降や過去の予定はタブ「週間」の WeeklyCalendar から確認
+
 ## 3. Cowork (Claude Cowork mode) への引き継ぎプロンプト案
 
 次回セッション開始時に以下を Cowork に貼ると引き継ぎ可能:
