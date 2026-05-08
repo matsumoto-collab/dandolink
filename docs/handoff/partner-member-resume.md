@@ -1,6 +1,6 @@
 # 協力会社メンバー機能 — 次回セッション再開ガイド
 
-最終更新: 2026-05-07
+最終更新: 2026-05-08
 ブランチ: `feature/partner-members`
 
 ## 1. ここまでの完了状態
@@ -40,7 +40,12 @@
 
 ## 2. 次にやること（Step 4〜6）
 
-### Step 4: 動作確認（次セッション最初に実施推奨）
+### Step 4: 動作確認 ✓ 完了 (2026-05-08)
+全13項目 OK（UserManagement filter / 協力会社タブ admin専用 / 協力会社CRUD / メンバー画面遷移 / メンバーCRUD / isLoginEnabled パスワード欄分岐 / ログイン許可トグル楽観的UI / 編集時 read-only 所属会社 / 親削除ガード 400）。
+
+<details>
+<summary>当時の確認手順</summary>
+
 ローカル dev 環境で以下を目視確認:
 
 1. `npm run dev` で起動
@@ -59,6 +64,8 @@
    - 親協力会社削除（メンバー0件）→ 成功
    - 親協力会社削除（メンバー残存）→ 400 エラー toast「所属メンバーが○名残っているため削除できません」
 
+</details>
+
 ### Step 5: WeeklyCalendar の partnerScope/employeeRows 拡張
 既存 WeeklyCalendar が `role='partner'` を扱う部分を `partner` または `partner_member` でも動くように拡張。
 
@@ -68,13 +75,19 @@
 - employeeRows のロール判定ロジック
 
 ### Step 6: API側 partner_member 対応 8箇所
-バックエンド API 8箇所で partner_member ロールの分岐/権限を実装。具体的にどの8箇所かは前回チャットで失われたので、Step 5 完了後に grep で再特定する必要あり。
+バックエンド API 8箇所で partner_member ロールの分岐/権限を実装。
 
-候補:
-- 手配（assignment）系API
-- 出勤簿（attendance）系API
-- 通知（notification）系API
-- チャット（chat）系API
+Step 4 完了時の grep で特定済み（`role === 'partner'` 参照箇所、Sidebar/docs除く）:
+1. `app/api/daily-reports/route.ts:36` — worker/partner 権限分岐
+2. `app/api/chat/rooms/[roomId]/route.ts:113` — チャット partner判定
+3. `app/api/chat/projects/[projectId]/room/route.ts:66` — isPartner 判定
+4. `app/api/chat/projects/[projectId]/ensure-room/route.ts:64` — isPartner 判定
+5. `app/api/project-masters/route.ts:29` — worker/partner 一覧フィルタ
+6. `app/api/project-masters/[id]/profit/route.ts:203` — partnerForemanIds 集計
+7. `utils/permissions.ts:112` — foreman2/worker/partner 権限分岐
+8. `lib/profitDashboard.ts:381` — partner ユーザー集計
+
+備考: assignment/attendance/notification 系は直接の `role === 'partner'` ヒットなし → 別の表現で判定している可能性あり、Step 5 完了後の再 grep（`AssignmentWorker`、`workerId`、role enum 参照など）で再特定する。
 
 ## 3. Cowork (Claude Cowork mode) への引き継ぎプロンプト案
 
