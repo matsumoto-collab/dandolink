@@ -86,6 +86,9 @@ const PaymentSchedulesPage = dynamic(() => import('@/app/(finance)/payment-sched
 const PayeesPage = dynamic(() => import('@/app/(master)/payees/page'), {
     loading: () => <LoadingSpinner />,
 });
+const PartnerScheduleScreen = dynamic(() => import('./PartnerSchedule/PartnerScheduleScreen'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -163,12 +166,11 @@ export default function MainContent() {
                 if (userRole === 'partner') {
                     return (
                         <div className="flex-1 min-h-0">
-                            <WeeklyCalendar partnerMode={true} partnerId={userId} />
+                            <PartnerScheduleScreen weeklyPartnerId={userId!} />
                         </div>
                     );
                 }
-                // partner_memberロールの場合は親協力会社のカレンダー行のみを閲覧表示
-                // （partnerId は自分の userId ではなく親会社の companyId を渡す）
+                // partner_memberロールの場合は親協力会社をスコープに今日明日/週間を表示
                 if (userRole === 'partner_member') {
                     const parentCompanyId = session?.user?.companyId;
                     if (!parentCompanyId) {
@@ -183,7 +185,7 @@ export default function MainContent() {
                     }
                     return (
                         <div className="flex-1 min-h-0">
-                            <WeeklyCalendar partnerMode={true} partnerId={parentCompanyId} />
+                            <PartnerScheduleScreen weeklyPartnerId={parentCompanyId} />
                         </div>
                     );
                 }
