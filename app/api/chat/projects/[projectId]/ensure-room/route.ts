@@ -61,7 +61,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ pro
         const memberIds = new Set<string>();
         memberIds.add(userId);
 
-        const isPartner = session!.user.role === 'partner';
+        const isPartner = session!.user.role === 'partner' || session!.user.role === 'partner_member';
         if (isPartner) {
             // 協力業者: 「自分 + 案件担当者(managerIds + createdBy)」に強制
             (project.managerIds || []).forEach((id) => memberIds.add(id));

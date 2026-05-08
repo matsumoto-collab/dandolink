@@ -18,12 +18,16 @@ export async function GET(req: NextRequest) {
         // クエリパラメータによるフィルタリング
         const queryRole = req.nextUrl.searchParams.get('role');
         const rolesToFetch = queryRole ? queryRole.split(',').map(r => r.trim().toUpperCase()) : undefined;
+        const queryCompanyId = req.nextUrl.searchParams.get('companyId');
 
-        const whereClause = rolesToFetch ? { role: { in: rolesToFetch } } : undefined;
+        const whereClause = {
+            ...(rolesToFetch ? { role: { in: rolesToFetch } } : {}),
+            ...(queryCompanyId ? { companyId: queryCompanyId } : {}),
+        };
 
         const users = await prisma.user.findMany({
-            where: whereClause,
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, createdAt: true, updatedAt: true },
+            where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, createdAt: true, updatedAt: true },
             orderBy: { createdAt: 'desc' },
         });
 
@@ -44,6 +48,8 @@ export async function GET(req: NextRequest) {
                     email: user.email,
                     assignedProjects: parseJsonField<string[]>(user.assignedProjects, []),
                     dailyRate: user.dailyRate ? Number(user.dailyRate) : null,
+                    companyId: user.companyId,
+                    isLoginEnabled: user.isLoginEnabled,
                     createdAt: user.createdAt,
                     updatedAt: user.updatedAt,
                 };
@@ -104,7 +110,7 @@ export async function POST(req: NextRequest) {
             return validationErrorResponse(validation.error!, validation.details);
         }
 
-        const { username, email, displayName, password, role, assignedProjects, dailyRate } = validation.data;
+        const { username, email, displayName, password, role, assignedProjects, dailyRate, companyId, isLoginEnabled } = validation.data;
 
         const existingUser = await prisma.user.findUnique({ where: { username } });
         if (existingUser) return errorResponse('このユーザー名は既に使用されています', 400);
@@ -112,7 +118,17 @@ export async function POST(req: NextRequest) {
         const existingEmail = await prisma.user.findUnique({ where: { email } });
         if (existingEmail) return errorResponse('このメールアドレスは既に使用されています', 400);
 
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // partner_member の親会社検証
+        if (role === 'partner_member') {
+            if (!companyId) return errorResponse('partner_memberにはcompanyIdが必須です', 400);
+            const parent = await prisma.user.findUnique({ where: { id: companyId }, select: { id: true, role: true } });
+            if (!parent) return errorResponse('指定された協力会社が存在しません', 400);
+            if (parent.role !== 'PARTNER') return errorResponse('指定されたユーザーは協力会社ではありません', 400);
+        }
+
+        // ログイン無効ユーザー用のダミーパスワードハッシュ
+        const loginEnabled = isLoginEnabled ?? true;
+        const hashedPassword = loginEnabled ? await bcrypt.hash(password, 10) : '!nologin';
 
         const newUser = await prisma.user.create({
             data: {
@@ -122,6 +138,8 @@ export async function POST(req: NextRequest) {
                 assignedProjects: stringifyJsonField(assignedProjects),
                 dailyRate: dailyRate != null ? dailyRate : null,
                 isActive: true,
+                companyId: companyId ?? null,
+                isLoginEnabled: loginEnabled,
             },
         });
 
@@ -130,6 +148,8 @@ export async function POST(req: NextRequest) {
             role: newUser.role.toLowerCase(),
             assignedProjects: parseJsonField<string[]>(newUser.assignedProjects, []),
             dailyRate: newUser.dailyRate ? Number(newUser.dailyRate) : null,
+            companyId: newUser.companyId,
+            isLoginEnabled: newUser.isLoginEnabled,
             isActive: newUser.isActive, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt,
         });
     } catch (error) {

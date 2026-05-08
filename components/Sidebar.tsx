@@ -110,6 +110,8 @@ export default function Sidebar() {
                 return 'bg-slate-600/20 text-slate-300 ring-green-500/30';
             case 'viewer':
                 return 'bg-slate-500/20 text-slate-300 ring-slate-500/30';
+            case 'partner_member':
+                return 'bg-slate-500/20 text-slate-300 ring-slate-500/30';
             default:
                 return 'bg-slate-500/20 text-slate-300 ring-slate-500/30';
         }
@@ -133,6 +135,8 @@ export default function Sidebar() {
                 return '職方';
             case 'partner':
                 return '協力会社';
+            case 'partner_member':
+                return '協力会社メンバー';
             default:
                 return role;
         }
@@ -239,8 +243,8 @@ export default function Sidebar() {
                                 }
                                 return null;
                             }
-                            // partnerロール: スケジュール + チャット
-                            if (role === 'partner') {
+                            // partner / partner_member ロール: スケジュール + チャット
+                            if (role === 'partner' || role === 'partner_member') {
                                 if (filteredSection.title !== '業務管理') return null;
                                 const filteredItems = filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat');
                                 if (filteredItems.length === 0) return null;

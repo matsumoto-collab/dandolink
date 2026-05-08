@@ -1,7 +1,14 @@
 import { z } from 'zod';
 import { emailSchema, passwordSchema } from './common';
 
-export const userRoleSchema = z.enum(['admin', 'manager', 'foreman1', 'foreman2', 'worker', 'partner', 'support']);
+export const userRoleSchema = z.enum(['admin', 'manager', 'foreman1', 'foreman2', 'worker', 'partner', 'partner_member', 'support']);
+
+const partnerMemberCompanyIdRefinement = {
+    check: (data: { role?: string; companyId?: string | null }) =>
+        data.role !== 'partner_member' || !!data.companyId,
+    message: 'partner_memberロール選択時はcompanyIdが必須です',
+    path: ['companyId'] as const,
+};
 
 export const createUserSchema = z.object({
     username: z
@@ -18,6 +25,11 @@ export const createUserSchema = z.object({
     role: userRoleSchema,
     assignedProjects: z.array(z.string()).optional(),
     dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
+    companyId: z.string().optional().nullable(),
+    isLoginEnabled: z.boolean().optional(),
+}).refine(partnerMemberCompanyIdRefinement.check, {
+    message: partnerMemberCompanyIdRefinement.message,
+    path: [...partnerMemberCompanyIdRefinement.path],
 });
 
 export const createSupportUserSchema = z.object({
@@ -41,6 +53,11 @@ export const updateUserSchema = z.object({
     isActive: z.boolean().optional(),
     assignedProjects: z.array(z.string()).optional(),
     dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
+    companyId: z.string().optional().nullable(),
+    isLoginEnabled: z.boolean().optional(),
+}).refine(partnerMemberCompanyIdRefinement.check, {
+    message: partnerMemberCompanyIdRefinement.message,
+    path: [...partnerMemberCompanyIdRefinement.path],
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

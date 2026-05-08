@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         // ロールベースフィルタリング: worker, partner は自分の日報のみ
         // foreman2 は閲覧のみ全件可（編集・削除はDELETE/POSTで本人または管理者に制限）
         const role = session!.user.role;
-        if (role === 'worker' || role === 'partner') {
+        if (role === 'worker' || role === 'partner' || role === 'partner_member') {
             where.foremanId = session!.user.id;
             // 他人のforemanIdが指定された場合は拒否
             if (foremanId && foremanId !== session!.user.id) {

@@ -52,8 +52,9 @@ export default function UserManagement() {
         try {
             const response = await fetch('/api/users');
             if (response.ok) {
-                const data = await response.json();
-                setUsers(data);
+                const data: User[] = await response.json();
+                // partner / partner_member は専用「協力会社」タブで管理するため除外
+                setUsers(data.filter(u => u.role !== 'partner' && u.role !== 'partner_member'));
             }
         } catch (error) {
             logger.error('Failed to fetch users:', error);
