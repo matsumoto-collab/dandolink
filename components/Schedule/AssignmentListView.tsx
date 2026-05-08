@@ -35,12 +35,7 @@ export default function AssignmentListView({
     const { constructionTypes } = useMasterData();
 
     const [managerMap, setManagerMap] = useState<Map<string, string>>(new Map());
-    const [allManagers, setAllManagers] = useState<ManagerInfo[]>([]);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-
-    // フィルター state
-    const [managerFilter, setManagerFilter] = useState<string>('all'); // 'all' | userId | 'unassigned'
-    const [typeFilters, setTypeFilters] = useState<Set<string>>(new Set()); // 空 = 全表示
 
     // 案件担当者の名前を取得
     useEffect(() => {
@@ -52,7 +47,6 @@ export default function AssignmentListView({
                 const map = new Map<string, string>();
                 data.forEach(u => map.set(u.id, u.displayName));
                 setManagerMap(map);
-                setAllManagers(data);
             } catch {
                 // 失敗時はIDをそのまま表示
             }
@@ -74,71 +68,19 @@ export default function AssignmentListView({
         return m;
     }, [displayedForemanIds]);
 
-    // 当日の案件
+    // 当日の案件をカレンダー順にソート
     const dateKey = formatDateKey(selectedDate);
-    const dayProjects = useMemo(() => {
-        return projects.filter(p => formatDateKey(new Date(p.startDate)) === dateKey);
-    }, [projects, dateKey]);
-
-    // フィルター適用 + カレンダー順ソート
     const sortedProjects = useMemo(() => {
-        let result = dayProjects;
-        if (typeFilters.size > 0) {
-            result = result.filter(p => p.constructionType && typeFilters.has(p.constructionType));
-        }
-        if (managerFilter !== 'all') {
-            if (managerFilter === 'unassigned') {
-                result = result.filter(p => {
-                    const ids = Array.isArray(p.createdBy) ? p.createdBy : (p.createdBy ? [p.createdBy] : []);
-                    return ids.length === 0;
-                });
-            } else {
-                result = result.filter(p => {
-                    const ids = Array.isArray(p.createdBy) ? p.createdBy : (p.createdBy ? [p.createdBy] : []);
-                    return ids.includes(managerFilter);
-                });
-            }
-        }
+        const dayProjects = projects.filter(p => formatDateKey(new Date(p.startDate)) === dateKey);
         // カレンダー順: 職長順 → 各職長内のsortOrder順
         // 職長未割当は最後に
-        const sorted = [...result].sort((a, b) => {
+        return [...dayProjects].sort((a, b) => {
             const aFOrder = a.assignedEmployeeId ? (foremanOrderMap.get(a.assignedEmployeeId) ?? 9999) : 99999;
             const bFOrder = b.assignedEmployeeId ? (foremanOrderMap.get(b.assignedEmployeeId) ?? 9999) : 99999;
             if (aFOrder !== bFOrder) return aFOrder - bFOrder;
             return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
         });
-        return sorted;
-    }, [dayProjects, typeFilters, managerFilter, foremanOrderMap]);
-
-    // 当日案件に登場する担当者(フィルターチップ用)
-    const managersInUse = useMemo(() => {
-        const ids = new Set<string>();
-        dayProjects.forEach(p => {
-            const arr = Array.isArray(p.createdBy) ? p.createdBy : (p.createdBy ? [p.createdBy] : []);
-            arr.forEach(id => ids.add(id));
-        });
-        return Array.from(ids)
-            .map(id => allManagers.find(u => u.id === id) || { id, displayName: managerMap.get(id) || id })
-            .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ja'));
-    }, [dayProjects, allManagers, managerMap]);
-
-    // 未割当(担当者なし)があるか
-    const hasUnassigned = useMemo(() => {
-        return dayProjects.some(p => {
-            const ids = Array.isArray(p.createdBy) ? p.createdBy : (p.createdBy ? [p.createdBy] : []);
-            return ids.length === 0;
-        });
-    }, [dayProjects]);
-
-    // 工事種別フィルターのトグル
-    const toggleTypeFilter = (typeId: string) => {
-        setTypeFilters(prev => {
-            const next = new Set(prev);
-            if (next.has(typeId)) next.delete(typeId);
-            else next.add(typeId);
-            return next;
-        });
-    };
+    }, [projects, dateKey, foremanOrderMap]);
 
     // 担当者表示名(短縮: 姓のみ取得を試みる)
     const getShortManagerName = (id: string): string => {
@@ -151,82 +93,6 @@ export default function AssignmentListView({
 
     return (
         <div className="flex flex-col h-full gap-3">
-            {/* フィルター行 */}
-            <div className="flex-shrink-0 bg-white rounded-xl border border-slate-200 p-3 space-y-2.5">
-                {/* 担当者フィルター */}
-                <div>
-                    <div className="text-[11px] font-medium text-slate-500 mb-1.5">案件担当者</div>
-                    <div className="flex flex-wrap gap-1.5">
-                        <FilterChip
-                            label="全員"
-                            active={managerFilter === 'all'}
-                            onClick={() => setManagerFilter('all')}
-                        />
-                        {managersInUse.map(m => (
-                            <FilterChip
-                                key={m.id}
-                                label={m.displayName}
-                                active={managerFilter === m.id}
-                                onClick={() => setManagerFilter(m.id)}
-                            />
-                        ))}
-                        {hasUnassigned && (
-                            <FilterChip
-                                label="未割当"
-                                active={managerFilter === 'unassigned'}
-                                onClick={() => setManagerFilter('unassigned')}
-                                danger
-                            />
-                        )}
-                    </div>
-                </div>
-
-                {/* 工事種別フィルター(色凡例) */}
-                {constructionTypes.length > 0 && (
-                    <div>
-                        <div className="text-[11px] font-medium text-slate-500 mb-1.5">
-                            工事種別 {typeFilters.size > 0 && (
-                                <button
-                                    onClick={() => setTypeFilters(new Set())}
-                                    className="ml-1.5 text-[10px] text-slate-400 underline"
-                                >
-                                    クリア
-                                </button>
-                            )}
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                            {constructionTypes.map(ct => {
-                                const active = typeFilters.size === 0 || typeFilters.has(ct.id);
-                                return (
-                                    <button
-                                        key={ct.id}
-                                        onClick={() => toggleTypeFilter(ct.id)}
-                                        className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-[11px] font-medium transition-all ${
-                                            active ? 'shadow-sm' : 'opacity-40'
-                                        }`}
-                                        style={{
-                                            backgroundColor: active ? `${ct.color}25` : '#f8fafc',
-                                            borderColor: ct.color,
-                                            color: '#1e293b',
-                                        }}
-                                    >
-                                        <span
-                                            className="inline-block w-2.5 h-2.5 rounded-full"
-                                            style={{ backgroundColor: ct.color }}
-                                        />
-                                        {ct.name}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
-
-                <div className="text-[11px] text-slate-400 pt-0.5">
-                    {sortedProjects.length}件表示中
-                </div>
-            </div>
-
             {/* テーブル本体 */}
             <div className="flex-1 overflow-auto">
                 {sortedProjects.length === 0 ? (
@@ -278,36 +144,6 @@ export default function AssignmentListView({
                 readOnly={true}
             />
         </div>
-    );
-}
-
-// ── フィルターチップ ──────────────────────────────────────────
-function FilterChip({
-    label,
-    active,
-    onClick,
-    danger,
-}: {
-    label: string;
-    active: boolean;
-    onClick: () => void;
-    danger?: boolean;
-}) {
-    return (
-        <button
-            onClick={onClick}
-            className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all min-h-[28px] ${
-                active
-                    ? danger
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : 'bg-slate-800 text-white shadow-sm'
-                    : danger
-                        ? 'bg-rose-50 text-rose-700 border border-rose-300'
-                        : 'bg-slate-50 text-slate-600 border border-slate-200'
-            }`}
-        >
-            {label}
-        </button>
     );
 }
 
