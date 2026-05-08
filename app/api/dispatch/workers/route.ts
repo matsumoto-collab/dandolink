@@ -13,8 +13,16 @@ export async function GET() {
         }
 
         const workers = await prisma.user.findMany({
-            where: { isActive: true, role: { in: ['worker', 'WORKER', 'foreman2', 'FOREMAN2', 'foreman1', 'FOREMAN1', 'admin', 'ADMIN', 'manager', 'MANAGER', 'support', 'SUPPORT'] } },
-            select: { id: true, displayName: true, role: true, dispatchSortOrder: true, hideByDefaultInDispatch: true },
+            where: { isActive: true, role: { in: ['worker', 'WORKER', 'foreman2', 'FOREMAN2', 'foreman1', 'FOREMAN1', 'admin', 'ADMIN', 'manager', 'MANAGER', 'support', 'SUPPORT', 'partner', 'PARTNER', 'partner_member', 'PARTNER_MEMBER'] } },
+            select: {
+                id: true,
+                displayName: true,
+                role: true,
+                dispatchSortOrder: true,
+                hideByDefaultInDispatch: true,
+                companyId: true,
+                company: { select: { id: true, displayName: true } },
+            },
             orderBy: [
                 { dispatchSortOrder: { sort: 'asc', nulls: 'last' } },
                 { displayName: 'asc' },

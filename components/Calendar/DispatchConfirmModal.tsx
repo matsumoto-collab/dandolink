@@ -19,11 +19,15 @@ interface DispatchUser {
     role: string;
     dispatchSortOrder?: number | null;
     hideByDefaultInDispatch?: boolean;
+    companyId?: string | null;
+    company?: { id: string; displayName: string } | null;
 }
 
 // 並び順未設定時のロール優先度フォールバック（小さいほど上）
 const ROLE_PRIORITY: Record<string, number> = {
     worker: 1,
+    partner_member: 1.5,
+    partner: 1.7,
     foreman2: 2,
     foreman1: 3,
     support: 4,
@@ -170,6 +174,9 @@ export default function DispatchConfirmModal({
     const renderWorkerChip = (worker: DispatchUser) => {
         const teams = workerTeamMap.get(worker.id);
         const isSelected = selectedWorkerIds.includes(worker.id);
+        const parentCompanyName =
+            worker.role === 'partner_member' ? (worker.company?.displayName ?? null) : null;
+
         return (
             <button
                 key={worker.id}
@@ -181,7 +188,14 @@ export default function DispatchConfirmModal({
                     }`}
             >
                 {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
-                <span className="truncate">{worker.displayName}</span>
+                <div className="flex flex-col items-center min-w-0 leading-tight">
+                    {parentCompanyName && (
+                        <span className={`text-[10px] truncate max-w-full ${isSelected ? 'text-slate-300' : 'text-slate-500'}`}>
+                            {parentCompanyName}
+                        </span>
+                    )}
+                    <span className="truncate max-w-full">{worker.displayName}</span>
+                </div>
                 {teams && (
                     <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
                         {teams.join('・')}
@@ -332,7 +346,7 @@ export default function DispatchConfirmModal({
                                 </div>
                                 {workers.length === 0 ? (
                                     <p className="text-center text-slate-500 py-6 border border-slate-200 rounded-xl">
-                                        ユーザー管理でworkerロールのユーザーを追加してください
+                                        ユーザー管理または協力会社からメンバーを追加してください
                                     </p>
                                 ) : (
                                     <>

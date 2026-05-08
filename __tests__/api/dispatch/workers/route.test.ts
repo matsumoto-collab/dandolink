@@ -23,7 +23,15 @@ jest.mock('@/lib/api/utils', () => ({
 
 describe('/api/dispatch/workers', () => {
     const mockSession = { user: { id: 'user-1', role: 'manager' } };
-    const mockWorker = { id: 'worker-1', displayName: 'Worker A', role: 'worker' };
+    const mockWorker = {
+        id: 'worker-1',
+        displayName: 'Worker A',
+        role: 'worker',
+        dispatchSortOrder: null,
+        hideByDefaultInDispatch: false,
+        companyId: null,
+        company: null,
+    };
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -39,9 +47,25 @@ describe('/api/dispatch/workers', () => {
         expect(res.status).toBe(200);
         expect(json).toEqual([mockWorker]);
         expect(prisma.user.findMany).toHaveBeenCalledWith({
-            where: { isActive: true, role: { in: ['worker', 'WORKER', 'foreman2', 'FOREMAN2', 'foreman1', 'FOREMAN1', 'admin', 'ADMIN', 'manager', 'MANAGER'] } },
-            select: { id: true, displayName: true, role: true },
-            orderBy: { displayName: 'asc' },
+            where: {
+                isActive: true,
+                role: {
+                    in: ['worker', 'WORKER', 'foreman2', 'FOREMAN2', 'foreman1', 'FOREMAN1', 'admin', 'ADMIN', 'manager', 'MANAGER', 'support', 'SUPPORT', 'partner', 'PARTNER', 'partner_member', 'PARTNER_MEMBER'],
+                },
+            },
+            select: {
+                id: true,
+                displayName: true,
+                role: true,
+                dispatchSortOrder: true,
+                hideByDefaultInDispatch: true,
+                companyId: true,
+                company: { select: { id: true, displayName: true } },
+            },
+            orderBy: [
+                { dispatchSortOrder: { sort: 'asc', nulls: 'last' } },
+                { displayName: 'asc' },
+            ],
         });
     });
 
