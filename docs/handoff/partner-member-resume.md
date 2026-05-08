@@ -86,20 +86,36 @@
 
 詳細指示書: `docs/handoff/partner-member-step5-instructions.md`
 
-### Step 6: API側 partner_member 対応 8箇所
-バックエンド API 8箇所で partner_member ロールの分岐/権限を実装。
+### Step 6: API側 partner_member 対応 ✓ 完了 (2026-05-08)
 
-Step 4 完了時の grep で特定済み（`role === 'partner'` 参照箇所、Sidebar/docs除く）:
-1. `app/api/daily-reports/route.ts:36` — worker/partner 権限分岐
-2. `app/api/chat/rooms/[roomId]/route.ts:113` — チャット partner判定
-3. `app/api/chat/projects/[projectId]/room/route.ts:66` — isPartner 判定
-4. `app/api/chat/projects/[projectId]/ensure-room/route.ts:64` — isPartner 判定
-5. `app/api/project-masters/route.ts:29` — worker/partner 一覧フィルタ
-6. `app/api/project-masters/[id]/profit/route.ts:203` — partnerForemanIds 集計
-7. `utils/permissions.ts:112` — foreman2/worker/partner 権限分岐
-8. `lib/profitDashboard.ts:381` — partner ユーザー集計
+**設計判断:**
+- partner_member は親 partner と同じレベルのアクセス権を持つ
+- ただしデータ参照キーが異なる: `partner` 自身=自分の userId、`partner_member`=親の companyId (assignment 主体ではないため)
+- 「foreman 行集合」(partnerForemanIds) には partner_member を含めない (会社単位の集計のため)
 
-備考: assignment/attendance/notification 系は直接の `role === 'partner'` ヒットなし → 別の表現で判定している可能性あり、Step 5 完了後の再 grep（`AssignmentWorker`、`workerId`、role enum 参照など）で再特定する。
+**修正したファイル (7):**
+1. `app/api/daily-reports/route.ts`: GET の自分のみフィルタに partner_member を追加
+2. `app/api/chat/rooms/[roomId]/route.ts`: メンバー追加権限チェックに partner_member を追加
+3. `app/api/chat/projects/[projectId]/room/route.ts`: isPartner 判定に partner_member を追加
+4. `app/api/chat/projects/[projectId]/ensure-room/route.ts`: 同上
+5. `app/api/project-masters/route.ts`: partner_member 用に別ブロックで companyId をキーにアサイン案件を引く (親未設定時は空集合)
+6. `utils/permissions.ts`: canAccessProject の assignedProjects 経路に partner_member を追加
+7. `app/api/chat/mentions/suggest/route.ts`: ROLE_OPTIONS と roleLabel に partner_member 追加 (再 grep で発見)
+
+**無修正で確定 (2):**
+- `app/api/project-masters/[id]/profit/route.ts:203` — partnerForemanIds は会社単位集計、partner_member 対象外
+- `lib/profitDashboard.ts:381` — 同上
+
+**動作確認結果 (2026-05-08, kei による目視):**
+- 既存 partner (5社) の回帰なし (スケジュール / 案件マスター / 日報)
+- partner_member ログイン: 親会社にアサインされた案件のみ案件一覧に表示。スケジュールは親の行で1行表示。日報は自分のみ
+- チャットメンションのロール候補に「協力会社メンバー」が表示
+
+**既知の限界 / 将来検討事項:**
+- partner_member の `assignedProjects` は per-user で admin が個別設定。親会社からの自動同期は未実装 (現状は project-masters/route.ts の companyId 経路で実運用上は機能する)
+- `app/api/my-schedule/route.ts:76` の foremanMap は partner_member の表示名解決に必要になったら検討
+
+詳細指示書: `docs/handoff/partner-member-step6-instructions.md`
 
 ## 3. Cowork (Claude Cowork mode) への引き継ぎプロンプト案
 
