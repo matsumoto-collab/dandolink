@@ -1,7 +1,7 @@
 # 協力会社メンバー機能 — 次回セッション再開ガイド
 
 最終更新: 2026-05-08
-ブランチ: main（Step 1〜8 すべて PR #1, #2, #3, #4 として merge 済）
+ブランチ: main（Step 1〜9 すべて PR #1, #2, #3, #4, #5 として merge 済）
 
 ## 0. 役割分担と運用フロー（このプロジェクト固有）
 
@@ -217,14 +217,45 @@
 
 詳細指示書: `docs/handoff/partner-member-step8-instructions.md`
 
-### 既知のテスト rot（Step 8 検出、未対応）
+### Step 9: 職長2 から協力業者のスケジュールを非表示 ✓ 完了 (2026-05-08)
+
+**設計の要点:**
+- foreman2 がスケジュール画面（週間 / 概観 / 手配表）を開いたとき、協力業者 (role=partner) の行を完全に非表示
+- foreman1 / admin / manager は現状維持（全件閲覧）
+- バックエンド `/api/dispatch/foremen` に `?scope=schedule` クエリを追加し、scope=schedule かつ caller=foreman2 のときだけ partner ロールを除外
+- 出勤簿・出庫伝票・LastUpdatedLabel など他用途は scope を付けないため影響なし
+
+**修正したファイル (3):**
+1. `app/api/dispatch/foremen/route.ts`: `GET(req: NextRequest)` シグネチャ + `?scope=schedule` 受付 + 条件付きで partner ロール除外
+2. `stores/calendarSlices/foremanSlice.ts:23`: `fetchForemen` の URL を `/api/dispatch/foremen?scope=schedule` に変更
+3. `__tests__/api/dispatch/foremen/route.test.ts`: 既存2件を NextRequest 引数付きに更新 + 新規4件追加（scope × role マトリクス）
+
+**触らないファイル（無修正、影響なし）:**
+- 出勤簿: `components/Attendance/AttendancePage.tsx`, `AttendanceModal.tsx`
+- 出庫伝票: `components/Materials/MaterialRequisitionPage.tsx`
+- `components/ui/LastUpdatedLabel.tsx`
+- スケジュール本体: `WeeklyCalendar.tsx`, `OverviewCalendar.tsx`, `AssignmentTable.tsx`（バックエンドフィルタなのでフロントは無修正）
+
+**動作確認結果 (2026-05-08, kei による):**
+- Vercel preview deploy 成功
+- CI failing は既存の type rot（`updateTotalMembers`）で Step 9 と無関係 → §2 末尾の「既知のテスト rot」に追記
+- 既存 partner / partner_member への回帰なし
+
+詳細指示書: `docs/handoff/partner-member-step9-instructions.md`
+
+**既知の限界 / 将来検討:**
+- assignments API は無修正のため、foreman2 がブラウザの Network タブで `/api/assignments` を直接見れば partner-assigned のアサインデータ自体は取得可能。本格的なアクセス制御は別タスク
+- `displayedForemanIds` グローバル設定に partner ID が残っていても問題なし（API が partner を返さなくなれば `allForemen.find()` が undefined となり frontend の filter で自動的に弾かれる）
+
+### 既知のテスト rot（Step 8 / Step 9 検出、未対応）
 - `__tests__/components/Calendar/WeeklyCalendar.test.tsx` ほか同系列で `useCalendarStore` を mock していないため、`cellRemarksInitialized / memberAdjustmentsInitialized / vacationsInitialized` がすべて false でローディング画面から進まず複数 it が失敗する。Step 8 の差分とは無関係。修正方針: テスト先頭で `jest.mock('@/stores/calendarStore', ...)` を追加し 3 flag を true で返す。別タスクで対応。
+- `__tests__/hooks/useMasterData.test.ts:96` および `__tests__/stores/masterStore.test.ts:181` で `updateTotalMembers` プロパティが MasterStore 型に存在しないという TS2551 エラー (`Did you mean 'totalMembers'?`)。Step 9 の差分とは無関係（master store のリファクタ過程で生じた既存 rot で、Step 9 の CI で表面化した）。修正方針: テストを実装に合わせて `totalMembers` を直接更新する形に書き換えるか、必要なら `updateTotalMembers` を MasterStore 側に追加。Step 9 PR #5 はこの rot を抱えたまま merge 済。別タスクで対応。
 
 ## 3. Cowork (Claude Cowork mode) への引き継ぎプロンプト案
 
 次回セッション開始時に以下を Cowork に貼ると引き継ぎ可能:
 
-> 「dandolink プロジェクトの partner_member 機能の続きです。Step 1〜8 (基盤・管理画面・API・WeeklyCalendar 連携・手配ピッカー・今日明日ビュー・協力会社向け UI 非表示) は main にすべて merge 済 (PR #1, #2, #3, #4)。`docs/handoff/partner-member-resume.md` の §0 役割分担と §1 完了状態を読んでから、これからの修正点を相談したいです。」
+> 「dandolink プロジェクトの partner_member 機能の続きです。Step 1〜9 (基盤・管理画面・API・WeeklyCalendar 連携・手配ピッカー・今日明日ビュー・協力会社向け UI 非表示・職長2 から協力業者非表示) は main にすべて merge 済 (PR #1, #2, #3, #4, #5)。`docs/handoff/partner-member-resume.md` の §0 役割分担と §1 完了状態を読んでから、これからの修正点を相談したいです。」
 
 ## 4. cc (Claude Code) への引き継ぎプロンプト案
 
@@ -257,3 +288,9 @@ kei の方針: **次回作業時も Step 8 までと同じ運用を継続**。
 - 後追い docs commit: docs(handoff): update Step 1-8 and PR #1-#4 references after Step 8 merge
 - Production デプロイ済 (Vercel auto-deploy)
 - 既知の test rot 1 件は §2 末尾「既知のテスト rot」で別タスク化済
+
+**Step 9 完了履歴サマリ**:
+- PR #5 (squash commit `9d994b8`): feat(schedule): hide partner rows from foreman2 in schedule views (Step 9)
+- 後追い docs commit: docs(handoff): update Step 1-9 and PR #1-#5 references after Step 9 merge
+- Production デプロイ済 (Vercel auto-deploy)
+- 既知の type rot 1 件 (`updateTotalMembers` in useMasterData.test.ts / masterStore.test.ts) を §2 末尾「既知のテスト rot」に追記して別タスク化（CI failing のまま merge）
