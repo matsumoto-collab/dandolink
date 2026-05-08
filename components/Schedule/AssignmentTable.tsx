@@ -7,11 +7,15 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Check, X, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Check, X, MessageSquare, LayoutGrid, List } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
 import { useCalendarStore, selectCellRemarks } from '@/stores/calendarStore';
+import AssignmentListView from './AssignmentListView';
+
+type ViewMode = 'card' | 'list';
+const VIEW_MODE_KEY = 'assignmentTable.viewMode';
 
 interface AssignmentTableProps {
     userRole?: string;
@@ -32,6 +36,20 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+    // 表示モード(カード/一覧) - localStorageで保持
+    const [viewMode, setViewMode] = useState<ViewMode>('card');
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const saved = window.localStorage.getItem(VIEW_MODE_KEY);
+            if (saved === 'card' || saved === 'list') setViewMode(saved);
+        } catch { /* ignore */ }
+    }, []);
+    const changeViewMode = (mode: ViewMode) => {
+        setViewMode(mode);
+        try { window.localStorage.setItem(VIEW_MODE_KEY, mode); } catch { /* ignore */ }
+    };
 
     useEffect(() => {
         const fetchNames = async () => {
@@ -210,18 +228,59 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                     </button>
                 </div>
 
-                <div className="mt-3 flex justify-center">
+                <div className="mt-3 flex items-center justify-between gap-2">
                     <button
                         onClick={goToTomorrow}
                         className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1 rounded-lg hover:bg-slate-50 transition-colors"
                     >
                         明日に戻る
                     </button>
+
+                    {/* 表示モード切替(workerロール以外) */}
+                    {userRole !== 'worker' && (
+                        <div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                            <button
+                                type="button"
+                                onClick={() => changeViewMode('card')}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                    viewMode === 'card'
+                                        ? 'bg-white text-slate-800 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                                aria-label="班別カード表示"
+                            >
+                                <LayoutGrid className="w-3 h-3" />
+                                <span className="hidden sm:inline">班別</span>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => changeViewMode('list')}
+                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                    viewMode === 'list'
+                                        ? 'bg-white text-slate-800 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                                aria-label="一覧表示"
+                            >
+                                <List className="w-3 h-3" />
+                                <span className="hidden sm:inline">一覧</span>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* 手配表本体 */}
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto min-h-0">
+                {/* 一覧表示モード(workerロール以外) */}
+                {userRole !== 'worker' && viewMode === 'list' ? (
+                    <AssignmentListView
+                        selectedDate={selectedDate}
+                        workerNameMap={workerNameMap}
+                        vehicleNameMap={vehicleNameMap}
+                        isNamesLoaded={isNamesLoaded}
+                    />
+                ) : (
                 <div className="space-y-4">
                     {userRole === 'worker' ? (
                         Object.keys(assignmentsByEmployee).length === 0 ? (
@@ -275,6 +334,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                         })
                     )}
                 </div>
+                )}
             </div>
 
             {/* 簡易編集シート */}
