@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Users, Truck, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Users, Truck, AlertCircle } from 'lucide-react';
 import { useProjects } from '@/hooks/useProjects';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -21,8 +21,8 @@ interface AssignmentListViewProps {
 interface ManagerInfo { id: string; displayName: string }
 
 /**
- * 一覧表示モード - カレンダーの並び順(職長→順番)でフラット表示
- * 旧紙手配表の「作業日報」風レイアウト。モバイル優先。
+ * 一覧表示モード - カレンダー順(職長→順番)でフラット表示
+ * 紙の手配表に近いレイアウト。モバイル優先。
  */
 export default function AssignmentListView({
     selectedDate,
@@ -54,7 +54,7 @@ export default function AssignmentListView({
         fetchUsers();
     }, []);
 
-    // 工事種別マップ(色とラベル)
+    // 工事種別マップ(色)
     const ctMap = useMemo(() => {
         const m = new Map<string, { name: string; color: string }>();
         constructionTypes.forEach(ct => m.set(ct.id, { name: ct.name, color: ct.color }));
@@ -72,8 +72,6 @@ export default function AssignmentListView({
     const dateKey = formatDateKey(selectedDate);
     const sortedProjects = useMemo(() => {
         const dayProjects = projects.filter(p => formatDateKey(new Date(p.startDate)) === dateKey);
-        // カレンダー順: 職長順 → 各職長内のsortOrder順
-        // 職長未割当は最後に
         return [...dayProjects].sort((a, b) => {
             const aFOrder = a.assignedEmployeeId ? (foremanOrderMap.get(a.assignedEmployeeId) ?? 9999) : 99999;
             const bFOrder = b.assignedEmployeeId ? (foremanOrderMap.get(b.assignedEmployeeId) ?? 9999) : 99999;
@@ -82,55 +80,44 @@ export default function AssignmentListView({
         });
     }, [projects, dateKey, foremanOrderMap]);
 
-    // 担当者表示名(短縮: 姓のみ取得を試みる)
+    // 担当者表示名(短縮: 姓のみ)
     const getShortManagerName = (id: string): string => {
         const full = managerMap.get(id) || '';
         if (!full) return '';
-        // 全角/半角スペースで区切られる場合は最初の単語を採用
         const parts = full.split(/[\s　]+/);
         return parts[0] || full;
     };
 
     return (
-        <div className="flex flex-col h-full gap-3">
-            {/* テーブル本体 */}
+        <div className="flex flex-col h-full">
             <div className="flex-1 overflow-auto">
                 {sortedProjects.length === 0 ? (
-                    <div className="bg-white rounded-xl border border-slate-200 py-10 text-center text-slate-400 text-sm">
+                    <div className="bg-white rounded-2xl border border-slate-200 py-12 text-center text-slate-400 text-sm">
                         該当する案件はありません
                     </div>
                 ) : (
-                    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                        {/* テーブルヘッダー(スティッキー) */}
-                        <div className="sticky top-0 z-10 grid grid-cols-[44px_28px_1fr] sm:grid-cols-[60px_36px_1fr] gap-1 px-2 py-1.5 bg-slate-100 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wide">
-                            <div>担当</div>
-                            <div className="text-center">順</div>
-                            <div>案件</div>
-                        </div>
-
-                        <div>
-                            {sortedProjects.map((p, idx) => {
-                                const prev = idx > 0 ? sortedProjects[idx - 1] : null;
-                                const sameForemanAsAbove = !!(prev && prev.assignedEmployeeId && prev.assignedEmployeeId === p.assignedEmployeeId);
-                                // 職長が変わったときに余白(separator)を入れる
-                                const needsTopGap = !!(prev && prev.assignedEmployeeId !== p.assignedEmployeeId);
-                                return (
-                                    <AssignmentRow
-                                        key={p.id}
-                                        project={p}
-                                        allForemen={allForemen}
-                                        workerNameMap={workerNameMap}
-                                        vehicleNameMap={vehicleNameMap}
-                                        isNamesLoaded={isNamesLoaded}
-                                        ctMap={ctMap}
-                                        getShortManagerName={getShortManagerName}
-                                        onClick={() => setSelectedProject(p as Project)}
-                                        sameForemanAsAbove={sameForemanAsAbove}
-                                        needsTopGap={needsTopGap}
-                                    />
-                                );
-                            })}
-                        </div>
+                    <div className="space-y-2.5">
+                        {sortedProjects.map((p, idx) => {
+                            const prev = idx > 0 ? sortedProjects[idx - 1] : null;
+                            const sameForemanAsAbove = !!(prev && prev.assignedEmployeeId && prev.assignedEmployeeId === p.assignedEmployeeId);
+                            const foremanChanged = !!(prev && prev.assignedEmployeeId !== p.assignedEmployeeId);
+                            return (
+                                <AssignmentRow
+                                    key={p.id}
+                                    project={p}
+                                    allForemen={allForemen}
+                                    workerNameMap={workerNameMap}
+                                    vehicleNameMap={vehicleNameMap}
+                                    isNamesLoaded={isNamesLoaded}
+                                    ctMap={ctMap}
+                                    getShortManagerName={getShortManagerName}
+                                    onClick={() => setSelectedProject(p as Project)}
+                                    sameForemanAsAbove={sameForemanAsAbove}
+                                    foremanChanged={foremanChanged}
+                                    isFirst={idx === 0}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -147,7 +134,7 @@ export default function AssignmentListView({
     );
 }
 
-// ── 案件1行 ──────────────────────────────────────────────────
+// ── 案件1行(カード) ───────────────────────────────────────
 interface AssignmentRowProps {
     project: ProjectListItem;
     allForemen: { id: string; displayName: string }[];
@@ -158,7 +145,8 @@ interface AssignmentRowProps {
     getShortManagerName: (id: string) => string;
     onClick: () => void;
     sameForemanAsAbove: boolean;
-    needsTopGap: boolean;
+    foremanChanged: boolean;
+    isFirst: boolean;
 }
 
 function AssignmentRow({
@@ -171,13 +159,14 @@ function AssignmentRow({
     getShortManagerName,
     onClick,
     sameForemanAsAbove,
-    needsTopGap,
+    foremanChanged,
+    isFirst,
 }: AssignmentRowProps) {
     const foremanName = allForemen.find(f => f.id === p.assignedEmployeeId)?.displayName || '';
     const ctInfo = p.constructionType ? ctMap.get(p.constructionType) : null;
     const color = ctInfo?.color || p.color || '#475569';
 
-    // 案件担当者(複数の場合は連結、1名なら姓のみ)
+    // 案件担当者
     const managerIds = Array.isArray(p.createdBy) ? p.createdBy : (p.createdBy ? [p.createdBy] : []);
     const managerLabel = managerIds.length === 0
         ? null
@@ -204,106 +193,120 @@ function AssignmentRow({
         : [];
 
     const isUnassigned = !managerLabel;
+    const isConfirmed = p.isDispatchConfirmed;
 
     return (
-        <button
-            onClick={onClick}
-            className={`w-full text-left hover:bg-slate-50 active:bg-slate-100 transition-colors border-b border-slate-100 last:border-b-0 ${
-                needsTopGap ? 'border-t-[3px] border-t-slate-200' : ''
-            } ${isUnassigned ? 'bg-rose-50/40' : ''}`}
-        >
-            <div className="grid grid-cols-[44px_28px_1fr] sm:grid-cols-[60px_36px_1fr] gap-1 px-2 py-2">
-                {/* 担当 */}
-                <div className="flex items-center justify-center">
-                    {isUnassigned ? (
-                        <span className="inline-flex items-center justify-center gap-0.5 text-[10px] font-bold text-rose-700 bg-rose-100 border border-rose-300 rounded-md px-1 py-0.5 leading-tight">
-                            <AlertCircle className="w-2.5 h-2.5" />
-                            未
-                        </span>
-                    ) : (
-                        <span className="text-[12px] sm:text-[13px] font-bold text-slate-700 leading-tight truncate">
-                            {managerLabel}
-                        </span>
-                    )}
-                </div>
+        <>
+            {/* 職長が変わったら区切りスペース */}
+            {foremanChanged && !isFirst && <div className="h-2" aria-hidden="true" />}
 
-                {/* 順番(色付き) */}
-                <div className="flex items-start justify-center pt-[1px]">
-                    <span
-                        className="inline-flex items-center justify-center w-6 h-6 rounded-md text-[11px] font-bold text-white"
-                        style={{ backgroundColor: color }}
-                    >
-                        {p.sortOrder ?? '-'}
-                    </span>
-                </div>
+            <button
+                onClick={onClick}
+                className={`relative w-full text-left bg-white hover:bg-slate-50 active:bg-slate-100 transition-all rounded-2xl border shadow-sm overflow-hidden min-h-[88px] ${
+                    isUnassigned
+                        ? 'border-rose-200 ring-1 ring-rose-200'
+                        : 'border-slate-200'
+                }`}
+            >
+                {/* 左の縦カラーバー(工事種別) */}
+                <div
+                    className="absolute left-0 top-0 bottom-0 w-1.5"
+                    style={{ backgroundColor: color }}
+                    aria-hidden="true"
+                />
 
-                {/* 案件本体 */}
-                <div className="min-w-0">
-                    {/* 1段目: 元請名 + 確定マーク */}
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                        {p.customer && (
-                            <span
-                                className="text-[12px] sm:text-[13px] font-bold leading-tight"
-                                style={{ color }}
-                            >
-                                {p.customer}
-                            </span>
-                        )}
-                        {p.isDispatchConfirmed && (
-                            <CheckCircle className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
-                        )}
-                    </div>
-
-                    {/* 2段目: 現場名(色付き、太字) */}
-                    <div
-                        className="text-[14px] sm:text-[15px] font-bold leading-snug break-words mt-0.5"
-                        style={{ color }}
-                    >
-                        {p.title}
-                    </div>
-
-                    {/* 3段目: 職長 / 人数 / 車両 */}
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] sm:text-[12px]">
-                        {/* 職長(同じなら〃) */}
-                        <span className="inline-flex items-center gap-1 text-slate-700">
-                            <span className="text-slate-400 text-[10px]">職長</span>
-                            {sameForemanAsAbove ? (
-                                <span className="text-slate-400 font-bold tracking-wider">〃</span>
-                            ) : foremanName ? (
-                                <span className="font-medium">{foremanName}</span>
-                            ) : (
-                                <span className="text-slate-300">未設定</span>
-                            )}
-                        </span>
-
-                        {/* 人数 */}
-                        {(p.memberCount ?? 0) > 0 && (
-                            <span className="inline-flex items-center gap-1 text-slate-600">
-                                <Users className="w-3 h-3 text-slate-400" />
-                                <span className="font-medium">{p.memberCount}名</span>
-                            </span>
-                        )}
-
-                        {/* 車両 */}
-                        {vehicleNames.length > 0 && (
-                            <span className="inline-flex items-center gap-1 text-slate-600">
-                                <Truck className="w-3 h-3 text-slate-400" />
-                                <span className="font-medium truncate max-w-[160px]">
-                                    {vehicleNames.join('・')}
+                <div className="pl-4 pr-3 py-3 flex gap-3">
+                    {/* 担当エリア */}
+                    <div className="flex-shrink-0 w-[52px] sm:w-[64px] flex flex-col items-center justify-start pt-0.5">
+                        {isUnassigned ? (
+                            <div className="inline-flex flex-col items-center gap-0.5 px-1.5 py-1 bg-rose-50 border border-rose-300 rounded-lg">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                                <span className="text-[10px] font-bold text-rose-700 leading-none">未割当</span>
+                            </div>
+                        ) : (
+                            <div className="inline-flex items-center justify-center px-2 py-1 bg-slate-100 border border-slate-200 rounded-lg min-w-full">
+                                <span className="text-[13px] sm:text-[14px] font-bold text-slate-800 leading-none truncate">
+                                    {managerLabel}
                                 </span>
-                            </span>
+                            </div>
                         )}
                     </div>
 
-                    {/* 4段目: メンバー(あれば) */}
-                    {memberNames.length > 0 && (
-                        <div className="mt-0.5 text-[11px] text-slate-500 break-words">
-                            <span className="text-slate-400">メンバー: </span>
-                            {memberNames.join('・')}
+                    {/* 右の本体 */}
+                    <div className="flex-1 min-w-0">
+                        {/* 上段: 元請名 + 確定マーク */}
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                                {p.customer && (
+                                    <div
+                                        className="text-[12px] sm:text-[13px] font-semibold leading-tight truncate"
+                                        style={{ color }}
+                                    >
+                                        {p.customer}
+                                    </div>
+                                )}
+                                {/* 現場名(大きく目立たせる) */}
+                                <div
+                                    className="text-[16px] sm:text-[17px] font-bold leading-snug break-words mt-0.5"
+                                    style={{ color }}
+                                >
+                                    {p.title}
+                                </div>
+                            </div>
+                            {isConfirmed && (
+                                <div className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 border border-emerald-200 rounded-full mt-0.5">
+                                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                    <span className="text-[10px] font-bold text-emerald-700 leading-none">確定</span>
+                                </div>
+                            )}
                         </div>
-                    )}
+
+                        {/* 区切り */}
+                        <div className="mt-2 pt-2 border-t border-slate-100">
+                            {/* 中段: 職長(目立つ) */}
+                            <div className="flex items-center gap-2 text-[13px] sm:text-[14px]">
+                                <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wide">職長</span>
+                                {sameForemanAsAbove ? (
+                                    <span className="text-slate-400 font-bold tracking-widest text-[16px]">〃</span>
+                                ) : foremanName ? (
+                                    <span className="font-semibold text-slate-800">{foremanName}</span>
+                                ) : (
+                                    <span className="text-slate-300 italic">未設定</span>
+                                )}
+                            </div>
+
+                            {/* 下段: 人数 + 車両 */}
+                            {((p.memberCount ?? 0) > 0 || vehicleNames.length > 0) && (
+                                <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] sm:text-[13px] text-slate-700">
+                                    {(p.memberCount ?? 0) > 0 && (
+                                        <span className="inline-flex items-center gap-1">
+                                            <Users className="w-3.5 h-3.5 text-slate-400" />
+                                            <span className="font-semibold">{p.memberCount}</span>
+                                            <span className="text-slate-500 text-[11px]">名</span>
+                                        </span>
+                                    )}
+                                    {vehicleNames.length > 0 && (
+                                        <span className="inline-flex items-center gap-1 min-w-0">
+                                            <Truck className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                                            <span className="font-semibold truncate">
+                                                {vehicleNames.join('・')}
+                                            </span>
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* メンバー(あれば) */}
+                            {memberNames.length > 0 && (
+                                <div className="mt-1.5 text-[11px] sm:text-[12px] text-slate-500 break-words leading-relaxed">
+                                    <span className="text-slate-400">メンバー: </span>
+                                    {memberNames.join('・')}
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </button>
+            </button>
+        </>
     );
 }
