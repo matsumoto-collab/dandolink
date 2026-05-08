@@ -1,7 +1,7 @@
 # 協力会社メンバー機能 — 次回セッション再開ガイド
 
 最終更新: 2026-05-08
-ブランチ: main（Step 1〜7 すべて PR #1, #2, #3 として merge 済）
+ブランチ: main（Step 1〜8 すべて PR #1, #2, #3, #4 として merge 済）
 
 ## 0. 役割分担と運用フロー（このプロジェクト固有）
 
@@ -224,7 +224,7 @@
 
 次回セッション開始時に以下を Cowork に貼ると引き継ぎ可能:
 
-> 「dandolink プロジェクトの partner_member 機能の続きです。Step 1〜7 (基盤・管理画面・API・WeeklyCalendar 連携・手配ピッカー・今日明日ビュー) は main にすべて merge 済 (PR #1, #2, #3)。`docs/handoff/partner-member-resume.md` の §0 役割分担と §1 完了状態を読んでから、これからの修正点を相談したいです。」
+> 「dandolink プロジェクトの partner_member 機能の続きです。Step 1〜8 (基盤・管理画面・API・WeeklyCalendar 連携・手配ピッカー・今日明日ビュー・協力会社向け UI 非表示) は main にすべて merge 済 (PR #1, #2, #3, #4)。`docs/handoff/partner-member-resume.md` の §0 役割分担と §1 完了状態を読んでから、これからの修正点を相談したいです。」
 
 ## 4. cc (Claude Code) への引き継ぎプロンプト案
 
@@ -234,4 +234,4 @@ cc の作業を再開するときに貼るプロンプト案:
 > 1. `docs/handoff/partner-member-resume.md`（特に §0 役割分担、§1 完了状態）
 > 2. `docs/handoff/partner-member-step3-design-review.md`（用語整理）
 >
-> Step 1〜7 はすべて main にマージ済みです。新しい修正があれば Cowork が指示書を作って渡します。読了したら『読了。次の指示をお待ちしています』と返してください。」
+> Step 1〜8 はすべて main にマージ済みです。新しい修正があれば Cowork が指示書を作って渡します。読了したら『読了。次の指示をお待ちしています』と返してください。」
