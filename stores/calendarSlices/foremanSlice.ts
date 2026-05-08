@@ -20,7 +20,7 @@ export const createForemanSlice: CalendarSlice<ForemanSlice> = (set, get) => ({
         try {
             // ブラウザHTTPキャッシュ(private, max-age=30) を活用。
             // 変更時は Realtime/broadcast 経由で refresh されるため staleness は短時間で解消する
-            const response = await fetch('/api/dispatch/foremen');
+            const response = await fetch('/api/dispatch/foremen?scope=schedule');
             if (response.ok) {
                 const data: ForemanUser[] = await response.json();
                 set({ allForemen: data });

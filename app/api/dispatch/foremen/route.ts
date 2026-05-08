@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, serverErrorResponse } from '@/lib/api/utils';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         const { session, error } = await requireAuth();
         if (error) return error;
@@ -12,8 +12,16 @@ export async function GET() {
             return errorResponse('権限がありません', 403);
         }
 
+        const { searchParams } = new URL(req.url);
+        const scope = searchParams.get('scope');
+
+        const baseRoles = ['foreman1', 'foreman2', 'admin', 'manager', 'partner'];
+        const allowedRoles = (scope === 'schedule' && role === 'foreman2')
+            ? baseRoles.filter(r => r !== 'partner')
+            : baseRoles;
+
         const foremen = await prisma.user.findMany({
-            where: { isActive: true, role: { in: ['foreman1', 'foreman2', 'admin', 'manager', 'partner'], mode: 'insensitive' } },
+            where: { isActive: true, role: { in: allowedRoles, mode: 'insensitive' } },
             select: { id: true, displayName: true, role: true },
             orderBy: { displayName: 'asc' },
         });
