@@ -49,6 +49,7 @@ interface DesktopCalendarViewProps {
     goToToday?: () => void;
     weekLabel?: string;
     hideRemarks?: boolean;
+    hideForemanSelector?: boolean;
 }
 
 export default function DesktopCalendarView({
@@ -86,6 +87,7 @@ export default function DesktopCalendarView({
     goToToday,
     weekLabel,
     hideRemarks = false,
+    hideForemanSelector = false,
 }: DesktopCalendarViewProps) {
     // PointerSensor を距離アクティベーション化（長押しと共存させる）
     const sensors = useSensors(
@@ -300,9 +302,11 @@ export default function DesktopCalendarView({
                             ))}
                         </div>
 
-                        <div className="flex border-t-2 border-slate-300 bg-slate-50 p-4">
-                            <ForemanSelector />
-                        </div>
+                        {!hideForemanSelector && (
+                            <div className="flex border-t-2 border-slate-300 bg-slate-50 p-4">
+                                <ForemanSelector />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

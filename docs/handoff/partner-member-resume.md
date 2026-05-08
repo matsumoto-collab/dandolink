@@ -1,7 +1,42 @@
 # 協力会社メンバー機能 — 次回セッション再開ガイド
 
 最終更新: 2026-05-08
-ブランチ: `feature/partner-members`
+ブランチ: main（Step 1〜7 すべて PR #1, #2, #3 として merge 済）
+
+## 0. 役割分担と運用フロー（このプロジェクト固有）
+
+### 役の定義
+
+| 役 | 担当 |
+|---|---|
+| **Cowork** (Claude Cowork mode) | 指示役。要件整理・現状調査（読み取り）・設計判断のオプション提示・実装指示書作成・cc の成果レビュー・Chrome MCP 経由での PR 作成と merge ボタン押下・引き継ぎドキュメント整備 |
+| **cc** (Claude Code) | 作業役。Cowork から渡された指示書どおりにファイル編集・テスト実行・commit・push。指示書と実装に乖離があれば手を止めて Cowork に質問する。ブラウザ操作は持たないため動作確認は結果報告まで |
+| **kei** (本人) | 最終決定者。設計判断の選択（Cowork が AskUserQuestion で提示）・本番動作の目視確認・merge の最終承認・要件追加 |
+
+### 1機能あたりの標準フロー
+
+1. **要件提示**: kei → Cowork
+2. **現状調査**: Cowork が読み取り (Read / Grep / Glob) のみで現状把握
+3. **設計判断**: Cowork が AskUserQuestion で複数オプションを提示 → kei が選択
+4. **実装指示書作成**: Cowork が `docs/handoff/partner-member-stepN-instructions.md` を新規作成
+5. **cc 着手**: kei が cc に「指示書を読んで実装」のプロンプトを渡す（本ファイル §3 / §4 のテンプレ参照）
+6. **実装 + 完了報告**: cc が実装 → 完了報告（**commit はまだしない**）
+7. **diff レビュー**: Cowork が変更ファイルを Read で軽く確認 → OK なら commit/push 指示（commit message + 分割方針付き）
+8. **commit & push**: cc が指示通り 2-commit 構成（A=impl + tests / B=docs）で push → 完了報告
+9. **PR 作成**: Cowork が Chrome MCP で PR ページに遷移、タイトル + 説明文を埋めて Create
+10. **merge**: kei に最終確認 → OK なら Cowork が Squash and merge → ブランチ削除
+11. **完了マーク**: cc に依頼して resume.md へ完了情報を追記
+
+### 重要原則
+
+- **Cowork は実装系のファイル編集をしない**。指示書を書くだけ
+  - 例外: `docs/handoff/` 配下の引き継ぎドキュメント整備は Cowork の業務範囲（本セクション自体もその一例）
+- **cc は Cowork のレビュー前に commit しない**。指示書通りでも一度確認させる
+- **merge ボタンは kei の承認を取ってから Cowork が押す**。最終ガードを挟むため
+- **テストが想定外に失敗したら cc は止める**。勝手に修正せず Cowork に相談（既存テスト rot を巻き込んでよいかは Cowork が判断）
+- **タイムゾーン依存ロジックは JST 基準を明示**（Vercel が UTC のため）
+- **新機能は1ブランチ1機能**。Step ごとにブランチを分ける（`feature/xxx-stepN` 命名）
+- **PR は2-commit 構成が標準**: A=impl + 必要なテスト追従 / B=docs（resume.md 完了マーク + step instructions）
 
 ## 1. ここまでの完了状態
 
@@ -166,18 +201,37 @@
 - vehicles は MVP で空配列。AssignmentVehicle テーブル参照は後続で追加可能
 - 翌々日以降や過去の予定はタブ「週間」の WeeklyCalendar から確認
 
+### Step 8: 協力会社ロール向け UI 非表示 ✓ 完了 (2026-05-08)
+
+**設計の要点:**
+- 協力会社（partner / partner_member）が WeeklyCalendar を partnerMode=true で開いたときに表示される編集系 UI のうち、機能上意味のない 2 つ（ヘッダの検索アイコン / PC 版下部の「職長を追加」ボタン）を非表示にする
+- foreman2 は対象外（従来どおり表示）
+
+**修正したファイル (2):**
+1. `components/Calendar/WeeklyCalendar.tsx`: Mobile/Desktop 両方の `handleOpenSearch` を partnerMode 時 undefined で渡し、ヘッダ側の既存条件レンダリングで検索アイコンを消す。`hideForemanSelector={partnerMode}` を DesktopCalendarView に追加。
+2. `components/Calendar/DesktopCalendarView.tsx`: `hideForemanSelector?: boolean` prop を追加し、`<ForemanSelector />` ラッパ div の描画をその否定で gate。
+
+**動作確認結果 (2026-05-08, kei による目視):**
+- admin / foreman2: 検索アイコンと「職長を追加」が表示（回帰なし）
+- partner / partner_member: 「週間」タブで両方とも非表示
+
+詳細指示書: `docs/handoff/partner-member-step8-instructions.md`
+
+### 既知のテスト rot（Step 8 検出、未対応）
+- `__tests__/components/Calendar/WeeklyCalendar.test.tsx` ほか同系列で `useCalendarStore` を mock していないため、`cellRemarksInitialized / memberAdjustmentsInitialized / vacationsInitialized` がすべて false でローディング画面から進まず複数 it が失敗する。Step 8 の差分とは無関係。修正方針: テスト先頭で `jest.mock('@/stores/calendarStore', ...)` を追加し 3 flag を true で返す。別タスクで対応。
+
 ## 3. Cowork (Claude Cowork mode) への引き継ぎプロンプト案
 
 次回セッション開始時に以下を Cowork に貼ると引き継ぎ可能:
 
-> 「dandolink プロジェクトの feature/partner-members ブランチの続きです。docs/handoff/partner-member-resume.md と docs/handoff/partner-member-step3-design-review.md を読んで、Step 4 動作確認の段取りから始めてください。前回 Step 1〜3-B が commit & push 済みの状態です。」
+> 「dandolink プロジェクトの partner_member 機能の続きです。Step 1〜7 (基盤・管理画面・API・WeeklyCalendar 連携・手配ピッカー・今日明日ビュー) は main にすべて merge 済 (PR #1, #2, #3)。`docs/handoff/partner-member-resume.md` の §0 役割分担と §1 完了状態を読んでから、これからの修正点を相談したいです。」
 
 ## 4. cc (Claude Code) への引き継ぎプロンプト案
 
 cc の作業を再開するときに貼るプロンプト案:
 
-> 「dandolink プロジェクトの feature/partner-members ブランチで作業中です。以下のドキュメントを順に全文読んでから次の指示を待ってください:
-> 1. docs/handoff/partner-member-resume.md
-> 2. docs/handoff/partner-member-step3-design-review.md
+> 「dandolink プロジェクトの partner_member 機能で作業中です。以下のドキュメントを順に全文読んでから次の指示を待ってください:
+> 1. `docs/handoff/partner-member-resume.md`（特に §0 役割分担、§1 完了状態）
+> 2. `docs/handoff/partner-member-step3-design-review.md`（用語整理）
 >
-> Step 1〜3-B は commit & push 済みです。次は Cowork からの指示で Step 4 動作確認 → Step 5/6 の実装に進みます。読了したら『読了。次の指示をお待ちしています』と返してください。」
+> Step 1〜7 はすべて main にマージ済みです。新しい修正があれば Cowork が指示書を作って渡します。読了したら『読了。次の指示をお待ちしています』と返してください。」

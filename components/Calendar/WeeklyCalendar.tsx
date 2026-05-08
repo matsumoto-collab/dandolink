@@ -563,7 +563,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
-                    handleOpenSearch={handleOpenSearch}
+                    handleOpenSearch={partnerMode ? undefined : handleOpenSearch}
                     highlightedEventId={highlightedEventId}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
@@ -594,7 +594,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
-                    handleOpenSearch={handleOpenSearch}
+                    handleOpenSearch={partnerMode ? undefined : handleOpenSearch}
                     highlightedEventId={highlightedEventId}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
@@ -604,6 +604,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     goToNextDay={goToNextDay}
                     goToToday={goToToday}
                     hideRemarks={partnerMode}
+                    hideForemanSelector={partnerMode}
                 />
             )}
 
