@@ -167,6 +167,26 @@ export default function MainContent() {
                         </div>
                     );
                 }
+                // partner_memberロールの場合は親協力会社のカレンダー行のみを閲覧表示
+                // （partnerId は自分の userId ではなく親会社の companyId を渡す）
+                if (userRole === 'partner_member') {
+                    const parentCompanyId = session?.user?.companyId;
+                    if (!parentCompanyId) {
+                        return (
+                            <div className="flex-1 min-h-0 flex items-center justify-center">
+                                <div className="text-center">
+                                    <h2 className="text-xl font-bold text-slate-900 mb-2">所属会社が設定されていません</h2>
+                                    <p className="text-slate-600">管理者に所属協力会社の設定を依頼してください。</p>
+                                </div>
+                            </div>
+                        );
+                    }
+                    return (
+                        <div className="flex-1 min-h-0">
+                            <WeeklyCalendar partnerMode={true} partnerId={parentCompanyId} />
+                        </div>
+                    );
+                }
                 // Schedule management (calendar/assignment view)
                 return (
                     <>

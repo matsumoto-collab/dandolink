@@ -75,6 +75,7 @@ export const authOptions: NextAuthOptions = {
                         role: user.role.toLowerCase() as UserRole,
                         assignedProjects,
                         isActive: user.isActive,
+                        companyId: user.companyId ?? null,
                     };
                 } catch (error) {
                     if (error instanceof Error) {
@@ -94,6 +95,7 @@ export const authOptions: NextAuthOptions = {
                 token.role = user.role;
                 token.assignedProjects = user.assignedProjects;
                 token.isActive = user.isActive;
+                token.companyId = user.companyId ?? null;
                 token.name = user.displayName; // session.user.name に displayName を流す
                 token.lastDbCheck = Date.now();
             } else if (token?.id) {
@@ -106,7 +108,7 @@ export const authOptions: NextAuthOptions = {
                     try {
                         const dbUser = await prisma.user.findUnique({
                             where: { id: token.id as string },
-                            select: { isActive: true, isLoginEnabled: true, role: true, displayName: true }
+                            select: { isActive: true, isLoginEnabled: true, role: true, displayName: true, companyId: true }
                         });
 
                         if (!dbUser || !dbUser.isActive || !dbUser.isLoginEnabled) {
@@ -117,6 +119,7 @@ export const authOptions: NextAuthOptions = {
                             token.isActive = dbUser.isActive;
                             token.role = dbUser.role.toLowerCase() as UserRole;
                             token.name = dbUser.displayName;
+                            token.companyId = dbUser.companyId ?? null;
                             token.lastDbCheck = now;
                         }
                     } catch (error) {
@@ -134,6 +137,7 @@ export const authOptions: NextAuthOptions = {
                 session.user.role = token.role;
                 session.user.assignedProjects = token.assignedProjects;
                 session.user.isActive = token.isActive;
+                session.user.companyId = token.companyId ?? null;
                 session.user.name = token.name ?? session.user.name ?? null;
             }
             return session;
