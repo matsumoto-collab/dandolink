@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ro
             if (roomMeta?.type === 'dm') {
                 return errorResponse('DMにはメンバーを追加できません', 400);
             }
-            if (session!.user.role === 'partner') {
+            if (session!.user.role === 'partner' || session!.user.role === 'partner_member') {
                 return errorResponse('メンバー追加権限がありません', 403);
             }
             await prisma.$transaction(

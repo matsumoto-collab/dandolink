@@ -9,6 +9,7 @@ const ROLE_OPTIONS = [
     { id: 'foreman2', label: '職長2' },
     { id: 'worker', label: '職方' },
     { id: 'partner', label: '協力業者' },
+    { id: 'partner_member', label: '協力会社メンバー' },
 ];
 
 /**
@@ -125,6 +126,7 @@ function roleLabel(role: string): string {
         case 'foreman2': return '職長2';
         case 'worker': return '職方';
         case 'partner': return '協力業者';
+        case 'partner_member': return '協力会社メンバー';
         default: return role;
     }
 }

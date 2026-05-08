@@ -63,7 +63,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pro
 
         // 協力業者は「自分 + 案件担当者(createdBy/managerIds)」のみ。
         // 職長/確定メンバー/admin は含めない
-        const isPartner = session!.user.role === 'partner';
+        const isPartner = session!.user.role === 'partner' || session!.user.role === 'partner_member';
         if (!isPartner) {
             const assignments = await prisma.projectAssignment.findMany({
                 where: { projectMasterId: projectId },

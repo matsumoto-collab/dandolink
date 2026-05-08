@@ -34,6 +34,20 @@ export async function GET(req: NextRequest) {
             });
             where.id = { in: assignedPmIds.map(a => a.projectMasterId) };
         }
+        if (role === 'partner_member') {
+            // partner_member は親会社 (companyId) のアサイン案件を継承
+            const parentCompanyId = session!.user.companyId;
+            if (!parentCompanyId) {
+                where.id = { in: [] }; // 親会社未設定の場合はアクセス案件なし
+            } else {
+                const assignedPmIds = await prisma.projectAssignment.findMany({
+                    where: { assignedEmployeeId: parentCompanyId },
+                    select: { projectMasterId: true },
+                    distinct: ['projectMasterId'],
+                });
+                where.id = { in: assignedPmIds.map(a => a.projectMasterId) };
+            }
+        }
         if (status) {
             if (!ALLOWED_STATUSES.includes(status as typeof ALLOWED_STATUSES[number])) {
                 return validationErrorResponse('無効なステータス値です');

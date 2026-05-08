@@ -109,7 +109,7 @@ export function canAccessProject(
     if (user.role === 'foreman1') return true;
 
     // Foreman2, Worker, Partner need to check assigned projects
-    if (user.role === 'foreman2' || user.role === 'worker' || user.role === 'partner') {
+    if (user.role === 'foreman2' || user.role === 'worker' || user.role === 'partner' || user.role === 'partner_member') {
         if (!user.assignedProjects) return false;
         return user.assignedProjects.includes(projectId);
     }
