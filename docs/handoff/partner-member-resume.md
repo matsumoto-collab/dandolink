@@ -66,13 +66,25 @@
 
 </details>
 
-### Step 5: WeeklyCalendar の partnerScope/employeeRows 拡張
-既存 WeeklyCalendar が `role='partner'` を扱う部分を `partner` または `partner_member` でも動くように拡張。
+### Step 5: WeeklyCalendar の partnerScope/employeeRows 拡張 ✓ 完了 (2026-05-08)
 
-着手前に確認:
-- `components/Calendar/` 配下のどのコンポーネントで partner を扱っているか grep
-- partnerScope の現在のフィルタ条件
-- employeeRows のロール判定ロジック
+**設計の要点:**
+- WeeklyCalendar 自体は既に `partnerMode + partnerId` で「1社だけのカレンダー行を表示する」仕組みを持っていた (line 297–311)
+- partner_member は自分の `companyId`（親会社のID）を `partnerId` として渡せば、`allForemen.find(f => f.id === partnerId)` で親会社の行が引け、そのまま再利用できる
+- WeeklyCalendar 本体は無修正。session の拡張と呼び出し側の分岐追加のみで完了
+
+**変更したファイル (4):**
+1. `types/next-auth.d.ts`: Session.user / User / JWT に `companyId?: string | null` を追加
+2. `lib/auth.ts`: authorize / jwt callback (初回 + 5分DB再検証 select + 代入) / session callback の5箇所で companyId を伝搬
+3. `components/MainContent.tsx`: `userRole === 'partner_member'` 分岐を追加し、`partnerId={session.user.companyId}` を渡す。companyId が未設定のときは案内表示
+4. `app/api/dispatch/foremen/route.ts`: 認可 allowlist に `partner_member` を追加。findMany の role enum には partner_member を含めない (親会社行は既存 partner で取得できる)
+
+**動作確認結果 (2026-05-08, kei による目視):**
+- 既存 partner ユーザー (5社) の回帰なし
+- admin で partner_member 新規作成 → そのメンバーでログイン → 親協力会社の名前で1行だけカレンダーが表示される
+- 編集 UI は read-only
+
+詳細指示書: `docs/handoff/partner-member-step5-instructions.md`
 
 ### Step 6: API側 partner_member 対応 8箇所
 バックエンド API 8箇所で partner_member ロールの分岐/権限を実装。
