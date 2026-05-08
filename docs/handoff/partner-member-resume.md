@@ -73,7 +73,7 @@
 - Q5: メンバー hard delete + 親協力会社削除は子残存時に API側 400 で拒否
 - 既知の限界: CLI で直接 PATCH `{ isLoginEnabled: true }` だけ叩くと passwordHash が `'!nologin'` のまま残ってログイン不可（admin専用APIのためスコープ外）
 
-## 2. 次にやること（Step 4〜6）
+## 2. 完了した Step 4〜8（時系列）
 
 ### Step 4: 動作確認 ✓ 完了 (2026-05-08)
 全13項目 OK（UserManagement filter / 協力会社タブ admin専用 / 協力会社CRUD / メンバー画面遷移 / メンバーCRUD / isLoginEnabled パスワード欄分岐 / ログイン許可トグル楽観的UI / 編集時 read-only 所属会社 / 親削除ガード 400）。
@@ -235,3 +235,25 @@ cc の作業を再開するときに貼るプロンプト案:
 > 2. `docs/handoff/partner-member-step3-design-review.md`（用語整理）
 >
 > Step 1〜8 はすべて main にマージ済みです。新しい修正があれば Cowork が指示書を作って渡します。読了したら『読了。次の指示をお待ちしています』と返してください。」
+
+## 5. 運用の継続（次回以降のセッション）
+
+kei の方針: **次回作業時も Step 8 までと同じ運用を継続**。
+
+- **Cowork（指示役）**: kei の要件を聞いて現状を読み取り → AskUserQuestion で設計判断を提示 → `docs/handoff/partner-member-stepN-instructions.md` を作成 → cc の成果を diff レビュー → Chrome MCP で PR 作成・Squash and merge・ブランチ削除 → 引き継ぎ docs 整備
+- **cc（作業役）**: 指示書どおりに実装・テスト → 完了報告（commit はまだしない）→ Cowork レビュー後に 2-commit 構成（A=impl+tests / B=docs）で push
+- **kei（最終決定者）**: 設計判断の選択 / 動作目視確認 / merge の最終承認
+
+毎セッション開始時のお作法:
+1. kei が §3 のプロンプトを Cowork に貼る
+2. kei が §4 のプロンプトを cc に貼る（cc が読了報告したら待機状態に）
+3. kei → Cowork に新規要件を伝える
+4. 以降は §0 の標準フロー（要件提示 → 現状調査 → 設計判断 → 指示書 → cc 着手 → diff レビュー → commit → PR → merge → 完了マーク）を踏む
+
+詳細ルールは §0「役割分担と運用フロー」「重要原則」を参照。
+
+**Step 8 完了履歴サマリ**:
+- PR #4 (commit `2526d70`): feat(partner): hide search and add-foreman controls in WeeklyCalendar for partner role
+- 後追い docs commit: docs(handoff): update Step 1-8 and PR #1-#4 references after Step 8 merge
+- Production デプロイ済 (Vercel auto-deploy)
+- 既知の test rot 1 件は §2 末尾「既知のテスト rot」で別タスク化済
