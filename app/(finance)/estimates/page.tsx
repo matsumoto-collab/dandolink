@@ -297,15 +297,10 @@ export default function EstimateListPage() {
                                         setIsDetailModalOpen(true);
                                     }}
                                 >
-                                    {/* ヘッダー: 案件名とアクション */}
+                                    {/* ヘッダー: タイトルとアクション */}
                                     <div className="flex items-start justify-between mb-3 gap-2">
                                         <span className="text-base font-semibold text-slate-800 min-w-0 flex-1 break-words">
-                                            {getProjectName(estimate.projectId ?? '') || (
-                                                <span className="inline-flex items-center gap-1 text-sm text-slate-500">
-                                                    <Link2Off className="w-3.5 h-3.5" />
-                                                    案件未紐付け
-                                                </span>
-                                            )}
+                                            {estimate.title || '(タイトル未設定)'}
                                         </span>
                                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                             <button
@@ -406,7 +401,7 @@ export default function EstimateListPage() {
                     <thead className="bg-slate-100 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider min-w-[280px]">
-                                案件名
+                                タイトル
                             </th>
                             <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 紐づけ
@@ -471,16 +466,9 @@ export default function EstimateListPage() {
                                         }}
                                     >
                                         <td className="px-6 py-4 min-w-[280px]">
-                                            {getProjectName(estimate.projectId ?? '') ? (
-                                                <span className="text-[13px] font-semibold text-slate-800 break-words">
-                                                    {getProjectName(estimate.projectId ?? '')}
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center gap-1 text-[12px] text-slate-500 font-medium">
-                                                    <Link2Off className="w-3.5 h-3.5" />
-                                                    案件未紐付け
-                                                </span>
-                                            )}
+                                            <span className="text-[13px] font-semibold text-slate-800 break-words">
+                                                {estimate.title || '(タイトル未設定)'}
+                                            </span>
                                         </td>
                                         <td className="px-4 py-4 whitespace-nowrap text-center">
                                             {(() => {
