@@ -11,7 +11,7 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off, Copy, Check } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
@@ -231,7 +231,7 @@ export default function EstimateListPage() {
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="見積番号、案件名で検索..."
+                            placeholder="タイトル、見積番号、案件名で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
@@ -297,10 +297,10 @@ export default function EstimateListPage() {
                                         setIsDetailModalOpen(true);
                                     }}
                                 >
-                                    {/* ヘッダー: 見積番号とアクション */}
-                                    <div className="flex items-start justify-between mb-3">
-                                        <span className="text-base font-semibold text-slate-600">
-                                            {estimate.estimateNumber}
+                                    {/* ヘッダー: タイトルとアクション */}
+                                    <div className="flex items-start justify-between mb-3 gap-2">
+                                        <span className="text-base font-semibold text-slate-800 min-w-0 flex-1 break-words">
+                                            {estimate.title || '(タイトル未設定)'}
                                         </span>
                                         <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                                             <button
@@ -327,17 +327,24 @@ export default function EstimateListPage() {
                                         </div>
                                     </div>
 
-                                    {/* 案件名 */}
-                                    {getProjectName(estimate.projectId ?? '') ? (
-                                        <div className="text-sm text-slate-700 mb-3">
-                                            {getProjectName(estimate.projectId ?? '')}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1 mb-3">
-                                            <Link2Off className="w-3.5 h-3.5 text-slate-400" />
-                                            <span className="text-xs text-slate-500 font-medium">案件未紐付け</span>
-                                        </div>
-                                    )}
+                                    {/* 案件名 + 紐づけバッジ */}
+                                    {(() => {
+                                        const projectName = getProjectName(estimate.projectId ?? '');
+                                        const linked = !!projectName;
+                                        return (
+                                            <div className="flex items-center gap-2 mb-3 flex-wrap">
+                                                <span
+                                                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold rounded-md shrink-0 ${linked ? 'bg-slate-800 text-white border border-slate-800' : 'bg-white text-slate-400 border border-slate-200'}`}
+                                                >
+                                                    {linked ? <Check className="w-3 h-3" strokeWidth={3} /> : <Link2Off className="w-3 h-3" />}
+                                                    {linked ? '紐づけ済' : '紐づけ未'}
+                                                </span>
+                                                {linked && (
+                                                    <span className="text-sm text-slate-700">{projectName}</span>
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* 顧客名 */}
                                     {getCustomerName(estimate.customerId) && (
@@ -398,10 +405,13 @@ export default function EstimateListPage() {
                     <thead className="bg-slate-100 sticky top-0 z-10">
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                見積番号
+                                タイトル
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 案件名
+                            </th>
+                            <th className="px-4 py-4 text-center text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                紐づけ
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 顧客名
@@ -433,6 +443,7 @@ export default function EstimateListPage() {
                                 <tr key={i} className="animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                                    <td className="px-4 py-4 text-center"><div className="h-5 bg-slate-200 rounded-md w-10 mx-auto"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-14"></div></td>
@@ -444,7 +455,7 @@ export default function EstimateListPage() {
                             ))
                         ) : filteredEstimates.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '見積書が登録されていません'}
                                 </td>
                             </tr>
@@ -462,9 +473,9 @@ export default function EstimateListPage() {
                                             setIsDetailModalOpen(true);
                                         }}
                                     >
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className="text-[12px] font-semibold text-slate-600">
-                                                {estimate.estimateNumber}
+                                        <td className="px-6 py-4">
+                                            <span className="text-[12px] font-semibold text-slate-800">
+                                                {estimate.title || '(タイトル未設定)'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -478,6 +489,19 @@ export default function EstimateListPage() {
                                                     案件未紐付け
                                                 </span>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-4 whitespace-nowrap text-center">
+                                            {(() => {
+                                                const linked = !!getProjectName(estimate.projectId ?? '');
+                                                return (
+                                                    <span
+                                                        className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md ${linked ? 'bg-slate-800 text-white border border-slate-800' : 'bg-white text-slate-400 border border-slate-200'}`}
+                                                    >
+                                                        {linked && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                        {linked ? '済' : '未'}
+                                                    </span>
+                                                );
+                                            })()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {getCustomerName(estimate.customerId) || '−'}
