@@ -96,7 +96,8 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                 canShare?: (data: { files: File[] }) => boolean;
                 share?: (data: { files: File[]; title?: string }) => Promise<void>;
             };
-            if (nav.canShare && nav.share && nav.canShare({ files: [fileObj] })) {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            if (isMobile && nav.canShare && nav.share && nav.canShare({ files: [fileObj] })) {
                 try {
                     await nav.share({ files: [fileObj], title: downloadName });
                     return;
