@@ -107,22 +107,28 @@ export async function POST(req: NextRequest, context: RouteContext) {
         });
         if (!assignment) return notFoundResponse('配置');
 
-        // 権限: 担当職長本人 / 確定メンバー / admin・manager のみ押せる
+        // 権限: 担当職長本人 / 確定メンバー / admin・manager / 自社班に所属する partner_member
         const role = session!.user.role;
         const isOwner = session!.user.id === assignment.assignedEmployeeId;
         const isManager = role === 'admin' || role === 'manager';
         const confirmedWorkerIds = parseJsonField<string[]>(assignment.confirmedWorkerIds, []);
         const isConfirmedWorker = confirmedWorkerIds.includes(session!.user.id);
-        if (!isOwner && !isManager && !isConfirmedWorker) {
+        // partner_member: 親会社が担当職長(=自社班)のときに作業開始/完了を押せる
+        const isPartnerCompanyMember =
+            role === 'partner_member' &&
+            !!session!.user.companyId &&
+            session!.user.companyId === assignment.assignedEmployeeId;
+        if (!isOwner && !isManager && !isConfirmedWorker && !isPartnerCompanyMember) {
             return errorResponse('この案件の開始/終了を通知する権限がありません', 403);
         }
 
         const now = new Date();
         const { timeStr, rounded } = roundToNearestQuarterHourJst(now);
 
-        // 1. 配置本体を更新（担当職長は常に上書き、それ以外は最初の押下のみ反映）
+        // 1. 配置本体を更新（担当職長/自社班partner_memberは常に上書き、それ以外は最初の押下のみ反映）
         const canOverwriteAssignmentTime =
             isOwner ||
+            isPartnerCompanyMember ||
             (type === 'start' && !assignment.workStartedAt) ||
             (type === 'end' && !assignment.workEndedAt);
 

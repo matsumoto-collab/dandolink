@@ -54,13 +54,18 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
     const remainingCount = Math.max(0, liveMemberCount - liveConfirmedCount);
 
     // 協力会社向け: 自分が担当 or 確定メンバーのときだけ作業開始/完了の報告セクションを表示
+    // partner_member は自社班(companyId === assignedEmployeeId)のときに表示。応援先(他班)は除外
     const userId = session?.user?.id;
+    const companyId = session?.user?.companyId ?? null;
     const liveAssignedEmployeeId = liveAssignment?.assignedEmployeeId ?? project.assignedEmployeeId;
     const liveConfirmedWorkerIds = liveAssignment?.confirmedWorkerIds ?? project.confirmedWorkerIds ?? [];
     const canReportWorkStatus =
-        userRole === 'partner' &&
-        !!userId &&
-        (liveAssignedEmployeeId === userId || liveConfirmedWorkerIds.includes(userId));
+        (userRole === 'partner' &&
+            !!userId &&
+            (liveAssignedEmployeeId === userId || liveConfirmedWorkerIds.includes(userId))) ||
+        (userRole === 'partner_member' &&
+            !!companyId &&
+            liveAssignedEmployeeId === companyId);
     const liveWorkStartedAt = liveAssignment?.workStartedAt ?? project.workStartedAt ?? null;
     const liveWorkEndedAt = liveAssignment?.workEndedAt ?? project.workEndedAt ?? null;
 

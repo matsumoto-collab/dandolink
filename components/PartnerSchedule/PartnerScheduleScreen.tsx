@@ -31,7 +31,7 @@ export default function PartnerScheduleScreen({ weeklyPartnerId }: PartnerSchedu
                         : 'border-transparent text-slate-500 hover:text-slate-700'
                         }`}
                 >
-                    今日明日
+                    直近
                 </button>
                 <button
                     onClick={() => setTab('weekly')}

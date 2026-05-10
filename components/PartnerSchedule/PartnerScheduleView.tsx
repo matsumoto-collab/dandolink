@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Calendar, MapPin, Clock, Users, AlertCircle } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import Loading from '@/components/ui/Loading';
 import { logger } from '@/lib/logger';
 import { useMasterData } from '@/hooks/useMasterData';
+import WorkStatusReportSection from '@/components/Projects/WorkStatusReportSection';
 
 interface PartnerScheduleAssignment {
     id: string;
@@ -26,22 +28,11 @@ interface PartnerScheduleAssignment {
     vehicles: { id: string; name: string }[];
     dispatchRemark: string | null;
     remarks: string | null;
+    workStartedAt: string | null;
+    workEndedAt: string | null;
 }
 
-function formatDateLabel(dateStr: string): { main: string; sub: string } {
-    const d = new Date(dateStr + 'T00:00:00');
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const isToday = d.getTime() === today.getTime();
-    const isTomorrow = d.getTime() === tomorrow.getTime();
-    const wd = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
-    const main = isToday ? '今日' : isTomorrow ? '明日' : `${d.getMonth() + 1}/${d.getDate()}`;
-    const sub = `${d.getMonth() + 1}/${d.getDate()} (${wd})`;
-    return { main, sub };
-}
+const WEEKDAY = ['日', '月', '火', '水', '木', '金', '土'];
 
 function localDateKey(d: Date): string {
     const y = d.getFullYear();
@@ -50,11 +41,39 @@ function localDateKey(d: Date): string {
     return `${y}-${m}-${day}`;
 }
 
+function buildDateOptions(): { key: string; main: string; sub: string; offset: number }[] {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const offsets = [-1, 0, 1, 2, 3, 4, 5];
+    return offsets.map((offset) => {
+        const d = new Date(today);
+        d.setDate(d.getDate() + offset);
+        const key = localDateKey(d);
+        const wd = WEEKDAY[d.getDay()];
+        let main: string;
+        if (offset === -1) main = '昨日';
+        else if (offset === 0) main = '今日';
+        else if (offset === 1) main = '明日';
+        else main = `${d.getMonth() + 1}/${d.getDate()}`;
+        const sub = `${d.getMonth() + 1}/${d.getDate()} (${wd})`;
+        return { key, main, sub, offset };
+    });
+}
+
 export default function PartnerScheduleView() {
+    const { data: session } = useSession();
+    const role = session?.user?.role;
+    const userId = session?.user?.id ?? null;
+    const companyId = session?.user?.companyId ?? null;
+
     const [assignments, setAssignments] = useState<PartnerScheduleAssignment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [selectedDate, setSelectedDate] = useState<'today' | 'tomorrow'>('today');
+    const dateOptions = useMemo(() => buildDateOptions(), []);
+    const [selectedKey, setSelectedKey] = useState<string>(() => {
+        const todayOpt = dateOptions.find((d) => d.offset === 0);
+        return todayOpt?.key ?? dateOptions[0].key;
+    });
     const { constructionTypes } = useMasterData();
 
     useEffect(() => {
@@ -85,15 +104,30 @@ export default function PartnerScheduleView() {
         [constructionTypes]
     );
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const todayKey = localDateKey(today);
-    const tomorrowKey = localDateKey(tomorrow);
+    const countsByDate = useMemo(() => {
+        const m = new Map<string, number>();
+        for (const a of assignments) m.set(a.date, (m.get(a.date) ?? 0) + 1);
+        return m;
+    }, [assignments]);
 
-    const targetDateKey = selectedDate === 'today' ? todayKey : tomorrowKey;
-    const dayAssignments = assignments.filter((a) => a.date === targetDateKey);
+    const handleWorkStatusUpdated = useCallback(
+        (assignmentId: string, next: { workStartedAt: Date | null; workEndedAt: Date | null }) => {
+            setAssignments((prev) =>
+                prev.map((a) =>
+                    a.id === assignmentId
+                        ? {
+                              ...a,
+                              workStartedAt: next.workStartedAt ? next.workStartedAt.toISOString() : null,
+                              workEndedAt: next.workEndedAt ? next.workEndedAt.toISOString() : null,
+                          }
+                        : a
+                )
+            );
+        },
+        []
+    );
+
+    const dayAssignments = assignments.filter((a) => a.date === selectedKey);
     const ownTeamAssignments = dayAssignments.filter((a) => a.isOwnTeam);
     const otherTeamAssignments = dayAssignments.filter((a) => !a.isOwnTeam);
 
@@ -114,10 +148,20 @@ export default function PartnerScheduleView() {
         );
     }
 
+    // partner_member は companyId が必要、partner は userId が assignedEmployeeId と一致するときのみ
+    const canPressWorkStatus = (a: PartnerScheduleAssignment): boolean => {
+        if (!a.isOwnTeam) return false;
+        if (role === 'partner') return !!userId && a.foremanId === userId;
+        if (role === 'partner_member') return !!companyId && a.foremanId === companyId;
+        return false;
+    };
+
     const renderCard = (a: PartnerScheduleAssignment) => {
         const ct = a.constructionTypeId ? constructionTypeMap.get(a.constructionTypeId) : null;
         const projectLabel = a.projectName ?? a.projectTitle;
         const place = [a.prefecture, a.city, a.location].filter(Boolean).join(' ');
+        const workStartedAt = a.workStartedAt ? new Date(a.workStartedAt) : null;
+        const workEndedAt = a.workEndedAt ? new Date(a.workEndedAt) : null;
         return (
             <div
                 key={a.id}
@@ -165,6 +209,18 @@ export default function PartnerScheduleView() {
                         {a.dispatchRemark}
                     </div>
                 )}
+                {canPressWorkStatus(a) && (
+                    <div className="pt-2">
+                        <WorkStatusReportSection
+                            assignmentId={a.id}
+                            projectMasterId={a.projectMasterId}
+                            title={projectLabel}
+                            workStartedAt={workStartedAt}
+                            workEndedAt={workEndedAt}
+                            onUpdated={(next) => handleWorkStatusUpdated(a.id, next)}
+                        />
+                    </div>
+                )}
             </div>
         );
     };
@@ -172,24 +228,36 @@ export default function PartnerScheduleView() {
     return (
         <div className="h-full overflow-y-auto bg-slate-50">
             <div className="max-w-3xl mx-auto p-4 space-y-4">
-                <div className="flex gap-2 bg-white rounded-xl border border-slate-200 p-1">
-                    {(['today', 'tomorrow'] as const).map((key) => {
-                        const label = formatDateLabel(key === 'today' ? todayKey : tomorrowKey);
-                        const isActive = selectedDate === key;
-                        return (
-                            <button
-                                key={key}
-                                onClick={() => setSelectedDate(key)}
-                                className={`flex-1 flex flex-col items-center py-2 rounded-lg transition-colors ${isActive
-                                    ? 'bg-slate-800 text-white'
-                                    : 'text-slate-700 hover:bg-slate-100'
-                                    }`}
-                            >
-                                <span className="text-sm font-semibold">{label.main}</span>
-                                <span className="text-xs opacity-70">{label.sub}</span>
-                            </button>
-                        );
-                    })}
+                <div className="bg-white rounded-xl border border-slate-200 p-1 overflow-x-auto">
+                    <div className="flex gap-1 min-w-max">
+                        {dateOptions.map((opt) => {
+                            const isActive = selectedKey === opt.key;
+                            const count = countsByDate.get(opt.key) ?? 0;
+                            return (
+                                <button
+                                    key={opt.key}
+                                    onClick={() => setSelectedKey(opt.key)}
+                                    className={`flex-1 min-w-[68px] flex flex-col items-center py-2 px-3 rounded-lg transition-colors ${isActive
+                                        ? 'bg-slate-800 text-white'
+                                        : 'text-slate-700 hover:bg-slate-100'
+                                        }`}
+                                >
+                                    <span className="text-sm font-semibold">{opt.main}</span>
+                                    <span className="text-xs opacity-70">{opt.sub}</span>
+                                    {count > 0 && (
+                                        <span
+                                            className={`mt-0.5 text-[10px] px-1.5 rounded-full ${isActive
+                                                ? 'bg-white/20 text-white'
+                                                : 'bg-slate-200 text-slate-700'
+                                                }`}
+                                        >
+                                            {count}件
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
                 <section>

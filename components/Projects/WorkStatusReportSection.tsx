@@ -15,6 +15,7 @@ interface WorkStatusReportSectionProps {
     title: string;
     workStartedAt?: Date | null;
     workEndedAt?: Date | null;
+    onUpdated?: (updated: { workStartedAt: Date | null; workEndedAt: Date | null }) => void;
 }
 
 const CATEGORY_LABELS: Record<ImageCategory, string> = {
@@ -35,6 +36,7 @@ export default function WorkStatusReportSection({
     title,
     workStartedAt,
     workEndedAt,
+    onUpdated,
 }: WorkStatusReportSectionProps) {
     const upsertAssignmentStore = useCalendarStore((s) => s.upsertAssignment);
 
@@ -163,13 +165,15 @@ export default function WorkStatusReportSection({
             const timeStr: string = data?.time || '';
             const a = data?.assignment;
             if (a) {
+                const nextStart = a.workStartedAt ? new Date(a.workStartedAt) : null;
+                const nextEnd = a.workEndedAt ? new Date(a.workEndedAt) : null;
                 upsertAssignmentStore({
                     ...a,
                     date: new Date(a.date),
                     createdAt: new Date(a.createdAt),
                     updatedAt: new Date(a.updatedAt),
-                    workStartedAt: a.workStartedAt ? new Date(a.workStartedAt) : null,
-                    workEndedAt: a.workEndedAt ? new Date(a.workEndedAt) : null,
+                    workStartedAt: nextStart,
+                    workEndedAt: nextEnd,
                     projectMaster: a.projectMaster
                         ? {
                               ...a.projectMaster,
@@ -178,6 +182,7 @@ export default function WorkStatusReportSection({
                           }
                         : undefined,
                 });
+                onUpdated?.({ workStartedAt: nextStart, workEndedAt: nextEnd });
             }
 
             const imageSuffix = uploadedImageCount > 0 && imageCategoryForBody
