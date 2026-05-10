@@ -52,6 +52,16 @@ export default withAuth(
     async function middleware(req: NextRequestWithAuth) {
         // APIルートへのアクセスに対してのみレートリミットを適用
         if (req.nextUrl.pathname.startsWith('/api/')) {
+            // 未認証 API リクエストは HTML リダイレクトではなく JSON 401 を返す
+            // （フロントが res.json() で SyntaxError にならないように、また監視が誤って 200 と判定しないように）
+            const token = req.nextauth?.token;
+            if (!token || token.isActive !== true) {
+                return NextResponse.json(
+                    { error: 'Unauthorized' },
+                    { status: 401 }
+                );
+            }
+
             // 認証済みなら userId をキーに（同一拠点NAT配下で誤発動するのを防ぐ）
             // 未認証は IP にフォールバック
             const userId = (req.nextauth?.token?.sub || req.nextauth?.token?.id) as string | undefined;
@@ -105,7 +115,12 @@ export default withAuth(
     },
     {
         callbacks: {
-            authorized: ({ token }) => token?.isActive === true,
+            authorized: ({ token, req }) => {
+                // /api/* は middleware 本体で JSON 401 を返すため、ここでは常に通す
+                // （false を返すと NextAuth のデフォルトでログインページHTMLにリダイレクトされてしまう）
+                if (req.nextUrl.pathname.startsWith('/api/')) return true;
+                return token?.isActive === true;
+            },
         },
     }
 );

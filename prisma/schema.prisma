@@ -27,6 +27,8 @@ model User {
   hideByDefaultInDispatch Boolean  @default(false)
   companyId               String?
   isLoginEnabled          Boolean  @default(true)
+  failedLoginCount        Int      @default(0)
+  lockedUntil             DateTime?
   company                 User?    @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
   members                 User[]   @relation("CompanyMembers")
 

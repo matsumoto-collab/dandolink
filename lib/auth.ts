@@ -39,6 +39,16 @@ export const authOptions: NextAuthOptions = {
                         throw new Error('ユーザー名またはパスワードが正しくありません');
                     }
 
+                    // Brute-force ロック判定: lockedUntil が未来ならエラー
+                    // Why: matsumoto のような推測可能なユーザー名への総当たり対策
+                    if (user.lockedUntil && user.lockedUntil > new Date()) {
+                        const remainMs = user.lockedUntil.getTime() - Date.now();
+                        const remainMin = Math.ceil(remainMs / 60000);
+                        throw new Error(
+                            `ログイン試行回数が上限を超えました。約${remainMin}分後に再度お試しください。`
+                        );
+                    }
+
                     if (!user.isActive) {
                         throw new Error('このアカウントは無効化されています');
                     }
@@ -54,7 +64,27 @@ export const authOptions: NextAuthOptions = {
                     );
 
                     if (!isPasswordValid) {
+                        // 失敗カウント加算、5回で5分、10回で30分ロック
+                        const nextCount = user.failedLoginCount + 1;
+                        let lockedUntil: Date | null = null;
+                        if (nextCount >= 10) {
+                            lockedUntil = new Date(Date.now() + 30 * 60 * 1000);
+                        } else if (nextCount >= 5) {
+                            lockedUntil = new Date(Date.now() + 5 * 60 * 1000);
+                        }
+                        await prisma.user.update({
+                            where: { id: user.id },
+                            data: { failedLoginCount: nextCount, lockedUntil },
+                        });
                         throw new Error('ユーザー名またはパスワードが正しくありません');
+                    }
+
+                    // 成功時はカウントとロックをリセット
+                    if (user.failedLoginCount > 0 || user.lockedUntil) {
+                        await prisma.user.update({
+                            where: { id: user.id },
+                            data: { failedLoginCount: 0, lockedUntil: null },
+                        });
                     }
 
                     // Parse assigned projects
