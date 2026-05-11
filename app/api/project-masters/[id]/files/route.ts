@@ -200,8 +200,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
             // 回転済みバッファを1回だけ作成し、各サイズ変換はそこから派生
             const rotated = sharp(buffer).rotate();
             const rotatedBuffer = await rotated.toBuffer();
-            const [origWebp, displayWebp, thumbWebp] = await Promise.all([
-                sharp(rotatedBuffer).webp({ quality: 90, effort: 2 }).toBuffer(),
+            const [displayWebp, thumbWebp] = await Promise.all([
                 sharp(rotatedBuffer).resize(1920, 1920, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 78, effort: 2 }).toBuffer(),
                 sharp(rotatedBuffer).resize(200, 200, { fit: 'inside', withoutEnlargement: true }).webp({ quality: 50, effort: 0 }).toBuffer(),
             ]);
@@ -236,22 +235,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
                     thumbnailPath = null;
                 }
             } else {
-                // 通常の画像: オリジナルWebPも保存
-                originalStoragePath = `${id}/${fileId}_original.webp`;
-                const [origResult, displayResult, thumbResult] = await Promise.all([
-                    supabaseAdmin.storage.from(STORAGE_BUCKET).upload(originalStoragePath, origWebp, { contentType: 'image/webp', upsert: false }),
+                // 通常の画像: 表示用 + サムネイルのみ保存
+                const [displayResult, thumbResult] = await Promise.all([
                     supabaseAdmin.storage.from(STORAGE_BUCKET).upload(storagePath, displayWebp, { contentType: 'image/webp', upsert: false }),
                     supabaseAdmin.storage.from(STORAGE_BUCKET).upload(thumbnailPath, thumbWebp, { contentType: 'image/webp', upsert: false }),
                 ]);
                 if (displayResult.error) {
                     logger.error('Storage upload error:', displayResult.error);
-                    const cleanupPaths = [originalStoragePath, thumbnailPath].filter(Boolean) as string[];
-                    if (cleanupPaths.length > 0) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(cleanupPaths);
+                    if (thumbnailPath) await supabaseAdmin.storage.from(STORAGE_BUCKET).remove([thumbnailPath]);
                     return errorResponse('ファイルのアップロードに失敗しました', 500);
-                }
-                if (origResult.error) {
-                    logger.error('Original upload error:', origResult.error);
-                    originalStoragePath = null;
                 }
                 if (thumbResult.error) {
                     logger.error('Thumbnail upload error:', thumbResult.error);

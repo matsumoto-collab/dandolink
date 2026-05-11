@@ -162,13 +162,13 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                     console.error('PDF conversion failed:', err);
                     toast.error(`PDF変換に失敗しました: ${rawFile.name}`);
                 }
-            } else if (rawFile.type.startsWith('image/') && rawFile.size > 3 * 1024 * 1024) {
+            } else if (rawFile.type.startsWith('image/') && rawFile.size > 1 * 1024 * 1024) {
                 try {
                     const blob = await imageCompression(rawFile, {
-                        maxSizeMB: 3,
-                        maxWidthOrHeight: 3000,
+                        maxSizeMB: 0.5,
+                        maxWidthOrHeight: 1920,
                         useWebWorker: true,
-                        initialQuality: 0.9,
+                        initialQuality: 0.75,
                     });
                     uploadItems.push({ file: blob, name: rawFile.name });
                 } catch {
