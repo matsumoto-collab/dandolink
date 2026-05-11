@@ -1085,11 +1085,13 @@ function StatusCell({
         <td className={`${cellBase} text-center ${categoryClass} p-0`}>
             <div className="relative">
                 <select
-                    value={value || 'present'}
+                    value={value || ''}
                     onChange={(e) => {
-                        const next = e.target.value as AttendanceStatus;
+                        const next = e.target.value;
+                        // "-" は no-op（レコード未作成のままにする / 既存レコードを誤って消さない）
+                        if (next === '') return;
                         if (next === record?.status) return;
-                        void onSave(dateStr, record, { status: next }, cellId);
+                        void onSave(dateStr, record, { status: next as AttendanceStatus }, cellId);
                     }}
                     disabled={saving}
                     className={`w-full px-1 py-1 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-slate-400 rounded ${saving ? 'opacity-50' : ''}`}
