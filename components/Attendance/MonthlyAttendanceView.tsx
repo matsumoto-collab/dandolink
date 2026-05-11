@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Pencil, Trash2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Trash2, Plus, Loader2 } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
@@ -18,6 +18,7 @@ interface AttendanceRecord {
     overtimeMinutes: number;
     eveningLoadingMinutes: number;
     earlyEndTime: string | null;
+    note: string | null;
     status: string;
     createdAt: string;
     updatedAt: string;
@@ -396,6 +397,7 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                         sendBroadcast('attendance_updated', { foremanId, date: dateStr });
                     }}
                     currentUserId={session?.user?.id ?? ''}
+                    onJumpToMonth={(y, m) => setMonth(`${y}-${pad2(m)}`)}
                 />
             )}
         </div>
@@ -527,6 +529,54 @@ interface DetailMonthTableProps {
     isAdmin: boolean;
     currentUserId: string;
     onChanged: (foremanId: string, dateStr: string) => void | Promise<void>;
+    onJumpToMonth: (year: number, month: number) => void;
+}
+
+type AttendanceStatus =
+    | 'present'
+    | 'absent'
+    | 'paid_leave'
+    | 'holiday'
+    | 'night_shift'
+    | 'compensatory_holiday'
+    | 'holiday_work';
+
+const STATUS_OPTIONS: { value: AttendanceStatus; label: string }[] = [
+    { value: 'present', label: '出勤' },
+    { value: 'absent', label: '欠勤' },
+    { value: 'paid_leave', label: '有給' },
+    { value: 'holiday', label: '休日' },
+    { value: 'night_shift', label: '夜勤' },
+    { value: 'compensatory_holiday', label: '代休' },
+    { value: 'holiday_work', label: '休日出勤' },
+];
+
+const STATUS_LABEL_MAP: Record<string, string> = Object.fromEntries(
+    STATUS_OPTIONS.map((o) => [o.value, o.label])
+);
+
+function statusCategoryClass(status: string | undefined): string {
+    if (status === 'holiday' || status === 'holiday_work') return 'bg-orange-50 text-red-600';
+    if (status === 'night_shift') return 'bg-indigo-50 text-indigo-700';
+    if (status === 'compensatory_holiday') return 'bg-emerald-50 text-emerald-700';
+    if (status === 'paid_leave') return 'text-emerald-700';
+    if (status === 'absent') return 'text-slate-500';
+    return '';
+}
+
+/** "h:mm" または数字のみ ("90") を受け取って分数を返す。空欄/不正は null */
+function parseHmOrMinutes(input: string): number | null {
+    const s = input.trim();
+    if (s === '') return 0;
+    if (/^\d+:\d{1,2}$/.test(s)) {
+        const [h, m] = s.split(':').map(Number);
+        if (Number.isNaN(h) || Number.isNaN(m) || m >= 60) return null;
+        return h * 60 + m;
+    }
+    if (/^\d+$/.test(s)) {
+        return Number(s);
+    }
+    return null;
 }
 
 function DetailMonthTable({
@@ -538,11 +588,158 @@ function DetailMonthTable({
     isAdmin,
     currentUserId,
     onChanged,
+    onJumpToMonth,
 }: DetailMonthTableProps) {
-    const [editTarget, setEditTarget] = useState<{
-        dateStr: string;
-        record: AttendanceRecord | null;
-    } | null>(null);
+    const [savingCellId, setSavingCellId] = useState<string | null>(null);
+    const [addOpen, setAddOpen] = useState(false);
+    const [addDate, setAddDate] = useState<string>('');
+
+    /** 部分パッチをサーバに保存（新規/既存どちらも対応） */
+    const saveField = useCallback(
+        async (
+            dateStr: string,
+            record: AttendanceRecord | null,
+            patch: Partial<{
+                status: AttendanceStatus;
+                earlyStartMinutes: number;
+                morningLoadingMinutes: number;
+                overtimeMinutes: number;
+                eveningLoadingMinutes: number;
+                earlyEndTime: string | null;
+                note: string | null;
+            }>,
+            cellId: string
+        ) => {
+            setSavingCellId(cellId);
+            try {
+                if (record) {
+                    const res = await fetch(`/api/attendance/${record.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(patch),
+                    });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        toast.error(data?.error || '更新に失敗しました');
+                        return;
+                    }
+                    await onChanged(record.foremanId, dateStr);
+                } else {
+                    // 新規: 既存POSTでupsert。admin は status も同送信できる
+                    const res = await fetch('/api/attendance', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            foremanId: currentUserId,
+                            date: dateStr,
+                            items: [
+                                {
+                                    userId: selectedUserId,
+                                    earlyStartMinutes: patch.earlyStartMinutes ?? 0,
+                                    morningLoadingMinutes: patch.morningLoadingMinutes ?? 0,
+                                    overtimeMinutes: patch.overtimeMinutes ?? 0,
+                                    eveningLoadingMinutes: patch.eveningLoadingMinutes ?? 0,
+                                    earlyEndTime: patch.earlyEndTime ?? null,
+                                    note: patch.note ?? null,
+                                    status: patch.status,
+                                },
+                            ],
+                        }),
+                    });
+                    if (!res.ok) {
+                        const data = await res.json().catch(() => ({}));
+                        toast.error(data?.error || '保存に失敗しました');
+                        return;
+                    }
+                    await onChanged(currentUserId, dateStr);
+                }
+            } catch (err) {
+                logger.error('attendance saveField failed', err);
+                toast.error('保存に失敗しました');
+            } finally {
+                setSavingCellId(null);
+            }
+        },
+        [currentUserId, onChanged, selectedUserId]
+    );
+
+    const handleDeleteRow = useCallback(
+        async (record: AttendanceRecord, dateStr: string) => {
+            if (!confirm(`${dateStr} の記録を削除します。よろしいですか？`)) return;
+            setSavingCellId(`delete:${dateStr}`);
+            try {
+                const res = await fetch(`/api/attendance/${record.id}`, { method: 'DELETE' });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    toast.error(data?.error || '削除に失敗しました');
+                    return;
+                }
+                toast.success('削除しました');
+                await onChanged(record.foremanId, dateStr);
+            } catch (err) {
+                logger.error('attendance delete failed', err);
+                toast.error('削除に失敗しました');
+            } finally {
+                setSavingCellId(null);
+            }
+        },
+        [onChanged]
+    );
+
+    const handleAddDate = useCallback(async () => {
+        if (!addDate || !/^\d{4}-\d{2}-\d{2}$/.test(addDate)) {
+            toast.error('日付を選択してください');
+            return;
+        }
+        // 既に当月内に表示されている日でレコード未作成ならインラインで編集できる旨を案内
+        if (detailRecordByDate.has(addDate)) {
+            toast('その日付には既にレコードがあります', { icon: 'ℹ️' });
+            setAddOpen(false);
+            return;
+        }
+        setSavingCellId(`add:${addDate}`);
+        try {
+            const res = await fetch('/api/attendance', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    foremanId: currentUserId,
+                    date: addDate,
+                    items: [
+                        {
+                            userId: selectedUserId,
+                            earlyStartMinutes: 0,
+                            morningLoadingMinutes: 0,
+                            overtimeMinutes: 0,
+                            eveningLoadingMinutes: 0,
+                            earlyEndTime: null,
+                            note: null,
+                            status: 'present',
+                        },
+                    ],
+                }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data?.error || '追加に失敗しました');
+                return;
+            }
+            toast.success('日付行を追加しました');
+            const [y, m] = addDate.split('-').map(Number);
+            if (ym && (ym.year !== y || ym.month !== m)) {
+                onJumpToMonth(y, m);
+            }
+            await onChanged(currentUserId, addDate);
+            setAddOpen(false);
+            setAddDate('');
+        } catch (err) {
+            logger.error('attendance addDate failed', err);
+            toast.error('追加に失敗しました');
+        } finally {
+            setSavingCellId(null);
+        }
+    }, [addDate, currentUserId, detailRecordByDate, onChanged, onJumpToMonth, selectedUserId, ym]);
+
     if (!ym) {
         return (
             <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
@@ -577,26 +774,28 @@ function DetailMonthTable({
 
             {/* テーブル */}
             <div className="overflow-x-auto">
-                <table className="w-full text-[13px] border-collapse min-w-[640px]">
+                <table className="w-full text-[13px] border-collapse min-w-[860px]">
                     <thead>
                         <tr className="bg-blue-50 text-slate-800">
                             <th className="border border-slate-200 px-2 py-2 w-12">日付</th>
                             <th className="border border-slate-200 px-2 py-2 w-10"></th>
-                            <th className="border border-slate-200 px-2 py-2 w-16">区分</th>
+                            <th className="border border-slate-200 px-2 py-2 w-20">区分</th>
                             <th className="border border-slate-200 px-2 py-2 w-16">早出</th>
                             <th className="border border-slate-200 px-2 py-2 w-16">朝積</th>
                             <th className="border border-slate-200 px-2 py-2 w-16">開始</th>
-                            <th className="border border-slate-200 px-2 py-2 w-16">終了</th>
+                            <th className="border border-slate-200 px-2 py-2 w-20">終了</th>
                             <th className="border border-slate-200 px-2 py-2 w-16">残業</th>
                             <th className="border border-slate-200 px-2 py-2 w-16">夕積</th>
+                            <th className="border border-slate-200 px-2 py-2">備考</th>
+                            {isAdmin && <th className="border border-slate-200 px-2 py-2 w-10"></th>}
                         </tr>
                     </thead>
                     <tbody>
                         {days.map(day => {
                             const date = new Date(year, month - 1, day);
-                            const dow = date.getDay(); // 0=日 6=土
+                            const dow = date.getDay();
                             const dateStr = `${year}-${pad2(month)}-${pad2(day)}`;
-                            const r = detailRecordByDate.get(dateStr);
+                            const r = detailRecordByDate.get(dateStr) ?? null;
                             const isSunday = dow === 0;
                             const isSaturday = dow === 6;
 
@@ -611,64 +810,118 @@ function DetailMonthTable({
                                 ? 'text-blue-600'
                                 : 'text-slate-700';
 
-                            // 区分
-                            let category = '';
-                            let categoryClass = '';
-                            if (r) {
-                                if (r.status === 'present') {
-                                    category = '出勤';
-                                } else if (r.status === 'absent') {
-                                    category = '欠勤';
-                                } else if (r.status === 'paid_leave') {
-                                    category = '有給';
-                                } else if (r.status === 'holiday') {
-                                    category = '休日';
-                                    categoryClass = 'bg-orange-50 text-red-600';
-                                }
-                            } else if (isSunday) {
-                                category = '休日';
-                                categoryClass = 'bg-orange-50 text-red-600';
-                            }
+                            // 区分ラベル（未登録の日曜は休日扱い）
+                            const statusValue = (r?.status ?? (isSunday ? 'holiday' : '')) as string;
+                            const categoryClass = r ? statusCategoryClass(r.status) : isSunday ? 'bg-orange-50 text-red-600' : '';
 
-                            // 表示用フォーマット
-                            const earlyStart = r ? minutesToHm(r.earlyStartMinutes) : '';
-                            const morning = r ? minutesToHm(r.morningLoadingMinutes) : '';
-                            const start = r && r.status === 'present' ? STANDARD_START : '';
-                            const end = r && r.status === 'present' ? (r.earlyEndTime ?? STANDARD_END) : '';
-                            const overtime = r ? minutesToHm(r.overtimeMinutes) : '';
-                            const evening = r ? minutesToHm(r.eveningLoadingMinutes) : '';
+                            // 出勤系扱い（開始/終了の表示用）
+                            const workish =
+                                r?.status === 'present' ||
+                                r?.status === 'night_shift' ||
+                                r?.status === 'holiday_work';
 
-                            const clickable = isAdmin;
-                            const handleRowClick = () => {
-                                if (!clickable) return;
-                                setEditTarget({ dateStr, record: r ?? null });
-                            };
+                            const start = workish ? STANDARD_START : '';
+                            const endStr = workish ? (r?.earlyEndTime ?? STANDARD_END) : '';
+
+                            const cellBase = 'border border-slate-200 px-1.5 py-1';
+
                             return (
-                                <tr
-                                    key={day}
-                                    className={`hover:bg-slate-50 ${clickable ? 'cursor-pointer' : ''}`}
-                                    onClick={handleRowClick}
-                                >
-                                    <td className={`border border-slate-200 px-2 py-1.5 text-center font-semibold ${dateBg} ${dateText}`}>
+                                <tr key={day} className="hover:bg-slate-50">
+                                    <td className={`${cellBase} text-center font-semibold ${dateBg} ${dateText}`}>
                                         {day}
                                     </td>
-                                    <td className={`border border-slate-200 px-2 py-1.5 text-center ${dateBg} ${dateText}`}>
+                                    <td className={`${cellBase} text-center ${dateBg} ${dateText}`}>
                                         {WEEK_LABEL[dow]}
                                     </td>
-                                    <td className={`border border-slate-200 px-2 py-1.5 text-center ${categoryClass}`}>
-                                        <span className="inline-flex items-center gap-1">
-                                            {category}
-                                            {clickable && (
-                                                <Pencil className="w-3 h-3 text-slate-400 group-hover:text-slate-600" />
+                                    <StatusCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        value={statusValue}
+                                        readOnly={!isAdmin}
+                                        categoryClass={categoryClass}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    <MinutesCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        field="earlyStartMinutes"
+                                        value={r?.earlyStartMinutes ?? 0}
+                                        readOnly={!isAdmin}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    <MinutesCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        field="morningLoadingMinutes"
+                                        value={r?.morningLoadingMinutes ?? 0}
+                                        readOnly={!isAdmin}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    <td className={`${cellBase} text-right tabular-nums text-slate-500`}>{start}</td>
+                                    <TimeCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        value={r?.earlyEndTime ?? ''}
+                                        displayValue={endStr}
+                                        readOnly={!isAdmin}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    <MinutesCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        field="overtimeMinutes"
+                                        value={r?.overtimeMinutes ?? 0}
+                                        readOnly={!isAdmin}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    <MinutesCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        field="eveningLoadingMinutes"
+                                        value={r?.eveningLoadingMinutes ?? 0}
+                                        readOnly={!isAdmin}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    <NoteCell
+                                        record={r}
+                                        dateStr={dateStr}
+                                        value={r?.note ?? ''}
+                                        readOnly={!isAdmin}
+                                        cellBase={cellBase}
+                                        savingCellId={savingCellId}
+                                        onSave={saveField}
+                                    />
+                                    {isAdmin && (
+                                        <td className={`${cellBase} text-center`}>
+                                            {r && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDeleteRow(r, dateStr)}
+                                                    className="p-1 text-slate-400 hover:text-red-600 transition-colors"
+                                                    title="この日のレコードを削除"
+                                                    disabled={savingCellId === `delete:${dateStr}`}
+                                                >
+                                                    {savingCellId === `delete:${dateStr}` ? (
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    )}
+                                                </button>
                                             )}
-                                        </span>
-                                    </td>
-                                    <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{earlyStart}</td>
-                                    <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{morning}</td>
-                                    <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{start}</td>
-                                    <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{end}</td>
-                                    <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{overtime}</td>
-                                    <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{evening}</td>
+                                        </td>
+                                    )}
                                 </tr>
                             );
                         })}
@@ -681,25 +934,61 @@ function DetailMonthTable({
                             <td className="border border-slate-200 px-2 py-2"></td>
                             <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate ? minutesToHm(detailAggregate.overtime) || '-' : '-'}</td>
                             <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate ? minutesToHm(detailAggregate.eveningLoading) || '-' : '-'}</td>
+                            <td className="border border-slate-200 px-2 py-2"></td>
+                            {isAdmin && <td className="border border-slate-200 px-2 py-2"></td>}
                         </tr>
                     </tbody>
                 </table>
             </div>
 
-            {/* 編集モーダル（admin のみ） */}
-            {editTarget && (
-                <MonthlyDetailEditModal
-                    userId={selectedUserId}
-                    userName={getUserName(selectedUserId)}
-                    dateStr={editTarget.dateStr}
-                    record={editTarget.record}
-                    currentUserId={currentUserId}
-                    onClose={() => setEditTarget(null)}
-                    onSaved={async (foremanId, dateStr) => {
-                        setEditTarget(null);
-                        await onChanged(foremanId, dateStr);
-                    }}
-                />
+            {/* 日付行追加（admin） */}
+            {isAdmin && (
+                <div className="px-4 py-3 border-t border-slate-200 bg-white flex flex-wrap items-center gap-2">
+                    {!addOpen ? (
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setAddOpen(true);
+                                // デフォルトは現在表示中の月の1日
+                                setAddDate(`${year}-${pad2(month)}-01`);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-sm bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors shadow-sm"
+                        >
+                            <Plus className="w-4 h-4" />
+                            日付行を追加
+                        </button>
+                    ) : (
+                        <>
+                            <input
+                                type="date"
+                                value={addDate}
+                                onChange={(e) => setAddDate(e.target.value)}
+                                className="px-3 py-1.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
+                            />
+                            <button
+                                type="button"
+                                onClick={handleAddDate}
+                                disabled={savingCellId?.startsWith('add:')}
+                                className="px-3 py-1.5 text-sm bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-colors disabled:opacity-50"
+                            >
+                                追加
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAddOpen(false);
+                                    setAddDate('');
+                                }}
+                                className="px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50 rounded-xl"
+                            >
+                                キャンセル
+                            </button>
+                            <span className="text-xs text-slate-500">
+                                ※ 当月外の日付を選ぶと、追加後にその月へ自動で移動します
+                            </span>
+                        </>
+                    )}
+                </div>
             )}
 
             {/* サマリーパネル */}
@@ -749,262 +1038,284 @@ function SummaryRow({ label, value, highlight, muted }: { label: string; value: 
     );
 }
 
-/** ===== 個人別月次表 admin編集モーダル ===== */
+/** ===== インライン編集セル群 ===== */
 
-interface MonthlyDetailEditModalProps {
-    userId: string;
-    userName: string;
-    dateStr: string; // YYYY-MM-DD
+type SaveFieldFn = (
+    dateStr: string,
+    record: AttendanceRecord | null,
+    patch: Partial<{
+        status: AttendanceStatus;
+        earlyStartMinutes: number;
+        morningLoadingMinutes: number;
+        overtimeMinutes: number;
+        eveningLoadingMinutes: number;
+        earlyEndTime: string | null;
+        note: string | null;
+    }>,
+    cellId: string
+) => Promise<void>;
+
+interface BaseCellProps {
     record: AttendanceRecord | null;
-    currentUserId: string; // admin user id（新規作成時の foremanId/createdBy 用）
-    onClose: () => void;
-    onSaved: (foremanId: string, dateStr: string) => void | Promise<void>;
+    dateStr: string;
+    readOnly: boolean;
+    cellBase: string;
+    savingCellId: string | null;
+    onSave: SaveFieldFn;
 }
 
-const STATUS_OPTIONS: { value: 'present' | 'absent' | 'paid_leave' | 'holiday'; label: string }[] = [
-    { value: 'present', label: '出勤' },
-    { value: 'absent', label: '欠勤' },
-    { value: 'paid_leave', label: '有給' },
-    { value: 'holiday', label: '休日' },
-];
-
-function MonthlyDetailEditModal({
-    userId,
-    userName,
-    dateStr,
+function StatusCell({
     record,
-    currentUserId,
-    onClose,
-    onSaved,
-}: MonthlyDetailEditModalProps) {
-    const isNew = !record;
-    const [status, setStatus] = useState<'present' | 'absent' | 'paid_leave' | 'holiday'>(
-        (record?.status as 'present' | 'absent' | 'paid_leave' | 'holiday') ?? 'present'
+    dateStr,
+    value,
+    readOnly,
+    categoryClass,
+    cellBase,
+    savingCellId,
+    onSave,
+}: BaseCellProps & { value: string; categoryClass: string }) {
+    const cellId = `status:${dateStr}`;
+    const saving = savingCellId === cellId;
+    const label = value && STATUS_LABEL_MAP[value] ? STATUS_LABEL_MAP[value] : '';
+
+    if (readOnly) {
+        return <td className={`${cellBase} text-center ${categoryClass}`}>{label}</td>;
+    }
+    return (
+        <td className={`${cellBase} text-center ${categoryClass} p-0`}>
+            <div className="relative">
+                <select
+                    value={value || 'present'}
+                    onChange={(e) => {
+                        const next = e.target.value as AttendanceStatus;
+                        if (next === record?.status) return;
+                        void onSave(dateStr, record, { status: next }, cellId);
+                    }}
+                    disabled={saving}
+                    className={`w-full px-1 py-1 bg-transparent text-center focus:outline-none focus:ring-1 focus:ring-slate-400 rounded ${saving ? 'opacity-50' : ''}`}
+                >
+                    {!record && <option value="">-</option>}
+                    {STATUS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                            {o.label}
+                        </option>
+                    ))}
+                </select>
+                {saving && (
+                    <Loader2 className="w-3 h-3 animate-spin absolute right-1 top-1/2 -translate-y-1/2 text-slate-400" />
+                )}
+            </div>
+        </td>
     );
-    const [earlyStart, setEarlyStart] = useState<number>(record?.earlyStartMinutes ?? 0);
-    const [morning, setMorning] = useState<number>(record?.morningLoadingMinutes ?? 0);
-    const [overtime, setOvertime] = useState<number>(record?.overtimeMinutes ?? 0);
-    const [evening, setEvening] = useState<number>(record?.eveningLoadingMinutes ?? 0);
-    const [earlyEnd, setEarlyEnd] = useState<string>(record?.earlyEndTime ?? '');
-    const [saving, setSaving] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+}
 
-    const handleSave = async () => {
-        setSaving(true);
-        try {
-            const earlyEndPayload = earlyEnd && /^\d{2}:\d{2}$/.test(earlyEnd) ? earlyEnd : null;
-            if (isNew) {
-                // 既存POSTを利用してupsert: foremanId は admin 自身（区分のみ調整するケース想定）
-                const res = await fetch('/api/attendance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        foremanId: currentUserId,
-                        date: dateStr,
-                        items: [
-                            {
-                                userId,
-                                earlyStartMinutes: earlyStart,
-                                morningLoadingMinutes: morning,
-                                overtimeMinutes: overtime,
-                                eveningLoadingMinutes: evening,
-                                earlyEndTime: earlyEndPayload,
-                            },
-                        ],
-                    }),
-                });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    toast.error(data?.error || '保存に失敗しました');
-                    return;
-                }
-                // 区分は既存POSTでは更新されない → 作成済みレコードを取得し直してPATCHで status を上書き
-                if (status !== 'present') {
-                    const createdList = (await res.json()) as AttendanceRecord[] | AttendanceRecord;
-                    const created = Array.isArray(createdList) ? createdList[0] : createdList;
-                    if (created?.id) {
-                        const patchRes = await fetch(`/api/attendance/${created.id}`, {
-                            method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ status }),
-                        });
-                        if (!patchRes.ok) {
-                            const data = await patchRes.json().catch(() => ({}));
-                            toast.error(data?.error || '区分の更新に失敗しました');
-                            return;
-                        }
-                    }
-                }
-                toast.success('追加しました');
-                await onSaved(currentUserId, dateStr);
-            } else {
-                const res = await fetch(`/api/attendance/${record!.id}`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        status,
-                        earlyStartMinutes: earlyStart,
-                        morningLoadingMinutes: morning,
-                        overtimeMinutes: overtime,
-                        eveningLoadingMinutes: evening,
-                        earlyEndTime: earlyEndPayload,
-                    }),
-                });
-                if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    toast.error(data?.error || '更新に失敗しました');
-                    return;
-                }
-                toast.success('更新しました');
-                await onSaved(record!.foremanId, dateStr);
-            }
-        } catch (err) {
-            logger.error('attendance save failed', err);
-            toast.error('保存に失敗しました');
-        } finally {
-            setSaving(false);
+function MinutesCell({
+    record,
+    dateStr,
+    field,
+    value,
+    readOnly,
+    cellBase,
+    savingCellId,
+    onSave,
+}: BaseCellProps & {
+    field: 'earlyStartMinutes' | 'morningLoadingMinutes' | 'overtimeMinutes' | 'eveningLoadingMinutes';
+    value: number;
+}) {
+    const cellId = `${field}:${dateStr}`;
+    const saving = savingCellId === cellId;
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState<string>(minutesToHm(value));
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (!editing) setDraft(minutesToHm(value));
+    }, [value, editing]);
+
+    const commit = () => {
+        const parsed = parseHmOrMinutes(draft);
+        if (parsed === null) {
+            toast.error('h:mm 形式または分数で入力してください');
+            setDraft(minutesToHm(value));
+            setEditing(false);
+            return;
         }
+        const clamped = Math.max(0, Math.min(600, Math.round(parsed)));
+        setEditing(false);
+        if (clamped === value) return;
+        void onSave(dateStr, record, { [field]: clamped }, cellId);
     };
 
-    const handleDelete = async () => {
-        if (!record) return;
-        if (!confirm(`${dateStr} ${userName} の出勤簿レコードを削除します。よろしいですか？`)) return;
-        setDeleting(true);
-        try {
-            const res = await fetch(`/api/attendance/${record.id}`, { method: 'DELETE' });
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                toast.error(data?.error || '削除に失敗しました');
-                return;
-            }
-            toast.success('削除しました');
-            await onSaved(record.foremanId, dateStr);
-        } catch (err) {
-            logger.error('attendance delete failed', err);
-            toast.error('削除に失敗しました');
-        } finally {
-            setDeleting(false);
-        }
-    };
-
-    const numInput = (
-        label: string,
-        value: number,
-        setValue: (v: number) => void,
-        max = 600
-    ) => (
-        <div>
-            <label className="block text-xs text-slate-600 mb-1">{label}（分）</label>
-            <input
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={max}
-                step={1}
-                value={value}
-                onChange={(e) => {
-                    const n = Number(e.target.value);
-                    if (Number.isNaN(n)) return;
-                    setValue(Math.max(0, Math.min(max, Math.round(n))));
+    if (readOnly || !editing) {
+        return (
+            <td
+                className={`${cellBase} text-right tabular-nums ${readOnly ? '' : 'cursor-text hover:bg-slate-50'}`}
+                onClick={() => {
+                    if (readOnly) return;
+                    setEditing(true);
+                    setTimeout(() => inputRef.current?.select(), 0);
                 }}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-            />
-        </div>
-    );
+            >
+                {saving ? (
+                    <span className="inline-flex items-center justify-end gap-1">
+                        <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
+                    </span>
+                ) : (
+                    minutesToHm(value) || (readOnly ? '' : <span className="text-slate-300">—</span>)
+                )}
+            </td>
+        );
+    }
 
     return (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 px-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
-                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
-                    <h3 className="text-base font-semibold text-slate-800">
-                        出勤簿 {isNew ? '追加' : '編集'}
-                    </h3>
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
-                    >
-                        <X className="w-5 h-5 text-slate-500" />
-                    </button>
-                </div>
-                <div className="px-5 py-4 space-y-4 max-h-[75vh] overflow-y-auto">
-                    <div className="text-sm text-slate-700">
-                        <span className="text-slate-500">対象</span>
-                        <span className="ml-2 font-semibold">{userName}</span>
-                        <span className="ml-2 text-slate-500">{dateStr}</span>
-                    </div>
+        <td className={`${cellBase} text-right p-0`}>
+            <input
+                ref={inputRef}
+                type="text"
+                inputMode="numeric"
+                value={draft}
+                placeholder="h:mm"
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') commit();
+                    if (e.key === 'Escape') {
+                        setDraft(minutesToHm(value));
+                        setEditing(false);
+                    }
+                }}
+                autoFocus
+                className="w-full px-2 py-1 text-right tabular-nums bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-400"
+            />
+        </td>
+    );
+}
 
-                    <div>
-                        <label className="block text-xs text-slate-600 mb-1">出勤区分</label>
-                        <div className="grid grid-cols-4 gap-2">
-                            {STATUS_OPTIONS.map((opt) => (
-                                <button
-                                    key={opt.value}
-                                    type="button"
-                                    onClick={() => setStatus(opt.value)}
-                                    className={`px-2 py-2 text-sm rounded-xl border transition-colors ${status === opt.value
-                                        ? 'bg-slate-800 text-white border-slate-800'
-                                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
-                                        }`}
-                                >
-                                    {opt.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+function TimeCell({
+    record,
+    dateStr,
+    value,
+    displayValue,
+    readOnly,
+    cellBase,
+    savingCellId,
+    onSave,
+}: BaseCellProps & { value: string; displayValue: string }) {
+    const cellId = `earlyEndTime:${dateStr}`;
+    const saving = savingCellId === cellId;
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(value);
 
-                    <div className="grid grid-cols-2 gap-3">
-                        {numInput('早出', earlyStart, setEarlyStart)}
-                        {numInput('朝積', morning, setMorning)}
-                        {numInput('残業', overtime, setOvertime)}
-                        {numInput('夕積', evening, setEvening)}
-                    </div>
+    useEffect(() => {
+        if (!editing) setDraft(value);
+    }, [value, editing]);
 
-                    <div>
-                        <label className="block text-xs text-slate-600 mb-1">早終時刻（空欄=早終なし）</label>
-                        <input
-                            type="time"
-                            value={earlyEnd}
-                            onChange={(e) => setEarlyEnd(e.target.value)}
-                            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                        />
-                    </div>
-                </div>
+    const commit = () => {
+        setEditing(false);
+        const next = draft && /^\d{2}:\d{2}$/.test(draft) ? draft : null;
+        const prev = value && /^\d{2}:\d{2}$/.test(value) ? value : null;
+        if (next === prev) return;
+        void onSave(dateStr, record, { earlyEndTime: next }, cellId);
+    };
 
-                <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
-                    {!isNew ? (
-                        <button
-                            type="button"
-                            onClick={handleDelete}
-                            disabled={deleting || saving}
-                            className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                            削除
-                        </button>
-                    ) : (
-                        <span />
-                    )}
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            disabled={deleting || saving}
-                            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
-                        >
-                            キャンセル
-                        </button>
-                        <button
-                            type="button"
-                            onClick={handleSave}
-                            disabled={deleting || saving}
-                            className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-colors disabled:opacity-50"
-                        >
-                            {saving ? '保存中...' : '保存'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    if (readOnly || !editing) {
+        return (
+            <td
+                className={`${cellBase} text-right tabular-nums ${readOnly ? '' : 'cursor-text hover:bg-slate-50'}`}
+                onClick={() => !readOnly && setEditing(true)}
+            >
+                {saving ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-slate-400 inline-block" />
+                ) : (
+                    displayValue || (readOnly ? '' : <span className="text-slate-300">—</span>)
+                )}
+            </td>
+        );
+    }
+
+    return (
+        <td className={`${cellBase} text-right p-0`}>
+            <input
+                type="time"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') commit();
+                    if (e.key === 'Escape') {
+                        setDraft(value);
+                        setEditing(false);
+                    }
+                }}
+                autoFocus
+                className="w-full px-2 py-1 text-right tabular-nums bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-400"
+            />
+        </td>
+    );
+}
+
+function NoteCell({
+    record,
+    dateStr,
+    value,
+    readOnly,
+    cellBase,
+    savingCellId,
+    onSave,
+}: BaseCellProps & { value: string }) {
+    const cellId = `note:${dateStr}`;
+    const saving = savingCellId === cellId;
+    const [editing, setEditing] = useState(false);
+    const [draft, setDraft] = useState(value);
+
+    useEffect(() => {
+        if (!editing) setDraft(value);
+    }, [value, editing]);
+
+    const commit = () => {
+        setEditing(false);
+        const next = draft.trim() === '' ? null : draft;
+        const prev = value === '' ? null : value;
+        if (next === prev) return;
+        void onSave(dateStr, record, { note: next }, cellId);
+    };
+
+    if (readOnly || !editing) {
+        return (
+            <td
+                className={`${cellBase} text-left ${readOnly ? '' : 'cursor-text hover:bg-slate-50'}`}
+                onClick={() => !readOnly && setEditing(true)}
+            >
+                {saving ? (
+                    <Loader2 className="w-3 h-3 animate-spin text-slate-400 inline-block" />
+                ) : value ? (
+                    <span className="text-slate-700">{value}</span>
+                ) : readOnly ? (
+                    ''
+                ) : (
+                    <span className="text-slate-300">—</span>
+                )}
+            </td>
+        );
+    }
+
+    return (
+        <td className={`${cellBase} text-left p-0`}>
+            <input
+                type="text"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commit}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter') commit();
+                    if (e.key === 'Escape') {
+                        setDraft(value);
+                        setEditing(false);
+                    }
+                }}
+                autoFocus
+                className="w-full px-2 py-1 bg-white border border-slate-300 rounded focus:outline-none focus:ring-1 focus:ring-slate-400"
+            />
+        </td>
     );
 }

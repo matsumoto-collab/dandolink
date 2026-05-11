@@ -8,7 +8,15 @@ import {
     notFoundResponse,
 } from '@/lib/api/utils';
 
-const ALLOWED_STATUS = ['present', 'absent', 'paid_leave', 'holiday'] as const;
+const ALLOWED_STATUS = [
+    'present',
+    'absent',
+    'paid_leave',
+    'holiday',
+    'night_shift',
+    'compensatory_holiday',
+    'holiday_work',
+] as const;
 type AttendanceStatus = (typeof ALLOWED_STATUS)[number];
 
 interface RouteContext {

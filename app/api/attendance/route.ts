@@ -4,6 +4,17 @@ import { requireAuth, errorResponse, serverErrorResponse, validationErrorRespons
 
 const FOREMAN_ROLES = ['admin', 'manager', 'foreman1', 'foreman2'];
 
+const ALLOWED_STATUS = [
+    'present',
+    'absent',
+    'paid_leave',
+    'holiday',
+    'night_shift',
+    'compensatory_holiday',
+    'holiday_work',
+] as const;
+type AttendanceStatus = (typeof ALLOWED_STATUS)[number];
+
 interface AttendanceItemBody {
     userId: string;
     earlyStartMinutes?: number;
@@ -12,6 +23,7 @@ interface AttendanceItemBody {
     eveningLoadingMinutes?: number;
     earlyEndTime?: string | null; // "HH:mm"
     note?: string | null;
+    status?: string; // admin のみ受付
 }
 
 interface AttendanceUpsertBody {
@@ -118,8 +130,13 @@ export async function POST(req: NextRequest) {
         }
 
         // バルクupsert
+        const isAdmin = role === 'admin';
         const ops = body.items.map(item => {
-            const data = {
+            const adminStatus =
+                isAdmin && typeof item.status === 'string' && ALLOWED_STATUS.includes(item.status as AttendanceStatus)
+                    ? (item.status as AttendanceStatus)
+                    : undefined;
+            const baseData = {
                 userId: item.userId,
                 date: dateOnly,
                 foremanId: body.foremanId,
@@ -131,10 +148,13 @@ export async function POST(req: NextRequest) {
                 note: item.note ?? null,
                 createdBy: currentUserId,
             };
+            // status は admin の場合のみ更新対象に含める
+            const updateData = adminStatus ? { ...baseData, status: adminStatus } : baseData;
+            const createData = adminStatus ? { ...baseData, status: adminStatus } : baseData;
             return prisma.attendanceRecord.upsert({
                 where: { userId_date: { userId: item.userId, date: dateOnly } },
-                update: data,
-                create: data,
+                update: updateData,
+                create: createData,
             });
         });
 
