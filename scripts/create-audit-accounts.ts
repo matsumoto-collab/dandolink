@@ -23,15 +23,17 @@ const AUDIT_PREFIX = 'audit_';
 const DATE_SUFFIX = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
 interface AuditAccountSpec {
-    role: 'admin' | 'manager' | 'worker' | 'partner';
+    role: 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner';
     displayName: string;
 }
 
 const SPECS: AuditAccountSpec[] = [
-    { role: 'admin',   displayName: '[監査] admin' },
-    { role: 'manager', displayName: '[監査] manager' },
-    { role: 'worker',  displayName: '[監査] worker' },
-    { role: 'partner', displayName: '[監査] partner' },
+    { role: 'admin',    displayName: '[監査] admin' },
+    { role: 'manager',  displayName: '[監査] manager' },
+    { role: 'foreman1', displayName: '[監査] foreman1' },
+    { role: 'foreman2', displayName: '[監査] foreman2' },
+    { role: 'worker',   displayName: '[監査] worker' },
+    { role: 'partner',  displayName: '[監査] partner' },
 ];
 
 function generatePassword(): string {
