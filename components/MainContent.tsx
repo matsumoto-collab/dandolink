@@ -278,8 +278,7 @@ export default function MainContent() {
                 if (
                     userRole !== 'admin' &&
                     userRole !== 'manager' &&
-                    userRole !== 'partner' &&
-                    userRole !== 'partner_member'
+                    userRole !== 'partner'
                 ) {
                     return <PlaceholderPage title="アクセス権限がありません" />;
                 }

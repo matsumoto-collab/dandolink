@@ -243,7 +243,8 @@ export default function Sidebar() {
                                 }
                                 return null;
                             }
-                            // partner / partner_member ロール: 業務管理(スケジュール+チャット) + 書類・経理(出来高表)
+                            // partner ロール: 業務管理(スケジュール+チャット) + 書類・経理(出来高表)
+                            // partner_member ロール: 業務管理(スケジュール+チャット) のみ (出来高表は不可)
                             if (role === 'partner' || role === 'partner_member') {
                                 if (section.title === '業務管理') {
                                     const partnerItems = section.items
@@ -251,7 +252,7 @@ export default function Sidebar() {
                                     if (partnerItems.length === 0) return null;
                                     return { ...filteredSection, items: partnerItems };
                                 }
-                                if (section.title === '書類・経理') {
+                                if (section.title === '書類・経理' && role === 'partner') {
                                     const partnerItems = section.items
                                         .filter(item => item.page === 'partner-work-volume')
                                         .map(item => ({ ...item, name: '出来高表' }));

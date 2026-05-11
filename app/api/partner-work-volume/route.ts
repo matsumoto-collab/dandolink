@@ -89,7 +89,6 @@ export async function GET(req: NextRequest) {
 
         const role = session!.user.role;
         const userId = session!.user.id as string;
-        const userCompanyId = session!.user.companyId ?? null;
 
         const url = new URL(req.url);
         const queryCompanyId = url.searchParams.get('companyId');
@@ -97,14 +96,13 @@ export async function GET(req: NextRequest) {
         if (!range) return validationErrorResponse('year/month が不正です');
 
         // 対象会社 ID を決定
+        // 閲覧可能ロール: admin / manager / partner (= 協力会社アカウント本体のみ)
         let partnerCompanyId: string | null = null;
         if (ADMIN_ROLES.includes(role)) {
             if (!queryCompanyId) return validationErrorResponse('companyId が必要です');
             partnerCompanyId = queryCompanyId;
         } else if (role === 'partner') {
             partnerCompanyId = userId;
-        } else if (role === 'partner_member') {
-            partnerCompanyId = userCompanyId;
         } else {
             return errorResponse('権限がありません', 403);
         }
@@ -118,7 +116,7 @@ export async function GET(req: NextRequest) {
             return errorResponse('協力会社が見つかりません', 404);
         }
 
-        const isPartnerViewer = role === 'partner' || role === 'partner_member';
+        const isPartnerViewer = role === 'partner';
 
         // 会社所属メンバー
         const members = await prisma.user.findMany({

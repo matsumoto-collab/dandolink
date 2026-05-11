@@ -53,16 +53,14 @@ export default function PartnerWorkVolumePage() {
     const { data: session } = useSession();
     const role = session?.user?.role ?? '';
     const userId = session?.user?.id ?? '';
-    const userCompanyId = session?.user?.companyId ?? null;
     const isAdminOrManager = role === 'admin' || role === 'manager';
-    const isPartner = role === 'partner' || role === 'partner_member';
+    const isPartner = role === 'partner';
 
     const initial = todayJstYm();
     const [year, setYear] = useState<number>(initial.year);
     const [month, setMonth] = useState<number>(initial.month);
     const [companyId, setCompanyId] = useState<string>(() => {
         if (role === 'partner') return userId;
-        if (role === 'partner_member') return userCompanyId ?? '';
         return '';
     });
     const [companies, setCompanies] = useState<PartnerCompanyOption[]>([]);
