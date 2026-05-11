@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'orders' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'payees' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'payees' | 'partner-work-volume' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
 }
@@ -43,7 +43,7 @@ const navigationSections: NavSection[] = [
             { name: '見積書', page: 'estimates' },
             { name: '請求書', page: 'invoices' },
             { name: '図面', page: 'site-surveys' },
-            { name: '発注書', page: 'orders' },
+            { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager'] },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin'] },
             { name: '利益ダッシュボード', page: 'profit-dashboard' },
         ],
@@ -243,12 +243,22 @@ export default function Sidebar() {
                                 }
                                 return null;
                             }
-                            // partner / partner_member ロール: スケジュール + チャット
+                            // partner / partner_member ロール: 業務管理(スケジュール+チャット) + 書類・経理(出来高表)
                             if (role === 'partner' || role === 'partner_member') {
-                                if (filteredSection.title !== '業務管理') return null;
-                                const filteredItems = filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat');
-                                if (filteredItems.length === 0) return null;
-                                return { ...filteredSection, items: filteredItems };
+                                if (section.title === '業務管理') {
+                                    const partnerItems = section.items
+                                        .filter(item => item.page === 'schedule' || item.page === 'chat');
+                                    if (partnerItems.length === 0) return null;
+                                    return { ...filteredSection, items: partnerItems };
+                                }
+                                if (section.title === '書類・経理') {
+                                    const partnerItems = section.items
+                                        .filter(item => item.page === 'partner-work-volume')
+                                        .map(item => ({ ...item, name: '出来高表' }));
+                                    if (partnerItems.length === 0) return null;
+                                    return { ...filteredSection, items: partnerItems };
+                                }
+                                return null;
                             }
                             // 職長1/2: 業務管理 + 材料管理
                             if (role === 'foreman1' || role === 'foreman2') {

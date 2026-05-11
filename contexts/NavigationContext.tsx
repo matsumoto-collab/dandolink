@@ -11,7 +11,6 @@ export type PageType =
     | 'estimates'        // 見積書
     | 'site-surveys'     // 図面（現場調査）
     | 'invoices'         // 請求書
-    | 'orders'           // 発注書
     | 'partners'         // 協力会社
     | 'customers'        // 顧客管理
     | 'company'          // 自社情報
@@ -22,6 +21,7 @@ export type PageType =
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定
     | 'payees'           // 振込先マスター
+    | 'partner-work-volume' // 協力業者出来高
     | 'settings';        // 設定
 
 interface NavigationContextType {

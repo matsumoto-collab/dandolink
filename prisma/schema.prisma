@@ -455,6 +455,49 @@ model ProjectMasterSubcontractorCost {
   @@schema("public")
 }
 
+model PartnerWorkVolume {
+  id                  String    @id @default(uuid())
+  partnerCompanyId    String
+  date                DateTime  @db.Date
+  customerName        String?
+  projectMasterId     String?
+  projectTitle        String
+  managerName         String?
+  constructionContent String?
+  amount              Int       @default(0)
+  sourceAssignmentId  String?   @unique
+  isManual            Boolean   @default(false)
+  sortOrder           Int       @default(0)
+  notes               String?
+  status              String    @default("draft")
+  completedAt         DateTime?
+  completedBy         String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  updatedBy           String?
+
+  @@index([partnerCompanyId, date])
+  @@index([date])
+  @@index([partnerCompanyId, status])
+  @@schema("public")
+}
+
+model PartnerWorkVolumeMonth {
+  id               String    @id @default(uuid())
+  partnerCompanyId String
+  year             Int
+  month            Int
+  status           String    @default("draft")
+  completedAt      DateTime?
+  completedBy      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([partnerCompanyId, year, month])
+  @@index([partnerCompanyId])
+  @@schema("public")
+}
+
 model SystemSettings {
   id                          String   @id @default("default")
   totalMembers                Int      @default(20)

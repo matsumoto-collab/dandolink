@@ -10,10 +10,10 @@ import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
-    'profit-dashboard', 'estimates', 'site-surveys', 'invoices', 'orders',
+    'profit-dashboard', 'estimates', 'site-surveys', 'invoices',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
-    'payment-schedules', 'payees',
+    'payment-schedules', 'payees', 'partner-work-volume',
 ];
 
 // 簡易ローディングコンポーネント
@@ -87,6 +87,9 @@ const PayeesPage = dynamic(() => import('@/app/(master)/payees/page'), {
     loading: () => <LoadingSpinner />,
 });
 const PartnerScheduleScreen = dynamic(() => import('./PartnerSchedule/PartnerScheduleScreen'), {
+    loading: () => <LoadingSpinner />,
+});
+const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerWorkVolumePage'), {
     loading: () => <LoadingSpinner />,
 });
 
@@ -241,9 +244,6 @@ export default function MainContent() {
             case 'profit-dashboard':
                 return <ProfitDashboardWrapper />;
 
-            case 'orders':
-                return <PlaceholderPage title="発注書" />;
-
             case 'partners':
                 return <PlaceholderPage title="協力会社" />;
 
@@ -274,6 +274,17 @@ export default function MainContent() {
             case 'company':
                 return <CompanyInfoSettings />;
 
+            case 'partner-work-volume':
+                if (
+                    userRole !== 'admin' &&
+                    userRole !== 'manager' &&
+                    userRole !== 'partner' &&
+                    userRole !== 'partner_member'
+                ) {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <PartnerWorkVolumePage />;
+
             default:
                 return <PlaceholderPage title="ページが見つかりません" />;
         }
@@ -292,7 +303,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                     {renderContent()}
                 </div>
             </main>

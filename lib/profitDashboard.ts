@@ -207,6 +207,7 @@ export async function fetchProfitDashboardData(
                         projectMasterId: true,
                         workers: true,
                         memberCount: true,
+                        assignedEmployeeId: true,
                     },
                 },
             },
@@ -285,12 +286,19 @@ export async function fetchProfitDashboardData(
         }
     }
 
+    // 協力業者ロールのユーザーIDセット（labor 集計でも参照するため早期に作る）
+    const partnerForemanIdSet = new Set(
+        allUsers.filter(u => u.role === 'partner').map(u => u.id)
+    );
+
     // (workerId, dateStr) ごとに { projectId, minutes } を集める
     type WorkerDayEntry = { projectId: string; minutes: number };
     const workerDayMap = new Map<string, Map<string, WorkerDayEntry[]>>();
 
     for (const item of workItems) {
         if (!item.dailyReport) continue;
+        // 協力業者foremanのassignmentに紐づく作業は labor cost を計上しない（協力業者費に統合）
+        if (partnerForemanIdSet.has(item.assignment.assignedEmployeeId)) continue;
         const dateStr = new Date(item.dailyReport.date).toISOString().slice(0, 10);
 
         let minutes = 0;
@@ -375,11 +383,6 @@ export async function fetchProfitDashboardData(
             );
         }
     }
-
-    // 協力業者ロールのユーザーIDセット
-    const partnerForemanIdSet = new Set(
-        allUsers.filter(u => u.role === 'partner').map(u => u.id)
-    );
 
     // 案件ごとに「手配確定済み & 職長がpartnerロール」のアサインから工事種別IDを収集
     const activeTypeIdsByProject = new Map<string, Set<string>>();

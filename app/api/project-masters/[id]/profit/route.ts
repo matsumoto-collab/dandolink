@@ -220,6 +220,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             const dateStr = new Date(a.date).toISOString().slice(0, 10);
             const ctName = a.constructionType ? (ctNameMap.get(a.constructionType) ?? null) : null;
             const foremanName = foremanNameMap.get(a.assignedEmployeeId) ?? null;
+            // 協力業者ロールがアサインされた配置は労務費を計上しない（協力業者費に統合）
+            const isPartnerForeman = partnerForemanIds.has(a.assignedEmployeeId);
 
             // ----- 労務費（assignment単位に集計） -----
             let assignmentLaborRaw = 0;
@@ -250,19 +252,22 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             }
             const autoLaborCost = Math.round(assignmentLaborRaw / 100) * 100;
             const effectiveLabor = a.laborCostOverride != null ? a.laborCostOverride : autoLaborCost;
-            laborCost += effectiveLabor;
             const hours = Math.round((assignmentMinutes / 60) * 10) / 10;
-            laborRows.push({
-                assignmentId: a.id,
-                date: dateStr,
-                constructionTypeName: ctName,
-                hours,
-                foremanName,
-                memberCount: a.memberCount || 0,
-                autoCost: autoLaborCost,
-                override: a.laborCostOverride,
-                effectiveCost: effectiveLabor,
-            });
+            // 協力業者配置は labor 集計から除外、breakdown 行にも出さない
+            if (!isPartnerForeman) {
+                laborCost += effectiveLabor;
+                laborRows.push({
+                    assignmentId: a.id,
+                    date: dateStr,
+                    constructionTypeName: ctName,
+                    hours,
+                    foremanName,
+                    memberCount: a.memberCount || 0,
+                    autoCost: autoLaborCost,
+                    override: a.laborCostOverride,
+                    effectiveCost: effectiveLabor,
+                });
+            }
 
             // ----- 車両費 -----
             const vehIds = parseJsonField<string[]>(a.vehicles, []);
