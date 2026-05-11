@@ -185,8 +185,17 @@ describe('AssignmentTable', () => {
         // Date should change (projects may not match the new date)
     });
 
-    it('should show "明日に戻る" button', () => {
+    it('should hide "明日に戻る" button when already on tomorrow (default)', () => {
         render(<AssignmentTable />);
+        // 既定で明日を表示中なのでボタンは非表示
+        expect(screen.queryByText('明日に戻る')).not.toBeInTheDocument();
+    });
+
+    it('should show "明日に戻る" button after navigating away from tomorrow', () => {
+        render(<AssignmentTable />);
+        const prevButtons = screen.getAllByTestId('icon-ChevronLeft');
+        fireEvent.click(prevButtons[0].closest('button')!);
+        // 前日に移動したのでボタンが現れる
         expect(screen.getByText('明日に戻る')).toBeInTheDocument();
     });
 

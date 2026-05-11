@@ -153,6 +153,31 @@ export default function MainContent() {
     const userRole = session?.user?.role;
     const userId = session?.user?.id;
 
+    // アクセシビリティ/SEO 向けのページタイトル（h1 として読み上げソフトに伝える）
+    const pageTitleMap: Record<PageType, string> = {
+        'schedule': '工程管理',
+        'my-schedule': 'マイスケジュール',
+        'project-masters': '案件マスタ',
+        'reports': '日報',
+        'attendance': '出勤簿',
+        'profit-dashboard': '粗利ダッシュボード',
+        'estimates': '見積書',
+        'site-surveys': '現場調査',
+        'invoices': '請求書',
+        'partners': '協力会社',
+        'customers': '取引先',
+        'company': '会社情報',
+        'materials': '資材発注',
+        'inventory': '在庫',
+        'loading-list': '積み込みリスト',
+        'settings': '設定',
+        'chat': 'チャット',
+        'payment-schedules': '支払予定',
+        'payees': '支払先',
+        'partner-work-volume': '協力業者出来高表',
+    };
+    const pageTitle = pageTitleMap[activePage] ?? 'DandoLink';
+
     // Render content based on active page
     const renderContent = () => {
         switch (activePage) {
@@ -303,6 +328,8 @@ export default function MainContent() {
                 pwa-main-safe
             ">
                 <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                    {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
+                    <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}
                 </div>
             </main>

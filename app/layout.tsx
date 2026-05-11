@@ -20,10 +20,10 @@ const notoSansJP = Noto_Sans_JP({
 });
 
 // viewport は metadata とは別に定義（Next.js 14+ 推奨）
+// maximumScale は指定しない（ピンチズーム禁止はアクセシビリティ違反）
 export const viewport: Viewport = {
     width: "device-width",
     initialScale: 1,
-    maximumScale: 1,
     viewportFit: "cover",
 };
 

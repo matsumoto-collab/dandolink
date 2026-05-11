@@ -229,12 +229,17 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 </div>
 
                 <div className="mt-3 flex items-center justify-between gap-2">
-                    <button
-                        onClick={goToTomorrow}
-                        className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                        明日に戻る
-                    </button>
+                    {/* 明日（既定表示日）でないときだけ戻るボタンを出す */}
+                    {dateInfo.label !== '明日' ? (
+                        <button
+                            onClick={goToTomorrow}
+                            className="text-xs text-slate-400 hover:text-slate-600 px-3 py-1 rounded-lg hover:bg-slate-50 transition-colors"
+                        >
+                            明日に戻る
+                        </button>
+                    ) : (
+                        <span />
+                    )}
 
                     {/* 表示モード切替(workerロール以外) */}
                     {userRole !== 'worker' && (
