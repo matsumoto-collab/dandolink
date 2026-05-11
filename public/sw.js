@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dandlink-v2';
+const CACHE_NAME = 'dandlink-v3';
 const STATIC_CACHE_NAME = 'dandlink-static-v1';
 const OFFLINE_URL = '/offline.html';
 
@@ -50,6 +50,38 @@ self.addEventListener('fetch', (event) => {
     }
 });
 
+// アプリアイコンの未読バッジを最新化（PWA Badging API）
+// 非対応ブラウザでは silently no-op
+async function refreshAppBadge() {
+    if (!('setAppBadge' in self.registration) && !('setAppBadge' in self.navigator)) {
+        return;
+    }
+    try {
+        const res = await fetch('/api/notifications/unread-count', {
+            credentials: 'include',
+            cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const json = await res.json();
+        const count = Number(json && json.count) || 0;
+        if (count > 0) {
+            if (self.registration.setAppBadge) {
+                await self.registration.setAppBadge(count);
+            } else if (self.navigator.setAppBadge) {
+                await self.navigator.setAppBadge(count);
+            }
+        } else {
+            if (self.registration.clearAppBadge) {
+                await self.registration.clearAppBadge();
+            } else if (self.navigator.clearAppBadge) {
+                await self.navigator.clearAppBadge();
+            }
+        }
+    } catch (e) {
+        // ignore: ログイン切れ・オフライン等
+    }
+}
+
 // Web Push: プッシュ受信時に通知を表示
 self.addEventListener('push', (event) => {
     let payload = {};
@@ -72,7 +104,12 @@ self.addEventListener('push', (event) => {
         requireInteraction: payload.requireInteraction || false,
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
+    event.waitUntil(
+        Promise.all([
+            self.registration.showNotification(title, options),
+            refreshAppBadge(),
+        ])
+    );
 });
 
 // 通知タップ時: 既存タブにフォーカス、なければ新規オープン

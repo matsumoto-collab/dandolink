@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
 import { usePageVisible } from '@/hooks/useRealtimeSubscription';
+import { setAppBadge } from '@/lib/appBadge';
 
 const INITIAL_LIMIT = 5;
 const LOAD_MORE_STEP = 20;
@@ -140,6 +141,11 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         setLimit(next);
         fetchItems(next);
     };
+
+    // 未読数の変更をPWAアプリアイコンのバッジに反映
+    useEffect(() => {
+        setAppBadge(unreadCount);
+    }, [unreadCount]);
 
     // 初回 + 30秒ごとのフォールバックポーリング（Realtime不達時の即応性確保）
     // + ブラウザタブにフォーカスが戻ったとき即時再取得
