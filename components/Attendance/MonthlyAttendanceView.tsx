@@ -2,10 +2,11 @@
 
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Users, User as UserIcon, ArrowUpDown, Pencil, Trash2, X } from 'lucide-react';
 import Loading from '@/components/ui/Loading';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+import { sendBroadcast } from '@/lib/broadcastChannel';
 
 interface AttendanceRecord {
     id: string;
@@ -90,6 +91,7 @@ type SortDir = 'asc' | 'desc';
 export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceViewProps) {
     const { data: session } = useSession();
     const userRole = session?.user?.role ?? '';
+    const isAdmin = userRole === 'admin';
     const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
     const isForeman = userRole === 'foreman1' || userRole === 'foreman2';
     const canView = isAdminOrManager || isForeman;
@@ -388,6 +390,12 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                     getUserName={getUserName}
                     detailRecordByDate={detailRecordByDate}
                     detailAggregate={detailAggregate}
+                    isAdmin={isAdmin}
+                    onChanged={async (foremanId, dateStr) => {
+                        await fetchRecords();
+                        sendBroadcast('attendance_updated', { foremanId, date: dateStr });
+                    }}
+                    currentUserId={session?.user?.id ?? ''}
                 />
             )}
         </div>
@@ -516,6 +524,9 @@ interface DetailMonthTableProps {
         earlyEnd: number;
         earlyEndCount: number;
     } | null;
+    isAdmin: boolean;
+    currentUserId: string;
+    onChanged: (foremanId: string, dateStr: string) => void | Promise<void>;
 }
 
 function DetailMonthTable({
@@ -524,7 +535,14 @@ function DetailMonthTable({
     getUserName,
     detailRecordByDate,
     detailAggregate,
+    isAdmin,
+    currentUserId,
+    onChanged,
 }: DetailMonthTableProps) {
+    const [editTarget, setEditTarget] = useState<{
+        dateStr: string;
+        record: AttendanceRecord | null;
+    } | null>(null);
     if (!ym) {
         return (
             <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
@@ -620,8 +638,17 @@ function DetailMonthTable({
                             const overtime = r ? minutesToHm(r.overtimeMinutes) : '';
                             const evening = r ? minutesToHm(r.eveningLoadingMinutes) : '';
 
+                            const clickable = isAdmin;
+                            const handleRowClick = () => {
+                                if (!clickable) return;
+                                setEditTarget({ dateStr, record: r ?? null });
+                            };
                             return (
-                                <tr key={day} className="hover:bg-slate-50">
+                                <tr
+                                    key={day}
+                                    className={`hover:bg-slate-50 ${clickable ? 'cursor-pointer' : ''}`}
+                                    onClick={handleRowClick}
+                                >
                                     <td className={`border border-slate-200 px-2 py-1.5 text-center font-semibold ${dateBg} ${dateText}`}>
                                         {day}
                                     </td>
@@ -629,7 +656,12 @@ function DetailMonthTable({
                                         {WEEK_LABEL[dow]}
                                     </td>
                                     <td className={`border border-slate-200 px-2 py-1.5 text-center ${categoryClass}`}>
-                                        {category}
+                                        <span className="inline-flex items-center gap-1">
+                                            {category}
+                                            {clickable && (
+                                                <Pencil className="w-3 h-3 text-slate-400 group-hover:text-slate-600" />
+                                            )}
+                                        </span>
                                     </td>
                                     <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{earlyStart}</td>
                                     <td className="border border-slate-200 px-2 py-1.5 text-right tabular-nums">{morning}</td>
@@ -653,6 +685,22 @@ function DetailMonthTable({
                     </tbody>
                 </table>
             </div>
+
+            {/* 編集モーダル（admin のみ） */}
+            {editTarget && (
+                <MonthlyDetailEditModal
+                    userId={selectedUserId}
+                    userName={getUserName(selectedUserId)}
+                    dateStr={editTarget.dateStr}
+                    record={editTarget.record}
+                    currentUserId={currentUserId}
+                    onClose={() => setEditTarget(null)}
+                    onSaved={async (foremanId, dateStr) => {
+                        setEditTarget(null);
+                        await onChanged(foremanId, dateStr);
+                    }}
+                />
+            )}
 
             {/* サマリーパネル */}
             {detailAggregate && (
@@ -697,6 +745,266 @@ function SummaryRow({ label, value, highlight, muted }: { label: string; value: 
         <div className={`flex items-center justify-between border-b border-slate-200 pb-1 ${muted ? 'opacity-60' : ''}`}>
             <span className="text-slate-600">{label}</span>
             <span className={`tabular-nums ${highlight ? 'font-semibold text-slate-900' : 'text-slate-800'}`}>{value}</span>
+        </div>
+    );
+}
+
+/** ===== 個人別月次表 admin編集モーダル ===== */
+
+interface MonthlyDetailEditModalProps {
+    userId: string;
+    userName: string;
+    dateStr: string; // YYYY-MM-DD
+    record: AttendanceRecord | null;
+    currentUserId: string; // admin user id（新規作成時の foremanId/createdBy 用）
+    onClose: () => void;
+    onSaved: (foremanId: string, dateStr: string) => void | Promise<void>;
+}
+
+const STATUS_OPTIONS: { value: 'present' | 'absent' | 'paid_leave' | 'holiday'; label: string }[] = [
+    { value: 'present', label: '出勤' },
+    { value: 'absent', label: '欠勤' },
+    { value: 'paid_leave', label: '有給' },
+    { value: 'holiday', label: '休日' },
+];
+
+function MonthlyDetailEditModal({
+    userId,
+    userName,
+    dateStr,
+    record,
+    currentUserId,
+    onClose,
+    onSaved,
+}: MonthlyDetailEditModalProps) {
+    const isNew = !record;
+    const [status, setStatus] = useState<'present' | 'absent' | 'paid_leave' | 'holiday'>(
+        (record?.status as 'present' | 'absent' | 'paid_leave' | 'holiday') ?? 'present'
+    );
+    const [earlyStart, setEarlyStart] = useState<number>(record?.earlyStartMinutes ?? 0);
+    const [morning, setMorning] = useState<number>(record?.morningLoadingMinutes ?? 0);
+    const [overtime, setOvertime] = useState<number>(record?.overtimeMinutes ?? 0);
+    const [evening, setEvening] = useState<number>(record?.eveningLoadingMinutes ?? 0);
+    const [earlyEnd, setEarlyEnd] = useState<string>(record?.earlyEndTime ?? '');
+    const [saving, setSaving] = useState(false);
+    const [deleting, setDeleting] = useState(false);
+
+    const handleSave = async () => {
+        setSaving(true);
+        try {
+            const earlyEndPayload = earlyEnd && /^\d{2}:\d{2}$/.test(earlyEnd) ? earlyEnd : null;
+            if (isNew) {
+                // 既存POSTを利用してupsert: foremanId は admin 自身（区分のみ調整するケース想定）
+                const res = await fetch('/api/attendance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        foremanId: currentUserId,
+                        date: dateStr,
+                        items: [
+                            {
+                                userId,
+                                earlyStartMinutes: earlyStart,
+                                morningLoadingMinutes: morning,
+                                overtimeMinutes: overtime,
+                                eveningLoadingMinutes: evening,
+                                earlyEndTime: earlyEndPayload,
+                            },
+                        ],
+                    }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    toast.error(data?.error || '保存に失敗しました');
+                    return;
+                }
+                // 区分は既存POSTでは更新されない → 作成済みレコードを取得し直してPATCHで status を上書き
+                if (status !== 'present') {
+                    const createdList = (await res.json()) as AttendanceRecord[] | AttendanceRecord;
+                    const created = Array.isArray(createdList) ? createdList[0] : createdList;
+                    if (created?.id) {
+                        const patchRes = await fetch(`/api/attendance/${created.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status }),
+                        });
+                        if (!patchRes.ok) {
+                            const data = await patchRes.json().catch(() => ({}));
+                            toast.error(data?.error || '区分の更新に失敗しました');
+                            return;
+                        }
+                    }
+                }
+                toast.success('追加しました');
+                await onSaved(currentUserId, dateStr);
+            } else {
+                const res = await fetch(`/api/attendance/${record!.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status,
+                        earlyStartMinutes: earlyStart,
+                        morningLoadingMinutes: morning,
+                        overtimeMinutes: overtime,
+                        eveningLoadingMinutes: evening,
+                        earlyEndTime: earlyEndPayload,
+                    }),
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    toast.error(data?.error || '更新に失敗しました');
+                    return;
+                }
+                toast.success('更新しました');
+                await onSaved(record!.foremanId, dateStr);
+            }
+        } catch (err) {
+            logger.error('attendance save failed', err);
+            toast.error('保存に失敗しました');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!record) return;
+        if (!confirm(`${dateStr} ${userName} の出勤簿レコードを削除します。よろしいですか？`)) return;
+        setDeleting(true);
+        try {
+            const res = await fetch(`/api/attendance/${record.id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data?.error || '削除に失敗しました');
+                return;
+            }
+            toast.success('削除しました');
+            await onSaved(record.foremanId, dateStr);
+        } catch (err) {
+            logger.error('attendance delete failed', err);
+            toast.error('削除に失敗しました');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const numInput = (
+        label: string,
+        value: number,
+        setValue: (v: number) => void,
+        max = 600
+    ) => (
+        <div>
+            <label className="block text-xs text-slate-600 mb-1">{label}（分）</label>
+            <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                max={max}
+                step={1}
+                value={value}
+                onChange={(e) => {
+                    const n = Number(e.target.value);
+                    if (Number.isNaN(n)) return;
+                    setValue(Math.max(0, Math.min(max, Math.round(n))));
+                }}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+            />
+        </div>
+    );
+
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 px-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200">
+                    <h3 className="text-base font-semibold text-slate-800">
+                        出勤簿 {isNew ? '追加' : '編集'}
+                    </h3>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="p-1 hover:bg-slate-100 rounded-lg transition-colors"
+                    >
+                        <X className="w-5 h-5 text-slate-500" />
+                    </button>
+                </div>
+                <div className="px-5 py-4 space-y-4 max-h-[75vh] overflow-y-auto">
+                    <div className="text-sm text-slate-700">
+                        <span className="text-slate-500">対象</span>
+                        <span className="ml-2 font-semibold">{userName}</span>
+                        <span className="ml-2 text-slate-500">{dateStr}</span>
+                    </div>
+
+                    <div>
+                        <label className="block text-xs text-slate-600 mb-1">出勤区分</label>
+                        <div className="grid grid-cols-4 gap-2">
+                            {STATUS_OPTIONS.map((opt) => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setStatus(opt.value)}
+                                    className={`px-2 py-2 text-sm rounded-xl border transition-colors ${status === opt.value
+                                        ? 'bg-slate-800 text-white border-slate-800'
+                                        : 'bg-white text-slate-700 border-slate-200 hover:border-slate-400'
+                                        }`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        {numInput('早出', earlyStart, setEarlyStart)}
+                        {numInput('朝積', morning, setMorning)}
+                        {numInput('残業', overtime, setOvertime)}
+                        {numInput('夕積', evening, setEvening)}
+                    </div>
+
+                    <div>
+                        <label className="block text-xs text-slate-600 mb-1">早終時刻（空欄=早終なし）</label>
+                        <input
+                            type="time"
+                            value={earlyEnd}
+                            onChange={(e) => setEarlyEnd(e.target.value)}
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
+                    </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 px-5 py-3 border-t border-slate-200 bg-slate-50 rounded-b-xl">
+                    {!isNew ? (
+                        <button
+                            type="button"
+                            onClick={handleDelete}
+                            disabled={deleting || saving}
+                            className="flex items-center gap-1 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-50"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            削除
+                        </button>
+                    ) : (
+                        <span />
+                    )}
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={deleting || saving}
+                            className="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+                        >
+                            キャンセル
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleSave}
+                            disabled={deleting || saving}
+                            className="px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-colors disabled:opacity-50"
+                        >
+                            {saving ? '保存中...' : '保存'}
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
