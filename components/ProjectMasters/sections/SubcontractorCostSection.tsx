@@ -2,10 +2,11 @@
 
 import React, { useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Trash2, Calculator } from 'lucide-react';
+import { Plus, Trash2, Calculator, FileSearch } from 'lucide-react';
 import { ProjectMasterFormData, SubcontractorCostEntry } from '../ProjectMasterForm';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { logger } from '@/lib/logger';
+import { EstimatePreviewSlideOver } from './EstimatePreviewSlideOver';
 
 interface SubcontractorCostSectionProps {
     formData: ProjectMasterFormData;
@@ -22,6 +23,7 @@ function makeEntry(constructionTypeId = '', amount = ''): SubcontractorCostEntry
 export function SubcontractorCostSection({ formData, setFormData, projectMasterId }: SubcontractorCostSectionProps) {
     const constructionTypes = useMasterStore(selectConstructionTypes);
     const [isAutoCalc, setIsAutoCalc] = useState(false);
+    const [isEstimateOpen, setIsEstimateOpen] = useState(false);
 
     const rows = formData.subcontractorCosts;
 
@@ -135,15 +137,25 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
                     </p>
                 </div>
                 {projectMasterId && (
-                    <button
-                        type="button"
-                        onClick={handleAutoCalc}
-                        disabled={isAutoCalc}
-                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
-                    >
-                        <Calculator className="w-3.5 h-3.5" />
-                        {isAutoCalc ? '計算中...' : '組立・解体を自動計算'}
-                    </button>
+                    <div className="shrink-0 flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsEstimateOpen(true)}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-xl hover:bg-teal-100 transition-colors"
+                        >
+                            <FileSearch className="w-3.5 h-3.5" />
+                            見積を確認
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleAutoCalc}
+                            disabled={isAutoCalc}
+                            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
+                        >
+                            <Calculator className="w-3.5 h-3.5" />
+                            {isAutoCalc ? '計算中...' : '組立・解体を自動計算'}
+                        </button>
+                    </div>
                 )}
             </div>
 
@@ -218,6 +230,14 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
                     </span>
                 </div>
             </div>
+
+            {projectMasterId && (
+                <EstimatePreviewSlideOver
+                    isOpen={isEstimateOpen}
+                    onClose={() => setIsEstimateOpen(false)}
+                    projectMasterId={projectMasterId}
+                />
+            )}
         </div>
     );
 }

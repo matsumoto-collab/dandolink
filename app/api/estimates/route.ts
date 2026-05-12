@@ -13,6 +13,9 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const page = searchParams.get('page');
         const limit = searchParams.get('limit');
+        const projectMasterId = searchParams.get('projectMasterId');
+
+        const where = projectMasterId ? { projectMasterId } : undefined;
 
         if (page && limit) {
             const pageNum = parseInt(page, 10);
@@ -21,8 +24,8 @@ export async function GET(req: NextRequest) {
                 return validationErrorResponse('無効なページネーションパラメータです');
             }
             const [estimates, total] = await Promise.all([
-                prisma.estimate.findMany({ skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
-                prisma.estimate.count(),
+                prisma.estimate.findMany({ where, skip: (pageNum - 1) * limitNum, take: limitNum, orderBy: { createdAt: 'desc' } }),
+                prisma.estimate.count({ where }),
             ]);
             return NextResponse.json({
                 data: estimates.map(formatEstimate),
@@ -30,7 +33,7 @@ export async function GET(req: NextRequest) {
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
-        const estimates = await prisma.estimate.findMany({ orderBy: { createdAt: 'desc' } });
+        const estimates = await prisma.estimate.findMany({ where, orderBy: { createdAt: 'desc' } });
         return NextResponse.json(estimates.map(formatEstimate), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('見積一覧の取得', error);
