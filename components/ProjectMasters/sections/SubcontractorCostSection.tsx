@@ -66,6 +66,29 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
         }));
     };
 
+    const applyAssemblyDemolition = (assembly: number, demolition: number) => {
+        const assemblyType = constructionTypes.find(t => t.name === '組立');
+        const demolitionType = constructionTypes.find(t => t.name === '解体');
+        if (!assemblyType || !demolitionType) {
+            toast.error('工事種別「組立」「解体」が見つかりません');
+            return;
+        }
+        setFormData(prev => {
+            const existingById = new Map(prev.subcontractorCosts.map(r => [r.constructionTypeId, r]));
+            const nextList: SubcontractorCostEntry[] = [];
+            const setAmount = (ctId: string, amt: number) => {
+                const exist = existingById.get(ctId);
+                if (exist) nextList.push({ ...exist, amount: String(amt) });
+                else nextList.push(makeEntry(ctId, String(amt)));
+                existingById.delete(ctId);
+            };
+            setAmount(assemblyType.id, assembly);
+            setAmount(demolitionType.id, demolition);
+            existingById.forEach(r => nextList.push(r));
+            return { ...prev, subcontractorCosts: nextList };
+        });
+    };
+
     const handleAutoCalc = async () => {
         if (!projectMasterId) {
             toast.error('案件保存後に利用できます');
@@ -102,21 +125,7 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
             const assembly = Math.round(subcontractorTotal * assemblyRate / 100);
             const demolition = Math.round(subcontractorTotal * demolitionRate / 100);
 
-            setFormData(prev => {
-                const existingById = new Map(prev.subcontractorCosts.map(r => [r.constructionTypeId, r]));
-                const nextList: SubcontractorCostEntry[] = [];
-                const setAmount = (ctId: string, amt: number) => {
-                    const exist = existingById.get(ctId);
-                    if (exist) nextList.push({ ...exist, amount: String(amt) });
-                    else nextList.push(makeEntry(ctId, String(amt)));
-                    existingById.delete(ctId);
-                };
-                setAmount(assemblyType.id, assembly);
-                setAmount(demolitionType.id, demolition);
-                // その他の行は温存
-                existingById.forEach(r => nextList.push(r));
-                return { ...prev, subcontractorCosts: nextList };
-            });
+            applyAssemblyDemolition(assembly, demolition);
 
             const sourceLabel = revenueSource === 'invoice' ? '請求書（税別）' : '見積書（税別）';
             toast.success(`${sourceLabel} ¥${revenue.toLocaleString()} から組立/解体を自動計算しました`);
@@ -236,6 +245,7 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
                     isOpen={isEstimateOpen}
                     onClose={() => setIsEstimateOpen(false)}
                     projectMasterId={projectMasterId}
+                    onApplyToCosts={({ assembly, demolition }) => applyAssemblyDemolition(assembly, demolition)}
                 />
             )}
         </div>
