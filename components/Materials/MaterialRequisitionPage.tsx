@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Plus, FileText, ChevronDown, ChevronRight, Minus, Copy, Trash2 } from 'lucide-react';
+import { Plus, FileText, ChevronDown, ChevronRight, Minus, Copy, Trash2, Printer } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { MaterialCategoryWithItems, MaterialRequisition } from '@/types/material';
 
@@ -31,6 +31,8 @@ export default function MaterialRequisitionPage() {
     const [projectMasters, setProjectMasters] = useState<Array<{ id: string; title: string; name: string | null }>>([]);
     const [foremen, setForemen] = useState<Array<{ id: string; displayName: string }>>([]);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const [isBulkPrinting, setIsBulkPrinting] = useState(false);
 
     // Form state
     const [formProjectId, setFormProjectId] = useState('');
@@ -181,7 +183,60 @@ export default function MaterialRequisitionPage() {
         }
     };
 
+    const handlePrintOne = (id: string) => {
+        // 認証が必要なAPIなのでクッキーが付くよう同一オリジンで window.open する
+        window.open(`/api/materials/requisitions/${id}/print`, '_blank', 'noopener,noreferrer');
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id); else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        setSelectedIds(prev => {
+            if (prev.size === requisitions.length && requisitions.length > 0) {
+                return new Set();
+            }
+            return new Set(requisitions.map(r => r.id));
+        });
+    };
+
+    const handleBulkPrint = async () => {
+        if (selectedIds.size === 0) {
+            toast.error('印刷する伝票を選択してください');
+            return;
+        }
+        setIsBulkPrinting(true);
+        try {
+            const ids = Array.from(selectedIds);
+            const res = await fetch('/api/materials/requisitions/print/bulk', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids }),
+                cache: 'no-store',
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || 'PDF生成に失敗しました');
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            window.open(url, '_blank', 'noopener,noreferrer');
+            // メモリ解放（少し遅らせる）
+            setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : 'PDF生成に失敗しました');
+        } finally {
+            setIsBulkPrinting(false);
+        }
+    };
+
     const filledCount = Object.keys(formQuantities).length;
+    const allSelected = requisitions.length > 0 && selectedIds.size === requisitions.length;
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
@@ -218,6 +273,35 @@ export default function MaterialRequisitionPage() {
                     /* =================== LIST VIEW =================== */
                     <div className="bg-white rounded-xl shadow-lg border border-slate-200">
                         <div className="p-3 md:p-6">
+                            {/* 一括操作バー */}
+                            {!isRequisitionsLoading && requisitions.length > 0 && (
+                                <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-200">
+                                    <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                                        <input
+                                            type="checkbox"
+                                            checked={allSelected}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-slate-500"
+                                        />
+                                        <span>全選択</span>
+                                    </label>
+                                    {selectedIds.size > 0 && (
+                                        <span className="text-sm text-slate-500">{selectedIds.size}件選択中</span>
+                                    )}
+                                    <div className="ml-auto">
+                                        <button
+                                            type="button"
+                                            onClick={handleBulkPrint}
+                                            disabled={selectedIds.size === 0 || isBulkPrinting}
+                                            className="px-3 py-1.5 text-sm font-medium rounded-xl bg-slate-800 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-1.5"
+                                        >
+                                            <Printer className="w-4 h-4" />
+                                            {isBulkPrinting ? '生成中...' : 'まとめて印刷'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+
                             {isRequisitionsLoading ? (
                                 <div className="text-center py-12 text-slate-500">読み込み中...</div>
                             ) : requisitions.length === 0 ? (
@@ -238,6 +322,13 @@ export default function MaterialRequisitionPage() {
                                         const totalItems = req.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
                                         return (
                                             <div key={req.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(req.id)}
+                                                    onChange={() => toggleSelect(req.id)}
+                                                    aria-label="伝票を選択"
+                                                    className="w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-slate-500 shrink-0"
+                                                />
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <span className="font-medium text-slate-900 truncate">{req.projectTitle}</span>
@@ -270,6 +361,15 @@ export default function MaterialRequisitionPage() {
                                                             積込完了
                                                         </button>
                                                     )}
+                                                    {/* Print */}
+                                                    <button
+                                                        onClick={() => handlePrintOne(req.id)}
+                                                        className="p-2 text-slate-600 hover:bg-slate-100 rounded-xl"
+                                                        title="印刷"
+                                                        aria-label="印刷"
+                                                    >
+                                                        <Printer className="w-4 h-4" />
+                                                    </button>
                                                     {/* Copy */}
                                                     <button
                                                         onClick={() => handleCopyRequisition(req)}
