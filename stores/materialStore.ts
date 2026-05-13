@@ -160,8 +160,16 @@ export const useMaterialStore = create<MaterialStore>()(
                 }));
                 return requisition;
             }
-            const err = await res.json();
-            throw new Error(err.error || '作成に失敗しました');
+            let errMsg = '作成に失敗しました';
+            try {
+                const err = await res.json();
+                if (err?.error) errMsg = err.error;
+            } catch {
+                // JSON parse 失敗時は既定メッセージ
+            }
+            const error = new Error(errMsg) as Error & { status?: number };
+            error.status = res.status;
+            throw error;
         },
 
         updateRequisition: async (id, data) => {
@@ -175,7 +183,19 @@ export const useMaterialStore = create<MaterialStore>()(
                 set(state => ({
                     requisitions: state.requisitions.map(r => r.id === id ? { ...r, ...updated } : r),
                 }));
+                return;
             }
+            // 失敗時は throw してUI側で確実にエラーを検知できるようにする
+            let errMsg = '更新に失敗しました';
+            try {
+                const err = await res.json();
+                if (err?.error) errMsg = err.error;
+            } catch {
+                // JSON parse 失敗時は既定メッセージ
+            }
+            const error = new Error(errMsg) as Error & { status?: number };
+            error.status = res.status;
+            throw error;
         },
 
         deleteRequisition: async (id) => {
