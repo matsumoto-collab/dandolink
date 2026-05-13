@@ -123,7 +123,7 @@ export async function PATCH(req: NextRequest, { params }: Params) {
         });
         return NextResponse.json(updated, { headers: { 'Cache-Control': 'no-store' } });
     } catch (err) {
-        return serverErrorResponse('社内カレンダー更新', err);
+        return serverErrorResponse('マイカレンダー更新', err);
     }
 }
 
@@ -157,6 +157,6 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
             { headers: { 'Cache-Control': 'no-store' } },
         );
     } catch (err) {
-        return serverErrorResponse('社内カレンダー削除', err);
+        return serverErrorResponse('マイカレンダー削除', err);
     }
 }

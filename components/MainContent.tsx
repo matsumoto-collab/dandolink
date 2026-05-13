@@ -178,7 +178,7 @@ export default function MainContent() {
         'payment-schedules': '支払予定',
         'payees': '支払先',
         'partner-work-volume': '協力業者出来高表',
-        'company-calendar': '社内カレンダー',
+        'company-calendar': 'マイカレンダー',
     };
     const pageTitle = pageTitleMap[activePage] ?? 'DandoLink';
 

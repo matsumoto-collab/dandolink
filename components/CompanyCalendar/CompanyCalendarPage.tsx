@@ -14,7 +14,7 @@ import { initBroadcastChannel, onBroadcast } from '@/lib/broadcastChannel';
 import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 
 /**
- * 社内カレンダー（admin / manager 専用）
+ * マイカレンダー（admin / manager 専用）
  * 月表示のシンプルなカレンダー。日付セルをクリックして新規予定作成、
  * 既存イベントをクリックで編集/削除。
  */

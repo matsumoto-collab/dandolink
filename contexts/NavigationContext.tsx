@@ -22,7 +22,7 @@ export type PageType =
     | 'payment-schedules'// 支払予定
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
-    | 'company-calendar'    // 社内カレンダー（admin / manager）
+    | 'company-calendar'    // マイカレンダー（admin / manager）
     | 'settings';        // 設定
 
 interface NavigationContextType {

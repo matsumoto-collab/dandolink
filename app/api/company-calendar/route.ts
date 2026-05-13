@@ -16,7 +16,7 @@ import {
 } from '@/types/companyCalendar';
 
 /**
- * 社内カレンダー API
+ * マイカレンダー API
  *  - admin / manager のみアクセス可能（requireManagerOrAbove 経由）
  *  - GET: 期間内のイベントを返す
  *      + ProjectMaster の道路使用許可フィールドから自動生成したイベントもマージ
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
             { headers: { 'Cache-Control': 'no-store' } },
         );
     } catch (err) {
-        return serverErrorResponse('社内カレンダー取得', err);
+        return serverErrorResponse('マイカレンダー取得', err);
     }
 }
 
@@ -276,6 +276,6 @@ export async function POST(req: NextRequest) {
             headers: { 'Cache-Control': 'no-store' },
         });
     } catch (err) {
-        return serverErrorResponse('社内カレンダー作成', err);
+        return serverErrorResponse('マイカレンダー作成', err);
     }
 }
