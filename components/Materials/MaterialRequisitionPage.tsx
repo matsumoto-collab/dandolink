@@ -12,9 +12,27 @@ function formatDate(d: string | Date) {
     const date = new Date(d);
     return `${date.getMonth() + 1}/${date.getDate()}`;
 }
-function toDateInputValue(d?: Date) {
-    const date = d || new Date();
-    return date.toISOString().split('T')[0];
+// JST基準で日付キー（YYYY-MM-DD）を返す
+function jstDateKey(d: Date): string {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Tokyo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    }).format(d);
+}
+// JSTで「今日」「明日」「明後日」などのオフセット日付キーを返す
+function jstDateKeyWithOffset(offsetDays: number): string {
+    const now = new Date();
+    // JST 0時を基準に加算（タイムゾーンずれ防止）
+    const baseKey = jstDateKey(now);
+    const base = new Date(`${baseKey}T00:00:00+09:00`);
+    const target = new Date(base.getTime() + offsetDays * 24 * 60 * 60 * 1000);
+    return jstDateKey(target);
+}
+// 初期日付は「明日」(JST)
+function defaultFormDate(): string {
+    return jstDateKeyWithOffset(1);
 }
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
@@ -34,7 +52,7 @@ export default function MaterialRequisitionPage() {
 
     // Form state
     const [formProjectId, setFormProjectId] = useState('');
-    const [formDate, setFormDate] = useState(toDateInputValue());
+    const [formDate, setFormDate] = useState(defaultFormDate());
     const [formForemanId, setFormForemanId] = useState('');
     const [formForemanName, setFormForemanName] = useState('');
     const [formVehicleInfo, setFormVehicleInfo] = useState('');
@@ -42,6 +60,19 @@ export default function MaterialRequisitionPage() {
     const [formQuantities, setFormQuantities] = useState<Record<string, number>>({});
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
+
+    // B2: 自分に割当てがある案件のみ
+    const [myAssignedProjects, setMyAssignedProjects] = useState<Array<{ id: string; title: string; name: string | null }>>([]);
+    const [isLoadingMyAssignments, setIsLoadingMyAssignments] = useState(false);
+    // B2 フォールバック: admin/manager 用に全案件モード
+    const [showAllProjects, setShowAllProjects] = useState(false);
+
+    const sessionRole = session?.user?.role;
+    const sessionUserId = session?.user?.id;
+    const isAdminOrManager = sessionRole === 'admin' || sessionRole === 'manager';
+    // worker / partner_member は /api/dispatch/foremen に含まれないため、
+    // 自分を強制マージしつつ職長セレクトは「（自分）」固定（disabled）にする
+    const isForemanSelectLocked = sessionRole === 'worker' || sessionRole === 'partner_member';
 
     // Load data
     useEffect(() => {
@@ -53,19 +84,71 @@ export default function MaterialRequisitionPage() {
             .then(data => setProjectMasters(Array.isArray(data) ? data : data.projectMasters || []));
         fetch('/api/dispatch/foremen', { cache: 'no-store' })
             .then(r => r.ok ? r.json() : [])
-            .then(data => setForemen(data));
+            .then(data => setForemen(Array.isArray(data) ? data : []));
     }, []);
 
-    // Set default foreman
+    // B1: ログインユーザーを foremen に強制追加し、自分を最上位に並べる
+    const orderedForemen = React.useMemo(() => {
+        if (!sessionUserId) return foremen;
+        const selfDisplay = session?.user?.name || '自分';
+        const others = foremen.filter(f => f.id !== sessionUserId);
+        const selfFromList = foremen.find(f => f.id === sessionUserId);
+        const self = selfFromList || { id: sessionUserId, displayName: selfDisplay };
+        return [self, ...others];
+    }, [foremen, sessionUserId, session?.user?.name]);
+
+    // B1: ログインユーザーを自動セット
     useEffect(() => {
-        if (session?.user?.id && foremen.length > 0 && !formForemanId) {
-            const self = foremen.find(f => f.id === session.user.id);
+        if (sessionUserId && !formForemanId) {
+            const self = orderedForemen.find(f => f.id === sessionUserId);
             if (self) {
                 setFormForemanId(self.id);
                 setFormForemanName(self.displayName);
             }
         }
-    }, [session, foremen]);
+    }, [sessionUserId, orderedForemen, formForemanId]);
+
+    // B2/B4: 日付・職長変更時に「自分に割当てがある案件」を再フェッチ
+    useEffect(() => {
+        if (!formForemanId || !formDate) {
+            setMyAssignedProjects([]);
+            return;
+        }
+        let cancelled = false;
+        setIsLoadingMyAssignments(true);
+        const params = new URLSearchParams({
+            foremanId: formForemanId,
+            date: formDate,
+            rangeDays: '3',
+        });
+        fetch(`/api/materials/my-assignments?${params.toString()}`, { cache: 'no-store' })
+            .then(r => (r.ok ? r.json() : []))
+            .then((data: Array<{ id: string; title: string; name: string | null }>) => {
+                if (cancelled) return;
+                setMyAssignedProjects(Array.isArray(data) ? data : []);
+            })
+            .catch(() => {
+                if (!cancelled) setMyAssignedProjects([]);
+            })
+            .finally(() => {
+                if (!cancelled) setIsLoadingMyAssignments(false);
+            });
+        return () => { cancelled = true; };
+    }, [formForemanId, formDate]);
+
+    // 表示する案件リスト（B2のフィルタ + フォールバック）
+    const projectsForSelect = React.useMemo<Array<{ id: string; title: string; name: string | null }>>(() => {
+        if (showAllProjects && isAdminOrManager) return projectMasters;
+        return myAssignedProjects;
+    }, [showAllProjects, isAdminOrManager, projectMasters, myAssignedProjects]);
+
+    // 案件リストが変わって現在選択中の案件が含まれなくなったらクリア
+    useEffect(() => {
+        if (!formProjectId) return;
+        if (!projectsForSelect.some(p => p.id === formProjectId)) {
+            setFormProjectId('');
+        }
+    }, [projectsForSelect, formProjectId]);
 
     const toggleCategory = (id: string) => {
         setExpandedCategories(prev => {
@@ -103,7 +186,7 @@ export default function MaterialRequisitionPage() {
 
     const resetForm = () => {
         setFormProjectId('');
-        setFormDate(toDateInputValue());
+        setFormDate(defaultFormDate());
         setFormVehicleInfo('');
         setFormNotes('');
         setFormQuantities({});
@@ -153,7 +236,12 @@ export default function MaterialRequisitionPage() {
         });
         setFormQuantities(quantities);
         setFormProjectId(req.projectMasterId);
-        setFormDate(toDateInputValue());
+        // コピー元の日付を初期値（JST）にする。不正な値ならフォールバック
+        const srcDate = req.date ? new Date(req.date) : null;
+        const initialDate = srcDate && !Number.isNaN(srcDate.getTime())
+            ? jstDateKey(srcDate)
+            : defaultFormDate();
+        setFormDate(initialDate);
         setFormVehicleInfo(req.vehicleInfo || '');
         setFormNotes('');
         expandAll();
@@ -304,14 +392,34 @@ export default function MaterialRequisitionPage() {
                             {/* Header fields */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">現場 *</label>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <label className="block text-sm font-medium text-slate-700">現場 *</label>
+                                        {isAdminOrManager && (
+                                            <label className="flex items-center gap-1.5 text-xs text-slate-500 cursor-pointer select-none">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={showAllProjects}
+                                                    onChange={(e) => setShowAllProjects(e.target.checked)}
+                                                    className="rounded border-slate-300"
+                                                />
+                                                全案件から選ぶ
+                                            </label>
+                                        )}
+                                    </div>
                                     <select
                                         value={formProjectId}
                                         onChange={(e) => setFormProjectId(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                        disabled={isLoadingMyAssignments && !showAllProjects}
+                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
                                     >
-                                        <option value="">選択してください</option>
-                                        {projectMasters.map(pm => (
+                                        <option value="">
+                                            {isLoadingMyAssignments && !showAllProjects
+                                                ? '読込中...'
+                                                : projectsForSelect.length === 0
+                                                    ? (showAllProjects ? '案件がありません' : 'この日付に割り当てられた案件がありません')
+                                                    : '選択してください'}
+                                        </option>
+                                        {projectsForSelect.map(pm => (
                                             <option key={pm.id} value={pm.id}>{pm.name || pm.title}</option>
                                         ))}
                                     </select>
@@ -324,6 +432,31 @@ export default function MaterialRequisitionPage() {
                                         onChange={(e) => setFormDate(e.target.value)}
                                         className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     />
+                                    {/* B3: 日付ショートカット */}
+                                    <div className="flex gap-1.5 mt-2">
+                                        {[
+                                            { label: '今日', offset: 0 },
+                                            { label: '明日', offset: 1 },
+                                            { label: '明後日', offset: 2 },
+                                        ].map(({ label, offset }) => {
+                                            const key = jstDateKeyWithOffset(offset);
+                                            const active = formDate === key;
+                                            return (
+                                                <button
+                                                    key={label}
+                                                    type="button"
+                                                    onClick={() => setFormDate(key)}
+                                                    className={`px-2.5 py-1 text-xs rounded-lg border transition-colors ${
+                                                        active
+                                                            ? 'bg-slate-800 text-white border-slate-800'
+                                                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">職長 *</label>
@@ -331,14 +464,17 @@ export default function MaterialRequisitionPage() {
                                         value={formForemanId}
                                         onChange={(e) => {
                                             setFormForemanId(e.target.value);
-                                            const f = foremen.find(f => f.id === e.target.value);
+                                            const f = orderedForemen.find(f => f.id === e.target.value);
                                             setFormForemanName(f?.displayName || '');
                                         }}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                        disabled={isForemanSelectLocked}
+                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm disabled:bg-slate-50 disabled:text-slate-600"
                                     >
                                         <option value="">選択してください</option>
-                                        {foremen.map(f => (
-                                            <option key={f.id} value={f.id}>{f.displayName}</option>
+                                        {orderedForemen.map(f => (
+                                            <option key={f.id} value={f.id}>
+                                                {f.id === sessionUserId ? `${f.displayName}（自分）` : f.displayName}
+                                            </option>
                                         ))}
                                     </select>
                                 </div>
