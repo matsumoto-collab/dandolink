@@ -41,7 +41,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const { error, session } = await requireManagerOrAbove();
+        const { error, session } = await requireAuth();
         if (error) return error;
 
         const { id } = await params;
@@ -58,6 +58,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         });
         if (!current) {
             return NextResponse.json({ error: '伝票が見つかりません' }, { status: 404 });
+        }
+
+        // 認可: admin/manager は全件OK。それ以外は自分が作成 or 自分が職長の伝票のみ更新可
+        const userId = session?.user?.id;
+        const role = session?.user?.role;
+        const isPrivileged = role === 'admin' || role === 'manager';
+        if (!isPrivileged) {
+            const isOwner = userId && (current.createdBy === userId || current.foremanId === userId);
+            if (!isOwner) {
+                return NextResponse.json(
+                    { error: '他のユーザーの伝票を更新する権限がありません' },
+                    { status: 403, headers: { 'Cache-Control': 'no-store' } }
+                );
+            }
+        }
+
+        // loaded への遷移は在庫減算（inventory transaction）を伴うため admin/manager のみ許可
+        // foreman/worker が独断で在庫を減らせないようにする
+        if (body.status === 'loaded' && current.status !== 'loaded' && !isPrivileged) {
+            return NextResponse.json(
+                { error: '積込完了への変更は管理者またはマネージャー権限が必要です' },
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
+            );
         }
 
         const data: Record<string, unknown> = {};
