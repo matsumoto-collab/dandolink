@@ -64,6 +64,7 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const [pinned, setPinned] = useState(false);
     const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+    const [manualAmount, setManualAmount] = useState<string>('');
 
     // 配分設定（システム設定からデフォルトを取得）
     const [revenueRate, setRevenueRate] = useState<string>('60');
@@ -112,6 +113,7 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
     // 見積書切替時は選択をリセット
     useEffect(() => {
         setSelectedItemIds(new Set());
+        setManualAmount('');
     }, [selectedId]);
 
     // Escキーで閉じる（ピン留め中は無効）
@@ -131,10 +133,12 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
         return calcSelectedTotal(selected.items, selectedItemIds);
     }, [selected, selectedItemIds]);
 
+    const manualAmountNum = Math.max(0, Number(manualAmount) || 0);
+    const totalAmount = selectedTotal + manualAmountNum;
     const rRate = Number(revenueRate) || 0;
     const aRate = Number(assemblyRate) || 0;
     const dRate = Number(demolitionRate) || 0;
-    const subTotalCost = Math.round(selectedTotal * rRate / 100);
+    const subTotalCost = Math.round(totalAmount * rRate / 100);
     const assemblyCost = Math.round(subTotalCost * aRate / 100);
     const demolitionCost = Math.round(subTotalCost * dRate / 100);
     const ratesValid = aRate + dRate === 100;
@@ -168,8 +172,8 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
 
     const handleApply = () => {
         if (!onApplyToCosts) return;
-        if (selectedTotal <= 0) {
-            toast.error('項目を選択してください');
+        if (totalAmount <= 0) {
+            toast.error('項目を選択するか、追加金額を入力してください');
             return;
         }
         if (!ratesValid) {
@@ -335,13 +339,35 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
                 {/* 振り分けフッター */}
                 {onApplyToCosts && selected && selected.items.length > 0 && (
                     <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] space-y-2.5">
-                        <div className="flex items-center justify-between text-xs">
-                            <span className="text-slate-500">
-                                選択 <span className="font-semibold text-slate-700">{selectedItemIds.size}</span> 項目
-                            </span>
-                            <span className="text-slate-700 tabular-nums">
-                                合計 <span className="font-semibold">¥{selectedTotal.toLocaleString()}</span>
-                            </span>
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                                <span className="text-slate-500">
+                                    選択 <span className="font-semibold text-slate-700">{selectedItemIds.size}</span> 項目
+                                </span>
+                                <span className="text-slate-500 tabular-nums">
+                                    選択合計 <span className="font-medium text-slate-700">¥{selectedTotal.toLocaleString()}</span>
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label htmlFor="manual-amount-input" className="text-[11px] text-slate-500 whitespace-nowrap">＋ 追加金額</label>
+                                <div className="flex-1 flex items-center gap-1 px-2 py-1 border border-slate-200 rounded-xl bg-white focus-within:ring-2 focus-within:ring-slate-500">
+                                    <span className="text-xs text-slate-400">¥</span>
+                                    <input
+                                        id="manual-amount-input"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={0}
+                                        value={manualAmount}
+                                        onChange={e => setManualAmount(e.target.value)}
+                                        placeholder="0"
+                                        className="flex-1 min-w-0 text-sm tabular-nums focus:outline-none bg-transparent text-right"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-200">
+                                <span className="text-slate-700 font-medium">合計</span>
+                                <span className="font-semibold text-slate-900 tabular-nums">¥{totalAmount.toLocaleString()}</span>
+                            </div>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                             <RateInput label="協力業者費" value={revenueRate} onChange={setRevenueRate} />
@@ -362,7 +388,7 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
                         <button
                             type="button"
                             onClick={handleApply}
-                            disabled={selectedTotal <= 0 || !ratesValid}
+                            disabled={totalAmount <= 0 || !ratesValid}
                             className="w-full px-3 py-2 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                             組立・解体に反映
