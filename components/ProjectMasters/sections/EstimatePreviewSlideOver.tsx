@@ -199,7 +199,7 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
                 role="dialog"
                 aria-label="見積書プレビュー"
                 aria-hidden={!isOpen}
-                className={`fixed top-0 right-0 h-full w-full max-w-md z-[66] bg-white shadow-2xl border-l border-slate-200 flex flex-col transform transition-transform duration-300 ease-out ${
+                className={`fixed right-0 bottom-0 top-[calc(4rem+env(safe-area-inset-top,0px))] lg:top-0 w-full max-w-md z-[66] bg-white shadow-2xl border-l border-slate-200 flex flex-col transform transition-transform duration-300 ease-out ${
                     isOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
                 }`}
             >
@@ -334,7 +334,7 @@ export function EstimatePreviewSlideOver({ isOpen, onClose, projectMasterId, onA
 
                 {/* 振り分けフッター */}
                 {onApplyToCosts && selected && selected.items.length > 0 && (
-                    <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 px-4 py-3 space-y-2.5">
+                    <div className="flex-shrink-0 border-t border-slate-200 bg-slate-50 px-4 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] space-y-2.5">
                         <div className="flex items-center justify-between text-xs">
                             <span className="text-slate-500">
                                 選択 <span className="font-semibold text-slate-700">{selectedItemIds.size}</span> 項目
