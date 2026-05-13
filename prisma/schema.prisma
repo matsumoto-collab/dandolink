@@ -79,7 +79,11 @@ model ProjectMaster {
   scheduledStartDate         DateTime?
   scheduledEndDate           DateTime?
   managerIds                 String[]                         @default([])
+  roadPermitCompletionDate   DateTime?
+  roadPermitReceiveDate      DateTime?
+  roadPermitExpiryDate       DateTime?
   assignments                ProjectAssignment[]
+  calendarEvents             CalendarEvent[]
   files                      ProjectMasterFile[]
   projectMaterialItems       ProjectMaterialItem[]
   subcontractorCosts         ProjectMasterSubcontractorCost[]
@@ -1431,6 +1435,37 @@ model Notification {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([userId, readAt])
+  @@schema("public")
+}
+
+/// 社内カレンダー (admin / manager 限定)
+/// 現調・打ち合わせ・道路使用許可関連の予定を管理する。
+/// visibility: 'private' = 作成者のみ閲覧 / 'shared' = admin/manager 全員に共有
+/// category: site_survey | meeting | road_permit_complete | road_permit_receive | road_permit_expiry | other
+model CalendarEvent {
+  id              String         @id @default(uuid())
+  title           String
+  description     String?
+  category        String         @default("other")
+  startAt         DateTime
+  endAt           DateTime
+  allDay          Boolean        @default(false)
+  location        String?
+  visibility      String         @default("shared")
+  color           String?
+  createdBy       String
+  projectMasterId String?
+  customerId      String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  updatedBy       String?
+  projectMaster   ProjectMaster? @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+
+  @@index([startAt])
+  @@index([createdBy])
+  @@index([projectMasterId])
+  @@index([category])
+  @@index([visibility, startAt])
   @@schema("public")
 }
 

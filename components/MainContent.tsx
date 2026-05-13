@@ -13,7 +13,7 @@ const VALID_PAGES: PageType[] = [
     'profit-dashboard', 'estimates', 'site-surveys', 'invoices',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
-    'payment-schedules', 'payees', 'partner-work-volume',
+    'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar',
 ];
 
 // 簡易ローディングコンポーネント
@@ -90,6 +90,9 @@ const PartnerScheduleScreen = dynamic(() => import('./PartnerSchedule/PartnerSch
     loading: () => <LoadingSpinner />,
 });
 const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerWorkVolumePage'), {
+    loading: () => <LoadingSpinner />,
+});
+const CompanyCalendarPage = dynamic(() => import('./CompanyCalendar/CompanyCalendarPage'), {
     loading: () => <LoadingSpinner />,
 });
 
@@ -175,6 +178,7 @@ export default function MainContent() {
         'payment-schedules': '支払予定',
         'payees': '支払先',
         'partner-work-volume': '協力業者出来高表',
+        'company-calendar': '社内カレンダー',
     };
     const pageTitle = pageTitleMap[activePage] ?? 'DandoLink';
 
@@ -309,6 +313,12 @@ export default function MainContent() {
                 }
                 return <PartnerWorkVolumePage />;
 
+            case 'company-calendar':
+                if (userRole !== 'admin' && userRole !== 'manager') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <CompanyCalendarPage />;
+
             default:
                 return <PlaceholderPage title="ページが見つかりません" />;
         }
@@ -327,7 +337,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

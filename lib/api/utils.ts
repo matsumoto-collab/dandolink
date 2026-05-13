@@ -30,7 +30,7 @@ export async function requireAuth() {
             session: null,
             error: NextResponse.json(
                 { error: '認証が必要です' },
-                { status: 401 }
+                { status: 401, headers: { 'Cache-Control': 'no-store' } }
             ),
         };
     }
@@ -51,7 +51,7 @@ export async function requireAdmin() {
             session: null,
             error: NextResponse.json(
                 { error: '管理者権限が必要です' },
-                { status: 403 }
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
             ),
         };
     }
@@ -73,7 +73,7 @@ export async function requireManagerOrAbove() {
             session: null,
             error: NextResponse.json(
                 { error: '管理者またはマネージャー権限が必要です' },
-                { status: 403 }
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
             ),
         };
     }
@@ -92,7 +92,10 @@ export function errorResponse(
     message: string,
     status: 400 | 401 | 403 | 404 | 500 = 500
 ) {
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json(
+        { error: message },
+        { status, headers: { 'Cache-Control': 'no-store' } }
+    );
 }
 
 /**
@@ -101,7 +104,7 @@ export function errorResponse(
 export function notFoundResponse(resourceName: string) {
     return NextResponse.json(
         { error: `${resourceName}が見つかりません` },
-        { status: 404 }
+        { status: 404, headers: { 'Cache-Control': 'no-store' } }
     );
 }
 
@@ -111,7 +114,7 @@ export function notFoundResponse(resourceName: string) {
 export function validationErrorResponse(message: string, details?: unknown) {
     return NextResponse.json(
         { error: message, details },
-        { status: 400 }
+        { status: 400, headers: { 'Cache-Control': 'no-store' } }
     );
 }
 
@@ -126,7 +129,7 @@ export function conflictResponse<T>(message: string, latestData: T) {
             code: 'CONFLICT',
             latestData,
         },
-        { status: 409 }
+        { status: 409, headers: { 'Cache-Control': 'no-store' } }
     );
 }
 
@@ -197,14 +200,14 @@ export function serverErrorResponse(
                 error: `${operation}に失敗しました: ${prismaError.message}`,
                 code: prismaError.code,
             },
-            { status: prismaError.status }
+            { status: prismaError.status, headers: { 'Cache-Control': 'no-store' } }
         );
     }
 
     // その他のエラーは500を返す
     return NextResponse.json(
         { error: `${operation}に失敗しました` },
-        { status: 500 }
+        { status: 500, headers: { 'Cache-Control': 'no-store' } }
     );
 }
 
@@ -309,6 +312,7 @@ export async function applyRateLimit(req: NextRequest, config: RateLimitConfig =
             {
                 status: 429,
                 headers: {
+                    'Cache-Control': 'no-store',
                     'X-RateLimit-Limit': result.limit.toString(),
                     'X-RateLimit-Remaining': '0',
                     'X-RateLimit-Reset': result.resetTime.toString(),
