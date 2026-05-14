@@ -1,21 +1,13 @@
 import { renderToBuffer } from '@react-pdf/renderer';
 import { prisma } from '@/lib/prisma';
-import { MaterialRequisitionSlipPDF } from '@/components/pdf/MaterialRequisitionSlipPDF';
+import { MaterialRequisitionSlipPDF, MaterialRequisitionSlipMultiPDF, type MaterialRequisitionSlipPDFProps } from '@/components/pdf/MaterialRequisitionSlipPDF';
 // フォント登録のため import（副作用）
 import '@/components/pdf/styles';
 
 /**
  * 1伝票分のヘッダー情報＋数量参照関数を組み立てる
  */
-async function buildSlipDataForRequisition(id: string): Promise<{
-    foremanName: string;
-    customerName: string;
-    siteName: string;
-    assemblyDate: string;
-    demolitionDate: string;
-    vehicles: [string, string, string];
-    getQty: (categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2) => number;
-} | null> {
+async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisitionSlipPDFProps | null> {
     const r = await prisma.materialRequisition.findUnique({
         where: { id },
         include: {
@@ -110,13 +102,15 @@ export async function renderMaterialRequisitionPrintPDF(
         ));
     }
 
-    // 1件目を描画。複数件の場合は連結が必要だが、現状の React-PDF API では
-    // 1 Document = 1 PDF。複数を連結するなら pdf-lib などが必要。
-    // ここでは「単一伝票=1PDF」の仕様で、bulk POST 時は最初の1件のみ印刷する暫定実装。
-    // (TODO: 全件を連結する場合は pdf-lib を導入)
-    const first = requisitionIds[0];
-    const data = await buildSlipDataForRequisition(first);
-    if (!data) {
+    // 各 ID 分の SlipPDFProps を組み立てる (順序維持)
+    const slips: MaterialRequisitionSlipPDFProps[] = [];
+    for (const id of requisitionIds) {
+        const data = await buildSlipDataForRequisition(id);
+        if (data) slips.push(data);
+    }
+
+    if (slips.length === 0) {
+        // 該当データなし → 空ページ1枚
         return Buffer.from(await renderToBuffer(
             <MaterialRequisitionSlipPDF
                 foremanName="" customerName="" siteName=""
@@ -126,17 +120,12 @@ export async function renderMaterialRequisitionPrintPDF(
             />
         ));
     }
-    return Buffer.from(await renderToBuffer(
-        <MaterialRequisitionSlipPDF
-            foremanName={data.foremanName}
-            customerName={data.customerName}
-            siteName={data.siteName}
-            assemblyDate={data.assemblyDate}
-            demolitionDate={data.demolitionDate}
-            vehicles={data.vehicles}
-            getQty={data.getQty}
-        />
-    ));
+
+    if (slips.length === 1) {
+        return Buffer.from(await renderToBuffer(<MaterialRequisitionSlipPDF {...slips[0]} />));
+    }
+
+    return Buffer.from(await renderToBuffer(<MaterialRequisitionSlipMultiPDF slips={slips} />));
 }
 
 /**

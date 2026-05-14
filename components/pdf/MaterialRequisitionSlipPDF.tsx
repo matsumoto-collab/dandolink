@@ -559,40 +559,56 @@ function ColumnBlock({ column, getQty, isLast }: { column: Column; getQty: Mater
     );
 }
 
-export function MaterialRequisitionSlipPDF({
-    foremanName,
-    customerName,
-    siteName,
-    assemblyDate,
-    demolitionDate,
-    vehicles,
-    getQty,
-    leasedItems,
+/** 1ページ分の中身を描画 */
+function SlipPageContent({
+    foremanName, customerName, siteName, assemblyDate, demolitionDate, vehicles, getQty, leasedItems,
 }: MaterialRequisitionSlipPDFProps) {
     const safeLeased = leasedItems && leasedItems.length > 0 ? leasedItems : Array.from({ length: 4 }, () => ({ label: '', qty: '' }));
     return (
+        <>
+            <Header foremanName={foremanName} />
+            <MetaBox customerName={customerName} siteName={siteName} assemblyDate={assemblyDate} demolitionDate={demolitionDate} />
+            <VehicleRow vehicles={vehicles} />
+
+            <View style={styles.grid}>
+                <ColumnBlock column={COL1} getQty={getQty} isLast={false} />
+                <ColumnBlock column={COL2} getQty={getQty} isLast={false} />
+                <ColumnBlock column={COL3} getQty={getQty} isLast={true} />
+            </View>
+
+            <View style={styles.leasedSection}>
+                <Text style={styles.leasedHeader}>リース品</Text>
+                {safeLeased.map((row, idx) => (
+                    <View key={idx} style={styles.leasedRow}>
+                        <Text style={styles.leasedLabel}>{sanitizePdfText(row.label)}</Text>
+                        <Text style={styles.leasedQty}>{sanitizePdfText(row.qty)}</Text>
+                    </View>
+                ))}
+            </View>
+        </>
+    );
+}
+
+/** 単一伝票 (ライブプレビュー用) */
+export function MaterialRequisitionSlipPDF(props: MaterialRequisitionSlipPDFProps) {
+    return (
         <Document>
             <Page size="A4" style={styles.page}>
-                <Header foremanName={foremanName} />
-                <MetaBox customerName={customerName} siteName={siteName} assemblyDate={assemblyDate} demolitionDate={demolitionDate} />
-                <VehicleRow vehicles={vehicles} />
-
-                <View style={styles.grid}>
-                    <ColumnBlock column={COL1} getQty={getQty} isLast={false} />
-                    <ColumnBlock column={COL2} getQty={getQty} isLast={false} />
-                    <ColumnBlock column={COL3} getQty={getQty} isLast={true} />
-                </View>
-
-                <View style={styles.leasedSection}>
-                    <Text style={styles.leasedHeader}>リース品</Text>
-                    {safeLeased.map((row, idx) => (
-                        <View key={idx} style={styles.leasedRow}>
-                            <Text style={styles.leasedLabel}>{sanitizePdfText(row.label)}</Text>
-                            <Text style={styles.leasedQty}>{sanitizePdfText(row.qty)}</Text>
-                        </View>
-                    ))}
-                </View>
+                <SlipPageContent {...props} />
             </Page>
+        </Document>
+    );
+}
+
+/** 複数伝票連結 (一括印刷用) */
+export function MaterialRequisitionSlipMultiPDF({ slips }: { slips: MaterialRequisitionSlipPDFProps[] }) {
+    return (
+        <Document>
+            {slips.map((slip, idx) => (
+                <Page key={idx} size="A4" style={styles.page}>
+                    <SlipPageContent {...slip} />
+                </Page>
+            ))}
         </Document>
     );
 }
