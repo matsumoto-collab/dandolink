@@ -13,9 +13,10 @@ type ProjectListItem = ReturnType<typeof useProjects>['projects'][0];
 
 interface AssignmentListViewProps {
     selectedDate: Date;
-    workerNameMap: Map<string, string>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
     vehicleNameMap: Map<string, string>;
     isNamesLoaded: boolean;
+    userRole?: string;
 }
 
 interface ManagerInfo { id: string; displayName: string }
@@ -29,7 +30,9 @@ export default function AssignmentListView({
     workerNameMap,
     vehicleNameMap,
     isNamesLoaded,
+    userRole,
 }: AssignmentListViewProps) {
+    const hidePartnerWorkers = userRole === 'foreman2';
     const { projects } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
     const { constructionTypes } = useMasterData();
@@ -124,6 +127,7 @@ export default function AssignmentListView({
                                             getShortManagerName={getShortManagerName}
                                             onClick={() => setSelectedProject(p as Project)}
                                             sameForemanAsAbove={sameForemanAsAbove}
+                                            hidePartnerWorkers={hidePartnerWorkers}
                                         />
                                     </React.Fragment>
                                 );
@@ -150,12 +154,13 @@ interface AssignmentRowProps {
     project: ProjectListItem;
     ctMap: Map<string, { name: string; color: string }>;
     allForemen: { id: string; displayName: string }[];
-    workerNameMap: Map<string, string>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
     vehicleNameMap: Map<string, string>;
     isNamesLoaded: boolean;
     getShortManagerName: (id: string) => string;
     onClick: () => void;
     sameForemanAsAbove: boolean;
+    hidePartnerWorkers?: boolean;
 }
 
 function AssignmentRow({
@@ -168,6 +173,7 @@ function AssignmentRow({
     getShortManagerName,
     onClick,
     sameForemanAsAbove,
+    hidePartnerWorkers,
 }: AssignmentRowProps) {
     const foremanName = allForemen.find(f => f.id === p.assignedEmployeeId)?.displayName || '';
     const ctInfo = p.constructionType ? ctMap.get(p.constructionType) : null;
@@ -189,14 +195,17 @@ function AssignmentRow({
         : [];
 
     // メンバー名(職長を除く・もしあれば)
+    const isVisibleMember = (id: string) => {
+        if (id === p.assignedEmployeeId) return false;
+        const info = workerNameMap.get(id);
+        if (!info) return false;
+        if (hidePartnerWorkers && info.isPartner) return false;
+        return true;
+    };
     const memberNames = isNamesLoaded
         ? (p.confirmedWorkerIds && p.confirmedWorkerIds.length > 0
-            ? p.confirmedWorkerIds
-                .filter(id => id !== p.assignedEmployeeId && workerNameMap.has(id))
-                .map(id => workerNameMap.get(id)!)
-            : (p.workers || [])
-                .filter(id => id !== p.assignedEmployeeId && workerNameMap.has(id))
-                .map(id => workerNameMap.get(id)!))
+            ? p.confirmedWorkerIds.filter(isVisibleMember).map(id => workerNameMap.get(id)!.displayName)
+            : (p.workers || []).filter(isVisibleMember).map(id => workerNameMap.get(id)!.displayName))
         : [];
 
     const isUnassigned = !managerLabel;

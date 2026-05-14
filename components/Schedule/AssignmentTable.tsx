@@ -30,7 +30,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const { constructionTypes } = useMasterData();
     const cellRemarks = useCalendarStore(selectCellRemarks);
 
-    const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
+    const [workerNameMap, setWorkerNameMap] = useState<Map<string, { displayName: string; isPartner: boolean }>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
@@ -58,9 +58,9 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 const workersRes = await fetch('/api/dispatch/workers');
                 if (workersRes.ok) {
                     const workersData = await workersRes.json();
-                    const map = new Map<string, string>();
-                    workersData.forEach((w: { id: string; displayName: string }) => {
-                        map.set(w.id, w.displayName);
+                    const map = new Map<string, { displayName: string; isPartner: boolean }>();
+                    workersData.forEach((w: { id: string; displayName: string; companyId: string | null }) => {
+                        map.set(w.id, { displayName: w.displayName, isPartner: !!w.companyId });
                     });
                     setWorkerNameMap(map);
                 }
@@ -284,6 +284,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                         workerNameMap={workerNameMap}
                         vehicleNameMap={vehicleNameMap}
                         isNamesLoaded={isNamesLoaded}
+                        userRole={userRole}
                     />
                 ) : (
                 <div className="space-y-4">
@@ -334,6 +335,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
                                     foremanRemark={cellRemarks[`${foreman.id}-${selectedDateKey}`] || ''}
+                                    hidePartnerWorkers={userRole === 'foreman2'}
                                 />
                             );
                         })
@@ -373,7 +375,7 @@ interface ForemanSectionProps {
     emptyMessage: string;
     canEdit: boolean;
     isNamesLoaded: boolean;
-    workerNameMap: Map<string, string>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
     vehicleNameMap: Map<string, string>;
     foremanId: string;
     showForemanBadge?: boolean;
@@ -382,6 +384,7 @@ interface ForemanSectionProps {
     onEditClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     constructionTypeMap: Map<string, { name: string; color: string }>;
     foremanRemark?: string;
+    hidePartnerWorkers?: boolean;
 }
 
 function ForemanSection({
@@ -399,6 +402,7 @@ function ForemanSection({
     onEditClick,
     constructionTypeMap,
     foremanRemark,
+    hidePartnerWorkers,
 }: ForemanSectionProps) {
     const confirmedCount = assignments.filter(a => a.isDispatchConfirmed).length;
 
@@ -449,6 +453,7 @@ function ForemanSection({
                             onProjectClick={onProjectClick}
                             onEditClick={onEditClick}
                             constructionTypeMap={constructionTypeMap}
+                            hidePartnerWorkers={hidePartnerWorkers}
                         />
                     ))
                 )}
@@ -462,7 +467,7 @@ interface ProjectCardProps {
     project: ReturnType<typeof useProjects>['projects'][0];
     canEdit: boolean;
     isNamesLoaded: boolean;
-    workerNameMap: Map<string, string>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
     vehicleNameMap: Map<string, string>;
     foremanId: string;
     showForemanBadge?: boolean;
@@ -470,6 +475,7 @@ interface ProjectCardProps {
     onProjectClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     onEditClick?: (project: ReturnType<typeof useProjects>['projects'][0]) => void;
     constructionTypeMap: Map<string, { name: string; color: string }>;
+    hidePartnerWorkers?: boolean;
 }
 
 function ProjectCard({
@@ -484,6 +490,7 @@ function ProjectCard({
     onProjectClick,
     onEditClick,
     constructionTypeMap,
+    hidePartnerWorkers,
 }: ProjectCardProps) {
     const vehicleCount = project.confirmedVehicleIds?.length || project.trucks?.length || project.vehicles?.length || 0;
     const foremanName = showForemanBadge
@@ -492,8 +499,14 @@ function ProjectCard({
 
     const confirmedWorkers = isNamesLoaded && project.confirmedWorkerIds
         ? project.confirmedWorkerIds
-            .filter(id => id !== foremanId && workerNameMap.has(id))
-            .map(id => workerNameMap.get(id)!)
+            .filter(id => {
+                if (id === foremanId) return false;
+                const info = workerNameMap.get(id);
+                if (!info) return false;
+                if (hidePartnerWorkers && info.isPartner) return false;
+                return true;
+            })
+            .map(id => workerNameMap.get(id)!.displayName)
         : [];
 
     const confirmedVehicles = isNamesLoaded && project.confirmedVehicleIds
