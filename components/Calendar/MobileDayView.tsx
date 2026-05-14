@@ -149,7 +149,7 @@ export default function MobileDayView({
 
                                                     {/* 元請名 */}
                                                     {event.customer && (
-                                                        <div className="text-white/90 text-xs mt-1 truncate">
+                                                        <div className="text-white/90 text-sm mt-1 truncate">
                                                             {event.customer}
                                                         </div>
                                                     )}

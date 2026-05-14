@@ -148,7 +148,7 @@ export default function EventCardHoverPreview({ event, anchorRect }: EventCardHo
             >
                 <div className="font-bold text-slate-900 text-sm leading-tight truncate">{titleLabel}</div>
                 {event.customer && (
-                    <div className="text-xs text-slate-700 truncate mt-0.5">{event.customer}</div>
+                    <div className="text-sm text-slate-700 truncate mt-0.5">{event.customer}</div>
                 )}
             </div>
 

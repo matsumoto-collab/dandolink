@@ -601,7 +601,7 @@ export default function MobileCalendarView({
                                                                     {event.title}
                                                                 </div>
                                                                 {event.customer && (
-                                                                    <div className="text-[9px] text-slate-600 leading-tight truncate">
+                                                                    <div className="text-[10px] text-slate-600 leading-tight truncate">
                                                                         {event.customer}
                                                                     </div>
                                                                 )}
@@ -696,7 +696,7 @@ export default function MobileCalendarView({
                                 <div className="flex-1 min-w-0">
                                     <div className="font-bold text-slate-800 text-base">{actionSheet.event.title}</div>
                                     {actionSheet.event.customer && (
-                                        <div className="text-slate-500 text-sm mt-0.5">{actionSheet.event.customer}</div>
+                                        <div className="text-slate-500 text-base mt-0.5">{actionSheet.event.customer}</div>
                                     )}
                                     <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs">
                                         {(actionSheet.event.memberCount ?? 0) > 0 && (

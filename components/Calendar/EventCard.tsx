@@ -96,7 +96,7 @@ const EventCard = memo(function EventCard({ event, onClick, compact = false }: E
                     </h4>
 
                     {event.customer && (
-                        <p className="text-xs text-white/90 mt-1 truncate">
+                        <p className="text-sm text-white/90 mt-1 truncate">
                             {event.customer}
                         </p>
                     )}
