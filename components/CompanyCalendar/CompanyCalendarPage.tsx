@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Plus, RefreshCw } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
@@ -93,14 +94,19 @@ export default function CompanyCalendarPage() {
 
     // 通知ディープリンク: ?pmId=<id> で該当案件の予定をモーダルで自動オープン
     // pmId は MainContent では消費されず、ここで読み取って URL から除去する
-    const pmIdConsumedRef = useRef(false);
+    // useSearchParams() で URL 変化に反応させる（マイカレンダーを開いた状態でも再発火する）
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const lastConsumedPmIdRef = useRef<string | null>(null);
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        if (pmIdConsumedRef.current) return;
+        const pmId = searchParams?.get('pmId');
+        if (!pmId) {
+            lastConsumedPmIdRef.current = null;
+            return;
+        }
         if (loading) return; // 初回 fetch 完了まで待つ
-        const params = new URLSearchParams(window.location.search);
-        const pmId = params.get('pmId');
-        if (!pmId) return;
+        if (lastConsumedPmIdRef.current === pmId) return;
 
         const target = events.find((e) => e.projectMasterId === pmId);
         if (target) {
@@ -115,17 +121,19 @@ export default function CompanyCalendarPage() {
                 setDefaultDate(null);
                 setModalOpen(true);
             }
-        } else if (events.length > 0 || !loading) {
+        } else if (events.length > 0) {
             // events ロード済みで該当が無ければ通知
             toast('該当案件の予定はこの月にありません', { position: 'bottom-center' });
+        } else {
+            // events 空 & loading 完了 → 該当無し（連続発火を避けるため URL は消費する）
         }
 
-        pmIdConsumedRef.current = true;
-        params.delete('pmId');
-        const qs = params.toString();
-        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-    }, [events, loading]);
+        lastConsumedPmIdRef.current = pmId;
+        const next = new URLSearchParams(searchParams?.toString() || '');
+        next.delete('pmId');
+        const qs = next.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname);
+    }, [searchParams, events, loading, router, pathname]);
 
     // 日付配列（7列 × 6行 = 42日が基本）
     const days = useMemo(() => {

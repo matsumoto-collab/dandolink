@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useEstimates } from '@/hooks/useEstimates';
 import { useInvoices } from '@/hooks/useInvoices';
@@ -108,28 +109,37 @@ export default function ProjectMasterListPage() {
 
     // 通知ディープリンク: ?pmId=<id> で案件詳細モーダルを自動オープン
     // 画像通知時は ?scrollTo=files で添付ファイルセクションへスクロール
+    // useSearchParams() を経由することで「すでに案件マスタを開いている状態」でも
+    // 通知タップ→URL変化を検知してモーダルが開く（window.location 直読 + 限定depsだと再発火しない）
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const lastConsumedPmIdRef = useRef<string | null>(null);
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const params = new URLSearchParams(window.location.search);
-        const pmId = params.get('pmId');
-        if (!pmId) return;
+        const pmId = searchParams?.get('pmId');
+        if (!pmId) {
+            lastConsumedPmIdRef.current = null;
+            return;
+        }
+        if (lastConsumedPmIdRef.current === pmId) return;
         const pm = getProjectMasterById(pmId);
         if (!pm) return; // データ未到着の場合は次回 projectMasters 更新で再評価
+        lastConsumedPmIdRef.current = pmId;
         setDetailPm(pm);
         setOpenModalInEditMode(false);
-        const scrollTo = params.get('scrollTo');
+        const scrollTo = searchParams?.get('scrollTo');
         if (scrollTo === 'files') {
             setTimeout(() => {
                 const el = document.getElementById('pm-files-section');
                 if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 300);
         }
-        params.delete('pmId');
-        params.delete('scrollTo');
-        const qs = params.toString();
-        const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-    }, [projectMasters, getProjectMasterById]);
+        const next = new URLSearchParams(searchParams?.toString() || '');
+        next.delete('pmId');
+        next.delete('scrollTo');
+        const qs = next.toString();
+        router.replace(qs ? `${pathname}?${qs}` : pathname);
+    }, [searchParams, projectMasters, getProjectMasterById, router, pathname]);
 
     // 見積/請求カラムのために各ストアを遅延ロード
     useEffect(() => {
