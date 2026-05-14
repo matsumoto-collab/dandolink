@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Plus, FileText, ChevronDown, ChevronRight, Minus, Copy, Trash2, Printer, Search, X } from 'lucide-react';
+import { Plus, FileText, ChevronDown, ChevronRight, Copy, Trash2, Printer, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
@@ -60,9 +60,11 @@ export default function MaterialRequisitionPage() {
     const [formDate, setFormDate] = useState(defaultFormDate());
     const [formForemanId, setFormForemanId] = useState('');
     const [formForemanName, setFormForemanName] = useState('');
-    const [formVehicleInfo, setFormVehicleInfo] = useState('');
+    // 車両3欄 (旧 formVehicleInfo (単一文字列) は廃止し、JSON 化して保存)
+    const [formVehicles, setFormVehicles] = useState<[string, string, string]>(['', '', '']);
     const [formNotes, setFormNotes] = useState('');
-    const [formQuantities, setFormQuantities] = useState<Record<string, number>>({});
+    // 数量は materialItemId → [車両0, 車両1, 車両2] の3要素タプル
+    const [formQuantities, setFormQuantities] = useState<Record<string, [number, number, number]>>({});
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
 
@@ -178,32 +180,26 @@ export default function MaterialRequisitionPage() {
         setExpandedCategories(new Set(categories.map(c => c.id)));
     };
 
-    const updateQuantity = (itemId: string, delta: number) => {
-        setFormQuantities(prev => {
-            const current = prev[itemId] || 0;
-            const next = Math.max(0, current + delta);
-            if (next === 0) {
-                const { [itemId]: _, ...rest } = prev;
-                return rest;
-            }
-            return { ...prev, [itemId]: next };
-        });
-    };
+    // 車両3列のいずれかに数量があるかの判定
+    const hasAnyQty = (q?: [number, number, number]) => !!q && (q[0] > 0 || q[1] > 0 || q[2] > 0);
 
-    const setQuantity = (itemId: string, value: number) => {
+    const setQuantity = (itemId: string, vehicleIndex: 0 | 1 | 2, value: number) => {
         setFormQuantities(prev => {
-            if (value <= 0) {
+            const current = prev[itemId] || [0, 0, 0];
+            const nextTuple: [number, number, number] = [current[0], current[1], current[2]];
+            nextTuple[vehicleIndex] = Math.max(0, value);
+            if (!hasAnyQty(nextTuple)) {
                 const { [itemId]: _, ...rest } = prev;
                 return rest;
             }
-            return { ...prev, [itemId]: value };
+            return { ...prev, [itemId]: nextTuple };
         });
     };
 
     const resetForm = () => {
         setFormProjectId('');
         setFormDate(defaultFormDate());
-        setFormVehicleInfo('');
+        setFormVehicles(['', '', '']);
         setFormNotes('');
         setFormQuantities({});
         setSearchQuery('');
@@ -227,6 +223,26 @@ export default function MaterialRequisitionPage() {
     const [autoSaveErrorReason, setAutoSaveErrorReason] = useState<string>('');
 
     // 30秒間入力操作がなければ下書きを自動保存する。
+    // formQuantities (タプル) → API送信用フラット配列に変換
+    // 各 material × 車両(0/1/2) で数量>0 のものを別行として送る
+    const flattenQuantitiesForApi = useCallback(() => {
+        const result: Array<{ materialItemId: string; quantity: number; vehicleLabel: string }> = [];
+        for (const [materialItemId, qtys] of Object.entries(formQuantities)) {
+            qtys.forEach((qty, idx) => {
+                if (qty > 0) {
+                    result.push({ materialItemId, quantity: qty, vehicleLabel: String(idx) });
+                }
+            });
+        }
+        return result;
+    }, [formQuantities]);
+
+    // vehicleInfo は JSON ({vehicles: [...]}) 形式で保存
+    const buildVehicleInfoJson = useCallback(() => {
+        if (formVehicles.every(v => !v)) return null;
+        return JSON.stringify({ vehicles: formVehicles });
+    }, [formVehicles]);
+
     // formQuantities をdepsに含めることで、数量変更ごとにタイマーがリセットされ debounce として機能する。
     useEffect(() => {
         // create view 以外、または手動操作後はスキップ
@@ -239,10 +255,9 @@ export default function MaterialRequisitionPage() {
 
         // 条件: projectMasterId と foremanId 両方セット、品目1つ以上
         if (!formProjectId || !formForemanId) return;
-        const items = Object.entries(formQuantities)
-            .filter(([, qty]) => qty > 0)
-            .map(([materialItemId, quantity]) => ({ materialItemId, quantity }));
+        const items = flattenQuantitiesForApi();
         if (items.length === 0) return;
+        const vehicleInfoStr = buildVehicleInfoJson();
 
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
 
@@ -257,7 +272,7 @@ export default function MaterialRequisitionPage() {
                         foremanName: formForemanName,
                         type: '出庫',
                         status: 'draft',
-                        vehicleInfo: formVehicleInfo || undefined,
+                        vehicleInfo: vehicleInfoStr || undefined,
                         notes: formNotes || undefined,
                         items,
                     });
@@ -274,7 +289,7 @@ export default function MaterialRequisitionPage() {
                 } else {
                     await updateRequisition(autoSavedId, {
                         status: 'draft',
-                        vehicleInfo: formVehicleInfo || null,
+                        vehicleInfo: vehicleInfoStr,
                         notes: formNotes || null,
                         items,
                     });
@@ -304,17 +319,15 @@ export default function MaterialRequisitionPage() {
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [view, formProjectId, formDate, formForemanId, formVehicleInfo, formNotes, formQuantities]);
+    }, [view, formProjectId, formDate, formForemanId, formVehicles, formNotes, formQuantities]);
 
     const handleSubmit = async (status: 'draft' | 'confirmed') => {
         if (!formProjectId) { toast.error('現場を選択してください'); return; }
         if (!formForemanId) { toast.error('職長を選択してください'); return; }
 
-        const items = Object.entries(formQuantities)
-            .filter(([, qty]) => qty > 0)
-            .map(([materialItemId, quantity]) => ({ materialItemId, quantity }));
-
+        const items = flattenQuantitiesForApi();
         if (items.length === 0) { toast.error('材料を1つ以上入力してください'); return; }
+        const vehicleInfoStr = buildVehicleInfoJson();
 
         // A6: 手動保存時は自動保存タイマーをクリア
         if (autoSaveTimerRef.current) {
@@ -329,7 +342,7 @@ export default function MaterialRequisitionPage() {
             if (autoSavedId) {
                 await updateRequisition(autoSavedId, {
                     status,
-                    vehicleInfo: formVehicleInfo || null,
+                    vehicleInfo: vehicleInfoStr,
                     notes: formNotes || null,
                     items,
                 });
@@ -341,7 +354,7 @@ export default function MaterialRequisitionPage() {
                     foremanName: formForemanName,
                     type: '出庫',
                     status,
-                    vehicleInfo: formVehicleInfo || undefined,
+                    vehicleInfo: vehicleInfoStr || undefined,
                     notes: formNotes || undefined,
                     items,
                 });
@@ -359,15 +372,20 @@ export default function MaterialRequisitionPage() {
     };
 
     const handleCopyRequisition = useCallback(async (req: MaterialRequisition) => {
-        // Copy quantities from existing requisition
-        const quantities: Record<string, number> = {};
+        // Copy quantities from existing requisition into tuple format
+        // 既存データの vehicleLabel が '0'/'1'/'2' なら該当列、それ以外(null/レガシー)は車両0列に入れる
+        const quantities: Record<string, [number, number, number]> = {};
         req.items?.forEach(item => {
             if (item.quantity > 0) {
-                quantities[item.materialItemId] = item.quantity;
+                let idx: 0 | 1 | 2 = 0;
+                if (item.vehicleLabel === '1') idx = 1;
+                else if (item.vehicleLabel === '2') idx = 2;
+                const tuple = quantities[item.materialItemId] || [0, 0, 0];
+                tuple[idx] += item.quantity;
+                quantities[item.materialItemId] = tuple;
             }
         });
         // 自動保存関連 state を新規作成扱いにリセット
-        // （前回伝票の autoSavedId を引きずらないように個別リセット）
         setAutoSavedId(null);
         setAutoSaveStatus('idle');
         setAutoSavedAt(null);
@@ -379,13 +397,30 @@ export default function MaterialRequisitionPage() {
         }
         setFormQuantities(quantities);
         setFormProjectId(req.projectMasterId);
-        // コピー元の日付を初期値（JST）にする。不正な値ならフォールバック
         const srcDate = req.date ? new Date(req.date) : null;
         const initialDate = srcDate && !Number.isNaN(srcDate.getTime())
             ? jstDateKey(srcDate)
             : defaultFormDate();
         setFormDate(initialDate);
-        setFormVehicleInfo(req.vehicleInfo || '');
+        // vehicleInfo を JSON でパース、失敗したら 1列目に文字列
+        let parsedVehicles: [string, string, string] = ['', '', ''];
+        if (req.vehicleInfo) {
+            try {
+                const obj = JSON.parse(req.vehicleInfo);
+                if (obj && Array.isArray(obj.vehicles)) {
+                    parsedVehicles = [
+                        String(obj.vehicles[0] ?? ''),
+                        String(obj.vehicles[1] ?? ''),
+                        String(obj.vehicles[2] ?? ''),
+                    ];
+                } else {
+                    parsedVehicles = [req.vehicleInfo, '', ''];
+                }
+            } catch {
+                parsedVehicles = [req.vehicleInfo, '', ''];
+            }
+        }
+        setFormVehicles(parsedVehicles);
         setFormNotes('');
         setSearchQuery('');
         expandAll();
@@ -493,7 +528,7 @@ export default function MaterialRequisitionPage() {
         for (const cat of categories) {
             if (!cat.items) continue;
             for (const item of cat.items) {
-                if ((formQuantities[item.id] || 0) > 0) {
+                if (hasAnyQty(formQuantities[item.id])) {
                     rows.push({ categoryName: cat.name, item });
                 }
             }
@@ -515,12 +550,13 @@ export default function MaterialRequisitionPage() {
         return map;
     }, [categories]);
 
-    // PDF プレビュー用: セルキー → 数量を引く関数 (Phase 1: 全数量を車両0列目に表示)
+    // PDF プレビュー用: セルキー → 数量を引く関数 (車両0/1/2 ぶん振り分け)
     const slipGetQty = useCallback((categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2): number => {
-        if (vehicleIndex !== 0) return 0;
         const itemId = itemByKey.get(`${categoryName}|${itemName}`);
         if (!itemId) return 0;
-        return formQuantities[itemId] || 0;
+        const tuple = formQuantities[itemId];
+        if (!tuple) return 0;
+        return tuple[vehicleIndex] || 0;
     }, [itemByKey, formQuantities]);
 
     // 選択中の案件情報（プレビュー用）
@@ -530,7 +566,7 @@ export default function MaterialRequisitionPage() {
 
     // ライブプレビュー用 PDF Blob 生成
     const buildSlipPdfBlob = useCallback(async (): Promise<Blob | null> => {
-        // 案件/職長未選択でも雛形だけは出すが、空欄が多い場合はスキップ
+        // 案件未選択かつ数量も無い場合はプレビュースキップ
         if (!formProjectId && Object.keys(formQuantities).length === 0) return null;
         const { generateMaterialRequisitionSlipPDFBlob } = await import('@/utils/reactPdfGenerator');
         return await generateMaterialRequisitionSlipPDFBlob({
@@ -539,52 +575,41 @@ export default function MaterialRequisitionPage() {
             siteName: selectedProject?.name || selectedProject?.title || '',
             assemblyDate: '',     // Phase 1: 案件マスタからの取得は省略
             demolitionDate: '',
-            vehicles: [formVehicleInfo, '', ''],
+            vehicles: formVehicles,
             getQty: slipGetQty,
         });
-    }, [formProjectId, formQuantities, formForemanName, selectedProject, formVehicleInfo, slipGetQty]);
+    }, [formProjectId, formQuantities, formForemanName, selectedProject, formVehicles, slipGetQty]);
 
     // プレビュー再生成トリガー (seed)
     const livePreviewSignature = useMemo(() => {
         return JSON.stringify({
-            formProjectId, formForemanName, formVehicleInfo,
+            formProjectId, formForemanName, formVehicles,
             quantities: formQuantities,
-            // selectedProject の必要部分のみ
             customer: selectedProject?.customerShortName || selectedProject?.customerName || '',
             site: selectedProject?.name || selectedProject?.title || '',
         });
-    }, [formProjectId, formForemanName, formVehicleInfo, formQuantities, selectedProject]);
+    }, [formProjectId, formForemanName, formVehicles, formQuantities, selectedProject]);
 
-    // 数量入力UI（A1/A4/A5を適用）
+    // 数量入力UI: 車両3列ぶんを横並びで入力 (車1/車2/車3)
     const renderQuantityControl = (item: MaterialItemWithStock) => {
-        const qty = formQuantities[item.id] || 0;
+        const tuple = formQuantities[item.id] || [0, 0, 0];
         return (
             <div className="flex items-center gap-1">
-                <button
-                    onClick={() => updateQuantity(item.id, -1)}
-                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                    aria-label="数量を減らす"
-                >
-                    <Minus className="w-4 h-4" />
-                </button>
-                <input
-                    type="number"
-                    inputMode="numeric"
-                    pattern="[0-9]*"
-                    min="0"
-                    value={qty || ''}
-                    onChange={(e) => setQuantity(item.id, parseInt(e.target.value) || 0)}
-                    onFocus={(e) => e.currentTarget.select()}
-                    className="w-14 text-center px-1 py-1 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    placeholder="0"
-                />
-                <button
-                    onClick={() => updateQuantity(item.id, 1)}
-                    className="w-11 h-11 flex items-center justify-center rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors"
-                    aria-label="数量を増やす"
-                >
-                    <Plus className="w-4 h-4" />
-                </button>
+                {[0, 1, 2].map((idx) => (
+                    <input
+                        key={idx}
+                        type="number"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        min="0"
+                        value={tuple[idx] || ''}
+                        onChange={(e) => setQuantity(item.id, idx as 0 | 1 | 2, parseInt(e.target.value) || 0)}
+                        onFocus={(e) => e.currentTarget.select()}
+                        className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        placeholder={`車${idx + 1}`}
+                        aria-label={`車両${idx + 1}の数量`}
+                    />
+                ))}
                 <span className="text-xs text-slate-400 w-6">{item.unit}</span>
             </div>
         );
@@ -855,15 +880,24 @@ export default function MaterialRequisitionPage() {
                                         ))}
                                     </select>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">車両情報</label>
-                                    <input
-                                        type="text"
-                                        value={formVehicleInfo}
-                                        onChange={(e) => setFormVehicleInfo(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
-                                        placeholder="例: 2tトラック、4tトラック"
-                                    />
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">車両 (1〜3)</label>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {[0, 1, 2].map(idx => (
+                                            <input
+                                                key={idx}
+                                                type="text"
+                                                value={formVehicles[idx]}
+                                                onChange={(e) => {
+                                                    const next: [string, string, string] = [formVehicles[0], formVehicles[1], formVehicles[2]];
+                                                    next[idx] = e.target.value;
+                                                    setFormVehicles(next);
+                                                }}
+                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                                placeholder={`車両${idx + 1}`}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
@@ -947,13 +981,13 @@ export default function MaterialRequisitionPage() {
                                         ) : (
                                             <div className="bg-white divide-y divide-slate-100">
                                                 {searchResults.map(({ categoryName, item }) => {
-                                                    const qty = formQuantities[item.id] || 0;
+                                                    const filled = hasAnyQty(formQuantities[item.id]);
                                                     return (
                                                         <div
                                                             key={item.id}
-                                                            className={`flex items-center gap-2 px-4 py-2.5 ${qty > 0 ? 'bg-blue-50' : ''}`}
+                                                            className={`flex items-center gap-2 px-4 py-2.5 ${filled ? 'bg-blue-50' : ''}`}
                                                         >
-                                                            <span className={`flex-1 text-sm ${qty > 0 ? 'text-slate-900 font-medium' : 'text-slate-700'}`}>
+                                                            <span className={`flex-1 text-sm ${filled ? 'text-slate-900 font-medium' : 'text-slate-700'}`}>
                                                                 <span className="text-xs text-slate-500 mr-1">{categoryName}:</span>
                                                                 {item.name}
                                                                 {item.spec && <span className="text-xs text-slate-400 ml-1">{item.spec}</span>}
@@ -968,7 +1002,7 @@ export default function MaterialRequisitionPage() {
                                 ) : (
                                     <div className="space-y-1">
                                         {categories.map((cat: MaterialCategoryWithItems) => {
-                                            const catFilled = cat.items?.filter(i => (formQuantities[i.id] || 0) > 0).length || 0;
+                                            const catFilled = cat.items?.filter(i => hasAnyQty(formQuantities[i.id])).length || 0;
                                             const isExpanded = expandedCategories.has(cat.id);
 
                                             return (
@@ -993,13 +1027,13 @@ export default function MaterialRequisitionPage() {
                                                     {isExpanded && cat.items && (
                                                         <div className="border-t border-slate-200 bg-white divide-y divide-slate-100">
                                                             {cat.items.map(item => {
-                                                                const qty = formQuantities[item.id] || 0;
+                                                                const filled = hasAnyQty(formQuantities[item.id]);
                                                                 return (
                                                                     <div
                                                                         key={item.id}
-                                                                        className={`flex items-center gap-2 px-4 py-2.5 ${qty > 0 ? 'bg-blue-50' : ''}`}
+                                                                        className={`flex items-center gap-2 px-4 py-2.5 ${filled ? 'bg-blue-50' : ''}`}
                                                                     >
-                                                                        <span className={`flex-1 text-sm ${qty > 0 ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                                                                        <span className={`flex-1 text-sm ${filled ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
                                                                             {item.name}
                                                                         </span>
                                                                         {renderQuantityControl(item)}
