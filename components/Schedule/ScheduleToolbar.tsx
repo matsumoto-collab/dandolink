@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Search } from 'lucide-react';
+import { Search, History } from 'lucide-react';
 import { ScheduleView } from './ScheduleViewTabs';
 
 interface ScheduleToolbarProps {
@@ -13,6 +13,7 @@ interface ScheduleToolbarProps {
     onNextDay?: () => void;
     onToday?: () => void;
     onOpenSearch?: () => void;
+    onOpenHistory?: () => void;
     weekLabel?: string;
 }
 
@@ -31,6 +32,7 @@ export default function ScheduleToolbar({
     onNextDay,
     onToday,
     onOpenSearch,
+    onOpenHistory,
     weekLabel,
 }: ScheduleToolbarProps) {
     // 日付ナビは calendar / overview のときだけ意味がある
@@ -89,7 +91,7 @@ export default function ScheduleToolbar({
                 <div className="hidden lg:block" />
             )}
 
-            {/* 右: 検索 */}
+            {/* 右: 検索 + 変更履歴 */}
             <div className="flex items-center gap-1 flex-shrink-0">
                 {onOpenSearch && (
                     <button
@@ -99,6 +101,16 @@ export default function ScheduleToolbar({
                         title="案件を検索"
                     >
                         <Search className="w-4 h-4" />
+                    </button>
+                )}
+                {onOpenHistory && (
+                    <button
+                        onClick={onOpenHistory}
+                        className="flex items-center gap-1 p-2 rounded-xl bg-white border border-slate-200 shadow-sm hover:bg-slate-50 text-slate-600 transition-colors"
+                        aria-label="変更履歴"
+                        title="スケジュール変更履歴"
+                    >
+                        <History className="w-4 h-4" />
                     </button>
                 )}
             </div>

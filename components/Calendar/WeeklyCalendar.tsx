@@ -13,7 +13,7 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
-import { canDispatch as canDispatchCheck, isManagerOrAbove } from '@/utils/permissions';
+import { canDispatch as canDispatchCheck } from '@/utils/permissions';
 import { addDays } from '@/utils/dateUtils';
 import { CalendarEvent, CalendarNavigation, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
@@ -40,9 +40,6 @@ const ProjectSelectionModal = dynamic(() => import('./ProjectSelectionModal'), {
     loading: () => <Loading overlay />
 });
 const ScheduleSearchPanel = dynamic(() => import('./ScheduleSearchPanel'), {
-    loading: () => <Loading overlay />
-});
-const ScheduleHistoryPanel = dynamic(() => import('./ScheduleHistoryPanel'), {
     loading: () => <Loading overlay />
 });
 const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'));
@@ -96,8 +93,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
 
     // 手配確定権限チェック
     const canDispatch = useMemo(() => canDispatchCheck(session?.user), [session?.user]);
-    const canViewHistory = useMemo(() => isManagerOrAbove(session?.user), [session?.user]);
-    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
 useEffect(() => { setIsMounted(true); }, []);
 
@@ -607,8 +602,6 @@ useEffect(() => { setIsMounted(true); }, []);
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
-                    onOpenHistory={partnerMode ? undefined : () => setIsHistoryOpen(true)}
-                    canViewHistory={!partnerMode && canViewHistory}
                     highlightedEventId={highlightedEventId}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
@@ -675,13 +668,6 @@ useEffect(() => { setIsMounted(true); }, []);
                 onClose={handleCloseSearch}
                 onJump={handleSearchJump}
             />
-
-            {canViewHistory && (
-                <ScheduleHistoryPanel
-                    isOpen={isHistoryOpen}
-                    onClose={() => setIsHistoryOpen(false)}
-                />
-            )}
 
         </>
     );

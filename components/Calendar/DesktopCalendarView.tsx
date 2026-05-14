@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { DndContext, DragOverlay, closestCenter, DragStartEvent, DragOverEvent, DragEndEvent, useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core';
-import { MoveRight, X, Search, History } from 'lucide-react';
+import { MoveRight, X, Search } from 'lucide-react';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
@@ -38,8 +38,6 @@ interface DesktopCalendarViewProps {
     handleCopyEvent?: (eventId: string) => void;
     handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
     handleOpenSearch?: () => void;
-    onOpenHistory?: () => void;
-    canViewHistory?: boolean;
     highlightedEventId?: string | null;
     getMemberAdjustment?: (dateKey: string) => number;
     onMemberAdjustmentChange?: (dateKey: string, delta: number) => void;
@@ -79,8 +77,6 @@ export default function DesktopCalendarView({
     handleCopyEvent,
     handleMoveToCell,
     handleOpenSearch,
-    onOpenHistory,
-    canViewHistory = false,
     highlightedEventId = null,
     getMemberAdjustment,
     onMemberAdjustmentChange,
@@ -172,16 +168,6 @@ export default function DesktopCalendarView({
                                 title="案件を検索"
                             >
                                 <Search className="w-4 h-4" />
-                            </button>
-                        )}
-                        {canViewHistory && onOpenHistory && (
-                            <button
-                                onClick={onOpenHistory}
-                                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 transition-colors"
-                                aria-label="変更履歴"
-                                title="変更履歴"
-                            >
-                                <History className="w-4 h-4" />
                             </button>
                         )}
                     </div>

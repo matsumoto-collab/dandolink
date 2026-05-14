@@ -8,6 +8,7 @@ import { useSession } from 'next-auth/react';
 import { ChevronRight } from 'lucide-react';
 import { ScheduleView } from './Schedule/ScheduleViewTabs';
 import ScheduleToolbar from './Schedule/ScheduleToolbar';
+import { isManagerOrAbove } from '@/utils/permissions';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
@@ -96,6 +97,9 @@ const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerW
 const CompanyCalendarPage = dynamic(() => import('./CompanyCalendar/CompanyCalendarPage'), {
     loading: () => <LoadingSpinner />,
 });
+const ScheduleHistoryPanel = dynamic(() => import('./Calendar/ScheduleHistoryPanel'), {
+    loading: () => <LoadingSpinner />,
+});
 
 // Placeholder component for未実装 pages
 function PlaceholderPage({ title }: { title: string }) {
@@ -157,6 +161,8 @@ export default function MainContent() {
     const handleSearchReady = useCallback((opener: () => void) => {
         setOpenSearch(() => opener);
     }, []);
+    const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+    const canViewHistory = isManagerOrAbove(session?.user);
 
     const userRole = session?.user?.role;
     const userId = session?.user?.id;
@@ -238,6 +244,7 @@ export default function MainContent() {
                             onNextDay={calendarNav?.goToNextDay}
                             onToday={calendarNav?.goToToday}
                             onOpenSearch={scheduleView === 'calendar' && openSearch ? openSearch : undefined}
+                            onOpenHistory={canViewHistory ? () => setIsHistoryOpen(true) : undefined}
                         />
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
@@ -251,6 +258,12 @@ export default function MainContent() {
                                 <AssignmentTable />
                             )}
                         </div>
+                        {canViewHistory && (
+                            <ScheduleHistoryPanel
+                                isOpen={isHistoryOpen}
+                                onClose={() => setIsHistoryOpen(false)}
+                            />
+                        )}
                     </>
                 );
 
