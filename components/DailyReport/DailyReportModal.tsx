@@ -159,9 +159,6 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
     const canEdit = canFullEdit || canPartialEdit;
     const canDelete = canFullEdit;
 
-    // 自分の担当（assignedEmployeeId === self）の案件が今日あるか
-    const hasOwnAssignmentToday = isOwnReport && todayAssignments.some(a => a.assignedEmployeeId === userId);
-
     // 時間文字列をパース ("HH:MM" → hour, minute)
     const parseTimeString = (timeStr: string | null | undefined, defaultHour: number, defaultMinute: number) => {
         if (!timeStr) return { hour: defaultHour, minute: defaultMinute };
@@ -670,24 +667,29 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                 }
 
                 if (groups.size === 0) {
-                    // 入力なしでも自分の備考だけは保存したいケースがあるので
-                    // hasOwnAssignmentToday の場合のみ自分の日報を upsert
-                    if (hasOwnAssignmentToday) {
-                        await saveDailyReport({
-                            foremanId: userId,
-                            date: dateStr,
-                            morningLoadingMinutes,
-                            eveningLoadingMinutes,
-                            earlyStartMinutes,
-                            overtimeMinutes,
-                            breakMinutes,
-                            notes: notes || undefined,
-                            workItems: [],
-                        });
-                    } else {
+                    // 担当案件がなくても、備考があれば自分の日報として保存できるようにする。
+                    // (備考も空なら保存対象なしとしてエラー)
+                    const hasContent = (notes && notes.trim().length > 0)
+                        || morningLoadingMinutes > 0
+                        || eveningLoadingMinutes > 0
+                        || earlyStartMinutes > 0
+                        || overtimeMinutes > 0
+                        || breakMinutes > 0;
+                    if (!hasContent) {
                         setSaveMessage({ type: 'error', text: '保存対象がありません' });
                         return;
                     }
+                    await saveDailyReport({
+                        foremanId: userId,
+                        date: dateStr,
+                        morningLoadingMinutes,
+                        eveningLoadingMinutes,
+                        earlyStartMinutes,
+                        overtimeMinutes,
+                        breakMinutes,
+                        notes: notes || undefined,
+                        workItems: [],
+                    });
                 } else {
                     for (const [groupForemanId, groupItems] of groups) {
                         const isSelfGroup = groupForemanId === userId;
@@ -1083,9 +1085,10 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                                         })()}
                                     </div>
 
-                                    {/* 備考: 管理者/マネージャー、または自分の担当案件がある場合のみ表示
-                                        （自分の日報を編集中で確定メンバー案件しかない2番手は備考の保存先がないので非表示） */}
-                                    {(isAdminOrManager || (canFullEdit && hasOwnAssignmentToday)) && (
+                                    {/* 備考: 2番手（他人の日報を部分編集中）以外は常に表示。
+                                        備考は職長の日報カラムに紐づくため、2番手が上書きするのは不可。
+                                        報告一覧へのアクセスは admin/manager/foreman1/foreman2 にSidebarで制限済み */}
+                                    {!canPartialEdit && (
                                         <div>
                                             <h3 className="text-lg font-semibold text-slate-700 mb-3 flex items-center gap-2">
                                                 <FileText className="w-5 h-5" />
