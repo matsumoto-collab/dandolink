@@ -96,7 +96,7 @@ export default function AssignmentListView({
                 ) : (
                     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                         {/* テーブルヘッダー(スティッキー) */}
-                        <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_64px] sm:grid-cols-[56px_1fr_88px] gap-2 px-2 sm:px-3 py-1.5 bg-slate-100 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        <div className="sticky top-0 z-10 grid grid-cols-[40px_1fr_96px] sm:grid-cols-[56px_1fr_140px] gap-2 px-2 sm:px-3 py-1.5 bg-slate-100 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                             <div className="text-center">担当</div>
                             <div>案件 / 職長</div>
                             <div className="text-right">人数 · 車両</div>
@@ -205,7 +205,7 @@ function AssignmentRow({
     return (
         <button
             onClick={onClick}
-            className={`relative w-full text-left grid grid-cols-[40px_1fr_64px] sm:grid-cols-[56px_1fr_88px] gap-2 px-2 sm:px-3 py-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors border-b border-slate-100 last:border-b-0 ${
+            className={`relative w-full text-left grid grid-cols-[40px_1fr_96px] sm:grid-cols-[56px_1fr_140px] gap-2 px-2 sm:px-3 py-1.5 hover:bg-slate-50 active:bg-slate-100 transition-colors border-b border-slate-100 last:border-b-0 ${
                 isUnassigned ? 'bg-rose-50/40' : ''
             }`}
         >
@@ -281,7 +281,7 @@ function AssignmentRow({
                     </div>
                 )}
                 {vehicleNames.length > 0 && (
-                    <div className="text-slate-600 truncate font-medium mt-0.5">
+                    <div className="text-slate-600 font-medium mt-0.5 break-words">
                         {vehicleNames.join('·')}
                     </div>
                 )}
