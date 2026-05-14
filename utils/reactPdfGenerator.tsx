@@ -107,6 +107,26 @@ export async function generateEstimatePDFBlobReact(
 }
 
 /**
+ * Generate Estimate PDF as raw Blob (for live preview that manages its own URL lifecycle)
+ */
+export async function generateEstimatePDFBlobOnlyReact(
+    estimate: Estimate,
+    project: Project,
+    companyInfo: CompanyInfo,
+    options: EstimatePDFOptions = { includeDetails: true }
+): Promise<Blob> {
+    return await pdf(
+        <EstimatePDF
+            estimate={estimate}
+            project={project}
+            companyInfo={companyInfo}
+            includeDetails={options.includeDetails}
+            creatorName={options.creatorName}
+        />
+    ).toBlob();
+}
+
+/**
  * Generate Invoice PDF and download it
  */
 export async function exportInvoicePDFReact(

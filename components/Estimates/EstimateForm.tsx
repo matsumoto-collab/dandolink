@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useUnitPriceMaster } from '@/hooks/useUnitPriceMaster';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Estimate, EstimateInput, EstimateItem } from '@/types/estimate';
 import { CompanyInfo } from '@/types/company';
 import { Project } from '@/types/calendar';
@@ -12,6 +13,7 @@ import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
+import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import { Eye, X } from 'lucide-react';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from './UnitPriceMasterModal';
@@ -373,57 +375,57 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // PDFプレビュー生成
+    // lg+ で左右分割レイアウトを有効化
+    const isLgScreen = useMediaQuery('(min-width: 1024px)');
+
+    /** プレビュー用の一時 Estimate/Project/CompanyInfo を構築 */
+    const buildPreviewTempData = useCallback(() => {
+        const tempEstimate: Estimate = {
+            id: 'preview',
+            projectId: projectId || undefined,
+            customerId: customerId || undefined,
+            estimateNumber: estimateNumber || '（自動採番）',
+            title,
+            items,
+            subtotal,
+            tax,
+            total,
+            validUntil: new Date(validUntil),
+            status,
+            notes: notes || undefined,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        const selectedProject = projectMasters.find(p => p.id === projectId);
+        const customer = customers.find(c => c.id === customerId);
+        const tempProject: Project = {
+            id: projectId || 'preview',
+            title: selectedProject?.title || title,
+            startDate: new Date(),
+            category: 'construction' as const,
+            color: '#3B82F6',
+            customer: customer?.name || '',
+            customerHonorific: customer?.honorific || '御中',
+            location: location || '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        const effectiveCompanyInfo: CompanyInfo = companyInfo || {
+            id: '', name: '', postalCode: '', address: '', tel: '', representative: '',
+            createdAt: new Date(), updatedAt: new Date(),
+        };
+        return { tempEstimate, tempProject, effectiveCompanyInfo };
+    }, [projectId, customerId, estimateNumber, title, items, subtotal, tax, total, validUntil, status, notes, location, projectMasters, customers, companyInfo]);
+
+    // PDFプレビュー生成（手動・フルスクリーン用）
     const handlePreview = async () => {
         if (isGeneratingPreview) return;
         setIsGeneratingPreview(true);
         try {
             const { generateEstimatePDFBlobReact } = await import('@/utils/reactPdfGenerator');
-
-            // 一時的な Estimate オブジェクトを構築
-            const tempEstimate: Estimate = {
-                id: 'preview',
-                projectId: projectId || undefined,
-                customerId: customerId || undefined,
-                estimateNumber: estimateNumber || '（自動採番）',
-                title,
-                items,
-                subtotal,
-                tax,
-                total,
-                validUntil: new Date(validUntil),
-                status,
-                notes: notes || undefined,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-
-            // Project オブジェクトを構築
-            const selectedProject = projectMasters.find(p => p.id === projectId);
-            const customer = customers.find(c => c.id === customerId);
-            const tempProject: Project = {
-                id: projectId || 'preview',
-                title: selectedProject?.title || title,
-                startDate: new Date(),
-                category: 'construction' as const,
-                color: '#3B82F6',
-                customer: customer?.name || '',
-                customerHonorific: customer?.honorific || '御中',
-                location: location || '',
-                createdAt: new Date(),
-                updatedAt: new Date(),
-            };
-
-            const effectiveCompanyInfo: CompanyInfo = companyInfo || {
-                id: '', name: '', postalCode: '', address: '', tel: '', representative: '',
-                createdAt: new Date(), updatedAt: new Date(),
-            };
-
+            const { tempEstimate, tempProject, effectiveCompanyInfo } = buildPreviewTempData();
             const url = await generateEstimatePDFBlobReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeDetails: true, creatorName });
-
-            // 前回のURL をクリーンアップ
             if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
-
             setPreviewPdfUrl(url);
             setIsPreviewOpen(true);
         } catch (error) {
@@ -433,6 +435,24 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
             setIsGeneratingPreview(false);
         }
     };
+
+    /** ライブプレビュー用 Blob 生成 */
+    const buildLivePdfBlob = useCallback(async (): Promise<Blob | null> => {
+        // 最低限タイトルが無いとプレビューが空になりがちなのでスキップ
+        if (!title) return null;
+        const { generateEstimatePDFBlobOnlyReact } = await import('@/utils/reactPdfGenerator');
+        const { tempEstimate, tempProject, effectiveCompanyInfo } = buildPreviewTempData();
+        return await generateEstimatePDFBlobOnlyReact(tempEstimate, tempProject, effectiveCompanyInfo, { includeDetails: true, creatorName });
+    }, [title, buildPreviewTempData, creatorName]);
+
+    /** プレビュー再生成のトリガー (seed) */
+    const livePreviewSignature = useMemo(() => {
+        return JSON.stringify({
+            projectId, customerId, estimateNumber, title, location, validUntil, status, notes, constructionPeriod,
+            items, costTotal, creatorName,
+            companyInfoId: companyInfo?.id ?? '',
+        });
+    }, [projectId, customerId, estimateNumber, title, location, validUntil, status, notes, constructionPeriod, items, costTotal, creatorName, companyInfo?.id]);
 
     // 小計金額調整（値引き）
     const handleAdjustSubtotal = (targetSubtotal: number) => {
@@ -493,65 +513,81 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
 
     return (
         <>
-        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === 'Enter' && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="space-y-5 md:space-y-6">
-            <EstimateHeader
-                projectId={projectId} setProjectId={setProjectId}
-                estimateNumber={estimateNumber} setEstimateNumber={setEstimateNumber}
-                title={title} setTitle={setTitle}
-                siteName={siteName} setSiteName={setSiteName}
-                customerId={customerId} setCustomerId={setCustomerId}
-                validUntil={validUntil} setValidUntil={setValidUntil}
-                status={status} setStatus={(v) => setStatus(v as EstimateInput['status'])}
-                projects={projectOptions} customers={customers}
-                onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
-                location={location} setLocation={setLocation}
-                constructionPeriod={constructionPeriod} setConstructionPeriod={setConstructionPeriod}
-            />
+        <form onSubmit={handleSubmit} onKeyDown={(e) => { if (e.key === 'Enter' && e.target instanceof HTMLInputElement) e.preventDefault(); }} className="lg:h-full lg:flex lg:flex-col lg:min-h-0">
+            <div className="lg:flex-1 lg:flex lg:flex-row lg:min-h-0 lg:overflow-hidden">
+                {/* 左カラム: フォーム入力 */}
+                <div className="space-y-5 md:space-y-6 lg:flex-1 lg:basis-3/5 lg:min-w-0 lg:overflow-y-auto lg:px-6 lg:py-4">
+                    <EstimateHeader
+                        projectId={projectId} setProjectId={setProjectId}
+                        estimateNumber={estimateNumber} setEstimateNumber={setEstimateNumber}
+                        title={title} setTitle={setTitle}
+                        siteName={siteName} setSiteName={setSiteName}
+                        customerId={customerId} setCustomerId={setCustomerId}
+                        validUntil={validUntil} setValidUntil={setValidUntil}
+                        status={status} setStatus={(v) => setStatus(v as EstimateInput['status'])}
+                        projects={projectOptions} customers={customers}
+                        onOpenCustomerModal={() => setIsCustomerModalOpen(true)}
+                        location={location} setLocation={setLocation}
+                        constructionPeriod={constructionPeriod} setConstructionPeriod={setConstructionPeriod}
+                    />
 
-            <ItemsEditor
-                items={items}
-                onUpdate={updateItem}
-                onRemove={removeItem}
-                onMoveUp={moveItemUp}
-                onMoveDown={moveItemDown}
-                onReorder={reorderItems}
-                onAddItem={addItem}
-                onAddCategory={addCategory}
-                onAddChildItem={addChildItem}
-                onUpdateChildItem={updateChildItem}
-                onRemoveChildItem={removeChildItem}
-                onMoveChildItem={moveChildItem}
-                onReorderChildItem={reorderChildItems}
-                onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
-                unitPriceMasters={unitPrices}
-                unitPriceCategories={unitPriceCategories}
-                unitPriceSpecifications={unitPriceSpecifications}
-                onSelectMaster={handleSelectMasterForItem}
-                costMasters={costMasters}
-            />
+                    <ItemsEditor
+                        items={items}
+                        onUpdate={updateItem}
+                        onRemove={removeItem}
+                        onMoveUp={moveItemUp}
+                        onMoveDown={moveItemDown}
+                        onReorder={reorderItems}
+                        onAddItem={addItem}
+                        onAddCategory={addCategory}
+                        onAddChildItem={addChildItem}
+                        onUpdateChildItem={updateChildItem}
+                        onRemoveChildItem={removeChildItem}
+                        onMoveChildItem={moveChildItem}
+                        onReorderChildItem={reorderChildItems}
+                        onOpenUnitPriceModal={() => setIsUnitPriceModalOpen(true)}
+                        unitPriceMasters={unitPrices}
+                        unitPriceCategories={unitPriceCategories}
+                        unitPriceSpecifications={unitPriceSpecifications}
+                        onSelectMaster={handleSelectMasterForItem}
+                        costMasters={costMasters}
+                    />
 
-            <ConditionNotes notes={notes} setNotes={setNotes} />
+                    <ConditionNotes notes={notes} setNotes={setNotes} />
 
-            {/* 合計エリア（sticky） */}
-            <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
-                <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustSubtotal={handleAdjustSubtotal} costTotal={costTotal} onCostTotalChange={setCostTotal} costTotalLocked={costTotalLocked} />
+                    {/* 合計エリア（sticky） */}
+                    <div className="sticky bottom-0 z-10 -mx-4 md:-mx-6 px-4 md:px-6 py-3 bg-white border-t border-slate-200 shadow-[0_-2px_8px_rgba(0,0,0,0.06)]">
+                        <SummaryFooter subtotal={subtotal} tax={tax} total={total} onAdjustSubtotal={handleAdjustSubtotal} costTotal={costTotal} onCostTotalChange={setCostTotal} costTotalLocked={costTotalLocked} />
+                    </div>
+
+                    {/* ボタン */}
+                    <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 mb-8 safe-area-bottom">
+                        <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm">
+                            キャンセル
+                        </button>
+                        <button type="button" onClick={handlePreview} disabled={isGeneratingPreview} className="lg:hidden w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm flex items-center justify-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            {isGeneratingPreview ? '生成中...' : 'プレビュー'}
+                        </button>
+                        <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 active:bg-slate-900 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isSubmitting ? '保存中...' : '保存'}
+                        </button>
+                    </div>
+                </div>
+
+                {/* 右カラム: リアルタイム PDF プレビュー (lg+ のみ) */}
+                <div className="hidden lg:flex lg:flex-col lg:basis-2/5 lg:min-w-0 lg:border-l lg:border-slate-200 lg:bg-slate-50">
+                    {isLgScreen && (
+                        <LivePdfPreview
+                            seed={livePreviewSignature}
+                            renderPdf={buildLivePdfBlob}
+                            debounceMs={700}
+                        />
+                    )}
+                </div>
             </div>
 
-            {/* ボタン */}
-            <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 mb-8 safe-area-bottom">
-                <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm">
-                    キャンセル
-                </button>
-                <button type="button" onClick={handlePreview} disabled={isGeneratingPreview} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm flex items-center justify-center gap-2">
-                    <Eye className="w-4 h-4" />
-                    {isGeneratingPreview ? '生成中...' : 'プレビュー'}
-                </button>
-                <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 active:bg-slate-900 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
-                    {isSubmitting ? '保存中...' : '保存'}
-                </button>
-            </div>
-
-            {/* PDFプレビューオーバーレイ */}
+            {/* PDFプレビューオーバーレイ (lg未満の手動プレビューボタン用) */}
             {isPreviewOpen && previewPdfUrl && (
                 <div className="fixed inset-0 z-[80] bg-black/70 flex flex-col">
                     <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
