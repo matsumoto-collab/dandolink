@@ -93,15 +93,15 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
 
     return (
         <>
-            {/* オーバーレイ */}
+            {/* オーバーレイ (モバイル/タブレット時はヘッダー下から) */}
             <div
-                className="fixed inset-0 bg-black/30 z-[80] transition-opacity"
+                className="fixed top-16 lg:top-0 left-0 right-0 bottom-0 bg-black/30 z-[80] transition-opacity"
                 onClick={onClose}
                 aria-hidden="true"
             />
 
-            {/* パネル本体 */}
-            <div className="fixed top-0 right-0 bottom-0 w-full sm:w-[480px] bg-white shadow-2xl z-[90] flex flex-col animate-slide-in-right">
+            {/* パネル本体 (モバイル/タブレット時はヘッダー下から) */}
+            <div className="fixed top-16 lg:top-0 right-0 bottom-0 w-full sm:w-[480px] bg-white shadow-2xl z-[90] flex flex-col animate-slide-in-right">
                 {/* ヘッダー */}
                 <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-slate-50">
                     <div className="flex items-center gap-2">
