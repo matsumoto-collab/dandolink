@@ -10,6 +10,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
 import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 import { setAppBadge } from '@/lib/appBadge';
+import { useNavigation, PageType } from '@/contexts/NavigationContext';
 
 const INITIAL_LIMIT = 5;
 const LOAD_MORE_STEP = 20;
@@ -57,10 +58,21 @@ function formatRelative(iso: string): string {
     return d.toLocaleDateString('ja-JP', { month: 'numeric', day: 'numeric' });
 }
 
+// 通知URLで使われる page 値の許可リスト（ホワイトリスト）。
+// MainContent の VALID_PAGES と一致させる。
+const VALID_PAGES: ReadonlyArray<PageType> = [
+    'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
+    'profit-dashboard', 'estimates', 'site-surveys', 'invoices',
+    'partners', 'customers', 'company',
+    'materials', 'inventory', 'loading-list', 'settings', 'chat',
+    'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar',
+];
+
 export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const { data: session } = useSession();
     const userId = session?.user?.id;
     const router = useRouter();
+    const { setActivePage } = useNavigation();
 
     const [open, setOpen] = useState(false);
     const [view, setView] = useState<'list' | 'settings'>('list');
@@ -241,7 +253,24 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
             fetch(`/api/notifications/${n.id}/read`, { method: 'PATCH' }).catch(() => undefined);
         }
         setOpen(false);
-        if (n.url) router.push(n.url);
+        if (n.url) {
+            // 「現在のページから他ページへの遷移」が router.push 単独だと一部画面で
+            // useSearchParams の更新が遅れて MainContent の useEffect が発火せず
+            // ページが切り替わらないケース（特にスケジュール画面）の対策として、
+            // URL から page パラメータを抽出して NavigationContext を直接更新する。
+            // pmId / scrollTo / view 等は router.push 後の URL から
+            // 各ページの useSearchParams が読み取る。
+            try {
+                const parsed = new URL(n.url, typeof window !== 'undefined' ? window.location.origin : 'http://localhost');
+                const pageParam = parsed.searchParams.get('page');
+                if (pageParam && (VALID_PAGES as ReadonlyArray<string>).includes(pageParam)) {
+                    setActivePage(pageParam as PageType);
+                }
+            } catch {
+                // URL パース失敗時は router.push のみに任せる
+            }
+            router.push(n.url);
+        }
     };
 
     const handleMarkAllRead = async () => {
