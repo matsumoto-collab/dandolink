@@ -19,8 +19,24 @@ export async function GET(req: NextRequest) {
         const { searchParams } = new URL(req.url);
         const limitRaw = Number(searchParams.get('limit') ?? 100);
         const limit = Math.min(Math.max(Number.isFinite(limitRaw) ? limitRaw : 100, 1), 500);
+        const q = (searchParams.get('q') ?? '').trim();
+
+        const where = q
+            ? {
+                  assignment: {
+                      projectMaster: {
+                          OR: [
+                              { name: { contains: q, mode: 'insensitive' as const } },
+                              { title: { contains: q, mode: 'insensitive' as const } },
+                              { customerName: { contains: q, mode: 'insensitive' as const } },
+                          ],
+                      },
+                  },
+              }
+            : undefined;
 
         const histories = await prisma.scheduleChangeHistory.findMany({
+            where,
             orderBy: { changedAt: 'desc' },
             take: limit,
             include: {

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, History, Calendar, Users, RefreshCw } from 'lucide-react';
+import { X, History, Calendar, Users, RefreshCw, Search } from 'lucide-react';
 
 interface HistoryEntry {
     id: string;
@@ -63,12 +63,16 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
     const [histories, setHistories] = useState<HistoryEntry[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [searchInput, setSearchInput] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
-    const fetchHistories = useCallback(async () => {
+    const fetchHistories = useCallback(async (q: string) => {
         setLoading(true);
         setError(null);
         try {
-            const res = await fetch('/api/schedule-history?limit=100', { cache: 'no-store' });
+            const params = new URLSearchParams({ limit: '100' });
+            if (q) params.set('q', q);
+            const res = await fetch(`/api/schedule-history?${params.toString()}`, { cache: 'no-store' });
             if (!res.ok) {
                 const msg = res.status === 403 ? '閲覧権限がありません' : '履歴の取得に失敗しました';
                 setError(msg);
@@ -86,8 +90,14 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
     }, []);
 
     useEffect(() => {
-        if (isOpen) fetchHistories();
-    }, [isOpen, fetchHistories]);
+        if (isOpen) fetchHistories(searchQuery);
+    }, [isOpen, searchQuery, fetchHistories]);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        const t = setTimeout(() => setSearchQuery(searchInput.trim()), 300);
+        return () => clearTimeout(t);
+    }, [searchInput, isOpen]);
 
     if (!isOpen) return null;
 
@@ -113,7 +123,7 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                     </div>
                     <div className="flex items-center gap-1">
                         <button
-                            onClick={fetchHistories}
+                            onClick={() => fetchHistories(searchQuery)}
                             disabled={loading}
                             className="p-1.5 rounded-lg hover:bg-slate-200 text-slate-500 transition-colors disabled:opacity-50"
                             aria-label="再読み込み"
@@ -131,6 +141,29 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                     </div>
                 </div>
 
+                {/* 検索 */}
+                <div className="px-5 py-2.5 border-b border-slate-200 bg-white">
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                        <input
+                            type="text"
+                            value={searchInput}
+                            onChange={(e) => setSearchInput(e.target.value)}
+                            placeholder="案件名・顧客名で検索"
+                            className="w-full pl-9 pr-9 py-2 text-sm border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        />
+                        {searchInput && (
+                            <button
+                                onClick={() => setSearchInput('')}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-slate-100 text-slate-400"
+                                aria-label="検索クリア"
+                            >
+                                <X className="w-3.5 h-3.5" />
+                            </button>
+                        )}
+                    </div>
+                </div>
+
                 {/* 本文 */}
                 <div className="flex-1 overflow-y-auto">
                     {error && (
@@ -144,7 +177,9 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                     )}
 
                     {!error && !loading && histories.length === 0 && (
-                        <div className="p-8 text-center text-slate-400 text-sm">変更履歴はまだありません</div>
+                        <div className="p-8 text-center text-slate-400 text-sm">
+                            {searchQuery ? '該当する変更履歴はありません' : '変更履歴はまだありません'}
+                        </div>
                     )}
 
                     <ul className="divide-y divide-slate-100">
