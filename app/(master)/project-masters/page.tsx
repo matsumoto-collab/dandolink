@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import React, { Suspense, useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
@@ -38,7 +38,9 @@ const InvoiceDetailModal = dynamic(
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 
-export default function ProjectMasterListPage() {
+// useSearchParams() を含むため、ビルド時のプリレンダリングで Suspense 境界が必要
+// （Next.js App Router の制約: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout）
+function ProjectMasterListPageContent() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById, fetchProjectMasters } = useProjectMasters();
     const { addEstimate, updateEstimate, deleteEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
     const { addInvoice, updateInvoice, deleteInvoice, ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
@@ -1091,5 +1093,13 @@ export default function ProjectMasterListPage() {
                 </div>
             </div>
         </>
+    );
+}
+
+export default function ProjectMasterListPage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><Loader2 className="w-8 h-8 animate-spin text-slate-400" /></div>}>
+            <ProjectMasterListPageContent />
+        </Suspense>
     );
 }
