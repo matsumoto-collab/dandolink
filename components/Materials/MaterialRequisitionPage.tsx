@@ -6,6 +6,8 @@ import { useSession } from 'next-auth/react';
 import { Plus, FileText, ChevronDown, ChevronRight, Minus, Copy, Trash2, Printer, Search, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
+import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { MaterialCategoryWithItems, MaterialItemWithStock, MaterialRequisition } from '@/types/material';
 
 // 日付フォーマット
@@ -47,7 +49,7 @@ export default function MaterialRequisitionPage() {
     const { data: session } = useSession();
 
     const [view, setView] = useState<'list' | 'create'>('list');
-    const [projectMasters, setProjectMasters] = useState<Array<{ id: string; title: string; name: string | null }>>([]);
+    const [projectMasters, setProjectMasters] = useState<Array<{ id: string; title: string; name: string | null; customerName?: string | null; customerShortName?: string | null }>>([]);
     const [foremen, setForemen] = useState<Array<{ id: string; displayName: string }>>([]);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -499,6 +501,60 @@ export default function MaterialRequisitionPage() {
         return rows;
     }, [categories, formQuantities, filledCount]);
 
+    // lg+ 左右分割レイアウト
+    const isLgScreen = useMediaQuery('(min-width: 1024px)');
+
+    // categoryName + itemName → MaterialItem.id の高速マップ
+    const itemByKey = useMemo(() => {
+        const map = new Map<string, string>();
+        for (const cat of categories) {
+            for (const item of cat.items || []) {
+                map.set(`${cat.name}|${item.name}`, item.id);
+            }
+        }
+        return map;
+    }, [categories]);
+
+    // PDF プレビュー用: セルキー → 数量を引く関数 (Phase 1: 全数量を車両0列目に表示)
+    const slipGetQty = useCallback((categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2): number => {
+        if (vehicleIndex !== 0) return 0;
+        const itemId = itemByKey.get(`${categoryName}|${itemName}`);
+        if (!itemId) return 0;
+        return formQuantities[itemId] || 0;
+    }, [itemByKey, formQuantities]);
+
+    // 選択中の案件情報（プレビュー用）
+    const selectedProject = useMemo(() => {
+        return projectMasters.find(p => p.id === formProjectId) || null;
+    }, [projectMasters, formProjectId]);
+
+    // ライブプレビュー用 PDF Blob 生成
+    const buildSlipPdfBlob = useCallback(async (): Promise<Blob | null> => {
+        // 案件/職長未選択でも雛形だけは出すが、空欄が多い場合はスキップ
+        if (!formProjectId && Object.keys(formQuantities).length === 0) return null;
+        const { generateMaterialRequisitionSlipPDFBlob } = await import('@/utils/reactPdfGenerator');
+        return await generateMaterialRequisitionSlipPDFBlob({
+            foremanName: formForemanName,
+            customerName: selectedProject?.customerShortName || selectedProject?.customerName || '',
+            siteName: selectedProject?.name || selectedProject?.title || '',
+            assemblyDate: '',     // Phase 1: 案件マスタからの取得は省略
+            demolitionDate: '',
+            vehicles: [formVehicleInfo, '', ''],
+            getQty: slipGetQty,
+        });
+    }, [formProjectId, formQuantities, formForemanName, selectedProject, formVehicleInfo, slipGetQty]);
+
+    // プレビュー再生成トリガー (seed)
+    const livePreviewSignature = useMemo(() => {
+        return JSON.stringify({
+            formProjectId, formForemanName, formVehicleInfo,
+            quantities: formQuantities,
+            // selectedProject の必要部分のみ
+            customer: selectedProject?.customerShortName || selectedProject?.customerName || '',
+            site: selectedProject?.name || selectedProject?.title || '',
+        });
+    }, [formProjectId, formForemanName, formVehicleInfo, formQuantities, selectedProject]);
+
     // 数量入力UI（A1/A4/A5を適用）
     const renderQuantityControl = (item: MaterialItemWithStock) => {
         const qty = formQuantities[item.id] || 0;
@@ -693,8 +749,8 @@ export default function MaterialRequisitionPage() {
                     </div>
                 ) : (
                     /* =================== CREATE VIEW =================== */
-                    <div className="bg-white rounded-xl shadow-lg border border-slate-200">
-                        <div className="p-3 md:p-6 space-y-4">
+                    <div className="bg-white rounded-xl shadow-lg border border-slate-200 lg:flex lg:flex-row lg:items-stretch">
+                        <div className="p-3 md:p-6 space-y-4 lg:flex-1 lg:basis-3/5 lg:min-w-0">
                             {/* A6: 自動保存インジケータ */}
                             {(autoSaveStatus !== 'idle') && (
                                 <div className="flex justify-end -mt-1">
@@ -981,6 +1037,19 @@ export default function MaterialRequisitionPage() {
                                 >
                                     {isSaving ? '保存中...' : '確定して保存'}
                                 </button>
+                            </div>
+                        </div>
+
+                        {/* 右カラム: リアルタイム PDF プレビュー (lg+ のみ) */}
+                        <div className="hidden lg:flex lg:flex-col lg:basis-2/5 lg:min-w-0 lg:border-l lg:border-slate-200 lg:bg-slate-50">
+                            <div className="lg:sticky lg:top-0 lg:h-[calc(100vh-200px)]">
+                                {isLgScreen && (
+                                    <LivePdfPreview
+                                        seed={livePreviewSignature}
+                                        renderPdf={buildSlipPdfBlob}
+                                        debounceMs={700}
+                                    />
+                                )}
                             </div>
                         </div>
                     </div>

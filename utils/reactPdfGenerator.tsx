@@ -3,6 +3,7 @@
 import { pdf } from '@react-pdf/renderer';
 import { EstimatePDF } from '@/components/pdf/EstimatePDF';
 import { InvoicePDF } from '@/components/pdf/InvoicePDF';
+import { MaterialRequisitionSlipPDF, type MaterialRequisitionSlipPDFProps } from '@/components/pdf/MaterialRequisitionSlipPDF';
 import { Estimate } from '@/types/estimate';
 import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
@@ -206,4 +207,13 @@ export async function generateInvoicePDFBlobOnlyReact(
             includeDetails={options.includeDetails ?? false}
         />
     ).toBlob();
+}
+
+/**
+ * Generate Material Requisition Slip PDF as raw Blob (for live preview)
+ */
+export async function generateMaterialRequisitionSlipPDFBlob(
+    props: MaterialRequisitionSlipPDFProps
+): Promise<Blob> {
+    return await pdf(<MaterialRequisitionSlipPDF {...props} />).toBlob();
 }
