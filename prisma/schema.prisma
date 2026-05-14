@@ -129,6 +129,7 @@ model ProjectAssignment {
   assignmentVehicles        AssignmentVehicle[]
   assignmentWorkers         AssignmentWorker[]
   dailyReportWorkItems      DailyReportWorkItem[]
+  scheduleChangeHistories   ScheduleChangeHistory[]
   projectMaster             ProjectMaster         @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
@@ -139,6 +140,22 @@ model ProjectAssignment {
   @@index([date], map: "idx_assignment_date")
   @@index([assignedEmployeeId, date], map: "idx_assignment_employee_date")
   @@index([projectMasterId], map: "idx_assignment_project_master")
+  @@schema("public")
+}
+
+model ScheduleChangeHistory {
+  id            String            @id @default(uuid())
+  assignmentId  String
+  changedById   String
+  changedAt     DateTime          @default(now())
+  changeType    String
+  previousValue String
+  newValue      String
+  assignment    ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([changedAt])
+  @@index([assignmentId])
+  @@index([changedById])
   @@schema("public")
 }
 

@@ -63,9 +63,12 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const body = await req.json();
 
-        // 楽観的ロック または foreman2 のオーナーシップ確認のため現在値をロード
+        // 楽観的ロック / foreman2オーナーシップ確認 / 変更履歴記録のため現在値をロード
+        // 履歴記録対象: date, assignedEmployeeId 変更時
+        const willRecordHistory =
+            (body.date !== undefined || body.assignedEmployeeId !== undefined) && !isForeman2;
         let current: Awaited<ReturnType<typeof prisma.projectAssignment.findUnique>> = null;
-        if (body.expectedUpdatedAt || isForeman2) {
+        if (body.expectedUpdatedAt || isForeman2 || willRecordHistory) {
             current = await prisma.projectAssignment.findUnique({
                 where: { id },
                 include: { projectMaster: true },
@@ -131,6 +134,45 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             data: updateData,
             include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
         });
+
+        // 変更履歴記録: date / assignedEmployeeId の変更があったら記録
+        if (current && willRecordHistory) {
+            const historyEntries: Array<{
+                assignmentId: string;
+                changedById: string;
+                changeType: string;
+                previousValue: string;
+                newValue: string;
+            }> = [];
+
+            if (body.date !== undefined) {
+                const prevIso = current.date.toISOString();
+                const newIso = new Date(body.date).toISOString();
+                if (prevIso !== newIso) {
+                    historyEntries.push({
+                        assignmentId: id,
+                        changedById: session!.user.id,
+                        changeType: 'date',
+                        previousValue: prevIso,
+                        newValue: newIso,
+                    });
+                }
+            }
+
+            if (body.assignedEmployeeId !== undefined && body.assignedEmployeeId !== current.assignedEmployeeId) {
+                historyEntries.push({
+                    assignmentId: id,
+                    changedById: session!.user.id,
+                    changeType: 'foreman',
+                    previousValue: current.assignedEmployeeId,
+                    newValue: body.assignedEmployeeId,
+                });
+            }
+
+            if (historyEntries.length > 0) {
+                await prisma.scheduleChangeHistory.createMany({ data: historyEntries });
+            }
+        }
 
         return NextResponse.json(formatAssignment(assignment));
     } catch (error) {
