@@ -6,7 +6,8 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
 import { useSession } from 'next-auth/react';
 import { ChevronRight } from 'lucide-react';
-import ScheduleViewTabs, { ScheduleView } from './Schedule/ScheduleViewTabs';
+import { ScheduleView } from './Schedule/ScheduleViewTabs';
+import ScheduleToolbar from './Schedule/ScheduleToolbar';
 
 const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
@@ -152,6 +153,10 @@ export default function MainContent() {
     const handleNavigationReady = useCallback((nav: typeof calendarNav) => {
         setCalendarNav(nav);
     }, []);
+    const [openSearch, setOpenSearch] = useState<(() => void) | null>(null);
+    const handleSearchReady = useCallback((opener: () => void) => {
+        setOpenSearch(() => opener);
+    }, []);
 
     const userRole = session?.user?.role;
     const userId = session?.user?.id;
@@ -224,13 +229,22 @@ export default function MainContent() {
                 // Schedule management (calendar/assignment view)
                 return (
                     <>
-                        <ScheduleViewTabs
+                        <ScheduleToolbar
                             activeView={scheduleView}
                             onViewChange={setScheduleView}
+                            onPrevWeek={calendarNav?.goToPreviousWeek}
+                            onNextWeek={calendarNav?.goToNextWeek}
+                            onPrevDay={calendarNav?.goToPreviousDay}
+                            onNextDay={calendarNav?.goToNextDay}
+                            onToday={calendarNav?.goToToday}
+                            onOpenSearch={scheduleView === 'calendar' && openSearch ? openSearch : undefined}
                         />
                         <div className="flex-1 min-h-0">
                             {scheduleView === 'calendar' ? (
-                                <WeeklyCalendar onNavigationReady={handleNavigationReady} />
+                                <WeeklyCalendar
+                                    onNavigationReady={handleNavigationReady}
+                                    onSearchReady={handleSearchReady}
+                                />
                             ) : scheduleView === 'overview' ? (
                                 <OverviewCalendar onNavigationReady={handleNavigationReady} />
                             ) : (
@@ -337,7 +351,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${['schedule', 'estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'site-surveys', 'project-masters', 'reports', 'invoices', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0 animate-page-enter`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

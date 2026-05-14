@@ -21,8 +21,6 @@ interface OverviewCalendarViewProps {
 
 // Min row height in px — rows won't shrink below this
 const MIN_ROW_HEIGHT = 32;
-// Fixed heights for header area (nav bar + thead rows)
-const NAV_HEIGHT = 36;
 
 function MiniCard({ event }: { event: CalendarEvent }) {
     return (
@@ -63,34 +61,11 @@ export default function OverviewCalendarView({
     goToToday: _goToToday,
 }: OverviewCalendarViewProps) {
     const containerRef = useRef<HTMLDivElement>(null);
+    // ナビ系 props はもう ScheduleToolbar に集約されたため使わない（互換のため受け取りはする）
+    void goToPreviousWeek; void goToNextWeek; void goToPreviousDay; void goToNextDay;
 
     return (
         <div className="h-full flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
-            {/* Header with nav */}
-            <div className="px-2 py-1 bg-slate-50 border-b border-slate-200 flex-shrink-0 flex items-center justify-between" style={{ height: NAV_HEIGHT }}>
-                {goToPreviousWeek && goToPreviousDay ? (
-                    <div className="flex items-center">
-                        <button onClick={goToPreviousWeek} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1週間前">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
-                        </button>
-                        <button onClick={goToPreviousDay} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1日前">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                        </button>
-                    </div>
-                ) : <div />}
-                <span className="text-xs text-slate-500">俯瞰ビュー</span>
-                {goToNextDay && goToNextWeek ? (
-                    <div className="flex items-center">
-                        <button onClick={goToNextDay} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1日後">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                        </button>
-                        <button onClick={goToNextWeek} className="p-1 rounded-lg hover:bg-slate-200 text-slate-600 transition-colors" aria-label="1週間後">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
-                        </button>
-                    </div>
-                ) : <div />}
-            </div>
-
             {/* Table content — fills remaining space */}
             <div
                 ref={containerRef}

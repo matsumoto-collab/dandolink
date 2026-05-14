@@ -48,9 +48,10 @@ interface WeeklyCalendarProps {
     partnerMode?: boolean;
     partnerId?: string;
     onNavigationReady?: (nav: CalendarNavigation) => void;
+    onSearchReady?: (openSearch: () => void) => void;
 }
 
-export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady }: WeeklyCalendarProps) {
+export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady, onSearchReady }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
     const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { getTotalMembersForDate } = useMasterData();
@@ -209,6 +210,13 @@ useEffect(() => { setIsMounted(true); }, []);
             onNavigationReady({ goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday });
         }
     }, [onNavigationReady, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday]);
+
+    // 検索オープナーを親に公開（ScheduleToolbar から呼ばれる）
+    useEffect(() => {
+        if (onSearchReady) {
+            onSearchReady(handleOpenSearch);
+        }
+    }, [onSearchReady, handleOpenSearch]);
 
     // 表示週の前後1週間のデータをフェッチ（デバウンス付き：週連打時に中間週のフェッチをスキップ）
     const fetchTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -594,15 +602,9 @@ useEffect(() => { setIsMounted(true); }, []);
                     handleOpenDispatchModal={isReadOnly ? undefined : handleOpenDispatchModal}
                     handleCopyEvent={isReadOnly ? undefined : handleCopyEvent}
                     handleMoveToCell={isReadOnly ? undefined : handleMoveToCell}
-                    handleOpenSearch={partnerMode ? undefined : handleOpenSearch}
                     highlightedEventId={highlightedEventId}
                     getMemberAdjustment={getMemberAdjustmentCb}
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
-                    goToPreviousWeek={goToPreviousWeek}
-                    goToNextWeek={goToNextWeek}
-                    goToPreviousDay={goToPreviousDay}
-                    goToNextDay={goToNextDay}
-                    goToToday={goToToday}
                     hideRemarks={partnerMode}
                     hideForemanSelector={partnerMode}
                 />
