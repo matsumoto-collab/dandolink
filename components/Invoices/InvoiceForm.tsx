@@ -1,20 +1,26 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useEstimates } from '@/hooks/useEstimates';
-import { InvoiceInput, InvoiceItem, BillingTitle } from '@/types/invoice';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Invoice, InvoiceInput, InvoiceItem, BillingTitle } from '@/types/invoice';
+import { Project } from '@/types/calendar';
+import { CompanyInfo } from '@/types/company';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
+import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from '../Estimates/UnitPriceMasterModal';
 import ItemsEditor from '../Estimates/ItemsEditor';
 import SummaryFooter from '../Estimates/SummaryFooter';
 import ConditionNotes from '../Estimates/ConditionNotes';
 import InvoiceHeader from './InvoiceHeader';
-import { FileDown, Plus, List } from 'lucide-react';
+import { FileDown, Plus, List, Eye, X } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 interface InvoiceFormProps {
     initialData?: Partial<InvoiceInput>;
@@ -303,6 +309,127 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // lg+ で左右分割レイアウトを有効化
+    const isLgScreen = useMediaQuery('(min-width: 1024px)');
+
+    // PDFプレビュー用
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+    const [previewPdfUrl, setPreviewPdfUrl] = useState('');
+    const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+    const [companyInfo, setCompanyInfo] = useState<CompanyInfo | null>(null);
+
+    // 会社情報をフェッチ（プレビュー用）
+    useEffect(() => {
+        fetch('/api/master-data/company').then(r => r.json()).then(data => {
+            if (data) setCompanyInfo(data);
+        }).catch(() => {});
+    }, []);
+
+    // プレビューURLのクリーンアップ
+    useEffect(() => {
+        return () => {
+            if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+        };
+    }, [previewPdfUrl]);
+
+    /** プレビュー用の一時 Invoice/Project/CompanyInfo を構築 */
+    const buildPreviewTempData = useCallback(() => {
+        const customer = customers.find(c => c.id === customerId);
+        const firstPmId = selectedProjectIds[0];
+        const firstPm = projectMasters.find(p => p.id === firstPmId);
+
+        // 複数案件ヘッダー用
+        const invoiceProjectMasters = selectedProjectIds
+            .map(pmId => {
+                const pm = projectMasters.find(p => p.id === pmId);
+                return pm ? { id: pm.id, title: pm.title } : null;
+            })
+            .filter((x): x is { id: string; title: string } => x !== null);
+
+        const tempInvoice: Invoice = {
+            id: 'preview',
+            projectId: firstPmId,
+            customerId: customerId || undefined,
+            invoiceNumber: invoiceNumber || '（自動採番）',
+            title: title || '請求書',
+            items: allItems.map(it => it.projectMasterId === '_none' ? { ...it, projectMasterId: undefined } : it),
+            subtotal,
+            tax,
+            total,
+            dueDate: new Date(dueDate),
+            status,
+            paidDate: paidDate ? new Date(paidDate) : undefined,
+            notes: notes || undefined,
+            createdAt: issueDate ? new Date(issueDate) : new Date(),
+            updatedAt: new Date(),
+            projectMasterIds: selectedProjectIds.length > 0 ? selectedProjectIds : undefined,
+            projectMasters: invoiceProjectMasters.length > 0 ? invoiceProjectMasters : undefined,
+        };
+
+        const locationParts = firstPm
+            ? [firstPm.prefecture, firstPm.city, firstPm.location].filter(Boolean).join('')
+            : '';
+        const tempProject: Project & { customerPostalCode?: string; customerAddress?: string } = {
+            id: firstPmId || 'preview',
+            title: firstPm?.title || title,
+            startDate: new Date(),
+            category: 'construction' as const,
+            color: '#3B82F6',
+            customer: customer?.name || '',
+            customerHonorific: customer?.honorific || '御中',
+            location: locationParts,
+            customerPostalCode: customer?.postalCode || '',
+            customerAddress: customer?.address || '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+
+        const effectiveCompanyInfo: CompanyInfo = companyInfo || {
+            id: '', name: '', postalCode: '', address: '', tel: '', representative: '',
+            createdAt: new Date(), updatedAt: new Date(),
+        };
+
+        return { tempInvoice, tempProject: tempProject as Project, effectiveCompanyInfo };
+    }, [customers, customerId, selectedProjectIds, projectMasters, invoiceNumber, title, allItems, subtotal, tax, total, dueDate, status, paidDate, notes, issueDate, companyInfo]);
+
+    // PDFプレビュー生成（手動・フルスクリーン用）
+    const handlePreview = async () => {
+        if (isGeneratingPreview) return;
+        setIsGeneratingPreview(true);
+        try {
+            const { generateInvoicePDFBlobReact } = await import('@/utils/reactPdfGenerator');
+            const { tempInvoice, tempProject, effectiveCompanyInfo } = buildPreviewTempData();
+            const url = await generateInvoicePDFBlobReact(tempInvoice, tempProject, effectiveCompanyInfo, tempInvoice.projectMasters, { includeCopy: true, includeDetails: false });
+            if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+            setPreviewPdfUrl(url);
+            setIsPreviewOpen(true);
+        } catch (error) {
+            logger.error('プレビュー生成エラー:', error);
+            toast.error('プレビューの生成に失敗しました');
+        } finally {
+            setIsGeneratingPreview(false);
+        }
+    };
+
+    /** ライブプレビュー用 Blob 生成 */
+    const buildLivePdfBlob = useCallback(async (): Promise<Blob | null> => {
+        // 最低限タイトルが無いとプレビューが空になりがちなのでスキップ
+        if (!title) return null;
+        if (allItems.length === 0) return null;
+        const { generateInvoicePDFBlobOnlyReact } = await import('@/utils/reactPdfGenerator');
+        const { tempInvoice, tempProject, effectiveCompanyInfo } = buildPreviewTempData();
+        return await generateInvoicePDFBlobOnlyReact(tempInvoice, tempProject, effectiveCompanyInfo, tempInvoice.projectMasters, { includeCopy: true, includeDetails: false });
+    }, [title, allItems.length, buildPreviewTempData]);
+
+    /** プレビュー再生成のトリガー (seed) */
+    const livePreviewSignature = useMemo(() => {
+        return JSON.stringify({
+            customerId, selectedProjectIds, invoiceNumber, title, dueDate, issueDate, status, paidDate, notes,
+            items: allItems,
+            companyInfoId: companyInfo?.id ?? '',
+        });
+    }, [customerId, selectedProjectIds, invoiceNumber, title, dueDate, issueDate, status, paidDate, notes, allItems, companyInfo?.id]);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!title) { toast.error('タイトルは必須です'); return; }
@@ -336,7 +463,10 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const [billingDropdownPmId, setBillingDropdownPmId] = useState<string | null>(null);
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-5 md:space-y-6">
+        <form onSubmit={handleSubmit} className="lg:h-full lg:flex lg:flex-col lg:min-h-0">
+            <div className="lg:flex-1 lg:flex lg:flex-row lg:min-h-0 lg:overflow-hidden">
+                {/* 左カラム: フォーム入力 */}
+                <div className="space-y-5 md:space-y-6 lg:flex-1 lg:basis-3/5 lg:min-w-0 lg:overflow-y-auto lg:px-6 lg:py-4">
             <InvoiceHeader
                 customerId={customerId} setCustomerId={setCustomerId}
                 invoiceNumber={invoiceNumber} setInvoiceNumber={setInvoiceNumber}
@@ -554,10 +684,52 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm">
                     キャンセル
                 </button>
+                <button type="button" onClick={handlePreview} disabled={isGeneratingPreview} className="lg:hidden w-full sm:w-auto px-6 py-3 md:py-2.5 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 active:bg-slate-100 transition-colors text-base md:text-sm flex items-center justify-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    {isGeneratingPreview ? '生成中...' : 'プレビュー'}
+                </button>
                 <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 active:bg-slate-900 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                     {isSubmitting ? '保存中...' : '保存'}
                 </button>
             </div>
+                </div>
+
+                {/* 右カラム: リアルタイム PDF プレビュー (lg+ のみ) */}
+                <div className="hidden lg:flex lg:flex-col lg:basis-2/5 lg:min-w-0 lg:border-l lg:border-slate-200 lg:bg-slate-50">
+                    {isLgScreen && (
+                        <LivePdfPreview
+                            seed={livePreviewSignature}
+                            renderPdf={buildLivePdfBlob}
+                            debounceMs={700}
+                        />
+                    )}
+                </div>
+            </div>
+
+            {/* PDFプレビューオーバーレイ (lg未満の手動プレビューボタン用) */}
+            {isPreviewOpen && previewPdfUrl && (
+                <div className="fixed inset-0 z-[80] bg-black/70 flex flex-col">
+                    <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+                        <h3 className="text-lg font-semibold text-slate-800">プレビュー</h3>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setIsPreviewOpen(false);
+                                if (previewPdfUrl) URL.revokeObjectURL(previewPdfUrl);
+                                setPreviewPdfUrl('');
+                            }}
+                            className="p-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+                    <div className="flex-1 overflow-auto bg-slate-100 flex justify-center">
+                        <div className="w-full max-w-5xl h-full">
+                            <InlinePdfViewer url={previewPdfUrl} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <CustomerModal isOpen={isCustomerModalOpen} onClose={() => setIsCustomerModalOpen(false)}
                 onSubmit={(data) => { addCustomer(data); setIsCustomerModalOpen(false); }} title="新規顧客登録" />

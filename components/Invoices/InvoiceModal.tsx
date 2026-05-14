@@ -33,7 +33,7 @@ export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }:
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-6xl lg:mx-4 lg:max-h-[90vh]"
+                className="relative bg-white flex flex-col w-full h-full lg:h-[92vh] flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-[1800px] lg:w-[96vw] lg:mx-4 lg:max-h-[92vh]"
             >
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between lg:rounded-t-lg">
@@ -54,7 +54,7 @@ export default function InvoiceModal({ isOpen, onClose, onSubmit, initialData }:
                 </div>
 
                 {/* コンテンツ */}
-                <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 md:px-6 pt-4 pb-8 safe-area-bottom">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 md:px-6 pt-4 pb-8 safe-area-bottom lg:overflow-hidden lg:p-0 lg:pb-0 lg:min-h-0">
                     <InvoiceForm
                         initialData={initialData}
                         onSubmit={handleSubmit}

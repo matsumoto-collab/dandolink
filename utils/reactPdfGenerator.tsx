@@ -185,3 +185,25 @@ export async function generateInvoicePDFBlobReact(
         throw error;
     }
 }
+
+/**
+ * Generate Invoice PDF as raw Blob (for live preview that manages its own URL lifecycle)
+ */
+export async function generateInvoicePDFBlobOnlyReact(
+    invoice: Invoice,
+    project: Project,
+    companyInfo: CompanyInfo,
+    projectMasters?: Array<{ id: string; title: string }>,
+    options: { includeCopy?: boolean; includeDetails?: boolean } = {}
+): Promise<Blob> {
+    return await pdf(
+        <InvoicePDF
+            invoice={invoice}
+            project={project}
+            companyInfo={companyInfo}
+            projectMasters={projectMasters || invoice.projectMasters}
+            includeCopy={options.includeCopy ?? true}
+            includeDetails={options.includeDetails ?? false}
+        />
+    ).toBlob();
+}
