@@ -77,12 +77,14 @@ function MapContent({
     gpsPosition,
     addressLabel,
     panTarget,
+    mapType,
 }: {
     selected: { lat: number; lng: number };
     setSelected: (pos: { lat: number; lng: number }) => void;
     gpsPosition: { lat: number; lng: number } | null;
     addressLabel: string;
     panTarget?: { lat: number; lng: number };
+    mapType: 'roadmap' | 'hybrid';
 }) {
     const handleMapClick = useCallback((e: MapMouseEvent) => {
         const latLng = e.detail.latLng;
@@ -99,6 +101,7 @@ function MapContent({
         <Map
             defaultCenter={selected}
             defaultZoom={DEFAULT_ZOOM}
+            mapTypeId={mapType}
             gestureHandling="greedy"
             disableDefaultUI
             mapId={MAP_ID}
@@ -148,6 +151,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
     const [isGettingGps, setIsGettingGps] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
+    const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('hybrid');
     const reverseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // モーダルオープン時に初期位置をリセット
@@ -159,6 +163,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         setAddressLabel('');
         setParsedAddress({ prefecture: '', city: '', location: '' });
         setSearchQuery('');
+        setMapType('hybrid');
     }, [isOpen, initialPosition]);
 
     // ピン移動 → 逆ジオコーディング（デバウンス）
@@ -296,13 +301,32 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
                         gpsPosition={gpsPosition}
                         addressLabel={addressLabel}
                         panTarget={panTarget}
+                        mapType={mapType}
                     />
                 </APIProvider>
 
                 <CurrentLocationFab onClick={handleGetCurrentLocation} />
 
+                {/* 地図/航空写真 切替 */}
+                <div className="absolute top-4 right-4 z-30 flex rounded-lg overflow-hidden shadow-lg ring-1 ring-slate-200">
+                    <button
+                        type="button"
+                        onClick={() => setMapType('roadmap')}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${mapType === 'roadmap' ? 'bg-slate-700 text-white' : 'bg-white/90 text-slate-600 hover:bg-white'}`}
+                    >
+                        地図
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMapType('hybrid')}
+                        className={`px-3 py-1.5 text-xs font-medium transition-colors ${mapType === 'hybrid' ? 'bg-slate-700 text-white' : 'bg-white/90 text-slate-600 hover:bg-white'}`}
+                    >
+                        航空写真
+                    </button>
+                </div>
+
                 {(isReverseGeocoding || isGettingGps) && (
-                    <div className="absolute top-4 right-4 z-20 bg-white/90 px-3 py-1.5 rounded-full shadow flex items-center gap-1.5 text-xs text-slate-600">
+                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white/90 px-3 py-1.5 rounded-full shadow flex items-center gap-1.5 text-xs text-slate-600">
                         <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         {isGettingGps ? '現在地取得中...' : '住所取得中...'}
                     </div>
