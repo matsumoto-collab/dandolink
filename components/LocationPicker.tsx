@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { APIProvider, Map, MapCameraChangedEvent, useMap } from '@vis.gl/react-google-maps';
 
 interface LocationPickerProps {
@@ -36,7 +36,6 @@ function MapController({ forcedCenter }: { forcedCenter?: { lat: number; lng: nu
 
 export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }: LocationPickerProps) {
     const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('hybrid');
 
     const handleCameraChanged = useCallback(
         (e: MapCameraChangedEvent) => {
@@ -55,32 +54,12 @@ export function LocationPicker({ defaultCenter, forcedCenter, onLocationChange }
                 <Map
                     defaultCenter={defaultCenter}
                     defaultZoom={DEFAULT_ZOOM}
-                    mapTypeId={mapType}
-                    mapTypeControl={false}
                     gestureHandling="cooperative"
                     disableDefaultUI={false}
                     onCameraChanged={handleCameraChanged}
                 >
                     <MapController forcedCenter={forcedCenter} />
                 </Map>
-
-                {/* 地図/航空写真 切替 */}
-                <div className="absolute top-2 right-2 z-20 flex rounded-lg overflow-hidden shadow-sm ring-1 ring-slate-200">
-                    <button
-                        type="button"
-                        onClick={() => setMapType('roadmap')}
-                        className={`px-3 py-1 text-xs font-medium transition-colors ${mapType === 'roadmap' ? 'bg-slate-700 text-white' : 'bg-white/90 text-slate-600 hover:bg-white'}`}
-                    >
-                        地図
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMapType('hybrid')}
-                        className={`px-3 py-1 text-xs font-medium transition-colors ${mapType === 'hybrid' ? 'bg-slate-700 text-white' : 'bg-white/90 text-slate-600 hover:bg-white'}`}
-                    >
-                        航空写真
-                    </button>
-                </div>
 
                 {/* 中央固定ピン */}
                 <div
