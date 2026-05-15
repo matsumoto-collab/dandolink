@@ -16,6 +16,12 @@ export interface NotifyInput {
     pushTag?: string;
     /** pushのrequireInteraction */
     requireInteraction?: boolean;
+    /**
+     * 通知に紐づく案件マスター ID。scope='mine' の受信者を
+     * ProjectMaster.managerIds で絞り込むために使う。
+     * 省略時は scope='mine' でも絞り込みを行わない（全員に届く）。
+     */
+    projectMasterId?: string;
 }
 
 export interface NotifyResult {
@@ -38,11 +44,55 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
     const type = input.type || 'general';
     const now = new Date();
 
+    // 個人通知設定によるフィルタリング
+    //   - 設定が無いユーザー: enabled=true, scope='all' とみなす（既存挙動互換）
+    //   - enabled=false: 除外
+    //   - scope='mine' & projectMasterId 指定あり: ProjectMaster.managerIds に含まれる場合のみ通す
+    //   - scope='mine' & projectMasterId 指定なし: 絞り込みできないので通す（chat-message 等）
+    let filteredUserIds = uniqueUserIds;
+    try {
+        const prefs = await prisma.userNotificationPreference.findMany({
+            where: { userId: { in: uniqueUserIds }, type },
+            select: { userId: true, enabled: true, scope: true },
+        });
+        const prefByUser = new Map(prefs.map((p) => [p.userId, p]));
+
+        filteredUserIds = uniqueUserIds.filter((uid) => {
+            const p = prefByUser.get(uid);
+            if (!p) return true; // 未設定 = 有効
+            return p.enabled;
+        });
+
+        if (input.projectMasterId && filteredUserIds.length > 0) {
+            const needsScopeCheck = filteredUserIds.some(
+                (uid) => prefByUser.get(uid)?.scope === 'mine'
+            );
+            if (needsScopeCheck) {
+                const pm = await prisma.projectMaster.findUnique({
+                    where: { id: input.projectMasterId },
+                    select: { managerIds: true },
+                });
+                const managerSet = new Set(pm?.managerIds ?? []);
+                filteredUserIds = filteredUserIds.filter((uid) => {
+                    const scope = prefByUser.get(uid)?.scope;
+                    if (scope !== 'mine') return true;
+                    return managerSet.has(uid);
+                });
+            }
+        }
+    } catch (e) {
+        logger.error('[Notify] preference filter failed (fallback: send to all)', e);
+    }
+
+    if (filteredUserIds.length === 0) {
+        return { notificationIds: [], push: { sent: 0, removed: 0, failed: 0 } };
+    }
+
     // DBレコード作成（同一payloadで各ユーザー分）
     let notificationIds: string[] = [];
     try {
         const created = await prisma.$transaction(
-            uniqueUserIds.map((userId) =>
+            filteredUserIds.map((userId) =>
                 prisma.notification.create({
                     data: {
                         userId,
@@ -71,7 +121,7 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
         requireInteraction: input.requireInteraction,
         data: { type, ...(input.data || {}) },
     };
-    const push = await sendPushToUsers(uniqueUserIds, pushPayload);
+    const push = await sendPushToUsers(filteredUserIds, pushPayload);
 
     return { notificationIds, push };
 }

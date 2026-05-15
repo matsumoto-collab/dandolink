@@ -258,6 +258,7 @@ export async function POST(req: NextRequest) {
                     body: `顧客: ${customerDisplay} / 登録者: ${creatorName} / ${timeStr}`,
                     url: `/?page=project-masters&pmId=${projectMaster.id}`,
                     pushTag: `pm-created-${projectMaster.id}`,
+                    projectMasterId: projectMaster.id,
                     data: { projectMasterId: projectMaster.id, createdBy: session!.user.id },
                 });
                 logger.info('[ProjectMaster] notify result', {

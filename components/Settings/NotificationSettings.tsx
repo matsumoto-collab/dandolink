@@ -1,10 +1,30 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Bell, BellOff, Smartphone, CheckCircle2, AlertCircle } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Bell, BellOff, Smartphone, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 type PermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
+
+// 通知種別ラベル（API 側 ALL_TYPES と同期）
+const SCOPED_TYPES = [
+    { type: 'work-started', label: '開始報告' },
+    { type: 'work-ended', label: '完了報告' },
+    { type: 'project-master-created', label: '新規案件登録' },
+    { type: 'road_permit_expiry', label: '道路使用許可期限' },
+] as const;
+const ONOFF_ONLY_TYPES = [
+    { type: 'dispatch-confirmed', label: '手配確定' },
+    { type: 'chat-message', label: 'チャット' },
+] as const;
+const SCOPED_TYPE_SET = new Set<string>(SCOPED_TYPES.map((t) => t.type));
+
+type ScopeValue = 'all' | 'mine';
+interface PreferenceRow {
+    type: string;
+    enabled: boolean;
+    scope: ScopeValue;
+}
 
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
     const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -37,6 +57,11 @@ export default function NotificationSettings() {
     const [ios, setIos] = useState(false);
     const [standalone, setStandalone] = useState(false);
 
+    // 通知種別ごとの個人設定
+    const [preferences, setPreferences] = useState<PreferenceRow[] | null>(null);
+    const [prefsSaving, setPrefsSaving] = useState(false);
+    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     useEffect(() => {
         setIos(detectIOS());
         setStandalone(isStandalone());
@@ -52,6 +77,59 @@ export default function NotificationSettings() {
             .then((sub) => setSubscribed(!!sub))
             .catch(() => setSubscribed(false));
     }, []);
+
+    // 通知種別設定を取得
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/notification-preferences', { cache: 'no-store' });
+                if (!res.ok) return;
+                const json = (await res.json()) as { preferences: PreferenceRow[] };
+                if (!cancelled) setPreferences(json.preferences);
+            } catch {
+                // 取得失敗時はサイレント。次回オープン時に再試行。
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    // 設定変更を 400ms debounce でサーバーに反映
+    const scheduleSave = (next: PreferenceRow[]) => {
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = setTimeout(async () => {
+            setPrefsSaving(true);
+            try {
+                const res = await fetch('/api/notification-preferences', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preferences: next }),
+                });
+                if (!res.ok) {
+                    toast.error('通知設定の保存に失敗しました');
+                }
+            } catch {
+                toast.error('通知設定の保存に失敗しました');
+            } finally {
+                setPrefsSaving(false);
+            }
+        }, 400);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+        };
+    }, []);
+
+    const updatePref = (type: string, patch: Partial<PreferenceRow>) => {
+        if (!preferences) return;
+        const next = preferences.map((p) => (p.type === type ? { ...p, ...patch } : p));
+        setPreferences(next);
+        scheduleSave(next);
+    };
 
     const handleEnable = async () => {
         if (permission === 'unsupported') {
@@ -231,6 +309,62 @@ export default function NotificationSettings() {
             <div className="mt-6 text-xs text-slate-500 space-y-1">
                 <div>・通知は端末ごとに設定が必要です（スマホ・iPad・PCで別々）。</div>
                 <div>・通知を許可後にブラウザ設定で再度ブロックした場合は、ブラウザの通知設定から許可に戻してください。</div>
+            </div>
+
+            {/* 通知種別ごとの設定 */}
+            <div className="mt-8 pt-6 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-slate-900">通知の種類</h3>
+                    {prefsSaving && (
+                        <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                            <Loader2 className="w-3 h-3 animate-spin" /> 保存中
+                        </span>
+                    )}
+                </div>
+                <p className="text-sm text-slate-500 mb-4">
+                    受信する通知の種類と範囲を選択できます。「自分の現場のみ」は案件マスタの担当者に自分が含まれる案件のみ通知します。
+                </p>
+
+                {preferences === null ? (
+                    <div className="py-6 text-center text-sm text-slate-500">
+                        <Loader2 className="w-4 h-4 animate-spin inline mr-1.5" /> 読み込み中...
+                    </div>
+                ) : (
+                    <ul className="divide-y divide-slate-200 border border-slate-200 rounded-xl overflow-hidden">
+                        {[...SCOPED_TYPES, ...ONOFF_ONLY_TYPES].map(({ type, label }) => {
+                            const pref = preferences.find((p) => p.type === type);
+                            if (!pref) return null;
+                            const isScoped = SCOPED_TYPE_SET.has(type);
+                            return (
+                                <li key={type} className="flex items-center justify-between gap-3 px-4 py-3 bg-white">
+                                    <label className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={pref.enabled}
+                                            onChange={(e) => updatePref(type, { enabled: e.target.checked })}
+                                            className="w-5 h-5 text-slate-700 border-slate-300 rounded focus:ring-slate-500 flex-shrink-0"
+                                        />
+                                        <span className="text-sm font-medium text-slate-800 truncate">{label}</span>
+                                    </label>
+                                    {isScoped && (
+                                        <select
+                                            value={pref.scope}
+                                            disabled={!pref.enabled}
+                                            onChange={(e) => updatePref(type, { scope: e.target.value as ScopeValue })}
+                                            className="text-xs border border-slate-200 rounded-xl px-2 py-1.5 shadow-sm focus:ring-2 focus:ring-slate-500 disabled:bg-slate-50 disabled:text-slate-400 flex-shrink-0"
+                                        >
+                                            <option value="all">全件</option>
+                                            <option value="mine">自分の現場のみ</option>
+                                        </select>
+                                    )}
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+                <div className="mt-3 text-xs text-slate-500">
+                    ・「自分の現場のみ」は案件マスタ画面の<span className="font-medium">案件担当</span>に自分が登録されている案件が対象です。
+                </div>
             </div>
         </div>
     );

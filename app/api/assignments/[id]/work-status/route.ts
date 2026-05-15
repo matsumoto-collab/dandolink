@@ -247,6 +247,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 url: notifyUrl,
                 // 再押下のたびに別通知として通知するため時刻をtagに含める
                 pushTag: `work-${type}-${assignment.id}-${timeStr}`,
+                projectMasterId: assignment.projectMasterId ?? undefined,
                 data: {
                     assignmentId: assignment.id,
                     projectMasterId: assignment.projectMasterId,

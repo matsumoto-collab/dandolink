@@ -1455,6 +1455,24 @@ model Notification {
   @@schema("public")
 }
 
+/// 個人ごとの通知設定。
+/// 設定が無いユーザー = enabled=true, scope='all' とみなす（既存ユーザーの挙動を維持）。
+/// scope='mine' は ProjectMaster.managerIds に自分が含まれる案件の通知のみ受信。
+/// chat-message / dispatch-confirmed など projectMasterId に紐付かない種別では scope は無視される。
+model UserNotificationPreference {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  enabled   Boolean  @default(true)
+  scope     String   @default("all")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, type])
+  @@index([userId])
+  @@schema("public")
+}
+
 /// マイカレンダー (admin / manager 限定)
 /// 現調・打ち合わせ・道路使用許可関連の予定を管理する。
 /// visibility: 'private' = 作成者のみ閲覧 / 'shared' = admin/manager 全員に共有

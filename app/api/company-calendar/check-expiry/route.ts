@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
                     title: `道路使用許可の期限が近づいています（あと${remainDays}日）`,
                     body: `案件「${pm.title}」の道路使用許可期限が ${dateLabel} です`,
                     url: `/?page=company-calendar&pmId=${pm.id}`,
+                    projectMasterId: pm.id,
                     data: {
                         projectMasterId: pm.id,
                         expiryDate: expiryDate.toISOString(),
