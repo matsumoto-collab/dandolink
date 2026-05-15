@@ -33,7 +33,7 @@ export default function EstimateModal({ isOpen, onClose, onSubmit, initialData }
                 role="dialog"
                 aria-modal="true"
                 tabIndex={-1}
-                className="relative bg-white flex flex-col w-full h-full lg:h-[92vh] flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-[1800px] lg:w-[96vw] lg:mx-4 lg:max-h-[92vh]"
+                className="relative bg-white flex flex-col w-full h-full lg:h-[92vh] flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-[1800px] lg:w-[calc(100%-2rem)] lg:mx-4 lg:max-h-[92vh]"
             >
                 {/* ヘッダー */}
                 <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between lg:rounded-t-lg">
