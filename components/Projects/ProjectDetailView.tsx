@@ -13,6 +13,7 @@ import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import WorkStatusReportSection from './WorkStatusReportSection';
 import { ExternalLink } from 'lucide-react';
 import { logger } from '@/lib/logger';
+import MapPreview from '@/components/ui/MapPreview';
 
 const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
 
@@ -400,17 +401,7 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                                     <p className="text-sm text-slate-700 mb-2">{addressParts.join(' ')}</p>
                                 ) : null;
                             })()}
-                            <div className="border border-slate-200 rounded-lg overflow-hidden">
-                                <iframe
-                                    key={mapQuery}
-                                    title="Map Preview"
-                                    width="100%"
-                                    height="220"
-                                    loading="lazy"
-                                    style={{ border: 0 }}
-                                    src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
-                                />
-                            </div>
+                            <MapPreview mapQuery={mapQuery} height={220} />
                         </div>
                     );
                 })()}

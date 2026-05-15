@@ -8,6 +8,7 @@ import ProjectProfitDisplay from './ProjectProfitDisplay';
 import ProjectMasterFilesView from './ProjectMasterFilesView';
 import ScaffoldingSpecDisplay from './ScaffoldingSpecDisplay';
 import { ExternalLink } from 'lucide-react';
+import MapPreview from '@/components/ui/MapPreview';
 
 const isCoordinates = (value: string) => /^-?[\d.]+,-?[\d.]+$/.test(value.trim());
 
@@ -126,19 +127,7 @@ export default function ProjectMasterDetailPanel({ pm, hideFinancials }: Project
                             )}
                         </div>
                     )}
-                    {mapQuery && (
-                        <div className="border border-slate-200 rounded-lg overflow-hidden">
-                            <iframe
-                                key={mapQuery}
-                                title="Map Preview"
-                                width="100%"
-                                height="220"
-                                loading="lazy"
-                                style={{ border: 0 }}
-                                src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed`}
-                            />
-                        </div>
-                    )}
+                    {mapQuery && <MapPreview mapQuery={mapQuery} height={220} />}
                 </>
             )}
 

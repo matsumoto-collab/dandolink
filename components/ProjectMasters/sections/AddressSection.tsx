@@ -7,6 +7,7 @@ import { FormField } from '../common/FormField';
 import { usePostalCodeAutofill } from '@/hooks/usePostalCodeAutofill';
 import { ProjectMasterFormData } from '../ProjectMasterForm';
 import type { LocationPickResult } from '@/components/LocationPickerModal';
+import MapPreview from '@/components/ui/MapPreview';
 
 const LocationPickerModal = dynamic(
     () => import('@/components/LocationPickerModal').then(m => m.LocationPickerModal),
@@ -163,16 +164,7 @@ export function AddressSection({ formData, setFormData }: AddressSectionProps) {
                 </div>
 
                 {iframePreviewQuery ? (
-                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                        <iframe
-                            width="100%"
-                            height="240"
-                            style={{ border: 0 }}
-                            src={`https://maps.google.com/maps?q=${encodeURIComponent(iframePreviewQuery)}&output=embed`}
-                            title="地図プレビュー"
-                            allowFullScreen
-                        />
-                    </div>
+                    <MapPreview mapQuery={iframePreviewQuery} height={240} />
                 ) : (
                     <div className="h-[180px] bg-slate-50 border border-slate-200 border-dashed rounded-xl flex flex-col items-center justify-center gap-2 text-slate-400 select-none">
                         <MapPin className="w-8 h-8" />
