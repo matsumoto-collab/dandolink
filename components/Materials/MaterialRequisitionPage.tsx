@@ -9,6 +9,17 @@ import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { MaterialCategoryWithItems, MaterialItemWithStock, MaterialRequisition } from '@/types/material';
+import {
+    SHEET_TYPES,
+    SHEET_SIZES,
+    parseRequisitionNotes,
+    serializeRequisitionNotes,
+    type SheetType,
+    type SheetSize,
+    type SheetEntry,
+    type FreeFormEntry,
+    type RequisitionNotes,
+} from '@/lib/materials/catalog';
 
 // 日付フォーマット
 function formatDate(d: string | Date) {
@@ -38,6 +49,20 @@ function defaultFormDate(): string {
     return jstDateKeyWithOffset(1);
 }
 
+// vehicleInfo は JSON ({vehicles:[...]}) 形式。一覧表示用に人間可読へ整形
+function formatVehicleInfo(raw: string | null | undefined): string {
+    if (!raw) return '';
+    try {
+        const obj = JSON.parse(raw);
+        if (obj && Array.isArray(obj.vehicles)) {
+            return obj.vehicles.filter((v: unknown) => !!v).join(' / ');
+        }
+    } catch {
+        return raw; // 旧プレーン文字列
+    }
+    return raw;
+}
+
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
     draft: { label: '下書き', color: 'bg-slate-200 text-slate-700' },
     confirmed: { label: '確定', color: 'bg-blue-100 text-blue-800' },
@@ -62,7 +87,14 @@ export default function MaterialRequisitionPage() {
     const [formForemanName, setFormForemanName] = useState('');
     // 車両3欄 (旧 formVehicleInfo (単一文字列) は廃止し、JSON 化して保存)
     const [formVehicles, setFormVehicles] = useState<[string, string, string]>(['', '', '']);
-    const [formNotes, setFormNotes] = useState('');
+    // notes は構造化 JSON（memo / sheets / freeForm）で保存。旧プレーン notes は memo として読む
+    const [formMemo, setFormMemo] = useState('');
+    // 選択中のシート種類（複数選択）
+    const [formSheetTypes, setFormSheetTypes] = useState<Set<SheetType>>(new Set());
+    // シート数量: type -> size -> [車両0,1,2]
+    const [formSheetQty, setFormSheetQty] = useState<Record<string, Partial<Record<SheetSize, [number, number, number]>>>>({});
+    // 汎用「その他自由欄」
+    const [formFreeForm, setFormFreeForm] = useState<FreeFormEntry[]>([]);
     // 数量は materialItemId → [車両0, 車両1, 車両2] の3要素タプル
     const [formQuantities, setFormQuantities] = useState<Record<string, [number, number, number]>>({});
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
@@ -200,7 +232,10 @@ export default function MaterialRequisitionPage() {
         setFormProjectId('');
         setFormDate(defaultFormDate());
         setFormVehicles(['', '', '']);
-        setFormNotes('');
+        setFormMemo('');
+        setFormSheetTypes(new Set());
+        setFormSheetQty({});
+        setFormFreeForm([]);
         setFormQuantities({});
         setSearchQuery('');
         setAutoSavedId(null);
@@ -243,6 +278,76 @@ export default function MaterialRequisitionPage() {
         return JSON.stringify({ vehicles: formVehicles });
     }, [formVehicles]);
 
+    // notes は構造化 JSON（memo / sheets / freeForm）で保存。
+    // 空（memo無し・シート無し・自由欄無し）なら null（旧来の notes 無しと同じ扱い）
+    const buildNotesJson = useCallback((): string | null => {
+        const sheets: SheetEntry[] = Array.from(formSheetTypes).map((type) => ({
+            type,
+            sizes: formSheetQty[type] || {},
+        }));
+        const payload: RequisitionNotes = {
+            v: 1,
+            memo: formMemo,
+            sheets,
+            freeForm: formFreeForm,
+        };
+        return serializeRequisitionNotes(payload);
+    }, [formMemo, formSheetTypes, formSheetQty, formFreeForm]);
+
+    // シート種類のトグル（選択解除時はその種類の数量も破棄）
+    const toggleSheetType = useCallback((type: SheetType) => {
+        setFormSheetTypes(prev => {
+            const next = new Set(prev);
+            if (next.has(type)) {
+                next.delete(type);
+                setFormSheetQty(q => {
+                    const { [type]: _drop, ...rest } = q;
+                    return rest;
+                });
+            } else {
+                next.add(type);
+            }
+            return next;
+        });
+    }, []);
+
+    // シート数量セット（type × size × 車両）
+    const setSheetQty = useCallback((type: SheetType, size: SheetSize, vehicleIndex: 0 | 1 | 2, value: number) => {
+        setFormSheetQty(prev => {
+            const forType = { ...(prev[type] || {}) };
+            const tuple: [number, number, number] = [...(forType[size] || [0, 0, 0])] as [number, number, number];
+            tuple[vehicleIndex] = Math.max(0, value);
+            if (tuple[0] === 0 && tuple[1] === 0 && tuple[2] === 0) {
+                delete forType[size];
+            } else {
+                forType[size] = tuple;
+            }
+            return { ...prev, [type]: forType };
+        });
+    }, []);
+
+    // 自由欄行の更新
+    const setFreeFormCell = useCallback((idx: number, field: 'label' | 0 | 1 | 2, value: string) => {
+        setFormFreeForm(prev => {
+            const next = prev.map((row, i) => {
+                if (i !== idx) return row;
+                if (field === 'label') return { ...row, label: value };
+                const qty: [string, string, string] = [row.qty[0], row.qty[1], row.qty[2]];
+                qty[field] = value;
+                return { ...row, qty };
+            });
+            return next;
+        });
+    }, []);
+
+    const addFreeFormRow = useCallback(() => {
+        setFormFreeForm(prev => [...prev, { label: '', qty: ['', '', ''] }]);
+    }, []);
+
+    const removeFreeFormRow = useCallback((idx: number) => {
+        setFormFreeForm(prev => prev.filter((_, i) => i !== idx));
+    }, []);
+
     // formQuantities をdepsに含めることで、数量変更ごとにタイマーがリセットされ debounce として機能する。
     useEffect(() => {
         // create view 以外、または手動操作後はスキップ
@@ -258,6 +363,7 @@ export default function MaterialRequisitionPage() {
         const items = flattenQuantitiesForApi();
         if (items.length === 0) return;
         const vehicleInfoStr = buildVehicleInfoJson();
+        const notesStr = buildNotesJson();
 
         if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
 
@@ -273,7 +379,7 @@ export default function MaterialRequisitionPage() {
                         type: '出庫',
                         status: 'draft',
                         vehicleInfo: vehicleInfoStr || undefined,
-                        notes: formNotes || undefined,
+                        notes: notesStr || undefined,
                         items,
                     });
                     if (created?.id) {
@@ -290,7 +396,7 @@ export default function MaterialRequisitionPage() {
                     await updateRequisition(autoSavedId, {
                         status: 'draft',
                         vehicleInfo: vehicleInfoStr,
-                        notes: formNotes || null,
+                        notes: notesStr,
                         items,
                     });
                     setAutoSavedAt(new Date());
@@ -319,7 +425,7 @@ export default function MaterialRequisitionPage() {
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [view, formProjectId, formDate, formForemanId, formVehicles, formNotes, formQuantities]);
+    }, [view, formProjectId, formDate, formForemanId, formVehicles, formMemo, formSheetTypes, formSheetQty, formFreeForm, formQuantities]);
 
     const handleSubmit = async (status: 'draft' | 'confirmed') => {
         if (!formProjectId) { toast.error('現場を選択してください'); return; }
@@ -328,6 +434,7 @@ export default function MaterialRequisitionPage() {
         const items = flattenQuantitiesForApi();
         if (items.length === 0) { toast.error('材料を1つ以上入力してください'); return; }
         const vehicleInfoStr = buildVehicleInfoJson();
+        const notesStr = buildNotesJson();
 
         // A6: 手動保存時は自動保存タイマーをクリア
         if (autoSaveTimerRef.current) {
@@ -343,7 +450,7 @@ export default function MaterialRequisitionPage() {
                 await updateRequisition(autoSavedId, {
                     status,
                     vehicleInfo: vehicleInfoStr,
-                    notes: formNotes || null,
+                    notes: notesStr,
                     items,
                 });
             } else {
@@ -355,7 +462,7 @@ export default function MaterialRequisitionPage() {
                     type: '出庫',
                     status,
                     vehicleInfo: vehicleInfoStr || undefined,
-                    notes: formNotes || undefined,
+                    notes: notesStr || undefined,
                     items,
                 });
             }
@@ -421,7 +528,18 @@ export default function MaterialRequisitionPage() {
             }
         }
         setFormVehicles(parsedVehicles);
-        setFormNotes('');
+        // notes-JSON（シート / 自由欄）をコピー。memo はコピーしない（旧挙動踏襲）
+        const parsedNotes = parseRequisitionNotes(req.notes);
+        const copiedTypes = new Set<SheetType>();
+        const copiedSheetQty: Record<string, Partial<Record<SheetSize, [number, number, number]>>> = {};
+        for (const s of parsedNotes.sheets) {
+            copiedTypes.add(s.type);
+            copiedSheetQty[s.type] = { ...s.sizes };
+        }
+        setFormSheetTypes(copiedTypes);
+        setFormSheetQty(copiedSheetQty);
+        setFormFreeForm(parsedNotes.freeForm.map(f => ({ label: f.label, qty: [...f.qty] as [string, string, string] })));
+        setFormMemo('');
         setSearchQuery('');
         expandAll();
         setView('create');
@@ -564,10 +682,19 @@ export default function MaterialRequisitionPage() {
         return projectMasters.find(p => p.id === formProjectId) || null;
     }, [projectMasters, formProjectId]);
 
+    // プレビュー / 保存用に formSheetTypes + formSheetQty を SheetEntry[] へ整形
+    const sheetEntries = useMemo<SheetEntry[]>(() => {
+        return Array.from(formSheetTypes).map((type) => ({
+            type,
+            sizes: formSheetQty[type] || {},
+        }));
+    }, [formSheetTypes, formSheetQty]);
+
     // ライブプレビュー用 PDF Blob 生成
     const buildSlipPdfBlob = useCallback(async (): Promise<Blob | null> => {
-        // 案件未選択かつ数量も無い場合はプレビュースキップ
-        if (!formProjectId && Object.keys(formQuantities).length === 0) return null;
+        // 案件未選択かつ数量・シート・自由欄も無い場合はプレビュースキップ
+        const hasExtra = sheetEntries.length > 0 || formFreeForm.length > 0;
+        if (!formProjectId && Object.keys(formQuantities).length === 0 && !hasExtra) return null;
         const { generateMaterialRequisitionSlipPDFBlob } = await import('@/utils/reactPdfGenerator');
         return await generateMaterialRequisitionSlipPDFBlob({
             foremanName: formForemanName,
@@ -577,18 +704,22 @@ export default function MaterialRequisitionPage() {
             demolitionDate: '',
             vehicles: formVehicles,
             getQty: slipGetQty,
+            sheets: sheetEntries,
+            freeForm: formFreeForm,
         });
-    }, [formProjectId, formQuantities, formForemanName, selectedProject, formVehicles, slipGetQty]);
+    }, [formProjectId, formQuantities, formForemanName, selectedProject, formVehicles, slipGetQty, sheetEntries, formFreeForm]);
 
     // プレビュー再生成トリガー (seed)
     const livePreviewSignature = useMemo(() => {
         return JSON.stringify({
             formProjectId, formForemanName, formVehicles,
             quantities: formQuantities,
+            sheets: sheetEntries,
+            freeForm: formFreeForm,
             customer: selectedProject?.customerShortName || selectedProject?.customerName || '',
             site: selectedProject?.name || selectedProject?.title || '',
         });
-    }, [formProjectId, formForemanName, formVehicles, formQuantities, selectedProject]);
+    }, [formProjectId, formForemanName, formVehicles, formQuantities, sheetEntries, formFreeForm, selectedProject]);
 
     // 数量入力UI: 車両3列ぶんを横並びで入力 (車1/車2/車3)
     const renderQuantityControl = (item: MaterialItemWithStock) => {
@@ -715,7 +846,7 @@ export default function MaterialRequisitionPage() {
                                                         <span>{formatDate(req.date)}</span>
                                                         <span>{req.foremanName}</span>
                                                         <span>{totalItems}点</span>
-                                                        {req.vehicleInfo && <span>{req.vehicleInfo}</span>}
+                                                        {formatVehicleInfo(req.vehicleInfo) && <span>{formatVehicleInfo(req.vehicleInfo)}</span>}
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-1">
@@ -906,11 +1037,128 @@ export default function MaterialRequisitionPage() {
                                 <label className="block text-sm font-medium text-slate-700 mb-1">備考</label>
                                 <input
                                     type="text"
-                                    value={formNotes}
-                                    onChange={(e) => setFormNotes(e.target.value)}
+                                    value={formMemo}
+                                    onChange={(e) => setFormMemo(e.target.value)}
                                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     placeholder="メモ"
                                 />
+                            </div>
+
+                            {/* シート（複数選択 + サイズ×車両3列） */}
+                            <div className="border-t border-slate-200 pt-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-lg font-semibold text-slate-900">シート</h3>
+                                    <span className="text-sm text-slate-500">{formSheetTypes.size}種類選択中</span>
+                                </div>
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                    {SHEET_TYPES.map((t) => {
+                                        const active = formSheetTypes.has(t);
+                                        return (
+                                            <button
+                                                key={t}
+                                                type="button"
+                                                onClick={() => toggleSheetType(t)}
+                                                className={`px-3 py-1.5 text-sm rounded-xl border transition-colors ${
+                                                    active
+                                                        ? 'bg-slate-800 text-white border-slate-800'
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                                }`}
+                                            >
+                                                {t}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                {Array.from(formSheetTypes).length > 0 && (
+                                    <div className="space-y-3">
+                                        {SHEET_TYPES.filter(t => formSheetTypes.has(t)).map((t) => (
+                                            <div key={t} className="border border-slate-200 rounded-xl overflow-hidden">
+                                                <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">
+                                                    {t}
+                                                </div>
+                                                <div className="divide-y divide-slate-100">
+                                                    {SHEET_SIZES.map((size) => {
+                                                        const tuple = formSheetQty[t]?.[size] || [0, 0, 0];
+                                                        return (
+                                                            <div key={size} className="flex items-center gap-2 px-3 py-2">
+                                                                <span className="w-10 text-sm text-slate-600">{size}</span>
+                                                                <div className="flex items-center gap-1">
+                                                                    {[0, 1, 2].map((vi) => (
+                                                                        <input
+                                                                            key={vi}
+                                                                            type="number"
+                                                                            inputMode="numeric"
+                                                                            pattern="[0-9]*"
+                                                                            min="0"
+                                                                            value={tuple[vi] || ''}
+                                                                            onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)}
+                                                                            onFocus={(e) => e.currentTarget.select()}
+                                                                            className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                                            placeholder={`車${vi + 1}`}
+                                                                            aria-label={`${t} ${size} 車両${vi + 1}の数量`}
+                                                                        />
+                                                                    ))}
+                                                                </div>
+                                                                <span className="text-xs text-slate-400">枚</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* その他自由欄 */}
+                            <div className="border-t border-slate-200 pt-4">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h3 className="text-lg font-semibold text-slate-900">その他自由欄</h3>
+                                    <button
+                                        type="button"
+                                        onClick={addFreeFormRow}
+                                        className="px-3 py-1.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 inline-flex items-center gap-1"
+                                    >
+                                        <Plus className="w-4 h-4" />行を追加
+                                    </button>
+                                </div>
+                                {formFreeForm.length === 0 ? (
+                                    <p className="text-sm text-slate-400">種別に無い品目を自由に記入できます</p>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {formFreeForm.map((row, idx) => (
+                                            <div key={idx} className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={row.label}
+                                                    onChange={(e) => setFreeFormCell(idx, 'label', e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                    placeholder="品目名"
+                                                />
+                                                {[0, 1, 2].map((vi) => (
+                                                    <input
+                                                        key={vi}
+                                                        type="text"
+                                                        inputMode="numeric"
+                                                        value={row.qty[vi]}
+                                                        onChange={(e) => setFreeFormCell(idx, vi as 0 | 1 | 2, e.target.value)}
+                                                        className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                        placeholder={`車${vi + 1}`}
+                                                        aria-label={`自由欄${idx + 1} 車両${vi + 1}`}
+                                                    />
+                                                ))}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeFreeFormRow(idx)}
+                                                    className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl"
+                                                    aria-label="この行を削除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {/* Material Categories (Accordion) */}

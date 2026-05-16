@@ -1,6 +1,7 @@
 import { renderToBuffer } from '@react-pdf/renderer';
 import { prisma } from '@/lib/prisma';
 import { MaterialRequisitionSlipPDF, MaterialRequisitionSlipMultiPDF, type MaterialRequisitionSlipPDFProps } from '@/components/pdf/MaterialRequisitionSlipPDF';
+import { parseRequisitionNotes } from '@/lib/materials/catalog';
 // フォント登録のため import（副作用）
 import '@/components/pdf/styles';
 
@@ -72,6 +73,9 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
         qtyMap.set(key, (qtyMap.get(key) ?? 0) + item.quantity);
     }
 
+    // notes-JSON（シート / 自由欄）。旧プレーン notes は memo として読まれる（PDF 非表示）
+    const parsedNotes = parseRequisitionNotes(r.notes);
+
     return {
         foremanName: r.foremanName || '',
         customerName: project?.customerShortName || project?.customerName || '',
@@ -80,6 +84,8 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
         demolitionDate,
         vehicles,
         getQty: (categoryName, itemName, vehicleIndex) => qtyMap.get(`${categoryName}|${itemName}|${vehicleIndex}`) ?? 0,
+        sheets: parsedNotes.sheets,
+        freeForm: parsedNotes.freeForm,
     };
 }
 

@@ -1315,6 +1315,9 @@ model MaterialItem {
   updatedAt             DateTime                  @default(now()) @updatedAt
   category              MaterialCategory          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   stockQuantity         Int                       @default(0)
+  // ネット / シート / リース品など notes-JSON が出庫の正となる品目を
+  // Phase 3 の倉庫在庫自動減算対象から外すための構造フラグ（catalog.ts と同期）
+  excludeFromStockDecrement Boolean               @default(false)
   requisitionItems      MaterialRequisitionItem[]
   inventoryTransactions InventoryTransaction[]
   projectMaterialItems  ProjectMaterialItem[]

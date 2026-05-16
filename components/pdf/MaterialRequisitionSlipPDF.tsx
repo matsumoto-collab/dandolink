@@ -1,10 +1,26 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { sanitizePdfText } from '@/components/pdf/styles';
+import {
+    PDF_LAYOUT,
+    SHEET_SIZES,
+    type PdfLayoutColumn,
+    type PdfLayoutGroup,
+    type SheetEntry,
+    type FreeFormEntry,
+} from '@/lib/materials/catalog';
 
 /**
- * 出庫伝票（材料表）PDF。画像のひな形どおりの3列固定レイアウト。
- * 各セルは categoryName + itemName でマスタ品目に対応付け、quantitiesByItemId / quantitiesByCellKey から数量を引く。
+ * 出庫伝票（材料表）PDF。
+ *
+ * 3 列固定レイアウトは lib/materials/catalog.ts の PDF_LAYOUT を単一の正として生成する。
+ * （旧 COL1/COL2/COL3 ハードコードは廃止。catalog と PDF の二重定義を解消）
+ * 各セルは categoryName + itemName でマスタ品目に対応付け、getQty から数量を引く。
+ *
+ * シート（SHEET_TYPES）/ 汎用自由欄は MaterialRequisition.notes の JSON 由来
+ * （sheets / freeForm）を受け取り、選択された種類のみコンパクトに描画する
+ * （直近コミット 582b291 の 1 ページ収めを維持するため、固定 3 行リース欄は廃止し
+ *   選択分のみレンダリング）。
  */
 
 export interface MaterialRequisitionSlipPDFProps {
@@ -16,217 +32,22 @@ export interface MaterialRequisitionSlipPDFProps {
     demolitionDate: string;     // 解体日
     /** 車両3欄 (車両1,車両2,車両3) */
     vehicles: [string, string, string];
-    /** 親綱の長さ表示 (例: "30m") */
-    parentRopeMeter?: string;
-    /** イメージシートの種類表示 */
-    imageSheetText?: string;
     /**
      * セル単位の数量取得関数。
      * 例: getQty('柱', '3.6m', 0) -> 車両0(=列1) の数量
      * 該当無しは 0 / 空欄として扱う
      */
     getQty: (categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2) => number;
-    /** リース品の自由記述行 (空配列なら空行のみ) */
-    leasedItems?: Array<{ label: string; qty: string }>;
+    /** シート（種類 × サイズ × 車両）。notes-JSON 由来。空配列なら非表示 */
+    sheets?: SheetEntry[];
+    /** 汎用自由欄。notes-JSON 由来。空配列なら最低 3 行の空欄を表示 */
+    freeForm?: FreeFormEntry[];
 }
 
-// 画像準拠の3列レイアウト定義
-// (categoryName, itemName) は scripts/seed-materials.ts のシードと突き合わせ
-// マスタに存在しない項目は数量が常に空欄になる
-type Row = { spec: string; categoryName: string; itemName: string };
-type Group = { label: string; rows: Row[] };
-type Column = Group[];
-
-const COL1: Column = [
-    { label: '柱', rows: [
-        { spec: '3.6', categoryName: '柱', itemName: '3.6m' },
-        { spec: '2.7', categoryName: '柱', itemName: '2.7m' },
-        { spec: '1.8', categoryName: '柱', itemName: '1.8m' },
-        { spec: '0.9', categoryName: '柱', itemName: '0.9m' },
-        { spec: '調整', categoryName: '柱', itemName: '調整' },
-        { spec: '1コマ', categoryName: '柱', itemName: '1コマ' },
-        { spec: '0.9切', categoryName: '柱', itemName: '0.9切' },
-    ]},
-    { label: '手摺', rows: [
-        { spec: '1.8', categoryName: '手摺', itemName: '1.8m' },
-        { spec: '1.2', categoryName: '手摺', itemName: '1.2m' },
-        { spec: '0.9', categoryName: '手摺', itemName: '0.9m' },
-        { spec: '0.6', categoryName: '手摺', itemName: '0.6m' },
-        { spec: '0.4', categoryName: '手摺', itemName: '0.4m' },
-        { spec: '0.3', categoryName: '手摺', itemName: '0.3m' },
-        { spec: '0.2', categoryName: '手摺', itemName: '0.2m' },
-        { spec: 'サイド', categoryName: '手摺', itemName: 'サイド' },
-        { spec: 'イボ0.6', categoryName: '手摺', itemName: 'イボ0.6' },
-    ]},
-    { label: '400アンチ', rows: [
-        { spec: '1.8', categoryName: '400アンチ', itemName: '1.8m' },
-        { spec: '1.2', categoryName: '400アンチ', itemName: '1.2m' },
-        { spec: '0.9', categoryName: '400アンチ', itemName: '0.9m' },
-        { spec: '0.6', categoryName: '400アンチ', itemName: '0.6m' },
-    ]},
-    { label: '250ハーフ', rows: [
-        { spec: '1.8', categoryName: '250ハーフ', itemName: '1.8m' },
-        { spec: '1.2', categoryName: '250ハーフ', itemName: '1.2m' },
-        { spec: '0.9', categoryName: '250ハーフ', itemName: '0.9m' },
-        { spec: '0.6', categoryName: '250ハーフ', itemName: '0.6m' },
-        { spec: '0.4', categoryName: '250ハーフ', itemName: '0.4m' },
-    ]},
-    { label: 'センターハーフ', rows: [
-        { spec: '1.8', categoryName: 'センターハーフ', itemName: '1.8m' },
-        { spec: '1.2', categoryName: 'センターハーフ', itemName: '1.2m' },
-        { spec: '0.9', categoryName: 'センターハーフ', itemName: '0.9m' },
-        { spec: '0.6', categoryName: 'センターハーフ', itemName: '0.6m' },
-    ]},
-    { label: '筋交', rows: [
-        { spec: '1.8', categoryName: '筋交', itemName: '1.8m' },
-        { spec: '1.2', categoryName: '筋交', itemName: '1.2m' },
-        { spec: '0.9', categoryName: '筋交', itemName: '0.9m' },
-    ]},
-    { label: 'ブラケット', rows: [
-        { spec: '0.6', categoryName: 'ブラケット', itemName: '0.6m' },
-        { spec: '0.4', categoryName: 'ブラケット', itemName: '0.4m' },
-    ]},
-    { label: 'ピン付き', rows: [
-        { spec: '0.8', categoryName: 'ピン付き', itemName: '0.8m' },
-        { spec: '0.6', categoryName: 'ピン付き', itemName: '0.6m' },
-        { spec: '0.4', categoryName: 'ピン付き', itemName: '0.4m' },
-        { spec: '0.2', categoryName: 'ピン付き', itemName: '0.2m' },
-    ]},
-    { label: '階段', rows: [
-        { spec: '鉄', categoryName: '階段', itemName: '鉄' },
-        { spec: 'アルミ', categoryName: '階段', itemName: 'アルミ' },
-        { spec: '3段', categoryName: '階段', itemName: '3段' },
-        { spec: '階段下', categoryName: '階段', itemName: '階段下' },
-    ]},
-    { label: 'ジャッキ', rows: [
-        { spec: '固定', categoryName: 'ジャッキ', itemName: '固定' },
-        { spec: '下屋', categoryName: 'ジャッキ', itemName: '下屋' },
-    ]},
-    { label: '', rows: [
-        { spec: '皿', categoryName: '皿 / 兼用皿', itemName: '皿' },
-        { spec: '兼用皿', categoryName: '皿 / 兼用皿', itemName: '兼用皿' },
-        { spec: 'ルーフベース', categoryName: 'ルーフベース', itemName: 'ルーフベース' },
-    ]},
-];
-
-const COL2: Column = [
-    { label: '単管', rows: [
-        { spec: '6m', categoryName: '単管', itemName: '6m' },
-        { spec: '5m', categoryName: '単管', itemName: '5m' },
-        { spec: '4m', categoryName: '単管', itemName: '4m' },
-        { spec: '3m', categoryName: '単管', itemName: '3m' },
-        { spec: '2m', categoryName: '単管', itemName: '2m' },
-        { spec: '1.5m', categoryName: '単管', itemName: '1.5m' },
-        { spec: '1m', categoryName: '単管', itemName: '1m' },
-        { spec: '0.5m', categoryName: '単管', itemName: '0.5m' },
-    ]},
-    { label: 'クランプ', rows: [
-        { spec: '直交', categoryName: 'クランプ', itemName: '直交' },
-        { spec: '自在', categoryName: 'クランプ', itemName: '自在' },
-        { spec: '3連', categoryName: 'クランプ', itemName: '3連' },
-        { spec: 'シート', categoryName: 'クランプ', itemName: 'シート' },
-        { spec: '養生', categoryName: 'クランプ', itemName: '養生' },
-    ]},
-    { label: '鉄骨', rows: [
-        { spec: '直交', categoryName: '鉄骨', itemName: '直交' },
-        { spec: '自在', categoryName: '鉄骨', itemName: '自在' },
-    ]},
-    { label: '', rows: [
-        { spec: 'ジョイント', categoryName: 'ジョイント', itemName: 'ジョイント' },
-        { spec: '単管ベース', categoryName: '単管ベース', itemName: '単管ベース' },
-    ]},
-    { label: '', rows: [
-        { spec: '新築用 青(紐付) 1.8', categoryName: 'ネット', itemName: '新築用 青(紐付) 1.8' },
-        { spec: 'グレー 5.4・6.3 1.2', categoryName: 'ネット', itemName: 'グレー 5.4・6.3 1.2' },
-        { spec: '青 黒 緑 0.9', categoryName: 'ネット', itemName: '青 黒 緑 0.9' },
-        { spec: '白 0.6', categoryName: 'ネット', itemName: '白 0.6' },
-    ]},
-    { label: 'カヤシート', rows: [
-        { spec: '1.8', categoryName: 'カヤシート', itemName: '1.8' },
-        { spec: '3.6', categoryName: 'カヤシート', itemName: '3.6' },
-    ]},
-    { label: '', rows: [
-        { spec: 'ヒモ', categoryName: 'ヒモ', itemName: 'ヒモ' },
-    ]},
-    { label: '壁つなぎ', rows: [
-        { spec: '14～17', categoryName: '壁つなぎ', itemName: '14～17' },
-        { spec: '19～24', categoryName: '壁つなぎ', itemName: '19～24' },
-        { spec: '24～34', categoryName: '壁つなぎ', itemName: '24～34' },
-        { spec: '33～52', categoryName: '壁つなぎ', itemName: '33～52' },
-        { spec: '50～72', categoryName: '壁つなぎ', itemName: '50～72' },
-        { spec: '70～92', categoryName: '壁つなぎ', itemName: '70～92' },
-    ]},
-    { label: '道板', rows: [
-        { spec: '4m', categoryName: '道板', itemName: '4m' },
-        { spec: '3m', categoryName: '道板', itemName: '3m' },
-        { spec: '2m', categoryName: '道板', itemName: '2m' },
-        { spec: '1m', categoryName: '道板', itemName: '1m' },
-    ]},
-    { label: '巾木（木製）', rows: [
-        { spec: '4m', categoryName: '巾木（木製）', itemName: '4m' },
-        { spec: '2m', categoryName: '巾木（木製）', itemName: '2m' },
-    ]},
-    { label: 'L型巾木', rows: [
-        { spec: '1.8', categoryName: 'L型巾木', itemName: '1.8m' },
-        { spec: '1.2', categoryName: 'L型巾木', itemName: '1.2m' },
-        { spec: '0.9', categoryName: 'L型巾木', itemName: '0.9m' },
-        { spec: '0.6', categoryName: 'L型巾木', itemName: '0.6m' },
-    ]},
-    { label: 'L型巾木(妻用)', rows: [
-        { spec: '0.9', categoryName: 'L型巾木(妻用)', itemName: '0.9m' },
-        { spec: '0.6', categoryName: 'L型巾木(妻用)', itemName: '0.6m' },
-    ]},
-    { label: 'アダプター', rows: [
-        { spec: '柱用', categoryName: 'アダプター', itemName: '柱用' },
-        { spec: 'アンチ', categoryName: 'アダプター', itemName: 'アンチ' },
-    ]},
-    { label: '', rows: [
-        { spec: 'ジャッキカバー', categoryName: 'ジャッキカバー', itemName: 'ジャッキカバー' },
-        { spec: 'コッパ', categoryName: 'コッパ', itemName: 'コッパ' },
-        { spec: 'チョウチョ', categoryName: 'チョウチョ', itemName: 'チョウチョ' },
-    ]},
-];
-
-const COL3: Column = [
-    { label: '先行手摺', rows: [
-        { spec: '1.8', categoryName: '先行手摺', itemName: '1.8m' },
-        { spec: '1.2', categoryName: '先行手摺', itemName: '1.2m' },
-        { spec: '0.9', categoryName: '先行手摺', itemName: '0.9m' },
-        { spec: '0.6', categoryName: '先行手摺', itemName: '0.6m' },
-    ]},
-    { label: '梁枠', rows: [
-        { spec: '3.6', categoryName: '梁枠', itemName: '3.6m' },
-        { spec: '5.4', categoryName: '梁枠', itemName: '5.4m' },
-    ]},
-    { label: '', rows: [
-        { spec: '安全バー', categoryName: '安全バー', itemName: '安全バー' },
-        { spec: '金網', categoryName: '金網', itemName: '金網' },
-        { spec: '杭', categoryName: '杭', itemName: '杭' },
-        { spec: 'ローリングタイヤ', categoryName: 'ローリングタイヤ', itemName: 'ローリングタイヤ' },
-        { spec: 'ハッチ付きアンチ', categoryName: 'ハッチ付きアンチ', itemName: 'ハッチ付きアンチ' },
-        { spec: 'タラップ', categoryName: 'タラップ', itemName: 'タラップ' },
-        { spec: '朝顔', categoryName: '朝顔', itemName: '朝顔' },
-        { spec: '単クランプ', categoryName: '単クランプ', itemName: '単クランプ' },
-        { spec: '羽子板クランプ', categoryName: '羽子板クランプ', itemName: '羽子板クランプ' },
-        { spec: '親綱', categoryName: '親綱', itemName: '親綱' },
-        { spec: '足場表示看板', categoryName: '足場表示看板', itemName: '足場表示看板' },
-        { spec: 'イメージシート', categoryName: 'イメージシート', itemName: 'イメージシート' },
-        { spec: 'ラッセルネット', categoryName: 'ラッセルネット', itemName: 'ラッセルネット' },
-        { spec: '階段手摺', categoryName: '階段手摺', itemName: '階段手摺' },
-        { spec: 'レール', categoryName: 'レール', itemName: 'レール' },
-    ]},
-    { label: '養生カバー', rows: [
-        { spec: '大', categoryName: '養生カバー', itemName: '大' },
-        { spec: '小', categoryName: '養生カバー', itemName: '小' },
-    ]},
-    { label: '番線', rows: [
-        { spec: '巾木', categoryName: '番線', itemName: '巾木' },
-        { spec: '巻き', categoryName: '番線', itemName: '巻き' },
-    ]},
-    { label: '', rows: [
-        { spec: '扉', categoryName: '扉', itemName: '扉' },
-    ]},
-];
+// catalog 由来の PDF レイアウト（単一の正）
+type Group = PdfLayoutGroup;
+type Column = PdfLayoutColumn;
+const [LAYOUT_COL1, LAYOUT_COL2, LAYOUT_COL3] = PDF_LAYOUT;
 
 const styles = StyleSheet.create({
     page: {
@@ -422,38 +243,81 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 9,
     },
-    // リース品セクション
-    leasedSection: {
+    // シート / 自由欄セクション（旧リース品セクション枠を流用しコンパクト化）
+    extraSection: {
         marginTop: 4,
         borderWidth: 0.5,
         borderColor: '#000',
     },
-    leasedHeader: {
-        padding: 3,
+    extraHeader: {
+        padding: 2,
         borderBottomWidth: 0.5,
         borderBottomColor: '#000',
-        fontSize: 9,
+        fontSize: 8,
         fontWeight: 'bold',
         textAlign: 'center',
     },
-    leasedRow: {
+    sheetRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#999',
+        minHeight: 12,
+    },
+    sheetTypeCell: {
+        width: 110,
+        padding: 2,
+        borderRightWidth: 0.5,
+        borderRightColor: '#000',
+        fontSize: 7,
+    },
+    sheetSizeCell: {
+        width: 28,
+        padding: 2,
+        borderRightWidth: 0.5,
+        borderRightColor: '#999',
+        textAlign: 'center',
+        fontSize: 7,
+    },
+    sheetQtyCell: {
+        flex: 1,
+        padding: 2,
+        borderRightWidth: 0.5,
+        borderRightColor: '#999',
+        textAlign: 'center',
+        fontSize: 8,
+    },
+    sheetQtyCellLast: {
+        flex: 1,
+        padding: 2,
+        textAlign: 'center',
+        fontSize: 8,
+    },
+    freeRow: {
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: '#999',
         minHeight: 13,
     },
-    leasedLabel: {
+    freeLabel: {
         flex: 2,
         padding: 2,
         borderRightWidth: 0.5,
         borderRightColor: '#000',
         fontSize: 8,
     },
-    leasedQty: {
+    freeQty: {
+        flex: 1,
+        padding: 2,
+        borderRightWidth: 0.5,
+        borderRightColor: '#999',
+        textAlign: 'center',
+        fontSize: 8,
+    },
+    freeQtyLast: {
         flex: 1,
         padding: 2,
         textAlign: 'center',
-        fontSize: 9,
+        fontSize: 8,
     },
 });
 
@@ -552,18 +416,77 @@ function GroupBlock({ group, getQty, isLastGroup }: { group: Group; getQty: Mate
 function ColumnBlock({ column, getQty, isLast }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean }) {
     return (
         <View style={isLast ? styles.columnLast : styles.column}>
-            {column.map((group, idx) => (
-                <GroupBlock key={idx} group={group} getQty={getQty} isLastGroup={idx === column.length - 1} />
+            {column.groups.map((group, idx) => (
+                <GroupBlock key={idx} group={group} getQty={getQty} isLastGroup={idx === column.groups.length - 1} />
             ))}
+        </View>
+    );
+}
+
+/** シート（種類 × サイズ × 車両）セクション。選択された種類のみ描画（1 ページ収め維持） */
+function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
+    // 何かしら数量のある (type,size) のみ行にする
+    const rows: Array<{ type: string; size: string; qtys: [number, number, number] }> = [];
+    for (const s of sheets) {
+        for (const size of SHEET_SIZES) {
+            const t = s.sizes[size];
+            if (t && (t[0] > 0 || t[1] > 0 || t[2] > 0)) {
+                rows.push({ type: s.type, size, qtys: [t[0] || 0, t[1] || 0, t[2] || 0] });
+            }
+        }
+    }
+    if (rows.length === 0) return null;
+    return (
+        <View style={styles.extraSection}>
+            <Text style={styles.extraHeader}>シート</Text>
+            {rows.map((r, idx) => {
+                const isLast = idx === rows.length - 1;
+                return (
+                    <View key={idx} style={isLast ? [styles.sheetRow, { borderBottomWidth: 0 }] : styles.sheetRow}>
+                        <Text style={styles.sheetTypeCell}>{sanitizePdfText(r.type)}</Text>
+                        <Text style={styles.sheetSizeCell}>{sanitizePdfText(r.size)}</Text>
+                        <Text style={styles.sheetQtyCell}>{r.qtys[0] > 0 ? String(r.qtys[0]) : ''}</Text>
+                        <Text style={styles.sheetQtyCell}>{r.qtys[1] > 0 ? String(r.qtys[1]) : ''}</Text>
+                        <Text style={styles.sheetQtyCellLast}>{r.qtys[2] > 0 ? String(r.qtys[2]) : ''}</Text>
+                    </View>
+                );
+            })}
+        </View>
+    );
+}
+
+/** 汎用「その他自由欄」セクション。空でも最低 3 行の空欄（記入用） */
+function FreeFormSection({ freeForm }: { freeForm: FreeFormEntry[] }) {
+    const filled = freeForm.filter(
+        (f) => f.label.trim() || f.qty[0]?.trim() || f.qty[1]?.trim() || f.qty[2]?.trim(),
+    );
+    const blanks = Math.max(0, 3 - filled.length);
+    const rows: FreeFormEntry[] = [
+        ...filled,
+        ...Array.from({ length: blanks }, () => ({ label: '', qty: ['', '', ''] as [string, string, string] })),
+    ];
+    return (
+        <View style={styles.extraSection}>
+            <Text style={styles.extraHeader}>その他自由欄</Text>
+            {rows.map((row, idx) => {
+                const isLast = idx === rows.length - 1;
+                return (
+                    <View key={idx} style={isLast ? [styles.freeRow, { borderBottomWidth: 0 }] : styles.freeRow}>
+                        <Text style={styles.freeLabel}>{sanitizePdfText(row.label)}</Text>
+                        <Text style={styles.freeQty}>{sanitizePdfText(row.qty[0] || '')}</Text>
+                        <Text style={styles.freeQty}>{sanitizePdfText(row.qty[1] || '')}</Text>
+                        <Text style={styles.freeQtyLast}>{sanitizePdfText(row.qty[2] || '')}</Text>
+                    </View>
+                );
+            })}
         </View>
     );
 }
 
 /** 1ページ分の中身を描画 */
 function SlipPageContent({
-    foremanName, customerName, siteName, assemblyDate, demolitionDate, vehicles, getQty, leasedItems,
+    foremanName, customerName, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
 }: MaterialRequisitionSlipPDFProps) {
-    const safeLeased = leasedItems && leasedItems.length > 0 ? leasedItems : Array.from({ length: 3 }, () => ({ label: '', qty: '' }));
     return (
         <>
             <Header foremanName={foremanName} />
@@ -571,20 +494,13 @@ function SlipPageContent({
             <VehicleRow vehicles={vehicles} />
 
             <View style={styles.grid}>
-                <ColumnBlock column={COL1} getQty={getQty} isLast={false} />
-                <ColumnBlock column={COL2} getQty={getQty} isLast={false} />
-                <ColumnBlock column={COL3} getQty={getQty} isLast={true} />
+                <ColumnBlock column={LAYOUT_COL1} getQty={getQty} isLast={false} />
+                <ColumnBlock column={LAYOUT_COL2} getQty={getQty} isLast={false} />
+                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} />
             </View>
 
-            <View style={styles.leasedSection}>
-                <Text style={styles.leasedHeader}>リース品</Text>
-                {safeLeased.map((row, idx) => (
-                    <View key={idx} style={styles.leasedRow}>
-                        <Text style={styles.leasedLabel}>{sanitizePdfText(row.label)}</Text>
-                        <Text style={styles.leasedQty}>{sanitizePdfText(row.qty)}</Text>
-                    </View>
-                ))}
-            </View>
+            <SheetSection sheets={sheets ?? []} />
+            <FreeFormSection freeForm={freeForm ?? []} />
         </>
     );
 }

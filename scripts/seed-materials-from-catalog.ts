@@ -72,6 +72,9 @@ async function main() {
         const existing = await prisma.materialItem.findFirst({
             where: { categoryId, name: it.itemName },
         });
+        // catalog の構造フラグ（ネット/シート/リース品=true）を MaterialItem に同期。
+        // 未設定（undefined）は false 相当（通常どおり在庫減算対象）。
+        const excludeFromStockDecrement = it.excludeFromStockDecrement ?? false;
         if (existing) {
             await prisma.materialItem.update({
                 where: { id: existing.id },
@@ -80,6 +83,7 @@ async function main() {
                     spec: it.specLabel,
                     sortOrder: it.itemSortOrder,
                     isActive: true,
+                    excludeFromStockDecrement,
                     // stockQuantity は既存値を維持（在庫の実数を seed が破壊しない）
                 },
             });
@@ -93,6 +97,7 @@ async function main() {
                     spec: it.specLabel,
                     sortOrder: it.itemSortOrder,
                     isActive: true,
+                    excludeFromStockDecrement,
                     stockQuantity: it.initialStock, // 新規のみ初期在庫（Phase 1 は全品目 0）
                 },
             });

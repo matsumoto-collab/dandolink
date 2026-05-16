@@ -112,7 +112,8 @@ export const materialRequisitionCreateSchema = z.object({
     type: z.string().optional().default('出庫'),
     status: z.string().optional().default('draft'),
     vehicleInfo: z.string().nullable().optional(),
-    notes: z.string().max(2000).nullable().optional(),
+    // notes は構造化 JSON（memo / sheets / freeForm）も格納するため上限を拡大
+    notes: z.string().max(8000).nullable().optional(),
     items: z.array(z.object({
         materialItemId: z.string().min(1),
         quantity: z.number().min(0),
@@ -123,7 +124,8 @@ export const materialRequisitionCreateSchema = z.object({
 
 export const materialRequisitionUpdateSchema = z.object({
     status: z.string().optional(),
-    notes: z.string().max(2000).nullable().optional(),
+    // notes は構造化 JSON（memo / sheets / freeForm）も格納するため上限を拡大
+    notes: z.string().max(8000).nullable().optional(),
     vehicleInfo: z.string().nullable().optional(),
     items: z.array(z.object({
         materialItemId: z.string().min(1),

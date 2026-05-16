@@ -2,11 +2,12 @@
  * 材料カタログ（コード上の単一の正 / single source of truth）
  *
  * このファイルは在庫管理リワークの土台です。
- * 将来 (Phase 2 以降) は以下の両方をここから生成します:
+ * Phase 2 以降は以下の両方をここから生成します:
  *   1. 出庫伝票 PDF (components/pdf/MaterialRequisitionSlipPDF.tsx) の 3 列レイアウト
- *   2. 出庫伝票 入力フォーム
- * Phase 1 では「定義」と「冪等 seed」「構造検証」のみを行い、
- * PDF / フォーム側の生成への切替は行いません（既存の表示系は無変更）。
+ *   2. 出庫伝票 入力フォーム (components/Materials/MaterialRequisitionPage.tsx)
+ * Phase 2 で PDF / フォーム / 印刷経路 / ライブプレビューを本ファイル由来の
+ * 生成に切替済み（COL1/COL2/COL3 の二重定義は解消）。
+ * 生成用のレイアウトは buildPdfLayout() / PDF_LAYOUT を参照。
  *
  * --- 導出元と突き合わせ ---
  *   - scripts/seed-materials.ts                        : 現行 DB のカテゴリ / 品目 / 単位
@@ -27,11 +28,14 @@
  *   全品目 initialStock = 0（Phase 1 の確定要件）。
  *
  * --- シート（ネット）/ リース品について（決着済み）---
- *   ネット / シート / リース品も物理在庫だが、出庫数量の「正」は将来
+ *   ネット / シート / リース品も物理在庫だが、出庫数量の「正」は
  *   MaterialRequisition.notes の JSON（種類 × サイズ × 車両）とする。
  *   二重計上を防ぐため、これらの CatalogItem は excludeFromStockDecrement = true とし、
  *   倉庫在庫（MaterialItem.stockQuantity）の自動増減対象から除外する。
- *   catalog 上には在庫対象 (CatalogItem) として残す（notes-JSON 側 FK が必須のため）。
+ *   catalog 上には在庫対象 (CatalogItem) として残す。理由:
+ *   MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem の実在を
+ *   要求するため、対応する MaterialItem を seed しておく必要がある
+ *   （MaterialRequisition.notes は String? でありそこに FK は存在しない）。
  *   Phase 3 の在庫減算ロジックは本フラグを必ず参照すること。
  *   （末尾 OPEN_DESIGN_TENSIONS T1 / T2 を参照）
  */
@@ -78,13 +82,14 @@ export interface CatalogItem {
      *
      * 根拠（ユーザー確定事項 / OPEN_DESIGN_TENSIONS T1・T2 参照）:
      *   - ネット（PDF の 4 結合品目: 例「新築用 青(紐付) 1.8」）/ シート / リース品 の
-     *     出庫数量は将来 MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が「正」となる。
+     *     出庫数量は MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が「正」となる。
      *   - これらを MaterialItem 在庫からも自動減算すると notes-JSON と二重計上になる。
      *   - Phase 3 の在庫減算ロジックは本フラグを必ず参照し、true の品目は減算スキップする。
      *
-     * 注意（Phase 1 範囲）:
-     *   - これは「コード上の正」であり DB スキーマ（MaterialItem）には列を追加しない。
-     *   - seed スクリプトは本フラグでは挙動を変えない（Phase 1 では定義のみ）。
+     * 注意:
+     *   - これは「コード上の正」。Phase 2 で DB スキーマ
+     *     （MaterialItem.excludeFromStockDecrement Boolean @default(false)）にも反映済み。
+     *   - seed スクリプトは upsert 時に本フラグを MaterialItem へ同期する（冪等）。
      *   - 未設定（undefined）は false 相当（= 通常どおり在庫減算対象）。
      */
     excludeFromStockDecrement?: boolean;
@@ -420,10 +425,10 @@ function categorySortOrder(categoryName: string): number {
  *
  * 根拠（ユーザー確定事項 / OPEN_DESIGN_TENSIONS T1・T2）:
  *   - 「ネット」（PDF の 4 結合品目: 例「新築用 青(紐付) 1.8」）/ シート / 「リース品」 の
- *     出庫数量は将来 MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が記録の「正」となる。
+ *     出庫数量は MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が記録の「正」となる。
  *     これらを MaterialItem.stockQuantity からも自動減算すると notes-JSON と二重計上になるため除外する。
- *   - notes-JSON は MaterialItem への FK が必須となる設計のため、catalog 上にも該当品目は
- *     残しつつ（在庫対象 CatalogItem として表現しつつ）本フラグで減算対象からのみ外す。
+ *   - MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem 実在を要求するため、
+ *     catalog 上にも該当品目は在庫対象 CatalogItem として残しつつ本フラグで減算対象からのみ外す。
  *   - Phase 3 の減算ロジックは CatalogItem.excludeFromStockDecrement を必ず参照すること。
  *
  * 注記:
@@ -490,6 +495,208 @@ export const CATALOG_CATEGORIES: CatalogCategory[] = (() => {
     return cats;
 })();
 
+/* ============================================================================
+ * Phase 2: PDF / 入力フォーム生成用レイアウト（catalog を単一の正とする）
+ *
+ * これまで MaterialRequisitionSlipPDF.tsx に COL1/COL2/COL3 がハードコードされ、
+ * catalog.ts と二重定義になっていた。Phase 2 で PDF / 印刷経路 /
+ * ライブプレビューは下記 PDF_LAYOUT（CATALOG_ITEMS から生成）を唯一の正とする。
+ * 行順 / グループ / spec ラベルは従来の PDF と完全一致するよう
+ * pdf.column / pdf.groupIndex / pdf.groupLabel / pdf.orderInGroup から再構築する。
+ * ========================================================================== */
+
+/** PDF レイアウトの 1 行（旧 COLn の Row 相当） */
+export interface PdfLayoutRow {
+    /** spec 表示ラベル（旧 Row.spec / specLabel と一致） */
+    spec: string;
+    categoryName: string;
+    itemName: string;
+}
+
+/** PDF レイアウトの 1 グループ（旧 COLn の Group 相当） */
+export interface PdfLayoutGroup {
+    /** グループラベル（'' はラベル無しグループ） */
+    label: string;
+    rows: PdfLayoutRow[];
+}
+
+/** PDF レイアウトの 1 列（旧 COLn 配列相当） */
+export interface PdfLayoutColumn {
+    column: PdfColumn;
+    groups: PdfLayoutGroup[];
+}
+
+/**
+ * CATALOG_ITEMS から PDF 3 列レイアウトを生成する（単一の正）。
+ *
+ * - 列順は COL1 → COL2 → COL3 固定。
+ * - 列内グループは pdf.groupIndex 昇順（ラベル無しグループも別ブロックとして保持）。
+ * - グループ内行は pdf.orderInGroup 昇順。
+ * - spec は CatalogItem.specLabel を採用（旧 PDF の Row.spec と一致）。
+ */
+export function buildPdfLayout(items: CatalogItem[] = CATALOG_ITEMS): PdfLayoutColumn[] {
+    const columnOrder: PdfColumn[] = ['COL1', 'COL2', 'COL3'];
+    return columnOrder.map((column) => {
+        const colItems = items.filter((it) => it.pdf.column === column);
+        // groupIndex でグルーピング
+        const byGroup = new Map<number, CatalogItem[]>();
+        for (const it of colItems) {
+            const arr = byGroup.get(it.pdf.groupIndex) ?? [];
+            arr.push(it);
+            byGroup.set(it.pdf.groupIndex, arr);
+        }
+        const groups: PdfLayoutGroup[] = Array.from(byGroup.keys())
+            .sort((a, b) => a - b)
+            .map((gi) => {
+                const rows = byGroup
+                    .get(gi)!
+                    .slice()
+                    .sort((a, b) => a.pdf.orderInGroup - b.pdf.orderInGroup);
+                return {
+                    label: rows[0]?.pdf.groupLabel ?? '',
+                    rows: rows.map((r) => ({
+                        spec: r.specLabel,
+                        categoryName: r.categoryName,
+                        itemName: r.itemName,
+                    })),
+                };
+            });
+        return { column, groups };
+    });
+}
+
+/** PDF レイアウト（PDF / 印刷 / ライブプレビュー共通の単一の正） */
+export const PDF_LAYOUT: PdfLayoutColumn[] = buildPdfLayout();
+
+/* ============================================================================
+ * Phase 2: シート（ネット）/ 自由欄の notes-JSON 構造
+ *
+ * 出庫伝票のシート（SHEET_TYPES 7 種）数量・汎用自由欄を
+ * MaterialRequisition.notes に JSON で保存する。
+ *   - 旧プレーン notes（自由テキスト）は後方互換で memo として読む。
+ *   - vehicleInfo と同じく try/parse の後方互換パターンで扱う。
+ * ========================================================================== */
+
+/** シートのサイズ軸（4 行 / PDF・フォーム共通） */
+export const SHEET_SIZES = ['1.8', '1.2', '0.9', '0.6'] as const;
+export type SheetSize = (typeof SHEET_SIZES)[number];
+
+/** シート 1 種類ぶんの数量（サイズ × 車両3列） */
+export interface SheetEntry {
+    /** SHEET_TYPES のいずれか（複数選択された種類のみ持つ） */
+    type: SheetType;
+    /**
+     * size -> [車両0, 車両1, 車両2] の数量。
+     * 0 は空欄扱い。未入力の size は省略可。
+     */
+    sizes: Partial<Record<SheetSize, [number, number, number]>>;
+}
+
+/** 汎用「その他自由欄」1 行 */
+export interface FreeFormEntry {
+    label: string;
+    /** [車両0, 車両1, 車両2] の数量文字列（自由記述許容のため string） */
+    qty: [string, string, string];
+}
+
+/**
+ * MaterialRequisition.notes に保存する構造化 JSON。
+ * 旧データ（プレーン文字列）との互換は parseRequisitionNotes が吸収する。
+ */
+export interface RequisitionNotes {
+    /** スキーマ判別用バージョン（後方互換のため将来増やせる） */
+    v: 1;
+    /** 旧 notes 相当の自由メモ（プレーン文字列の移行先） */
+    memo: string;
+    /** シート（種類 × サイズ × 車両）。複数種類を選択可能 */
+    sheets: SheetEntry[];
+    /** 汎用自由欄（種別に無い任意品目） */
+    freeForm: FreeFormEntry[];
+}
+
+/** 空の RequisitionNotes */
+export function emptyRequisitionNotes(): RequisitionNotes {
+    return { v: 1, memo: '', sheets: [], freeForm: [] };
+}
+
+/** SheetEntry の sizes が全て 0 か（保存時の間引き判定用） */
+function sheetEntryIsEmpty(e: SheetEntry): boolean {
+    return !Object.values(e.sizes).some(
+        (t) => Array.isArray(t) && (t[0] > 0 || t[1] > 0 || t[2] > 0),
+    );
+}
+
+/** FreeFormEntry が空か */
+function freeFormIsEmpty(e: FreeFormEntry): boolean {
+    return (
+        !e.label.trim() &&
+        !(e.qty[0]?.trim() || e.qty[1]?.trim() || e.qty[2]?.trim())
+    );
+}
+
+/**
+ * notes 文字列を RequisitionNotes に正規化（後方互換）。
+ *   - JSON かつ v:1 形式 → そのまま採用（欠損フィールドは補完）
+ *   - それ以外（旧プレーンテキスト / null）→ memo に格納
+ */
+export function parseRequisitionNotes(raw: string | null | undefined): RequisitionNotes {
+    const base = emptyRequisitionNotes();
+    if (!raw) return base;
+    try {
+        const obj = JSON.parse(raw);
+        if (obj && typeof obj === 'object' && obj.v === 1) {
+            return {
+                v: 1,
+                memo: typeof obj.memo === 'string' ? obj.memo : '',
+                sheets: Array.isArray(obj.sheets)
+                    ? (obj.sheets as SheetEntry[])
+                          .filter(
+                              (s) =>
+                                  s &&
+                                  (SHEET_TYPES as readonly string[]).includes(s.type) &&
+                                  s.sizes && typeof s.sizes === 'object',
+                          )
+                          .map((s) => ({ type: s.type, sizes: s.sizes }))
+                    : [],
+                freeForm: Array.isArray(obj.freeForm)
+                    ? (obj.freeForm as FreeFormEntry[])
+                          .filter((f) => f && typeof f === 'object')
+                          .map((f) => ({
+                              label: String(f.label ?? ''),
+                              qty: [
+                                  String(f.qty?.[0] ?? ''),
+                                  String(f.qty?.[1] ?? ''),
+                                  String(f.qty?.[2] ?? ''),
+                              ] as [string, string, string],
+                          }))
+                    : [],
+            };
+        }
+        // JSON だが想定外形式 → 文字列として memo に
+        return { ...base, memo: raw };
+    } catch {
+        // 旧プレーン notes
+        return { ...base, memo: raw };
+    }
+}
+
+/**
+ * RequisitionNotes を保存用文字列にシリアライズ。
+ *   - 空メモ / シート無し / 自由欄無し（全空）の場合は null を返す
+ *     （旧来の「notes 無し」と同じ扱い・DB を汚さない）。
+ *   - memo のみで sheets / freeForm が空でも、構造を保つため JSON で保存する
+ *     （次回読込時に確実に v:1 として解釈させ、プレーン誤認を防ぐ）。
+ */
+export function serializeRequisitionNotes(n: RequisitionNotes): string | null {
+    const sheets = n.sheets.filter((s) => !sheetEntryIsEmpty(s));
+    const freeForm = n.freeForm.filter((f) => !freeFormIsEmpty(f));
+    const memo = n.memo ?? '';
+    if (!memo.trim() && sheets.length === 0 && freeForm.length === 0) {
+        return null;
+    }
+    return JSON.stringify({ v: 1, memo, sheets, freeForm });
+}
+
 /**
  * 自然キー文字列（seed / upsert の内部突き合わせ専用）。
  *
@@ -531,18 +738,19 @@ export function countByColumn(): Record<PdfColumn, number> {
  *   #9 カヤシート: seed=[カヤシート] / PDF=[1.8,3.6] -> PDF を正に採用
  *
  * --- OPEN_DESIGN_TENSIONS ---
- *   T1【決着】: シート（ネット）数量の保存先 vs 在庫減算
+ *   T1【決着】: ネット / シート / リース品は notes-JSON が正・在庫減算対象外
  *       決定: ネット / シート / リース品は CatalogItem.excludeFromStockDecrement = true とし、
  *       倉庫在庫（MaterialItem.stockQuantity）の自動増減対象から除外する。
  *       出庫数量の「正」は MaterialRequisition.notes の JSON
  *       （種類(SHEET_TYPES) × サイズ × 車両）であり、MaterialItem 在庫からは減算しない
  *       （二重計上の防止）。Phase 3 の在庫減算ロジックは本フラグを必ず参照し、
  *       true の品目は減算をスキップすること。
- *       これらの品目は notes-JSON 側の FK が必須となるため catalog 上には在庫対象
- *       CatalogItem として残し、SHEET_TYPES（7 種）は notes-JSON のキー語彙として併存させる。
+ *       MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem 実在を
+ *       要求するため catalog 上には在庫対象 CatalogItem として残し、
+ *       SHEET_TYPES（7 種）は notes-JSON のキー語彙として併存させる。
  *
  *   T2【決着】: リース品の在庫減算
  *       決定: リース品も T1 と同方針。CatalogItem.excludeFromStockDecrement = true とし、
- *       倉庫在庫の自動増減対象外。数量は将来 notes-JSON を記録の「正」とする。
+ *       倉庫在庫の自動増減対象外。数量は notes-JSON を記録の「正」とする。
  *       Phase 3 の減算ロジックは本フラグ参照で減算をスキップする。
  */
