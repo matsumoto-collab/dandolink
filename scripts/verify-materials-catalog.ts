@@ -1,6 +1,10 @@
 /**
  * 材料カタログ 構造検証スクリプト（DB 不要）
  *
+ * 注意: DB 不要の「正」の検証は Jest テスト
+ *   （npm test -- __tests__/lib/materials/catalog.test.ts）であり、
+ *   本スクリプトの `npx tsx` 実行はベストエフォート（tsx 未導入環境では Jest を使う）。
+ *
  * 実行: npx tsx scripts/verify-materials-catalog.ts
  *   （tsx が無い環境では同等の検証を Jest で実行可能:
  *     npm test -- __tests__/lib/materials/catalog.test.ts）
@@ -13,10 +17,13 @@
  *   - カテゴリ内 itemSortOrder に重複が無い
  *   - initialStock は全品目 0（Phase 1 要件）
  *   - countByColumn の合計が品目総数と一致
+ *   - 全 categoryName が CATEGORY_ORDER に存在（fallback sortOrder の静かな崩壊防止）
+ *   - ネット / リース品は excludeFromStockDecrement=true、代表品目は false/未設定
  */
 import {
     CATALOG_ITEMS,
     CATALOG_CATEGORIES,
+    CATEGORY_ORDER,
     SHEET_TYPES,
     countByColumn,
     naturalKey,
@@ -110,6 +117,55 @@ for (const it of CATALOG_ITEMS) {
     for (const it of CATALOG_ITEMS) {
         check(catSet.has(it.categoryName), `CATALOG_CATEGORIES にカテゴリ欠落: ${it.categoryName}`);
     }
+}
+
+// 9. 全 categoryName が CATEGORY_ORDER に存在（fallback sortOrder の静かな崩壊防止）
+{
+    const known = new Set(CATEGORY_ORDER);
+    const fallback = CATEGORY_ORDER.length + 1;
+    for (const it of CATALOG_ITEMS) {
+        check(
+            known.has(it.categoryName),
+            `CATEGORY_ORDER 未登録カテゴリ: ${it.categoryName}`,
+        );
+        check(
+            it.categorySortOrder !== fallback,
+            `categorySortOrder が fallback に落ちている: ${it.categoryName}`,
+        );
+    }
+}
+
+// 10. ネット全品目 / リース品は excludeFromStockDecrement===true、代表品目は false/未設定
+{
+    const netItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'ネット');
+    const leaseItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'リース品');
+    check(netItems.length > 0, 'ネット品目が catalog に存在すること');
+    check(leaseItems.length > 0, 'リース品が catalog に存在すること');
+    for (const it of [...netItems, ...leaseItems]) {
+        check(
+            it.excludeFromStockDecrement === true,
+            `excludeFromStockDecrement=true であること: ${naturalKey(it.categoryName, it.itemName)}`,
+        );
+    }
+    const pillar = CATALOG_ITEMS.find(
+        (it) => it.categoryName === '柱' && it.itemName === '3.6m',
+    );
+    check(!!pillar, '代表品目「柱 3.6m」が存在すること');
+    check(
+        (pillar?.excludeFromStockDecrement ?? false) === false,
+        '代表品目「柱 3.6m」は在庫減算対象（excludeFromStockDecrement=false/未設定）であること',
+    );
+    const excludedCats = Array.from(
+        new Set(
+            CATALOG_ITEMS
+                .filter((it) => it.excludeFromStockDecrement === true)
+                .map((it) => it.categoryName),
+        ),
+    ).sort();
+    check(
+        JSON.stringify(excludedCats) === JSON.stringify(['ネット', 'リース品'].sort()),
+        `在庫減算除外カテゴリは「ネット」「リース品」のみ（実際: ${excludedCats.join(', ')}）`,
+    );
 }
 
 const c = countByColumn();

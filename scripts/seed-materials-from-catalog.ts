@@ -1,6 +1,10 @@
 /**
  * 材料マスター 冪等 upsert スクリプト（catalog.ts を単一の正とする）
  *
+ * 注意: DB 不要の「正」の構造検証は Jest テスト
+ *   （npm test -- __tests__/lib/materials/catalog.test.ts）であり、
+ *   本スクリプトおよび verify スクリプトの `npx tsx` 実行はベストエフォート。
+ *
  * 実行: DIRECT_URL="..." npx tsx scripts/seed-materials-from-catalog.ts
  *
  * 振る舞い:

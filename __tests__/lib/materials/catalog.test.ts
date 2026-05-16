@@ -7,6 +7,7 @@
 import {
     CATALOG_ITEMS,
     CATALOG_CATEGORIES,
+    CATEGORY_ORDER,
     SHEET_TYPES,
     countByColumn,
     naturalKey,
@@ -79,6 +80,51 @@ describe('materials catalog 構造検証', () => {
         for (const it of CATALOG_ITEMS) {
             expect(catSet.has(it.categoryName)).toBe(true);
         }
+    });
+
+    it('全 CatalogItem.categoryName が CATEGORY_ORDER に存在する（fallback sortOrder の静かな崩壊防止）', () => {
+        const known = new Set(CATEGORY_ORDER);
+        const missing = Array.from(
+            new Set(
+                CATALOG_ITEMS
+                    .map((it) => it.categoryName)
+                    .filter((c) => !known.has(c)),
+            ),
+        );
+        expect(missing).toEqual([]);
+        // 既知カテゴリは fallback（CATEGORY_ORDER.length + 1）に落ちていないこと
+        const fallback = CATEGORY_ORDER.length + 1;
+        const fellBack = CATALOG_ITEMS.filter((it) => it.categorySortOrder === fallback);
+        expect(fellBack).toEqual([]);
+    });
+
+    it('ネット全品目とリース品は excludeFromStockDecrement===true、代表品目は false/未設定', () => {
+        const netItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'ネット');
+        const leaseItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'リース品');
+        // 対象が catalog に存在することを前提に検証（消失で静かに緩むのを防ぐ）
+        expect(netItems.length).toBeGreaterThan(0);
+        expect(leaseItems.length).toBeGreaterThan(0);
+        for (const it of netItems) {
+            expect(it.excludeFromStockDecrement).toBe(true);
+        }
+        for (const it of leaseItems) {
+            expect(it.excludeFromStockDecrement).toBe(true);
+        }
+        // 代表的な在庫対象品目（柱 3.6m）は減算対象（false / 未設定）
+        const pillar = CATALOG_ITEMS.find(
+            (it) => it.categoryName === '柱' && it.itemName === '3.6m',
+        );
+        expect(pillar).toBeDefined();
+        expect(pillar!.excludeFromStockDecrement ?? false).toBe(false);
+        // 除外対象は「ネット」「リース品」のみであること（スコープの不用意な拡大防止）
+        const excludedCats = Array.from(
+            new Set(
+                CATALOG_ITEMS
+                    .filter((it) => it.excludeFromStockDecrement === true)
+                    .map((it) => it.categoryName),
+            ),
+        ).sort();
+        expect(excludedCats).toEqual(['ネット', 'リース品'].sort());
     });
 
     it('構造サマリを出力（参考）', () => {

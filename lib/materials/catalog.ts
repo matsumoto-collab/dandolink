@@ -26,13 +26,14 @@
  * --- 初期在庫 ---
  *   全品目 initialStock = 0（Phase 1 の確定要件）。
  *
- * --- シート（ネット）について ---
- *   ネット / シートも物理在庫であり在庫減算対象になり得る。
- *   ただし出庫伝票上のシート数量は将来 MaterialRequisition.notes の JSON に
- *   「種類 × サイズ × 車両」で保存する設計テンションが存在する（Phase 1 では未解決）。
- *   本 catalog ではネット / シート品目も在庫対象 (CatalogItem) として表現しつつ、
- *   notes-JSON と MaterialItem 在庫減算の整合方針は Phase 2/3 の論点として TODO に残す。
- *   （末尾 OPEN_DESIGN_TENSIONS を参照）
+ * --- シート（ネット）/ リース品について（決着済み）---
+ *   ネット / シート / リース品も物理在庫だが、出庫数量の「正」は将来
+ *   MaterialRequisition.notes の JSON（種類 × サイズ × 車両）とする。
+ *   二重計上を防ぐため、これらの CatalogItem は excludeFromStockDecrement = true とし、
+ *   倉庫在庫（MaterialItem.stockQuantity）の自動増減対象から除外する。
+ *   catalog 上には在庫対象 (CatalogItem) として残す（notes-JSON 側 FK が必須のため）。
+ *   Phase 3 の在庫減算ロジックは本フラグを必ず参照すること。
+ *   （末尾 OPEN_DESIGN_TENSIONS T1 / T2 を参照）
  */
 
 /** PDF の物理列 */
@@ -72,6 +73,21 @@ export interface CatalogItem {
     pdf: PdfPlacement;
     /** 初期在庫（Phase 1 は全品目 0 固定） */
     initialStock: number;
+    /**
+     * 倉庫在庫の自動増減（Phase 3 の MaterialItem.stockQuantity 減算）対象から除外するフラグ。
+     *
+     * 根拠（ユーザー確定事項 / OPEN_DESIGN_TENSIONS T1・T2 参照）:
+     *   - ネット（PDF の 4 結合品目: 例「新築用 青(紐付) 1.8」）/ シート / リース品 の
+     *     出庫数量は将来 MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が「正」となる。
+     *   - これらを MaterialItem 在庫からも自動減算すると notes-JSON と二重計上になる。
+     *   - Phase 3 の在庫減算ロジックは本フラグを必ず参照し、true の品目は減算スキップする。
+     *
+     * 注意（Phase 1 範囲）:
+     *   - これは「コード上の正」であり DB スキーマ（MaterialItem）には列を追加しない。
+     *   - seed スクリプトは本フラグでは挙動を変えない（Phase 1 では定義のみ）。
+     *   - 未設定（undefined）は false 相当（= 通常どおり在庫減算対象）。
+     */
+    excludeFromStockDecrement?: boolean;
 }
 
 /** カタログカテゴリ（seed の MaterialCategory に対応） */
@@ -114,12 +130,18 @@ export type SheetType = (typeof SHEET_TYPES)[number];
 /**
  * seed-materials.ts のカテゴリ登録順（= DB MaterialCategory.sortOrder）。
  * カタログの categorySortOrder はこの順序を唯一の正とする。
+ *
+ * 表記の正: catalog は PDF 表記を正とする（KNOWN_DISCREPANCIES #6）。
+ *   そのため CATEGORY_ORDER も SPINE 側 categoryName（PDF 表記）に揃える。
+ *   旧 'L型巾木（養用）'（seed 表記）は 'L型巾木(妻用)'（PDF 表記）に修正済み。
+ *   これを揃えないと SPINE の 'L型巾木(妻用)' が CATEGORY_ORDER 未登録扱いとなり
+ *   categorySortOrder が fallback（末尾）に静かに落ちる（本不変条件で検出）。
  */
-const CATEGORY_ORDER: string[] = [
+export const CATEGORY_ORDER: readonly string[] = [
     '柱', '手摺', '400アンチ', '250ハーフ', 'センターハーフ', '筋交', 'ブラケット',
     'ピン付き', '階段', 'ジャッキ', '皿 / 兼用皿', 'ルーフベース', '単管', 'クランプ',
     '鉄骨', 'ジョイント', '単管ベース', 'ネット', 'カヤシート', 'ヒモ', '壁つなぎ',
-    '道板', '巾木（木製）', 'L型巾木', 'L型巾木（養用）', 'アダプター', 'ジャッキカバー',
+    '道板', '巾木（木製）', 'L型巾木', 'L型巾木(妻用)', 'アダプター', 'ジャッキカバー',
     'コッパ', 'チョウチョ', '先行手摺', '梁枠', '安全バー', '金網', '杭',
     'ローリングタイヤ', 'ハッチ付きアンチ', 'タラップ', '朝顔', '単クランプ',
     '羽子板クランプ', '親綱', '足場表示看板', 'イメージシート', 'ラッセルネット',
@@ -393,6 +415,30 @@ function categorySortOrder(categoryName: string): number {
     return idx >= 0 ? idx : CATEGORY_ORDER.length + 1;
 }
 
+/**
+ * 倉庫在庫の自動減算（Phase 3）対象から除外するカテゴリ集合。
+ *
+ * 根拠（ユーザー確定事項 / OPEN_DESIGN_TENSIONS T1・T2）:
+ *   - 「ネット」（PDF の 4 結合品目: 例「新築用 青(紐付) 1.8」）/ シート / 「リース品」 の
+ *     出庫数量は将来 MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が記録の「正」となる。
+ *     これらを MaterialItem.stockQuantity からも自動減算すると notes-JSON と二重計上になるため除外する。
+ *   - notes-JSON は MaterialItem への FK が必須となる設計のため、catalog 上にも該当品目は
+ *     残しつつ（在庫対象 CatalogItem として表現しつつ）本フラグで減算対象からのみ外す。
+ *   - Phase 3 の減算ロジックは CatalogItem.excludeFromStockDecrement を必ず参照すること。
+ *
+ * 注記:
+ *   - シート関連の語彙（7 種）は SHEET_TYPES として別 export（notes-JSON のキー用）であり、
+ *     在庫対象 CatalogItem 側ではネット 4 結合品目が該当する。SHEET_TYPES 自体は変更しない。
+ *   - 本プロジェクトの catalog では「シート」専用カテゴリは存在せず、シートはネット品目
+ *     （categoryName === 'ネット'）として表現されている（KNOWN_DISCREPANCIES #5 参照）。
+ */
+const STOCK_DECREMENT_EXCLUDED_CATEGORIES = new Set<string>(['ネット', 'リース品']);
+
+/** 当該品目を倉庫在庫の自動減算対象から除外するか（Phase 3 が参照する構造フラグの算出元） */
+function isExcludedFromStockDecrement(categoryName: string): boolean {
+    return STOCK_DECREMENT_EXCLUDED_CATEGORIES.has(categoryName);
+}
+
 /** SPINE から CatalogItem[] を構築（orderInGroup / itemSortOrder を自動採番） */
 function buildCatalog(): CatalogItem[] {
     const items: CatalogItem[] = [];
@@ -418,6 +464,9 @@ function buildCatalog(): CatalogItem[] {
                         orderInGroup,
                     },
                     initialStock: 0,
+                    // ネット / シート / リース品は notes-JSON が出庫の正。
+                    // 二重計上防止のため Phase 3 の在庫減算ロジックは本フラグを必ず参照する。
+                    excludeFromStockDecrement: isExcludedFromStockDecrement(row.categoryName),
                 });
             });
         });
@@ -441,7 +490,16 @@ export const CATALOG_CATEGORIES: CatalogCategory[] = (() => {
     return cats;
 })();
 
-/** 自然キー文字列（seed / upsert で使用） */
+/**
+ * 自然キー文字列（seed / upsert の内部突き合わせ専用）。
+ *
+ * 注意: これは catalog ⇔ DB の seed 内部突合せ用キーであり、
+ *       実行時（出庫伝票の入力/プレビュー）のキーとは別物。
+ *       実行時キーは print/form 側で `|` 区切り（categoryName|itemName|vehicleIndex）であり、
+ *       lib/pdf/materialRequisitionPrint.tsx の `${cat}|${name}|${idx}` /
+ *       components/Materials/MaterialRequisitionPage.tsx の getQty 契約で使われる。
+ *       本関数の区切り（半角スペース）を実行時ルックアップに流用しないこと。
+ */
 export function naturalKey(categoryName: string, itemName: string): string {
     return `${categoryName} ${itemName}`;
 }
@@ -472,13 +530,19 @@ export function countByColumn(): Record<PdfColumn, number> {
  *   #8 250ハーフ: seed=[1.2m,0.9m,0.6m] / PDF=[1.8m,1.2m,0.9m,0.6m,0.4m] -> PDF（superset）を採用
  *   #9 カヤシート: seed=[カヤシート] / PDF=[1.8,3.6] -> PDF を正に採用
  *
- * --- OPEN_DESIGN_TENSIONS（Phase 1 では未解決 / Phase 2/3 で決定）---
- *   T1: シート（ネット）数量の保存先 vs 在庫減算
- *       将来、出庫伝票のシート数量は MaterialRequisition.notes の JSON に
- *       「種類(SHEET_TYPES) × サイズ × 車両」で保存する方針。
- *       一方でシートも物理在庫であり MaterialItem 在庫減算の対象になり得る。
- *       notes-JSON 上のシート数量と MaterialItem.stockQuantity の整合
- *       （どちらを在庫の正とするか / 二重計上の防止）は Phase 2/3 で決定する。
- *       Phase 1 の暫定: ネット品目（PDF 4 結合品目）を在庫対象として表現しつつ、
- *       SHEET_TYPES（7 種）を notes-JSON のキー語彙として併存させる。
+ * --- OPEN_DESIGN_TENSIONS ---
+ *   T1【決着】: シート（ネット）数量の保存先 vs 在庫減算
+ *       決定: ネット / シート / リース品は CatalogItem.excludeFromStockDecrement = true とし、
+ *       倉庫在庫（MaterialItem.stockQuantity）の自動増減対象から除外する。
+ *       出庫数量の「正」は MaterialRequisition.notes の JSON
+ *       （種類(SHEET_TYPES) × サイズ × 車両）であり、MaterialItem 在庫からは減算しない
+ *       （二重計上の防止）。Phase 3 の在庫減算ロジックは本フラグを必ず参照し、
+ *       true の品目は減算をスキップすること。
+ *       これらの品目は notes-JSON 側の FK が必須となるため catalog 上には在庫対象
+ *       CatalogItem として残し、SHEET_TYPES（7 種）は notes-JSON のキー語彙として併存させる。
+ *
+ *   T2【決着】: リース品の在庫減算
+ *       決定: リース品も T1 と同方針。CatalogItem.excludeFromStockDecrement = true とし、
+ *       倉庫在庫の自動増減対象外。数量は将来 notes-JSON を記録の「正」とする。
+ *       Phase 3 の減算ロジックは本フラグ参照で減算をスキップする。
  */
