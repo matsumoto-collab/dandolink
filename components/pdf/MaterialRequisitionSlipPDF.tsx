@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
     page: {
         fontFamily: 'NotoSansJP',
         fontSize: 8,
-        padding: 14,
+        padding: 10,
         backgroundColor: '#ffffff',
     },
     // ヘッダー（施工班名 / 記入者）
@@ -264,13 +264,13 @@ const styles = StyleSheet.create({
         borderRightWidth: 0.5,
         borderRightColor: '#000',
         padding: 0,
-        minHeight: 16,
+        minHeight: 14,
     },
     metaCellLast: {
         flex: 1,
         flexDirection: 'row',
         padding: 0,
-        minHeight: 16,
+        minHeight: 14,
     },
     metaLabel: {
         width: 44,
@@ -320,12 +320,12 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderRightWidth: 0.5,
         borderRightColor: '#000',
-        minHeight: 16,
+        minHeight: 14,
     },
     vehicleColumnLast: {
         flex: 1,
         flexDirection: 'row',
-        minHeight: 16,
+        minHeight: 14,
     },
     vehicleLabelCell: {
         width: 38,
@@ -390,11 +390,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: '#999',
-        minHeight: 14,
+        minHeight: 12,
     },
     itemRowLast: {
         flexDirection: 'row',
-        minHeight: 14,
+        minHeight: 12,
     },
     specCell: {
         width: 50,
@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         borderBottomWidth: 0.5,
         borderBottomColor: '#999',
-        minHeight: 14,
+        minHeight: 13,
     },
     leasedLabel: {
         flex: 2,
@@ -563,7 +563,7 @@ function ColumnBlock({ column, getQty, isLast }: { column: Column; getQty: Mater
 function SlipPageContent({
     foremanName, customerName, siteName, assemblyDate, demolitionDate, vehicles, getQty, leasedItems,
 }: MaterialRequisitionSlipPDFProps) {
-    const safeLeased = leasedItems && leasedItems.length > 0 ? leasedItems : Array.from({ length: 4 }, () => ({ label: '', qty: '' }));
+    const safeLeased = leasedItems && leasedItems.length > 0 ? leasedItems : Array.from({ length: 3 }, () => ({ label: '', qty: '' }));
     return (
         <>
             <Header foremanName={foremanName} />
