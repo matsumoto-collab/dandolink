@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { materialRequisitionUpdateSchema, validateRequest } from '@/lib/validations';
+import { applyStockForRequisition, reverseStockForRequisition } from '@/lib/materials/stock';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -88,13 +89,34 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (body.notes !== undefined) data.notes = body.notes;
         if (body.vehicleInfo !== undefined) data.vehicleInfo = body.vehicleInfo;
 
-        // items の更新がある場合は全置換
-        if (body.items && Array.isArray(body.items)) {
-            const validItems = body.items.filter((item: { quantity: number }) => item.quantity > 0);
+        // --- 在庫連動の遷移判定 ---
+        // C1: 在庫増減 / InventoryTransaction 発行は lib/materials/stock.ts の
+        //     applyStockForRequisition / reverseStockForRequisition のみを経由する
+        //     （直接 prisma で stockQuantity を更新する経路はここに作らない）。
+        const willBeLoaded = body.status === 'loaded';
+        const wasLoaded = current.status === 'loaded';
+        const enteringLoaded = willBeLoaded && !wasLoaded;
+        const leavingLoaded = !willBeLoaded && body.status !== undefined && wasLoaded;
+        // loaded のまま items を差し替える場合は、旧在庫を巻き戻してから再適用する
+        const replacingItemsWhileLoaded =
+            wasLoaded && willBeLoaded && Array.isArray(body.items);
+        const isReturn = current.type === '返却';
+        const stockOpts = { isReturn, createdBy: session?.user?.id || null };
 
-            await prisma.$transaction([
-                prisma.materialRequisitionItem.deleteMany({ where: { requisitionId: id } }),
-                prisma.materialRequisition.update({
+        // 伝票更新と在庫副作用を「単一トランザクション」で実行（整合担保）
+        await prisma.$transaction(async (tx) => {
+            // 1) items 全置換の前に、loaded 中なら旧在庫をロールバック
+            if (replacingItemsWhileLoaded) {
+                await reverseStockForRequisition(tx, id, stockOpts);
+            }
+
+            // 2) 伝票本体（status / notes / vehicleInfo / items）を更新
+            if (body.items && Array.isArray(body.items)) {
+                const validItems = body.items.filter(
+                    (item: { quantity: number }) => item.quantity > 0,
+                );
+                await tx.materialRequisitionItem.deleteMany({ where: { requisitionId: id } });
+                await tx.materialRequisition.update({
                     where: { id },
                     data: {
                         ...data,
@@ -107,44 +129,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                             })),
                         },
                     },
-                }),
-            ]);
-        } else {
-            await prisma.materialRequisition.update({
-                where: { id },
-                data,
-            });
-        }
+                });
+            } else {
+                await tx.materialRequisition.update({ where: { id }, data });
+            }
 
-        // 在庫連動: ステータスが loaded に変更された場合
-        const isNewlyLoaded = body.status === 'loaded' && current.status !== 'loaded';
-        if (isNewlyLoaded) {
-            const reqItems = await prisma.materialRequisitionItem.findMany({
-                where: { requisitionId: id },
-            });
-
-            const isReturn = current.type === '返却';
-
-            await prisma.$transaction(async (tx) => {
-                for (const item of reqItems) {
-                    const qty = isReturn ? item.quantity : -item.quantity;
-                    await tx.materialItem.update({
-                        where: { id: item.materialItemId },
-                        data: { stockQuantity: { increment: qty } },
-                    });
-                    await tx.inventoryTransaction.create({
-                        data: {
-                            materialItemId: item.materialItemId,
-                            quantity: qty,
-                            type: isReturn ? 'return' : 'dispatch',
-                            referenceId: id,
-                            referenceType: 'requisition',
-                            createdBy: session?.user?.id || null,
-                        },
-                    });
-                }
-            });
-        }
+            // 3) 在庫反映
+            if (enteringLoaded || replacingItemsWhileLoaded) {
+                // 積込完了に遷移 / loaded 中の items 差し替え → 在庫を適用（冪等）
+                await applyStockForRequisition(tx, id, stockOpts);
+            } else if (leavingLoaded) {
+                // loaded から戻す → 在庫をロールバック（逆仕訳・冪等）
+                await reverseStockForRequisition(tx, id, stockOpts);
+            }
+        });
 
         const updated = await prisma.materialRequisition.findUnique({
             where: { id },
