@@ -1,11 +1,13 @@
 /**
  * @jest-environment node
  *
- * 出庫伝票 PATCH のステータス遷移 → 在庫ヘルパ呼び出しの結線テスト（Phase 3）。
+ * 出庫伝票 PATCH のステータス遷移 → 在庫ヘルパ呼び出しの結線テスト
+ * （Phase 3 + 是正 C7 並行制御）。
  *
  * 在庫増減ロジック本体は __tests__/lib/materials/stock.test.ts で網羅済み。
- * 本テストは「どの遷移でどのヘルパが呼ばれるか」（apply / reverse / 呼ばない）
- * と「単一トランザクション内で実行されること」のみを検証する。
+ * 本テストは「どの遷移でどのヘルパが呼ばれるか」（apply / reverse / 呼ばない）、
+ * 「単一トランザクション内で実行されること」、および
+ * 「C7: 並行 PATCH 時に条件付き updateMany で TOCTOU を防ぐ」を検証する。
  */
 import { PATCH } from '@/app/api/materials/requisitions/[id]/route';
 import { prisma } from '@/lib/prisma';
@@ -18,6 +20,7 @@ jest.mock('@/lib/prisma', () => ({
         materialRequisition: {
             findUnique: jest.fn(),
             update: jest.fn(),
+            updateMany: jest.fn(),
         },
         materialRequisitionItem: {
             deleteMany: jest.fn(),
@@ -39,17 +42,23 @@ jest.mock('@/lib/api/utils', () => ({
         ),
 }));
 
-jest.mock('@/lib/materials/stock', () => ({
-    applyStockForRequisition: jest.fn().mockResolvedValue({ noop: false }),
-    reverseStockForRequisition: jest.fn().mockResolvedValue({ noop: false }),
-}));
+jest.mock('@/lib/materials/stock', () => {
+    const actual = jest.requireActual('@/lib/materials/stock');
+    return {
+        ...actual,
+        applyStockForRequisition: jest.fn().mockResolvedValue({ noop: false }),
+        reverseStockForRequisition: jest.fn().mockResolvedValue({ noop: false }),
+    };
+});
 
-describe('PATCH /api/materials/requisitions/[id] 在庫ヘルパ結線', () => {
+describe('PATCH /api/materials/requisitions/[id] 在庫ヘルパ結線 + C7 並行制御', () => {
     const ID = 'req-1';
     const ctx = { params: Promise.resolve({ id: ID }) };
     const mockSession = { user: { id: 'admin-1', role: 'admin' } };
 
     const txClient = { __tx: true };
+    // updateMany の戻り（C7 ガード）。既定は勝者（count:1）
+    let guardCount = 1;
 
     function makeReq(body: unknown) {
         return new NextRequest(`http://localhost/api/materials/requisitions/${ID}`, {
@@ -61,15 +70,20 @@ describe('PATCH /api/materials/requisitions/[id] 在庫ヘルパ結線', () => {
 
     beforeEach(() => {
         jest.clearAllMocks();
+        guardCount = 1;
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
-        // $transaction(async cb => cb(tx)) を再現
-        (prisma.$transaction as jest.Mock).mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) => {
-            return cb({
-                ...txClient,
-                materialRequisition: { update: jest.fn() },
-                materialRequisitionItem: { deleteMany: jest.fn() },
-            });
-        });
+        (prisma.$transaction as jest.Mock).mockImplementation(
+            async (cb: (tx: unknown) => Promise<unknown>) => {
+                return cb({
+                    ...txClient,
+                    materialRequisition: {
+                        update: jest.fn(),
+                        updateMany: jest.fn(async () => ({ count: guardCount })),
+                    },
+                    materialRequisitionItem: { deleteMany: jest.fn() },
+                });
+            },
+        );
         (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
             id: ID,
             status: 'draft',
@@ -159,7 +173,6 @@ describe('PATCH /api/materials/requisitions/[id] 在庫ヘルパ結線', () => {
     it('在庫操作は prisma.$transaction 内で実行される', async () => {
         await PATCH(makeReq({ status: 'loaded' }), ctx);
         expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-        // ヘルパは $transaction のコールバックに渡された tx で呼ばれている
         const txArg = (applyStockForRequisition as jest.Mock).mock.calls[0][0];
         expect(txArg).toEqual(expect.objectContaining({ __tx: true }));
     });
@@ -172,5 +185,37 @@ describe('PATCH /api/materials/requisitions/[id] 在庫ヘルパ結線', () => {
         const res = await PATCH(makeReq({ status: 'loaded' }), ctx);
         expect(res.status).toBe(403);
         expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    // --- C7: 並行 PATCH TOCTOU ガード ---
+
+    it('C7: 並行で先に loaded 化された場合 updateMany.count=0 → 在庫副作用しない（二重 forward 防止）', async () => {
+        // 別リクエストが先に draft→loaded 済み: 条件付き updateMany が 0 件
+        guardCount = 0;
+        const res = await PATCH(makeReq({ status: 'loaded' }), ctx);
+        expect(res.status).toBe(200);
+        // 在庫ヘルパは一切呼ばれない（forward の二重計上が塞がれる）
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('C7: 勝者（updateMany.count=1）は通常どおり applyStockForRequisition を実行', async () => {
+        guardCount = 1;
+        const res = await PATCH(makeReq({ status: 'loaded' }), ctx);
+        expect(res.status).toBe(200);
+        expect(applyStockForRequisition).toHaveBeenCalledTimes(1);
+    });
+
+    it('C7: 並行 2 リクエスト（勝者→敗者）で apply は 1 回のみ', async () => {
+        // 1 件目: 勝者
+        guardCount = 1;
+        await PATCH(makeReq({ status: 'loaded' }), ctx);
+        expect(applyStockForRequisition).toHaveBeenCalledTimes(1);
+
+        // 2 件目: 敗者（findUnique は draft のまま読めても updateMany が 0 件）
+        guardCount = 0;
+        await PATCH(makeReq({ status: 'loaded' }), ctx);
+        // 2 件目では呼ばれず、合計 1 回のまま
+        expect(applyStockForRequisition).toHaveBeenCalledTimes(1);
     });
 });

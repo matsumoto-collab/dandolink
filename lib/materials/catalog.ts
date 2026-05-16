@@ -36,7 +36,14 @@
  *   MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem の実在を
  *   要求するため、対応する MaterialItem を seed しておく必要がある
  *   （MaterialRequisition.notes は String? でありそこに FK は存在しない）。
- *   Phase 3 の在庫減算ロジックは本フラグを必ず参照すること。
+ *
+ *   除外判定の「単一の正」はこの catalog.ts（コード）のみ。
+ *   Phase 3 の在庫増減ヘルパ（lib/materials/stock.ts）および C6 で統合した
+ *   loading-list/confirm・inventory 棚卸し調整経路は、いずれも統合 helper
+ *   （applyStockChange）を経由し、その内部で catalog を権威として参照する。
+ *   DB 列 MaterialItem.excludeFromStockDecrement は catalog から seed が
+ *   片方向同期する「永続ミラー」であり、在庫クエリ側の WHERE 強制に使える
+ *   防御基盤（死蔵フラグではない）。在庫判定そのものの権威は catalog。
  *   （末尾 OPEN_DESIGN_TENSIONS T1 / T2 を参照）
  */
 
@@ -84,11 +91,16 @@ export interface CatalogItem {
      *   - ネット（PDF の 4 結合品目: 例「新築用 青(紐付) 1.8」）/ シート / リース品 の
      *     出庫数量は MaterialRequisition.notes の JSON（種類 × サイズ × 車両）が「正」となる。
      *   - これらを MaterialItem 在庫からも自動減算すると notes-JSON と二重計上になる。
-     *   - Phase 3 の在庫減算ロジックは本フラグを必ず参照し、true の品目は減算スキップする。
      *
-     * 注意:
-     *   - これは「コード上の正」。Phase 2 で DB スキーマ
-     *     （MaterialItem.excludeFromStockDecrement Boolean @default(false)）にも反映済み。
+     * 権威と DB 列の関係（是正5 / 実態に整合）:
+     *   - 除外判定の「単一の正」はこの catalog（コード）。Phase 3 の在庫増減
+     *     ヘルパ（lib/materials/stock.ts の applyStockChange）はこの catalog を
+     *     参照して true の品目の減算をスキップする。C6 で統合した
+     *     loading-list/confirm・inventory 棚卸し経路も同じ helper を経由するため
+     *     判定権威は一元化されている（DB 列は参照しない）。
+     *   - DB スキーマ列 MaterialItem.excludeFromStockDecrement（Boolean
+     *     @default(false)）は本フラグを seed が片方向同期する「永続ミラー」で、
+     *     在庫クエリ側で WHERE 強制に使える防御基盤（死蔵ではない）。
      *   - seed スクリプトは upsert 時に本フラグを MaterialItem へ同期する（冪等）。
      *   - 未設定（undefined）は false 相当（= 通常どおり在庫減算対象）。
      */
@@ -429,7 +441,9 @@ function categorySortOrder(categoryName: string): number {
  *     これらを MaterialItem.stockQuantity からも自動減算すると notes-JSON と二重計上になるため除外する。
  *   - MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem 実在を要求するため、
  *     catalog 上にも該当品目は在庫対象 CatalogItem として残しつつ本フラグで減算対象からのみ外す。
- *   - Phase 3 の減算ロジックは CatalogItem.excludeFromStockDecrement を必ず参照すること。
+ *   - Phase 3 の減算ロジック（lib/materials/stock.ts の統合 helper）は
+ *     CatalogItem.excludeFromStockDecrement を必ず参照する（DB 列ミラーではなく
+ *     この catalog が権威）。C6 で統合した loading-list/inventory 経路も同 helper 経由。
  *
  * 注記:
  *   - シート関連の語彙（7 種）は SHEET_TYPES として別 export（notes-JSON のキー用）であり、
@@ -470,7 +484,8 @@ function buildCatalog(): CatalogItem[] {
                     },
                     initialStock: 0,
                     // ネット / シート / リース品は notes-JSON が出庫の正。
-                    // 二重計上防止のため Phase 3 の在庫減算ロジックは本フラグを必ず参照する。
+                    // 二重計上防止のため Phase 3 の在庫増減 helper（stock.ts）は
+                    // この catalog フラグを権威として参照する（DB 列はミラー）。
                     excludeFromStockDecrement: isExcludedFromStockDecrement(row.categoryName),
                 });
             });
@@ -619,6 +634,33 @@ export function emptyRequisitionNotes(): RequisitionNotes {
     return { v: 1, memo: '', sheets: [], freeForm: [] };
 }
 
+/** 1 要素を有限数に矯正（NaN / Infinity / 非数 → 0、負値も 0 にクランプ） */
+function toFiniteQty(v: unknown): number {
+    const n = typeof v === 'number' ? v : Number(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * SheetEntry.sizes を形状正規化する。
+ * 各 size のタプルを「長さ 3・各要素 finite number」に矯正し
+ * （不正・欠損は 0 埋め）、SHEET_SIZES に無いキーは捨てる。
+ * 破損データ / 旧形式（長さ不足・文字列数量）の混入耐性。
+ */
+function normalizeSheetSizes(
+    raw: unknown,
+): Partial<Record<SheetSize, [number, number, number]>> {
+    const out: Partial<Record<SheetSize, [number, number, number]>> = {};
+    if (!raw || typeof raw !== 'object') return out;
+    const rec = raw as Record<string, unknown>;
+    for (const size of SHEET_SIZES) {
+        if (!(size in rec)) continue;
+        const t = rec[size];
+        const arr = Array.isArray(t) ? t : [];
+        out[size] = [toFiniteQty(arr[0]), toFiniteQty(arr[1]), toFiniteQty(arr[2])];
+    }
+    return out;
+}
+
 /** SheetEntry の sizes が全て 0 か（保存時の間引き判定用） */
 function sheetEntryIsEmpty(e: SheetEntry): boolean {
     return !Object.values(e.sizes).some(
@@ -656,7 +698,11 @@ export function parseRequisitionNotes(raw: string | null | undefined): Requisiti
                                   (SHEET_TYPES as readonly string[]).includes(s.type) &&
                                   s.sizes && typeof s.sizes === 'object',
                           )
-                          .map((s) => ({ type: s.type, sizes: s.sizes }))
+                          // sizes を長さ3・finite number タプルに形状正規化（不正は0埋め）
+                          .map((s) => ({
+                              type: s.type,
+                              sizes: normalizeSheetSizes(s.sizes),
+                          }))
                     : [],
                 freeForm: Array.isArray(obj.freeForm)
                     ? (obj.freeForm as FreeFormEntry[])
@@ -743,8 +789,10 @@ export function countByColumn(): Record<PdfColumn, number> {
  *       倉庫在庫（MaterialItem.stockQuantity）の自動増減対象から除外する。
  *       出庫数量の「正」は MaterialRequisition.notes の JSON
  *       （種類(SHEET_TYPES) × サイズ × 車両）であり、MaterialItem 在庫からは減算しない
- *       （二重計上の防止）。Phase 3 の在庫減算ロジックは本フラグを必ず参照し、
- *       true の品目は減算をスキップすること。
+ *       （二重計上の防止）。Phase 3 の在庫増減 helper（lib/materials/stock.ts の
+ *       applyStockChange）はこの catalog フラグを権威として参照し、true の品目は
+ *       減算をスキップする。C6 で統合した loading-list/confirm・inventory 棚卸し
+ *       経路も同一 helper を経由するため判定は一元化（DB 列ミラーは参照しない）。
  *       MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem 実在を
  *       要求するため catalog 上には在庫対象 CatalogItem として残し、
  *       SHEET_TYPES（7 種）は notes-JSON のキー語彙として併存させる。
@@ -752,5 +800,6 @@ export function countByColumn(): Record<PdfColumn, number> {
  *   T2【決着】: リース品の在庫減算
  *       決定: リース品も T1 と同方針。CatalogItem.excludeFromStockDecrement = true とし、
  *       倉庫在庫の自動増減対象外。数量は notes-JSON を記録の「正」とする。
- *       Phase 3 の減算ロジックは本フラグ参照で減算をスキップする。
+ *       Phase 3 の helper（stock.ts）は本 catalog フラグ参照で減算をスキップする
+ *       （DB 列はミラー / WHERE 強制基盤）。
  */

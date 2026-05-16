@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
 import { materialRequisitionUpdateSchema, validateRequest } from '@/lib/validations';
-import { applyStockForRequisition, reverseStockForRequisition } from '@/lib/materials/stock';
+import { applyStockForRequisition, reverseStockForRequisition, LEDGER_SOURCE } from '@/lib/materials/stock';
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
@@ -100,17 +100,48 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         // loaded のまま items を差し替える場合は、旧在庫を巻き戻してから再適用する
         const replacingItemsWhileLoaded =
             wasLoaded && willBeLoaded && Array.isArray(body.items);
+        // ステータス遷移を伴う在庫連動か（C7 の TOCTOU ガード対象）
+        const isStockTransition = enteringLoaded || leavingLoaded;
         const isReturn = current.type === '返却';
-        const stockOpts = { isReturn, createdBy: session?.user?.id || null };
+        const stockOpts = {
+            isReturn,
+            createdBy: session?.user?.id || null,
+            source: LEDGER_SOURCE.REQUISITION,
+        };
+
+        // C7: 並行 PATCH の TOCTOU 二重減算を防ぐ。
+        // status 遷移を伴う在庫連動は、トランザクション内で
+        // updateMany({ where: { id, status: 旧 } }) を「最初」に実行し、
+        // affected=0（= 別リクエストが先に遷移済み）なら在庫副作用を一切行わず abort。
+        // これにより 2 つの draft→loaded が同時に来ても forward は 1 回のみ。
+        // 加えて deriveLedgerState の冪等判定が第二防壁として残る。
+        let aborted = false;
 
         // 伝票更新と在庫副作用を「単一トランザクション」で実行（整合担保）
         await prisma.$transaction(async (tx) => {
+            // 0) C7: status 遷移は条件付き updateMany で原子的に勝者を 1 つに絞る
+            if (isStockTransition) {
+                const guard = await tx.materialRequisition.updateMany({
+                    where: { id, status: current.status },
+                    data: { status: body.status as string },
+                });
+                if (guard.count === 0) {
+                    // 別の並行リクエストが先に status を変更済み → 在庫副作用せず終了
+                    aborted = true;
+                    return;
+                }
+            }
+
             // 1) items 全置換の前に、loaded 中なら旧在庫をロールバック
             if (replacingItemsWhileLoaded) {
                 await reverseStockForRequisition(tx, id, stockOpts);
             }
 
-            // 2) 伝票本体（status / notes / vehicleInfo / items）を更新
+            // 2) 伝票本体を更新。
+            //    status は 0) で原子的に確定済みのため data からは除外し、
+            //    notes / vehicleInfo / items のみを反映する。
+            const { status: _statusInData, ...restData } = data;
+            const bodyData = isStockTransition ? restData : data;
             if (body.items && Array.isArray(body.items)) {
                 const validItems = body.items.filter(
                     (item: { quantity: number }) => item.quantity > 0,
@@ -119,7 +150,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 await tx.materialRequisition.update({
                     where: { id },
                     data: {
-                        ...data,
+                        ...bodyData,
                         items: {
                             create: validItems.map((item: { materialItemId: string; quantity: number; vehicleLabel?: string; notes?: string }) => ({
                                 materialItemId: item.materialItemId,
@@ -130,11 +161,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                         },
                     },
                 });
-            } else {
-                await tx.materialRequisition.update({ where: { id }, data });
+            } else if (Object.keys(bodyData).length > 0) {
+                await tx.materialRequisition.update({ where: { id }, data: bodyData });
             }
 
-            // 3) 在庫反映
+            // 3) 在庫反映（applyStock... は台帳冪等判定も内蔵 = 二重防壁）
             if (enteringLoaded || replacingItemsWhileLoaded) {
                 // 積込完了に遷移 / loaded 中の items 差し替え → 在庫を適用（冪等）
                 await applyStockForRequisition(tx, id, stockOpts);
@@ -143,6 +174,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
                 await reverseStockForRequisition(tx, id, stockOpts);
             }
         });
+
+        if (aborted) {
+            // 並行遷移の敗者: 既に他リクエストが反映済み。現状を返す（冪等）。
+            const latest = await prisma.materialRequisition.findUnique({
+                where: { id },
+                include: { items: { include: { materialItem: true } } },
+            });
+            return NextResponse.json(latest, { headers: { 'Cache-Control': 'no-store' } });
+        }
 
         const updated = await prisma.materialRequisition.findUnique({
             where: { id },

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth, requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
+import { applyInventoryAdjustment, type InventoryAdjustmentInput } from '@/lib/materials/stock';
 
 // カテゴリ別在庫一覧（stockQuantity含む）
 export async function GET() {
@@ -43,31 +44,32 @@ export async function PATCH(request: NextRequest) {
         }
 
         await prisma.$transaction(async (tx) => {
+            // C6 是正: 棚卸し調整の在庫直接操作も lib/materials/stock.ts の
+            // 単一ヘルパ（applyInventoryAdjustment）経由に統一。
+            // 直接 stockQuantity 書き込み経路は残さない。
+            // 除外判定（catalog 権威）も applyStockChange 内で共通適用される
+            // （ネット/リース品の棚卸し調整は自動スキップ）。
+            const inputs: InventoryAdjustmentInput[] = [];
             for (const adj of adjustments) {
                 const item = await tx.materialItem.findUnique({
                     where: { id: adj.materialItemId },
-                    select: { stockQuantity: true },
-                });
-                if (!item) continue;
-
-                const diff = adj.quantity - item.stockQuantity;
-                if (diff === 0) continue;
-
-                await tx.materialItem.update({
-                    where: { id: adj.materialItemId },
-                    data: { stockQuantity: adj.quantity },
-                });
-
-                await tx.inventoryTransaction.create({
-                    data: {
-                        materialItemId: adj.materialItemId,
-                        quantity: diff,
-                        type: 'adjustment',
-                        notes: adj.notes || '棚卸し調整',
-                        createdBy: session?.user?.id || null,
+                    select: {
+                        stockQuantity: true,
+                        name: true,
+                        category: { select: { name: true } },
                     },
                 });
+                if (!item) continue;
+                inputs.push({
+                    materialItemId: adj.materialItemId,
+                    categoryName: item.category.name,
+                    itemName: item.name,
+                    currentQuantity: item.stockQuantity,
+                    targetQuantity: adj.quantity,
+                    note: adj.notes || '棚卸し調整',
+                });
             }
+            await applyInventoryAdjustment(tx, inputs, session?.user?.id || null);
         });
 
         return NextResponse.json({ success: true });

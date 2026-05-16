@@ -85,7 +85,9 @@ describe('catalog Phase 2: PDF_LAYOUT 生成', () => {
     it('最長列の行数が 1 ページ収め予算（<=52行）以内（582b291 の約127pt余裕を維持）', () => {
         // 582b291: レイアウト約695pt / 使用可能約810pt → 約127pt 余裕。
         // グリッド行は minHeight 12pt。余裕 127pt ≒ 約10行ぶん。
-        // 旧最長列 49 行 + 余裕 ≒ 52 行を 1 ページ収めの上限予算とする。
+        // 最長列 COL1 は旧 PDF 47 行 ＋ KNOWN_DISCREPANCIES の seed 専用
+        // 追加 2 行（#2 ブラケット '0.8m' / #4 センターハーフ '0.4m'）＝ 49 行。
+        // 49 行 + 余裕 ≒ 52 行を 1 ページ収めの上限予算とする。
         // これを超えたら catalog 追加で 2 ページ化する恐れ → 要レイアウト見直し。
         const counts = countByColumn();
         const tallest = Math.max(counts.COL1, counts.COL2, counts.COL3);
