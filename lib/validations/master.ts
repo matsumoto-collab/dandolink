@@ -110,7 +110,16 @@ export const materialRequisitionCreateSchema = z.object({
     foremanId: z.string().min(1, '職長IDは必須です'),
     foremanName: z.string().optional().default(''),
     type: z.string().optional().default('出庫'),
-    status: z.string().optional().default('draft'),
+    // C8（#1 解消 / 在庫リワーク不変条件）:
+    //   伝票の新規作成は常に draft でなければならない。
+    //   loaded への遷移（= 在庫減算 + InventoryTransaction 発行）は
+    //   [id] PATCH / loading-list/confirm の「ヘルパ経由」経路のみで起こせる
+    //   という不変条件をバリデーション層で構造的に強制する。
+    //   これを許すと任意の認証ユーザーが POST {status:'loaded'} で
+    //   台帳・在庫減算ゼロの loaded 伝票を作れてしまう（#1 C6 POST 迂回）。
+    //   draft 以外（'loaded' 等）が渡された場合は 400 で拒否する
+    //   （optional のときのみ 'draft' を補完）。
+    status: z.literal('draft').optional().default('draft'),
     vehicleInfo: z.string().nullable().optional(),
     // notes は構造化 JSON（memo / sheets / freeForm）も格納するため上限を拡大
     notes: z.string().max(8000).nullable().optional(),

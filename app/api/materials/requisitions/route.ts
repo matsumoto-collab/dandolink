@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
         if (!validation.success) {
             return validationErrorResponse(validation.error, validation.details);
         }
-        const { projectMasterId, date, foremanId, foremanName, type, status: reqStatus, vehicleInfo, notes, items } = validation.data;
+        const { projectMasterId, date, foremanId, foremanName, type, vehicleInfo, notes, items } = validation.data;
 
         // 数量 > 0 のアイテムのみ保存
         const validItems = items.filter((item) => item.quantity > 0);
@@ -79,7 +79,11 @@ export async function POST(request: NextRequest) {
                 foremanId,
                 foremanName: foremanName || '',
                 type: type || '出庫',
-                status: reqStatus || 'draft',
+                // C8（#1 解消）: 新規作成は常に draft 固定。body status は信頼しない
+                // （schema でも z.literal('draft') で拒否しているが、二重防壁として
+                //  ここでもハードコードし「loaded 伝票が直接作れない」不変条件を担保）。
+                //  loaded 化は [id] PATCH / loading-list/confirm のヘルパ経由のみ。
+                status: 'draft',
                 vehicleInfo: vehicleInfo || null,
                 notes: notes || null,
                 createdBy: session?.user?.id || null,

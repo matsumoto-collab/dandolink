@@ -85,7 +85,23 @@ export default function InventoryPage() {
                 body: JSON.stringify({ adjustments }),
             });
             if (res.ok) {
-                toast.success(`${adjustments.length}件の在庫を更新しました`);
+                // C12: サーバが実際に適用した件数 / 構造除外でスキップした件数を返す。
+                //   従来は送信件数で「N件更新しました」と成功偽装していた。
+                //   除外品目（ネット/リース = catalog 権威）が含まれていた場合は
+                //   「M件は構造除外品目のため変更不可」を明示する。
+                const data: {
+                    appliedCount?: number;
+                    excludedCount?: number;
+                } = await res.json().catch(() => ({}));
+                const applied = data.appliedCount ?? adjustments.length;
+                const excluded = data.excludedCount ?? 0;
+                if (excluded > 0) {
+                    toast.success(
+                        `${applied}件の在庫を更新しました（${excluded}件はネット/リース等の構造除外品目のため変更不可）`,
+                    );
+                } else {
+                    toast.success(`${applied}件の在庫を更新しました`);
+                }
                 await fetchCategories();
                 setEditMode(false);
             } else {

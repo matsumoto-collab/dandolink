@@ -139,6 +139,19 @@ export function isMaterialItemExcludedFromStockDecrement(
     return EXCLUDE_MAP.get(`${categoryName} ${itemName}`) === true;
 }
 
+/**
+ * Prisma の既知エラーコード判定（C10）。
+ * unique 制約違反は P2002。Prisma を import せず duck-typing で判定する
+ * （テストのインメモリモックでも { code: 'P2002' } を投げれば再現できる）。
+ */
+export function isUniqueConstraintViolation(e: unknown): boolean {
+    return (
+        typeof e === 'object' &&
+        e !== null &&
+        (e as { code?: unknown }).code === 'P2002'
+    );
+}
+
 /** applyStockChange / 台帳問い合わせが必要とする最小 Prisma 形状（テストでモック可能） */
 export interface StockPrismaClient {
     materialItem: {
@@ -157,6 +170,8 @@ export interface StockPrismaClient {
                 referenceType: string | null;
                 notes: string | null;
                 createdBy: string | null;
+                // C10: 同一適用世代を一意化する決定論的キー（台帳外 Tx は null）
+                idempotencyKey: string | null;
             };
         }): Promise<unknown>;
         findMany(args: {
@@ -219,13 +234,20 @@ export interface ApplyStockChangeArgs {
     note: string;
     /** 実行ユーザー ID */
     createdBy: string | null;
+    /**
+     * C10: 同一適用世代を一意化する決定論的キー。
+     * `<referenceId>:<materialItemId>:<direction>:<generation>` 形式。
+     * 並行重複 INSERT は同一キー → DB 部分 unique 違反で 2 本目以降が拒否される。
+     * 台帳外 Tx（棚卸し調整など）は null（部分 unique の対象外）。
+     */
+    idempotencyKey: string | null;
 }
 
 export interface ApplyStockChangeResult {
     /** 除外品目（ネット/リース）でスキップしたか */
     skipped: boolean;
     /** スキップ理由（skipped=true のとき） */
-    reason?: 'excluded';
+    reason?: 'excluded' | 'duplicate';
 }
 
 /**
@@ -251,25 +273,76 @@ export async function applyStockChange(
         return { skipped: true };
     }
 
+    // --- C10: 台帳 INSERT を「先」に行い、部分 unique 制約で
+    //   並行重複（同一 idempotencyKey）を DB レベルに弾かせる。
+    //   stockQuantity の increment は INSERT 成功後のみ行う。
+    //   こうすることで P2002（敗者）のとき在庫が二重加減算されない
+    //   （旧実装は stock を先に動かしており TOCTOU 二重減算の余地があった）。
+    try {
+        await tx.inventoryTransaction.create({
+            data: {
+                materialItemId: args.materialItemId,
+                quantity: args.quantity,
+                type: args.type,
+                referenceId: args.referenceId,
+                referenceType: args.referenceType,
+                // notes は人間可読の監査用途のみ（機械判定は referenceType で行う）
+                notes: args.note,
+                createdBy: args.createdBy,
+                idempotencyKey: args.idempotencyKey,
+            },
+        });
+    } catch (e) {
+        if (isUniqueConstraintViolation(e)) {
+            // 並行重複（同一適用世代の二重 INSERT）。
+            // 既に勝者が同じ forward/reversal を確定済み → 在庫は触らず
+            // 冪等 no-op（呼び出し側が状態再読込で最終状態を確定する）。
+            return { skipped: true, reason: 'duplicate' };
+        }
+        throw e;
+    }
+
     await tx.materialItem.update({
         where: { id: args.materialItemId },
         data: { stockQuantity: { increment: args.quantity } },
     });
 
-    await tx.inventoryTransaction.create({
-        data: {
-            materialItemId: args.materialItemId,
-            quantity: args.quantity,
-            type: args.type,
-            referenceId: args.referenceId,
-            referenceType: args.referenceType,
-            // notes は人間可読の監査用途のみ（機械判定は referenceType で行う）
-            notes: args.note,
-            createdBy: args.createdBy,
-        },
-    });
-
     return { skipped: false };
+}
+
+/**
+ * C10: 当該 referenceId+materialItemId+direction の冪等キーを決定論的に算出する。
+ *
+ * generation の決め方（並行重複は拒否しつつ reverse→reapply は許す核心）:
+ *   - forward を適用するとき: generation = 既存台帳の当該 item の forward 件数。
+ *       → 同一状態から並行に走る 2 本の forward は同じ forward 件数を見て
+ *         同一 generation → 同一キー → 2 本目が部分 unique 違反で拒否。
+ *       → forward→reversal 後の「再 forward」は forward 件数が 1 増えており
+ *         generation が進む → 別キー → 正当に許容される。
+ *   - reversal を適用するとき: generation = 既存台帳の当該 item の reversal 件数。
+ *       → 開いている forward を打ち消す逆仕訳。並行 2 本の reversal は同じ
+ *         reversal 件数 → 同一 generation → 同一キー → 2 本目拒否。
+ *
+ * 台帳行（既存 Tx）の materialItemId / referenceType から件数を数える。
+ * 棚卸し調整など台帳外用途は呼び出さない（idempotencyKey=null を渡す）。
+ */
+export function computeIdempotencyKey(
+    referenceId: string,
+    materialItemId: string,
+    direction: LedgerDirection,
+    existingLedgerTxs: Array<{
+        materialItemId?: string;
+        referenceType: string | null;
+    }>,
+): string {
+    let generation = 0;
+    for (const t of existingLedgerTxs) {
+        if (t.materialItemId !== materialItemId) continue;
+        const parsed = parseLedgerReferenceType(t.referenceType);
+        if (!parsed) continue;
+        if (parsed.direction === direction) generation += 1;
+    }
+    return `${referenceId}:${materialItemId}:${direction}:${generation}`;
 }
 
 /** requisition の取引台帳サマリ（冪等 / ロールバック判定に使用） */
@@ -394,6 +467,15 @@ export async function applyStockForRequisition(
     for (const item of items) {
         // 出庫は減算（負）、返却は加算（正）
         const signed = opts.isReturn ? item.quantity : -item.quantity;
+        // C10: forward の冪等キー。generation = 既存台帳の当該 item の forward 件数。
+        //   並行 2 本の forward は同一 generation → 同一キー → DB が 2 本目を拒否。
+        //   forward→reversal 後の再 forward は forward 件数が増え別キー → 許容。
+        const idempotencyKey = computeIdempotencyKey(
+            requisitionId,
+            item.materialItemId,
+            LEDGER_DIRECTION.FORWARD,
+            existing,
+        );
         const res = await applyStockChange(tx, {
             materialItemId: item.materialItemId,
             categoryName: item.materialItem.category.name,
@@ -404,6 +486,7 @@ export async function applyStockForRequisition(
             referenceType: refType,
             note: opts.isReturn ? '返却（積込完了）' : '出庫（積込完了）',
             createdBy: opts.createdBy,
+            idempotencyKey,
         });
         if (res.skipped) {
             if (res.reason === 'excluded') excludedCount += 1;
@@ -447,6 +530,18 @@ export async function reverseStockForRequisition(
 
     const reversalRefType = ledgerReferenceType(source, LEDGER_DIRECTION.REVERSAL);
     let appliedCount = 0;
+    // C10: 同一 referenceId+item に複数 reversal を発行する余地は無いが
+    //   （forwards をループするため item ごと最大 1 行）、並行 reverse の
+    //   二重逆仕訳を DB で弾くため per-item の reversal 世代を採番する。
+    const reversalSeqByItem: Record<string, number> = {};
+    for (const t of existing) {
+        if (!t.materialItemId) continue;
+        const parsed = parseLedgerReferenceType(t.referenceType);
+        if (parsed?.direction === LEDGER_DIRECTION.REVERSAL) {
+            reversalSeqByItem[t.materialItemId] =
+                (reversalSeqByItem[t.materialItemId] ?? 0) + 1;
+        }
+    }
 
     for (const fwd of forwards) {
         // forward の符号を反転して在庫を戻す。
@@ -455,20 +550,33 @@ export async function reverseStockForRequisition(
         // 是正4: 逆仕訳 type は opts 再決定でなく元 forward 行の type を継承。
         const inheritedType: StockTxType =
             (fwd.type as StockTxType) ?? (opts.isReturn ? 'return' : 'dispatch');
+        // C10: reversal の冪等キー。generation = 当該 item の既存 reversal 件数。
+        //   並行 2 本の reverse は同一 generation → 同一キー → DB が 2 本目を拒否。
+        const generation = reversalSeqByItem[fwd.materialItemId] ?? 0;
+        const idempotencyKey = `${requisitionId}:${fwd.materialItemId}:${LEDGER_DIRECTION.REVERSAL}:${generation}`;
+        try {
+            await tx.inventoryTransaction.create({
+                data: {
+                    materialItemId: fwd.materialItemId,
+                    quantity: -fwd.quantity,
+                    type: inheritedType,
+                    referenceId: requisitionId,
+                    referenceType: reversalRefType,
+                    notes: '積込完了の取消（在庫ロールバック）',
+                    createdBy: opts.createdBy,
+                    idempotencyKey,
+                },
+            });
+        } catch (e) {
+            if (isUniqueConstraintViolation(e)) {
+                // 並行重複の逆仕訳（敗者）→ 在庫は触らず冪等 no-op としてスキップ
+                continue;
+            }
+            throw e;
+        }
         await tx.materialItem.update({
             where: { id: fwd.materialItemId },
             data: { stockQuantity: { increment: -fwd.quantity } },
-        });
-        await tx.inventoryTransaction.create({
-            data: {
-                materialItemId: fwd.materialItemId,
-                quantity: -fwd.quantity,
-                type: inheritedType,
-                referenceId: requisitionId,
-                referenceType: reversalRefType,
-                notes: '積込完了の取消（在庫ロールバック）',
-                createdBy: opts.createdBy,
-            },
         });
         appliedCount += 1;
     }
@@ -501,8 +609,18 @@ export interface InventoryAdjustmentInput {
 }
 
 export interface InventoryAdjustmentResult {
+    /** 実際に在庫を動かした品目数 */
     appliedCount: number;
+    /** スキップ総数（差分0 + 構造除外 + 重複 すべて含む） */
     skippedCount: number;
+    /**
+     * C12: 構造除外品目（ネット/リース = catalog 権威）でスキップした件数。
+     * UI はこの件数を「N件は構造除外品目のため変更不可」と可視化する。
+     * （差分0 によるスキップとは区別する）
+     */
+    excludedCount: number;
+    /** C12: 差分が無く（目標 = 現在）スキップした件数 */
+    unchangedCount: number;
 }
 
 /**
@@ -516,11 +634,12 @@ export async function applyInventoryAdjustment(
     createdBy: string | null,
 ): Promise<InventoryAdjustmentResult> {
     let appliedCount = 0;
-    let skippedCount = 0;
+    let excludedCount = 0;
+    let unchangedCount = 0;
     for (const inp of inputs) {
         const diff = inp.targetQuantity - inp.currentQuantity;
         if (diff === 0) {
-            skippedCount += 1;
+            unchangedCount += 1;
             continue;
         }
         const res = await applyStockChange(tx, {
@@ -533,9 +652,21 @@ export async function applyInventoryAdjustment(
             referenceType: INVENTORY_ADJUSTMENT_REFERENCE_TYPE,
             note: inp.note,
             createdBy,
+            // 棚卸し調整は台帳（forward/reversal）外 → 部分 unique の対象外（null）
+            idempotencyKey: null,
         });
-        if (res.skipped) skippedCount += 1;
-        else appliedCount += 1;
+        if (res.skipped) {
+            // C12: 構造除外（catalog 権威）でのスキップを明示集計
+            if (res.reason === 'excluded') excludedCount += 1;
+            else unchangedCount += 1;
+        } else {
+            appliedCount += 1;
+        }
     }
-    return { appliedCount, skippedCount };
+    return {
+        appliedCount,
+        excludedCount,
+        unchangedCount,
+        skippedCount: excludedCount + unchangedCount,
+    };
 }

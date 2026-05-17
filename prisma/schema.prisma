@@ -1337,6 +1337,17 @@ model InventoryTransaction {
   notes          String?
   createdBy      String?
   createdAt      DateTime     @default(now())
+  // C10（#4 解消 / 冪等を DB 制約で強制）:
+  //   「同一適用世代」を一意に識別する決定論的キー。
+  //   形式 = `<referenceId>:<materialItemId>:<direction>:<generation>`
+  //   （direction = forward|reversal、generation = 当該 referenceId+item の
+  //    forward/reversal サイクル数を既存台帳から決定論的に算出した世代番号）。
+  //   並行重複 INSERT は同一 generation → 同一キー → 部分 unique 違反で
+  //   2 本目以降が DB レベルで拒否される（アプリ層 read-then-write の
+  //   TOCTOU を構造的に排除）。
+  //   逆仕訳後の正当な再 forward は generation が進み別キーになるため許容。
+  //   棚卸し調整など台帳外 Tx は null（部分 unique の対象外）。
+  idempotencyKey String?
   materialItem   MaterialItem @relation(fields: [materialItemId], references: [id])
 
   @@index([materialItemId])
