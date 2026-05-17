@@ -84,19 +84,48 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             );
         }
 
-        // C16（C9 の特権穴）:
+        // --- 在庫連動の遷移判定（特権ゲートより前に確定する） ---
+        // C1: 在庫増減 / InventoryTransaction 発行は lib/materials/stock.ts の
+        //     applyStockForRequisition / reverseStockForRequisition のみを経由する
+        //     （直接 prisma で stockQuantity を更新する経路はここに作らない）。
+        const willBeLoaded = body.status === 'loaded';
+        const wasLoaded = current.status === 'loaded';
+        const enteringLoaded = willBeLoaded && !wasLoaded;
+        const leavingLoaded = !willBeLoaded && body.status !== undefined && wasLoaded;
+        // D2（C9/C16 の body.status 依存穴）:
+        //   loaded 伝票への items 差替は「在庫を reverse→apply で巻き戻し
+        //   再適用する＝在庫副作用あり」の編集である。これは body.status の
+        //   有無に依らず成立する（status 省略の items のみ PATCH でも
+        //   loaded 伝票の品目は実際に差し替わる）。旧定義 wasLoaded &&
+        //   willBeLoaded && items は status を省略すると willBeLoaded=false
+        //   となり判定が外れ、:193-211 の deleteMany+再作成だけが無条件に
+        //   走って在庫無調整で品目が差し替わり、伝票/在庫が恒久 desync して
+        //   いた（D2 ブロッカー）。
+        //   そこで replacingItemsWhileLoaded を body.status 非依存
+        //   （current.status==='loaded' && Array.isArray(body.items)）へ
+        //   統一する。ただし loaded から status を遷移させて「離脱」する
+        //   ケース（leavingLoaded：例 loaded→draft + items）は status 遷移
+        //   側の reverse（step 3 の leavingLoaded）が在庫を巻き戻すため、
+        //   ここで二重 reverse にしないよう leavingLoaded のときは除外し
+        //   両者を相互排他に保つ（enteringLoaded は wasLoaded と両立しない）。
+        //   notes のみ PATCH（items 無し）は Array.isArray(body.items) が
+        //   false で除外され、誤って在庫副作用化しない。
+        const replacingItemsWhileLoaded =
+            wasLoaded && Array.isArray(body.items) && !leavingLoaded;
+        // ステータス遷移を伴う在庫連動か（status を data から除外する判定に使用）
+        const isStockTransition = enteringLoaded || leavingLoaded;
+        // C16（C9 の特権穴）/ D2 統一:
         //   loaded のまま items を差し替える PATCH（= reverse→apply で在庫を
         //   巻き戻し再適用する＝在庫副作用あり）も「積込完了への変更」と同様、
         //   foreman/worker が独断で在庫を動かせないようにする意図（:78-79）の
         //   配下に入れる。従来 :80 の特権チェックは enteringLoaded
-        //   （status の loaded 遷移）限定で、C9 新設の replacingItemsWhileLoaded
-        //   （wasLoaded かつ willBeLoaded かつ items 配列あり）が在庫副作用を
-        //   伴うのに非特権でも通れる穴になっていた。
-        const replacingItemsWhileLoadedGate =
-            current.status === 'loaded' &&
-            body.status === 'loaded' &&
-            Array.isArray(body.items);
-        if (replacingItemsWhileLoadedGate && !isPrivileged) {
+        //   （status の loaded 遷移）限定で、C9 新設の特権ゲートも
+        //   body.status==='loaded' を必須としていたため、status 省略の
+        //   items のみ PATCH がこのゲートをすり抜けて非特権でも loaded
+        //   伝票の品目を在庫無調整で差し替えられた（D2 ブロッカー）。
+        //   C16 ゲートは在庫副作用判定（replacingItemsWhileLoaded）と
+        //   同一の body.status 非依存条件を参照し一貫させる。
+        if (replacingItemsWhileLoaded && !isPrivileged) {
             return NextResponse.json(
                 { error: '積込完了伝票の品目変更は管理者またはマネージャー権限が必要です' },
                 { status: 403, headers: { 'Cache-Control': 'no-store' } }
@@ -107,20 +136,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         if (body.status !== undefined) data.status = body.status;
         if (body.notes !== undefined) data.notes = body.notes;
         if (body.vehicleInfo !== undefined) data.vehicleInfo = body.vehicleInfo;
-
-        // --- 在庫連動の遷移判定 ---
-        // C1: 在庫増減 / InventoryTransaction 発行は lib/materials/stock.ts の
-        //     applyStockForRequisition / reverseStockForRequisition のみを経由する
-        //     （直接 prisma で stockQuantity を更新する経路はここに作らない）。
-        const willBeLoaded = body.status === 'loaded';
-        const wasLoaded = current.status === 'loaded';
-        const enteringLoaded = willBeLoaded && !wasLoaded;
-        const leavingLoaded = !willBeLoaded && body.status !== undefined && wasLoaded;
-        // loaded のまま items を差し替える場合は、旧在庫を巻き戻してから再適用する
-        const replacingItemsWhileLoaded =
-            wasLoaded && willBeLoaded && Array.isArray(body.items);
-        // ステータス遷移を伴う在庫連動か（status を data から除外する判定に使用）
-        const isStockTransition = enteringLoaded || leavingLoaded;
         // C9（#2 解消 / delta 内 C7 完成）:
         //   在庫副作用（reverse/apply）を伴う全ケースを原子ガード対象にする。
         //   従来 isStockTransition は replacingItemsWhileLoaded（loaded→loaded

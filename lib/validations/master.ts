@@ -132,18 +132,25 @@ export const materialRequisitionCreateSchema = z.object({
 });
 
 export const materialRequisitionUpdateSchema = z.object({
-    // C15（C8 の対称穴）:
+    // C15（C8 の対称穴）/ D1 訂正:
     //   PATCH の status は実在の有効状態集合のみ許可する。
-    //   出庫伝票の状態は draft（下書き）/ loaded（積込完了）の 2 値のみ
-    //   （schema default='draft'、loading-list/confirm が 'loaded' を発行、
-    //   route.ts の遷移判定も draft↔loaded のみを扱う。返却伝票は
-    //   type='返却' で表現され status 集合は出庫と共通の draft/loaded）。
+    //   出庫伝票の状態は draft（下書き）/ confirmed（確定）/ loaded
+    //   （積込完了）の 3 値。status 集合の唯一の正は
+    //   types/material.ts:33,63 と MaterialRequisitionPage.tsx の
+    //   STATUS_LABELS（draft / confirmed / loaded）であり、ここで独自に
+    //   再導出しない。返却伝票は type='返却' で表現され status 集合は
+    //   出庫と共通（draft / confirmed / loaded）。
+    //   旧 z.enum(['draft','loaded']) は正規 confirmed を脱落させ、
+    //   「確定」操作（PATCH {status:'confirmed'}）を全て 400 で弾き、
+    //   どの伝票も confirmed に到達不能 →「積込完了」ボタンが永久に
+    //   描画されず Phase3 の在庫減算ワークフローが正規 UI から到達
+    //   不能になっていた（D1 ブロッカー）。3 値へ訂正する。
     //   z.string() のままだと PATCH {status:'archived'} 等の任意文字列を
     //   そのまま MaterialRequisition.status へ書き込めてしまい、
     //   在庫連動の遷移判定（enteringLoaded/leavingLoaded）を素通りした
     //   不正状態を作れる（C8 の POST 側強制と非対称な穴）。
-    //   許可外は 400 で拒否する。正規 draft↔loaded 遷移は不変。
-    status: z.enum(['draft', 'loaded']).optional(),
+    //   許可外は 400 で拒否する。正規 draft↔confirmed↔loaded 遷移は不変。
+    status: z.enum(['draft', 'confirmed', 'loaded']).optional(),
     // notes は構造化 JSON（memo / sheets / freeForm）も格納するため上限を拡大
     notes: z.string().max(8000).nullable().optional(),
     vehicleInfo: z.string().nullable().optional(),

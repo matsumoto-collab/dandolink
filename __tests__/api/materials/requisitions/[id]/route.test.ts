@@ -708,3 +708,298 @@ describe('PATCH C16: loaded 中 items 差替の特権ゲート', () => {
         expect(applyStockForRequisition).not.toHaveBeenCalled();
     });
 });
+
+/**
+ * D1【ブロッカー】PATCH status enum が正規 confirmed を脱落させ主機能を全断。
+ *   materialRequisitionUpdateSchema.status を 3 値
+ *   z.enum(['draft','confirmed','loaded']) へ訂正。
+ *   - PATCH {status:'confirmed'} → 200 かつ在庫副作用なし
+ *     （confirmed は loaded ではないので apply/reverse 不呼出）
+ *   - confirmed → loaded → apply 実行
+ *   - draft → confirmed → loaded フルライフサイクル
+ *   - 不正値（'archived' 等）は従来どおり 400
+ *
+ * 本 describe は @/lib/validations を実体で通す（route.test 既定でモックなし）。
+ */
+describe('PATCH D1: status 3 値（draft/confirmed/loaded）と confirmed 復活', () => {
+    const ID = 'req-1';
+    const ctx = { params: Promise.resolve({ id: ID }) };
+    const mockSession = { user: { id: 'admin-1', role: 'admin' } };
+
+    function makeReq(body: unknown) {
+        return new NextRequest(`http://localhost/api/materials/requisitions/${ID}`, {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: mockSession,
+            error: null,
+        });
+        (applyStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (reverseStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (prisma.$transaction as jest.Mock).mockImplementation(
+            async (cb: (tx: unknown) => Promise<unknown>) =>
+                cb({
+                    __tx: true,
+                    materialRequisition: {
+                        update: jest.fn(),
+                        updateMany: jest.fn(async () => ({ count: 1 })),
+                    },
+                    materialRequisitionItem: { deleteMany: jest.fn() },
+                }),
+        );
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'draft',
+            type: '出庫',
+            createdBy: 'admin-1',
+            foremanId: 'f-1',
+            updatedAt: new Date('2026-05-17T00:00:00.000Z'),
+            items: [],
+        });
+    });
+
+    it("draft → confirmed は 200 かつ在庫副作用なし（apply/reverse 不呼出）", async () => {
+        const res = await PATCH(makeReq({ status: 'confirmed' }), ctx);
+        expect(res.status).toBe(200);
+        // confirmed は loaded ではない → 在庫は一切動かない
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it("confirmed → loaded は apply を実行（在庫減算ワークフローに到達可能）", async () => {
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'confirmed',
+            type: '出庫',
+            createdBy: 'admin-1',
+            foremanId: 'f-1',
+            updatedAt: new Date('2026-05-17T00:00:00.000Z'),
+            items: [],
+        });
+        const res = await PATCH(makeReq({ status: 'loaded' }), ctx);
+        expect(res.status).toBe(200);
+        expect(applyStockForRequisition).toHaveBeenCalledTimes(1);
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it("loaded → confirmed は reverse を実行（loaded からの離脱で在庫巻き戻し）", async () => {
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'loaded',
+            type: '出庫',
+            createdBy: 'admin-1',
+            foremanId: 'f-1',
+            updatedAt: new Date('2026-05-17T00:00:00.000Z'),
+            items: [],
+        });
+        const res = await PATCH(makeReq({ status: 'confirmed' }), ctx);
+        expect(res.status).toBe(200);
+        expect(reverseStockForRequisition).toHaveBeenCalledTimes(1);
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it("draft → confirmed → loaded フルライフサイクル（最後だけ apply）", async () => {
+        // 1) draft → confirmed（在庫副作用なし）
+        let res = await PATCH(makeReq({ status: 'confirmed' }), ctx);
+        expect(res.status).toBe(200);
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+
+        // 2) confirmed → loaded（apply 実行）
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'confirmed',
+            type: '出庫',
+            createdBy: 'admin-1',
+            foremanId: 'f-1',
+            updatedAt: new Date('2026-05-17T00:00:00.000Z'),
+            items: [],
+        });
+        res = await PATCH(makeReq({ status: 'loaded' }), ctx);
+        expect(res.status).toBe(200);
+        expect(applyStockForRequisition).toHaveBeenCalledTimes(1);
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it("不正値（'archived'）は従来どおり 400（在庫ヘルパ不呼出）", async () => {
+        const res = await PATCH(makeReq({ status: 'archived' }), ctx);
+        expect(res.status).toBe(400);
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it("不正値（'cancelled' / 任意文字列）も 400", async () => {
+        expect((await PATCH(makeReq({ status: 'cancelled' }), ctx)).status).toBe(400);
+        expect((await PATCH(makeReq({ status: 'foo' }), ctx)).status).toBe(400);
+    });
+});
+
+/**
+ * D2【ブロッカー】status 無し items-only PATCH が特権ゲート＋在庫ガードを
+ *   双方すり抜ける問題を固定する。
+ *
+ * 攻撃面: loaded 伝票へ {items:[...]}（status フィールド無し）を PATCH。
+ *   旧実装は willBeLoaded=body.status==='loaded'→false で
+ *   replacingItemsWhileLoaded false → reverse/apply 不実行、かつ C16
+ *   特権ゲートも body.status==='loaded' 必須で捕捉せず、:208-229 の
+ *   deleteMany+再作成だけが無条件に走り在庫無調整で品目差替 → desync。
+ *
+ * 検証（実挙動固定）:
+ *   - loaded + items のみ（status 無し）を非特権で PATCH → 403
+ *   - 同・特権 → reverse → apply 実行（body.status 非依存で在庫副作用化）
+ *   - loaded + notes のみ（items 無し）→ 在庫副作用なし
+ *     （Array.isArray(body.items) 必須＝誤発火しない）
+ *   - loaded → draft + items（leavingLoaded）は reverse 1 回のみ
+ *     （二重 reverse の新規回帰が無いこと）
+ *
+ * 本 describe は @/lib/validations を実体で通す。
+ */
+describe('PATCH D2: status 無し items-only PATCH の body.status 非依存ガード', () => {
+    const ID = 'req-1';
+    const ctx = { params: Promise.resolve({ id: ID }) };
+    const FIXED_UPDATED_AT = new Date('2026-05-17T00:00:00.000Z');
+
+    function makeReq(body: unknown) {
+        return new NextRequest(`http://localhost/api/materials/requisitions/${ID}`, {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (applyStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (reverseStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (prisma.$transaction as jest.Mock).mockImplementation(
+            async (cb: (tx: unknown) => Promise<unknown>) =>
+                cb({
+                    __tx: true,
+                    materialRequisition: {
+                        update: jest.fn(),
+                        updateMany: jest.fn(async () => ({ count: 1 })),
+                    },
+                    materialRequisitionItem: { deleteMany: jest.fn() },
+                }),
+        );
+        // 現状 loaded（その伝票の作成者 = f-1 / 職長 = f-1：所有者条件は満たす）
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'loaded',
+            type: '出庫',
+            createdBy: 'f-1',
+            foremanId: 'f-1',
+            updatedAt: FIXED_UPDATED_AT,
+            items: [],
+        });
+    });
+
+    it('非特権（foreman / 所有者でも）loaded + items のみ（status 無し）→ 403', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'foreman' } },
+            error: null,
+        });
+        const res = await PATCH(
+            makeReq({ items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(403);
+        // 在庫副作用も品目差替も一切起きない
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('非特権（worker）も loaded + items のみ（status 無し）→ 403', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'worker' } },
+            error: null,
+        });
+        const res = await PATCH(
+            makeReq({ items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(403);
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('特権（manager）loaded + items のみ（status 無し）→ reverse → apply（在庫副作用化）', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'mgr-1', role: 'manager' } },
+            error: null,
+        });
+        const callOrder: string[] = [];
+        (reverseStockForRequisition as jest.Mock).mockImplementation(async () => {
+            callOrder.push('reverse');
+            return { noop: false };
+        });
+        (applyStockForRequisition as jest.Mock).mockImplementation(async () => {
+            callOrder.push('apply');
+            return { noop: false };
+        });
+        const res = await PATCH(
+            makeReq({ items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(200);
+        // body.status 非依存で在庫副作用化（reverse→apply 各 1 回）
+        expect(callOrder).toEqual(['reverse', 'apply']);
+    });
+
+    it('loaded + notes のみ（items 無し / status 無し）→ 在庫副作用なし（誤発火しない）', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'foreman' } },
+            error: null,
+        });
+        const res = await PATCH(makeReq({ notes: 'メモ更新' }), ctx);
+        expect(res.status).toBe(200);
+        // Array.isArray(body.items) false → replacingItemsWhileLoaded false
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('loaded → draft + items（leavingLoaded）は reverse 1 回のみ（二重 reverse の新規回帰なし）', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'admin-1', role: 'admin' } },
+            error: null,
+        });
+        const callOrder: string[] = [];
+        (reverseStockForRequisition as jest.Mock).mockImplementation(async () => {
+            callOrder.push('reverse');
+            return { noop: false };
+        });
+        (applyStockForRequisition as jest.Mock).mockImplementation(async () => {
+            callOrder.push('apply');
+            return { noop: false };
+        });
+        const res = await PATCH(
+            makeReq({ status: 'draft', items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(200);
+        // leavingLoaded の reverse 1 回のみ。replacingItemsWhileLoaded は
+        // !leavingLoaded で除外されるため二重 reverse / apply は起きない。
+        expect(callOrder).toEqual(['reverse']);
+        expect(reverseStockForRequisition).toHaveBeenCalledTimes(1);
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('status 明示の loaded + items（既存 C16 ケース）が引き続き非特権 403 で緑のまま', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'foreman' } },
+            error: null,
+        });
+        const res = await PATCH(
+            makeReq({ status: 'loaded', items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(403);
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+});

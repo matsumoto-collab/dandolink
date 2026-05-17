@@ -246,6 +246,19 @@ export class MissingIdempotencyIndexError extends Error {
  *   - true  : 検証済みで存在（以降スキップ）
  *   - false/未設定 : 未検証（次回照会する。欠如時は throw するため
  *     「存在しない」を成功キャッシュすることはない）
+ *
+ * D3: このキャッシュは意図的に非対称である。
+ *   - 索引「存在」→ true を恒久キャッシュし以降の pg_indexes 照会を
+ *     スキップする（每書込で索引メタを引かないための性能配慮。索引が
+ *     後から削除される運用は想定外＝壊れた DB なので追従しない）。
+ *   - 索引「不在」→ throw（MissingIdempotencyIndexError）し、キャッシュ
+ *     しない（idempotencyIndexVerified は false のまま）。次回書込で
+ *     必ず再照会するため、migrate deploy で索引を後追い適用すれば
+ *     プロセス再起動なしに自己回復する（fail-fast → 自動復旧）。
+ *   理論的限界: 単一プロセスが「同一接続を別 DB に向け直し、新 DB に
+ *   索引が無い」状況では、true キャッシュが残り検証が skip され得る。
+ *   本番では DB を実行時に向け直す運用は無いため許容する（向け直す
+ *   場合は __resetIdempotencyIndexCacheForTest で明示リセットが必要）。
  */
 let idempotencyIndexVerified = false;
 
