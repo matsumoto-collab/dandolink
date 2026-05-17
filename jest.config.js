@@ -23,6 +23,9 @@ const config = {
         '<rootDir>/node_modules/',
         '<rootDir>/.next/',
         '<rootDir>/e2e/',
+        // C17: worktree（.claude 配下）の陳腐化テストを誤検出しない
+        //   （3 ゲート連続で既知の偽陽性源）。
+        '<rootDir>/.claude/',
     ],
 
     // モジュール名マッピング（@/エイリアス対応）

@@ -27,6 +27,10 @@ import {
     deriveLedgerState,
     ledgerReferenceType,
     parseLedgerReferenceType,
+    assertIdempotencyIndexPresent,
+    MissingIdempotencyIndexError,
+    IDEMPOTENCY_INDEX_NAME,
+    __resetIdempotencyIndexCacheForTest,
     LEDGER_SOURCE,
     LEDGER_DIRECTION,
     type StockPrismaClient,
@@ -74,6 +78,8 @@ function makeMockPrisma(opts: {
         itemName: string;
     }>;
     initialStock?: Record<string, number>;
+    /** C14: 部分 unique 索引の存在シミュレーション（既定=存在） */
+    idempotencyIndexPresent?: boolean;
 }) {
     const stock: Record<string, number> = { ...(opts.initialStock ?? {}) };
     for (const it of opts.items) {
@@ -81,8 +87,17 @@ function makeMockPrisma(opts: {
     }
     const txs: Array<MockTx & { id: string }> = [];
     let seq = 0;
+    const indexPresent = opts.idempotencyIndexPresent ?? true;
 
     const client: StockPrismaClient = {
+        // C14: assertIdempotencyIndexPresent が pg_indexes を照会する口。
+        //   索引存在シミュレーションに応じて行を返す/返さない。
+        $queryRawUnsafe: jest.fn(async (q: string) => {
+            if (q.includes(IDEMPOTENCY_INDEX_NAME)) {
+                return indexPresent ? [{ '?column?': 1 }] : [];
+            }
+            return [];
+        }),
         materialItem: {
             update: jest.fn(async ({ where, data }) => {
                 stock[where.id] = (stock[where.id] ?? 0) + data.stockQuantity.increment;
@@ -123,6 +138,12 @@ function makeMockPrisma(opts: {
 
     return { client, stock, txs };
 }
+
+// C14: assertIdempotencyIndexPresent はプロセス内キャッシュを持つため
+//   テスト間で「索引存在検証済み」状態が漏れないよう毎テストでリセットする。
+beforeEach(() => {
+    __resetIdempotencyIndexCacheForTest();
+});
 
 describe('isMaterialItemExcludedFromStockDecrement（純粋関数 / catalog 権威）', () => {
     it('ネット結合品目は除外（true）', () => {
@@ -921,5 +942,231 @@ describe('C12: applyInventoryAdjustment skip 内訳（除外件数の可視化�
         expect(res.excludedCount).toBe(0);
         expect(res.unchangedCount).toBe(1);
         expect(res.skippedCount).toBe(1);
+    });
+});
+
+/**
+ * C13【ブロッカー】dup-materialItemId 過少減算の是正（採用=案A: 伝票内集約）
+ *
+ * 攻撃面（オーケストレータ再現済み・主経路）:
+ *   flattenQuantitiesForApi が「資材を複数車両に分けて積む」標準仕様で
+ *   同一 materialItemId を vehicleLabel 0/1/2 ごとに別 MaterialRequisitionItem
+ *   行として送出する。round-2 実装は item 行ごとに applyStockChange を呼び、
+ *   idempotencyKey の generation を「ループ外 1 回取得の同一スナップショット」
+ *   から算出していたため、全行が gen=0 = 同一 idempotencyKey となり
+ *   1 行目のみ INSERT＋減算・2 行目以降 P2002 → duplicate skip で
+ *   在庫が 2 行目以降の数量分だけ恒久的に過少減算されていた。
+ *
+ * 受入（差し戻し解除条件）:
+ *   同一 materialItemId を vehicleLabel '0' と '1' の 2 行（10 と 7）持つ
+ *   loaded 化伝票で在庫が合計 17 減算され、reverse で 17 全量復元、かつ
+ *   並行重複適用は依然 1 回に収束。forward→reverse→再forward も dup-item で成立。
+ */
+describe('C13: 同一 materialItemId 複数行（車両別）の在庫集約', () => {
+    it('vehicleLabel 0/1 の 2 行（10,7）→ 合計 17 を 1 回で減算（過少減算しない）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            // 同一 materialItemId 'p-1' を 2 行（車両 0:10 / 車両 1:7）
+            items: [
+                { materialItemId: 'p-1', quantity: 10, ...PILLAR },
+                { materialItemId: 'p-1', quantity: 7, ...PILLAR },
+            ],
+            initialStock: { 'p-1': 100 },
+        });
+        const res = await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(res.noop).toBe(false);
+        // appliedCount は distinct item 数（行数ではない）→ 1
+        expect(res.appliedCount).toBe(1);
+        // 合計 17 減算（過少減算 = 100-10=90 ではない）
+        expect(stock['p-1']).toBe(83);
+        // forward 台帳は distinct item ごと 1 本・数量は伝票内合計
+        const forwards = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'forward',
+        );
+        expect(forwards).toHaveLength(1);
+        expect(forwards[0].quantity).toBe(-17);
+        expect(forwards[0].idempotencyKey).toBe('req-1:p-1:forward:0');
+    });
+
+    it('reverse で 17 全量復元（鏡像で過少復元しない）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [
+                { materialItemId: 'p-1', quantity: 10, ...PILLAR },
+                { materialItemId: 'p-1', quantity: 7, ...PILLAR },
+            ],
+            initialStock: { 'p-1': 100 },
+        });
+        await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(stock['p-1']).toBe(83);
+        const rev = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(rev.noop).toBe(false);
+        expect(stock['p-1']).toBe(100); // 17 全量復元
+        const reversals = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'reversal',
+        );
+        expect(reversals).toHaveLength(1);
+        expect(reversals[0].quantity).toBe(17);
+    });
+
+    it('forward → reverse → 再 forward が dup-item でも成立（gen 進行・別キー）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [
+                { materialItemId: 'p-1', quantity: 10, ...PILLAR },
+                { materialItemId: 'p-1', quantity: 7, ...PILLAR },
+            ],
+            initialStock: { 'p-1': 100 },
+        });
+        await applyStockForRequisition(client, 'req-1', { isReturn: false, createdBy: 'u1' });
+        expect(stock['p-1']).toBe(83);
+        await reverseStockForRequisition(client, 'req-1', { isReturn: false, createdBy: 'u1' });
+        expect(stock['p-1']).toBe(100);
+        const re = await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(re.noop).toBe(false);
+        expect(stock['p-1']).toBe(83); // 再 forward でまた 17 減算
+        const fwdKeys = txs
+            .filter((t) => parseLedgerReferenceType(t.referenceType)?.direction === 'forward')
+            .map((t) => t.idempotencyKey);
+        expect(fwdKeys).toEqual(['req-1:p-1:forward:0', 'req-1:p-1:forward:1']);
+    });
+
+    it('並行重複適用は依然 1 回に収束（dup-item でも二重減算しない）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [
+                { materialItemId: 'p-1', quantity: 10, ...PILLAR },
+                { materialItemId: 'p-1', quantity: 7, ...PILLAR },
+            ],
+            initialStock: { 'p-1': 100 },
+        });
+        // 直列 2 回（route C7 ガードを通り抜けても helper 台帳冪等が第二防壁）
+        await applyStockForRequisition(client, 'req-1', { isReturn: false, createdBy: 'u1' });
+        await applyStockForRequisition(client, 'req-1', { isReturn: false, createdBy: 'u1' });
+        expect(stock['p-1']).toBe(83); // 17 を 1 回ぶんのみ
+        const forwards = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'forward',
+        );
+        expect(forwards).toHaveLength(1);
+    });
+
+    it('複数 distinct item × それぞれ複数車両行 → item ごとに集約・appliedCount=distinct数', async () => {
+        const { client, stock } = makeMockPrisma({
+            items: [
+                { materialItemId: 'p-1', quantity: 4, ...PILLAR }, // 車両0
+                { materialItemId: 'p-1', quantity: 6, ...PILLAR }, // 車両1（同一 item）
+                { materialItemId: 'h-1', quantity: 3, ...HANDRAIL }, // 別 item 車両0
+                { materialItemId: 'h-1', quantity: 2, ...HANDRAIL }, // 別 item 車両1
+            ],
+            initialStock: { 'p-1': 50, 'h-1': 50 },
+        });
+        const res = await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(res.appliedCount).toBe(2); // distinct item 数（p-1, h-1）
+        expect(stock['p-1']).toBe(40); // 50 - (4+6)
+        expect(stock['h-1']).toBe(45); // 50 - (3+2)
+    });
+
+    it('除外品目が複数車両行で来ても集約後に excludedCount=1（distinct数）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [
+                { materialItemId: 'net-1', quantity: 5, ...NET },
+                { materialItemId: 'net-1', quantity: 8, ...NET },
+                { materialItemId: 'p-1', quantity: 3, ...PILLAR },
+            ],
+            initialStock: { 'net-1': 50, 'p-1': 50 },
+        });
+        const res = await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(res.appliedCount).toBe(1); // 柱のみ
+        expect(res.excludedCount).toBe(1); // ネット（distinct = 1、行数 2 ではない）
+        expect(stock['net-1']).toBe(50); // 除外 → 不変
+        expect(stock['p-1']).toBe(47);
+        expect(txs.filter((t) => t.materialItemId === 'net-1')).toHaveLength(0);
+    });
+});
+
+/**
+ * C14【ブロッカー】部分 unique 索引のランタイム fail-fast
+ *
+ * 攻撃面: 索引 InventoryTransaction_idempotencyKey_key（部分 unique）が
+ *   実 DB に未適用だと C10 の DB 強制が無音で無効化し #4（並行二重減算）が
+ *   全面再発する。アプリ層 read-then-write は TOCTOU で第二防壁にならない。
+ *
+ * 受入: 索引不在を模した状態で書込が握り潰さず明示エラーで失敗すること。
+ */
+describe('C14: 部分 unique 索引の fail-fast ガード', () => {
+    it('索引存在時は assertIdempotencyIndexPresent が通過（throw しない）', async () => {
+        const { client } = makeMockPrisma({
+            items: [],
+            idempotencyIndexPresent: true,
+        });
+        await expect(assertIdempotencyIndexPresent(client)).resolves.toBeUndefined();
+    });
+
+    it('索引不在時は applyStockForRequisition が MissingIdempotencyIndexError で fail-fast（在庫を触らない）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [{ materialItemId: 'p-1', quantity: 5, ...PILLAR }],
+            initialStock: { 'p-1': 100 },
+            idempotencyIndexPresent: false,
+        });
+        await expect(
+            applyStockForRequisition(client, 'req-1', {
+                isReturn: false,
+                createdBy: 'u1',
+            }),
+        ).rejects.toBeInstanceOf(MissingIdempotencyIndexError);
+        // 握り潰さず例外 → 在庫も台帳も一切動かない
+        expect(stock['p-1']).toBe(100);
+        expect(txs).toHaveLength(0);
+    });
+
+    it('索引不在時は reverseStockForRequisition も fail-fast', async () => {
+        const { client } = makeMockPrisma({
+            items: [{ materialItemId: 'p-1', quantity: 5, ...PILLAR }],
+            initialStock: { 'p-1': 100 },
+            idempotencyIndexPresent: false,
+        });
+        await expect(
+            reverseStockForRequisition(client, 'req-1', {
+                isReturn: false,
+                createdBy: 'u1',
+            }),
+        ).rejects.toBeInstanceOf(MissingIdempotencyIndexError);
+    });
+
+    it('検証は成功後プロセス内キャッシュされ pg_indexes 再照会しない', async () => {
+        const { client } = makeMockPrisma({
+            items: [],
+            idempotencyIndexPresent: true,
+        });
+        await assertIdempotencyIndexPresent(client);
+        await assertIdempotencyIndexPresent(client);
+        // 1 度だけ照会（2 度目はキャッシュ短絡）
+        expect(client.$queryRawUnsafe as jest.Mock).toHaveBeenCalledTimes(1);
+    });
+
+    it('$queryRawUnsafe を持たない最小モックでは検証スキップ（純粋ロジックテスト互換）', async () => {
+        const minimal = {
+            materialItem: { update: jest.fn() },
+            inventoryTransaction: {
+                create: jest.fn(),
+                findMany: jest.fn(async () => []),
+            },
+            materialRequisitionItem: { findMany: jest.fn(async () => []) },
+        } as unknown as StockPrismaClient;
+        await expect(assertIdempotencyIndexPresent(minimal)).resolves.toBeUndefined();
     });
 });

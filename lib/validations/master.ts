@@ -132,7 +132,18 @@ export const materialRequisitionCreateSchema = z.object({
 });
 
 export const materialRequisitionUpdateSchema = z.object({
-    status: z.string().optional(),
+    // C15（C8 の対称穴）:
+    //   PATCH の status は実在の有効状態集合のみ許可する。
+    //   出庫伝票の状態は draft（下書き）/ loaded（積込完了）の 2 値のみ
+    //   （schema default='draft'、loading-list/confirm が 'loaded' を発行、
+    //   route.ts の遷移判定も draft↔loaded のみを扱う。返却伝票は
+    //   type='返却' で表現され status 集合は出庫と共通の draft/loaded）。
+    //   z.string() のままだと PATCH {status:'archived'} 等の任意文字列を
+    //   そのまま MaterialRequisition.status へ書き込めてしまい、
+    //   在庫連動の遷移判定（enteringLoaded/leavingLoaded）を素通りした
+    //   不正状態を作れる（C8 の POST 側強制と非対称な穴）。
+    //   許可外は 400 で拒否する。正規 draft↔loaded 遷移は不変。
+    status: z.enum(['draft', 'loaded']).optional(),
     // notes は構造化 JSON（memo / sheets / freeForm）も格納するため上限を拡大
     notes: z.string().max(8000).nullable().optional(),
     vehicleInfo: z.string().nullable().optional(),

@@ -84,6 +84,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
             );
         }
 
+        // C16（C9 の特権穴）:
+        //   loaded のまま items を差し替える PATCH（= reverse→apply で在庫を
+        //   巻き戻し再適用する＝在庫副作用あり）も「積込完了への変更」と同様、
+        //   foreman/worker が独断で在庫を動かせないようにする意図（:78-79）の
+        //   配下に入れる。従来 :80 の特権チェックは enteringLoaded
+        //   （status の loaded 遷移）限定で、C9 新設の replacingItemsWhileLoaded
+        //   （wasLoaded かつ willBeLoaded かつ items 配列あり）が在庫副作用を
+        //   伴うのに非特権でも通れる穴になっていた。
+        const replacingItemsWhileLoadedGate =
+            current.status === 'loaded' &&
+            body.status === 'loaded' &&
+            Array.isArray(body.items);
+        if (replacingItemsWhileLoadedGate && !isPrivileged) {
+            return NextResponse.json(
+                { error: '積込完了伝票の品目変更は管理者またはマネージャー権限が必要です' },
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
+            );
+        }
+
         const data: Record<string, unknown> = {};
         if (body.status !== undefined) data.status = body.status;
         if (body.notes !== undefined) data.notes = body.notes;
@@ -247,14 +266,31 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
         //   cascade で items が消える前に呼んでも台帳ベースで整合する。
         //   逆仕訳 Tx（referenceType=...:reversal）は監査用に台帳へ残す
         //   （InventoryTransaction は referenceId カスケード対象外）。
-        await prisma.$transaction(async (tx) => {
-            await reverseStockForRequisition(tx, id, {
-                isReturn: current.type === '返却',
-                createdBy: session?.user?.id || null,
-                source: LEDGER_SOURCE.REQUISITION,
+        try {
+            await prisma.$transaction(async (tx) => {
+                await reverseStockForRequisition(tx, id, {
+                    isReturn: current.type === '返却',
+                    createdBy: session?.user?.id || null,
+                    source: LEDGER_SOURCE.REQUISITION,
+                });
+                await tx.materialRequisition.delete({ where: { id } });
             });
-            await tx.materialRequisition.delete({ where: { id } });
-        });
+        } catch (e) {
+            // C17: 二重 DELETE の 2 本目を冪等化する。
+            //   並行 DELETE では両者が findUnique を通過し得る。1 本目が
+            //   delete を確定すると 2 本目の delete は Prisma P2025
+            //   （Record to delete does not exist）を投げる。これは
+            //   「既に削除された」= 望む終端状態なので 500 にせず成功扱いに
+            //   する（在庫整合は現状維持。reverse は台帳冪等で 2 本目 noop）。
+            if (
+                typeof e === 'object' &&
+                e !== null &&
+                (e as { code?: unknown }).code === 'P2025'
+            ) {
+                return NextResponse.json({ success: true });
+            }
+            throw e;
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

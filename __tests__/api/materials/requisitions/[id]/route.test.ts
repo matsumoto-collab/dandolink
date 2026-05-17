@@ -459,4 +459,252 @@ describe('DELETE C11: loaded 伝票削除時の在庫巻き戻し', () => {
         expect(reverseStockForRequisition).not.toHaveBeenCalled();
         expect(prisma.$transaction).not.toHaveBeenCalled();
     });
+
+    // --- C17: 二重 DELETE の 2 本目を冪等化（P2025 → 成功扱い） ---
+
+    it('C17: 並行 DELETE の 2 本目（delete で P2025）は 500 でなく成功扱い', async () => {
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'loaded',
+            type: '出庫',
+        });
+        // reverse は台帳冪等で noop（1 本目で既に取消済み相当）
+        (reverseStockForRequisition as jest.Mock).mockResolvedValue({
+            noop: true,
+            appliedCount: 0,
+            excludedCount: 0,
+        });
+        // $transaction 内の delete が Prisma P2025 を投げる（既に削除済み）
+        (prisma.$transaction as jest.Mock).mockImplementation(
+            async (cb: (tx: unknown) => Promise<unknown>) =>
+                cb({
+                    __tx: true,
+                    materialRequisition: {
+                        delete: jest.fn(async () => {
+                            const e = new Error(
+                                'Record to delete does not exist',
+                            ) as Error & { code: string };
+                            e.code = 'P2025';
+                            throw e;
+                        }),
+                    },
+                }),
+        );
+        const res = await DELETE(makeDelReq(), ctx);
+        expect(res.status).toBe(200);
+        const json = await res.json();
+        expect(json).toEqual({ success: true });
+    });
+
+    it('C17: P2025 以外のエラーは従来どおり 500（握り潰さない）', async () => {
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'loaded',
+            type: '出庫',
+        });
+        (reverseStockForRequisition as jest.Mock).mockResolvedValue({ noop: true });
+        (prisma.$transaction as jest.Mock).mockImplementation(async () => {
+            const e = new Error('DB connection lost') as Error & { code: string };
+            e.code = 'P1001';
+            throw e;
+        });
+        const res = await DELETE(makeDelReq(), ctx);
+        expect(res.status).toBe(500);
+    });
+});
+
+/**
+ * C15【必達】PATCH status の制約（C8 の対称穴）
+ *   materialRequisitionUpdateSchema.status を z.enum(['draft','loaded']) に
+ *   絞る。許可外（'archived' 等）は 400。正規 draft↔loaded 遷移は不変。
+ *
+ * 本 describe は @/lib/validations を実体で通す（route.test 既定でモックなし）。
+ */
+describe('PATCH C15: status の enum 制約（不正値 400 / 正規遷移は不変）', () => {
+    const ID = 'req-1';
+    const ctx = { params: Promise.resolve({ id: ID }) };
+    const mockSession = { user: { id: 'admin-1', role: 'admin' } };
+
+    function makeReq(body: unknown) {
+        return new NextRequest(`http://localhost/api/materials/requisitions/${ID}`, {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: mockSession,
+            error: null,
+        });
+        (applyStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (reverseStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (prisma.$transaction as jest.Mock).mockImplementation(
+            async (cb: (tx: unknown) => Promise<unknown>) =>
+                cb({
+                    __tx: true,
+                    materialRequisition: {
+                        update: jest.fn(),
+                        updateMany: jest.fn(async () => ({ count: 1 })),
+                    },
+                    materialRequisitionItem: { deleteMany: jest.fn() },
+                }),
+        );
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'draft',
+            type: '出庫',
+            createdBy: 'admin-1',
+            foremanId: 'f-1',
+            items: [],
+        });
+    });
+
+    it("status:'archived' は 400（在庫ヘルパを呼ばない）", async () => {
+        const res = await PATCH(makeReq({ status: 'archived' }), ctx);
+        expect(res.status).toBe(400);
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it("status:'cancelled' / 任意文字列も 400", async () => {
+        expect((await PATCH(makeReq({ status: 'cancelled' }), ctx)).status).toBe(400);
+        expect((await PATCH(makeReq({ status: 'foo' }), ctx)).status).toBe(400);
+    });
+
+    it("正規 draft→loaded は 200（不変）", async () => {
+        const res = await PATCH(makeReq({ status: 'loaded' }), ctx);
+        expect(res.status).toBe(200);
+        expect(applyStockForRequisition).toHaveBeenCalledTimes(1);
+    });
+
+    it("正規 loaded→draft は 200（不変）", async () => {
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'loaded',
+            type: '出庫',
+            createdBy: 'admin-1',
+            foremanId: 'f-1',
+            items: [],
+        });
+        const res = await PATCH(makeReq({ status: 'draft' }), ctx);
+        expect(res.status).toBe(200);
+        expect(reverseStockForRequisition).toHaveBeenCalledTimes(1);
+    });
+
+    it('status 未指定（notes のみ）は 200（任意項目）', async () => {
+        const res = await PATCH(makeReq({ notes: 'メモ' }), ctx);
+        expect(res.status).toBe(200);
+    });
+});
+
+/**
+ * C16【必達】loaded 中 items 差替の特権ゲート（C9 の特権穴）
+ *   replacingItemsWhileLoaded（wasLoaded && willBeLoaded && items 配列）も
+ *   在庫副作用ありのため requireManagerOrAbove 相当の特権配下に入れる。
+ *   非特権が loaded items 差替 PATCH → 403、特権 → 従来どおり。
+ */
+describe('PATCH C16: loaded 中 items 差替の特権ゲート', () => {
+    const ID = 'req-1';
+    const ctx = { params: Promise.resolve({ id: ID }) };
+
+    function makeReq(body: unknown) {
+        return new NextRequest(`http://localhost/api/materials/requisitions/${ID}`, {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        (applyStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (reverseStockForRequisition as jest.Mock).mockResolvedValue({ noop: false });
+        (prisma.$transaction as jest.Mock).mockImplementation(
+            async (cb: (tx: unknown) => Promise<unknown>) =>
+                cb({
+                    __tx: true,
+                    materialRequisition: {
+                        update: jest.fn(),
+                        updateMany: jest.fn(async () => ({ count: 1 })),
+                    },
+                    materialRequisitionItem: { deleteMany: jest.fn() },
+                }),
+        );
+        // 現状 loaded（その伝票の作成者 = f-1 / 職長 = f-1：所有者条件は満たす）
+        (prisma.materialRequisition.findUnique as jest.Mock).mockResolvedValue({
+            id: ID,
+            status: 'loaded',
+            type: '出庫',
+            createdBy: 'f-1',
+            foremanId: 'f-1',
+            updatedAt: new Date('2026-05-17T00:00:00.000Z'),
+            items: [],
+        });
+    });
+
+    it('非特権（foreman / 所有者でも）loaded items 差替 PATCH は 403（在庫操作させない）', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'foreman' } },
+            error: null,
+        });
+        const res = await PATCH(
+            makeReq({ status: 'loaded', items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(403);
+        // 在庫副作用は一切起きない
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('非特権（worker）も同様に 403', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'worker' } },
+            error: null,
+        });
+        const res = await PATCH(
+            makeReq({ status: 'loaded', items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(403);
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
+
+    it('特権（manager）は従来どおり loaded items 差替で reverse→apply', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'mgr-1', role: 'manager' } },
+            error: null,
+        });
+        const callOrder: string[] = [];
+        (reverseStockForRequisition as jest.Mock).mockImplementation(async () => {
+            callOrder.push('reverse');
+            return { noop: false };
+        });
+        (applyStockForRequisition as jest.Mock).mockImplementation(async () => {
+            callOrder.push('apply');
+            return { noop: false };
+        });
+        const res = await PATCH(
+            makeReq({ status: 'loaded', items: [{ materialItemId: 'm1', quantity: 3 }] }),
+            ctx,
+        );
+        expect(res.status).toBe(200);
+        expect(callOrder).toEqual(['reverse', 'apply']);
+    });
+
+    it('非特権でも loaded のまま notes のみ更新（items 無し）は従来どおり許可', async () => {
+        (requireAuth as jest.Mock).mockResolvedValue({
+            session: { user: { id: 'f-1', role: 'foreman' } },
+            error: null,
+        });
+        const res = await PATCH(makeReq({ notes: 'メモ更新' }), ctx);
+        expect(res.status).toBe(200);
+        // items 差替でないので在庫副作用なし
+        expect(reverseStockForRequisition).not.toHaveBeenCalled();
+        expect(applyStockForRequisition).not.toHaveBeenCalled();
+    });
 });

@@ -202,6 +202,78 @@ export interface StockPrismaClient {
             }>
         >;
     };
+    /**
+     * C14: 部分 unique 索引の存在検証に使う raw SQL 実行口。
+     * Prisma の $queryRawUnsafe 互換（タグ無し文字列クエリ）。
+     * 索引存在チェック専用に最小形状でだけ要求する（テストでモック可能）。
+     */
+    $queryRawUnsafe?(query: string): Promise<unknown>;
+}
+
+/**
+ * C14【ブロッカー】部分 unique 索引のランタイム fail-fast。
+ *
+ * C10 の冪等は DB 側の部分 unique 索引
+ * `InventoryTransaction_idempotencyKey_key`（WHERE idempotencyKey IS NOT NULL）
+ * によって並行重複 INSERT を構造的に弾くことで成立している。
+ * この索引が実 DB に未適用（`prisma migrate deploy` 未実行など）だと、
+ * 同一 idempotencyKey の 2 本目以降が P2002 を投げず**全て INSERT 成功**し、
+ * 在庫が二重減算される（前ゲート #4 が無音で全面再発）。
+ * アプリ層 read-then-write は TOCTOU で原子保証が無いため第二防壁にならない。
+ *
+ * そこで stock 書込経路の入口で索引の存在を 1 度だけ照会し、
+ * 欠如していれば**明示エラーで fail-fast**する（握り潰さない）。
+ * 照会結果はプロセス内でキャッシュする（每書込で pg_indexes を引かない）。
+ * `$queryRawUnsafe` を持たない最小モック（既存テスト）では検証をスキップする
+ * （DB を持たない純粋ロジックテストは対象外。実 prisma は必ず保持する）。
+ */
+export const IDEMPOTENCY_INDEX_NAME =
+    'InventoryTransaction_idempotencyKey_key' as const;
+
+export class MissingIdempotencyIndexError extends Error {
+    constructor() {
+        super(
+            `[在庫整合・致命] 部分 unique 索引 "${IDEMPOTENCY_INDEX_NAME}" が DB に存在しません。` +
+                ' これは並行重複の在庫二重減算を防ぐ DB 制約です（C10/#4）。' +
+                ' プレデプロイ手順 `prisma migrate deploy` を実行してから再試行してください。',
+        );
+        this.name = 'MissingIdempotencyIndexError';
+    }
+}
+
+/**
+ * 索引存在検証のプロセス内キャッシュ。
+ *   - true  : 検証済みで存在（以降スキップ）
+ *   - false/未設定 : 未検証（次回照会する。欠如時は throw するため
+ *     「存在しない」を成功キャッシュすることはない）
+ */
+let idempotencyIndexVerified = false;
+
+/** テスト用: キャッシュ状態をリセット（プロダクション経路では呼ばない） */
+export function __resetIdempotencyIndexCacheForTest(): void {
+    idempotencyIndexVerified = false;
+}
+
+export async function assertIdempotencyIndexPresent(
+    tx: StockPrismaClient,
+): Promise<void> {
+    if (idempotencyIndexVerified) return;
+    // 最小モック（DB 非依存の純粋ロジックテスト）には $queryRawUnsafe が無い。
+    // その場合は検証不能なのでスキップする（実 prisma は必ず保持する）。
+    if (typeof tx.$queryRawUnsafe !== 'function') return;
+
+    // pg_indexes を照会（パラメータは索引名固定。SQL インジェクション面なし）。
+    const rows = (await tx.$queryRawUnsafe(
+        `SELECT 1 FROM pg_indexes WHERE schemaname = 'public' ` +
+            `AND indexname = '${IDEMPOTENCY_INDEX_NAME}' LIMIT 1`,
+    )) as unknown;
+
+    const present = Array.isArray(rows) && rows.length > 0;
+    if (!present) {
+        // 欠如時は throw（握り潰さない / キャッシュもしない＝次回も検証する）
+        throw new MissingIdempotencyIndexError();
+    }
+    idempotencyIndexVerified = true;
 }
 
 /** 在庫増減の方向（出庫=dispatch / 返却=return / 棚卸し=adjustment）。 */
@@ -446,6 +518,8 @@ export async function applyStockForRequisition(
     requisitionId: string,
     opts: RequisitionStockOptions,
 ): Promise<RequisitionStockResult> {
+    // C14: 部分 unique 索引が無いと並行二重減算が無音で再発するため fail-fast
+    await assertIdempotencyIndexPresent(tx);
     const source = opts.source ?? LEDGER_SOURCE.REQUISITION;
     const existing = await fetchLedgerTxs(tx, requisitionId);
     const state = deriveLedgerState(existing);
@@ -459,27 +533,65 @@ export async function applyStockForRequisition(
         include: { materialItem: { include: { category: true } } },
     });
 
+    // --- C13【ブロッカー】dup-materialItemId 過少減算の是正（採用=案A）---
+    //   倉庫在庫は全社1プールであり vehicleLabel は伝票/notes/PDF 表示の
+    //   関心事にすぎない。一方 components/Materials/MaterialRequisitionPage.tsx
+    //   の flattenQuantitiesForApi は「資材を複数車両に分けて積む」標準仕様で
+    //   同一 materialItemId を vehicleLabel 0/1/2 ごとに別 MaterialRequisitionItem
+    //   行として送出する。従来は item 行ごとに applyStockChange を呼び、
+    //   かつ idempotencyKey の generation を「ループ外で 1 回だけ取得した同一
+    //   スナップショット existing」から算出していたため、同一 requisition に
+    //   同一 materialItemId が複数行あると全行が generation=0 = 同一 idempotencyKey
+    //   となり、1 行目だけ INSERT＋減算され 2 行目以降は部分 unique 違反
+    //   （P2002 → duplicate skip）で在庫が 2 行目以降の数量分だけ恒久的に
+    //   過少減算されていた（reverse も鏡像で過少復元）。
+    //   → 在庫台帳は資材合計のみ見ればよいので、伝票内で materialItemId ごとに
+    //     quantity を集約してから applyStockChange を materialItemId 単位で
+    //     「1 回」呼ぶ。これで (requisition,item,direction,generation) と
+    //     idempotencyKey が 1:1 になり、並行冪等（C10）も維持される。
+    //   ※ MaterialRequisitionItem の車両別行自体は伝票/PDF 用にそのまま残す
+    //     （ここで集約するのは在庫台帳への適用のみ）。
+    const aggregated = new Map<
+        string,
+        { quantity: number; categoryName: string; itemName: string }
+    >();
+    for (const item of items) {
+        const prev = aggregated.get(item.materialItemId);
+        if (prev) {
+            prev.quantity += item.quantity;
+        } else {
+            aggregated.set(item.materialItemId, {
+                quantity: item.quantity,
+                categoryName: item.materialItem.category.name,
+                itemName: item.materialItem.name,
+            });
+        }
+    }
+
     const type: StockTxType = opts.isReturn ? 'return' : 'dispatch';
     const refType = ledgerReferenceType(source, LEDGER_DIRECTION.FORWARD);
     let appliedCount = 0;
     let excludedCount = 0;
 
-    for (const item of items) {
-        // 出庫は減算（負）、返却は加算（正）
-        const signed = opts.isReturn ? item.quantity : -item.quantity;
+    for (const [materialItemId, agg] of aggregated) {
+        // 出庫は減算（負）、返却は加算（正）。集約後の合計数量を 1 回で適用。
+        const signed = opts.isReturn ? agg.quantity : -agg.quantity;
         // C10: forward の冪等キー。generation = 既存台帳の当該 item の forward 件数。
         //   並行 2 本の forward は同一 generation → 同一キー → DB が 2 本目を拒否。
         //   forward→reversal 後の再 forward は forward 件数が増え別キー → 許容。
+        //   C13: materialItemId ごとに 1 回しか呼ばないため
+        //   (requisition,item,direction,generation) と key が 1:1 になり
+        //   同一 requisition 内 dup-item の自己衝突（過少減算）が解消される。
         const idempotencyKey = computeIdempotencyKey(
             requisitionId,
-            item.materialItemId,
+            materialItemId,
             LEDGER_DIRECTION.FORWARD,
             existing,
         );
         const res = await applyStockChange(tx, {
-            materialItemId: item.materialItemId,
-            categoryName: item.materialItem.category.name,
-            itemName: item.materialItem.name,
+            materialItemId,
+            categoryName: agg.categoryName,
+            itemName: agg.itemName,
             quantity: signed,
             type,
             referenceId: requisitionId,
@@ -495,6 +607,9 @@ export async function applyStockForRequisition(
         }
     }
 
+    // C13: appliedCount / excludedCount は「distinct materialItemId 数」で数える
+    //   （行数ではなく集約後の品目数）。戻り値は route/UI 共に件数の意味でのみ
+    //   使われ（在庫整合の真実は台帳）行数に依存する箇所は無い。
     return { noop: false, appliedCount, excludedCount };
 }
 
@@ -506,6 +621,11 @@ export async function applyStockForRequisition(
  * 逆仕訳は元 forward 行の type を継承し符号のみ反転（是正4）。
  * 除外品目（ネット/リース）はそもそも順仕訳が無いため自然に無視される。
  *
+ * C13: forward は applyStockForRequisition で materialItemId ごとに集約済み
+ * （= forward 台帳行は distinct item ごと最大 1 本・数量は伝票内合計）。
+ * 本関数は forward 台帳行をそのまま符号反転して打ち消すため、
+ * 集約合計が漏れなく全量復元される（dup-item でも過少復元しない）。
+ *
  * トランザクション（tx）内で呼ぶこと。
  */
 export async function reverseStockForRequisition(
@@ -513,6 +633,8 @@ export async function reverseStockForRequisition(
     requisitionId: string,
     opts: RequisitionStockOptions,
 ): Promise<RequisitionStockResult> {
+    // C14: 部分 unique 索引が無いと並行二重逆仕訳が無音で再発するため fail-fast
+    await assertIdempotencyIndexPresent(tx);
     const source = opts.source ?? LEDGER_SOURCE.REQUISITION;
     const existing = await fetchLedgerTxs(tx, requisitionId);
     const state = deriveLedgerState(existing);
