@@ -184,6 +184,9 @@ export interface StockPrismaClient {
                 type: string;
                 referenceType: string | null;
                 notes: string | null;
+                // R5: net-open 判定で forward 世代を idempotencyKey から導出する。
+                //   ledger 行（forward/reversal）は必ず非 null（applyStockChange が発行）。
+                idempotencyKey?: string | null;
             }>
         >;
     };
@@ -626,6 +629,44 @@ export async function applyStockForRequisition(
     return { noop: false, appliedCount, excludedCount };
 }
 
+/** reverseStockForRequisition 内部用の台帳行最小形状（forward 世代導出に使う） */
+interface ReversibleLedgerRow {
+    materialItemId: string;
+    quantity: number;
+    type: string;
+    referenceType: string | null;
+    idempotencyKey?: string | null;
+}
+
+/**
+ * R5: forward 台帳行から「その forward 自身の generation」を決定論的に導出する。
+ *
+ * 第一権威は forward 行の idempotencyKey（`<refId>:<itemId>:forward:<g>`）。
+ * これは applyStockChange が computeIdempotencyKey で発行した値で、
+ * forward 世代と 1:1（C13 で item ごと forward は世代内 1 行）。
+ *
+ * 防御フォールバック（idempotencyKey が null / 形式不一致＝クリーン DB では
+ * 起きないが理論安全のため）: 当該 item の forward 行を台帳出現順に並べた
+ * ときの 0 始まり序数を generation とみなす（computeIdempotencyKey の
+ * 「既存 forward 件数」採番と同じ意味論。同 item の forward が複数あっても
+ * fallback 内で序数を進めるため世代衝突しない）。
+ */
+function deriveForwardGeneration(
+    requisitionId: string,
+    fwd: ReversibleLedgerRow,
+    fallbackOrdinal: number,
+): number {
+    const key = fwd.idempotencyKey;
+    if (typeof key === 'string') {
+        const expectedPrefix = `${requisitionId}:${fwd.materialItemId}:${LEDGER_DIRECTION.FORWARD}:`;
+        if (key.startsWith(expectedPrefix)) {
+            const gen = Number.parseInt(key.slice(expectedPrefix.length), 10);
+            if (Number.isInteger(gen) && gen >= 0) return gen;
+        }
+    }
+    return fallbackOrdinal;
+}
+
 /**
  * loaded から戻す（draft 等）/ loaded のまま items 改変前など、
  * 既適用の requisition 在庫を打ち消す逆仕訳を適用。
@@ -635,9 +676,22 @@ export async function applyStockForRequisition(
  * 除外品目（ネット/リース）はそもそも順仕訳が無いため自然に無視される。
  *
  * C13: forward は applyStockForRequisition で materialItemId ごとに集約済み
- * （= forward 台帳行は distinct item ごと最大 1 本・数量は伝票内合計）。
- * 本関数は forward 台帳行をそのまま符号反転して打ち消すため、
+ * （= forward 台帳行は distinct item ごと世代内最大 1 本・数量は伝票内合計）。
+ * 本関数は net-open な forward 台帳行を符号反転して打ち消すため、
  * 集約合計が漏れなく全量復元される（dup-item でも過少復元しない）。
+ *
+ * R5（世代跨ぎ reverse の是正）:
+ *   `apply(fwd0) → reverse(rev0) → re-apply(fwd1) → reverse` のように
+ *   同一 item の forward が世代跨ぎで複数存在する場合、
+ *   - (a) net-open のみ反転: 既に対応 reversal（同 item・同 generation の
+ *         `…:reversal:<g>`）で相殺済みの forward（例 fwd0）は再反転しない。
+ *   - (b) reversal idempotencyKey を forward 自身の generation に紐づける
+ *         （`<refId>:<itemId>:reversal:<その forward の generation>`）。
+ *   これにより ①並行重複 reverse（同一 forward の二重逆仕訳）は同一キー →
+ *   DB が 2 本目を拒否（冪等維持）②世代跨ぎ（fwd0/fwd1）は別キーで衝突せず
+ *   正しく当該世代を反転 ③既相殺 forward の二重反転（在庫 desync）が起きない。
+ *   旧実装の reversalSeqByItem（ループ不変な per-item reversal カウント）は
+ *   全反復同一 generation → 同一キー衝突を生むため廃止。
  *
  * トランザクション（tx）内で呼ぶこと。
  */
@@ -656,39 +710,62 @@ export async function reverseStockForRequisition(
         return { noop: true, appliedCount: 0, excludedCount: 0 };
     }
 
-    // forward 取引（未取消分）を符号反転して打ち消す。
-    // referenceType の :forward 接尾辞で判定（source 種別は問わない）。
-    const forwards = existing.filter((t) => {
-        const parsed = parseLedgerReferenceType(t.referenceType);
-        return parsed?.direction === LEDGER_DIRECTION.FORWARD;
-    });
-
-    const reversalRefType = ledgerReferenceType(source, LEDGER_DIRECTION.REVERSAL);
-    let appliedCount = 0;
-    // C10: 同一 referenceId+item に複数 reversal を発行する余地は無いが
-    //   （forwards をループするため item ごと最大 1 行）、並行 reverse の
-    //   二重逆仕訳を DB で弾くため per-item の reversal 世代を採番する。
-    const reversalSeqByItem: Record<string, number> = {};
+    // R5: 既に発行済みの reversal idempotencyKey 集合（= 相殺済み forward 世代）。
+    //   forward 世代 g は同 item・同 referenceId の `…:reversal:<g>` が存在すれば
+    //   相殺済み。この集合との照合で net-open（未相殺）だけを反転対象にする。
+    //   並行重複 reverse の敗者は DB 部分 unique で弾くため、ここで取りこぼしても
+    //   create 時の P2002 が最終防壁になる（read-then-write の TOCTOU 二重防壁）。
+    const settledReversalKeys = new Set<string>();
     for (const t of existing) {
-        if (!t.materialItemId) continue;
         const parsed = parseLedgerReferenceType(t.referenceType);
-        if (parsed?.direction === LEDGER_DIRECTION.REVERSAL) {
-            reversalSeqByItem[t.materialItemId] =
-                (reversalSeqByItem[t.materialItemId] ?? 0) + 1;
+        if (
+            parsed?.direction === LEDGER_DIRECTION.REVERSAL &&
+            typeof t.idempotencyKey === 'string'
+        ) {
+            settledReversalKeys.add(t.idempotencyKey);
         }
     }
 
+    // forward 取引を台帳出現順に抽出（fallback 序数採番のため順序保持）。
+    // referenceType の :forward 接尾辞で判定（source 種別は問わない）。
+    const forwards: ReversibleLedgerRow[] = [];
+    for (const t of existing) {
+        const parsed = parseLedgerReferenceType(t.referenceType);
+        if (parsed?.direction === LEDGER_DIRECTION.FORWARD) {
+            forwards.push(t);
+        }
+    }
+
+    const reversalRefType = ledgerReferenceType(source, LEDGER_DIRECTION.REVERSAL);
+    let appliedCount = 0;
+    // fallback（idempotencyKey 欠落時）用に item ごとの forward 出現序数を採番。
+    const forwardOrdinalByItem: Record<string, number> = {};
+
     for (const fwd of forwards) {
+        const fallbackOrdinal =
+            forwardOrdinalByItem[fwd.materialItemId] ?? 0;
+        forwardOrdinalByItem[fwd.materialItemId] = fallbackOrdinal + 1;
+
+        // R5(b): reversal キーを forward 自身の generation に紐づける。
+        const generation = deriveForwardGeneration(
+            requisitionId,
+            fwd,
+            fallbackOrdinal,
+        );
+        const idempotencyKey = `${requisitionId}:${fwd.materialItemId}:${LEDGER_DIRECTION.REVERSAL}:${generation}`;
+
+        // R5(a): その forward 世代に対応する reversal が既に存在する＝相殺済み
+        //   → net-open でないため再反転しない（在庫の二重相殺を防ぐ）。
+        if (settledReversalKeys.has(idempotencyKey)) {
+            continue;
+        }
+
         // forward の符号を反転して在庫を戻す。
         // forward は applyStockChange を通っているため除外品目は存在しない
         // （= 台帳が真実なので台帳に従う）。
         // 是正4: 逆仕訳 type は opts 再決定でなく元 forward 行の type を継承。
         const inheritedType: StockTxType =
             (fwd.type as StockTxType) ?? (opts.isReturn ? 'return' : 'dispatch');
-        // C10: reversal の冪等キー。generation = 当該 item の既存 reversal 件数。
-        //   並行 2 本の reverse は同一 generation → 同一キー → DB が 2 本目を拒否。
-        const generation = reversalSeqByItem[fwd.materialItemId] ?? 0;
-        const idempotencyKey = `${requisitionId}:${fwd.materialItemId}:${LEDGER_DIRECTION.REVERSAL}:${generation}`;
         try {
             await tx.inventoryTransaction.create({
                 data: {
@@ -704,7 +781,9 @@ export async function reverseStockForRequisition(
             });
         } catch (e) {
             if (isUniqueConstraintViolation(e)) {
-                // 並行重複の逆仕訳（敗者）→ 在庫は触らず冪等 no-op としてスキップ
+                // 並行重複の逆仕訳（敗者）→ 在庫は触らず冪等 no-op としてスキップ。
+                //   settledReversalKeys の read-then-write を抜けた並行 reverse でも
+                //   同一 forward 世代は同一キー → DB 部分 unique が 2 本目を拒否。
                 continue;
             }
             throw e;

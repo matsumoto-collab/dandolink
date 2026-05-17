@@ -1099,6 +1099,271 @@ describe('C13: 同一 materialItemId 複数行（車両別）の在庫集約', (
 });
 
 /**
+ * R5【pre-existing】世代跨ぎ reverse の二重相殺 / キー衝突の是正
+ *
+ * 攻撃面（実コード検証済）:
+ *   旧 reverseStockForRequisition は
+ *   (1) 当該 referenceId の **全 :forward 行** を反転対象にし、既に対応
+ *       reversal で相殺済みの旧世代 forward（fwd0）も含めていた。
+ *   (2) per-item reversal カウント reversalSeqByItem をループ前 1 回算出し
+ *       ループ内で発行ごと加算しないため、同一 item の forward が世代跨ぎで
+ *       複数あると全反復が同一 generation → 同一 reversal idempotencyKey。
+ *   帰結: `apply(fwd0,Q0) → reverse(rev0) → re-apply(fwd1,Q1) → reverse` で
+ *   iter1 が既相殺 fwd0 を `…:reversal:1` で逆仕訳し在庫を Q0 戻し、iter2 の
+ *   実 open fwd1 が同一キー → unique 違反 skip。fwd1 未反転＋fwd0 二重相殺で
+ *   在庫が (Q0−Q1) 分 desync（round-2 C10 forward バグの reverse 側鏡像）。
+ *
+ * 是正:
+ *   (a) net-open のみ反転（既相殺 forward 世代は再反転しない）
+ *   (b) reversal idempotencyKey を forward 自身の generation に紐づける
+ *   → 並行冪等を維持しつつ世代跨ぎを正しく反転し既相殺を二重反転しない。
+ *
+ * 受入（実挙動固定）:
+ *   最終 reverse 後の在庫＝baseline（Q1 ぶんだけ正しく戻り Q0 二重相殺なし）。
+ *   reversal は forward 世代ごとに正しく発行され誤世代の二重逆仕訳が無い。
+ */
+describe('R5: 世代跨ぎ reverse（net-open のみ反転 / forward 世代紐付け）', () => {
+    it('R5 中核: apply(Q0=10) → reverse → re-apply(Q1=3) → reverse で在庫=baseline（Q0 二重相殺なし）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [{ materialItemId: 'p-1', quantity: 10, ...PILLAR }],
+            initialStock: { 'p-1': 100 },
+        });
+
+        // 1) apply（Q0=10, gen0 forward）
+        await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(stock['p-1']).toBe(90); // baseline 100 − 10
+
+        // 2) reverse（gen0 forward を打ち消す → baseline 復帰）
+        const rev1 = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(rev1.noop).toBe(false);
+        expect(rev1.appliedCount).toBe(1);
+        expect(stock['p-1']).toBe(100); // baseline
+
+        // 3) re-apply（数量を Q1=3 に差し替えて再 loaded）。
+        //    flatten 行を 10 → 3 に差し替える（loaded items 改変の正規フロー）。
+        (client.materialRequisitionItem.findMany as jest.Mock).mockResolvedValue([
+            {
+                materialItemId: 'p-1',
+                quantity: 3,
+                materialItem: {
+                    name: PILLAR.itemName,
+                    category: { name: PILLAR.categoryName },
+                },
+            },
+        ]);
+        const reapply = await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(reapply.noop).toBe(false);
+        expect(stock['p-1']).toBe(97); // baseline 100 − 3（gen1 forward）
+
+        // 4) reverse（最終）。
+        //    旧バグ: fwd0(gen0) を `…:reversal:1` で二重相殺し Q0=10 戻し、
+        //            実 open の fwd1(gen1) は同一キー衝突 skip → 在庫 107 で
+        //            (Q0−Q1)=7 desync。
+        //    是正後: 既相殺 fwd0 は net-open でなく skip、fwd1 のみ正しく
+        //            `…:reversal:1` で反転 → baseline 100 へ。
+        const rev2 = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(rev2.noop).toBe(false);
+        // net-open は fwd1 のみ → 実際に反転した件数は 1
+        expect(rev2.appliedCount).toBe(1);
+        // ★ R5 受入: baseline ちょうど（Q0 二重相殺による desync が無い）
+        expect(stock['p-1']).toBe(100);
+
+        // 台帳: forward gen0/gen1（各 1）、reversal gen0/gen1（各 1）。
+        const fwds = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'forward',
+        );
+        const revs = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'reversal',
+        );
+        expect(fwds.map((t) => t.idempotencyKey).sort()).toEqual([
+            'req-1:p-1:forward:0',
+            'req-1:p-1:forward:1',
+        ]);
+        // reversal は forward 世代ごとに 1 本ずつ（誤世代の二重逆仕訳なし）
+        expect(revs.map((t) => t.idempotencyKey).sort()).toEqual([
+            'req-1:p-1:reversal:0',
+            'req-1:p-1:reversal:1',
+        ]);
+        // reversal の数量は対応 forward の符号反転（gen0=+10, gen1=+3）
+        const rev0 = revs.find((t) => t.idempotencyKey === 'req-1:p-1:reversal:0')!;
+        const revGen1 = revs.find((t) => t.idempotencyKey === 'req-1:p-1:reversal:1')!;
+        expect(rev0.quantity).toBe(10);
+        expect(revGen1.quantity).toBe(3);
+        // 全 idempotencyKey 一意（同一キー衝突 → skip が起きていない）
+        const keys = txs.map((t) => t.idempotencyKey);
+        expect(new Set(keys).size).toBe(keys.length);
+    });
+
+    it('世代跨ぎ forwards 複数同一 item でも net-open のみ反転（既相殺 fwd は再反転しない）', async () => {
+        // 台帳を直接構築: fwd0(-10) / rev0(+10 既相殺) / fwd1(-3 open)
+        const { client, stock, txs } = makeMockPrisma({
+            items: [{ materialItemId: 'p-1', quantity: 3, ...PILLAR }],
+            initialStock: { 'p-1': 100 },
+        });
+        const seed = (
+            quantity: number,
+            referenceType: string,
+            idempotencyKey: string,
+        ) =>
+            (client.inventoryTransaction.create as jest.Mock)({
+                data: {
+                    materialItemId: 'p-1',
+                    quantity,
+                    type: 'dispatch',
+                    referenceId: 'req-1',
+                    referenceType,
+                    notes: 'seed',
+                    createdBy: 'u1',
+                    idempotencyKey,
+                },
+            });
+        await seed(-10, FWD_REQ, 'req-1:p-1:forward:0');
+        await seed(10, REV_REQ, 'req-1:p-1:reversal:0'); // fwd0 を相殺済み
+        await seed(-3, FWD_REQ, 'req-1:p-1:forward:1'); // open（未相殺）
+        // 在庫は seed では動かしていない（台帳構築のみ）→ 明示的に open 分だけ
+        // 減らした状態を起点にする（fwd1 = -3 が現在 open）
+        stock['p-1'] = 97;
+
+        const rev = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(rev.noop).toBe(false);
+        // net-open は fwd1（gen1）のみ → fwd0(gen0) は既相殺で skip
+        expect(rev.appliedCount).toBe(1);
+        expect(stock['p-1']).toBe(100); // open 分 3 だけ戻る（10 を二重に戻さない）
+
+        const newReversals = txs.filter(
+            (t) =>
+                parseLedgerReferenceType(t.referenceType)?.direction === 'reversal' &&
+                t.notes !== 'seed',
+        );
+        expect(newReversals).toHaveLength(1);
+        expect(newReversals[0].idempotencyKey).toBe('req-1:p-1:reversal:1');
+        expect(newReversals[0].quantity).toBe(3);
+    });
+
+    it('並行二重 reverse（同一世代）→ 2 本目 unique 違反 skip・在庫 1 回ぶんのみ（C10 非退行）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [{ materialItemId: 'p-1', quantity: 6, ...PILLAR }],
+            initialStock: { 'p-1': 50 },
+        });
+        await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(stock['p-1']).toBe(44);
+
+        // 同一台帳スナップショット（fwd0 のみ・reversal 未発行）を 2 リクエストが
+        // 観測する状況を直接再現する。findMany を fwd0 時点に固定。
+        const fwd0Snapshot = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'forward',
+        );
+        (client.inventoryTransaction.findMany as jest.Mock).mockResolvedValue(
+            fwd0Snapshot,
+        );
+
+        const a = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        const b = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        // 両者 noop=false（state.isApplied は fwd0 で真のまま）だが、
+        // 同一 forward 世代 → 同一 reversal キー `…:reversal:0` →
+        // 2 本目は DB 部分 unique で拒否され在庫は 1 回ぶんのみ復元。
+        expect(a.appliedCount + b.appliedCount).toBe(1);
+        expect(stock['p-1']).toBe(50); // 6 を 1 回だけ戻す（二重復元なし）
+        const reversals = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'reversal',
+        );
+        expect(reversals).toHaveLength(1);
+        expect(reversals[0].idempotencyKey).toBe('req-1:p-1:reversal:0');
+    });
+
+    it('単一世代 DELETE 相当（[fwd0] のみ）reverse が従来どおり全量反転（回帰なし）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [
+                { materialItemId: 'p-1', quantity: 7, ...PILLAR },
+                { materialItemId: 'h-1', quantity: 4, ...HANDRAIL },
+            ],
+            initialStock: { 'p-1': 100, 'h-1': 100 },
+        });
+        await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(stock['p-1']).toBe(93);
+        expect(stock['h-1']).toBe(96);
+
+        const rev = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+        });
+        expect(rev.noop).toBe(false);
+        expect(rev.appliedCount).toBe(2); // 2 distinct item を全量反転
+        expect(stock['p-1']).toBe(100);
+        expect(stock['h-1']).toBe(100);
+        const reversals = txs.filter(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'reversal',
+        );
+        expect(reversals.map((t) => t.idempotencyKey).sort()).toEqual([
+            'req-1:h-1:reversal:0',
+            'req-1:p-1:reversal:0',
+        ]);
+    });
+
+    it('loading-list 由来 forward（source 違い）も :forward で拾い source 非依存に反転（非退行）', async () => {
+        const { client, stock, txs } = makeMockPrisma({
+            items: [{ materialItemId: 'p-1', quantity: 5, ...PILLAR }],
+            initialStock: { 'p-1': 30 },
+        });
+        // forward を loading-list source で記録
+        await applyStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+            source: LEDGER_SOURCE.LOADING_LIST,
+        });
+        expect(stock['p-1']).toBe(25);
+        const fwd = txs.find(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'forward',
+        )!;
+        expect(fwd.referenceType).toBe(FWD_LL);
+        // forward 世代は source 非依存（idempotencyKey は direction ベース）
+        expect(fwd.idempotencyKey).toBe('req-1:p-1:forward:0');
+
+        // [id] PATCH 既定 source=requisition で reverse → loading-list:forward を
+        // :forward 接尾辞で認識し source 非依存に反転する。
+        const rev = await reverseStockForRequisition(client, 'req-1', {
+            isReturn: false,
+            createdBy: 'u1',
+            source: LEDGER_SOURCE.REQUISITION,
+        });
+        expect(rev.noop).toBe(false);
+        expect(rev.appliedCount).toBe(1);
+        expect(stock['p-1']).toBe(30); // 全量復元
+        const revRow = txs.find(
+            (t) => parseLedgerReferenceType(t.referenceType)?.direction === 'reversal',
+        )!;
+        expect(revRow.idempotencyKey).toBe('req-1:p-1:reversal:0');
+    });
+});
+
+/**
  * C14【ブロッカー】部分 unique 索引のランタイム fail-fast
  *
  * 攻撃面: 索引 InventoryTransaction_idempotencyKey_key（部分 unique）が
