@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
+import type { PendingMove } from '@/hooks/useDragAndDrop';
+import type { Vehicle } from '@/types/master';
 import { useCalendarModals } from '@/hooks/useCalendarModals';
 import { useProjects, ConflictUpdateError } from '@/hooks/useProjects';
 import { useMasterData } from '@/hooks/useMasterData';
@@ -43,6 +45,9 @@ const ScheduleSearchPanel = dynamic(() => import('./ScheduleSearchPanel'), {
     loading: () => <Loading overlay />
 });
 const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'));
+const MoveConfirmModal = dynamic(() => import('./MoveConfirmModal'), {
+    loading: () => <Loading overlay />
+});
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;
@@ -155,6 +160,37 @@ useEffect(() => { setIsMounted(true); }, []);
             }
         }
     }, [updateProject]);
+
+    // 移動確認モーダル用の状態
+    const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+    const [pendingMove, setPendingMove] = useState<PendingMove | null>(null);
+    const [availableVehiclesData, setAvailableVehiclesData] = useState<{
+        available: Vehicle[];
+        inUse: { id: string; name: string; usedBy: string }[];
+    } | null>(null);
+
+    // セル間移動が発生したら即時確定せず、確認モーダルを開いて空き車両を取得
+    const handlePendingMove = useCallback(async (pending: PendingMove) => {
+        setPendingMove(pending);
+        setAvailableVehiclesData(null);
+        setIsMoveModalOpen(true);
+        try {
+            const dateKey = formatDateKey(pending.toDate);
+            const projectId = pending.eventId.replace(/-assembly$|-demolition$/, '');
+            const res = await fetch(
+                `/api/calendar/available-vehicles?date=${dateKey}&excludeAssignmentId=${projectId}`,
+                { cache: 'no-store' }
+            );
+            if (res.ok) {
+                setAvailableVehiclesData(await res.json());
+            } else {
+                setAvailableVehiclesData({ available: [], inUse: [] });
+            }
+        } catch (e) {
+            logger.error('Failed to fetch available vehicles:', e);
+            setAvailableVehiclesData({ available: [], inUse: [] });
+        }
+    }, []);
 
     const { currentDate, weekDays, goToPreviousWeek, goToNextWeek, goToPreviousDay, goToNextDay, goToToday, goToDate } = useCalendar(events);
 
@@ -297,7 +333,64 @@ useEffect(() => { setIsMounted(true); }, []);
                 }
             }
         });
-    }, [updateProjectWithConflictHandling]));
+    }, [updateProjectWithConflictHandling]), { onPendingMove: handlePendingMove });
+
+    // 移動を確定（職長/日付/並び順 ＋ 任意で車両・人数）。既存の競合ハンドリングを通す
+    const applyPendingMove = useCallback((
+        pending: PendingMove,
+        extra?: { trucks?: string[]; memberCount?: number }
+    ) => {
+        const projectId = pending.eventId.replace(/-assembly$|-demolition$/, '');
+        const newDateKey = formatDateKey(pending.toDate);
+        const targetCellEvents = projectsRef.current.filter((p: Project) =>
+            p.id !== projectId &&
+            p.assignedEmployeeId === pending.toEmployeeId &&
+            formatDateKey(p.startDate) === newDateKey
+        );
+        const newSortOrder = targetCellEvents.reduce(
+            (max: number, p: Project) => Math.max(max, p.sortOrder ?? 0),
+            -1
+        ) + 1;
+
+        const updates: Partial<Project> = {
+            assignedEmployeeId: pending.toEmployeeId,
+            sortOrder: newSortOrder,
+        };
+        if (pending.eventId.endsWith('-assembly')) {
+            updates.assemblyStartDate = pending.toDate;
+            updates.startDate = pending.toDate;
+        } else if (pending.eventId.endsWith('-demolition')) {
+            updates.demolitionStartDate = pending.toDate;
+            updates.startDate = pending.toDate;
+        } else {
+            updates.startDate = pending.toDate;
+        }
+        if (extra?.trucks !== undefined) updates.vehicles = extra.trucks;
+        if (extra?.memberCount !== undefined) updates.memberCount = extra.memberCount;
+
+        updateProjectWithConflictHandling(projectId, updates);
+    }, [updateProjectWithConflictHandling, projectsRef]);
+
+    const closeMoveModal = useCallback(() => {
+        setIsMoveModalOpen(false);
+        setPendingMove(null);
+        setAvailableVehiclesData(null);
+    }, []);
+
+    const handleMoveKeep = useCallback(() => {
+        if (pendingMove) applyPendingMove(pendingMove);
+        closeMoveModal();
+    }, [pendingMove, applyPendingMove, closeMoveModal]);
+
+    const handleMoveReassign = useCallback((trucks: string[], memberCount: number) => {
+        if (pendingMove) applyPendingMove(pendingMove, { trucks, memberCount });
+        closeMoveModal();
+    }, [pendingMove, applyPendingMove, closeMoveModal]);
+
+    const handleMoveCancel = useCallback(() => {
+        // 何も更新しない（カードは元の位置のまま）
+        closeMoveModal();
+    }, [closeMoveModal]);
 
     // 職長別の行データを生成
     const employeeRows = useMemo(() => {
@@ -662,6 +755,25 @@ useEffect(() => { setIsMounted(true); }, []);
                 latestData={conflictData?.latestData}
                 conflictMessage={conflictData?.message}
             />
+
+            {pendingMove && (
+                <MoveConfirmModal
+                    isOpen={isMoveModalOpen}
+                    pendingMove={pendingMove}
+                    eventTitle={
+                        projects.find(
+                            p => p.id === pendingMove.eventId.replace(/-assembly$|-demolition$/, '')
+                        )?.title
+                    }
+                    fromForemanName={allForemen.find(f => f.id === pendingMove.fromEmployeeId)?.displayName}
+                    toForemanName={allForemen.find(f => f.id === pendingMove.toEmployeeId)?.displayName}
+                    availableVehicles={availableVehiclesData?.available ?? null}
+                    inUseVehicles={availableVehiclesData?.inUse ?? []}
+                    onConfirmKeep={handleMoveKeep}
+                    onConfirmReassign={handleMoveReassign}
+                    onCancel={handleMoveCancel}
+                />
+            )}
 
             <ScheduleSearchPanel
                 isOpen={isSearchOpen}

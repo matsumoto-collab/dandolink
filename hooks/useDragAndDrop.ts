@@ -14,11 +14,32 @@ interface UseDragAndDropReturn {
 }
 
 /**
+ * セル間移動が発生したときに「まだ確定していない移動」として親へ通知するための情報。
+ * 親（WeeklyCalendar）はこれを受けて確認モーダルを表示する。
+ */
+export interface PendingMove {
+    eventId: string;
+    fromEmployeeId: string;
+    fromDate: Date;
+    toEmployeeId: string;
+    toDate: Date;
+    currentTrucks: string[];
+    currentMemberCount: number;
+}
+
+interface UseDragAndDropOptions {
+    // 指定された場合、セル間移動は即時確定せず onPendingMove で親に委ねる。
+    // 未指定の場合は従来どおり即時 moveEvent で確定する（後方互換）。
+    onPendingMove?: (pending: PendingMove) => void;
+}
+
+/**
  * ドラッグ&ドロップのロジックを管理するカスタムフック
  */
 export function useDragAndDrop(
     events: CalendarEvent[],
-    onEventsChange: (events: CalendarEvent[]) => void
+    onEventsChange: (events: CalendarEvent[]) => void,
+    options?: UseDragAndDropOptions
 ): UseDragAndDropReturn {
     const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -28,6 +49,11 @@ export function useDragAndDrop(
     // 最新のeventsを常に参照できるようにする
     const eventsRef = useRef(events);
     eventsRef.current = events;
+
+    // onPendingMove を ref 経由で参照（コールバックの同一性を保ち再生成による
+    // 無限ループ事故を避ける。このフックは識別子の安定性に敏感）
+    const onPendingMoveRef = useRef(options?.onPendingMove);
+    onPendingMoveRef.current = options?.onPendingMove;
 
     // イベントを移動（handleDragEndより前に定義）
     const moveEvent = useCallback((
@@ -168,6 +194,26 @@ export function useDragAndDrop(
         // 新しい日付を作成
         const [year, month, day] = newDateStr.split('-').map(Number);
         const newDate = new Date(Date.UTC(year, month - 1, day));
+
+        // onPendingMove が渡されている場合は即時確定せず、確認モーダル用に親へ通知。
+        // （未指定なら従来どおり即時移動）
+        const onPendingMove = onPendingMoveRef.current;
+        if (onPendingMove) {
+            const movingEvent = eventsRef.current.find(e => e.id === eventId);
+            if (movingEvent) {
+                onPendingMove({
+                    eventId,
+                    fromEmployeeId: movingEvent.assignedEmployeeId ?? '',
+                    fromDate: movingEvent.startDate,
+                    toEmployeeId: newEmployeeId,
+                    toDate: newDate,
+                    currentTrucks: movingEvent.trucks ?? [],
+                    currentMemberCount: movingEvent.memberCount ?? 0,
+                });
+            }
+            pendingEventsRef.current = null;
+            return;
+        }
 
         // イベントを移動
         moveEvent(eventId, newEmployeeId, newDate);

@@ -91,6 +91,56 @@ describe('useDragAndDrop', () => {
         expect(movedEvent.startDate.getDate()).toBe(2);
     });
 
+    it('should defer cell-to-cell move via onPendingMove when provided', () => {
+        const onPendingMove = jest.fn();
+        const eventsWithDetails = [
+            {
+                id: 'event-1',
+                startDate: new Date('2023-01-01T00:00:00.000Z'),
+                assignedEmployeeId: 'emp-1',
+                sortOrder: 0,
+                trucks: ['2t #1'],
+                memberCount: 3,
+            },
+            { id: 'event-2', startDate: new Date('2023-01-01T00:00:00.000Z'), assignedEmployeeId: 'emp-1', sortOrder: 1 },
+        ] as any;
+
+        const { result } = renderHook(() =>
+            useDragAndDrop(eventsWithDetails, mockOnEventsChange, { onPendingMove })
+        );
+
+        act(() => {
+            result.current.handleDragEnd(mockDragEndEvent('event-1', 'emp-2-2023-01-02'));
+        });
+
+        // 即時確定せず親に委ねる（onEventsChange は呼ばれない）
+        expect(mockOnEventsChange).not.toHaveBeenCalled();
+        expect(onPendingMove).toHaveBeenCalledWith(
+            expect.objectContaining({
+                eventId: 'event-1',
+                fromEmployeeId: 'emp-1',
+                toEmployeeId: 'emp-2',
+                currentTrucks: ['2t #1'],
+                currentMemberCount: 3,
+            })
+        );
+        const arg = onPendingMove.mock.calls[0][0];
+        expect(arg.toDate.getUTCFullYear()).toBe(2023);
+        expect(arg.toDate.getUTCMonth()).toBe(0);
+        expect(arg.toDate.getUTCDate()).toBe(2);
+    });
+
+    it('should fall back to immediate move when onPendingMove is NOT provided', () => {
+        const { result } = renderHook(() => useDragAndDrop(mockEvents, mockOnEventsChange));
+
+        act(() => {
+            result.current.handleDragEnd(mockDragEndEvent('event-1', 'emp-2-2023-01-02'));
+        });
+
+        // 後方互換: onPendingMove 未指定なら従来どおり即時 onEventsChange
+        expect(mockOnEventsChange).toHaveBeenCalled();
+    });
+
     it('should sort events within same cell (DragOver)', () => {
         const { result } = renderHook(() => useDragAndDrop(mockEvents, mockOnEventsChange));
 
