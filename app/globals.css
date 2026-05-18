@@ -210,3 +210,16 @@ body {
     left: 0 !important;
   }
 }
+
+/* トースト通知の表示位置（react-hot-toast の Toaster containerClassName）。
+   モバイル/タブレット(<1024px)は上部固定ヘッダー(h-16=64px)+ノッチ余白を避けて下げ、
+   PC(>=1024px)はヘッダーが無いので上端から80pxに収める。
+   react-hot-toast はコンテナへ top をインライン指定するため !important で上書きする。 */
+.dl-toast-container {
+  top: 112px !important;
+}
+@media (min-width: 1024px) {
+  .dl-toast-container {
+    top: 80px !important;
+  }
+}
