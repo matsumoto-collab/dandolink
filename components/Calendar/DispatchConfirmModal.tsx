@@ -63,11 +63,14 @@ export default function DispatchConfirmModal({
     );
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSecondaryWorkers, setShowSecondaryWorkers] = useState(false);
+    // 同じ班・同じ日の他案件にも反映するか（デフォルトON）。OFFならこの案件のみ変更。
+    const [applyToTeam, setApplyToTeam] = useState(true);
 
     // モーダルが開くたびに選択状態をリセット（登録時のトラックを事前選択）
     useEffect(() => {
         if (!isOpen) return;
         setShowSecondaryWorkers(false);
+        setApplyToTeam(true);
         setSelectedWorkerIds(project.confirmedWorkerIds || []);
         if (project.confirmedVehicleIds?.length) {
             setSelectedVehicleIds(project.confirmedVehicleIds);
@@ -137,6 +140,18 @@ export default function DispatchConfirmModal({
             vehicleTeamMap: vehicleMap,
         };
     }, [projects, project.id, project.startDate, allForemen]);
+
+    // 連動対象: 同じ班・同じ日・自分以外。作業完了済み（workEndedAt あり）はスキップ。
+    // 確定/変更の連動先であり、ラジオの表示判定にも使う。
+    const eligibleSiblings = useMemo(() => {
+        const dateKey = formatDateKey(project.startDate);
+        return projects.filter(p =>
+            p.id !== project.id &&
+            formatDateKey(p.startDate) === dateKey &&
+            p.assignedEmployeeId === project.assignedEmployeeId &&
+            !p.workEndedAt
+        );
+    }, [projects, project.id, project.startDate, project.assignedEmployeeId]);
 
     // 並び替え: dispatchSortOrder 昇順 → ロール優先度 → 名前順
     // 分割: hideByDefaultInDispatch が true のユーザーを「もっと見る」へ
@@ -230,16 +245,13 @@ export default function DispatchConfirmModal({
                 isDispatchConfirmed: true,
             });
 
-            // 同日・同職長の未確定案件にも同じ作業員・車両をコピー
-            const dateKey = formatDateKey(project.startDate);
-            const unconfirmedSameDay = projects.filter(p =>
-                p.id !== project.id &&
-                formatDateKey(p.startDate) === dateKey &&
-                p.assignedEmployeeId === project.assignedEmployeeId &&
-                !p.isDispatchConfirmed
-            );
+            // 同じ班・同じ日の他案件にも同じ作業員・車両・確定状態を反映。
+            // 確定済み案件も上書きするので「メンバー/車両変更」も連動する。
+            // 作業完了済みはスキップ（eligibleSiblings で除外済み）。
+            // 「この案件のみ変更する」(applyToTeam=false) を選んだ場合は連動しない。
+            const teamSiblings = applyToTeam ? eligibleSiblings : [];
 
-            for (const p of unconfirmedSameDay) {
+            for (const p of teamSiblings) {
                 try {
                     await updateProject(p.id, {
                         confirmedWorkerIds: selectedWorkerIds,
@@ -251,14 +263,14 @@ export default function DispatchConfirmModal({
                 }
             }
 
-            if (unconfirmedSameDay.length > 0) {
-                toast.success(`他${unconfirmedSameDay.length}件の案件も手配確定しました`);
+            if (teamSiblings.length > 0) {
+                toast.success(`他${teamSiblings.length}件の案件にも反映しました`);
             }
 
             // プッシュ通知を送る（失敗しても手配確定自体は成功なので例外は握り潰す）
             const assignmentIds: string[] = [
                 project.assignmentId || project.id,
-                ...unconfirmedSameDay.map((p) => p.assignmentId || p.id),
+                ...teamSiblings.map((p) => p.assignmentId || p.id),
             ];
             void Promise.all(
                 assignmentIds.map((id) =>
@@ -280,15 +292,58 @@ export default function DispatchConfirmModal({
     };
 
     const handleCancelDispatch = async () => {
-        if (!confirm('手配確定を解除しますか？')) return;
+        // 同じ班・同じ日の手配確定済み兄弟案件（自分以外）を探す。
+        // 判定条件は「確定の連動」(handleConfirm) とまったく同じに揃える。
+        const dateKey = formatDateKey(project.startDate);
+        const confirmedSiblings = projects.filter(p =>
+            p.id !== project.id &&
+            formatDateKey(p.startDate) === dateKey &&
+            p.assignedEmployeeId === project.assignedEmployeeId &&
+            p.isDispatchConfirmed
+        );
+        // 連動解除の対象は「作業完了通知が押されていない」案件のみ。
+        // 作業完了済みの兄弟案件はスキップする（押した案件自体は明示操作のため対象に含める）。
+        const cancelableSiblings = confirmedSiblings.filter(p => !p.workEndedAt);
+        const skippedSiblings = confirmedSiblings.filter(p => !!p.workEndedAt);
+
+        // 確認メッセージを組み立て（連動先がある場合のみ件数を追記）
+        const foreman = allForemen.find(f => f.id === project.assignedEmployeeId);
+        const teamName = foreman ? `${foreman.displayName}班` : 'この班';
+        let message = '手配確定を解除しますか？';
+        if (cancelableSiblings.length > 0) {
+            message += `\n\n${teamName}の他の案件（${cancelableSiblings.length}件）も同時に解除されます。`;
+        }
+        if (skippedSiblings.length > 0) {
+            message += `\n\n※ ${skippedSiblings.length}件は作業完了済みのため解除対象外です。`;
+        }
+        if (!confirm(message)) return;
 
         setIsSubmitting(true);
         try {
+            // 押した案件本体を解除（作業完了済みでも明示操作なので解除する）
             await updateProject(project.id, {
                 confirmedWorkerIds: undefined,
                 confirmedVehicleIds: undefined,
                 isDispatchConfirmed: false,
             });
+
+            // 同じ班・同じ日の兄弟案件も連動解除（個別失敗は握り潰す＝本体の解除は成功済み）
+            for (const p of cancelableSiblings) {
+                try {
+                    await updateProject(p.id, {
+                        confirmedWorkerIds: undefined,
+                        confirmedVehicleIds: undefined,
+                        isDispatchConfirmed: false,
+                    });
+                } catch {
+                    // 個別の失敗は無視
+                }
+            }
+
+            if (cancelableSiblings.length > 0) {
+                toast.success(`他${cancelableSiblings.length}件の案件も手配解除しました`);
+            }
+
             onClose();
         } catch (error) {
             logger.error('Failed to cancel dispatch:', error);
@@ -443,6 +498,39 @@ export default function DispatchConfirmModal({
                                     </div>
                                 )}
                             </div>
+
+                            {/* 反映範囲の選択（同じ班・同じ日に他案件があるときだけ表示） */}
+                            {eligibleSiblings.length > 0 && (
+                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                    <p className="text-sm font-semibold text-slate-700 mb-2">
+                                        同じ班・同じ日の他案件（{eligibleSiblings.length}件）への反映
+                                    </p>
+                                    <label className="flex items-start gap-2.5 py-1.5 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="applyScope"
+                                            checked={applyToTeam}
+                                            onChange={() => setApplyToTeam(true)}
+                                            className="mt-0.5 w-4 h-4 accent-slate-800"
+                                        />
+                                        <span className="text-sm text-slate-700">
+                                            他の案件にも同じ内容を反映する<span className="text-slate-500">（推奨）</span>
+                                        </span>
+                                    </label>
+                                    <label className="flex items-start gap-2.5 py-1.5 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="applyScope"
+                                            checked={!applyToTeam}
+                                            onChange={() => setApplyToTeam(false)}
+                                            className="mt-0.5 w-4 h-4 accent-slate-800"
+                                        />
+                                        <span className="text-sm text-slate-700">
+                                            この案件のみ変更する
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
                         </>
                     )}
                 </div>

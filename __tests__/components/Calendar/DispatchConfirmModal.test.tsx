@@ -179,15 +179,21 @@ describe('DispatchConfirmModal', () => {
         expect(mockOnClose).toHaveBeenCalled();
     });
 
-    it('should cancel confirmed dispatch', async () => {
-        // Confirmed project
-        const confirmedProject = {
-            ...mockProject,
-            isDispatchConfirmed: true,
-            confirmedWorkerIds: ['w1'],
-            confirmedVehicleIds: ['v1']
-        };
+    // 解除の起点になる確定済み案件（f1班・2024-01-01）
+    const confirmedProject = {
+        ...mockProject,
+        id: 'p1',
+        assignedEmployeeId: 'f1',
+        isDispatchConfirmed: true,
+        confirmedWorkerIds: ['w1'],
+        confirmedVehicleIds: ['v1'],
+    };
 
+    it('should cancel only the clicked project when there are no siblings', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [],
+            updateProject: mockUpdateProject,
+        });
         window.confirm = jest.fn(() => true);
 
         render(
@@ -204,12 +210,206 @@ describe('DispatchConfirmModal', () => {
 
         fireEvent.click(screen.getByText('確定解除'));
 
-        expect(window.confirm).toHaveBeenCalled();
+        // 連動先が無いので確認文言は従来どおりシンプル
+        expect((window.confirm as jest.Mock).mock.calls[0][0]).toBe('手配確定を解除しますか？');
 
         await waitFor(() => {
             expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({
-                isDispatchConfirmed: false
+                isDispatchConfirmed: false,
+                confirmedWorkerIds: undefined,
+                confirmedVehicleIds: undefined,
             }));
         });
+        expect(mockUpdateProject).toHaveBeenCalledTimes(1);
+    });
+
+    it('should do nothing when the user dismisses the confirm dialog', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [],
+            updateProject: mockUpdateProject,
+        });
+        window.confirm = jest.fn(() => false);
+
+        render(
+            <DispatchConfirmModal
+                isOpen={true}
+                onClose={mockOnClose}
+                project={confirmedProject}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('確定解除')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('確定解除'));
+
+        expect(window.confirm).toHaveBeenCalled();
+        expect(mockUpdateProject).not.toHaveBeenCalled();
+        expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('should propagate cancellation to same-team same-day confirmed siblings only', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [
+                { id: 'p2', title: 'P2', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },  // 同班・同日・確定 → 連動
+                { id: 'p3', title: 'P3', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },  // 同班・同日・確定 → 連動
+                { id: 'p4', title: 'P4', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f2', isDispatchConfirmed: true },  // 別班 → 対象外
+                { id: 'p5', title: 'P5', startDate: new Date('2024-01-02'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },  // 別日 → 対象外
+                { id: 'p6', title: 'P6', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: false }, // 未確定 → 対象外
+            ],
+            updateProject: mockUpdateProject,
+        });
+        window.confirm = jest.fn(() => true);
+
+        render(
+            <DispatchConfirmModal
+                isOpen={true}
+                onClose={mockOnClose}
+                project={confirmedProject}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('確定解除')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('確定解除'));
+
+        expect((window.confirm as jest.Mock).mock.calls[0][0]).toContain('他の案件（2件）も同時に解除されます');
+
+        await waitFor(() => {
+            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: false }));
+        });
+        expect(mockUpdateProject).toHaveBeenCalledWith('p2', expect.objectContaining({ isDispatchConfirmed: false }));
+        expect(mockUpdateProject).toHaveBeenCalledWith('p3', expect.objectContaining({ isDispatchConfirmed: false }));
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p4', expect.anything());
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p5', expect.anything());
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p6', expect.anything());
+    });
+
+    it('should skip siblings that already finished work and note them in the confirm message', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [
+                { id: 'p2', title: 'P2', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },
+                { id: 'p3', title: 'P3', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true, workEndedAt: new Date('2024-01-01T08:00:00Z') },
+            ],
+            updateProject: mockUpdateProject,
+        });
+        window.confirm = jest.fn(() => true);
+
+        render(
+            <DispatchConfirmModal
+                isOpen={true}
+                onClose={mockOnClose}
+                project={confirmedProject}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('確定解除')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('確定解除'));
+
+        const message = (window.confirm as jest.Mock).mock.calls[0][0] as string;
+        expect(message).toContain('他の案件（1件）も同時に解除されます');
+        expect(message).toContain('1件は作業完了済みのため解除対象外です');
+
+        await waitFor(() => {
+            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: false }));
+        });
+        expect(mockUpdateProject).toHaveBeenCalledWith('p2', expect.objectContaining({ isDispatchConfirmed: false }));
+        // 作業完了済みの p3 は連動解除しない
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p3', expect.anything());
+    });
+
+    it('should propagate member/vehicle changes to same-team same-day siblings and skip completed ones', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [
+                { id: 'p2', title: 'P2', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },                                              // 同班・同日 → 反映
+                { id: 'p3', title: 'P3', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true, workEndedAt: new Date('2024-01-01T08:00:00Z') }, // 作業完了済み → スキップ
+                { id: 'p4', title: 'P4', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f2', isDispatchConfirmed: true },                                              // 別班 → 対象外
+            ],
+            updateProject: mockUpdateProject,
+        });
+
+        render(
+            <DispatchConfirmModal
+                isOpen={true}
+                onClose={mockOnClose}
+                project={confirmedProject}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Worker 1')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByText('確定'));
+
+        await waitFor(() => {
+            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: true }));
+        });
+        expect(mockUpdateProject).toHaveBeenCalledWith('p2', expect.objectContaining({
+            confirmedWorkerIds: ['w1'],
+            confirmedVehicleIds: ['v1'],
+            isDispatchConfirmed: true,
+        }));
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p3', expect.anything());
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p4', expect.anything());
+    });
+
+    it('should NOT propagate when "この案件のみ変更する" is selected', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [
+                { id: 'p2', title: 'P2', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },
+            ],
+            updateProject: mockUpdateProject,
+        });
+
+        render(
+            <DispatchConfirmModal
+                isOpen={true}
+                onClose={mockOnClose}
+                project={confirmedProject}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('この案件のみ変更する')).toBeInTheDocument();
+        });
+
+        // 「この案件のみ変更する」を選択（2つ目のラジオ）
+        const radios = screen.getAllByRole('radio');
+        fireEvent.click(radios[1]);
+
+        fireEvent.click(screen.getByText('確定'));
+
+        await waitFor(() => {
+            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: true }));
+        });
+        expect(mockUpdateProject).not.toHaveBeenCalledWith('p2', expect.anything());
+    });
+
+    it('should hide the apply-scope radios when there are no eligible siblings', async () => {
+        (useProjects as jest.Mock).mockReturnValue({
+            projects: [],
+            updateProject: mockUpdateProject,
+        });
+
+        render(
+            <DispatchConfirmModal
+                isOpen={true}
+                onClose={mockOnClose}
+                project={confirmedProject}
+            />
+        );
+
+        await waitFor(() => {
+            expect(screen.getByText('Worker 1')).toBeInTheDocument();
+        });
+
+        expect(screen.queryByText('この案件のみ変更する')).not.toBeInTheDocument();
     });
 });
