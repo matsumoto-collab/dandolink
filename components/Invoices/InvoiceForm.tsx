@@ -85,13 +85,28 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             // 既存データ: projectMasterId でグループ化
             const grouped: Record<string, InvoiceItem[]> = {};
             for (const item of initialData.items) {
-                const pmId = item.projectMasterId || initialData.projectId || '_default';
+                const pmId = item.projectMasterId || initialData.projectId || '_none';
                 if (!grouped[pmId]) grouped[pmId] = [];
                 grouped[pmId].push(item);
             }
             return grouped;
         }
         return {};
+    });
+
+    // 明細グループの見出し（この請求書だけのローカル上書き）
+    // キー: 案件ID または '_none'（案件なし）。値: ユーザーが入力した見出し。
+    // 未設定の案件グループは従来どおり案件マスタの名称を自動表示する。
+    const [sectionTitles, setSectionTitles] = useState<Record<string, string>>(() => {
+        const map: Record<string, string> = {};
+        if (initialData?.items && initialData.items.length > 0) {
+            for (const item of initialData.items) {
+                const key = item.projectMasterId || initialData.projectId || '_none';
+                const st = item.sectionTitle?.trim();
+                if (st && map[key] === undefined) map[key] = st;
+            }
+        }
+        return map;
     });
 
     // 顧客変更時にcustomerIdから案件を自動特定
@@ -302,6 +317,18 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         return Object.values(itemsByProject).flat();
     }, [itemsByProject]);
 
+    // 明細に見出し(sectionTitle)を焼き付けたもの（保存・プレビュー用）。
+    // 案件グループはユーザーが入力したときだけ上書き値を焼き付ける。
+    // （未入力なら sectionTitle 無し → 表示側で案件マスタ名にフォールバック）
+    const allItemsWithTitles = React.useMemo(() => {
+        return allItems.map(item => {
+            const key = item.projectMasterId || '_none';
+            const raw = sectionTitles[key];
+            const st = raw !== undefined && raw.trim() !== '' ? raw.trim() : undefined;
+            return { ...item, sectionTitle: st };
+        });
+    }, [allItems, sectionTitles]);
+
     // 消費税率
     const TAX_RATE = 0.1;
     const subtotal = allItems.reduce((sum, item) => sum + item.amount, 0);
@@ -357,7 +384,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             customerId: customerId || undefined,
             invoiceNumber: invoiceNumber || '（自動採番）',
             title: title || '請求書',
-            items: allItems.map(it => it.projectMasterId === '_none' ? { ...it, projectMasterId: undefined } : it),
+            items: allItemsWithTitles.map(it => it.projectMasterId === '_none' ? { ...it, projectMasterId: undefined } : it),
             subtotal,
             tax,
             total,
@@ -395,7 +422,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         };
 
         return { tempInvoice, tempProject: tempProject as Project, effectiveCompanyInfo };
-    }, [customers, customerId, selectedProjectIds, projectMasters, invoiceNumber, title, allItems, subtotal, tax, total, dueDate, status, paidDate, notes, issueDate, companyInfo]);
+    }, [customers, customerId, selectedProjectIds, projectMasters, invoiceNumber, title, allItemsWithTitles, subtotal, tax, total, dueDate, status, paidDate, notes, issueDate, companyInfo]);
 
     // PDFプレビュー生成（手動・フルスクリーン用）
     const handlePreview = async () => {
@@ -430,10 +457,10 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const livePreviewSignature = useMemo(() => {
         return JSON.stringify({
             customerId, selectedProjectIds, invoiceNumber, title, dueDate, issueDate, status, paidDate, notes,
-            items: allItems,
+            items: allItemsWithTitles,
             companyInfoId: companyInfo?.id ?? '',
         });
-    }, [customerId, selectedProjectIds, invoiceNumber, title, dueDate, issueDate, status, paidDate, notes, allItems, companyInfo?.id]);
+    }, [customerId, selectedProjectIds, invoiceNumber, title, dueDate, issueDate, status, paidDate, notes, allItemsWithTitles, companyInfo?.id]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -448,7 +475,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 customerId,
                 invoiceNumber,
                 title,
-                items: allItems.map(item => item.projectMasterId === '_none' ? { ...item, projectMasterId: null } : item),
+                items: allItemsWithTitles.map(item => item.projectMasterId === '_none' ? { ...item, projectMasterId: null } : item),
                 subtotal,
                 tax,
                 total,
@@ -503,11 +530,20 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                     <div key={pmId} className="border border-slate-200 rounded-xl overflow-hidden">
                         {/* 案件ヘッダー */}
                         <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                <h3 className="text-sm font-semibold text-slate-800">
-                                    {pm?.title || '不明な案件'}
-                                </h3>
-                                <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                    <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                                        明細の見出し（この請求書のみ・案件マスタは変更しません）
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={sectionTitles[pmId] !== undefined ? sectionTitles[pmId] : (pm?.title || '')}
+                                        onChange={(e) => setSectionTitles(prev => ({ ...prev, [pmId]: e.target.value }))}
+                                        placeholder={pm?.title || '見出しを入力'}
+                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm font-semibold text-slate-800 bg-white"
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-2 sm:pt-5">
                                     {pmEstimates.length > 0 && (
                                         <button
                                             type="button"
@@ -600,9 +636,20 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             {selectedProjectIds.length === 0 && (
                 <div className="border border-slate-200 rounded-xl overflow-hidden">
                     <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <h3 className="text-sm font-semibold text-slate-800">明細</h3>
-                            <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                                <label className="block text-[11px] font-medium text-slate-500 mb-1">
+                                    明細の見出し（任意）
+                                </label>
+                                <input
+                                    type="text"
+                                    value={sectionTitles['_none'] ?? ''}
+                                    onChange={(e) => setSectionTitles(prev => ({ ...prev, ['_none']: e.target.value }))}
+                                    placeholder="例: 〇〇工事 / 品目名など"
+                                    className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm font-semibold text-slate-800 bg-white"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-2 sm:pt-5">
                                 <div className="relative">
                                     <button
                                         type="button"

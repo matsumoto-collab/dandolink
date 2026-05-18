@@ -84,9 +84,8 @@ export async function POST(req: NextRequest) {
             resolvedPmIds = [(projectMasterId || projectId) as string];
         }
 
-        if (resolvedPmIds.length === 0) {
-            return validationErrorResponse('案件の選択は必須です');
-        }
+        // 案件なしの請求書も許可する（明細の見出しは items 内に保持する）。
+        // resolvedPmIds が空のときは代表案件 null・中間テーブルなしで作成する。
 
         // 請求番号: 指定がなければサーバー側で自動採番
         let finalInvoiceNumber = invoiceNumber;
@@ -109,7 +108,7 @@ export async function POST(req: NextRequest) {
         const newInvoice = await prisma.$transaction(async (tx) => {
             const created = await tx.invoice.create({
                 data: {
-                    projectMasterId: resolvedPmIds[0], // 代表案件（後方互換）
+                    projectMasterId: resolvedPmIds[0] || null, // 代表案件（後方互換・案件なしは null）
                     customerId: customerId || null,
                     estimateId: estimateId || null,
                     invoiceNumber: finalInvoiceNumber,

@@ -8,7 +8,7 @@ import {
     View,
     Image,
 } from '@react-pdf/renderer';
-import { Invoice } from '@/types/invoice';
+import { Invoice, InvoiceItem } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 import { toReiwa, sanitizePdfText, PDF_COLORS as COLORS } from './styles';
@@ -30,6 +30,52 @@ function getExtra(project: Project): { customerPostalCode?: string; customerAddr
     return project as unknown as { customerPostalCode?: string; customerAddress?: string };
 }
 
+type InvoiceDisplayRow =
+    | { type: 'header'; title: string }
+    | { type: 'item'; item: InvoiceItem; index: number };
+
+/**
+ * 明細を案件グループごとに並べ、各グループの見出し行を差し込む。
+ * 見出しは「明細に保存された sectionTitle（この請求書だけの上書き）」を最優先し、
+ * 無ければ案件マスタ名にフォールバックする（＝従来挙動を維持）。
+ * 案件なし（orphan）の明細でも sectionTitle があれば見出しを表示する。
+ */
+export function buildInvoiceDisplayRows(
+    allItems: InvoiceItem[],
+    projectMasters?: Array<{ id: string; title: string }>,
+): InvoiceDisplayRow[] {
+    const rows: InvoiceDisplayRow[] = [];
+    let itemIndex = 0;
+    const pmList = projectMasters ?? [];
+
+    for (const pm of pmList) {
+        const pmItems = allItems.filter(item => item.projectMasterId === pm.id);
+        if (pmItems.length === 0) continue;
+        const override = pmItems.find(it => it.sectionTitle && it.sectionTitle.trim())?.sectionTitle?.trim();
+        rows.push({ type: 'header', title: `【${override || pm.title}】` });
+        pmItems.forEach(item => {
+            itemIndex++;
+            rows.push({ type: 'item', item, index: itemIndex });
+        });
+    }
+
+    const orphanItems = allItems.filter(
+        item => !item.projectMasterId || !pmList.find(pm => pm.id === item.projectMasterId),
+    );
+    if (orphanItems.length > 0) {
+        const orphanTitle = orphanItems.find(it => it.sectionTitle && it.sectionTitle.trim())?.sectionTitle?.trim();
+        if (orphanTitle) {
+            rows.push({ type: 'header', title: `【${orphanTitle}】` });
+        }
+        orphanItems.forEach(item => {
+            itemIndex++;
+            rows.push({ type: 'item', item, index: itemIndex });
+        });
+    }
+
+    return rows;
+}
+
 // ===== Cover Page Component =====
 function CoverPage({
     invoice,
@@ -44,35 +90,8 @@ function CoverPage({
 
     // 明細データ準備
     const allItems = invoice.items.filter(item => item.description);
-    // 案件が1件でも現場名ヘッダーを表示する（件名には請求日が入るため、何の案件か判別できるようにする）
-    const hasMultipleProjects = projectMasters && projectMasters.length >= 1;
-
-    type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0]; index: number };
-    const displayRows: DisplayRow[] = [];
-    let itemIndex = 0;
-
-    if (hasMultipleProjects) {
-        for (const pm of projectMasters!) {
-            const pmItems = allItems.filter(item => item.projectMasterId === pm.id);
-            if (pmItems.length > 0) {
-                displayRows.push({ type: 'header', title: `【${pm.title}】` });
-                pmItems.forEach(item => {
-                    itemIndex++;
-                    displayRows.push({ type: 'item', item, index: itemIndex });
-                });
-            }
-        }
-        const orphanItems = allItems.filter(item => !item.projectMasterId || !projectMasters!.find(pm => pm.id === item.projectMasterId));
-        orphanItems.forEach(item => {
-            itemIndex++;
-            displayRows.push({ type: 'item', item, index: itemIndex });
-        });
-    } else {
-        allItems.forEach(item => {
-            itemIndex++;
-            displayRows.push({ type: 'item', item, index: itemIndex });
-        });
-    }
+    // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
+    const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
 
     const maxRows = 18;
 
@@ -328,35 +347,8 @@ function DetailsPage({
 }) {
     const maxRows = 25;
     const allItems = invoice.items.filter(item => item.description);
-    // 案件が1件でも現場名ヘッダーを表示する（件名には請求日が入るため、何の案件か判別できるようにする）
-    const hasMultipleProjects = projectMasters && projectMasters.length >= 1;
-
-    type DisplayRow = { type: 'header'; title: string } | { type: 'item'; item: typeof allItems[0]; index: number };
-    const displayRows: DisplayRow[] = [];
-    let itemIndex = 0;
-
-    if (hasMultipleProjects) {
-        for (const pm of projectMasters!) {
-            const pmItems = allItems.filter(item => item.projectMasterId === pm.id);
-            if (pmItems.length > 0) {
-                displayRows.push({ type: 'header', title: `【${pm.title}】` });
-                pmItems.forEach(item => {
-                    itemIndex++;
-                    displayRows.push({ type: 'item', item, index: itemIndex });
-                });
-            }
-        }
-        const orphanItems = allItems.filter(item => !item.projectMasterId || !projectMasters!.find(pm => pm.id === item.projectMasterId));
-        orphanItems.forEach(item => {
-            itemIndex++;
-            displayRows.push({ type: 'item', item, index: itemIndex });
-        });
-    } else {
-        allItems.forEach(item => {
-            itemIndex++;
-            displayRows.push({ type: 'item', item, index: itemIndex });
-        });
-    }
+    // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
+    const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
 
     const formatAmount = (amount: number, isNegative: boolean): string => {
         if (isNegative) return `(${Math.abs(amount).toLocaleString()})`;

@@ -13,6 +13,9 @@ export interface BillingTitle {
 // 請求書の明細項目（EstimateItemを拡張、案件グループ管理用）
 export interface InvoiceItem extends EstimateItem {
     projectMasterId?: string; // どの案件に属する明細か
+    // 明細グループの見出し（この請求書だけのローカル上書き）。
+    // 未設定なら従来どおり案件マスタの名称を表示する。
+    sectionTitle?: string;
 }
 
 // 請求書
