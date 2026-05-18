@@ -56,6 +56,7 @@ export default function RootLayout({
             <body className={`${notoSansJP.variable} ${inter.variable} font-sans`}>
                 <Toaster
                     position="top-center"
+                    containerStyle={{ top: 80 }}
                     toastOptions={{
                         duration: 4000,
                         style: {
