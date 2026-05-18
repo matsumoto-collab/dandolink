@@ -13,6 +13,8 @@ import toast from 'react-hot-toast';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
+import { PdfPreviewToggle } from '@/components/ui/PdfPreviewToggle';
+import { usePdfPreviewVisible } from '@/hooks/usePdfPreviewVisible';
 import CustomerModal from '../Customers/CustomerModal';
 import UnitPriceMasterModal from '../Estimates/UnitPriceMasterModal';
 import ItemsEditor from '../Estimates/ItemsEditor';
@@ -312,6 +314,9 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     // lg+ で左右分割レイアウトを有効化
     const isLgScreen = useMediaQuery('(min-width: 1024px)');
 
+    // PDFプレビューの表示/非表示（lg+ のみ。localStorage に永続化・画面ごとに独立）
+    const { visible: previewVisible, toggle: togglePreview } = usePdfPreviewVisible('invoice-pdf-preview-visible');
+
     // PDFプレビュー用
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [previewPdfUrl, setPreviewPdfUrl] = useState('');
@@ -464,9 +469,15 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
     return (
         <form onSubmit={handleSubmit} className="lg:h-full lg:flex lg:flex-col lg:min-h-0">
-            <div className="lg:flex-1 lg:flex lg:flex-row lg:min-h-0 lg:overflow-hidden">
+            <div className="lg:flex-1 lg:flex lg:flex-col lg:min-h-0 lg:overflow-hidden">
+                {/* lg+ ツールバー: プレビュー表示/非表示トグル（モバイルでは非表示・既存挙動を維持） */}
+                <div className="hidden lg:flex lg:flex-shrink-0 lg:items-center lg:justify-end lg:gap-2 lg:px-6 lg:py-2 lg:border-b lg:border-slate-200 lg:bg-white">
+                    <PdfPreviewToggle visible={previewVisible} onToggle={togglePreview} />
+                </div>
+
+                <div className="lg:flex-1 lg:flex lg:flex-row lg:min-h-0 lg:overflow-hidden">
                 {/* 左カラム: フォーム入力 */}
-                <div className="space-y-5 md:space-y-6 lg:flex-1 lg:basis-3/5 lg:min-w-0 lg:overflow-y-auto lg:px-6 lg:py-4">
+                <div className={`space-y-5 md:space-y-6 lg:flex-1 lg:min-w-0 lg:overflow-y-auto lg:px-6 lg:py-4 lg:transition-all lg:duration-300 lg:ease-in-out ${previewVisible ? 'lg:basis-3/5' : 'lg:basis-full'}`}>
             <InvoiceHeader
                 customerId={customerId} setCustomerId={setCustomerId}
                 invoiceNumber={invoiceNumber} setInvoiceNumber={setInvoiceNumber}
@@ -694,15 +705,19 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             </div>
                 </div>
 
-                {/* 右カラム: リアルタイム PDF プレビュー (lg+ のみ) */}
-                <div className="hidden lg:flex lg:flex-col lg:basis-2/5 lg:min-w-0 lg:border-l lg:border-slate-200 lg:bg-slate-50">
-                    {isLgScreen && (
+                {/* 右カラム: リアルタイム PDF プレビュー (lg+ のみ・トグルで開閉) */}
+                <div
+                    className={`hidden lg:flex lg:flex-col lg:min-w-0 lg:bg-slate-50 lg:overflow-hidden lg:transition-all lg:duration-300 lg:ease-in-out ${previewVisible ? 'lg:basis-2/5 lg:opacity-100 lg:border-l lg:border-slate-200' : 'lg:basis-0 lg:opacity-0 lg:pointer-events-none'}`}
+                    aria-hidden={!previewVisible}
+                >
+                    {isLgScreen && previewVisible && (
                         <LivePdfPreview
                             seed={livePreviewSignature}
                             renderPdf={buildLivePdfBlob}
                             debounceMs={700}
                         />
                     )}
+                </div>
                 </div>
             </div>
 
