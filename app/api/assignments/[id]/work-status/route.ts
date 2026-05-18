@@ -11,6 +11,7 @@ import {
 import { formatAssignment } from '@/lib/formatters';
 import { notifyUsers } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
+import { toJstDateOnly } from '@/lib/dateUtils';
 
 type ImageCategory = 'assembly' | 'demolition' | 'other';
 const IMAGE_CATEGORIES: ImageCategory[] = ['assembly', 'demolition', 'other'];
@@ -49,11 +50,14 @@ function roundToNearestQuarterHourJst(now: Date): { timeStr: string; rounded: Da
     return { timeStr, rounded };
 }
 
-/** 日付部分のみ抽出（時刻は00:00:00にした Date） */
+/**
+ * 配置の date から日報の日付キーを算出。
+ * 配置は JST 0時が `…T15:00:00.000Z`（前日UTC）で保存されるため、
+ * サーバーローカルTZ(本番=UTC)依存の丸めは1日前にズレる。
+ * JSTカレンダー日へ正規化する共通ヘルパを用いる。
+ */
 function toDateOnly(d: Date): Date {
-    const out = new Date(d);
-    out.setHours(0, 0, 0, 0);
-    return out;
+    return toJstDateOnly(d);
 }
 
 /**

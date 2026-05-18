@@ -4,6 +4,7 @@ import { requireAuth, validationErrorResponse, serverErrorResponse, errorRespons
 import { createDailyReportApiSchema, validateRequest } from '@/lib/validations';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { parseJsonField } from '@/lib/json-utils';
+import { toJstDateOnly } from '@/lib/dateUtils';
 
 const workItemSelect = {
     id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
@@ -44,10 +45,9 @@ export async function GET(request: NextRequest) {
         }
 
         if (date) {
-            const targetDate = new Date(date);
-            targetDate.setHours(0, 0, 0, 0);
-            const nextDay = new Date(targetDate);
-            nextDay.setDate(nextDay.getDate() + 1);
+            // JSTカレンダー日でフィルタ（サーバーローカルTZ非依存）
+            const targetDate = toJstDateOnly(date);
+            const nextDay = new Date(targetDate.getTime() + 24 * 60 * 60 * 1000);
             where.date = { gte: targetDate, lt: nextDay };
         } else if (startDate && endDate) {
             where.date = { gte: new Date(startDate), lte: new Date(endDate) };
@@ -71,8 +71,8 @@ export async function POST(request: NextRequest) {
 
         const { foremanId, date, morningLoadingMinutes, eveningLoadingMinutes, earlyStartMinutes, overtimeMinutes, breakMinutes, notes, workItems } = validation.data;
 
-        const targetDate = new Date(date);
-        targetDate.setHours(0, 0, 0, 0);
+        // JSTカレンダー日に正規化（書き込み・読み込みで foremanId_date キーを整合させる）
+        const targetDate = toJstDateOnly(date);
 
         // フル編集権限: 担当職長本人 / admin / manager
         const isFullEditor =
