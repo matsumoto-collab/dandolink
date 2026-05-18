@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { sendPushToUsers, type PushPayload } from '@/lib/push';
 import { logger } from '@/lib/logger';
+import { parseJsonField } from '@/lib/json-utils';
 
 export interface NotifyInput {
     userIds: string[];
@@ -70,9 +71,23 @@ export async function notifyUsers(input: NotifyInput): Promise<NotifyResult> {
             if (needsScopeCheck) {
                 const pm = await prisma.projectMaster.findUnique({
                     where: { id: input.projectMasterId },
-                    select: { managerIds: true },
+                    select: { managerIds: true, createdBy: true },
                 });
-                const managerSet = new Set(pm?.managerIds ?? []);
+                // 案件担当者は createdBy (JSON配列文字列) と managerIds の両方に保存され得るため両方を合算する
+                const managerSet = new Set<string>(pm?.managerIds ?? []);
+                const parsedCreatedBy = parseJsonField<unknown>(pm?.createdBy ?? null, null);
+                const createdByIds = Array.isArray(parsedCreatedBy) ? parsedCreatedBy : [];
+                for (const id of createdByIds) {
+                    if (typeof id === 'string' && id) managerSet.add(id);
+                }
+                // createdBy が単一ID文字列で保存されている古いデータにも対応（JSON配列でない素のID）
+                if (
+                    pm?.createdBy &&
+                    !Array.isArray(parsedCreatedBy) &&
+                    !pm.createdBy.trim().startsWith('[')
+                ) {
+                    managerSet.add(pm.createdBy);
+                }
                 filteredUserIds = filteredUserIds.filter((uid) => {
                     const scope = prefByUser.get(uid)?.scope;
                     if (scope !== 'mine') return true;
