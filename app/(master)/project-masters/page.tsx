@@ -128,7 +128,10 @@ function ProjectMasterListPageContent() {
         if (!pm) return; // データ未到着の場合は次回 projectMasters 更新で再評価
         lastConsumedPmIdRef.current = pmId;
         setDetailPm(pm);
-        setOpenModalInEditMode(false);
+        // ?pmEdit=1 で編集モード起動。権限ガード: 管理者・マネージャーのみ編集モードを許可し、
+        // それ以外のロールがURLを推測して付与しても閲覧モードに落とす（新導線の権限制御）。
+        const wantEdit = searchParams?.get('pmEdit') === '1';
+        setOpenModalInEditMode(wantEdit && isAdminOrManager);
         const scrollTo = searchParams?.get('scrollTo');
         if (scrollTo === 'files') {
             setTimeout(() => {
@@ -139,9 +142,10 @@ function ProjectMasterListPageContent() {
         const next = new URLSearchParams(searchParams?.toString() || '');
         next.delete('pmId');
         next.delete('scrollTo');
+        next.delete('pmEdit');
         const qs = next.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname);
-    }, [searchParams, projectMasters, getProjectMasterById, router, pathname]);
+    }, [searchParams, projectMasters, getProjectMasterById, router, pathname, isAdminOrManager]);
 
     // 見積/請求カラムのために各ストアを遅延ロード
     useEffect(() => {

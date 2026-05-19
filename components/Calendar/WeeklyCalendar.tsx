@@ -3,6 +3,8 @@
 import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useNavigation } from '@/contexts/NavigationContext';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import type { PendingMove } from '@/hooks/useDragAndDrop';
@@ -15,7 +17,7 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { generateEmployeeRows, formatDateKey } from '@/utils/employeeUtils';
-import { canDispatch as canDispatchCheck } from '@/utils/permissions';
+import { canDispatch as canDispatchCheck, isManagerOrAbove } from '@/utils/permissions';
 import { addDays } from '@/utils/dateUtils';
 import { CalendarEvent, CalendarNavigation, Project, Employee, ProjectAssignment, ConflictResolutionAction } from '@/types/calendar';
 import Loading from '@/components/ui/Loading';
@@ -98,6 +100,21 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
 
     // 手配確定権限チェック
     const canDispatch = useMemo(() => canDispatchCheck(session?.user), [session?.user]);
+
+    // 案件マスタ編集画面への遷移（管理者・マネージャーのみ導線を表示）
+    const router = useRouter();
+    const { setActivePage } = useNavigation();
+    const canEditProjectMaster = useMemo(() => isManagerOrAbove(session?.user), [session?.user]);
+    const handleEditProjectMaster = useCallback(() => {
+        const pmId = modalInitialData.projectMasterId;
+        if (!pmId) return;
+        handleCloseModal();
+        // 二段構え: setActivePage を直接呼びつつ router.push でディープリンク
+        // （スケジュール画面では router.push 単独だと MainContent の useEffect が
+        // 発火しないことがあるため。既存の通知遷移と同じパターン）
+        setActivePage('project-masters');
+        router.push(`/?page=project-masters&pmId=${pmId}&pmEdit=1`);
+    }, [modalInitialData.projectMasterId, handleCloseModal, setActivePage, router]);
 
 useEffect(() => { setIsMounted(true); }, []);
 
@@ -714,6 +731,11 @@ useEffect(() => { setIsMounted(true); }, []);
                 defaultEmployeeId={modalInitialData.assignedEmployeeId}
                 title={modalInitialData.id ? '案件編集' : '案件登録'}
                 readOnly={isReadOnly}
+                onEditProjectMaster={
+                    canEditProjectMaster && modalInitialData.projectMasterId
+                        ? handleEditProjectMaster
+                        : undefined
+                }
             />
 
             <ProjectMasterSearchModal

@@ -7,7 +7,7 @@ import ProjectDetailView from './ProjectDetailView';
 import EditingIndicator from '../Calendar/EditingIndicator';
 import { useAssignmentPresence } from '@/hooks/useAssignmentPresence';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
-import { FileText, Pencil, Trash2, MessageSquare } from 'lucide-react';
+import { FileText, Pencil, Trash2, MessageSquare, ExternalLink } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 const ProjectChatTab = dynamic(() => import('@/components/Chat/ProjectChatTab'), { ssr: false });
@@ -25,6 +25,9 @@ interface ProjectModalProps {
     defaultEmployeeId?: string;
     readOnly?: boolean;
     onCreateEstimate?: () => void;
+    // 案件マスタ編集画面へ遷移する導線。呼び出し側で権限（管理者/マネージャー）を
+    // 判定し、許可された場合のみ渡す。undefined のときはボタン自体を描画しない。
+    onEditProjectMaster?: () => void;
 }
 
 export default function ProjectModal({
@@ -38,6 +41,7 @@ export default function ProjectModal({
     defaultEmployeeId,
     readOnly = false,
     onCreateEstimate,
+    onEditProjectMaster,
 }: ProjectModalProps) {
     // 編集モードの状態管理
     // 既存案件の場合は閲覧モード、新規作成の場合は編集モード
@@ -140,6 +144,15 @@ export default function ProjectModal({
                             >
                                 <Pencil className="w-4 h-4" />
                                 編集
+                            </button>
+                        )}
+                        {!isEditMode && !showChat && initialData?.id && initialData?.projectMasterId && onEditProjectMaster && (
+                            <button
+                                onClick={onEditProjectMaster}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                案件マスタを編集
                             </button>
                         )}
                         {!readOnly && !isEditMode && initialData?.id && onDelete && (
