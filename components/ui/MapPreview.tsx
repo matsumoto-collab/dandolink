@@ -11,9 +11,15 @@ interface MapPreviewProps {
     height?: number;
     /** ラッパー要素の追加クラス */
     className?: string;
+    /**
+     * 地図内の操作（POIクリック・パン・ズーム）を許可するか。
+     * 既定 false = 透明オーバーレイで完全固定し、誤クリックでピンが動くのを防ぐ（閲覧/プレビュー用途）。
+     * ピンの編集は別コンポーネント（LocationPickerModal）で行うため、ここは常に固定でよい。
+     */
+    interactive?: boolean;
 }
 
-export default function MapPreview({ mapQuery, height = 220, className = '' }: MapPreviewProps) {
+export default function MapPreview({ mapQuery, height = 220, className = '', interactive = false }: MapPreviewProps) {
     const [mapType, setMapType] = useState<MapType>('m');
 
     return (
@@ -43,6 +49,18 @@ export default function MapPreview({ mapQuery, height = 220, className = '' }: M
                 style={{ border: 0, display: 'block' }}
                 src={`https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed&t=${mapType}`}
             />
+            {/*
+              透明クリックシールド: iframe(地図)より上・切替ボタン(z-10)より下に重ね、
+              地図内のクリック/タップ/ドラッグを遮断する。これにより誤ってPOIを
+              クリックしてもピン位置が動かない（重大な誤案内バグの構造的な防止）。
+            */}
+            {!interactive && (
+                <div
+                    className="absolute inset-0 z-[5] cursor-default"
+                    aria-hidden="true"
+                    title="地図を操作するには「Googleマップで開く」を使用してください"
+                />
+            )}
         </div>
     );
 }
