@@ -387,9 +387,11 @@ export default function MobileCalendarView({
                                             −
                                         </button>
                                     )}
-                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white whitespace-nowrap ${
-                                        remaining > 0 ? 'bg-slate-500' : remaining === 0 ? 'bg-slate-400' : 'bg-slate-700'
-                                    }`}>
+                                    <span className={remaining === 0
+                                        ? 'text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white whitespace-nowrap bg-slate-400'
+                                        : remaining > 0
+                                        ? 'text-[10px] font-bold px-1.5 py-0.5 whitespace-nowrap text-blue-600'
+                                        : 'text-[10px] font-bold px-1.5 py-0.5 whitespace-nowrap text-red-600'}>
                                         {remaining}<span className="opacity-70">/{total}</span>
                                     </span>
                                     {onMemberAdjustmentChange && (
