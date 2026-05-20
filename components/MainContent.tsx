@@ -125,7 +125,9 @@ export default function MainContent() {
     // 通知などからのディープリンク:
     //   ?page=schedule&view=assignment    → 手配表タブを開く
     //   ?page=project-masters&pmId=...    → 案件詳細モーダルを開く（page側で処理）
-    // page/view は処理後にURLから除去するが、pmId/scrollTo は遷移先ページが消費するため残す
+    // page/view は処理後にURLから除去するが、pmId/scrollTo/pmEdit が含まれる場合は
+    // 遷移先ページ側の URL 掃除に一任する（親子で同時に router.replace すると
+    // 子→親の順で後勝ちになり、モバイルで pmId が URL に残って残像表示を引き起こすため）。
     useEffect(() => {
         const pageParam = searchParams?.get('page');
         const viewParam = searchParams?.get('view');
@@ -139,7 +141,9 @@ export default function MainContent() {
             setScheduleView(viewParam);
             consumed = true;
         }
-        if (consumed) {
+        const hasChildDeepLinkParams =
+            searchParams?.has('pmId') || searchParams?.has('scrollTo') || searchParams?.has('pmEdit');
+        if (consumed && !hasChildDeepLinkParams) {
             const next = new URLSearchParams(searchParams?.toString() || '');
             next.delete('page');
             next.delete('view');

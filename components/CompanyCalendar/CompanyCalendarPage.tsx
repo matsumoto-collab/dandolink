@@ -131,6 +131,10 @@ export default function CompanyCalendarPage() {
         lastConsumedPmIdRef.current = pmId;
         const next = new URLSearchParams(searchParams?.toString() || '');
         next.delete('pmId');
+        // MainContent 側はディープリンク params を持つときは URL 掃除をスキップする規約のため、
+        // ここで page/view も併せて削って URL を必ず "/" まで戻す。
+        next.delete('page');
+        next.delete('view');
         const qs = next.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname);
     }, [searchParams, events, loading, router, pathname]);

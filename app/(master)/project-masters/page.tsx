@@ -143,6 +143,10 @@ function ProjectMasterListPageContent() {
         next.delete('pmId');
         next.delete('scrollTo');
         next.delete('pmEdit');
+        // MainContent 側はディープリンク params を持つときは URL 掃除をスキップする規約のため、
+        // ここで page/view も併せて削って URL を必ず "/" まで戻す。
+        next.delete('page');
+        next.delete('view');
         const qs = next.toString();
         router.replace(qs ? `${pathname}?${qs}` : pathname);
     }, [searchParams, projectMasters, getProjectMasterById, router, pathname, isAdminOrManager]);
