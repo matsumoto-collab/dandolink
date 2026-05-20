@@ -247,17 +247,18 @@ export async function fetchProfitDashboardData(
         }),
     ]);
 
-    // 見積書: 各案件で最新1件を採用(見積額の表示・売上フォールバック用)
+    // 見積書: 各案件で全件合算(追加見積書を含む。見積額の表示・売上フォールバック用)
     const estimateByProject = new Map<string, number>();
     const estimateCostByProject = new Map<string, number | null>();
     for (const e of estimates) {
         if (!e.projectMasterId) continue;
-        // estimates は createdAt desc でソート済み、最初に出てきたものが最新
-        if (!estimateByProject.has(e.projectMasterId)) {
-            estimateByProject.set(e.projectMasterId, Number(e.total));
-        }
-        if (e.costTotal != null && !estimateCostByProject.has(e.projectMasterId)) {
-            estimateCostByProject.set(e.projectMasterId, e.costTotal);
+        estimateByProject.set(
+            e.projectMasterId,
+            (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)
+        );
+        if (e.costTotal != null) {
+            const cur = estimateCostByProject.get(e.projectMasterId);
+            estimateCostByProject.set(e.projectMasterId, (cur ?? 0) + e.costTotal);
         }
     }
 

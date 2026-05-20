@@ -47,6 +47,16 @@ interface SubcontractorRow {
     effectiveCost: number;
 }
 
+interface EstimateBreakdownItem {
+    id: string;
+    estimateNumber: string;
+    title: string;
+    total: number;
+    subtotal: number;
+    costTotal: number | null;
+    createdAt: string;
+}
+
 interface ProfitData {
     projectMasterId: string;
     projectTitle: string;
@@ -58,6 +68,7 @@ interface ProfitData {
     estimateAmount: number;
     estimateSubtotal?: number;
     estimateCostTotal: number | null;
+    estimateBreakdown?: EstimateBreakdownItem[];
     costBreakdown: CostBreakdown;
     breakdown?: {
         labor: LaborRow[];
@@ -172,6 +183,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+    const [estimateBreakdownOpen, setEstimateBreakdownOpen] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [drafts, setDrafts] = useState<DraftState>(emptyDrafts);
     const [saving, setSaving] = useState(false);
@@ -372,7 +384,31 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
                 <div className="border-t border-slate-100 pt-4 space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-600">売上</span>
+                        {(() => {
+                            const breakdown = profitData.estimateBreakdown ?? [];
+                            const hasMultiple = breakdown.length >= 2;
+                            const canExpand = hasMultiple && !editMode && revenueSource === 'estimate';
+                            return (
+                                <button
+                                    type="button"
+                                    onClick={() => { if (canExpand) setEstimateBreakdownOpen(o => !o); }}
+                                    disabled={!canExpand}
+                                    className={`inline-flex items-center gap-1 text-sm text-slate-600 ${canExpand ? 'hover:text-slate-900 cursor-pointer' : 'cursor-default'}`}
+                                >
+                                    {canExpand && (
+                                        estimateBreakdownOpen
+                                            ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                            : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                                    )}
+                                    <span>売上</span>
+                                    {hasMultiple && (
+                                        <span className="text-[10px] text-slate-500 px-1.5 py-0.5 bg-slate-100 rounded">
+                                            見積{breakdown.length}件
+                                        </span>
+                                    )}
+                                </button>
+                            );
+                        })()}
                         <AmountCell
                             editMode={editMode}
                             value={revenue}
@@ -382,6 +418,19 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                             onChange={(v) => setProjectDraft('revenueOverride', v)}
                         />
                     </div>
+                    {estimateBreakdownOpen && revenueSource === 'estimate' && (profitData.estimateBreakdown?.length ?? 0) >= 2 && (
+                        <div className="ml-5 pl-2 border-l-2 border-slate-200 space-y-1">
+                            {profitData.estimateBreakdown!.map((est, idx) => (
+                                <div key={est.id} className="flex items-center justify-between text-xs">
+                                    <span className="text-slate-600 truncate mr-2">
+                                        <span className="font-medium text-slate-700">{est.estimateNumber}</span>
+                                        {idx > 0 && <span className="ml-1.5 text-[10px] text-slate-500 px-1 py-0.5 bg-slate-50 rounded border border-slate-200">追加見積</span>}
+                                    </span>
+                                    <span className="tabular-nums text-slate-700 flex-shrink-0">{formatCurrency(est.total)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                     <div className="flex items-center justify-between">
                         <span className="text-sm text-slate-600">原価</span>
                         <span className="text-base font-semibold text-slate-800 tabular-nums">{formatCurrency(costBreakdown.totalCost)}</span>

@@ -100,7 +100,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
         const [settings, estimates, invoices, allVehicles, allUsers, allWorkers, foremanUsers, constructionTypes] = await Promise.all([
             prisma.systemSettings.findFirst(),
-            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { total: true, subtotal: true, costTotal: true, updatedAt: true }, orderBy: { updatedAt: 'desc' } }),
+            prisma.estimate.findMany({ where: { projectMasterId: id }, select: { id: true, estimateNumber: true, title: true, total: true, subtotal: true, costTotal: true, createdAt: true, updatedAt: true }, orderBy: { createdAt: 'asc' } }),
             prisma.invoice.findMany({ where: { projectMasterId: id } }),
             prisma.vehicle.findMany({ select: { id: true, name: true, dailyRate: true } }),
             prisma.user.findMany({ where: { id: { in: [...allWorkerIdSet] } }, select: { id: true, dailyRate: true } }),
@@ -123,11 +123,24 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
         const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
 
-        // 同一案件に複数の見積書がある場合は最新1件のみを採用
-        const latestEstimate = estimates[0];
-        const estimateAmount = latestEstimate ? Number(latestEstimate.total) : 0;
-        const estimateSubtotal = latestEstimate ? Number(latestEstimate.subtotal) : 0;
-        const estimateCostTotal = latestEstimate?.costTotal ?? null;
+        // 同一案件に複数の見積書がある場合は全件合算（追加見積書を含む）
+        let estimateCostSum = 0;
+        let anyEstimateCostSet = false;
+        for (const e of estimates) {
+            if (e.costTotal != null) { estimateCostSum += e.costTotal; anyEstimateCostSet = true; }
+        }
+        const estimateAmount = estimates.reduce((sum, e) => sum + Number(e.total), 0);
+        const estimateSubtotal = estimates.reduce((sum, e) => sum + Number(e.subtotal), 0);
+        const estimateCostTotal = anyEstimateCostSet ? estimateCostSum : null;
+        const estimateBreakdown = estimates.map(e => ({
+            id: e.id,
+            estimateNumber: e.estimateNumber,
+            title: e.title,
+            total: Number(e.total),
+            subtotal: Number(e.subtotal),
+            costTotal: e.costTotal,
+            createdAt: e.createdAt,
+        }));
         const invoiceAmount = invoices.reduce((sum, i) => sum + Number(i.total), 0);
         const invoiceSubtotal = invoices.reduce((sum, i) => sum + Number(i.subtotal), 0);
         const contractAmount = Number(projectMaster.contractAmount || 0);
@@ -325,6 +338,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
             projectMasterId: id, projectTitle: projectMaster.title,
             revenue, revenueSource, autoRevenue, revenueOverride: projectMaster.revenueOverride,
             invoiceAmount, invoiceSubtotal, estimateAmount, estimateSubtotal, estimateCostTotal,
+            estimateBreakdown,
             contractAmount,
             costBreakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
             breakdown: {
