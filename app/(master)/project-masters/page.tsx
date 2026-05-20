@@ -393,6 +393,7 @@ function ProjectMasterListPageContent() {
     }, [getInvoicesByProject]);
 
     // 見積「済/未」セルのクリック
+    // 1件以上ある場合は常にピッカーを開き、既存閲覧と「新規作成（追加見積書）」のどちらも選べるようにする
     const handleEstimateCellClick = useCallback((pm: ProjectMaster) => {
         const list = getEstimatesByProject(pm.id);
         if (list.length === 0) {
@@ -403,8 +404,6 @@ function ProjectMasterListPageContent() {
             });
             setEditingEstimate(null);
             setIsEstimateModalOpen(true);
-        } else if (list.length === 1) {
-            setViewingEstimate(list[0]);
         } else {
             setPickerContext({ pm, kind: 'estimate' });
         }
@@ -433,11 +432,17 @@ function ProjectMasterListPageContent() {
     }, [detailPm, getEstimatesByProject]);
 
     const handleViewEstimate = useCallback(() => {
-        if (estimateForDetailPm) {
-            setViewingEstimate(estimateForDetailPm);
+        if (!detailPm) return;
+        const list = getEstimatesByProject(detailPm.id);
+        if (list.length === 0) return;
+        if (list.length === 1) {
+            setViewingEstimate(list[0]);
+            setDetailPm(null);
+        } else {
+            setPickerContext({ pm: detailPm, kind: 'estimate' });
             setDetailPm(null);
         }
-    }, [estimateForDetailPm]);
+    }, [detailPm, getEstimatesByProject]);
 
     const handleEstimateSubmit = useCallback(async (data: EstimateInput) => {
         try {
