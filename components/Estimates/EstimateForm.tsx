@@ -52,7 +52,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
         ensureDataLoaded();
         ensureUnitPricesLoaded();
         // 原価マスター取得
-        fetch('/api/master-data/cost-masters').then(r => r.ok ? r.json() : []).then(setCostMasters).catch(() => {});
+        fetch('/api/master-data/cost-masters').then(r => r.ok ? r.json() : []).then(data => setCostMasters(Array.isArray(data) ? data : [])).catch(() => {});
     }, [fetchProjectMasters, ensureDataLoaded, ensureUnitPricesLoaded]);
 
     const [projectId, setProjectId] = useState(initialData?.projectId || '');

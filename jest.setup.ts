@@ -17,6 +17,9 @@ Object.assign(global, { TextEncoder, TextDecoder });
 global.alert = jest.fn();
 global.URL.createObjectURL = jest.fn().mockReturnValue('blob:mock-url');
 global.URL.revokeObjectURL = jest.fn();
+if (typeof Element !== 'undefined') {
+    Element.prototype.scrollIntoView = jest.fn();
+}
 
 
 // グローバルなモックの設定

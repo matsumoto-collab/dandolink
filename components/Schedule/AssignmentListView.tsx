@@ -13,7 +13,7 @@ type ProjectListItem = ReturnType<typeof useProjects>['projects'][0];
 
 interface AssignmentListViewProps {
     selectedDate: Date;
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>;
     vehicleNameMap: Map<string, string>;
     isNamesLoaded: boolean;
     userRole?: string;
@@ -154,7 +154,7 @@ interface AssignmentRowProps {
     project: ProjectListItem;
     ctMap: Map<string, { name: string; color: string }>;
     allForemen: { id: string; displayName: string }[];
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>;
     vehicleNameMap: Map<string, string>;
     isNamesLoaded: boolean;
     getShortManagerName: (id: string) => string;

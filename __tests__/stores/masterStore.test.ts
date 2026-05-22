@@ -173,24 +173,6 @@ describe('masterStore', () => {
         });
     });
 
-    describe('updateTotalMembers', () => {
-        it('should update total members', async () => {
-            mockFetch.mockResolvedValueOnce({ ok: true });
-
-            await act(async () => {
-                await useMasterStore.getState().updateTotalMembers(30);
-            });
-
-            expect(mockFetch).toHaveBeenCalledWith('/api/master-data/settings', {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ totalMembers: 30 }),
-            });
-
-            expect(useMasterStore.getState().totalMembers).toBe(30);
-        });
-    });
-
     describe('reset', () => {
         it('should reset to initial state', () => {
             // 状態を変更

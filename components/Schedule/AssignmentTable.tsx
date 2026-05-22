@@ -30,7 +30,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const { constructionTypes } = useMasterData();
     const cellRemarks = useCalendarStore(selectCellRemarks);
 
-    const [workerNameMap, setWorkerNameMap] = useState<Map<string, { displayName: string; isPartner: boolean }>>(new Map());
+    const [workerNameMap, setWorkerNameMap] = useState<Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
@@ -58,9 +58,13 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 const workersRes = await fetch('/api/dispatch/workers');
                 if (workersRes.ok) {
                     const workersData = await workersRes.json();
-                    const map = new Map<string, { displayName: string; isPartner: boolean }>();
-                    workersData.forEach((w: { id: string; displayName: string; companyId: string | null }) => {
-                        map.set(w.id, { displayName: w.displayName, isPartner: !!w.companyId });
+                    const map = new Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>();
+                    workersData.forEach((w: { id: string; displayName: string; companyId: string | null; company?: { id: string; displayName: string } | null }) => {
+                        map.set(w.id, {
+                            displayName: w.displayName,
+                            isPartner: !!w.companyId,
+                            companyDisplayName: w.company?.displayName ?? null,
+                        });
                     });
                     setWorkerNameMap(map);
                 }
@@ -375,7 +379,7 @@ interface ForemanSectionProps {
     emptyMessage: string;
     canEdit: boolean;
     isNamesLoaded: boolean;
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>;
     vehicleNameMap: Map<string, string>;
     foremanId: string;
     showForemanBadge?: boolean;
@@ -467,7 +471,7 @@ interface ProjectCardProps {
     project: ReturnType<typeof useProjects>['projects'][0];
     canEdit: boolean;
     isNamesLoaded: boolean;
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean }>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>;
     vehicleNameMap: Map<string, string>;
     foremanId: string;
     showForemanBadge?: boolean;

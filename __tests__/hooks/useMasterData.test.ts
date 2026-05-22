@@ -14,7 +14,6 @@ describe('useMasterData', () => {
     const mockAddVehicle = jest.fn();
     const mockUpdateVehicle = jest.fn();
     const mockDeleteVehicle = jest.fn();
-    const mockUpdateTotalMembers = jest.fn();
     const mockSetupRealtimeSubscription = jest.fn();
 
     // Default store state
@@ -28,7 +27,6 @@ describe('useMasterData', () => {
         addVehicle: mockAddVehicle,
         updateVehicle: mockUpdateVehicle,
         deleteVehicle: mockDeleteVehicle,
-        updateTotalMembers: mockUpdateTotalMembers,
         setupRealtimeSubscription: mockSetupRealtimeSubscription,
     };
 
@@ -88,12 +86,6 @@ describe('useMasterData', () => {
         expect(result.current.addVehicle).toBe(mockAddVehicle);
         expect(result.current.updateVehicle).toBe(mockUpdateVehicle);
         expect(result.current.deleteVehicle).toBe(mockDeleteVehicle);
-    });
-
-    it('should expose updateTotalMembers', () => {
-        const { result } = renderHook(() => useMasterData());
-
-        expect(result.current.updateTotalMembers).toBe(mockUpdateTotalMembers);
     });
 
     it('should expose refreshMasterData', () => {
