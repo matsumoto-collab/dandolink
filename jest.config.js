@@ -13,6 +13,12 @@ const config = {
     // セットアップファイル
     setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
 
+    // テスト完了後に Jest プロセスを強制終了
+    // 既存コード由来の閉じていない async handle（Sentry/Supabase 等の初期化）が
+    // テスト終了後も残り、CI が「Run tests」ステップで永遠に終わらない問題への暫定対処。
+    // 根本対策（open handle の特定と close）は別途。
+    forceExit: true,
+
     // テストファイルのパターン
     testMatch: [
         '**/__tests__/**/*.(test|spec).(ts|tsx|js|jsx)',
