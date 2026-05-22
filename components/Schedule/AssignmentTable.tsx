@@ -30,7 +30,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const { constructionTypes } = useMasterData();
     const cellRemarks = useCalendarStore(selectCellRemarks);
 
-    const [workerNameMap, setWorkerNameMap] = useState<Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>>(new Map());
+    const [workerNameMap, setWorkerNameMap] = useState<Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>>(new Map());
     const [vehicleNameMap, setVehicleNameMap] = useState<Map<string, string>>(new Map());
     const [isNamesLoaded, setIsNamesLoaded] = useState(false);
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
@@ -58,12 +58,13 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                 const workersRes = await fetch('/api/dispatch/workers');
                 if (workersRes.ok) {
                     const workersData = await workersRes.json();
-                    const map = new Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>();
-                    workersData.forEach((w: { id: string; displayName: string; companyId: string | null; company?: { id: string; displayName: string } | null }) => {
+                    const map = new Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>();
+                    workersData.forEach((w: { id: string; displayName: string; role: string | null; companyId: string | null; company?: { id: string; displayName: string } | null }) => {
                         map.set(w.id, {
                             displayName: w.displayName,
                             isPartner: !!w.companyId,
                             companyDisplayName: w.company?.displayName ?? null,
+                            role: w.role ?? null,
                         });
                     });
                     setWorkerNameMap(map);
@@ -182,6 +183,27 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         return map;
     }, [constructionTypes]);
 
+    // 協力業者 貸出車両 (職長2のカード表示時のみ)
+    const partnerVehicles = useMemo(() => {
+        if (userRole !== 'foreman2') return [];
+        const dateStr = selectedDateKey;
+        const pairs = new Map<string, { vehicleName: string; companyDisplayName: string }>();
+        projects.forEach(project => {
+            if (!project.isDispatchConfirmed) return;
+            if (formatDateKey(new Date(project.startDate)) !== dateStr) return;
+            const foremanInfo = project.assignedEmployeeId ? workerNameMap.get(project.assignedEmployeeId) : undefined;
+            if (foremanInfo?.role !== 'partner_member') return;
+            const company = foremanInfo.companyDisplayName ?? '';
+            (project.confirmedVehicleIds || []).forEach(vid => {
+                const vehicleName = vehicleNameMap.get(vid);
+                if (!vehicleName) return;
+                const key = `${vehicleName}__${company}`;
+                if (!pairs.has(key)) pairs.set(key, { vehicleName, companyDisplayName: company });
+            });
+        });
+        return Array.from(pairs.values()).sort((a, b) => a.vehicleName.localeCompare(b.vehicleName, 'ja'));
+    }, [projects, selectedDateKey, userRole, workerNameMap, vehicleNameMap]);
+
     const dateInfo = formatDisplayDate(selectedDate);
 
     return (
@@ -292,6 +314,23 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                     />
                 ) : (
                 <div className="space-y-4">
+                    {partnerVehicles.length > 0 && (
+                        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                            <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-200 flex items-center gap-2">
+                                <Truck className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm font-semibold text-slate-700">協力業者 貸出車両</span>
+                            </div>
+                            <ul className="divide-y divide-slate-100">
+                                {partnerVehicles.map((pv, i) => (
+                                    <li key={i} className="px-4 py-2 flex items-center gap-3 text-sm">
+                                        <span className="font-medium text-slate-800">{pv.vehicleName}</span>
+                                        <span className="text-slate-400">／</span>
+                                        <span className="text-slate-600">{pv.companyDisplayName || '（会社名なし）'}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     {userRole === 'worker' ? (
                         Object.keys(assignmentsByEmployee).length === 0 ? (
                             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -379,7 +418,7 @@ interface ForemanSectionProps {
     emptyMessage: string;
     canEdit: boolean;
     isNamesLoaded: boolean;
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>;
     vehicleNameMap: Map<string, string>;
     foremanId: string;
     showForemanBadge?: boolean;
@@ -471,7 +510,7 @@ interface ProjectCardProps {
     project: ReturnType<typeof useProjects>['projects'][0];
     canEdit: boolean;
     isNamesLoaded: boolean;
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null }>;
+    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>;
     vehicleNameMap: Map<string, string>;
     foremanId: string;
     showForemanBadge?: boolean;
