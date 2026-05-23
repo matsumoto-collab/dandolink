@@ -192,7 +192,10 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             if (!project.isDispatchConfirmed) return;
             if (formatDateKey(new Date(project.startDate)) !== dateStr) return;
             const foremanInfo = project.assignedEmployeeId ? workerNameMap.get(project.assignedEmployeeId) : undefined;
-            if (foremanInfo?.role !== 'partner_member') return;
+            // 協力業者の班 = 班リーダーに companyId が紐づいている (role を問わない)。
+            // 当初 role==='partner_member' で判定していたが、実運用では worker/foreman1 などの
+            // 自社 role + companyId のハイブリッド登録があり拾えなかった (Phase 6b)。
+            if (!foremanInfo?.isPartner) return;
             const company = foremanInfo.companyDisplayName ?? '';
             (project.confirmedVehicleIds || []).forEach(vid => {
                 const vehicleName = vehicleNameMap.get(vid);
