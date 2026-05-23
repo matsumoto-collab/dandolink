@@ -1487,6 +1487,24 @@ model UserNotificationPreference {
   @@schema("public")
 }
 
+/// 車両引き継ぎ通知の差分管理表 (協力業者車両_閲覧権限と引き継ぎ通知_実装指示.md §4-3)
+/// 「いまあるべき引き継ぎ集合」と既存の有効レコードを差分し、追加(送信)/削除(取消通知)を整合させる。
+/// canceledAt = null が「有効」、非 null が「取り消し済み」。
+model VehicleHandoverNotice {
+  id               String    @id @default(cuid())
+  vehicleId        String
+  fromAssignmentId String
+  toAssignmentId   String
+  notifiedUserIds  String
+  sentAt           DateTime  @default(now())
+  canceledAt       DateTime?
+
+  @@index([vehicleId, canceledAt])
+  @@index([fromAssignmentId])
+  @@index([toAssignmentId])
+  @@schema("public")
+}
+
 /// マイカレンダー (admin / manager 限定)
 /// 現調・打ち合わせ・道路使用許可関連の予定を管理する。
 /// visibility: 'private' = 作成者のみ閲覧 / 'shared' = admin/manager 全員に共有
