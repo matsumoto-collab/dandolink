@@ -8,6 +8,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Project } from '@/types/calendar';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { isPartnerEntity } from '@/lib/partnerHelpers';
 
 type ProjectListItem = ReturnType<typeof useProjects>['projects'][0];
 
@@ -74,11 +75,11 @@ export default function AssignmentListView({
     const sortedProjects = useMemo(() => {
         const dayProjects = projects.filter(p => {
             if (formatDateKey(new Date(p.startDate)) !== dateKey) return false;
-            // 職長2 視点では協力業者班（assignedEmployeeId が isPartner=true）の案件を非表示。
-            // カード表示モードと挙動を揃え、§3-3「協力業者の個人名は見せない」を遵守。
+            // 職長2 視点では協力業者班 (会社代表 role==='partner' 含む) の案件を非表示。
+            // カード表示モードと挙動を揃え、§3-3「協力業者の個人名は見せない」を遵守 (Phase 6c)。
             if (hidePartnerWorkers && p.assignedEmployeeId) {
                 const info = workerNameMap.get(p.assignedEmployeeId);
-                if (info?.isPartner) return false;
+                if (isPartnerEntity(info)) return false;
             }
             return true;
         });
@@ -208,7 +209,8 @@ function AssignmentRow({
         if (id === p.assignedEmployeeId) return false;
         const info = workerNameMap.get(id);
         if (!info) return false;
-        if (hidePartnerWorkers && info.isPartner) return false;
+        // 協力業者由来 (会社代表 partner / メンバー partner_member / companyId 持ち) を全部隠す (Phase 6c)
+        if (hidePartnerWorkers && isPartnerEntity(info)) return false;
         return true;
     };
     const memberNames = isNamesLoaded
