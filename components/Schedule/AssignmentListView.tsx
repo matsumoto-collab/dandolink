@@ -72,14 +72,23 @@ export default function AssignmentListView({
     // 当日の案件をカレンダー順にソート
     const dateKey = formatDateKey(selectedDate);
     const sortedProjects = useMemo(() => {
-        const dayProjects = projects.filter(p => formatDateKey(new Date(p.startDate)) === dateKey);
+        const dayProjects = projects.filter(p => {
+            if (formatDateKey(new Date(p.startDate)) !== dateKey) return false;
+            // 職長2 視点では協力業者班（assignedEmployeeId が isPartner=true）の案件を非表示。
+            // カード表示モードと挙動を揃え、§3-3「協力業者の個人名は見せない」を遵守。
+            if (hidePartnerWorkers && p.assignedEmployeeId) {
+                const info = workerNameMap.get(p.assignedEmployeeId);
+                if (info?.isPartner) return false;
+            }
+            return true;
+        });
         return [...dayProjects].sort((a, b) => {
             const aFOrder = a.assignedEmployeeId ? (foremanOrderMap.get(a.assignedEmployeeId) ?? 9999) : 99999;
             const bFOrder = b.assignedEmployeeId ? (foremanOrderMap.get(b.assignedEmployeeId) ?? 9999) : 99999;
             if (aFOrder !== bFOrder) return aFOrder - bFOrder;
             return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
         });
-    }, [projects, dateKey, foremanOrderMap]);
+    }, [projects, dateKey, foremanOrderMap, hidePartnerWorkers, workerNameMap]);
 
     // 担当者表示名(姓のみ)
     const getShortManagerName = (id: string): string => {
