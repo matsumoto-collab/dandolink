@@ -13,6 +13,7 @@ import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
 import { useCalendarStore, selectCellRemarks } from '@/stores/calendarStore';
 import AssignmentListView from './AssignmentListView';
+import { isPartnerEntity, getPartnerCompanyName } from '@/lib/partnerHelpers';
 
 type ViewMode = 'card' | 'list';
 const VIEW_MODE_KEY = 'assignmentTable.viewMode';
@@ -192,11 +193,12 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             if (!project.isDispatchConfirmed) return;
             if (formatDateKey(new Date(project.startDate)) !== dateStr) return;
             const foremanInfo = project.assignedEmployeeId ? workerNameMap.get(project.assignedEmployeeId) : undefined;
-            // 協力業者の班 = 班リーダーに companyId が紐づいている (role を問わない)。
-            // 当初 role==='partner_member' で判定していたが、実運用では worker/foreman1 などの
-            // 自社 role + companyId のハイブリッド登録があり拾えなかった (Phase 6b)。
-            if (!foremanInfo?.isPartner) return;
-            const company = foremanInfo.companyDisplayName ?? '';
+            // 協力業者由来かは isPartnerEntity で判定:
+            //   - companyId 紐づきあり / role==='partner' (会社代表) / role==='partner_member'
+            // のいずれかを拾う。Phase 6b では companyId のみで判定していたが、role==='partner'
+            // の代表者ユーザー (companyId=null) を取りこぼしていた (Phase 6c)。
+            if (!isPartnerEntity(foremanInfo)) return;
+            const company = getPartnerCompanyName(foremanInfo);
             (project.confirmedVehicleIds || []).forEach(vid => {
                 const vehicleName = vehicleNameMap.get(vid);
                 if (!vehicleName) return;
@@ -549,7 +551,8 @@ function ProjectCard({
                 if (id === foremanId) return false;
                 const info = workerNameMap.get(id);
                 if (!info) return false;
-                if (hidePartnerWorkers && info.isPartner) return false;
+                // 職長2 視点では協力業者由来の人 (会社代表 role==='partner' 含む) を全部隠す (Phase 6c)
+                if (hidePartnerWorkers && isPartnerEntity(info)) return false;
                 return true;
             })
             .map(id => workerNameMap.get(id)!.displayName)
