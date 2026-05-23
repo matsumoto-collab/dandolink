@@ -282,6 +282,14 @@ export default function DispatchConfirmModal({
                 )
             );
 
+            // 車両引き継ぎ通知（サーバ側で前後30日突合→ペア差分→集約送信を行う）。
+            // 兄弟手配は1回の POST にまとめてサーバ側で集約（P1-1）。
+            void fetch('/api/push/notify-vehicle-handover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assignmentIds, mode: 'confirm' }),
+            }).catch(() => undefined);
+
             onClose();
         } catch (error) {
             logger.error('Failed to confirm dispatch:', error);
@@ -343,6 +351,18 @@ export default function DispatchConfirmModal({
             if (cancelableSiblings.length > 0) {
                 toast.success(`他${cancelableSiblings.length}件の案件も手配解除しました`);
             }
+
+            // 車両引き継ぎ通知の取り消し（既存の有効通知を再計算 → 消えたペアに取消通知）。
+            // 解除済み（confirmedVehicleIds が空）の状態をサーバが検知し、自前で差分する。
+            const canceledAssignmentIds: string[] = [
+                project.assignmentId || project.id,
+                ...cancelableSiblings.map((p) => p.assignmentId || p.id),
+            ];
+            void fetch('/api/push/notify-vehicle-handover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assignmentIds: canceledAssignmentIds, mode: 'cancel' }),
+            }).catch(() => undefined);
 
             onClose();
         } catch (error) {
