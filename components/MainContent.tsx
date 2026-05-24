@@ -259,7 +259,7 @@ export default function MainContent() {
                             ) : scheduleView === 'overview' ? (
                                 <OverviewCalendar onNavigationReady={handleNavigationReady} />
                             ) : (
-                                <AssignmentTable />
+                                <AssignmentTable userRole={userRole} userTeamId={userId} />
                             )}
                         </div>
                         {canViewHistory && (
