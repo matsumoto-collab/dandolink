@@ -5,7 +5,7 @@ import { DailyReport } from '@/types/dailyReport';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useProjects } from '@/hooks/useProjects';
 import { formatDate, calcTimeDiffMinutes } from '@/utils/dateUtils';
-import { Clock, FileText, User, Users, Calendar, Trash2 } from 'lucide-react';
+import { Clock, FileText, User, Users, Calendar, Trash2, MessageSquare } from 'lucide-react';
 
 interface DailyReportDetailViewProps {
     report: DailyReport;
@@ -146,6 +146,28 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                             </div>
                                         );
                                     })()}
+                                    {(item.assignment?.workStartedComment || item.assignment?.workEndedComment) && (
+                                        <div className="mt-2 pt-2 border-t border-slate-200 space-y-1">
+                                            {item.assignment?.workStartedComment && (
+                                                <div className="flex items-start gap-1.5 text-xs">
+                                                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <span className="text-slate-500">開始時のひとこと: </span>
+                                                        <span className="text-slate-700 whitespace-pre-wrap break-words">{item.assignment.workStartedComment}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            {item.assignment?.workEndedComment && (
+                                                <div className="flex items-start gap-1.5 text-xs">
+                                                    <MessageSquare className="w-3.5 h-3.5 text-slate-600 flex-shrink-0 mt-0.5" />
+                                                    <div>
+                                                        <span className="text-slate-500">完了時のひとこと: </span>
+                                                        <span className="text-slate-700 whitespace-pre-wrap break-words">{item.assignment.workEndedComment}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}

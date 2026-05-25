@@ -197,6 +197,8 @@ export interface ProjectAssignment {
     // 作業開始・終了通知済みフラグ（一度押したらブロック）
     workStartedAt?: Date | null;
     workEndedAt?: Date | null;
+    workStartedComment?: string | null;
+    workEndedComment?: string | null;
 
     createdAt: Date;
     updatedAt: Date;
@@ -243,6 +245,8 @@ export interface Project extends CalendarEvent {
     constructionContent?: ConstructionContentType; // 工事内容（案件マスターから連携）
     workStartedAt?: Date | null;
     workEndedAt?: Date | null;
+    workStartedComment?: string | null;
+    workEndedComment?: string | null;
 }
 
 

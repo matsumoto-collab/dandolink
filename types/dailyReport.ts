@@ -13,6 +13,10 @@ export interface DailyReportWorkItem {
         id: string;
         date: Date;
         sortOrder?: number | null;
+        workStartedAt?: Date | string | null;
+        workEndedAt?: Date | string | null;
+        workStartedComment?: string | null;
+        workEndedComment?: string | null;
         projectMaster?: {
             id: string;
             title: string;

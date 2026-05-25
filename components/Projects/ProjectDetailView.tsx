@@ -11,7 +11,7 @@ import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFile
 import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import WorkStatusReportSection from './WorkStatusReportSection';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, MessageSquare, Play, Square } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import MapPreview from '@/components/ui/MapPreview';
 
@@ -69,6 +69,15 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
             liveAssignedEmployeeId === companyId);
     const liveWorkStartedAt = liveAssignment?.workStartedAt ?? project.workStartedAt ?? null;
     const liveWorkEndedAt = liveAssignment?.workEndedAt ?? project.workEndedAt ?? null;
+    const liveWorkStartedComment = liveAssignment?.workStartedComment ?? project.workStartedComment ?? null;
+    const liveWorkEndedComment = liveAssignment?.workEndedComment ?? project.workEndedComment ?? null;
+    const hasWorkStatus = !!(liveWorkStartedAt || liveWorkEndedAt);
+
+    const formatHHmm = (d: Date | string | null | undefined): string => {
+        if (!d) return '';
+        const date = d instanceof Date ? d : new Date(d);
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    };
 
     const commitMemberCount = async (next: number) => {
         const safe = Math.max(0, next);
@@ -207,6 +216,53 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                     workStartedAt={liveWorkStartedAt}
                     workEndedAt={liveWorkEndedAt}
                 />
+            )}
+
+            {/* 作業状況（開始/完了が押されていれば全員に表示） */}
+            {hasWorkStatus && (
+                <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-2">作業状況</label>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        {liveWorkStartedAt && (
+                            <div className="flex items-start gap-2">
+                                <Play className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-medium text-slate-800">
+                                        作業開始 <span className="text-slate-500 font-normal">（{formatHHmm(liveWorkStartedAt)}）</span>
+                                    </div>
+                                    {liveWorkStartedComment && (
+                                        <div className="mt-1 flex items-start gap-1.5 text-xs">
+                                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <span className="text-slate-500">開始時のひとこと: </span>
+                                                <span className="text-slate-700 whitespace-pre-wrap break-words">{liveWorkStartedComment}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        {liveWorkEndedAt && (
+                            <div className="flex items-start gap-2">
+                                <Square className="w-4 h-4 text-slate-700 flex-shrink-0 mt-0.5" />
+                                <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-medium text-slate-800">
+                                        作業完了 <span className="text-slate-500 font-normal">（{formatHHmm(liveWorkEndedAt)}）</span>
+                                    </div>
+                                    {liveWorkEndedComment && (
+                                        <div className="mt-1 flex items-start gap-1.5 text-xs">
+                                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                                            <div>
+                                                <span className="text-slate-500">完了時のひとこと: </span>
+                                                <span className="text-slate-700 whitespace-pre-wrap break-words">{liveWorkEndedComment}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
 
             {/* 詳細情報 */}
