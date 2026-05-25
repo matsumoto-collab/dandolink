@@ -33,7 +33,9 @@ interface ProjectDetailViewProps {
 export default function ProjectDetailView({ project, onClose, readOnly = false }: ProjectDetailViewProps) {
     const { data: session } = useSession();
     const userRole = session?.user?.role;
-    const canEditMemberCount = !readOnly && (userRole === 'admin' || userRole === 'manager');
+    const canEditAssignment = !readOnly && (userRole === 'admin' || userRole === 'manager');
+    const canEditMemberCount = canEditAssignment;
+    const canEditVehicles = canEditAssignment;
     const { updateProject } = useProjects();
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
@@ -48,6 +50,9 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
     const [workerMap, setWorkerMap] = useState<Record<string, string>>({});
     const [isLoadingWorkers, setIsLoadingWorkers] = useState(false);
     const [isSavingMemberCount, setIsSavingMemberCount] = useState(false);
+    const [isEditingVehicles, setIsEditingVehicles] = useState(false);
+    const [vehicleEditSelection, setVehicleEditSelection] = useState<string[]>([]);
+    const [isSavingVehicles, setIsSavingVehicles] = useState(false);
 
     // ストアから最新の配置を購読（モーダルのinitialDataはクリック時のスナップショットなので古くなる）
     const liveAssignment = useCalendarStore((state) => state.assignments.find(a => a.id === project.id));
@@ -139,6 +144,53 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
             toast.error('メンバー数の更新に失敗しました');
         } finally {
             setIsSavingMemberCount(false);
+        }
+    };
+
+    // 現在の車両（手配確定済みなら confirmedVehicleIds の名前展開、なければ assignment.vehicles）
+    const liveVehicleNames: string[] = useMemo(() => {
+        const liveConfirmedVehicleIds = liveAssignment?.confirmedVehicleIds ?? project.confirmedVehicleIds ?? [];
+        if (liveIsDispatchConfirmed && liveConfirmedVehicleIds.length > 0) {
+            return liveConfirmedVehicleIds.map(id => vehicles.find(v => v.id === id)?.name || id);
+        }
+        return (liveAssignment?.vehicles ?? project.trucks ?? []) as string[];
+    }, [liveAssignment?.confirmedVehicleIds, liveAssignment?.vehicles, project.confirmedVehicleIds, project.trucks, liveIsDispatchConfirmed, vehicles]);
+
+    const startEditVehicles = () => {
+        const currentNames = new Set(liveVehicleNames);
+        const selectedIds = vehicles.filter(v => currentNames.has(v.name)).map(v => v.id);
+        setVehicleEditSelection(selectedIds);
+        setIsEditingVehicles(true);
+    };
+
+    const toggleVehicleInEdit = (id: string) => {
+        setVehicleEditSelection(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
+    };
+
+    const cancelEditVehicles = () => {
+        setIsEditingVehicles(false);
+    };
+
+    const saveVehicles = async () => {
+        setIsSavingVehicles(true);
+        try {
+            const selectedNames = vehicleEditSelection
+                .map(id => vehicles.find(v => v.id === id)?.name)
+                .filter((n): n is string => !!n);
+            const updates: Partial<Project> = { vehicles: selectedNames };
+            // 手配確定済みは confirmedVehicleIds も同期しないと、詳細表示の優先ソースが古いまま
+            if (liveIsDispatchConfirmed) {
+                updates.confirmedVehicleIds = vehicleEditSelection;
+            }
+            await updateProject(project.id, updates);
+            setIsEditingVehicles(false);
+        } catch (error) {
+            logger.error('Failed to update vehicles:', error);
+            toast.error('車両の更新に失敗しました');
+        } finally {
+            setIsSavingVehicles(false);
         }
     };
 
@@ -472,31 +524,85 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                 )}
 
                 {/* 車両（手配確定時の車両を優先、なければ登録時の車両） */}
-                {(() => {
-                    const displayVehicles: string[] = project.confirmedVehicleIds?.length
-                        ? project.confirmedVehicleIds.map(id => vehicles.find(v => v.id === id)?.name || id)
-                        : (project.trucks || []) as string[];
-                    return displayVehicles.length > 0 ? (
+                {(canEditVehicles || liveVehicleNames.length > 0) && (
                     <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                            車両
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                            {displayVehicles.map((name, index) => (
-                                <span
-                                    key={index}
-                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800"
+                        <div className="flex items-center justify-between mb-2">
+                            <label className="block text-sm font-medium text-slate-700">
+                                車両
+                            </label>
+                            {canEditVehicles && !isEditingVehicles && (
+                                <button
+                                    type="button"
+                                    onClick={startEditVehicles}
+                                    className="text-xs px-2.5 py-1 border border-slate-300 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
                                 >
-                                    <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    {name}
-                                </span>
-                            ))}
+                                    編集
+                                </button>
+                            )}
                         </div>
+                        {isEditingVehicles ? (
+                            <div className="space-y-2">
+                                <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-3">
+                                    {vehicles.length === 0 ? (
+                                        <span className="text-sm text-slate-400">車両マスタが未登録です</span>
+                                    ) : (
+                                        vehicles.map(vehicle => (
+                                            <label
+                                                key={vehicle.id}
+                                                className="flex items-center gap-2 p-2 rounded text-sm cursor-pointer hover:bg-slate-50"
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    checked={vehicleEditSelection.includes(vehicle.id)}
+                                                    onChange={() => toggleVehicleInEdit(vehicle.id)}
+                                                    className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                                                />
+                                                <span className="text-slate-700">{vehicle.name}</span>
+                                            </label>
+                                        ))
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-end gap-2">
+                                    {isSavingVehicles && (
+                                        <span className="text-xs text-slate-500 mr-1">保存中...</span>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={cancelEditVehicles}
+                                        disabled={isSavingVehicles}
+                                        className="px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={saveVehicles}
+                                        disabled={isSavingVehicles}
+                                        className="px-3 py-1.5 text-sm border border-slate-700 bg-slate-700 text-white rounded-xl hover:bg-slate-800 disabled:opacity-40"
+                                    >
+                                        保存
+                                    </button>
+                                </div>
+                            </div>
+                        ) : liveVehicleNames.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {liveVehicleNames.map((name, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-slate-100 text-slate-800"
+                                    >
+                                        <svg className="w-4 h-4 mr-1.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        {name}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <span className="text-sm text-slate-400">未選択</span>
+                        )}
                     </div>
-                    ) : null;
-                })()}
+                )}
 
                 {/* 地図 */}
                 {locationData && (() => {
