@@ -125,9 +125,9 @@ export default function DesktopCalendarView({
             onDragEnd={isReadOnly || movingEvent ? undefined : handleDragEnd}
             onDragCancel={isReadOnly || movingEvent ? undefined : handleDragCancel}
         >
-            {/* ── 移動モードバナー（fixed: レイアウトシフトしないように） ── */}
+            {/* ── 移動モードバナー（fixed: レイアウトシフトしないように／上部ナビと被らないよう下中央に固定） ── */}
             {movingEvent && (
-                <div className="fixed top-3 left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-white px-4 py-2 flex items-center gap-3 rounded-xl shadow-2xl ring-1 ring-slate-900/10 max-w-[min(90vw,640px)] w-[max-content]">
+                <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-slate-700 text-white px-4 py-2 flex items-center gap-3 rounded-xl shadow-2xl ring-1 ring-slate-900/10 max-w-[min(90vw,640px)] w-[max-content]">
                     <MoveRight className="w-4 h-4 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                         <span className="text-sm font-bold truncate block">「{movingEvent.title}」を移動中</span>
