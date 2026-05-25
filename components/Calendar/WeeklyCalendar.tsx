@@ -485,35 +485,31 @@ useEffect(() => { setIsMounted(true); }, []);
         }
     }, [modalInitialData.id, updateProjectWithConflictHandling, addProject]);
 
-    // モバイル: 長押しで別セルに移動
-    const handleMoveToCell = useCallback(async (eventId: string, targetEmployeeId: string, targetDate: Date) => {
-        const projectId = eventId.replace(/-assembly$|-demolition$/, '');
-        const targetDateKey = formatDateKey(targetDate);
-        const currentProjects = projectsRef.current;
+    // 長押しで別セルに移動（PC・スマホ・タブレット共通）
+    // D&D と同じく即時保存せず、確認モーダル（MoveConfirmModal）を経由させる
+    const handleMoveToCell = useCallback((eventId: string, targetEmployeeId: string, targetDate: Date) => {
+        const movingEvent = events.find(e => e.id === eventId);
+        if (!movingEvent) return;
 
-        // 移動先セルの末尾に配置
-        const targetCellProjects = currentProjects.filter(p =>
-            p.assignedEmployeeId === targetEmployeeId &&
-            formatDateKey(p.startDate) === targetDateKey
-        );
-        const maxSortOrder = targetCellProjects.reduce((max, p) => Math.max(max, p.sortOrder ?? 0), -1);
-
-        const updates: Partial<Project> = {
-            assignedEmployeeId: targetEmployeeId,
-            sortOrder: maxSortOrder + 1,
-        };
-        if (eventId.endsWith('-assembly')) {
-            updates.assemblyStartDate = targetDate;
-            updates.startDate = targetDate;
-        } else if (eventId.endsWith('-demolition')) {
-            updates.demolitionStartDate = targetDate;
-            updates.startDate = targetDate;
-        } else {
-            updates.startDate = targetDate;
+        // 同セルガード: 移動元と同じ職長・同じ日付なら何もしない（モーダルを開かない）
+        // 呼び出し側 commitMove が直後に setMovingEvent(null) するので移動モードは解除される
+        if (
+            (movingEvent.assignedEmployeeId ?? '') === targetEmployeeId &&
+            formatDateKey(movingEvent.startDate) === formatDateKey(targetDate)
+        ) {
+            return;
         }
 
-        await updateProjectWithConflictHandling(projectId, updates);
-    }, [updateProjectWithConflictHandling, projectsRef]);
+        handlePendingMove({
+            eventId,
+            fromEmployeeId: movingEvent.assignedEmployeeId ?? '',
+            fromDate: movingEvent.startDate,
+            toEmployeeId: targetEmployeeId,
+            toDate: targetDate,
+            currentTrucks: movingEvent.trucks ?? [],
+            currentMemberCount: movingEvent.memberCount ?? 0,
+        });
+    }, [events, handlePendingMove]);
 
     // 日別メンバー調整
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
