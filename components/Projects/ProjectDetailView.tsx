@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
@@ -11,6 +11,8 @@ import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFile
 import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
 import WorkStatusReportSection from './WorkStatusReportSection';
+import WorkReportReplyThread, { WorkReportReplyItem } from '@/components/WorkReport/WorkReportReplyThread';
+import { onBroadcast } from '@/lib/broadcastChannel';
 import { ExternalLink, MessageSquare, Play, Square } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import MapPreview from '@/components/ui/MapPreview';
@@ -78,6 +80,53 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
         const date = d instanceof Date ? d : new Date(d);
         return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
     };
+
+    // 返信スレッド用: 投稿権限 (admin/manager/担当職長本人/確定メンバー、partner_member は閲覧のみ)
+    const isManager = userRole === 'admin' || userRole === 'manager';
+    const isAssignedForeman = !!userId && liveAssignedEmployeeId === userId;
+    const isConfirmedMember = !!userId && liveConfirmedWorkerIds.includes(userId);
+    const canPostReply = isManager || isAssignedForeman || isConfirmedMember;
+
+    // 返信一覧（個別 fetch・broadcast で同期）
+    const [replies, setReplies] = useState<WorkReportReplyItem[]>([]);
+    const [userNameMap, setUserNameMap] = useState<Map<string, string>>(new Map());
+
+    const refetchReplies = useCallback(async () => {
+        if (!hasWorkStatus) return;
+        try {
+            const res = await fetch(`/api/assignments/${project.id}/work-status/replies`, { cache: 'no-store' });
+            if (res.ok) {
+                const data: { replies: WorkReportReplyItem[] } = await res.json();
+                setReplies(data.replies);
+            }
+        } catch (e) { /* ignore */ }
+    }, [project.id, hasWorkStatus]);
+
+    useEffect(() => {
+        refetchReplies();
+    }, [refetchReplies]);
+
+    useEffect(() => {
+        const fetchAllUsers = async () => {
+            try {
+                const res = await fetch('/api/users');
+                if (res.ok) {
+                    const users: { id: string; displayName: string }[] = await res.json();
+                    setUserNameMap(new Map(users.map((u) => [u.id, u.displayName])));
+                }
+            } catch (e) { /* ignore */ }
+        };
+        fetchAllUsers();
+    }, []);
+
+    useEffect(() => {
+        const cleanup = onBroadcast('work_report_reply_updated', (payload) => {
+            if (payload?.assignmentId === project.id) {
+                refetchReplies();
+            }
+        });
+        return cleanup;
+    }, [project.id, refetchReplies]);
 
     const commitMemberCount = async (next: number) => {
         const safe = Math.max(0, next);
@@ -222,43 +271,67 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
             {hasWorkStatus && (
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">作業状況</label>
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-4">
                         {liveWorkStartedAt && (
-                            <div className="flex items-start gap-2">
-                                <Play className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-                                <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium text-slate-800">
-                                        作業開始 <span className="text-slate-500 font-normal">（{formatHHmm(liveWorkStartedAt)}）</span>
-                                    </div>
-                                    {liveWorkStartedComment && (
-                                        <div className="mt-1 flex items-start gap-1.5 text-xs">
-                                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
-                                            <div>
-                                                <span className="text-slate-500">開始時のひとこと: </span>
-                                                <span className="text-slate-700 whitespace-pre-wrap break-words">{liveWorkStartedComment}</span>
-                                            </div>
+                            <div>
+                                <div className="flex items-start gap-2">
+                                    <Play className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-medium text-slate-800">
+                                            作業開始 <span className="text-slate-500 font-normal">（{formatHHmm(liveWorkStartedAt)}）</span>
                                         </div>
-                                    )}
+                                        {liveWorkStartedComment && (
+                                            <div className="mt-1 flex items-start gap-1.5 text-xs">
+                                                <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="text-slate-500">開始時のひとこと: </span>
+                                                    <span className="text-slate-700 whitespace-pre-wrap break-words">{liveWorkStartedComment}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                                <WorkReportReplyThread
+                                    assignmentId={project.id}
+                                    reportType="start"
+                                    replies={replies.filter((r) => r.reportType === 'start')}
+                                    currentUserId={userId ?? ''}
+                                    canPost={canPostReply}
+                                    canDeleteAll={isManager}
+                                    userNameMap={userNameMap}
+                                    onChanged={refetchReplies}
+                                />
                             </div>
                         )}
                         {liveWorkEndedAt && (
-                            <div className="flex items-start gap-2">
-                                <Square className="w-4 h-4 text-slate-700 flex-shrink-0 mt-0.5" />
-                                <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-medium text-slate-800">
-                                        作業完了 <span className="text-slate-500 font-normal">（{formatHHmm(liveWorkEndedAt)}）</span>
-                                    </div>
-                                    {liveWorkEndedComment && (
-                                        <div className="mt-1 flex items-start gap-1.5 text-xs">
-                                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
-                                            <div>
-                                                <span className="text-slate-500">完了時のひとこと: </span>
-                                                <span className="text-slate-700 whitespace-pre-wrap break-words">{liveWorkEndedComment}</span>
-                                            </div>
+                            <div>
+                                <div className="flex items-start gap-2">
+                                    <Square className="w-4 h-4 text-slate-700 flex-shrink-0 mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-medium text-slate-800">
+                                            作業完了 <span className="text-slate-500 font-normal">（{formatHHmm(liveWorkEndedAt)}）</span>
                                         </div>
-                                    )}
+                                        {liveWorkEndedComment && (
+                                            <div className="mt-1 flex items-start gap-1.5 text-xs">
+                                                <MessageSquare className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                                                <div>
+                                                    <span className="text-slate-500">完了時のひとこと: </span>
+                                                    <span className="text-slate-700 whitespace-pre-wrap break-words">{liveWorkEndedComment}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
+                                <WorkReportReplyThread
+                                    assignmentId={project.id}
+                                    reportType="end"
+                                    replies={replies.filter((r) => r.reportType === 'end')}
+                                    currentUserId={userId ?? ''}
+                                    canPost={canPostReply}
+                                    canDeleteAll={isManager}
+                                    userNameMap={userNameMap}
+                                    onChanged={refetchReplies}
+                                />
                             </div>
                         )}
                     </div>

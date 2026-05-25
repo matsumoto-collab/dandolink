@@ -1,11 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSession } from 'next-auth/react';
 import { DailyReport } from '@/types/dailyReport';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useProjects } from '@/hooks/useProjects';
 import { formatDate, calcTimeDiffMinutes } from '@/utils/dateUtils';
-import { Clock, FileText, User, Users, Calendar, Trash2, MessageSquare } from 'lucide-react';
+import { Clock, FileText, User, Users, Calendar, Trash2, Play, Square } from 'lucide-react';
+import WorkReportReplyThread, { WorkReportReplyItem } from '@/components/WorkReport/WorkReportReplyThread';
+import { onBroadcast } from '@/lib/broadcastChannel';
 
 interface DailyReportDetailViewProps {
     report: DailyReport;
@@ -17,10 +20,24 @@ interface DailyReportDetailViewProps {
 }
 
 export default function DailyReportDetailView({ report, onEdit, onClose, onDelete, canEdit = true, canDelete = true }: DailyReportDetailViewProps) {
+    const { data: session } = useSession();
     const { getForemanName } = useCalendarDisplay();
     const { projects } = useProjects();
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [workerNameMap, setWorkerNameMap] = useState<Map<string, string>>(new Map());
+    // 投稿者表示用: 全活動ユーザーの id→displayName マップ（職方以外も含まれうるため）
+    const [userNameMap, setUserNameMap] = useState<Map<string, string>>(new Map());
+    // assignmentId → 返信一覧（送信/削除/broadcast 受信でローカル更新）
+    const [repliesByAssignment, setRepliesByAssignment] = useState<Record<string, WorkReportReplyItem[]>>(() => {
+        const map: Record<string, WorkReportReplyItem[]> = {};
+        report.workItems.forEach((wi) => {
+            const initial = wi.assignment?.workReportReplies;
+            if (initial && initial.length > 0) {
+                map[wi.assignmentId] = initial as WorkReportReplyItem[];
+            }
+        });
+        return map;
+    });
 
     useEffect(() => {
         const fetchWorkers = async () => {
@@ -32,8 +49,41 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                 }
             } catch (e) { /* ignore */ }
         };
+        const fetchAllUsers = async () => {
+            try {
+                const res = await fetch('/api/users');
+                if (res.ok) {
+                    const users: { id: string; displayName: string }[] = await res.json();
+                    setUserNameMap(new Map(users.map(u => [u.id, u.displayName])));
+                }
+            } catch (e) { /* ignore */ }
+        };
         fetchWorkers();
+        fetchAllUsers();
     }, []);
+
+    // 該当 assignment の返信一覧を再 fetch してローカル state を更新
+    const refetchReplies = useCallback(async (assignmentId: string) => {
+        try {
+            const res = await fetch(`/api/assignments/${assignmentId}/work-status/replies`, { cache: 'no-store' });
+            if (res.ok) {
+                const data: { replies: WorkReportReplyItem[] } = await res.json();
+                setRepliesByAssignment((prev) => ({ ...prev, [assignmentId]: data.replies }));
+            }
+        } catch (e) { /* ignore */ }
+    }, []);
+
+    // 別端末からの返信更新を受信して同期
+    useEffect(() => {
+        const cleanup = onBroadcast('work_report_reply_updated', (payload) => {
+            const assignmentId = payload?.assignmentId as string | undefined;
+            if (!assignmentId) return;
+            if (report.workItems.some((wi) => wi.assignmentId === assignmentId)) {
+                refetchReplies(assignmentId);
+            }
+        });
+        return cleanup;
+    }, [report.workItems, refetchReplies]);
 
     const reportDate = report.date instanceof Date ? report.date : new Date(report.date);
 
@@ -47,6 +97,22 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
     // 作業時間の差分計算（終了が開始より前なら翌日扱い）
     const calcWorkMinutes = (startTime: string, endTime: string): number => {
         return calcTimeDiffMinutes(startTime, endTime);
+    };
+
+    const formatHHmm = (d: Date | string | null | undefined): string => {
+        if (!d) return '';
+        const date = d instanceof Date ? d : new Date(d);
+        return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+    };
+
+    // 返信の投稿権限: admin/manager/担当職長本人/その日報のworkItemに確定メンバーとして含まれるユーザー
+    const userId = session?.user?.id ?? '';
+    const userRole = session?.user?.role ?? '';
+    const isManager = userRole === 'admin' || userRole === 'manager';
+    const isReportOwner = report.foremanId === userId;
+    const canPostForWorkItem = (workerIds: string[] | undefined): boolean => {
+        if (isManager || isReportOwner) return true;
+        return !!workerIds && workerIds.includes(userId);
     };
 
     // 表示用に sortOrder（カレンダーと同じ並び順）でソート
@@ -146,24 +212,64 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                                             </div>
                                         );
                                     })()}
-                                    {(item.assignment?.workStartedComment || item.assignment?.workEndedComment) && (
-                                        <div className="mt-2 pt-2 border-t border-slate-200 space-y-1">
-                                            {item.assignment?.workStartedComment && (
-                                                <div className="flex items-start gap-1.5 text-xs">
-                                                    <MessageSquare className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                                                    <div>
-                                                        <span className="text-slate-500">開始時のひとこと: </span>
-                                                        <span className="text-slate-700 whitespace-pre-wrap break-words">{item.assignment.workStartedComment}</span>
+                                    {(item.assignment?.workStartedAt || item.assignment?.workEndedAt) && (
+                                        <div className="mt-2 pt-2 border-t border-slate-200 space-y-3">
+                                            {item.assignment?.workStartedAt && (
+                                                <div>
+                                                    <div className="flex items-start gap-1.5 text-xs">
+                                                        <Play className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div>
+                                                                <span className="text-slate-700 font-medium">作業開始</span>
+                                                                <span className="text-slate-500"> （{formatHHmm(item.assignment.workStartedAt)}）</span>
+                                                            </div>
+                                                            {item.assignment?.workStartedComment && (
+                                                                <div className="mt-1">
+                                                                    <span className="text-slate-500">開始時のひとこと: </span>
+                                                                    <span className="text-slate-700 whitespace-pre-wrap break-words">{item.assignment.workStartedComment}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
+                                                    <WorkReportReplyThread
+                                                        assignmentId={item.assignmentId}
+                                                        reportType="start"
+                                                        replies={(repliesByAssignment[item.assignmentId] || []).filter((r) => r.reportType === 'start')}
+                                                        currentUserId={userId}
+                                                        canPost={canPostForWorkItem(item.workerIds)}
+                                                        canDeleteAll={isManager}
+                                                        userNameMap={userNameMap}
+                                                        onChanged={() => refetchReplies(item.assignmentId)}
+                                                    />
                                                 </div>
                                             )}
-                                            {item.assignment?.workEndedComment && (
-                                                <div className="flex items-start gap-1.5 text-xs">
-                                                    <MessageSquare className="w-3.5 h-3.5 text-slate-600 flex-shrink-0 mt-0.5" />
-                                                    <div>
-                                                        <span className="text-slate-500">完了時のひとこと: </span>
-                                                        <span className="text-slate-700 whitespace-pre-wrap break-words">{item.assignment.workEndedComment}</span>
+                                            {item.assignment?.workEndedAt && (
+                                                <div>
+                                                    <div className="flex items-start gap-1.5 text-xs">
+                                                        <Square className="w-3.5 h-3.5 text-slate-700 flex-shrink-0 mt-0.5" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <div>
+                                                                <span className="text-slate-700 font-medium">作業完了</span>
+                                                                <span className="text-slate-500"> （{formatHHmm(item.assignment.workEndedAt)}）</span>
+                                                            </div>
+                                                            {item.assignment?.workEndedComment && (
+                                                                <div className="mt-1">
+                                                                    <span className="text-slate-500">完了時のひとこと: </span>
+                                                                    <span className="text-slate-700 whitespace-pre-wrap break-words">{item.assignment.workEndedComment}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
+                                                    <WorkReportReplyThread
+                                                        assignmentId={item.assignmentId}
+                                                        reportType="end"
+                                                        replies={(repliesByAssignment[item.assignmentId] || []).filter((r) => r.reportType === 'end')}
+                                                        currentUserId={userId}
+                                                        canPost={canPostForWorkItem(item.workerIds)}
+                                                        canDeleteAll={isManager}
+                                                        userNameMap={userNameMap}
+                                                        onChanged={() => refetchReplies(item.assignmentId)}
+                                                    />
                                                 </div>
                                             )}
                                         </div>
