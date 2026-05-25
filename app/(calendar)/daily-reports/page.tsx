@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useDailyReports } from '@/hooks/useDailyReports';
 import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -56,6 +57,25 @@ export default function DailyReportPage() {
     }, [rangeStart, rangeEnd, fetchDailyReports]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedReport, setSelectedReport] = useState<DailyReport | null>(null);
+
+    // 通知タップでの「該当日報を自動で開く」ディープリンク (?reportId=xxx)
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const pathname = usePathname();
+    const deepLinkReportId = searchParams.get('reportId');
+    useEffect(() => {
+        if (!deepLinkReportId || dailyReports.length === 0) return;
+        const target = dailyReports.find((r) => r.id === deepLinkReportId);
+        if (target) {
+            setSelectedReport(target);
+            setIsModalOpen(true);
+            // URL から reportId のみ除去（他のクエリ=page は保持）
+            const params = new URLSearchParams(window.location.search);
+            params.delete('reportId');
+            const next = params.toString();
+            router.replace(next ? `${pathname}?${next}` : pathname);
+        }
+    }, [deepLinkReportId, dailyReports, pathname, router]);
 
     // ソート
     type SortKey = 'date' | 'foreman' | 'workTime';

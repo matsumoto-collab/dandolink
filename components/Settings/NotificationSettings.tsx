@@ -17,6 +17,7 @@ const ONOFF_ONLY_TYPES = [
     { type: 'dispatch-confirmed', label: '手配確定' },
     { type: 'chat-message', label: 'チャット' },
     { type: 'vehicle-handover', label: '車両引き継ぎ' },
+    { type: 'work-report-reply', label: '作業メモへの返信' },
 ] as const;
 const SCOPED_TYPE_SET = new Set<string>(SCOPED_TYPES.map((t) => t.type));
 

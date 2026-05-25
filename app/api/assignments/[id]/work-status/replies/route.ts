@@ -9,6 +9,9 @@ import {
     validationErrorResponse,
     parseJsonField,
 } from '@/lib/api/utils';
+import { notifyUsers } from '@/lib/notifications';
+import { logger } from '@/lib/logger';
+import { toJstDateOnly } from '@/lib/dateUtils';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -120,6 +123,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 workStartedAt: true,
                 workEndedAt: true,
                 projectMasterId: true,
+                date: true,
             },
         });
         if (!assignment) return notFoundResponse('配置');
@@ -157,6 +161,69 @@ export async function POST(req: NextRequest, context: RouteContext) {
                 createdAt: true,
             },
         });
+
+        // 通知送信: 担当職長 + admin/manager（自分は除外）
+        try {
+            const recipients = await prisma.user.findMany({
+                where: {
+                    isActive: true,
+                    OR: [
+                        { role: { in: ['admin', 'manager'], mode: 'insensitive' } },
+                        { id: assignment.assignedEmployeeId },
+                    ],
+                    NOT: { id: session!.user.id },
+                },
+                select: { id: true },
+            });
+            const userIds = recipients.map((u) => u.id);
+
+            // 該当 DailyReport を特定してディープリンクに使う
+            const dateOnly = toJstDateOnly(assignment.date);
+            const dailyReport = await prisma.dailyReport.findUnique({
+                where: { foremanId_date: { foremanId: assignment.assignedEmployeeId, date: dateOnly } },
+                select: { id: true },
+            });
+
+            const [author, pm] = await Promise.all([
+                prisma.user.findUnique({
+                    where: { id: session!.user.id },
+                    select: { displayName: true },
+                }),
+                assignment.projectMasterId
+                    ? prisma.projectMaster.findUnique({
+                        where: { id: assignment.projectMasterId },
+                        select: { name: true, title: true, honorific: true },
+                    })
+                    : Promise.resolve(null),
+            ]);
+            const authorName = author?.displayName || '不明';
+            const baseName = pm?.name || pm?.title || '案件';
+            const siteName = `${baseName}${pm?.honorific || ''}`;
+            const actionLabel = reportType === 'start' ? '開始メモ' : '完了メモ';
+
+            const url = dailyReport
+                ? `/?page=reports&reportId=${dailyReport.id}`
+                : '/?page=reports';
+
+            await notifyUsers({
+                userIds,
+                type: 'work-report-reply',
+                title: `【返信】${siteName}`,
+                body: `${authorName}が${actionLabel}に返信: ${body}`,
+                url,
+                pushTag: `work-report-reply-${reply.id}`,
+                projectMasterId: assignment.projectMasterId ?? undefined,
+                data: {
+                    assignmentId: id,
+                    replyId: reply.id,
+                    reportType,
+                    dailyReportId: dailyReport?.id,
+                },
+            });
+        } catch (e) {
+            logger.error('[work-report-reply] notify failed', e);
+            // 通知失敗してもAPIは成功扱い
+        }
 
         return NextResponse.json(
             { reply: { ...reply, createdAt: reply.createdAt.toISOString() } },

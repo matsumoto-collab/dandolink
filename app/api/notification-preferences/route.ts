@@ -10,9 +10,9 @@ const SCOPED_TYPES = [
     'project-master-created',
     'road_permit_expiry',
 ] as const;
-// ON/OFF のみの通知種別（3種）
+// ON/OFF のみの通知種別（4種）
 // UI 側 components/Settings/NotificationSettings.tsx の ONOFF_ONLY_TYPES と同期すること。
-const ONOFF_ONLY_TYPES = ['dispatch-confirmed', 'chat-message', 'vehicle-handover'] as const;
+const ONOFF_ONLY_TYPES = ['dispatch-confirmed', 'chat-message', 'vehicle-handover', 'work-report-reply'] as const;
 
 const ALL_TYPES = [...SCOPED_TYPES, ...ONOFF_ONLY_TYPES] as const;
 type NotificationType = (typeof ALL_TYPES)[number];
