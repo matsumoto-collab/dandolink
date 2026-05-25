@@ -8,7 +8,17 @@ import { toJstDateOnly } from '@/lib/dateUtils';
 
 const workItemSelect = {
     id: true, dailyReportId: true, assignmentId: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
-    assignment: { select: { id: true, date: true, sortOrder: true, workStartedAt: true, workEndedAt: true, workStartedComment: true, workEndedComment: true, projectMaster: { select: { id: true, title: true, name: true, honorific: true, customerName: true } } } },
+    assignment: {
+        select: {
+            id: true, date: true, sortOrder: true,
+            workStartedAt: true, workEndedAt: true, workStartedComment: true, workEndedComment: true,
+            projectMaster: { select: { id: true, title: true, name: true, honorific: true, customerName: true } },
+            workReportReplies: {
+                select: { id: true, reportType: true, authorId: true, body: true, createdAt: true },
+                orderBy: { createdAt: 'asc' as const },
+            },
+        },
+    },
 };
 
 const reportSelect = {

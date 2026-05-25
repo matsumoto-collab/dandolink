@@ -24,7 +24,17 @@ export interface DailyReportWorkItem {
             honorific?: string;
             customerName?: string;
         };
+        workReportReplies?: WorkReportReply[];
     };
+}
+
+// 作業開始/完了メモへの返信（API レスポンス形式）
+export interface WorkReportReply {
+    id: string;
+    reportType: 'start' | 'end';
+    authorId: string;
+    body: string;
+    createdAt: Date | string;
 }
 
 export interface DailyReport {
