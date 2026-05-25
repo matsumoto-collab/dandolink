@@ -12,6 +12,7 @@ import { formatDateKey } from '@/utils/employeeUtils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import MultiDayScheduleEditor from './MultiDayScheduleEditor';
 import { User, Search, Plus } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 import CustomerModal from '@/components/Customers/CustomerModal';
 import { CustomerInput } from '@/types/customer';
 import { useFinanceStore } from '@/stores/financeStore';
@@ -83,6 +84,8 @@ export default function ProjectForm({
     defaultEmployeeId,
     isSaving = false,
 }: ProjectFormProps) {
+    const { data: session } = useSession();
+    const currentUserId = session?.user?.id;
     const { projects } = useProjects();
     const { vehicles: mockVehicles, constructionTypes, getTotalMembersForDate } = useMasterData();
     const { getForemanName, allForemen } = useCalendarDisplay();
@@ -166,6 +169,17 @@ export default function ProjectForm({
             remarks: initialData?.remarks || '',
         });
     }, [initialData]);
+
+    // 新規作成時、案件担当者にログインユーザーを自動セット
+    // （セッション解決前にマウントされても、解決後にこのeffectが拾う）
+    useEffect(() => {
+        if (initialData?.id) return;
+        if (!currentUserId) return;
+        setFormData(prev => {
+            if (prev.selectedManagers.length > 0) return prev;
+            return { ...prev, selectedManagers: [currentUserId] };
+        });
+    }, [initialData?.id, currentUserId]);
 
     // 旧データ（name未設定）の場合、constructionSuffixes取得後にtitleをパースして分離
     const hasInitialNameRef = useRef(hasInitialName);
