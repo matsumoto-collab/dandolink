@@ -383,7 +383,7 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                                     onEditClick={(p) => setEditingProject(p as Project)}
                                     constructionTypeMap={constructionTypeMap}
                                     foremanRemark={cellRemarks[`${foreman.id}-${selectedDateKey}`] || ''}
-                                    hidePartnerWorkers={userRole === 'foreman2'}
+                                    hidePartnerWorkers={false}
                                 />
                             );
                         })
@@ -538,7 +538,6 @@ function ProjectCard({
     onProjectClick,
     onEditClick,
     constructionTypeMap,
-    hidePartnerWorkers,
 }: ProjectCardProps) {
     const vehicleCount = project.confirmedVehicleIds?.length || project.trucks?.length || project.vehicles?.length || 0;
     const foremanName = showForemanBadge
@@ -551,11 +550,17 @@ function ProjectCard({
                 if (id === foremanId) return false;
                 const info = workerNameMap.get(id);
                 if (!info) return false;
-                // 職長2 視点では協力業者由来の人 (会社代表 role==='partner' 含む) を全部隠す (Phase 6c)
-                if (hidePartnerWorkers && isPartnerEntity(info)) return false;
+                // 協力業者も手配表に表示する（会社名＋個人名）。隠さない。
                 return true;
             })
-            .map(id => workerNameMap.get(id)!.displayName)
+            .map(id => {
+                const info = workerNameMap.get(id)!;
+                const company = getPartnerCompanyName(info); // 協力業者でなければ ''
+                // 会社代表(role='partner')は会社名＝本人名になり重複するので、その場合は個人名のみ
+                return company && company !== info.displayName
+                    ? `${company} ${info.displayName}`
+                    : info.displayName;
+            })
         : [];
 
     const confirmedVehicles = isNamesLoaded && project.confirmedVehicleIds

@@ -8,7 +8,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Project } from '@/types/calendar';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { formatDateKey } from '@/utils/employeeUtils';
-import { isPartnerEntity } from '@/lib/partnerHelpers';
+import { isPartnerEntity, getPartnerCompanyName } from '@/lib/partnerHelpers';
 
 type ProjectListItem = ReturnType<typeof useProjects>['projects'][0];
 
@@ -33,7 +33,7 @@ export default function AssignmentListView({
     isNamesLoaded,
     userRole,
 }: AssignmentListViewProps) {
-    const hidePartnerWorkers = userRole === 'foreman2';
+    const hidePartnerLedTeams = userRole === 'foreman2';
     const { projects } = useProjects();
     const { displayedForemanIds, allForemen } = useCalendarDisplay();
     const { constructionTypes } = useMasterData();
@@ -75,9 +75,9 @@ export default function AssignmentListView({
     const sortedProjects = useMemo(() => {
         const dayProjects = projects.filter(p => {
             if (formatDateKey(new Date(p.startDate)) !== dateKey) return false;
-            // 職長2 視点では協力業者班 (会社代表 role==='partner' 含む) の案件を非表示。
-            // カード表示モードと挙動を揃え、§3-3「協力業者の個人名は見せない」を遵守 (Phase 6c)。
-            if (hidePartnerWorkers && p.assignedEmployeeId) {
+            // 職長2 視点では「協力業者が班長になっている班」の案件を非表示にする（班ごと非表示）。
+            // メンバー名の協力業者隠しは廃止し、班に入った協力業者の名前は表示する（2026-05-25）。
+            if (hidePartnerLedTeams && p.assignedEmployeeId) {
                 const info = workerNameMap.get(p.assignedEmployeeId);
                 if (isPartnerEntity(info)) return false;
             }
@@ -89,7 +89,7 @@ export default function AssignmentListView({
             if (aFOrder !== bFOrder) return aFOrder - bFOrder;
             return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
         });
-    }, [projects, dateKey, foremanOrderMap, hidePartnerWorkers, workerNameMap]);
+    }, [projects, dateKey, foremanOrderMap, hidePartnerLedTeams, workerNameMap]);
 
     // 担当者表示名(姓のみ)
     const getShortManagerName = (id: string): string => {
@@ -137,7 +137,6 @@ export default function AssignmentListView({
                                             getShortManagerName={getShortManagerName}
                                             onClick={() => setSelectedProject(p as Project)}
                                             sameForemanAsAbove={sameForemanAsAbove}
-                                            hidePartnerWorkers={hidePartnerWorkers}
                                         />
                                     </React.Fragment>
                                 );
@@ -170,7 +169,6 @@ interface AssignmentRowProps {
     getShortManagerName: (id: string) => string;
     onClick: () => void;
     sameForemanAsAbove: boolean;
-    hidePartnerWorkers?: boolean;
 }
 
 function AssignmentRow({
@@ -183,7 +181,6 @@ function AssignmentRow({
     getShortManagerName,
     onClick,
     sameForemanAsAbove,
-    hidePartnerWorkers,
 }: AssignmentRowProps) {
     const foremanName = allForemen.find(f => f.id === p.assignedEmployeeId)?.displayName || '';
     const ctInfo = p.constructionType ? ctMap.get(p.constructionType) : null;
@@ -209,14 +206,20 @@ function AssignmentRow({
         if (id === p.assignedEmployeeId) return false;
         const info = workerNameMap.get(id);
         if (!info) return false;
-        // 協力業者由来 (会社代表 partner / メンバー partner_member / companyId 持ち) を全部隠す (Phase 6c)
-        if (hidePartnerWorkers && isPartnerEntity(info)) return false;
+        // 協力業者も手配表に表示する（会社名＋個人名）。メンバー名は隠さない。
         return true;
+    };
+    const formatMemberName = (id: string): string => {
+        const info = workerNameMap.get(id)!;
+        const company = getPartnerCompanyName(info);
+        return company && company !== info.displayName
+            ? `${company} ${info.displayName}`
+            : info.displayName;
     };
     const memberNames = isNamesLoaded
         ? (p.confirmedWorkerIds && p.confirmedWorkerIds.length > 0
-            ? p.confirmedWorkerIds.filter(isVisibleMember).map(id => workerNameMap.get(id)!.displayName)
-            : (p.workers || []).filter(isVisibleMember).map(id => workerNameMap.get(id)!.displayName))
+            ? p.confirmedWorkerIds.filter(isVisibleMember).map(formatMemberName)
+            : (p.workers || []).filter(isVisibleMember).map(formatMemberName))
         : [];
 
     const isUnassigned = !managerLabel;
