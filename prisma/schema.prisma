@@ -130,6 +130,7 @@ model ProjectAssignment {
   assignmentWorkers         AssignmentWorker[]
   dailyReportWorkItems      DailyReportWorkItem[]
   scheduleChangeHistories   ScheduleChangeHistory[]
+  workReportReplies         WorkReportReply[]
   projectMaster             ProjectMaster         @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
 
   @@index([projectMasterId])
@@ -1484,6 +1485,25 @@ model UserNotificationPreference {
 
   @@unique([userId, type])
   @@index([userId])
+  @@schema("public")
+}
+
+/// 作業開始/完了メモへの返信スレッド。
+/// (assignmentId, reportType) 単位で複数返信がぶら下がる。
+/// reportType: "start" = 開始メモへの返信 / "end" = 完了メモへの返信
+/// 削除は投稿者本人または admin/manager のみ。編集機能は無い。
+model WorkReportReply {
+  id           String   @id @default(uuid())
+  assignmentId String
+  reportType   String
+  authorId     String
+  body         String
+  createdAt    DateTime @default(now())
+
+  assignment   ProjectAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId, reportType])
+  @@index([authorId])
   @@schema("public")
 }
 
