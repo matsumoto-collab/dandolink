@@ -6,7 +6,9 @@ import toast from 'react-hot-toast';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_COLORS, DEFAULT_CONSTRUCTION_TYPE_LABELS } from '@/types/calendar';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
+import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { formatDateKey } from '@/utils/employeeUtils';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 import ScaffoldingSpecDisplay from '@/components/ProjectMaster/ScaffoldingSpecDisplay';
 import WorkHistoryDisplay from '@/components/ProjectMaster/WorkHistoryDisplay';
@@ -36,7 +38,8 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
     const canEditAssignment = !readOnly && (userRole === 'admin' || userRole === 'manager');
     const canEditMemberCount = canEditAssignment;
     const canEditVehicles = canEditAssignment;
-    const { updateProject } = useProjects();
+    const { updateProject, projects } = useProjects();
+    const { getForemanName } = useCalendarDisplay();
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [isLoadingManagers, setIsLoadingManagers] = useState(true);
     const [locationData, setLocationData] = useState<{
@@ -155,6 +158,53 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
         }
         return (liveAssignment?.vehicles ?? project.trucks ?? []) as string[];
     }, [liveAssignment?.confirmedVehicleIds, liveAssignment?.vehicles, project.confirmedVehicleIds, project.trucks, liveIsDispatchConfirmed, vehicles]);
+
+    // 同日の他案件で使われている車両 → どの班/案件で使用中か
+    const vehicleUsageMap = useMemo(() => {
+        if (!isEditingVehicles) return new Map<string, { projectTitle: string; foremanName: string }[]>();
+        const dateKey = formatDateKey(project.startDate);
+        const map = new Map<string, { projectTitle: string; foremanName: string }[]>();
+        projects.forEach(p => {
+            if (p.id === project.id) return;
+            if (formatDateKey(p.startDate) !== dateKey) return;
+            const used = (p.trucks ?? p.vehicles ?? []) as string[];
+            if (used.length === 0) return;
+            const foremanName = getForemanName(p.assignedEmployeeId || '') || '不明';
+            used.forEach(name => {
+                if (!name) return;
+                if (!map.has(name)) map.set(name, []);
+                map.get(name)!.push({ projectTitle: p.title, foremanName });
+            });
+        });
+        return map;
+    }, [isEditingVehicles, projects, project.id, project.startDate, getForemanName]);
+
+    // 同日の他案件で手配確定済みの車両ID
+    const confirmedVehicleIdSet = useMemo(() => {
+        if (!isEditingVehicles) return new Set<string>();
+        const dateKey = formatDateKey(project.startDate);
+        const set = new Set<string>();
+        projects.forEach(p => {
+            if (p.id === project.id) return;
+            if (formatDateKey(p.startDate) !== dateKey) return;
+            if (!p.isDispatchConfirmed) return;
+            p.confirmedVehicleIds?.forEach(id => set.add(id));
+        });
+        return set;
+    }, [isEditingVehicles, projects, project.id, project.startDate]);
+
+    // 車両リストをソート: 手配確定済み(他案件) → 使用中(他案件) → 空き
+    const sortedVehiclesForEdit = useMemo(() => {
+        if (!isEditingVehicles) return [];
+        return [...vehicles].sort((a, b) => {
+            const rank = (v: typeof a) => {
+                if (confirmedVehicleIdSet.has(v.id)) return 0;
+                if (vehicleUsageMap.has(v.name)) return 1;
+                return 2;
+            };
+            return rank(a) - rank(b);
+        });
+    }, [isEditingVehicles, vehicles, confirmedVehicleIdSet, vehicleUsageMap]);
 
     const startEditVehicles = () => {
         const currentNames = new Set(liveVehicleNames);
@@ -543,23 +593,45 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                         {isEditingVehicles ? (
                             <div className="space-y-2">
                                 <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto border border-slate-200 rounded-xl p-3">
-                                    {vehicles.length === 0 ? (
+                                    {sortedVehiclesForEdit.length === 0 ? (
                                         <span className="text-sm text-slate-400">車両マスタが未登録です</span>
                                     ) : (
-                                        vehicles.map(vehicle => (
-                                            <label
-                                                key={vehicle.id}
-                                                className="flex items-center gap-2 p-2 rounded text-sm cursor-pointer hover:bg-slate-50"
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={vehicleEditSelection.includes(vehicle.id)}
-                                                    onChange={() => toggleVehicleInEdit(vehicle.id)}
-                                                    className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
-                                                />
-                                                <span className="text-slate-700">{vehicle.name}</span>
-                                            </label>
-                                        ))
+                                        sortedVehiclesForEdit.map(vehicle => {
+                                            const usages = vehicleUsageMap.get(vehicle.name);
+                                            const isInUse = !!(usages && usages.length > 0);
+                                            const isConfirmed = confirmedVehicleIdSet.has(vehicle.id);
+                                            return (
+                                                <label
+                                                    key={vehicle.id}
+                                                    className={`flex items-center gap-2 p-2 rounded text-sm cursor-pointer ${isConfirmed || isInUse ? 'bg-slate-50 hover:bg-slate-100' : 'hover:bg-slate-50'}`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={vehicleEditSelection.includes(vehicle.id)}
+                                                        onChange={() => toggleVehicleInEdit(vehicle.id)}
+                                                        className="w-4 h-4 shrink-0 text-slate-600 border-slate-300 rounded focus:ring-slate-500"
+                                                    />
+                                                    <span className="text-slate-700 whitespace-nowrap">{vehicle.name}</span>
+                                                    {isConfirmed ? (
+                                                        <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 ml-auto whitespace-nowrap">
+                                                            手配確定済
+                                                        </span>
+                                                    ) : isInUse ? (
+                                                        <div className="flex flex-wrap gap-1 ml-auto justify-end">
+                                                            {usages!.map((u, i) => (
+                                                                <span key={i} className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 whitespace-nowrap">
+                                                                    {u.foremanName}班 ({u.projectTitle})
+                                                                </span>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="inline-flex items-center text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 ml-auto">
+                                                            空き
+                                                        </span>
+                                                    )}
+                                                </label>
+                                            );
+                                        })
                                     )}
                                 </div>
                                 <div className="flex items-center justify-end gap-2">
