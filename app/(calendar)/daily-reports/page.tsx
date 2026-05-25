@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -31,7 +31,7 @@ const getInitialRange = () => {
     return { start: formatDateKey(start), end: formatDateKey(end) };
 };
 
-export default function DailyReportPage() {
+function DailyReportPageContent() {
     const { data: session } = useSession();
     const { dailyReports, fetchDailyReports, deleteDailyReport, isLoading } = useDailyReports({ autoFetch: false });
     const { allForemen, getForemanName } = useCalendarDisplay();
@@ -456,5 +456,14 @@ export default function DailyReportPage() {
                 }}
             />
         </div>
+    );
+}
+
+// useSearchParams を使うため Suspense 境界でラップする（Next.js の要件）
+export default function DailyReportPage() {
+    return (
+        <Suspense fallback={<Loading text="読み込み中..." />}>
+            <DailyReportPageContent />
+        </Suspense>
     );
 }
