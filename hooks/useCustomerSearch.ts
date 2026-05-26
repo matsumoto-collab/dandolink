@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Customer } from '@/types/customer';
 import { logger } from '@/lib/logger';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 export function useCustomerSearch() {
     const [customers, setCustomers] = useState<Customer[]>([]);
@@ -28,8 +29,8 @@ export function useCustomerSearch() {
 
     const filteredCustomers = useMemo(() => {
         return customers.filter(c =>
-            c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (c.shortName && c.shortName.toLowerCase().includes(searchTerm.toLowerCase()))
+            matchesSearch(c.name, searchTerm) ||
+            matchesSearch(c.shortName, searchTerm)
         );
     }, [customers, searchTerm]);
 

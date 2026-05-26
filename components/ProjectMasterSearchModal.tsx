@@ -7,6 +7,7 @@ import Loading from '@/components/ui/Loading';
 import { ProjectMaster } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { Check } from 'lucide-react';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 interface ProjectMasterSearchModalProps {
     isOpen: boolean;
@@ -44,12 +45,11 @@ export default function ProjectMasterSearchModal({
 
         // 検索クエリでフィルタリング
         if (searchQuery.trim()) {
-            const lowerQuery = searchQuery.toLowerCase();
             results = results.filter(
                 (pm) =>
-                    pm.title.toLowerCase().includes(lowerQuery) ||
-                    pm.customerName?.toLowerCase().includes(lowerQuery) ||
-                    pm.location?.toLowerCase().includes(lowerQuery)
+                    matchesSearch(pm.title, searchQuery) ||
+                    matchesSearch(pm.customerName, searchQuery) ||
+                    matchesSearch(pm.location, searchQuery)
             );
         }
 

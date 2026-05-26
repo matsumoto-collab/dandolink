@@ -8,6 +8,7 @@ import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { logger } from '@/lib/logger';
+import { normalizeForSearch } from '@/utils/searchNormalize';
 
 interface AssignmentRow {
     id: string;
@@ -68,7 +69,7 @@ export default function ScheduleSearchPanel({ isOpen, onClose, onJump }: Schedul
 
     const filteredMasters = useMemo(() => {
         if (!debouncedQuery) return [];
-        const q = debouncedQuery.toLowerCase();
+        const q = normalizeForSearch(debouncedQuery);
         return projectMasters
             .filter(pm => {
                 const fields = [
@@ -81,7 +82,7 @@ export default function ScheduleSearchPanel({ isOpen, onClose, onJump }: Schedul
                     pm.location,
                     pm.siteShortName,
                 ].filter((v): v is string => !!v);
-                return fields.some(f => f.toLowerCase().includes(q));
+                return fields.some(f => normalizeForSearch(f).includes(q));
             })
             .slice(0, MAX_RESULTS);
     }, [projectMasters, debouncedQuery]);

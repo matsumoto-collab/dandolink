@@ -6,6 +6,7 @@ import { ChevronRight } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
+import { matchesSearch } from '@/utils/searchNormalize';
 import type {
     DashboardSummary, AggregateRow, FilterOptions, DashboardFilters,
 } from '@/lib/profitDashboard';
@@ -155,11 +156,11 @@ export default function ProfitDashboardClient({
     }, [projects]);
 
     const filteredProjects = useMemo(() => {
-        const q = searchQuery.trim().toLowerCase();
+        const q = searchQuery.trim();
         if (!q) return projects;
         return projects.filter(p =>
-            p.title.toLowerCase().includes(q)
-            || (p.customerName ?? '').toLowerCase().includes(q),
+            matchesSearch(p.title, q)
+            || matchesSearch(p.customerName, q),
         );
     }, [projects, searchQuery]);
 
@@ -406,7 +407,7 @@ function MultiSelect({
     }, []);
 
     const filtered = useMemo(
-        () => options.filter(o => o.label.toLowerCase().includes(query.toLowerCase())),
+        () => options.filter(o => matchesSearch(o.label, query)),
         [options, query],
     );
 

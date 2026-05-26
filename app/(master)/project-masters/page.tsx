@@ -20,6 +20,7 @@ import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { logger } from '@/lib/logger';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 const EstimateModal = dynamic(
     () => import('@/components/Estimates/EstimateModal'),
@@ -81,13 +82,12 @@ function ProjectMasterListPageContent() {
 
         // Search
         if (searchTerm.trim()) {
-            const lower = searchTerm.toLowerCase();
             results = results.filter(pm =>
-                pm.title.toLowerCase().includes(lower) ||
-                pm.customerName?.toLowerCase().includes(lower) ||
-                pm.customerShortName?.toLowerCase().includes(lower) ||
-                pm.location?.toLowerCase().includes(lower) ||
-                pm.city?.toLowerCase().includes(lower)
+                matchesSearch(pm.title, searchTerm) ||
+                matchesSearch(pm.customerName, searchTerm) ||
+                matchesSearch(pm.customerShortName, searchTerm) ||
+                matchesSearch(pm.location, searchTerm) ||
+                matchesSearch(pm.city, searchTerm)
             );
         }
 

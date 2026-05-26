@@ -11,6 +11,7 @@ import { useCalendarStore } from '@/stores/calendarStore';
 import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(
@@ -80,8 +81,8 @@ export default function ProjectListPage() {
     // フィルタリングとソート
     const filteredAndSortedProjects = projects
         .filter(project =>
-            project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            project.customer?.toLowerCase().includes(searchTerm.toLowerCase())
+            matchesSearch(project.title, searchTerm) ||
+            matchesSearch(project.customer, searchTerm)
         )
         .sort((a, b) => {
             if (sortBy === 'date') {

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onChange: (v: string) => void; inputClass: string }) {
     const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
@@ -24,7 +25,7 @@ function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onC
     }, []);
 
     const filtered = value
-        ? suggestions.filter(s => s.name.toLowerCase().includes(value.toLowerCase()))
+        ? suggestions.filter(s => matchesSearch(s.name, value))
         : suggestions;
 
     return (
@@ -80,10 +81,9 @@ function SearchableCustomerSelect({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredCustomers = customers.filter(c => {
-        const query = searchQuery.toLowerCase();
-        return c.name.toLowerCase().includes(query) || (c.shortName && c.shortName.toLowerCase().includes(query));
-    });
+    const filteredCustomers = customers.filter(c =>
+        matchesSearch(c.name, searchQuery) || matchesSearch(c.shortName, searchQuery)
+    );
 
     const selectedCustomer = customers.find(c => c.id === value);
     const displayText = selectedCustomer ? selectedCustomer.name : '元請会社を選択';

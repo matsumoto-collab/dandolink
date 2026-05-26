@@ -9,6 +9,7 @@ import { Plus, Search, Edit, Trash2, User, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 export default function CustomersPage() {
     const { customers, isLoading, isInitialized, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -26,9 +27,9 @@ export default function CustomersPage() {
 
     // 検索フィルター
     const filteredCustomers = customers.filter(customer =>
-        customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.shortName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.contactPersons?.some(cp => cp.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        matchesSearch(customer.name, searchQuery) ||
+        matchesSearch(customer.shortName, searchQuery) ||
+        customer.contactPersons?.some(cp => matchesSearch(cp.name, searchQuery))
     );
 
     // フィルター変更時にページをリセット

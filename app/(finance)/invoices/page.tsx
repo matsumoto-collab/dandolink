@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 // モーダルを遅延読み込み
 const InvoiceModal = dynamic(
@@ -115,13 +116,13 @@ export default function InvoiceListPage() {
     const filteredInvoices = useMemo(() => {
         return invoices
             .filter(inv => {
-                const q = debouncedSearchTerm.toLowerCase();
-                const matchesSearch = inv.title.toLowerCase().includes(q) ||
-                    inv.invoiceNumber.toLowerCase().includes(q) ||
-                    (getProjectName(inv) ?? '').toLowerCase().includes(q) ||
-                    (getCustomerName(inv.projectId || '') ?? '').toLowerCase().includes(q);
+                const q = debouncedSearchTerm;
+                const matched = matchesSearch(inv.title, q) ||
+                    matchesSearch(inv.invoiceNumber, q) ||
+                    matchesSearch(getProjectName(inv), q) ||
+                    matchesSearch(getCustomerName(inv.projectId || ''), q);
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
-                return matchesSearch && matchesStatus;
+                return matched && matchesStatus;
             })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [invoices, debouncedSearchTerm, statusFilter, getProjectName, getCustomerName]);

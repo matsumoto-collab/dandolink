@@ -10,6 +10,7 @@ import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useSiteSurveyEditor } from '@/stores/siteSurveySlices/editorOpenSlice';
 import { Button } from '@/components/ui/Button';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 export default function SiteSurveyListPage() {
     const { data: session, status } = useSession();
@@ -48,16 +49,13 @@ export default function SiteSurveyListPage() {
     };
 
     const filtered = useMemo(() => {
-        const q = debounced.trim().toLowerCase();
+        const q = debounced.trim();
         if (!q) return siteSurveys;
-        return siteSurveys.filter((s) => {
-            const pm = projectName(s.projectMasterId).toLowerCase();
-            return (
-                s.title.toLowerCase().includes(q) ||
-                (s.customerName ?? '').toLowerCase().includes(q) ||
-                pm.includes(q)
-            );
-        });
+        return siteSurveys.filter((s) => (
+            matchesSearch(s.title, q) ||
+            matchesSearch(s.customerName, q) ||
+            matchesSearch(projectName(s.projectMasterId), q)
+        ));
     }, [siteSurveys, debounced, projectMasters]);
 
     useEffect(() => {

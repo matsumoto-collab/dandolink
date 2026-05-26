@@ -5,6 +5,7 @@ import { useProjects } from '@/hooks/useProjects';
 import { useMasterData } from '@/hooks/useMasterData';
 import { Project, DEFAULT_CONSTRUCTION_TYPE_LABELS, DEFAULT_CONSTRUCTION_TYPE_COLORS } from '@/types/calendar';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 interface ProjectSearchModalProps {
     isOpen: boolean;
@@ -42,12 +43,11 @@ export default function ProjectSearchModal({
 
         // 検索クエリでフィルタリング
         if (searchQuery.trim()) {
-            const lowerQuery = searchQuery.toLowerCase();
             results = results.filter(
                 (project) =>
-                    project.title.toLowerCase().includes(lowerQuery) ||
-                    project.customer?.toLowerCase().includes(lowerQuery) ||
-                    project.location?.toLowerCase().includes(lowerQuery)
+                    matchesSearch(project.title, searchQuery) ||
+                    matchesSearch(project.customer, searchQuery) ||
+                    matchesSearch(project.location, searchQuery)
             );
         }
 

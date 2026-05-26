@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 
 function SearchableProjectSelect({
@@ -30,10 +31,9 @@ function SearchableProjectSelect({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredProjects = projects.filter(p => {
-        const query = searchQuery.toLowerCase();
-        return p.title.toLowerCase().includes(query) || (p.customer && p.customer.toLowerCase().includes(query));
-    });
+    const filteredProjects = projects.filter(p =>
+        matchesSearch(p.title, searchQuery) || matchesSearch(p.customer, searchQuery)
+    );
 
     const selectedProject = projects.find(p => p.id === value);
     const displayText = selectedProject
@@ -166,10 +166,9 @@ function SearchableCustomerSelect({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredCustomers = customers.filter(c => {
-        const query = searchQuery.toLowerCase();
-        return c.name.toLowerCase().includes(query) || (c.shortName && c.shortName.toLowerCase().includes(query));
-    });
+    const filteredCustomers = customers.filter(c =>
+        matchesSearch(c.name, searchQuery) || matchesSearch(c.shortName, searchQuery)
+    );
 
     const selectedCustomer = customers.find(c => c.id === value);
     const displayText = selectedCustomer ? selectedCustomer.name : '選択してください';

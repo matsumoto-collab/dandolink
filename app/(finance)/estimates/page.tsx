@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
+import { matchesSearch } from '@/utils/searchNormalize';
 
 // 大きなモーダルコンポーネントを遅延読み込み
 const ProjectModal = dynamic(
@@ -94,13 +95,13 @@ export default function EstimateListPage() {
     const filteredEstimates = useMemo(() => {
         return estimates
             .filter(est => {
-                const q = debouncedSearchTerm.toLowerCase();
-                const matchesSearch = est.title.toLowerCase().includes(q) ||
-                    est.estimateNumber.toLowerCase().includes(q) ||
-                    (getProjectName(est.projectId ?? '') ?? '').toLowerCase().includes(q) ||
-                    (getCustomerName(est.customerId) ?? '').toLowerCase().includes(q);
+                const q = debouncedSearchTerm;
+                const matched = matchesSearch(est.title, q) ||
+                    matchesSearch(est.estimateNumber, q) ||
+                    matchesSearch(getProjectName(est.projectId ?? ''), q) ||
+                    matchesSearch(getCustomerName(est.customerId), q);
                 const matchesStatus = statusFilter === 'all' || est.status === statusFilter;
-                return matchesSearch && matchesStatus;
+                return matched && matchesStatus;
             })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }, [estimates, debouncedSearchTerm, statusFilter, getProjectName, getCustomerName]);
