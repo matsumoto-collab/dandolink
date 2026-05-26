@@ -643,31 +643,47 @@ export default function PartnerWorkVolumePage() {
             </div>
 
             <div className="flex-1 min-h-0 overflow-auto">
-                {loading ? (
-                    <div className="flex items-center justify-center h-full">
-                        <Loading text="出来高を読み込み中..." />
-                    </div>
-                ) : !companyId ? (
+                {!companyId ? (
                     <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
                         <p className="text-slate-500">協力会社を選択してください</p>
                     </div>
                 ) : isPartner && monthStatus !== 'completed' ? (
-                    <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
-                        <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                        <p className="text-slate-500 font-medium">この月の出来高はまだ確定されていません</p>
-                        <p className="text-slate-400 text-sm mt-1">管理者が全行を完了すると閲覧できます</p>
+                    loading && rows.length === 0 ? (
+                        <div className="flex items-center justify-center h-full">
+                            <Loading text="出来高を読み込み中..." />
+                        </div>
+                    ) : (
+                        <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
+                            <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+                            <p className="text-slate-500 font-medium">この月の出来高はまだ確定されていません</p>
+                            <p className="text-slate-400 text-sm mt-1">管理者が全行を完了すると閲覧できます</p>
+                        </div>
+                    )
+                ) : loading && rows.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                        <Loading text="出来高を読み込み中..." />
                     </div>
                 ) : (
-                    <PartnerWorkVolumeTable
-                        rows={displayedRows}
-                        readOnly={isPartner}
-                        savingRowKey={savingRowKey}
-                        onSave={handleSave}
-                        onDelete={handleDelete}
-                        onRestore={handleRestore}
-                        onInsert={handleInsert}
-                        onToggleStatus={handleToggleStatus}
-                    />
+                    <div className="relative">
+                        {loading && (
+                            <div className="sticky top-2 z-20 flex justify-center pointer-events-none">
+                                <div className="inline-flex items-center gap-1.5 bg-white/95 border border-slate-200 rounded-full shadow px-3 py-1 text-xs text-slate-600">
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    更新中...
+                                </div>
+                            </div>
+                        )}
+                        <PartnerWorkVolumeTable
+                            rows={displayedRows}
+                            readOnly={isPartner}
+                            savingRowKey={savingRowKey}
+                            onSave={handleSave}
+                            onDelete={handleDelete}
+                            onRestore={handleRestore}
+                            onInsert={handleInsert}
+                            onToggleStatus={handleToggleStatus}
+                        />
+                    </div>
                 )}
             </div>
         </div>
