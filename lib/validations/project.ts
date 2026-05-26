@@ -36,6 +36,7 @@ export const createProjectMasterSchema = z.object({
             z.object({
                 constructionTypeId: z.string().min(1),
                 amount: z.number().min(0),
+                transportCost: z.number().min(0).nullable().optional(),
             })
         )
         .optional(),

@@ -55,6 +55,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
             id: c.id ?? `sc-${idx}`,
             constructionTypeId: c.constructionTypeId,
             amount: c.amount != null ? String(c.amount) : '',
+            transportCost: c.transportCost != null ? String(c.transportCost) : '',
         }));
 
     return {

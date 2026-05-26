@@ -1,5 +1,7 @@
 export type PartnerWorkVolumeRowStatus = 'draft' | 'completed';
 export type PartnerWorkVolumeMonthStatus = 'draft' | 'completed';
+/** 行の費目区分。'work' = 作業費、'transport' = 運搬費。 */
+export type PartnerWorkVolumeRowType = 'work' | 'transport';
 
 export interface PartnerWorkVolumeRow {
     /** DB id（保存済み行のみ）。未保存の自動生成行は null */
@@ -14,6 +16,8 @@ export interface PartnerWorkVolumeRow {
     constructionContent: string | null;
     amount: number;
     sourceAssignmentId: string | null;
+    /** 同じ配置に対して作業費の行と運搬費の行を区別するためのキー */
+    rowType: PartnerWorkVolumeRowType;
     isManual: boolean;
     sortOrder: number;
     notes: string | null;

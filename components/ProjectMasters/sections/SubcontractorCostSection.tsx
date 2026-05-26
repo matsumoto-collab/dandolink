@@ -16,8 +16,8 @@ interface SubcontractorCostSectionProps {
 
 const MAX_ROWS = 10;
 
-function makeEntry(constructionTypeId = '', amount = ''): SubcontractorCostEntry {
-    return { id: crypto.randomUUID(), constructionTypeId, amount };
+function makeEntry(constructionTypeId = '', amount = '', transportCost = ''): SubcontractorCostEntry {
+    return { id: crypto.randomUUID(), constructionTypeId, amount, transportCost };
 }
 
 export function SubcontractorCostSection({ formData, setFormData, projectMasterId }: SubcontractorCostSectionProps) {
@@ -34,8 +34,11 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
 
     const total = useMemo(() => {
         return rows.reduce((sum, r) => {
-            const n = Number(r.amount);
-            return sum + (Number.isFinite(n) && n > 0 ? n : 0);
+            const work = Number(r.amount);
+            const trans = Number(r.transportCost);
+            const workSum = Number.isFinite(work) && work > 0 ? work : 0;
+            const transSum = Number.isFinite(trans) && trans > 0 ? trans : 0;
+            return sum + workSum + transSum;
         }, 0);
     }, [rows]);
 
@@ -142,7 +145,7 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
             <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
                     <p className="text-xs text-slate-500">
-                        工事種別ごとに協力業者の作業費（税別）を設定します。手配が確定し、担当職長が協力業者ロールのアサインに該当する種別だけが原価に計上されます。
+                        工事種別ごとに協力業者の作業費（税別）と、必要なら運搬費を設定します。手配が確定し、担当職長が協力業者ロールのアサインに該当する種別だけが原価に計上されます。運搬費は出来高表で別行として表示されます。
                     </p>
                 </div>
                 {projectMasterId && (
@@ -175,9 +178,8 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
             ) : (
                 <div className="space-y-2">
                     {rows.map(row => {
-                        const typeName = constructionTypes.find(t => t.id === row.constructionTypeId)?.name ?? '';
                         return (
-                            <div key={row.id} className="p-3 border border-slate-200 rounded-xl bg-white flex items-center gap-2">
+                            <div key={row.id} className="p-3 border border-slate-200 rounded-xl bg-white flex flex-wrap items-center gap-2">
                                 <select
                                     value={row.constructionTypeId}
                                     onChange={e => updateRow(row.id, { constructionTypeId: e.target.value })}
@@ -193,8 +195,8 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
                                         );
                                     })}
                                 </select>
-                                <div className="flex-1 flex items-center gap-2">
-                                    <span className="text-sm text-slate-500">¥</span>
+                                <label className="flex-1 min-w-[180px] flex items-center gap-1.5">
+                                    <span className="text-xs text-slate-500 whitespace-nowrap">作業費 ¥</span>
                                     <input
                                         type="number"
                                         inputMode="numeric"
@@ -202,16 +204,25 @@ export function SubcontractorCostSection({ formData, setFormData, projectMasterI
                                         value={row.amount}
                                         onChange={e => updateRow(row.id, { amount: e.target.value })}
                                         placeholder="0"
-                                        className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                        className="flex-1 min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-500"
                                     />
-                                    <span className="text-xs text-slate-400 whitespace-nowrap hidden sm:inline">
-                                        {typeName || '—'}
-                                    </span>
-                                </div>
+                                </label>
+                                <label className="flex-1 min-w-[180px] flex items-center gap-1.5">
+                                    <span className="text-xs text-slate-500 whitespace-nowrap">運搬費 ¥</span>
+                                    <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={0}
+                                        value={row.transportCost}
+                                        onChange={e => updateRow(row.id, { transportCost: e.target.value })}
+                                        placeholder="0"
+                                        className="flex-1 min-w-0 px-3 py-2 border border-slate-200 rounded-xl text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                    />
+                                </label>
                                 <button
                                     type="button"
                                     onClick={() => deleteRow(row.id)}
-                                    className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                                    className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors shrink-0"
                                     title="この行を削除"
                                 >
                                     <Trash2 className="w-4 h-4" />

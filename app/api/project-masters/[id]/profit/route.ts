@@ -56,7 +56,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 loadingCost: true,
                 revenueOverride: true,
                 subcontractorCosts: {
-                    select: { constructionTypeId: true, amount: true },
+                    select: { constructionTypeId: true, amount: true, transportCost: true },
                 },
                 assignments: {
                     select: {
@@ -215,9 +215,12 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         // partnerForemanIds for subcontractor calc
         const partnerForemanIds = new Set(foremanUsers.filter(u => u.role === 'partner').map(u => u.id));
 
-        // 工事種別ごとの subcontractor 単価
+        // 工事種別ごとの subcontractor 単価（作業費 + 運搬費を合算）
         const subcontractorTypeAmount = new Map<string, number>(
-            projectMaster.subcontractorCosts.map(c => [c.constructionTypeId, Number(c.amount || 0)])
+            projectMaster.subcontractorCosts.map(c => [
+                c.constructionTypeId,
+                Number(c.amount || 0) + Number(c.transportCost || 0),
+            ])
         );
 
         const laborRows: LaborRow[] = [];

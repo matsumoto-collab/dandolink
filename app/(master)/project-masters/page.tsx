@@ -224,7 +224,15 @@ function ProjectMasterListPageContent() {
     const handleCreate = async (data: ProjectMasterFormData) => {
         const subcontractorCosts = data.subcontractorCosts
             .filter(r => r.constructionTypeId && r.amount !== '')
-            .map(r => ({ constructionTypeId: r.constructionTypeId, amount: Number(r.amount) }))
+            .map(r => {
+                const amount = Number(r.amount);
+                const tc = r.transportCost === '' ? null : Number(r.transportCost);
+                return {
+                    constructionTypeId: r.constructionTypeId,
+                    amount,
+                    transportCost: tc != null && Number.isFinite(tc) && tc >= 0 ? tc : null,
+                };
+            })
             .filter(r => Number.isFinite(r.amount) && r.amount >= 0);
 
         const pm = await createProjectMaster({
@@ -283,7 +291,15 @@ function ProjectMasterListPageContent() {
     const handleUpdate = async (id: string, data: ProjectMasterFormData) => {
         const subcontractorCosts = data.subcontractorCosts
             .filter(r => r.constructionTypeId && r.amount !== '')
-            .map(r => ({ constructionTypeId: r.constructionTypeId, amount: Number(r.amount) }))
+            .map(r => {
+                const amount = Number(r.amount);
+                const tc = r.transportCost === '' ? null : Number(r.transportCost);
+                return {
+                    constructionTypeId: r.constructionTypeId,
+                    amount,
+                    transportCost: tc != null && Number.isFinite(tc) && tc >= 0 ? tc : null,
+                };
+            })
             .filter(r => Number.isFinite(r.amount) && r.amount >= 0);
 
         // null を送ることで API 側でフィールドをクリアできる（undefined だと更新対象外になる）

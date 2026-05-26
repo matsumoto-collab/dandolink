@@ -209,6 +209,7 @@ export async function POST(req: NextRequest) {
                             create: subcontractorCosts.map((c, idx) => ({
                                 constructionTypeId: c.constructionTypeId,
                                 amount: c.amount,
+                                transportCost: c.transportCost ?? null,
                                 sortOrder: idx,
                             })),
                         },

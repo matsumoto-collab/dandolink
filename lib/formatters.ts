@@ -139,6 +139,7 @@ export function formatProjectMaster(pm: RawProjectMaster) {
             id: String(c.id ?? ''),
             constructionTypeId: String(c.constructionTypeId ?? ''),
             amount: numOrNull(c.amount) ?? 0,
+            transportCost: numOrNull(c.transportCost),
             sortOrder: typeof c.sortOrder === 'number' ? c.sortOrder : 0,
         }))
         : undefined;

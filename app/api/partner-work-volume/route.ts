@@ -11,6 +11,8 @@ import {
 const ADMIN_ROLES = ['admin', 'manager'];
 
 export type PartnerWorkVolumeRowStatus = 'draft' | 'completed';
+/** 行の費目区分。'work' = 作業費、'transport' = 運搬費。 */
+export type PartnerWorkVolumeRowType = 'work' | 'transport';
 
 export interface PartnerWorkVolumeRow {
     /** DB id（保存済み行のみ）。未保存の自動生成行は null */
@@ -24,6 +26,8 @@ export interface PartnerWorkVolumeRow {
     constructionContent: string | null;
     amount: number;
     sourceAssignmentId: string | null;
+    /** 同じ配置に対する作業費の行/運搬費の行を区別するキー */
+    rowType: PartnerWorkVolumeRowType;
     isManual: boolean;
     sortOrder: number;
     notes: string | null;
@@ -148,7 +152,7 @@ export async function GET(req: NextRequest) {
                         createdBy: true,
                         managerIds: true,
                         subcontractorCosts: {
-                            select: { constructionTypeId: true, amount: true },
+                            select: { constructionTypeId: true, amount: true, transportCost: true },
                         },
                     },
                 },
@@ -187,50 +191,69 @@ export async function GET(req: NextRequest) {
             return confirmed.some((id) => memberIds.has(id));
         });
 
-        // 案件マスタ単位で「工事種別ID → 金額」と「工事種別名 → 金額」の両方のマップを作る
-        // フォールバック照合用。UUIDが一致しない場合に種別名（"内部足場解体" など）で再度マッチさせる。
+        // 案件マスタ単位で「工事種別ID → 金額」と「工事種別名 → 金額」の両方のマップを
+        // 「作業費」と「運搬費」それぞれ作る。フォールバック照合用に名前マップも持つ。
         // relevantAssignments だけでなく、当月の全配置の案件マスタを対象にしておく
         // （保存済み行の再算出時、その配置が relevantAssignments から外れていても引けるように）。
-        const subcontractorAmountByPm = new Map<string, {
-            byId: Map<string, number>;
-            byName: Map<string, number>;
-        }>();
+        type AmountMaps = {
+            workById: Map<string, number>;
+            workByName: Map<string, number>;
+            transportById: Map<string, number>;
+            transportByName: Map<string, number>;
+        };
+        const subcontractorAmountByPm = new Map<string, AmountMaps>();
         for (const a of assignments) {
             const pm = a.projectMaster;
             if (subcontractorAmountByPm.has(pm.id)) continue;
-            const byId = new Map<string, number>();
-            const byName = new Map<string, number>();
+            const workById = new Map<string, number>();
+            const workByName = new Map<string, number>();
+            const transportById = new Map<string, number>();
+            const transportByName = new Map<string, number>();
             for (const c of pm.subcontractorCosts) {
-                const amt = Math.round(Number(c.amount));
-                byId.set(c.constructionTypeId, amt);
+                const work = Math.round(Number(c.amount));
+                workById.set(c.constructionTypeId, work);
                 const name = constructionTypeMap.get(c.constructionTypeId);
-                // 同名の重複行があれば最初に出てきた方を採用（sortOrder で読み込み済み）
-                if (name && !byName.has(name)) byName.set(name, amt);
+                if (name && !workByName.has(name)) workByName.set(name, work);
+                const transport = c.transportCost != null
+                    ? Math.round(Number(c.transportCost))
+                    : 0;
+                if (transport > 0) {
+                    transportById.set(c.constructionTypeId, transport);
+                    if (name && !transportByName.has(name)) transportByName.set(name, transport);
+                }
             }
-            subcontractorAmountByPm.set(pm.id, { byId, byName });
+            subcontractorAmountByPm.set(pm.id, { workById, workByName, transportById, transportByName });
         }
 
-        // 配置（assignment）から自動算出される金額を返すヘルパー。
-        // a.constructionType が UUID → byId で照合、ヒットしなければ名称で再照合（マスタ重複/レガシー対策）。
-        // ※ subcontractorCostOverride は呼び出し元で処理する。
+        // 指定した費目区分 (work / transport) で、配置の constructionType から金額を解決する。
+        // a.constructionType が UUID → byId、ヒットしなければ名称 byName でフォールバック。
+        // 運搬費が設定されていない場合は 0。
         const autoSubcontractorAmount = (
             pmId: string,
             constructionType: string | null,
+            kind: 'work' | 'transport',
         ): number => {
             if (!constructionType) return 0;
             const maps = subcontractorAmountByPm.get(pmId);
             if (!maps) return 0;
-            const byId = maps.byId.get(constructionType);
-            if (byId != null) return byId;
+            const byId = kind === 'work' ? maps.workById : maps.transportById;
+            const byName = kind === 'work' ? maps.workByName : maps.transportByName;
+            const hit = byId.get(constructionType);
+            if (hit != null) return hit;
             const name = constructionTypeMap.get(constructionType);
             if (name) {
-                const byName = maps.byName.get(name);
-                if (byName != null) return byName;
+                const nameHit = byName.get(name);
+                if (nameHit != null) return nameHit;
             }
             return 0;
         };
 
         // 自動生成 auto row 候補
+        // 1 配置に対して「作業費の行」と「運搬費の行（運搬費 > 0 のときのみ）」を生成する。
+        // キーは `${assignmentId}:${rowType}` の形式。
+        const autoRowKey = (assignmentId: string, rowType: PartnerWorkVolumeRowType): string =>
+            `${assignmentId}:${rowType}`;
+
         const autoRows = new Map<string, PartnerWorkVolumeRow>();
         for (const a of relevantAssignments) {
             const pm = a.projectMaster;
@@ -242,16 +265,19 @@ export async function GET(req: NextRequest) {
                 .map((id) => managerMap.get(id))
                 .filter(Boolean)
                 .join('、') || null;
-            const constructionContent = a.constructionType
+            const baseContent = a.constructionType
                 ? constructionTypeMap.get(a.constructionType) ?? null
                 : null;
-            let amount = 0;
+
+            // 作業費の行
+            let workAmount = 0;
             if (a.subcontractorCostOverride != null) {
-                amount = a.subcontractorCostOverride;
+                // 配置単位の上書きは「作業費の行」側に適用する（運搬費は別建てで管理）
+                workAmount = a.subcontractorCostOverride;
             } else {
-                amount = autoSubcontractorAmount(pm.id, a.constructionType);
+                workAmount = autoSubcontractorAmount(pm.id, a.constructionType, 'work');
             }
-            autoRows.set(a.id, {
+            autoRows.set(autoRowKey(a.id, 'work'), {
                 id: null,
                 partnerCompanyId,
                 date: jstDateKey(a.date),
@@ -259,15 +285,39 @@ export async function GET(req: NextRequest) {
                 projectMasterId: pm.id,
                 projectTitle,
                 managerName,
-                constructionContent,
-                amount,
+                constructionContent: baseContent,
+                amount: workAmount,
                 sourceAssignmentId: a.id,
+                rowType: 'work',
                 isManual: false,
                 sortOrder: 0,
                 notes: null,
                 status: 'draft',
                 isAuto: true,
             });
+
+            // 運搬費の行（運搬費が設定されている場合のみ生成）
+            const transportAmount = autoSubcontractorAmount(pm.id, a.constructionType, 'transport');
+            if (transportAmount > 0) {
+                autoRows.set(autoRowKey(a.id, 'transport'), {
+                    id: null,
+                    partnerCompanyId,
+                    date: jstDateKey(a.date),
+                    customerName,
+                    projectMasterId: pm.id,
+                    projectTitle,
+                    managerName,
+                    constructionContent: baseContent ? `${baseContent}（運搬費）` : '運搬費',
+                    amount: transportAmount,
+                    sourceAssignmentId: a.id,
+                    rowType: 'transport',
+                    isManual: false,
+                    sortOrder: 0,
+                    notes: null,
+                    status: 'draft',
+                    isAuto: true,
+                });
+            }
         }
 
         // 保存済み行
@@ -279,28 +329,39 @@ export async function GET(req: NextRequest) {
         });
 
         const merged: PartnerWorkVolumeRow[] = [];
-        const usedAssignmentIds = new Set<string>();
+        // 同じ配置 (sourceAssignmentId) でも rowType が異なれば別行なので、
+        // 「保存済み」判定は (sourceAssignmentId, rowType) のペアで行う。
+        const usedAutoKeys = new Set<string>();
         let latestCompletedAt: Date | null = null;
         for (const row of saved) {
-            if (row.sourceAssignmentId) usedAssignmentIds.add(row.sourceAssignmentId);
+            const savedRowType: PartnerWorkVolumeRowType =
+                row.rowType === 'transport' ? 'transport' : 'work';
+            if (row.sourceAssignmentId) {
+                usedAutoKeys.add(autoRowKey(row.sourceAssignmentId, savedRowType));
+            }
             if (row.completedAt && (!latestCompletedAt || row.completedAt > latestCompletedAt)) {
                 latestCompletedAt = row.completedAt;
             }
             // 自動行（配置由来）で保存済み金額が 0 のときは、最新の配置・案件マスタから再算出する。
             // 想定シナリオ: 配置自動行が amount=0 のまま保存（例: 完了操作）された後に
-            // 案件マスタの「協力業者費（予定）」へ新しい工事種別を追加したケース。
+            // 案件マスタの「協力業者費（予定）」を変更したケース。
             // 再算出は必ず amount=0 の場合のみ行うため、ユーザーが画面で明示的に入力した
             // 金額（>0）は上書きしない。
+            // subcontractorCostOverride は『作業費の行』だけに適用する（運搬費は別建て）。
             let effectiveAmount = row.amount;
             if (effectiveAmount === 0 && row.sourceAssignmentId) {
                 const sourceAssignment = assignments.find((x) => x.id === row.sourceAssignmentId);
                 if (sourceAssignment) {
-                    if (sourceAssignment.subcontractorCostOverride != null) {
+                    if (
+                        savedRowType === 'work' &&
+                        sourceAssignment.subcontractorCostOverride != null
+                    ) {
                         effectiveAmount = sourceAssignment.subcontractorCostOverride;
                     } else {
                         effectiveAmount = autoSubcontractorAmount(
                             sourceAssignment.projectMaster.id,
                             sourceAssignment.constructionType,
+                            savedRowType,
                         );
                     }
                 }
@@ -316,6 +377,7 @@ export async function GET(req: NextRequest) {
                 constructionContent: row.constructionContent,
                 amount: effectiveAmount,
                 sourceAssignmentId: row.sourceAssignmentId,
+                rowType: savedRowType,
                 isManual: row.isManual,
                 sortOrder: row.sortOrder,
                 notes: row.notes,
@@ -324,8 +386,8 @@ export async function GET(req: NextRequest) {
             });
         }
         // まだ保存されていない自動行
-        for (const [assignmentId, row] of autoRows) {
-            if (usedAssignmentIds.has(assignmentId)) continue;
+        for (const [key, row] of autoRows) {
+            if (usedAutoKeys.has(key)) continue;
             merged.push(row);
         }
 
@@ -415,6 +477,7 @@ interface UpsertBody {
     constructionContent?: string | null;
     amount?: number;
     sourceAssignmentId?: string | null;
+    rowType?: PartnerWorkVolumeRowType;
     isManual?: boolean;
     sortOrder?: number;
     notes?: string | null;
@@ -457,6 +520,9 @@ export async function POST(req: NextRequest) {
               }
             : {};
 
+        const rowType: PartnerWorkVolumeRowType =
+            body.rowType === 'transport' ? 'transport' : 'work';
+
         const data = {
             partnerCompanyId: body.partnerCompanyId,
             date: dateOnly,
@@ -466,6 +532,7 @@ export async function POST(req: NextRequest) {
             managerName: body.managerName?.trim() || null,
             constructionContent: body.constructionContent?.trim() || null,
             amount: clampInt(body.amount),
+            rowType,
             sortOrder: clampSortOrder(body.sortOrder),
             notes: body.notes?.trim() || null,
             updatedBy: userId,
@@ -479,8 +546,14 @@ export async function POST(req: NextRequest) {
                 data,
             });
         } else if (body.sourceAssignmentId) {
+            // (sourceAssignmentId, rowType) の複合キーで upsert
             saved = await prisma.partnerWorkVolume.upsert({
-                where: { sourceAssignmentId: body.sourceAssignmentId },
+                where: {
+                    sourceAssignmentId_rowType: {
+                        sourceAssignmentId: body.sourceAssignmentId,
+                        rowType,
+                    },
+                },
                 update: data,
                 create: {
                     ...data,

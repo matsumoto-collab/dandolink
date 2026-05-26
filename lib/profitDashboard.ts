@@ -157,7 +157,7 @@ export async function fetchProfitDashboardData(
             otherExpenses: true,
             updatedAt: true,
             subcontractorCosts: {
-                select: { constructionTypeId: true, amount: true },
+                select: { constructionTypeId: true, amount: true, transportCost: true },
             },
             _count: {
                 select: { assignments: true },
@@ -425,9 +425,13 @@ export async function fetchProfitDashboardData(
         const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
         const materialCost = Number(pm.materialCost || 0);
         const activeTypeIds = activeTypeIdsByProject.get(pm.id) ?? new Set<string>();
+        // 作業費 + 運搬費 を合算して協力業者費として計上
         const subcontractorCost = pm.subcontractorCosts.reduce((sum, c) =>
-            activeTypeIds.has(c.constructionTypeId) ? sum + Number(c.amount || 0) : sum
-        , 0);
+            activeTypeIds.has(c.constructionTypeId)
+                ? sum + Number(c.amount || 0) + Number(c.transportCost || 0)
+                : sum,
+            0,
+        );
         const otherExpenses = Number(pm.otherExpenses || 0);
 
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;

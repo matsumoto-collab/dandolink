@@ -187,12 +187,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         }
 
         // 協力業者費（工事種別ごとの設定額）: 渡された配列で完全置き換え
-        let subcontractorCostsInput: { constructionTypeId: string; amount: number }[] | undefined;
+        let subcontractorCostsInput: {
+            constructionTypeId: string;
+            amount: number;
+            transportCost: number | null;
+        }[] | undefined;
         if (body.subcontractorCosts !== undefined) {
             if (!Array.isArray(body.subcontractorCosts)) {
                 return validationErrorResponse('subcontractorCostsは配列で指定してください');
             }
-            const parsed: { constructionTypeId: string; amount: number }[] = [];
+            const parsed: {
+                constructionTypeId: string;
+                amount: number;
+                transportCost: number | null;
+            }[] = [];
             const seenTypes = new Set<string>();
             for (const row of body.subcontractorCosts) {
                 if (!row || typeof row !== 'object') continue;
@@ -202,11 +210,20 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                 if (!Number.isFinite(amount) || amount < 0) {
                     return validationErrorResponse('協力業者費の金額は0以上の数値で指定してください');
                 }
+                // transportCost は省略可。指定があれば 0 以上の数値を要求。
+                let transportCost: number | null = null;
+                if (row.transportCost != null && row.transportCost !== '') {
+                    const tc = Number(row.transportCost);
+                    if (!Number.isFinite(tc) || tc < 0) {
+                        return validationErrorResponse('運搬費は0以上の数値で指定してください');
+                    }
+                    transportCost = tc;
+                }
                 if (seenTypes.has(constructionTypeId)) {
                     return validationErrorResponse('同じ工事種別が重複しています');
                 }
                 seenTypes.add(constructionTypeId);
-                parsed.push({ constructionTypeId, amount });
+                parsed.push({ constructionTypeId, amount, transportCost });
             }
             subcontractorCostsInput = parsed;
         }
@@ -274,6 +291,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
                             projectMasterId: id,
                             constructionTypeId: c.constructionTypeId,
                             amount: c.amount,
+                            transportCost: c.transportCost ?? null,
                             sortOrder: idx,
                         })),
                     });

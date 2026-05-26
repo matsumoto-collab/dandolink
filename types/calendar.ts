@@ -114,6 +114,8 @@ export interface ProjectMasterSubcontractorCost {
     id?: string;
     constructionTypeId: string;
     amount: number;
+    /** 運搬費（遠出時に作業費と合わせて支払う追加費用） */
+    transportCost?: number | null;
     sortOrder?: number;
 }
 

@@ -35,7 +35,10 @@ function ymLabel(year: number, month: number): string {
 }
 
 function rowKey(row: PartnerWorkVolumeRow): string {
-    return row.id ?? row.sourceAssignmentId ?? `manual:${row.date}:${row.projectTitle}:${row.sortOrder}`;
+    // 1 配置に対して作業費 / 運搬費の 2 行が並ぶため rowType もキーに含める
+    if (row.id) return row.id;
+    if (row.sourceAssignmentId) return `${row.sourceAssignmentId}:${row.rowType}`;
+    return `manual:${row.date}:${row.projectTitle}:${row.sortOrder}`;
 }
 
 function rowMatches(a: PartnerWorkVolumeRow, b: PartnerWorkVolumeRow): boolean {
@@ -167,6 +170,7 @@ export default function PartnerWorkVolumePage() {
                     constructionContent: merged.constructionContent,
                     amount: merged.amount,
                     sourceAssignmentId: merged.sourceAssignmentId,
+                    rowType: merged.rowType,
                     isManual: merged.isManual,
                     sortOrder: merged.sortOrder,
                     notes: merged.notes,
@@ -321,6 +325,7 @@ export default function PartnerWorkVolumePage() {
                     constructionContent: row.constructionContent,
                     amount: row.amount,
                     sourceAssignmentId: row.sourceAssignmentId,
+                    rowType: row.rowType,
                     isManual: row.isManual,
                     sortOrder: row.sortOrder,
                     notes: row.notes,

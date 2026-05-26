@@ -17,7 +17,10 @@ interface Props {
 }
 
 function rowKey(row: PartnerWorkVolumeRow): string {
-    return row.id ?? row.sourceAssignmentId ?? `manual:${row.date}:${row.projectTitle}:${row.sortOrder}`;
+    // 1 配置に対して作業費の行/運搬費の行の2行が並ぶため、rowType もキーに含める
+    if (row.id) return row.id;
+    if (row.sourceAssignmentId) return `${row.sourceAssignmentId}:${row.rowType}`;
+    return `manual:${row.date}:${row.projectTitle}:${row.sortOrder}`;
 }
 
 function formatDateLabel(s: string): string {
@@ -81,13 +84,16 @@ export default function PartnerWorkVolumeTable({
                         const isCompleted = row.status === 'completed';
                         // セル編集可否: ページ全体 readOnly でなく、行が completed でもなく
                         const cellReadOnly = readOnly || isCompleted;
+                        const isTransport = row.rowType === 'transport';
                         const rowTone = isCompleted
                             ? 'bg-emerald-50/40'
                             : row.isManual
                                 ? 'bg-amber-50/30'
-                                : row.id == null
-                                    ? 'bg-slate-50/40'
-                                    : '';
+                                : isTransport
+                                    ? 'bg-sky-50/40'
+                                    : row.id == null
+                                        ? 'bg-slate-50/40'
+                                        : '';
                         // 上端: 最初の行 or 前行と日付が変わるとき
                         const showAbove = !readOnly && (idx === 0 || rows[idx - 1].date !== row.date);
                         // 下端: 最後の行 or 次行と日付が変わるとき

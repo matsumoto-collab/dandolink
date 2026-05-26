@@ -24,7 +24,8 @@ export interface WorkDateEntry {
 export interface SubcontractorCostEntry {
     id: string;               // row key (UUID)
     constructionTypeId: string;
-    amount: string;           // 入力中の文字列。保存時にnumberへ
+    amount: string;           // 作業費。入力中の文字列。保存時にnumberへ
+    transportCost: string;    // 運搬費。空文字なら未設定（null として送信）
 }
 
 export interface ProjectMasterFormData {
