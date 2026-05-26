@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Trash2, Loader2, Plus, Check, Undo2 } from 'lucide-react';
+import { Trash2, Loader2, Plus, Check, Undo2, RotateCcw } from 'lucide-react';
 import type { PartnerWorkVolumeRow } from '@/types/partnerWorkVolume';
 
 interface Props {
@@ -10,6 +10,8 @@ interface Props {
     savingRowKey: string | null;
     onSave: (row: PartnerWorkVolumeRow, patch: Partial<PartnerWorkVolumeRow>) => void;
     onDelete: (row: PartnerWorkVolumeRow) => void;
+    /** 削除済み行の復元（onRestore が未指定なら復元 UI を出さない） */
+    onRestore?: (row: PartnerWorkVolumeRow) => void;
     /** position: 'above' で row の上に、'below' で row の下に同じ日付の手動行を挿入 */
     onInsert: (row: PartnerWorkVolumeRow, position: 'above' | 'below') => void;
     /** 行ごとの完了/編集トグル */
@@ -43,10 +45,14 @@ export default function PartnerWorkVolumeTable({
     savingRowKey,
     onSave,
     onDelete,
+    onRestore,
     onInsert,
     onToggleStatus,
 }: Props) {
-    const total = rows.reduce((s, r) => s + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+    // 合計は削除済み行を除外（表示している場合でも金額には含めない）
+    const total = rows
+        .filter((r) => !r.deletedAt)
+        .reduce((s, r) => s + (Number.isFinite(r.amount) ? r.amount : 0), 0);
     // 列数: 読み取り = 8 (status含む), 編集 = 10 (挿入/status/削除含む)
     const totalCols = readOnly ? 8 : 10;
 
@@ -82,18 +88,21 @@ export default function PartnerWorkVolumeTable({
                         const key = rowKey(row);
                         const isSaving = savingRowKey === key;
                         const isCompleted = row.status === 'completed';
-                        // セル編集可否: ページ全体 readOnly でなく、行が completed でもなく
-                        const cellReadOnly = readOnly || isCompleted;
+                        const isDeleted = !!row.deletedAt;
+                        // セル編集可否: ページ全体 readOnly でなく、行が completed でも削除済みでもないとき
+                        const cellReadOnly = readOnly || isCompleted || isDeleted;
                         const isTransport = row.rowType === 'transport';
-                        const rowTone = isCompleted
-                            ? 'bg-emerald-50/40'
-                            : row.isManual
-                                ? 'bg-amber-50/30'
-                                : isTransport
-                                    ? 'bg-sky-50/40'
-                                    : row.id == null
-                                        ? 'bg-slate-50/40'
-                                        : '';
+                        const rowTone = isDeleted
+                            ? 'bg-rose-50/30 text-slate-400 line-through'
+                            : isCompleted
+                                ? 'bg-emerald-50/40'
+                                : row.isManual
+                                    ? 'bg-amber-50/30'
+                                    : isTransport
+                                        ? 'bg-sky-50/40'
+                                        : row.id == null
+                                            ? 'bg-slate-50/40'
+                                            : '';
                         // 上端: 最初の行 or 前行と日付が変わるとき
                         const showAbove = !readOnly && (idx === 0 || rows[idx - 1].date !== row.date);
                         // 下端: 最後の行 or 次行と日付が変わるとき
@@ -170,9 +179,14 @@ export default function PartnerWorkVolumeTable({
                                     align="left"
                                     onCommit={(v) => onSave(row, { notes: v || null })}
                                 />
-                                {/* 状態列: completed/draft トグル */}
+                                {/* 状態列: 削除済み / completed / draft */}
                                 <td className={`${tdBase} text-center`}>
-                                    {readOnly ? (
+                                    {isDeleted ? (
+                                        <span className="inline-flex items-center gap-1 text-rose-500 text-xs font-medium no-underline">
+                                            <Trash2 className="w-3.5 h-3.5" />
+                                            削除済み
+                                        </span>
+                                    ) : readOnly ? (
                                         isCompleted ? (
                                             <span className="inline-flex items-center gap-1 text-emerald-700 text-xs font-medium">
                                                 <Check className="w-3.5 h-3.5" />
@@ -205,17 +219,35 @@ export default function PartnerWorkVolumeTable({
                                 </td>
                                 {!readOnly && (
                                     <td className={`${tdBase} text-center`}>
-                                        {row.id != null && !isCompleted ? (
+                                        {isDeleted ? (
+                                            onRestore ? (
+                                                <button
+                                                    type="button"
+                                                    className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-slate-100 text-slate-600 hover:bg-emerald-100 hover:text-emerald-700 text-xs font-medium transition no-underline"
+                                                    title="復元する"
+                                                    onClick={() => onRestore(row)}
+                                                >
+                                                    <RotateCcw className="w-3.5 h-3.5" />
+                                                    復元
+                                                </button>
+                                            ) : (
+                                                <span className="text-slate-300 text-xs">—</span>
+                                            )
+                                        ) : isCompleted ? (
+                                            <span className="text-slate-300 text-xs">—</span>
+                                        ) : (
                                             <button
                                                 type="button"
                                                 className="text-slate-400 hover:text-rose-600 transition-colors"
-                                                title={row.isManual ? '削除' : '入力値をクリア（自動行として残ります）'}
+                                                title={
+                                                    row.isManual
+                                                        ? '削除'
+                                                        : '削除（以降この月で再表示されません）'
+                                                }
                                                 onClick={() => onDelete(row)}
                                             >
                                                 <Trash2 className="w-4 h-4 inline-block" />
                                             </button>
-                                        ) : (
-                                            <span className="text-slate-300 text-xs">—</span>
                                         )}
                                     </td>
                                 )}

@@ -35,6 +35,8 @@ export interface PartnerWorkVolumeRow {
     status: PartnerWorkVolumeRowStatus;
     /** 自動生成由来か（保存済みでも sourceAssignmentId があれば true） */
     isAuto: boolean;
+    /** 論理削除日時。null = 削除されていない。値あり = tombstone（GET 通常モードでは返らない） */
+    deletedAt: string | null;
 }
 
 function parseYearMonth(year: string | null, month: string | null): { start: Date; end: Date } | null {
@@ -82,10 +84,14 @@ function normalizeStatus(value: unknown): PartnerWorkVolumeRowStatus {
 }
 
 /**
- * GET /api/partner-work-volume?companyId=&year=YYYY&month=MM
+ * GET /api/partner-work-volume?companyId=&year=YYYY&month=MM&includeDeleted=0|1
  * 配置から自動生成された候補行と DB 保存済み行をマージして返す。
  * 月の monthStatus は「全行 completed && 行数 > 0」のときだけ 'completed'、それ以外は 'draft'。
  * partner は monthStatus === 'completed' のときのみ rows を取得できる。
+ *
+ * includeDeleted=1 を渡すと、論理削除済みの行も rows に含めて返す（admin/manager 限定）。
+ * 通常モードでは deletedAt != null の行は rows から除外されるが、usedAutoKeys には登録される
+ * ため、同じ (assignmentId, rowType) の auto 行は再生成されない。
  */
 export async function GET(req: NextRequest) {
     try {
@@ -99,6 +105,8 @@ export async function GET(req: NextRequest) {
         const queryCompanyId = url.searchParams.get('companyId');
         const range = parseYearMonth(url.searchParams.get('year'), url.searchParams.get('month'));
         if (!range) return validationErrorResponse('year/month が不正です');
+        // partner viewer は常に削除済みを見せない。admin/manager のみ ?includeDeleted=1 で削除済みも返す
+        const includeDeletedParam = url.searchParams.get('includeDeleted') === '1';
 
         // 対象会社 ID を決定
         // 閲覧可能ロール: admin / manager / partner (= 協力会社アカウント本体のみ)
@@ -294,6 +302,7 @@ export async function GET(req: NextRequest) {
                 notes: null,
                 status: 'draft',
                 isAuto: true,
+                deletedAt: null,
             });
 
             // 運搬費の行（運搬費が設定されている場合のみ生成）
@@ -316,6 +325,7 @@ export async function GET(req: NextRequest) {
                     notes: null,
                     status: 'draft',
                     isAuto: true,
+                    deletedAt: null,
                 });
             }
         }
@@ -331,14 +341,20 @@ export async function GET(req: NextRequest) {
         const merged: PartnerWorkVolumeRow[] = [];
         // 同じ配置 (sourceAssignmentId) でも rowType が異なれば別行なので、
         // 「保存済み」判定は (sourceAssignmentId, rowType) のペアで行う。
+        // 削除済み (deletedAt != null) の行も usedAutoKeys に含めて auto 行の再生成を抑止する。
         const usedAutoKeys = new Set<string>();
+        // 削除済み行を rows に含めるかは admin/manager + ?includeDeleted=1 のときのみ
+        const includeDeleted = includeDeletedParam && !isPartnerViewer;
         let latestCompletedAt: Date | null = null;
         for (const row of saved) {
             const savedRowType: PartnerWorkVolumeRowType =
                 row.rowType === 'transport' ? 'transport' : 'work';
             if (row.sourceAssignmentId) {
+                // 削除済みでも auto 再生成抑止のため記録
                 usedAutoKeys.add(autoRowKey(row.sourceAssignmentId, savedRowType));
             }
+            // 削除済み行は通常モードでは rows に含めない（partner viewer も含めない）
+            if (row.deletedAt && !includeDeleted) continue;
             if (row.completedAt && (!latestCompletedAt || row.completedAt > latestCompletedAt)) {
                 latestCompletedAt = row.completedAt;
             }
@@ -383,17 +399,20 @@ export async function GET(req: NextRequest) {
                 notes: row.notes,
                 status: normalizeStatus(row.status),
                 isAuto: !!row.sourceAssignmentId,
+                deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
             });
         }
-        // まだ保存されていない自動行
+        // まだ保存されていない自動行（削除済みで usedAutoKeys に登録された分は除外される）
         for (const [key, row] of autoRows) {
             if (usedAutoKeys.has(key)) continue;
             merged.push(row);
         }
 
-        // 月の自動公開判定: 行数 > 0 かつ全行 completed
-        const totalRows = merged.length;
-        const completedCount = merged.filter((r) => r.status === 'completed').length;
+        // 月の自動公開判定: 削除済み行を除外した「有効行」が 1 件以上あり、全て completed のときだけ 'completed'
+        // includeDeleted=1 のときも monthStatus は有効行ベースで計算する。
+        const activeRows = merged.filter((r) => !r.deletedAt);
+        const totalRows = activeRows.length;
+        const completedCount = activeRows.filter((r) => r.status === 'completed').length;
         const monthStatus: PartnerWorkVolumeRowStatus =
             totalRows > 0 && completedCount === totalRows ? 'completed' : 'draft';
 
@@ -482,6 +501,13 @@ interface UpsertBody {
     sortOrder?: number;
     notes?: string | null;
     status?: PartnerWorkVolumeRowStatus;
+    /**
+     * 論理削除 / 復元の明示指定。
+     * - true  → 墓標化（deletedAt=now, deletedBy=自分）。未保存 auto 行の tombstone 化にも使う。
+     * - false → 復元（deletedAt=null, deletedBy=null）。
+     * - undefined → 削除フィールドに触れない（既存の編集挙動を維持）。
+     */
+    deleted?: boolean;
 }
 
 /**
@@ -492,6 +518,7 @@ interface UpsertBody {
  * - どちらもない場合 → 新規作成（手動行）
  *
  * status を含めると、completedAt/completedBy も併せて更新される。
+ * deleted を含めると deletedAt/deletedBy も併せて更新される（true=削除 / false=復元）。
  */
 export async function POST(req: NextRequest) {
     try {
@@ -519,6 +546,13 @@ export async function POST(req: NextRequest) {
                   completedBy: normalizeStatus(body.status) === 'completed' ? userId : null,
               }
             : {};
+        // deleted: true → 墓標化 / false → 復元 / undefined → 触らない
+        const deletedUpdate = body.deleted !== undefined
+            ? {
+                  deletedAt: body.deleted ? now : null,
+                  deletedBy: body.deleted ? userId : null,
+              }
+            : {};
 
         const rowType: PartnerWorkVolumeRowType =
             body.rowType === 'transport' ? 'transport' : 'work';
@@ -537,6 +571,7 @@ export async function POST(req: NextRequest) {
             notes: body.notes?.trim() || null,
             updatedBy: userId,
             ...statusUpdate,
+            ...deletedUpdate,
         };
 
         let saved;

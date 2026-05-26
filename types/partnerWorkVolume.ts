@@ -25,6 +25,8 @@ export interface PartnerWorkVolumeRow {
     status: PartnerWorkVolumeRowStatus;
     /** 自動生成由来か（保存済みでも sourceAssignmentId があれば true） */
     isAuto: boolean;
+    /** 論理削除日時。null = 削除されていない。値あり = tombstone（GET 通常モードでは返らない） */
+    deletedAt: string | null;
 }
 
 export interface PartnerWorkVolumeResponse {

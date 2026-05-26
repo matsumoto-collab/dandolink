@@ -496,6 +496,11 @@ model PartnerWorkVolume {
   status              String    @default("draft")
   completedAt         DateTime?
   completedBy         String?
+  // 論理削除。自動行（sourceAssignmentId 由来）を「以降再表示しない」状態にするための墓標。
+  // deletedAt != null の行は GET の rows から除外される一方、usedAutoKeys に登録されるため
+  // 同じ (assignmentId, rowType) の auto 行が再生成されない。
+  deletedAt           DateTime?
+  deletedBy           String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   updatedBy           String?
@@ -504,6 +509,7 @@ model PartnerWorkVolume {
   @@index([partnerCompanyId, date])
   @@index([date])
   @@index([partnerCompanyId, status])
+  @@index([partnerCompanyId, date, deletedAt])
   @@schema("public")
 }
 

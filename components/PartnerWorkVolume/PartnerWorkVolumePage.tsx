@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Plus, FileDown, Loader2, Check, Lock, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, FileDown, Loader2, Check, Lock, Users, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import Loading from '@/components/ui/Loading';
@@ -77,6 +77,7 @@ export default function PartnerWorkVolumePage() {
     const [totalRows, setTotalRows] = useState(0);
     const [completedCount, setCompletedCount] = useState(0);
     const [managerFilter, setManagerFilter] = useState<string>(MANAGER_FILTER_ALL);
+    const [showDeleted, setShowDeleted] = useState<boolean>(false);
 
     // admin / manager: 協力会社一覧を取得
     useEffect(() => {
@@ -115,6 +116,7 @@ export default function PartnerWorkVolumePage() {
                 year: String(year),
                 month: String(month),
             });
+            if (showDeleted && isAdminOrManager) params.set('includeDeleted', '1');
             const res = await fetch(`/api/partner-work-volume?${params}`, { cache: 'no-store' });
             if (!res.ok) throw new Error(`status ${res.status}`);
             const data = (await res.json()) as PartnerWorkVolumeResponse;
@@ -130,7 +132,7 @@ export default function PartnerWorkVolumePage() {
         } finally {
             setLoading(false);
         }
-    }, [companyId, year, month]);
+    }, [companyId, year, month, showDeleted, isAdminOrManager]);
 
     useEffect(() => {
         fetchRows();
@@ -207,28 +209,106 @@ export default function PartnerWorkVolumePage() {
 
     const handleDelete = useCallback(
         async (row: PartnerWorkVolumeRow) => {
-            if (!row.id) {
-                // 未保存の自動生成行は単にローカルから除外（次回 fetch で復活する）
-                return;
-            }
-            if (!window.confirm('この行を削除してよろしいですか？')) return;
+            const isAutoRow = !!row.sourceAssignmentId;
+            const confirmMsg = isAutoRow
+                ? 'この行を削除します。以降この月で再表示されません（「削除済みを表示」から復元可能）。よろしいですか？'
+                : 'この行を削除してよろしいですか？';
+            if (!window.confirm(confirmMsg)) return;
             const key = rowKey(row);
             setSavingRowKey(key);
             try {
-                const res = await fetch(`/api/partner-work-volume/${row.id}`, {
-                    method: 'DELETE',
-                });
-                if (!res.ok) throw new Error(`status ${res.status}`);
+                if (row.id) {
+                    // 保存済み行: 行種別に応じて API 側で soft / hard を分岐
+                    const res = await fetch(`/api/partner-work-volume/${row.id}`, {
+                        method: 'DELETE',
+                    });
+                    if (!res.ok) {
+                        const text = await res.text().catch(() => '');
+                        throw new Error(text || `status ${res.status}`);
+                    }
+                } else if (isAutoRow) {
+                    // 未保存の auto 行: POST で tombstone を作成（deleted:true）
+                    const body = {
+                        partnerCompanyId: companyId,
+                        date: row.date,
+                        customerName: row.customerName,
+                        projectMasterId: row.projectMasterId,
+                        projectTitle: row.projectTitle,
+                        managerName: row.managerName,
+                        constructionContent: row.constructionContent,
+                        amount: row.amount,
+                        sourceAssignmentId: row.sourceAssignmentId,
+                        rowType: row.rowType,
+                        isManual: false,
+                        sortOrder: row.sortOrder,
+                        notes: row.notes,
+                        deleted: true,
+                    };
+                    const res = await fetch('/api/partner-work-volume', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    });
+                    if (!res.ok) {
+                        const text = await res.text().catch(() => '');
+                        throw new Error(text || `status ${res.status}`);
+                    }
+                } else {
+                    // 未保存の手動行は理論上存在しないが、ガードとして何もしない
+                    return;
+                }
                 toast.success('削除しました');
                 fetchRows();
             } catch (e) {
                 logger.error('出来高削除失敗:', e);
-                toast.error('削除に失敗しました');
+                const msg = e instanceof Error && e.message ? e.message : '削除に失敗しました';
+                toast.error(msg);
             } finally {
                 setSavingRowKey(null);
             }
         },
-        [fetchRows]
+        [companyId, fetchRows]
+    );
+
+    const handleRestore = useCallback(
+        async (row: PartnerWorkVolumeRow) => {
+            if (!row.id) return;
+            const key = rowKey(row);
+            setSavingRowKey(key);
+            try {
+                const body = {
+                    id: row.id,
+                    partnerCompanyId: companyId,
+                    date: row.date,
+                    customerName: row.customerName,
+                    projectMasterId: row.projectMasterId,
+                    projectTitle: row.projectTitle,
+                    managerName: row.managerName,
+                    constructionContent: row.constructionContent,
+                    amount: row.amount,
+                    sourceAssignmentId: row.sourceAssignmentId,
+                    rowType: row.rowType,
+                    isManual: row.isManual,
+                    sortOrder: row.sortOrder,
+                    notes: row.notes,
+                    deleted: false,
+                };
+                const res = await fetch('/api/partner-work-volume', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                if (!res.ok) throw new Error(`status ${res.status}`);
+                toast.success('復元しました');
+                fetchRows();
+            } catch (e) {
+                logger.error('出来高復元失敗:', e);
+                toast.error('復元に失敗しました');
+            } finally {
+                setSavingRowKey(null);
+            }
+        },
+        [companyId, fetchRows]
     );
 
     const createManualRow = useCallback(
@@ -352,7 +432,9 @@ export default function PartnerWorkVolumePage() {
     );
 
     const handleExportPdf = useCallback(async () => {
-        if (rows.length === 0) {
+        // PDF 出力からは削除済み行を除外
+        const exportRows = rows.filter((r) => !r.deletedAt);
+        if (exportRows.length === 0) {
             toast.error('出力する出来高がありません');
             return;
         }
@@ -362,7 +444,7 @@ export default function PartnerWorkVolumePage() {
                 partnerCompanyName: companyName || '(協力会社)',
                 year,
                 month,
-                rows: rows.map((r) => ({
+                rows: exportRows.map((r) => ({
                     date: r.date,
                     customerName: r.customerName,
                     projectTitle: r.projectTitle,
@@ -518,6 +600,21 @@ export default function PartnerWorkVolumePage() {
                             </select>
                         </div>
                     )}
+                    {isAdminOrManager && companyId && (
+                        <button
+                            type="button"
+                            onClick={() => setShowDeleted((v) => !v)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-sm shadow-sm transition ${
+                                showDeleted
+                                    ? 'bg-slate-700 text-white border-slate-700 hover:bg-slate-800'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                            title={showDeleted ? '削除済みを非表示にする' : '削除済みを表示する'}
+                        >
+                            {showDeleted ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                            削除済み{showDeleted ? '表示中' : 'を表示'}
+                        </button>
+                    )}
                 </div>
                 {isAdminOrManager && companyId && (
                     <div className="flex items-center gap-2 text-xs">
@@ -563,6 +660,7 @@ export default function PartnerWorkVolumePage() {
                         savingRowKey={savingRowKey}
                         onSave={handleSave}
                         onDelete={handleDelete}
+                        onRestore={handleRestore}
                         onInsert={handleInsert}
                         onToggleStatus={handleToggleStatus}
                     />
