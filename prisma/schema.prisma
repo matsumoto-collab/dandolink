@@ -501,6 +501,10 @@ model PartnerWorkVolume {
   // 同じ (assignmentId, rowType) の auto 行が再生成されない。
   deletedAt           DateTime?
   deletedBy           String?
+  // amount をユーザーが明示的に設定したか。true のとき GET の amount=0 自動再算出をスキップする。
+  // 既存挙動を壊さないため default=false（amount=0 のまま「完了」されただけのケースは従来通り
+  // 案件マスタの協力業者費から再算出される）。
+  amountOverridden    Boolean   @default(false)
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   updatedBy           String?

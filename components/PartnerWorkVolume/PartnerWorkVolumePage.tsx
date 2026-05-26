@@ -161,6 +161,9 @@ export default function PartnerWorkVolumePage() {
             setSavingRowKey(key);
             try {
                 const merged: PartnerWorkVolumeRow = { ...row, ...patch };
+                // 金額セルが直接編集された場合だけ amountOverridden=true を立てる。
+                // これにより GET 側で amount=0 でも案件マスタからの再算出をスキップする。
+                const isAmountEdit = Object.prototype.hasOwnProperty.call(patch, 'amount');
                 const body = {
                     id: merged.id,
                     partnerCompanyId: companyId,
@@ -176,6 +179,7 @@ export default function PartnerWorkVolumePage() {
                     isManual: merged.isManual,
                     sortOrder: merged.sortOrder,
                     notes: merged.notes,
+                    ...(isAmountEdit ? { amountOverridden: true } : {}),
                 };
                 const res = await fetch('/api/partner-work-volume', {
                     method: 'POST',

@@ -27,6 +27,8 @@ export interface PartnerWorkVolumeRow {
     isAuto: boolean;
     /** 論理削除日時。null = 削除されていない。値あり = tombstone（GET 通常モードでは返らない） */
     deletedAt: string | null;
+    /** ユーザーが明示的に amount を入力したか。true のとき amount=0 でも案件マスタから再算出されない */
+    amountOverridden: boolean;
 }
 
 export interface PartnerWorkVolumeResponse {

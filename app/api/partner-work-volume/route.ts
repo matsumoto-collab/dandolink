@@ -37,6 +37,8 @@ export interface PartnerWorkVolumeRow {
     isAuto: boolean;
     /** 論理削除日時。null = 削除されていない。値あり = tombstone（GET 通常モードでは返らない） */
     deletedAt: string | null;
+    /** ユーザーが明示的に amount を入力したか。true のとき amount=0 でも案件マスタから再算出されない */
+    amountOverridden: boolean;
 }
 
 function parseYearMonth(year: string | null, month: string | null): { start: Date; end: Date } | null {
@@ -303,6 +305,7 @@ export async function GET(req: NextRequest) {
                 status: 'draft',
                 isAuto: true,
                 deletedAt: null,
+                amountOverridden: false,
             });
 
             // 運搬費の行（運搬費が設定されている場合のみ生成）
@@ -326,6 +329,7 @@ export async function GET(req: NextRequest) {
                     status: 'draft',
                     isAuto: true,
                     deletedAt: null,
+                    amountOverridden: false,
                 });
             }
         }
@@ -363,9 +367,10 @@ export async function GET(req: NextRequest) {
             // 案件マスタの「協力業者費（予定）」を変更したケース。
             // 再算出は必ず amount=0 の場合のみ行うため、ユーザーが画面で明示的に入力した
             // 金額（>0）は上書きしない。
+            // ユーザーが意図的に 0 を入力したケース（amountOverridden=true）も再算出しない。
             // subcontractorCostOverride は『作業費の行』だけに適用する（運搬費は別建て）。
             let effectiveAmount = row.amount;
-            if (effectiveAmount === 0 && row.sourceAssignmentId) {
+            if (effectiveAmount === 0 && row.sourceAssignmentId && !row.amountOverridden) {
                 const sourceAssignment = assignments.find((x) => x.id === row.sourceAssignmentId);
                 if (sourceAssignment) {
                     if (
@@ -400,6 +405,7 @@ export async function GET(req: NextRequest) {
                 status: normalizeStatus(row.status),
                 isAuto: !!row.sourceAssignmentId,
                 deletedAt: row.deletedAt ? row.deletedAt.toISOString() : null,
+                amountOverridden: row.amountOverridden,
             });
         }
         // まだ保存されていない自動行（削除済みで usedAutoKeys に登録された分は除外される）
@@ -508,6 +514,13 @@ interface UpsertBody {
      * - undefined → 削除フィールドに触れない（既存の編集挙動を維持）。
      */
     deleted?: boolean;
+    /**
+     * ユーザーが amount を明示的に変更したか。
+     * - true  → amount フィールドが画面で直接編集された（amountOverridden=true をセット）。
+     * - undefined → amount フィールドに触れていない（amountOverridden を変更しない）。
+     * クライアントは「金額セルを編集した保存」のときだけ true を渡す。完了トグル等では渡さない。
+     */
+    amountOverridden?: boolean;
 }
 
 /**
@@ -553,6 +566,10 @@ export async function POST(req: NextRequest) {
                   deletedBy: body.deleted ? userId : null,
               }
             : {};
+        // amountOverridden: true → ユーザーが金額セルを明示編集した / undefined → 触らない
+        const amountOverriddenUpdate = body.amountOverridden === true
+            ? { amountOverridden: true }
+            : {};
 
         const rowType: PartnerWorkVolumeRowType =
             body.rowType === 'transport' ? 'transport' : 'work';
@@ -572,6 +589,7 @@ export async function POST(req: NextRequest) {
             updatedBy: userId,
             ...statusUpdate,
             ...deletedUpdate,
+            ...amountOverriddenUpdate,
         };
 
         let saved;
