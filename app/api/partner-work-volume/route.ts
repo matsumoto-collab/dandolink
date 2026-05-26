@@ -171,8 +171,10 @@ export async function GET(req: NextRequest) {
         });
         const managerMap = new Map(managerUsers.map((u) => [u.id, u.displayName]));
 
+        // 工事種別マスタは isActive=false（非表示済み）も含めて id→name を引けるようにする。
+        // 同名で別UUIDの行が混在しているケース（重複マスタ）や、案件マスタの協力業者費が
+        // 非アクティブな種別UUIDで保存されているケースでも、名称ベースで照合できるようにするため。
         const constructionTypes = await prisma.constructionType.findMany({
-            where: { isActive: true },
             select: { id: true, name: true },
         });
         const constructionTypeMap = new Map(constructionTypes.map((c) => [c.id, c.name]));
@@ -183,6 +185,49 @@ export async function GET(req: NextRequest) {
             const confirmed = parseJsonField<string[]>(a.confirmedWorkerIds, []);
             return confirmed.some((id) => memberIds.has(id));
         });
+
+        // 案件マスタ単位で「工事種別ID → 金額」と「工事種別名 → 金額」の両方のマップを作る
+        // フォールバック照合用。UUIDが一致しない場合に種別名（"内部足場解体" など）で再度マッチさせる。
+        // relevantAssignments だけでなく、当月の全配置の案件マスタを対象にしておく
+        // （保存済み行の再算出時、その配置が relevantAssignments から外れていても引けるように）。
+        const subcontractorAmountByPm = new Map<string, {
+            byId: Map<string, number>;
+            byName: Map<string, number>;
+        }>();
+        for (const a of assignments) {
+            const pm = a.projectMaster;
+            if (subcontractorAmountByPm.has(pm.id)) continue;
+            const byId = new Map<string, number>();
+            const byName = new Map<string, number>();
+            for (const c of pm.subcontractorCosts) {
+                const amt = Math.round(Number(c.amount));
+                byId.set(c.constructionTypeId, amt);
+                const name = constructionTypeMap.get(c.constructionTypeId);
+                // 同名の重複行があれば最初に出てきた方を採用（sortOrder で読み込み済み）
+                if (name && !byName.has(name)) byName.set(name, amt);
+            }
+            subcontractorAmountByPm.set(pm.id, { byId, byName });
+        }
+
+        // 配置（assignment）から自動算出される金額を返すヘルパー。
+        // a.constructionType が UUID → byId で照合、ヒットしなければ名称で再照合（マスタ重複/レガシー対策）。
+        // ※ subcontractorCostOverride は呼び出し元で処理する。
+        const autoSubcontractorAmount = (
+            pmId: string,
+            constructionType: string | null,
+        ): number => {
+            if (!constructionType) return 0;
+            const maps = subcontractorAmountByPm.get(pmId);
+            if (!maps) return 0;
+            const byId = maps.byId.get(constructionType);
+            if (byId != null) return byId;
+            const name = constructionTypeMap.get(constructionType);
+            if (name) {
+                const byName = maps.byName.get(name);
+                if (byName != null) return byName;
+            }
+            return 0;
+        };
 
         // 自動生成 auto row 候補
         const autoRows = new Map<string, PartnerWorkVolumeRow>();
@@ -202,11 +247,8 @@ export async function GET(req: NextRequest) {
             let amount = 0;
             if (a.subcontractorCostOverride != null) {
                 amount = a.subcontractorCostOverride;
-            } else if (a.constructionType) {
-                const sc = pm.subcontractorCosts.find(
-                    (c) => c.constructionTypeId === a.constructionType
-                );
-                if (sc) amount = Math.round(Number(sc.amount));
+            } else {
+                amount = autoSubcontractorAmount(pm.id, a.constructionType);
             }
             autoRows.set(a.id, {
                 id: null,
@@ -243,6 +285,25 @@ export async function GET(req: NextRequest) {
             if (row.completedAt && (!latestCompletedAt || row.completedAt > latestCompletedAt)) {
                 latestCompletedAt = row.completedAt;
             }
+            // 自動行（配置由来）で保存済み金額が 0 のときは、最新の配置・案件マスタから再算出する。
+            // 想定シナリオ: 配置自動行が amount=0 のまま保存（例: 完了操作）された後に
+            // 案件マスタの「協力業者費（予定）」へ新しい工事種別を追加したケース。
+            // 再算出は必ず amount=0 の場合のみ行うため、ユーザーが画面で明示的に入力した
+            // 金額（>0）は上書きしない。
+            let effectiveAmount = row.amount;
+            if (effectiveAmount === 0 && row.sourceAssignmentId) {
+                const sourceAssignment = assignments.find((x) => x.id === row.sourceAssignmentId);
+                if (sourceAssignment) {
+                    if (sourceAssignment.subcontractorCostOverride != null) {
+                        effectiveAmount = sourceAssignment.subcontractorCostOverride;
+                    } else {
+                        effectiveAmount = autoSubcontractorAmount(
+                            sourceAssignment.projectMaster.id,
+                            sourceAssignment.constructionType,
+                        );
+                    }
+                }
+            }
             merged.push({
                 id: row.id,
                 partnerCompanyId: row.partnerCompanyId,
@@ -252,7 +313,7 @@ export async function GET(req: NextRequest) {
                 projectTitle: row.projectTitle,
                 managerName: row.managerName,
                 constructionContent: row.constructionContent,
-                amount: row.amount,
+                amount: effectiveAmount,
                 sourceAssignmentId: row.sourceAssignmentId,
                 isManual: row.isManual,
                 sortOrder: row.sortOrder,
