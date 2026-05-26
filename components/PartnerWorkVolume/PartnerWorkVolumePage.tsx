@@ -12,6 +12,7 @@ import type {
     PartnerWorkVolumeResponse,
     PartnerCompanyOption,
     PartnerWorkVolumeMonthStatus,
+    PartnerTaxMode,
 } from '@/types/partnerWorkVolume';
 import PartnerWorkVolumeTable from './PartnerWorkVolumeTable';
 import { exportPartnerWorkVolumePDF } from '@/utils/partnerWorkVolumePdf';
@@ -68,6 +69,7 @@ export default function PartnerWorkVolumePage() {
     });
     const [companies, setCompanies] = useState<PartnerCompanyOption[]>([]);
     const [companyName, setCompanyName] = useState<string>('');
+    const [taxMode, setTaxMode] = useState<PartnerTaxMode>('exclusive');
     const [rows, setRows] = useState<PartnerWorkVolumeRow[]>([]);
     const [loading, setLoading] = useState(false);
     const [savingRowKey, setSavingRowKey] = useState<string | null>(null);
@@ -122,6 +124,7 @@ export default function PartnerWorkVolumePage() {
             const data = (await res.json()) as PartnerWorkVolumeResponse;
             setRows(data.rows);
             setCompanyName(data.partnerCompany.displayName);
+            setTaxMode(data.partnerCompany.taxMode ?? 'exclusive');
             setMonthStatus(data.monthStatus ?? 'draft');
             setCompletedAt(data.completedAt ?? null);
             setTotalRows(data.totalRows ?? data.rows.length);
@@ -448,6 +451,7 @@ export default function PartnerWorkVolumePage() {
                 partnerCompanyName: companyName || '(協力会社)',
                 year,
                 month,
+                taxMode,
                 rows: exportRows.map((r) => ({
                     date: r.date,
                     customerName: r.customerName,
@@ -582,8 +586,18 @@ export default function PartnerWorkVolumePage() {
             <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-3 flex-wrap">
                     {companyName && (
-                        <div className="text-sm text-slate-600">
-                            対象: <span className="font-semibold text-slate-800">{companyName}</span>
+                        <div className="text-sm text-slate-600 inline-flex items-center gap-2">
+                            <span>対象: <span className="font-semibold text-slate-800">{companyName}</span></span>
+                            <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    taxMode === 'inclusive'
+                                        ? 'bg-indigo-100 text-indigo-700'
+                                        : 'bg-slate-100 text-slate-600'
+                                }`}
+                                title={taxMode === 'inclusive' ? '消費税込みで請求する協力会社' : '消費税別で請求する協力会社'}
+                            >
+                                {taxMode === 'inclusive' ? '税込' : '税別'}
+                            </span>
                         </div>
                     )}
                     {isAdminOrManager && companyId && rows.length > 0 && (
@@ -677,6 +691,7 @@ export default function PartnerWorkVolumePage() {
                             rows={displayedRows}
                             readOnly={isPartner}
                             savingRowKey={savingRowKey}
+                            taxMode={taxMode}
                             onSave={handleSave}
                             onDelete={handleDelete}
                             onRestore={handleRestore}

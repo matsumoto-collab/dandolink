@@ -125,11 +125,13 @@ export async function GET(req: NextRequest) {
 
         const partnerCompany = await prisma.user.findUnique({
             where: { id: partnerCompanyId },
-            select: { id: true, role: true, displayName: true },
+            select: { id: true, role: true, displayName: true, partnerTaxMode: true },
         });
         if (!partnerCompany || partnerCompany.role.toLowerCase() !== 'partner') {
             return errorResponse('協力会社が見つかりません', 404);
         }
+        const taxMode: 'exclusive' | 'inclusive' =
+            partnerCompany.partnerTaxMode === 'inclusive' ? 'inclusive' : 'exclusive';
 
         const isPartnerViewer = role === 'partner';
 
@@ -426,7 +428,7 @@ export async function GET(req: NextRequest) {
         if (isPartnerViewer && monthStatus !== 'completed') {
             return NextResponse.json(
                 {
-                    partnerCompany: { id: partnerCompany.id, displayName: partnerCompany.displayName },
+                    partnerCompany: { id: partnerCompany.id, displayName: partnerCompany.displayName, taxMode },
                     rows: [],
                     monthStatus,
                     completedAt: null,
@@ -474,7 +476,7 @@ export async function GET(req: NextRequest) {
 
         return NextResponse.json(
             {
-                partnerCompany: { id: partnerCompany.id, displayName: partnerCompany.displayName },
+                partnerCompany: { id: partnerCompany.id, displayName: partnerCompany.displayName, taxMode },
                 rows: merged,
                 monthStatus,
                 completedAt:

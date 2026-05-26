@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
         const users = await prisma.user.findMany({
             where: Object.keys(whereClause).length > 0 ? whereClause : undefined,
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, createdAt: true, updatedAt: true },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, partnerTaxMode: true, createdAt: true, updatedAt: true },
             orderBy: { createdAt: 'desc' },
         });
 
@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
                     dailyRate: user.dailyRate ? Number(user.dailyRate) : null,
                     companyId: user.companyId,
                     isLoginEnabled: user.isLoginEnabled,
+                    partnerTaxMode: user.partnerTaxMode,
                     createdAt: user.createdAt,
                     updatedAt: user.updatedAt,
                 };
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
             return validationErrorResponse(validation.error!, validation.details);
         }
 
-        const { username, email, displayName, password, role, assignedProjects, dailyRate, companyId, isLoginEnabled } = validation.data;
+        const { username, email, displayName, password, role, assignedProjects, dailyRate, companyId, isLoginEnabled, partnerTaxMode } = validation.data;
 
         const existingUser = await prisma.user.findUnique({ where: { username } });
         if (existingUser) return errorResponse('このユーザー名は既に使用されています', 400);
@@ -140,6 +141,7 @@ export async function POST(req: NextRequest) {
                 isActive: true,
                 companyId: companyId ?? null,
                 isLoginEnabled: loginEnabled,
+                ...(role === 'partner' && partnerTaxMode ? { partnerTaxMode } : {}),
             },
         });
 
@@ -150,6 +152,7 @@ export async function POST(req: NextRequest) {
             dailyRate: newUser.dailyRate ? Number(newUser.dailyRate) : null,
             companyId: newUser.companyId,
             isLoginEnabled: newUser.isLoginEnabled,
+            partnerTaxMode: newUser.partnerTaxMode,
             isActive: newUser.isActive, createdAt: newUser.createdAt, updatedAt: newUser.updatedAt,
         });
     } catch (error) {

@@ -2,6 +2,10 @@ export type PartnerWorkVolumeRowStatus = 'draft' | 'completed';
 export type PartnerWorkVolumeMonthStatus = 'draft' | 'completed';
 /** 行の費目区分。'work' = 作業費、'transport' = 運搬費。 */
 export type PartnerWorkVolumeRowType = 'work' | 'transport';
+/** 協力会社の請求税区分。'exclusive' = 税別請求、'inclusive' = 税込請求。 */
+export type PartnerTaxMode = 'exclusive' | 'inclusive';
+/** 消費税率（固定 10%）。税区分が inclusive のときフッターと PDF で消費税額の算出に使う。 */
+export const PARTNER_TAX_RATE = 0.1;
 
 export interface PartnerWorkVolumeRow {
     /** DB id（保存済み行のみ）。未保存の自動生成行は null */
@@ -35,6 +39,7 @@ export interface PartnerWorkVolumeResponse {
     partnerCompany: {
         id: string;
         displayName: string;
+        taxMode: PartnerTaxMode;
     };
     rows: PartnerWorkVolumeRow[];
     monthStatus: PartnerWorkVolumeMonthStatus;
@@ -46,4 +51,5 @@ export interface PartnerWorkVolumeResponse {
 export interface PartnerCompanyOption {
     id: string;
     displayName: string;
+    taxMode?: PartnerTaxMode;
 }

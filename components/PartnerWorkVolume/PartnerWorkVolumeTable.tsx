@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Trash2, Loader2, Plus, Check, Undo2, RotateCcw } from 'lucide-react';
-import type { PartnerWorkVolumeRow } from '@/types/partnerWorkVolume';
+import type { PartnerWorkVolumeRow, PartnerTaxMode } from '@/types/partnerWorkVolume';
+import { PARTNER_TAX_RATE } from '@/types/partnerWorkVolume';
 
 interface Props {
     rows: PartnerWorkVolumeRow[];
     readOnly: boolean;
     savingRowKey: string | null;
+    /** 協力会社の請求税区分。'inclusive' のときフッターを 小計/消費税/合計 の3行に拡張 */
+    taxMode: PartnerTaxMode;
     onSave: (row: PartnerWorkVolumeRow, patch: Partial<PartnerWorkVolumeRow>) => void;
     onDelete: (row: PartnerWorkVolumeRow) => void;
     /** 削除済み行の復元（onRestore が未指定なら復元 UI を出さない） */
@@ -43,16 +46,22 @@ export default function PartnerWorkVolumeTable({
     rows,
     readOnly,
     savingRowKey,
+    taxMode,
     onSave,
     onDelete,
     onRestore,
     onInsert,
     onToggleStatus,
 }: Props) {
-    // 合計は削除済み行を除外（表示している場合でも金額には含めない）
-    const total = rows
+    // 小計（税抜）は削除済み行を除外。金額セルは常に税抜の保存値を表示する。
+    const subtotal = rows
         .filter((r) => !r.deletedAt)
         .reduce((s, r) => s + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+    // 税込会社のみ消費税と税込合計を計算。マイナス入力（値引き）も比例配分するため
+    // 小計に税率を掛けて四捨五入する（行ごとに計算すると端数で合計が±1ずれることがある）。
+    const isInclusive = taxMode === 'inclusive';
+    const tax = isInclusive ? Math.round(subtotal * PARTNER_TAX_RATE) : 0;
+    const grandTotal = subtotal + tax;
     // 列数: 読み取り = 8 (status含む), 編集 = 10 (挿入/status/削除含む)
     const totalCols = readOnly ? 8 : 10;
 
@@ -257,17 +266,55 @@ export default function PartnerWorkVolumeTable({
                 </tbody>
                 {rows.length > 0 && (
                     <tfoot>
-                        <tr className="bg-slate-100 font-semibold">
-                            <td colSpan={readOnly ? 5 : 6} className={`${tdBase} text-right font-bold`}>
-                                合計
-                            </td>
-                            <td className={`${tdBase} text-right font-bold text-base tabular-nums`}>
-                                ¥{total.toLocaleString()}
-                            </td>
-                            <td className={tdBase} />
-                            <td className={tdBase} />
-                            {!readOnly && <td className={tdBase} />}
-                        </tr>
+                        {isInclusive ? (
+                            <>
+                                <tr className="bg-slate-50">
+                                    <td colSpan={readOnly ? 5 : 6} className={`${tdBase} text-right text-slate-600`}>
+                                        小計（税抜）
+                                    </td>
+                                    <td className={`${tdBase} text-right tabular-nums text-slate-700`}>
+                                        ¥{subtotal.toLocaleString()}
+                                    </td>
+                                    <td className={tdBase} />
+                                    <td className={tdBase} />
+                                    {!readOnly && <td className={tdBase} />}
+                                </tr>
+                                <tr className="bg-slate-50">
+                                    <td colSpan={readOnly ? 5 : 6} className={`${tdBase} text-right text-slate-600`}>
+                                        消費税（10%）
+                                    </td>
+                                    <td className={`${tdBase} text-right tabular-nums text-slate-700`}>
+                                        ¥{tax.toLocaleString()}
+                                    </td>
+                                    <td className={tdBase} />
+                                    <td className={tdBase} />
+                                    {!readOnly && <td className={tdBase} />}
+                                </tr>
+                                <tr className="bg-slate-100 font-semibold">
+                                    <td colSpan={readOnly ? 5 : 6} className={`${tdBase} text-right font-bold`}>
+                                        合計（税込）
+                                    </td>
+                                    <td className={`${tdBase} text-right font-bold text-base tabular-nums`}>
+                                        ¥{grandTotal.toLocaleString()}
+                                    </td>
+                                    <td className={tdBase} />
+                                    <td className={tdBase} />
+                                    {!readOnly && <td className={tdBase} />}
+                                </tr>
+                            </>
+                        ) : (
+                            <tr className="bg-slate-100 font-semibold">
+                                <td colSpan={readOnly ? 5 : 6} className={`${tdBase} text-right font-bold`}>
+                                    合計
+                                </td>
+                                <td className={`${tdBase} text-right font-bold text-base tabular-nums`}>
+                                    ¥{subtotal.toLocaleString()}
+                                </td>
+                                <td className={tdBase} />
+                                <td className={tdBase} />
+                                {!readOnly && <td className={tdBase} />}
+                            </tr>
+                        )}
                     </tfoot>
                 )}
             </table>

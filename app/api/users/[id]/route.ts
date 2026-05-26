@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
         const { id } = await context.params;
         const user = await prisma.user.findUnique({
             where: { id },
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, createdAt: true, updatedAt: true },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, partnerTaxMode: true, createdAt: true, updatedAt: true },
         });
 
         if (!user) return notFoundResponse('ユーザー');
@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         const validation = validateRequest(updateUserSchema, body);
         if (!validation.success) return validationErrorResponse(validation.error!, validation.details);
 
-        const { email, displayName, password, role, assignedProjects, isActive, dailyRate, companyId, isLoginEnabled } = validation.data;
+        const { email, displayName, password, role, assignedProjects, isActive, dailyRate, companyId, isLoginEnabled, partnerTaxMode } = validation.data;
 
         // role / companyId 変更時の親role検証
         if (role === 'partner_member' || companyId !== undefined) {
@@ -69,12 +69,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (dailyRate !== undefined) updateData.dailyRate = dailyRate;
         if (companyId !== undefined) updateData.companyId = companyId;
         if (isLoginEnabled !== undefined) updateData.isLoginEnabled = isLoginEnabled;
+        if (partnerTaxMode !== undefined) updateData.partnerTaxMode = partnerTaxMode;
         if (password) updateData.passwordHash = await bcrypt.hash(password, 10);
 
         const updatedUser = await prisma.user.update({
             where: { id },
             data: updateData,
-            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, createdAt: true, updatedAt: true },
+            select: { id: true, username: true, email: true, displayName: true, role: true, assignedProjects: true, isActive: true, dailyRate: true, companyId: true, isLoginEnabled: true, partnerTaxMode: true, createdAt: true, updatedAt: true },
         });
         return NextResponse.json(formatUser(updatedUser));
     } catch (error) {

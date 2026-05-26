@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { PARTNER_TAX_RATE, type PartnerTaxMode } from '@/types/partnerWorkVolume';
 
 export interface PartnerWorkVolumePdfRow {
     date: string; // YYYY-MM-DD
@@ -18,6 +19,8 @@ export interface PartnerWorkVolumePDFProps {
     year: number;
     month: number;
     rows: PartnerWorkVolumePdfRow[];
+    /** 'inclusive' のとき下部に「小計/消費税/合計」を表示し、ヘッダー合計欄も税込で表示する */
+    taxMode?: PartnerTaxMode;
 }
 
 const formatYen = (n: number): string => {
@@ -118,6 +121,38 @@ const styles = StyleSheet.create({
         borderTopColor: '#000000',
         minHeight: 20,
     },
+    subTotalRow: {
+        flexDirection: 'row',
+        backgroundColor: '#f7f7f7',
+        borderTopWidth: 0.5,
+        borderTopColor: '#9ca3af',
+        minHeight: 17,
+    },
+    subTotalLabel: {
+        fontSize: 8.5,
+        textAlign: 'right',
+        width: '100%',
+        paddingRight: 4,
+        color: '#374151',
+    },
+    subTotalAmount: {
+        fontSize: 9,
+        textAlign: 'right',
+        width: '100%',
+        paddingRight: 4,
+        color: '#374151',
+    },
+    taxBadge: {
+        borderWidth: 0.5,
+        borderColor: '#4338ca',
+        backgroundColor: '#eef2ff',
+        color: '#4338ca',
+        fontSize: 7,
+        paddingVertical: 1,
+        paddingHorizontal: 4,
+        marginLeft: 4,
+        borderRadius: 2,
+    },
     cell: {
         paddingVertical: 2,
         paddingHorizontal: 3,
@@ -178,10 +213,14 @@ interface PageContentProps {
     rows: PartnerWorkVolumePdfRow[];
     startIndex: number;
     isLastPage: boolean;
-    totalAmount: number;
+    isInclusive: boolean;
+    subtotalAmount: number;
+    taxAmount: number;
+    grandTotalAmount: number;
 }
 
-function TableContent({ rows, startIndex, isLastPage, totalAmount }: PageContentProps) {
+function TableContent({ rows, startIndex, isLastPage, isInclusive, subtotalAmount, taxAmount, grandTotalAmount }: PageContentProps) {
+    const labelColWidth = COL.no + COL.date + COL.customer + COL.project + COL.manager + COL.content;
     return (
         <View style={styles.container}>
             <View style={styles.headerRow}>
@@ -244,13 +283,39 @@ function TableContent({ rows, startIndex, isLastPage, totalAmount }: PageContent
                 );
             })}
 
+            {isLastPage && isInclusive && (
+                <>
+                    <View style={styles.subTotalRow} wrap={false}>
+                        <View style={[styles.cell, styles.cellRight, { width: labelColWidth }]}>
+                            <Text style={styles.subTotalLabel}>小計（税抜）</Text>
+                        </View>
+                        <View style={[styles.cell, styles.cellRight, { width: COL.amount, paddingRight: 6 }]}>
+                            <Text style={styles.subTotalAmount}>{formatYen(subtotalAmount)}</Text>
+                        </View>
+                        <View style={[styles.cellLast, { width: COL.notes }]}>
+                            <Text />
+                        </View>
+                    </View>
+                    <View style={styles.subTotalRow} wrap={false}>
+                        <View style={[styles.cell, styles.cellRight, { width: labelColWidth }]}>
+                            <Text style={styles.subTotalLabel}>消費税（10%）</Text>
+                        </View>
+                        <View style={[styles.cell, styles.cellRight, { width: COL.amount, paddingRight: 6 }]}>
+                            <Text style={styles.subTotalAmount}>{formatYen(taxAmount)}</Text>
+                        </View>
+                        <View style={[styles.cellLast, { width: COL.notes }]}>
+                            <Text />
+                        </View>
+                    </View>
+                </>
+            )}
             {isLastPage && (
                 <View style={styles.totalRow} wrap={false}>
-                    <View style={[styles.cell, styles.cellRight, { width: COL.no + COL.date + COL.customer + COL.project + COL.manager + COL.content }]}>
-                        <Text style={styles.totalLabel}>合計</Text>
+                    <View style={[styles.cell, styles.cellRight, { width: labelColWidth }]}>
+                        <Text style={styles.totalLabel}>{isInclusive ? '合計（税込）' : '合計'}</Text>
                     </View>
                     <View style={[styles.cell, styles.cellRight, { width: COL.amount, paddingRight: 6 }]}>
-                        <Text style={styles.totalAmount}>{formatYen(totalAmount)}</Text>
+                        <Text style={styles.totalAmount}>{formatYen(grandTotalAmount)}</Text>
                     </View>
                     <View style={[styles.cellLast, { width: COL.notes }]}>
                         <Text />
@@ -261,8 +326,12 @@ function TableContent({ rows, startIndex, isLastPage, totalAmount }: PageContent
     );
 }
 
-export function PartnerWorkVolumePDF({ partnerCompanyName, year, month, rows }: PartnerWorkVolumePDFProps) {
-    const totalAmount = rows.reduce((s, r) => s + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+export function PartnerWorkVolumePDF({ partnerCompanyName, year, month, rows, taxMode = 'exclusive' }: PartnerWorkVolumePDFProps) {
+    const subtotalAmount = rows.reduce((s, r) => s + (Number.isFinite(r.amount) ? r.amount : 0), 0);
+    const isInclusive = taxMode === 'inclusive';
+    // 税額は小計に税率を掛けて丸める（行ごと計算だと端数で合計が±1ずれることがある）。
+    const taxAmount = isInclusive ? Math.round(subtotalAmount * PARTNER_TAX_RATE) : 0;
+    const grandTotalAmount = subtotalAmount + taxAmount;
     const count = rows.length;
 
     const pages: PartnerWorkVolumePdfRow[][] = [];
@@ -282,7 +351,10 @@ export function PartnerWorkVolumePDF({ partnerCompanyName, year, month, rows }: 
                     <Page key={pageIdx} size="A4" orientation="portrait" style={styles.page}>
                         <View style={styles.header}>
                             <View style={styles.headerLeft}>
-                                <Text style={styles.docTitle}>出来高表</Text>
+                                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    <Text style={styles.docTitle}>出来高表</Text>
+                                    {isInclusive && <Text style={styles.taxBadge}>税込</Text>}
+                                </View>
                                 <Text style={styles.docSubtitle}>{subtitle}</Text>
                             </View>
                             <View style={styles.headerRight}>
@@ -291,8 +363,8 @@ export function PartnerWorkVolumePDF({ partnerCompanyName, year, month, rows }: 
                                     <Text style={styles.summaryValue}>{count} 件</Text>
                                 </View>
                                 <View style={styles.summaryBox}>
-                                    <Text style={styles.summaryLabel}>合計金額</Text>
-                                    <Text style={styles.summaryValue}>¥{totalAmount.toLocaleString()}</Text>
+                                    <Text style={styles.summaryLabel}>{isInclusive ? '合計金額（税込）' : '合計金額'}</Text>
+                                    <Text style={styles.summaryValue}>¥{grandTotalAmount.toLocaleString()}</Text>
                                 </View>
                             </View>
                         </View>
@@ -307,7 +379,10 @@ export function PartnerWorkVolumePDF({ partnerCompanyName, year, month, rows }: 
                             rows={pageRows}
                             startIndex={startIndex}
                             isLastPage={isLastPage}
-                            totalAmount={totalAmount}
+                            isInclusive={isInclusive}
+                            subtotalAmount={subtotalAmount}
+                            taxAmount={taxAmount}
+                            grandTotalAmount={grandTotalAmount}
                         />
                     </Page>
                 );

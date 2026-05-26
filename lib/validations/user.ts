@@ -3,6 +3,8 @@ import { emailSchema, passwordSchema } from './common';
 
 export const userRoleSchema = z.enum(['admin', 'manager', 'foreman1', 'foreman2', 'worker', 'partner', 'partner_member', 'support']);
 
+export const partnerTaxModeSchema = z.enum(['exclusive', 'inclusive']);
+
 const partnerMemberCompanyIdRefinement = {
     check: (data: { role?: string; companyId?: string | null }) =>
         data.role !== 'partner_member' || !!data.companyId,
@@ -27,6 +29,7 @@ export const createUserSchema = z.object({
     dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
     companyId: z.string().optional().nullable(),
     isLoginEnabled: z.boolean().optional(),
+    partnerTaxMode: partnerTaxModeSchema.optional(),
 }).refine(partnerMemberCompanyIdRefinement.check, {
     message: partnerMemberCompanyIdRefinement.message,
     path: [...partnerMemberCompanyIdRefinement.path],
@@ -55,6 +58,7 @@ export const updateUserSchema = z.object({
     dailyRate: z.number().min(0, '日給は0以上で入力してください').optional().nullable(),
     companyId: z.string().optional().nullable(),
     isLoginEnabled: z.boolean().optional(),
+    partnerTaxMode: partnerTaxModeSchema.optional(),
 }).refine(partnerMemberCompanyIdRefinement.check, {
     message: partnerMemberCompanyIdRefinement.message,
     path: [...partnerMemberCompanyIdRefinement.path],

@@ -1,5 +1,7 @@
 export type UserRole = 'admin' | 'manager' | 'foreman1' | 'foreman2' | 'worker' | 'partner' | 'partner_member' | 'support';
 
+export type PartnerTaxMode = 'exclusive' | 'inclusive';
+
 export interface Permission {
     resource: string;
     actions: ('view' | 'create' | 'edit' | 'delete')[];
@@ -16,6 +18,8 @@ export interface User {
     isActive: boolean;
     companyId?: string | null;
     isLoginEnabled?: boolean;
+    /** role='partner' のときの請求税区分（税別/税込）。他ロールでは未使用 */
+    partnerTaxMode?: PartnerTaxMode;
     createdAt?: Date;
     updatedAt?: Date;
 }

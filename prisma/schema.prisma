@@ -29,6 +29,9 @@ model User {
   isLoginEnabled          Boolean  @default(true)
   failedLoginCount        Int      @default(0)
   lockedUntil             DateTime?
+  // role='PARTNER' のときに利用。'exclusive' = 税別請求、'inclusive' = 税込請求。
+  // 出来高表のフッター計算と PDF 表示の分岐に使う。
+  partnerTaxMode          String   @default("exclusive")
   company                 User?    @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
   members                 User[]   @relation("CompanyMembers")
 

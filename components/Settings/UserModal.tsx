@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { X } from 'lucide-react';
 import { ButtonLoading } from '@/components/ui/Loading';
-import { User, UserRole } from '@/types/user';
+import { User, UserRole, PartnerTaxMode } from '@/types/user';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 
 interface UserModalProps {
@@ -25,6 +25,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
         isActive: true,
         assignedProjects: [] as string[],
         dailyRate: '' as string | number,
+        partnerTaxMode: 'exclusive' as PartnerTaxMode,
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -41,6 +42,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 isActive: user.isActive,
                 assignedProjects: user.assignedProjects || [],
                 dailyRate: user.dailyRate != null ? user.dailyRate : '',
+                partnerTaxMode: user.partnerTaxMode ?? 'exclusive',
             });
         } else {
             setFormData({
@@ -52,6 +54,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                 isActive: true,
                 assignedProjects: [],
                 dailyRate: '',
+                partnerTaxMode: 'exclusive',
             });
         }
         setError('');
@@ -73,6 +76,11 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
 
             if (isAdminOrManager) {
                 dataToSave.dailyRate = formData.dailyRate !== '' ? Number(formData.dailyRate) : undefined;
+            }
+
+            // 協力会社のときだけ請求税区分を送る
+            if (formData.role === 'partner') {
+                dataToSave.partnerTaxMode = formData.partnerTaxMode;
             }
 
             if (formData.role === 'support') {
@@ -257,6 +265,27 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
                                     placeholder="例: 18000"
                                 />
+                            </div>
+                        )}
+
+                        {/* Partner tax mode - role=partner のときのみ */}
+                        {formData.role === 'partner' && (
+                            <div>
+                                <label htmlFor="partnerTaxMode" className="block text-sm font-medium text-slate-700 mb-2">
+                                    請求税区分
+                                </label>
+                                <select
+                                    id="partnerTaxMode"
+                                    value={formData.partnerTaxMode}
+                                    onChange={(e) => setFormData({ ...formData, partnerTaxMode: e.target.value as PartnerTaxMode })}
+                                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 focus:border-transparent"
+                                >
+                                    <option value="exclusive">税別（消費税は別途加算）</option>
+                                    <option value="inclusive">税込（消費税 10% を含めて表示）</option>
+                                </select>
+                                <p className="mt-1 text-xs text-slate-500">
+                                    出来高表のフッターと PDF で「小計／消費税／合計」の表示が切り替わります。
+                                </p>
                             </div>
                         )}
                     </div>
