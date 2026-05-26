@@ -63,7 +63,8 @@ function jstDateOnly(s: string): Date | null {
 function clampInt(value: unknown, max = 100_000_000): number {
     const n = Number(value ?? 0);
     if (!Number.isFinite(n)) return 0;
-    return Math.max(0, Math.min(max, Math.round(n)));
+    // マイナス入力（値引き・調整など）を許容するため [-max, max] でクランプする
+    return Math.max(-max, Math.min(max, Math.round(n)));
 }
 
 function clampSortOrder(value: unknown): number {
@@ -350,6 +351,31 @@ export async function GET(req: NextRequest) {
         }
 
         // 並び替え: 日付昇順 → sortOrder → 自動行を先に
+        merged.sort((a, b) => {
+            if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+            if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+            if (!!a.sourceAssignmentId !== !!b.sourceAssignmentId) {
+                return a.sourceAssignmentId ? -1 : 1;
+            }
+            return 0;
+        });
+
+        // 自動行 (配置由来) は元々 sortOrder=0 で生成されるため、同日に複数あると
+        // 全て同値となり、行間挿入 (上に追加/下に追加) で bisect ができず
+        // フォールバックでクラスタ末尾に追加されてしまう。
+        // ここで表示順を保ったまま、日付グループごとに自動行へ一意な sortOrder
+        // (0, 10, 20, ...) を割り振り、クライアントの挿入処理を機能させる。
+        // 通常の手動行は「行追加」が maxSort + 100 を使うため 100 以上、
+        // 「上に挿入」フォールバックが row - 100 を使うため負値か > 30 で衝突しにくい。
+        const autoSeqByDate = new Map<string, number>();
+        const AUTO_STEP = 10;
+        for (const r of merged) {
+            if (!r.sourceAssignmentId) continue;
+            const i = autoSeqByDate.get(r.date) ?? 0;
+            r.sortOrder = i * AUTO_STEP;
+            autoSeqByDate.set(r.date, i + 1);
+        }
+        // sortOrder が変わったので再ソート
         merged.sort((a, b) => {
             if (a.date !== b.date) return a.date < b.date ? -1 : 1;
             if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;

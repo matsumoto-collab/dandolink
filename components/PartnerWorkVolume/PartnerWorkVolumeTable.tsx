@@ -398,7 +398,9 @@ function AmountCell({
     const commit = () => {
         setEditing(false);
         const cleaned = draft.replace(/[^0-9-]/g, '');
-        const next = cleaned === '' ? 0 : Math.max(0, Math.floor(Number(cleaned)));
+        // マイナス入力（値引き・調整など）も許容するため、0 でクランプしない。
+        // Math.trunc で小数を 0 方向に丸める（-1.5 → -1）。
+        const next = cleaned === '' ? 0 : Math.trunc(Number(cleaned));
         if (!Number.isFinite(next)) {
             setDraft(value === 0 ? '' : String(value));
             return;
@@ -419,8 +421,8 @@ function AmountCell({
             >
                 {saving ? (
                     <Loader2 className="w-3 h-3 animate-spin text-slate-400 inline-block" />
-                ) : value > 0 ? (
-                    <span>{formatYen(value)}</span>
+                ) : value !== 0 && Number.isFinite(value) ? (
+                    <span className={value < 0 ? 'text-rose-600' : ''}>{formatYen(value)}</span>
                 ) : readOnly ? (
                     ''
                 ) : (
