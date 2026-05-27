@@ -17,6 +17,7 @@ import CustomerModal from '@/components/Customers/CustomerModal';
 import { CustomerInput } from '@/types/customer';
 import { useFinanceStore } from '@/stores/financeStore';
 import { ButtonLoading } from '@/components/ui/Loading';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
 
@@ -681,48 +682,51 @@ export default function ProjectForm({
 
                 </div>
 
-                {/* 工事種別（ラジオボタン） */}
+                {/* 工事種別（検索付きコンボボックス + 選択中プレビュー） */}
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                         工事種別 <span className="text-slate-500">*</span>
                     </label>
-                    <div className="flex flex-wrap gap-3 border border-slate-200 rounded-md p-4">
-                        {constructionTypes.length > 0 ? (
-                            constructionTypes.map((type) => {
-                                // 明るい背景色を生成（色に透明度を追加）
-                                const bgColor = `${type.color}30`;
-
+                    {constructionTypes.length > 0 ? (
+                        <div className="space-y-2">
+                            <SearchableSelect
+                                options={constructionTypes.map((t) => ({ id: t.id, label: t.name, color: t.color }))}
+                                value={formData.constructionType}
+                                onChange={(v) => {
+                                    setFormData({ ...formData, constructionType: v });
+                                    // 工事種別変更時にスケジュールをクリア
+                                    setMultiDaySchedules([]);
+                                }}
+                                placeholder="種別を選択（入力で絞り込み）"
+                                allowEmpty={false}
+                                size="md"
+                            />
+                            {/* 選択中の種別を従来の色付きピルで視覚確認 */}
+                            {(() => {
+                                const selected = constructionTypes.find((t) => t.id === formData.constructionType);
+                                if (!selected) return null;
                                 return (
-                                    <label key={type.id} className="flex items-center space-x-2 cursor-pointer">
-                                        <input
-                                            type="radio"
-                                            name="constructionType"
-                                            checked={formData.constructionType === type.id}
-                                            onChange={() => {
-                                                setFormData({ ...formData, constructionType: type.id });
-                                                // 工事種別変更時にスケジュールをクリア
-                                                setMultiDaySchedules([]);
-                                            }}
-                                            className="w-4 h-4 text-slate-600 border-slate-300 focus:ring-slate-500"
-                                        />
+                                    <div className="inline-flex items-center">
                                         <span
                                             className="text-sm font-medium px-3 py-1 rounded-full text-slate-900"
                                             style={{
-                                                backgroundColor: bgColor,
-                                                border: `2px solid ${type.color}`
+                                                backgroundColor: `${selected.color}30`,
+                                                border: `2px solid ${selected.color}`,
                                             }}
                                         >
-                                            {type.name}
+                                            {selected.name}
                                         </span>
-                                    </label>
+                                    </div>
                                 );
-                            })
-                        ) : (
+                            })()}
+                        </div>
+                    ) : (
+                        <div className="border border-slate-200 rounded-md p-4">
                             <p className="text-sm text-slate-500">
                                 設定の「工事種別」から種別を追加してください
                             </p>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* 工事内容 */}
