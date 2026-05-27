@@ -8,6 +8,7 @@ import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
 import { formatDate, getDayOfWeekString } from '@/utils/dateUtils';
 import { useVacation } from '@/hooks/useVacation';
 import { useCalendarStore } from '@/stores/calendarStore';
+import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import VacationSelector from './VacationSelector';
 import dynamic from 'next/dynamic';
 
@@ -94,6 +95,16 @@ export default function MobileCalendarView({
     const { getRemarks, setRemarks, getVacationEmployees: getVacEmp, addVacationEmployee, removeVacationEmployee } = useVacation();
     const { setCellRemark } = useCalendarStore();
     const cellRemarks = useCalendarStore(state => state.cellRemarks);
+
+    // ── 工事種別の名前解決（カード/アクションシート表示用） ──
+    const constructionTypes = useMasterStore(selectConstructionTypes);
+    const getConstructionTypeName = useCallback(
+        (id?: string | null): string | null => {
+            if (!id) return null;
+            return constructionTypes.find((t) => t.id === id)?.name ?? null;
+        },
+        [constructionTypes]
+    );
 
     // 備考編集
     const [editingRemark, setEditingRemark] = useState<string | null>(null);
@@ -700,6 +711,18 @@ export default function MobileCalendarView({
                                     {actionSheet.event.customer && (
                                         <div className="text-slate-500 text-base mt-0.5">{actionSheet.event.customer}</div>
                                     )}
+                                    {(() => {
+                                        const typeName = getConstructionTypeName(actionSheet.event.constructionType);
+                                        return typeName ? (
+                                            <div className="inline-flex items-center gap-1.5 mt-1">
+                                                <span
+                                                    className="w-2.5 h-2.5 rounded-sm border border-slate-300 flex-shrink-0"
+                                                    style={{ backgroundColor: actionSheet.event.color }}
+                                                />
+                                                <span className="text-slate-600 text-sm font-medium">{typeName}</span>
+                                            </div>
+                                        ) : null;
+                                    })()}
                                     <div className="flex items-center gap-3 mt-1 text-slate-500 text-xs">
                                         {(actionSheet.event.memberCount ?? 0) > 0 && (
                                             <span className="flex items-center gap-1">
