@@ -2,15 +2,67 @@
 
 import React, { useState, useEffect } from 'react';
 import { Trash2, Edit, Plus, Check, X, GripVertical } from 'lucide-react';
+import {
+    DndContext,
+    closestCenter,
+    PointerSensor,
+    TouchSensor,
+    KeyboardSensor,
+    useSensor,
+    useSensors,
+    type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+    SortableContext,
+    sortableKeyboardCoordinates,
+    useSortable,
+    verticalListSortingStrategy,
+    arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { COLOR_PALETTE, ConstructionTypeMaster } from '@/types/calendar';
 import { useMasterStore } from '@/stores/masterStore';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 
+/**
+ * dnd-kit の useSortable を切り出した行ラッパー。
+ * children を render-prop で受け取り、ドラッグハンドルにバインドする
+ * attributes / listeners を渡す。編集中の行はドラッグ無効化。
+ */
+function SortableRow({
+    id,
+    isEditing,
+    children,
+}: {
+    id: string;
+    isEditing: boolean;
+    children: (props: {
+        attributes: ReturnType<typeof useSortable>['attributes'];
+        listeners: ReturnType<typeof useSortable>['listeners'];
+    }) => React.ReactNode;
+}) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+        id,
+        disabled: isEditing,
+    });
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+    };
+    return (
+        <div ref={setNodeRef} style={style}>
+            {children({ attributes, listeners })}
+        </div>
+    );
+}
+
 export default function ConstructionTypeSettings() {
     const refreshMasterData = useMasterStore((state) => state.refreshMasterData);
     const [constructionTypes, setConstructionTypes] = useState<ConstructionTypeMaster[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isSavingOrder, setIsSavingOrder] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState('');
     const [editingColor, setEditingColor] = useState('');
@@ -18,6 +70,12 @@ export default function ConstructionTypeSettings() {
     const [newColor, setNewColor] = useState<string>(COLOR_PALETTE[0]);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [showColorPicker, setShowColorPicker] = useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
 
     // データ取得
     const fetchData = async () => {
@@ -104,6 +162,35 @@ export default function ConstructionTypeSettings() {
         setEditingId(null);
         setEditingName('');
         setEditingColor('');
+    };
+
+    // ドラッグで並び替え（即時保存）
+    const handleDragEnd = async (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+        const oldIdx = constructionTypes.findIndex((t) => t.id === active.id);
+        const newIdx = constructionTypes.findIndex((t) => t.id === over.id);
+        if (oldIdx < 0 || newIdx < 0) return;
+        const reordered = arrayMove(constructionTypes, oldIdx, newIdx);
+        // 楽観的に UI を先に更新
+        setConstructionTypes(reordered);
+        setIsSavingOrder(true);
+        try {
+            const res = await fetch('/api/master-data/construction-types/reorder', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: reordered.map((t) => t.id) }),
+            });
+            if (!res.ok) throw new Error(`status ${res.status}`);
+            refreshMasterData();
+        } catch (error) {
+            logger.error('Failed to reorder construction types:', error);
+            toast.error('並び替えの保存に失敗しました');
+            // ロールバックのため再フェッチ
+            fetchData();
+        } finally {
+            setIsSavingOrder(false);
+        }
     };
 
     // 削除
@@ -236,88 +323,110 @@ export default function ConstructionTypeSettings() {
                 </button>
             </div>
 
-            {/* アイテムリスト */}
-            <div className="space-y-2">
-                {constructionTypes.map((item) => (
-                    <div
-                        key={item.id}
-                        className="flex items-center gap-2 p-3 md:p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors"
-                    >
-                        {editingId === item.id ? (
-                            <>
-                                <GripVertical className="w-4 h-4 text-slate-400" />
-                                <ColorPicker
-                                    selectedColor={editingColor}
-                                    onSelect={setEditingColor}
-                                    pickerId={`edit-${item.id}`}
-                                />
-                                <input
-                                    type="text"
-                                    value={editingName}
-                                    onChange={(e) => setEditingName(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
-                                    className="flex-1 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                    autoFocus
-                                />
-                                <button
-                                    onClick={handleSaveEdit}
-                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-                                    title="保存"
-                                >
-                                    <Check className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={handleCancelEdit}
-                                    className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-                                    title="キャンセル"
-                                >
-                                    <X className="w-4 h-4" />
-                                </button>
-                            </>
-                        ) : (
-                            <>
-                                <GripVertical className="w-4 h-4 text-slate-400" />
-                                <div
-                                    className="w-6 h-6 rounded-md border border-slate-300"
-                                    style={{ backgroundColor: item.color }}
-                                />
-                                <span className="flex-1 text-slate-900">{item.name}</span>
-                                <button
-                                    onClick={() => handleEdit(item)}
-                                    className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
-                                    title="編集"
-                                >
-                                    <Edit className="w-4 h-4" />
-                                </button>
-                                {deleteConfirm === item.id ? (
-                                    <div className="flex gap-1">
-                                        <button
-                                            onClick={() => handleDelete(item.id)}
-                                            className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
-                                        >
-                                            削除
-                                        </button>
-                                        <button
-                                            onClick={() => setDeleteConfirm(null)}
-                                            className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
-                                        >
-                                            キャンセル
-                                        </button>
+            {/* アイテムリスト（ドラッグで並び替え） */}
+            {constructionTypes.length > 0 && (
+                <p className="text-xs text-slate-500 mb-2">
+                    左端のハンドル <GripVertical className="inline w-3.5 h-3.5 align-text-bottom" /> をドラッグで並び替え{isSavingOrder ? '（保存中…）' : ''}
+                </p>
+            )}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext
+                    items={constructionTypes.map((t) => t.id)}
+                    strategy={verticalListSortingStrategy}
+                >
+                    <div className="space-y-2">
+                        {constructionTypes.map((item) => (
+                            <SortableRow key={item.id} id={item.id} isEditing={editingId === item.id}>
+                                {({ attributes, listeners }) => (
+                                    <div className="flex items-center gap-2 p-3 md:p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
+                                        {editingId === item.id ? (
+                                            <>
+                                                <GripVertical className="w-4 h-4 text-slate-300" />
+                                                <ColorPicker
+                                                    selectedColor={editingColor}
+                                                    onSelect={setEditingColor}
+                                                    pickerId={`edit-${item.id}`}
+                                                />
+                                                <input
+                                                    type="text"
+                                                    value={editingName}
+                                                    onChange={(e) => setEditingName(e.target.value)}
+                                                    onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                                    className="flex-1 px-3 py-1 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                    autoFocus
+                                                />
+                                                <button
+                                                    onClick={handleSaveEdit}
+                                                    className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                                                    title="保存"
+                                                >
+                                                    <Check className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={handleCancelEdit}
+                                                    className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                                    title="キャンセル"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    {...attributes}
+                                                    {...listeners}
+                                                    className="touch-none p-0.5 text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing"
+                                                    aria-label="並べ替え"
+                                                    title="ドラッグで並び替え"
+                                                >
+                                                    <GripVertical className="w-4 h-4" />
+                                                </button>
+                                                <div
+                                                    className="w-6 h-6 rounded-md border border-slate-300"
+                                                    style={{ backgroundColor: item.color }}
+                                                />
+                                                <span className="flex-1 text-slate-900">{item.name}</span>
+                                                <button
+                                                    onClick={() => handleEdit(item)}
+                                                    className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                                                    title="編集"
+                                                >
+                                                    <Edit className="w-4 h-4" />
+                                                </button>
+                                                {deleteConfirm === item.id ? (
+                                                    <div className="flex gap-1">
+                                                        <button
+                                                            onClick={() => handleDelete(item.id)}
+                                                            className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
+                                                        >
+                                                            削除
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setDeleteConfirm(null)}
+                                                            className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md hover:bg-slate-400 transition-colors"
+                                                        >
+                                                            キャンセル
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setDeleteConfirm(item.id)}
+                                                        className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
+                                                        title="削除"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </>
+                                        )}
                                     </div>
-                                ) : (
-                                    <button
-                                        onClick={() => setDeleteConfirm(item.id)}
-                                        className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
-                                        title="削除"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
                                 )}
-                            </>
-                        )}
+                            </SortableRow>
+                        ))}
                     </div>
-                ))}
-            </div>
+                </SortableContext>
+            </DndContext>
 
             {constructionTypes.length === 0 && (
                 <div className="text-center py-12 text-slate-500">

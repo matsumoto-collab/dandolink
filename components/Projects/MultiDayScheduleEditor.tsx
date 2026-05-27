@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { DailySchedule, ConstructionType } from '@/types/calendar';
 import { Check, ChevronDown, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 
 const DOW_JP = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -146,6 +147,8 @@ interface VehicleOption {
 interface ConstructionTypeOption {
     id: string;
     name: string;
+    /** SearchableSelect で色サンプル表示するために任意で受け取る */
+    color?: string;
 }
 
 export interface DayExistingInfo {
@@ -187,6 +190,12 @@ export default function MultiDayScheduleEditor({
     const [defaultMemberCount, setDefaultMemberCount] = useState(0);
     const [defaultType, setDefaultType] = useState<ConstructionType>(type);
     const [bulkType, setBulkType] = useState<ConstructionType>('');
+
+    // SearchableSelect 用の options（カラーサンプル付き）
+    const typeOptions = useMemo(
+        () => constructionTypes.map((t) => ({ id: t.id, label: t.name, color: t.color })),
+        [constructionTypes]
+    );
 
     const generateFromRange = (weekdaysOnly = false) => {
         if (!rangeStart || !rangeEnd) {
@@ -344,16 +353,14 @@ export default function MultiDayScheduleEditor({
                     {constructionTypes.length > 0 && (
                         <div>
                             <label className="block text-sm font-medium text-slate-700 mb-1">工事種別（デフォルト）</label>
-                            <select
+                            <SearchableSelect
+                                options={typeOptions}
                                 value={defaultType}
-                                onChange={(e) => setDefaultType(e.target.value)}
-                                className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-slate-500"
-                            >
-                                <option value="">未設定</option>
-                                {constructionTypes.map((t) => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
-                                ))}
-                            </select>
+                                onChange={(v) => setDefaultType(v)}
+                                placeholder="未設定"
+                                emptyLabel="未設定"
+                                size="md"
+                            />
                         </div>
                     )}
                     <div className="grid grid-cols-2 gap-3">
@@ -419,16 +426,16 @@ export default function MultiDayScheduleEditor({
                         {constructionTypes.length > 0 && (
                             <div className="flex items-center gap-1.5">
                                 <span className="text-xs text-slate-500">一括変更:</span>
-                                <select
+                                <SearchableSelect
+                                    options={typeOptions}
                                     value={bulkType}
-                                    onChange={(e) => setBulkType(e.target.value)}
-                                    className="px-2 py-1 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400"
-                                >
-                                    <option value="">種別を選択</option>
-                                    {constructionTypes.map((t) => (
-                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                    ))}
-                                </select>
+                                    onChange={(v) => setBulkType(v)}
+                                    placeholder="種別を選択"
+                                    emptyLabel="種別を選択"
+                                    size="sm"
+                                    minWidth="160px"
+                                    className="w-40"
+                                />
                                 <button
                                     type="button"
                                     onClick={applyBulkType}
@@ -490,17 +497,16 @@ export default function MultiDayScheduleEditor({
                                                 />
                                             )}
                                             {constructionTypes.length > 0 && (
-                                                <select
+                                                <SearchableSelect
+                                                    options={typeOptions}
                                                     value={schedule.constructionType ?? ''}
-                                                    onChange={(e) => updateSchedule(index, { constructionType: e.target.value })}
-                                                    className="ml-auto px-2 py-1 text-xs border border-slate-300 rounded-md focus:outline-none focus:ring-1 focus:ring-slate-400 min-w-[100px]"
-                                                    title="工事種別"
-                                                >
-                                                    <option value="">種別を選択</option>
-                                                    {constructionTypes.map((t) => (
-                                                        <option key={t.id} value={t.id}>{t.name}</option>
-                                                    ))}
-                                                </select>
+                                                    onChange={(v) => updateSchedule(index, { constructionType: v })}
+                                                    placeholder="種別を選択"
+                                                    emptyLabel="種別を選択"
+                                                    size="sm"
+                                                    minWidth="140px"
+                                                    className="ml-auto w-40"
+                                                />
                                             )}
                                         </div>
                                         <button
