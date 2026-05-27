@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { Building2, Plus, Edit, Trash2, ChevronRight, X, Users } from 'lucide-react';
 import Loading, { ButtonLoading } from '@/components/ui/Loading';
-import { User } from '@/types/user';
+import { User, PartnerTaxMode } from '@/types/user';
 import PartnerMemberListView from './PartnerMemberListView';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import toast from 'react-hot-toast';
@@ -15,6 +15,7 @@ interface PartnerFormData {
     displayName: string;
     password: string;
     isActive: boolean;
+    partnerTaxMode: PartnerTaxMode;
 }
 
 interface PartnerModalProps {
@@ -32,6 +33,7 @@ function PartnerModal({ isOpen, onClose, onSave, partner, mode }: PartnerModalPr
         displayName: '',
         password: '',
         isActive: true,
+        partnerTaxMode: 'exclusive',
     });
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -45,9 +47,10 @@ function PartnerModal({ isOpen, onClose, onSave, partner, mode }: PartnerModalPr
                 displayName: partner.displayName,
                 password: '',
                 isActive: partner.isActive,
+                partnerTaxMode: partner.partnerTaxMode ?? 'exclusive',
             });
         } else {
-            setFormData({ username: '', email: '', displayName: '', password: '', isActive: true });
+            setFormData({ username: '', email: '', displayName: '', password: '', isActive: true, partnerTaxMode: 'exclusive' });
         }
         setError('');
     }, [partner, mode, isOpen]);
@@ -109,6 +112,19 @@ function PartnerModal({ isOpen, onClose, onSave, partner, mode }: PartnerModalPr
                                 <input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })} className="w-5 h-5 text-slate-600 border-slate-300 rounded focus:ring-slate-500" />
                                 <span className="ml-2 text-sm font-medium text-slate-700">アクティブ</span>
                             </label>
+                        </div>
+                        <div className="md:col-span-2">
+                            <label htmlFor="partnerTaxMode" className="block text-sm font-medium text-slate-700 mb-2">出来高税区分</label>
+                            <select
+                                id="partnerTaxMode"
+                                value={formData.partnerTaxMode}
+                                onChange={(e) => setFormData({ ...formData, partnerTaxMode: e.target.value as PartnerTaxMode })}
+                                className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500"
+                            >
+                                <option value="exclusive">税別（消費税は別途加算）</option>
+                                <option value="inclusive">税込（消費税 10% を含めて表示）</option>
+                            </select>
+                            <p className="mt-1 text-xs text-slate-500">出来高表のフッターと PDF で「小計／消費税／合計」の表示が切り替わります。</p>
                         </div>
                     </div>
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
@@ -186,6 +202,7 @@ export default function PartnerListPage() {
             displayName: data.displayName,
             isActive: data.isActive,
             role: 'partner',
+            partnerTaxMode: data.partnerTaxMode,
         };
         if (modalMode === 'create') {
             payload.username = data.username;

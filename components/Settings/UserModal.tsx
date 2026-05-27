@@ -272,7 +272,7 @@ export default function UserModal({ isOpen, onClose, onSave, user, mode, isAdmin
                         {formData.role === 'partner' && (
                             <div>
                                 <label htmlFor="partnerTaxMode" className="block text-sm font-medium text-slate-700 mb-2">
-                                    請求税区分
+                                    出来高税区分
                                 </label>
                                 <select
                                     id="partnerTaxMode"

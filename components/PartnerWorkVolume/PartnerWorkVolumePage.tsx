@@ -594,7 +594,7 @@ export default function PartnerWorkVolumePage() {
                                         ? 'bg-indigo-100 text-indigo-700'
                                         : 'bg-slate-100 text-slate-600'
                                 }`}
-                                title={taxMode === 'inclusive' ? '消費税込みで請求する協力会社' : '消費税別で請求する協力会社'}
+                                title={taxMode === 'inclusive' ? '出来高を税込で表示する協力会社' : '出来高を税別で表示する協力会社'}
                             >
                                 {taxMode === 'inclusive' ? '税込' : '税別'}
                             </span>
