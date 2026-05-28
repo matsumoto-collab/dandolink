@@ -479,7 +479,7 @@ model ProjectMasterSubcontractorCost {
   projectMaster      ProjectMaster    @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
   constructionType   ConstructionType @relation(fields: [constructionTypeId], references: [id], onDelete: Restrict)
 
-  @@unique([projectMasterId, constructionTypeId])
+  @@unique([projectMasterId, constructionTypeId], map: "ProjectMasterSubcontractorCost_projectMasterId_constructionType")
   @@index([projectMasterId])
   @@index([constructionTypeId])
   @@schema("public")
@@ -556,11 +556,11 @@ model SystemSettings {
 }
 
 model MemberCountHistory {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
   startDate DateTime @db.Date
   count     Int
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@unique([startDate])
   @@index([startDate])
@@ -630,15 +630,15 @@ model UnitPriceSpecification {
 }
 
 model CostMaster {
-  id        String   @id @default(uuid())
+  id        String   @id @default(dbgenerated("gen_random_uuid()"))
   name      String
   quantity  Float?
   unit      String?
   unitPrice Decimal? @db.Decimal(12, 2)
   sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@index([name])
   @@index([sortOrder])
@@ -693,11 +693,11 @@ model CellRemark {
 }
 
 model MemberAdjustment {
-  id         String   @id @default(dbgenerated("gen_random_uuid()"))
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   dateKey    String   @unique
   adjustment Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @db.Timestamptz(6)
 
   @@index([dateKey])
   @@schema("public")
@@ -874,7 +874,7 @@ model identities {
   last_sign_in_at DateTime? @db.Timestamptz(6)
   created_at      DateTime? @db.Timestamptz(6)
   updated_at      DateTime? @db.Timestamptz(6)
-  email           String?   @default(dbgenerated("lower((identity_data ->> 'email'::text))"))
+  email           String?
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   users           users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
@@ -1210,7 +1210,7 @@ model users {
   phone_change                String?                @default("")
   phone_change_token          String?                @default("") @db.VarChar(255)
   phone_change_sent_at        DateTime?              @db.Timestamptz(6)
-  confirmed_at                DateTime?              @default(dbgenerated("LEAST(email_confirmed_at, phone_confirmed_at)")) @db.Timestamptz(6)
+  confirmed_at                DateTime?              @db.Timestamptz(6)
   email_change_token_current  String?                @default("") @db.VarChar(255)
   email_change_confirm_status Int?                   @default(0) @db.SmallInt
   banned_until                DateTime?              @db.Timestamptz(6)
@@ -1225,10 +1225,48 @@ model users {
   oauth_consents              oauth_consents[]
   one_time_tokens             one_time_tokens[]
   sessions                    sessions[]
+  webauthn_challenges         webauthn_challenges[]
+  webauthn_credentials        webauthn_credentials[]
   profiles                    profiles?
 
   @@index([instance_id])
   @@index([is_anonymous])
+  @@schema("auth")
+}
+
+model webauthn_challenges {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String?  @db.Uuid
+  challenge_type String
+  session_data   Json
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  expires_at     DateTime @db.Timestamptz(6)
+  users          users?   @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([expires_at])
+  @@index([user_id])
+  @@schema("auth")
+}
+
+model webauthn_credentials {
+  id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id          String    @db.Uuid
+  credential_id    Bytes
+  public_key       Bytes
+  attestation_type String    @default("")
+  aaguid           String?   @db.Uuid
+  sign_count       BigInt    @default(0)
+  transports       Json      @default("[]")
+  backup_eligible  Boolean   @default(false)
+  backed_up        Boolean   @default(false)
+  friendly_name    String    @default("")
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
+  last_used_at     DateTime? @db.Timestamptz(6)
+  users            users     @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([credential_id])
+  @@index([user_id])
   @@schema("auth")
 }
 
@@ -1349,7 +1387,7 @@ model MaterialItem {
 }
 
 model InventoryTransaction {
-  id             String       @id @default(uuid())
+  id             String       @id @default(dbgenerated("(gen_random_uuid())::text"))
   materialItemId String
   quantity       Int
   type           String
@@ -1377,13 +1415,13 @@ model InventoryTransaction {
 }
 
 model ProjectMaterialItem {
-  id               String        @id @default(uuid())
+  id               String        @id @default(dbgenerated("(gen_random_uuid())::text"))
   projectMasterId  String
   materialItemId   String
   requiredQuantity Int           @default(0)
   notes            String?
   createdAt        DateTime      @default(now())
-  updatedAt        DateTime      @updatedAt
+  updatedAt        DateTime      @default(now()) @updatedAt
   projectMaster    ProjectMaster @relation(fields: [projectMasterId], references: [id], onDelete: Cascade)
   materialItem     MaterialItem  @relation(fields: [materialItemId], references: [id])
 
@@ -1393,7 +1431,7 @@ model ProjectMaterialItem {
 }
 
 model LoadingCheckItem {
-  id              String    @id @default(uuid())
+  id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
   date            DateTime  @db.Date
   vehicleId       String
   materialItemId  String
@@ -1402,9 +1440,9 @@ model LoadingCheckItem {
   checkedBy       String?
   checkedAt       DateTime?
   createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  updatedAt       DateTime  @default(now()) @updatedAt
 
-  @@unique([date, vehicleId, materialItemId, projectMasterId])
+  @@unique([date, vehicleId, materialItemId, projectMasterId], map: "LoadingCheckItem_date_vehicleId_materialItemId_projectMasterId_")
   @@index([date, vehicleId])
   @@schema("public")
 }
