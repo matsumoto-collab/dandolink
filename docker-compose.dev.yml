@@ -1,0 +1,38 @@
+# yusystem ローカル開発 DB（Phase 0 マイグレーション検証用）
+# 本番 Supabase に触らずに prisma migrate dev / ロールバックを試すための環境。
+#
+# 使い方:
+#   起動: docker compose -f docker-compose.dev.yml up -d
+#   停止: docker compose -f docker-compose.dev.yml down
+#   完全削除（データも消す）: docker compose -f docker-compose.dev.yml down -v
+#
+# 接続先（prisma 用）:
+#   DATABASE_URL=postgresql://postgres:postgres@localhost:5433/yusystem_dev
+#   DIRECT_URL=postgresql://postgres:postgres@localhost:5433/yusystem_dev
+#
+# ローカル既存の Postgres を避けるため 5433 をホスト側に公開する（コンテナ内は 5432 のまま）。
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: yusystem-dev-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: yusystem_dev
+      TZ: Asia/Tokyo
+      PGTZ: Asia/Tokyo
+    ports:
+      - "5433:5432"
+    volumes:
+      - yusystem-dev-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d yusystem_dev"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  yusystem-dev-postgres-data:
+    name: yusystem-dev-postgres-data
