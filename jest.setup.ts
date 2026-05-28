@@ -143,6 +143,14 @@ jest.mock('@/lib/prisma', () => ({
             update: jest.fn(),
             aggregate: jest.fn(),
         },
+        billingDraft: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+            count: jest.fn(),
+        },
         estimate: {
             findMany: jest.fn(),
             findUnique: jest.fn(),

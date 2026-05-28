@@ -15,6 +15,8 @@ export type { CreateAssignmentInput, UpdateAssignmentInput } from './assignment'
 export { workItemSchema, createDailyReportSchema, updateDailyReportSchema, createDailyReportApiSchema } from './dailyReport';
 export type { CreateDailyReportInput, UpdateDailyReportInput } from './dailyReport';
 export { createInvoiceSchema, updateInvoiceSchema, createEstimateSchema, updateEstimateSchema } from './finance';
+export { createBillingDraftSchema, updateBillingDraftSchema, billingDraftListQuerySchema } from './billingDraft';
+export type { CreateBillingDraftInput, UpdateBillingDraftInput, BillingDraftListQueryInput } from './billingDraft';
 export { cellRemarkSchema, calendarRemarkSchema, vacationSchema, memberAdjustmentSchema, displayedForemanIdsSchema } from './calendar';
 export {
     costMasterSchema, nameOnlySchema, unitPriceCategorySchema, unitPriceSpecificationSchema,
