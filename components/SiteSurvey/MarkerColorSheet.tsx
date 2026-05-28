@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import BottomSheet from './BottomSheet';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { MARKER_COLORS } from './DrawingCanvas';
 import type { MarkerColor } from '@/stores/siteSurveySlices/types';
 

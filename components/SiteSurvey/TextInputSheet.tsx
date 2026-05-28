@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import BottomSheet from './BottomSheet';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 interface TextInputSheetProps {
     open: boolean;

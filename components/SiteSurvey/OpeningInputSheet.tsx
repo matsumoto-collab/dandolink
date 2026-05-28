@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import BottomSheet from './BottomSheet';
+import BottomSheet from '@/components/ui/BottomSheet';
 
 const WIDTH_PRESETS = [800, 1800, 2400, 3600, 5400];
 
