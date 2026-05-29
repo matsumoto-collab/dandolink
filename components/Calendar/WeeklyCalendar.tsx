@@ -129,12 +129,19 @@ useEffect(() => { setIsMounted(true); }, []);
 
     // ===== Phase 2: 請求予定サイドパネル統合 =====
     const { projectMasters } = useProjectMasters();
-    const { customers } = useCustomers();
+    const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const { create: createBillingDraft, update: updateBillingDraft } = useBillingDrafts({});
     const [isBillingDraftPanelOpen, setIsBillingDraftPanelOpen] = useState(false);
     const [billingDraftInitialProjectId, setBillingDraftInitialProjectId] = useState<string | undefined>();
     const [billingDraftInitialCustomerId, setBillingDraftInitialCustomerId] = useState<string | undefined>();
     const [billingDraftProjectContext, setBillingDraftProjectContext] = useState<ProjectContext | undefined>();
+
+    // 顧客一覧は遅延ロード（useCustomers は ensureDataLoaded を呼ぶまで取得しない）。
+    // 右クリック起票時に顧客が連動表示されるよう、admin/manager のとき先読みしておく。
+    // これが無いと customerId はセットされても select のオプションが空で「顧客を選択」表示になる。
+    useEffect(() => {
+        if (isAdminOrManager) ensureCustomersLoaded();
+    }, [isAdminOrManager, ensureCustomersLoaded]);
 
     const handleEventContextMenu = useCallback((event: CalendarEvent, e: React.MouseEvent) => {
         // 権限ガード：admin/manager のみ。それ以外は何もしない（ブラウザ標準のコンテキストメニューが出る）
