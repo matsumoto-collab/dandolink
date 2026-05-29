@@ -545,9 +545,11 @@ useEffect(() => { setIsMounted(true); }, []);
     }, [modalInitialData.id, updateProjectWithConflictHandling, addProject]);
 
     // 長押しで別セルに移動（PC・スマホ・タブレット共通）
-    // D&D と同じく即時保存せず、確認モーダル（MoveConfirmModal）を経由させる
-    const handleMoveToCell = useCallback((eventId: string, targetEmployeeId: string, targetDate: Date) => {
-        const movingEvent = events.find(e => e.id === eventId);
+    // D&D と同じく即時保存せず、確認モーダル（MoveConfirmModal）を経由させる。
+    // 週またぎ移動では移動元がフェッチ範囲外に出てストアから退避されるため、
+    // events から ID 再検索すると見つからず無音で中断してしまう。
+    // ビュー側が掴んでいる完全な CalendarEvent をそのまま受け取り、events 依存をなくす。
+    const handleMoveToCell = useCallback((movingEvent: CalendarEvent, targetEmployeeId: string, targetDate: Date) => {
         if (!movingEvent) return;
 
         // 同セルガード: 移動元と同じ職長・同じ日付なら何もしない（モーダルを開かない）
@@ -560,15 +562,16 @@ useEffect(() => { setIsMounted(true); }, []);
         }
 
         handlePendingMove({
-            eventId,
+            eventId: movingEvent.id,
             fromEmployeeId: movingEvent.assignedEmployeeId ?? '',
             fromDate: movingEvent.startDate,
             toEmployeeId: targetEmployeeId,
             toDate: targetDate,
             currentTrucks: movingEvent.trucks ?? [],
             currentMemberCount: movingEvent.memberCount ?? 0,
+            title: movingEvent.title,
         });
-    }, [events, handlePendingMove]);
+    }, [handlePendingMove]);
 
     // 日別メンバー調整
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
@@ -839,6 +842,7 @@ useEffect(() => { setIsMounted(true); }, []);
                     isOpen={isMoveModalOpen}
                     pendingMove={pendingMove}
                     eventTitle={
+                        pendingMove.title ??
                         projects.find(
                             p => p.id === pendingMove.eventId.replace(/-assembly$|-demolition$/, '')
                         )?.title
