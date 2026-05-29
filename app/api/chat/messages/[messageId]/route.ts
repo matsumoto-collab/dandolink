@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ me
         const updated = await prisma.message.update({
             where: { id: messageId },
             data: { body: text, editedAt: new Date() },
-            include: { mentions: true, attachments: true, reads: true },
+            include: { mentions: true, attachments: true, reads: true, reactions: true },
         });
         return NextResponse.json({ message: updated });
     } catch (error) {
@@ -49,8 +49,22 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
         await prisma.message.update({
             where: { id: messageId },
-            data: { deletedAt: new Date(), body: '(削除されたメッセージ)' },
+            data: { deletedAt: new Date(), body: '送信を取り消しました' },
         });
+
+        // 取り消したメッセージがルームの最新メッセージなら、一覧のプレビューも更新
+        const latest = await prisma.message.findFirst({
+            where: { roomId: msg.roomId },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true },
+        });
+        if (latest?.id === messageId) {
+            await prisma.chatRoom.update({
+                where: { id: msg.roomId },
+                data: { lastMessagePreview: '送信を取り消しました' },
+            });
+        }
+
         return NextResponse.json({ ok: true });
     } catch (error) {
         return serverErrorResponse('メッセージ削除', error);

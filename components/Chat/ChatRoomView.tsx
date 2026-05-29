@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
-import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile } from 'lucide-react';
+import { ArrowLeft, Send, Users, ChevronDown, ChevronUp, UserPlus, Paperclip, Camera, X, FileText, Smile, MoreHorizontal, Trash2, Pencil, SmilePlus } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import InviteMembersModal from './InviteMembersModal';
@@ -21,6 +21,7 @@ import {
 } from '@/lib/chat/mentionParser';
 import MentionChip from './MentionChip';
 import MentionSuggestPopover from './MentionSuggestPopover';
+import { REACTION_EMOJIS } from '@/lib/chat/reactions';
 
 const EMPTY_MESSAGES: ChatMessage[] = [];
 
@@ -101,6 +102,13 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const sendMessage = useChatStore((s) => s.sendMessage);
     const markRead = useChatStore((s) => s.markRead);
     const fetchRooms = useChatStore((s) => s.fetchRooms);
+    const renameRoom = useChatStore((s) => s.renameRoom);
+    const deleteRoom = useChatStore((s) => s.deleteRoom);
+
+    // グループの管理（名称変更・削除）はオーナーまたは管理者のみ
+    const myMember = room?.members.find((m) => m.userId === myUserId);
+    const canManageRoom =
+        room?.type === 'group' && (myMember?.role === 'owner' || session?.user?.role === 'admin');
 
     const memberMap = useMemo(() => {
         const m = new Map<string, string>();
@@ -117,6 +125,9 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
     const [pendingAttachments, setPendingAttachments] = useState<UploadedAttachment[]>([]);
     const [uploadingCount, setUploadingCount] = useState(0);
     const [showStamps, setShowStamps] = useState(false);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [nameInput, setNameInput] = useState('');
+    const [isSavingName, setIsSavingName] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -182,6 +193,38 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
             setPendingAttachments([]);
         }
     }, [text, isSending, sendMessage, roomId, selectedMentions, pendingAttachments]);
+
+    const startEditName = () => {
+        setNameInput(room?.name ?? '');
+        setIsEditingName(true);
+    };
+
+    const saveName = async () => {
+        const v = nameInput.trim();
+        if (!v) {
+            toast.error('グループ名を入力してください', { position: 'bottom-center' });
+            return;
+        }
+        setIsSavingName(true);
+        const ok = await renameRoom(roomId, v);
+        setIsSavingName(false);
+        if (ok) {
+            setIsEditingName(false);
+            toast.success('グループ名を変更しました', { position: 'bottom-center' });
+        } else {
+            toast.error('グループ名の変更に失敗しました', { position: 'bottom-center' });
+        }
+    };
+
+    const handleDeleteGroup = async () => {
+        if (!window.confirm('このグループを削除しますか？\nすべてのメッセージ履歴が完全に削除され、元に戻せません。')) return;
+        const ok = await deleteRoom(roomId);
+        if (ok) {
+            toast.success('グループを削除しました', { position: 'bottom-center' });
+        } else {
+            toast.error('グループの削除に失敗しました', { position: 'bottom-center' });
+        }
+    };
 
     const uploadFiles = useCallback(async (files: FileList | File[]) => {
         const list = Array.from(files);
@@ -285,10 +328,53 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                         </button>
                     )}
                     <div className="flex-1 min-w-0">
-                        <h2 className="text-base font-bold text-slate-900 truncate">
-                            {room ? roomLabel(room, myUserId) : '...'}
-                        </h2>
-                        {room && room.type !== 'dm' && (
+                        {isEditingName ? (
+                            <div className="flex items-center gap-1.5">
+                                <input
+                                    value={nameInput}
+                                    onChange={(e) => setNameInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); saveName(); }
+                                        if (e.key === 'Escape') setIsEditingName(false);
+                                    }}
+                                    autoFocus
+                                    placeholder="グループ名"
+                                    className="flex-1 min-w-0 px-2 py-1 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={saveName}
+                                    disabled={isSavingName}
+                                    className="flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded-lg bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-40"
+                                >
+                                    保存
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingName(false)}
+                                    className="flex-shrink-0 px-2.5 py-1 text-xs font-medium rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-600"
+                                >
+                                    取消
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-1.5">
+                                <h2 className="text-base font-bold text-slate-900 truncate">
+                                    {room ? roomLabel(room, myUserId) : '...'}
+                                </h2>
+                                {canManageRoom && (
+                                    <button
+                                        type="button"
+                                        onClick={startEditName}
+                                        className="flex-shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                                        aria-label="グループ名を変更"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        {room && room.type !== 'dm' && !isEditingName && (
                             <p className="text-xs text-slate-500 truncate">
                                 {room.members.length}名が参加
                             </p>
@@ -347,6 +433,21 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                                 </span>
                             ))}
                         </div>
+                        {canManageRoom && (
+                            <div className="mt-3 pt-3 border-t border-slate-200">
+                                <button
+                                    type="button"
+                                    onClick={handleDeleteGroup}
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium text-rose-600 border border-rose-200 hover:bg-rose-50"
+                                >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    グループを削除
+                                </button>
+                                <p className="text-[10px] text-slate-400 mt-1.5">
+                                    削除するとすべてのメッセージ履歴が完全に消え、元に戻せません。
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
                 {showInvite && room && (
@@ -378,6 +479,7 @@ export default function ChatRoomView({ roomId, myUserId, onBack }: ChatRoomViewP
                             key={msg.id}
                             message={msg}
                             isMine={msg.senderId === myUserId}
+                            myUserId={myUserId}
                             senderName={memberMap.get(msg.senderId) ?? '(不明)'}
                             memberMap={memberMap}
                         />
@@ -611,6 +713,7 @@ function formatTime(d: string | Date): string {
 interface MessageBubbleProps {
     message: ChatMessage;
     isMine: boolean;
+    myUserId: string | undefined;
     senderName: string;
     memberMap: Map<string, string>;
 }
@@ -650,54 +753,192 @@ function AttachmentView({ att, isMine }: AttachmentViewProps) {
     );
 }
 
-function MessageBubble({ message, isMine, senderName, memberMap }: MessageBubbleProps) {
+function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: MessageBubbleProps) {
     const isDeleted = !!message.deletedAt;
     const [showReaders, setShowReaders] = useState(false);
+    const [showMenu, setShowMenu] = useState(false);
+    const [showReactionPicker, setShowReactionPicker] = useState(false);
+    const deleteMessage = useChatStore((s) => s.deleteMessage);
+    const toggleReaction = useChatStore((s) => s.toggleReaction);
+    const canUnsend = isMine && !isDeleted;
+
+    const handleUnsend = async () => {
+        setShowMenu(false);
+        if (!window.confirm('このメッセージの送信を取り消しますか？')) return;
+        const ok = await deleteMessage(message.id, message.roomId);
+        if (!ok) {
+            toast.error('送信の取り消しに失敗しました', { position: 'bottom-center' });
+        }
+    };
+
+    const onPickReaction = (emoji: string) => {
+        setShowReactionPicker(false);
+        if (!myUserId) return;
+        toggleReaction(message.id, message.roomId, emoji, myUserId);
+    };
+
+    // 絵文字ごとに集計（REACTION_EMOJIS の順で並べる）
+    const reactionGroups = useMemo(() => {
+        const list = message.reactions ?? [];
+        const map = new Map<string, string[]>();
+        for (const r of list) {
+            const arr = map.get(r.emoji) ?? [];
+            arr.push(r.userId);
+            map.set(r.emoji, arr);
+        }
+        const ordered = [
+            ...REACTION_EMOJIS.filter((e) => map.has(e)),
+            ...Array.from(map.keys()).filter((e) => !(REACTION_EMOJIS as readonly string[]).includes(e)),
+        ];
+        return ordered.map((emoji) => ({ emoji, userIds: map.get(emoji)! }));
+    }, [message.reactions]);
+
+    // リアクション追加トリガ + 送信取り消しメニュー（吹き出しの脇に配置）
+    const controls = !isDeleted ? (
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+            <div className="relative">
+                <button
+                    type="button"
+                    onClick={() => setShowReactionPicker((v) => !v)}
+                    className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                    aria-label="リアクション"
+                >
+                    <SmilePlus className="w-4 h-4" />
+                </button>
+                {showReactionPicker && (
+                    <>
+                        <div className="fixed inset-0 z-20" onClick={() => setShowReactionPicker(false)} />
+                        <div className={`absolute z-30 bottom-full mb-1 ${isMine ? 'right-0' : 'left-0'} bg-white rounded-full shadow-lg border border-slate-200 px-1.5 py-1 flex items-center gap-0.5`}>
+                            {REACTION_EMOJIS.map((e) => (
+                                <button
+                                    key={e}
+                                    type="button"
+                                    onClick={() => onPickReaction(e)}
+                                    className="w-9 h-9 inline-flex items-center justify-center rounded-full text-xl hover:bg-slate-100 active:scale-95"
+                                >
+                                    {e}
+                                </button>
+                            ))}
+                        </div>
+                    </>
+                )}
+            </div>
+            {canUnsend && (
+                <div className="relative">
+                    <button
+                        type="button"
+                        onClick={() => setShowMenu((v) => !v)}
+                        className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                        aria-label="メッセージ操作"
+                    >
+                        <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                    {showMenu && (
+                        <>
+                            <div className="fixed inset-0 z-20" onClick={() => setShowMenu(false)} />
+                            <div className="absolute z-30 bottom-full mb-1 right-0 w-44 bg-white rounded-xl shadow-lg border border-slate-200 py-1">
+                                <button
+                                    type="button"
+                                    onClick={handleUnsend}
+                                    className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                                >
+                                    <Trash2 className="w-4 h-4 flex-shrink-0" />
+                                    送信を取り消す
+                                </button>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    ) : null;
+
     return (
         <li className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
             <div className={`max-w-[80%] ${isMine ? 'items-end' : 'items-start'} flex flex-col`}>
                 {!isMine && (
                     <span className="text-[11px] text-slate-500 mb-0.5 px-1">{senderName}</span>
                 )}
-                <div
-                    className={`rounded-xl px-3 py-2 shadow-sm ${
-                        isDeleted
-                            ? 'bg-slate-100 text-slate-400 italic border border-slate-200'
-                            : isMine
-                                ? 'bg-teal-600 text-white'
-                                : 'bg-white text-slate-900 border border-slate-200'
-                    }`}
-                >
-                    {message.body && (
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                            {parseMessageParts(
-                                message.body,
-                                (message.mentions ?? []).map((mm) => ({
-                                    targetType: mm.targetType,
-                                    targetId: mm.targetId,
-                                    label: mm.label ?? undefined,
-                                }))
-                            ).map((part, i) =>
-                                part.kind === 'text' ? (
-                                    <React.Fragment key={i}>{part.text}</React.Fragment>
-                                ) : (
-                                    <MentionChip key={i} token={part.token} onMine={isMine} />
-                                )
-                            )}
-                        </p>
-                    )}
-                    {message.attachments && message.attachments.length > 0 && (
-                        <div className={`flex flex-wrap gap-2 ${message.body ? 'mt-2' : ''}`}>
-                            {message.attachments.map((att) => (
-                                <AttachmentView key={att.id} att={att} isMine={isMine} />
-                            ))}
-                        </div>
-                    )}
+                <div className="flex items-center gap-1">
+                    {isMine && controls}
+                    <div
+                        className={`rounded-xl px-3 py-2 shadow-sm ${
+                            isDeleted
+                                ? 'bg-slate-100 text-slate-400 italic border border-slate-200'
+                                : isMine
+                                    ? 'bg-teal-600 text-white'
+                                    : 'bg-white text-slate-900 border border-slate-200'
+                        }`}
+                    >
+                        {message.body && (
+                            <p className="text-sm whitespace-pre-wrap break-words">
+                                {parseMessageParts(
+                                    message.body,
+                                    (message.mentions ?? []).map((mm) => ({
+                                        targetType: mm.targetType,
+                                        targetId: mm.targetId,
+                                        label: mm.label ?? undefined,
+                                    }))
+                                ).map((part, i) =>
+                                    part.kind === 'text' ? (
+                                        <React.Fragment key={i}>{part.text}</React.Fragment>
+                                    ) : part.kind === 'link' ? (
+                                        <a
+                                            key={i}
+                                            href={part.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            onClick={(e) => e.stopPropagation()}
+                                            className={`underline break-all ${
+                                                isMine ? 'text-white decoration-white/60' : 'text-teal-700 hover:text-teal-800'
+                                            }`}
+                                        >
+                                            {part.text}
+                                        </a>
+                                    ) : (
+                                        <MentionChip key={i} token={part.token} onMine={isMine} />
+                                    )
+                                )}
+                            </p>
+                        )}
+                        {!isDeleted && message.attachments && message.attachments.length > 0 && (
+                            <div className={`flex flex-wrap gap-2 ${message.body ? 'mt-2' : ''}`}>
+                                {message.attachments.map((att) => (
+                                    <AttachmentView key={att.id} att={att} isMine={isMine} />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    {!isMine && controls}
                 </div>
+                {!isDeleted && reactionGroups.length > 0 && (
+                    <div className={`flex flex-wrap gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                        {reactionGroups.map((g) => {
+                            const mine = myUserId ? g.userIds.includes(myUserId) : false;
+                            const names = g.userIds.map((uid) => memberMap.get(uid) ?? '(不明)').join('、');
+                            return (
+                                <button
+                                    key={g.emoji}
+                                    type="button"
+                                    title={names}
+                                    onClick={() => myUserId && toggleReaction(message.id, message.roomId, g.emoji, myUserId)}
+                                    className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
+                                        mine
+                                            ? 'bg-teal-50 border-teal-300 text-teal-700'
+                                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    <span className="text-sm leading-none">{g.emoji}</span>
+                                    <span className="text-[11px] font-medium tabular-nums">{g.userIds.length}</span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
                 <span className={`text-[10px] text-slate-400 mt-0.5 px-1 ${isMine ? 'text-right' : 'text-left'}`}>
                     {formatTime(message.createdAt)}
-                    {message.editedAt && '（編集済み）'}
-                    {isMine && message.reads && message.reads.length > 0 && (
+                    {!isDeleted && message.editedAt && '（編集済み）'}
+                    {!isDeleted && isMine && message.reads && message.reads.length > 0 && (
                         <span className="relative inline-block ml-2">
                             <button
                                 type="button"

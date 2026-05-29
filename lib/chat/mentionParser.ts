@@ -23,7 +23,8 @@ export interface MentionToken {
 
 export type MessagePart =
     | { kind: 'text'; text: string }
-    | { kind: 'mention'; token: MentionToken };
+    | { kind: 'mention'; token: MentionToken }
+    | { kind: 'link'; url: string; text: string };
 
 /** Composer内で選択中のメンション（送信時 mentions[] になる） */
 export interface SelectedMention extends MentionToken {
@@ -113,7 +114,7 @@ export function parseMessageParts(
 
     if (segments.tokens.length === 0) {
         // v2 のみ: ラベルで突合
-        return matchByLabels(body, mentions);
+        return expandLinks(matchByLabels(body, mentions));
     }
 
     // v1 と v2 を混在させる
@@ -128,7 +129,52 @@ export function parseMessageParts(
     if (cursor < body.length) {
         parts.push(...matchByLabels(body.slice(cursor), mentions));
     }
-    return parts;
+    return expandLinks(parts);
+}
+
+// URL 検出: http(s):// または www. で始まる連続文字（空白・CJK句読点・閉じ括弧で区切る）
+const URL_REGEX = /(?:https?:\/\/|www\.)[^\s<>"'`、。，．（）「」『』【】]+/gi;
+// URL 末尾に付きやすい句読点・閉じ括弧は除去する
+const TRAILING_PUNCT = /[.,;:!?)\]'"]+$/;
+
+/** text パートを URL で分割し link パートに展開する。mention/link パートは素通し */
+function expandLinks(parts: MessagePart[]): MessagePart[] {
+    const out: MessagePart[] = [];
+    for (const p of parts) {
+        if (p.kind === 'text') {
+            out.push(...splitTextForLinks(p.text));
+        } else {
+            out.push(p);
+        }
+    }
+    return out;
+}
+
+/** 1つのテキストを「テキスト / リンク」のパート列に分割 */
+function splitTextForLinks(text: string): MessagePart[] {
+    if (!text) return [];
+    const out: MessagePart[] = [];
+    let last = 0;
+    URL_REGEX.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = URL_REGEX.exec(text)) !== null) {
+        const raw = m[0];
+        const trimmed = raw.replace(TRAILING_PUNCT, '');
+        if (!trimmed) continue;
+        const start = m.index;
+        const end = start + trimmed.length;
+        if (start > last) {
+            out.push({ kind: 'text', text: text.slice(last, start) });
+        }
+        const url = trimmed.startsWith('www.') ? `https://${trimmed}` : trimmed;
+        out.push({ kind: 'link', url, text: trimmed });
+        last = end;
+        URL_REGEX.lastIndex = end; // 末尾除去分だけ戻して次の探索へ
+    }
+    if (last < text.length) {
+        out.push({ kind: 'text', text: text.slice(last) });
+    }
+    return out.length > 0 ? out : [{ kind: 'text', text }];
 }
 
 /** 本文ラベルマッチ（v2）: mentions の visible（@/#付き）を本文中で順次検索 */

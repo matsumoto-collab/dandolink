@@ -93,8 +93,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ro
         if (typeof body.isArchived === 'boolean') roomPatch.isArchived = body.isArchived;
 
         if (Object.keys(roomPatch).length > 0) {
-            if (member.role !== 'owner') {
-                return errorResponse('ルーム編集はオーナーのみ可能です', 403);
+            if (member.role !== 'owner' && session!.user.role !== 'admin') {
+                return errorResponse('ルーム編集はオーナーまたは管理者のみ可能です', 403);
             }
             await prisma.chatRoom.update({ where: { id: roomId }, data: roomPatch });
         }
@@ -139,5 +139,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ro
         return NextResponse.json({ ok: true });
     } catch (error) {
         return serverErrorResponse('チャットルーム更新', error);
+    }
+}
+
+/**
+ * DELETE /api/chat/rooms/[roomId]
+ * グループの完全削除（owner または admin のみ）。
+ * 関連レコード（メンバー・メッセージ・添付・メンション・既読）は
+ * スキーマの onDelete: Cascade で連鎖削除される。
+ */
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ roomId: string }> }) {
+    try {
+        const { session, error } = await requireAuth();
+        if (error) return error;
+        const { roomId } = await params;
+        const userId = session!.user.id;
+
+        const member = await ensureMember(roomId, userId);
+        if (!member) return errorResponse('権限がありません', 403);
+
+        const room = await prisma.chatRoom.findUnique({
+            where: { id: roomId },
+            select: { type: true },
+        });
+        if (!room) return notFoundResponse('チャットルーム');
+        if (room.type !== 'group') {
+            return errorResponse('削除できるのはグループのみです', 400);
+        }
+        if (member.role !== 'owner' && session!.user.role !== 'admin') {
+            return errorResponse('グループ削除はオーナーまたは管理者のみ可能です', 403);
+        }
+
+        await prisma.chatRoom.delete({ where: { id: roomId } });
+
+        return NextResponse.json({ ok: true });
+    } catch (error) {
+        return serverErrorResponse('チャットルーム削除', error);
     }
 }
