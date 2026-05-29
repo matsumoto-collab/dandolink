@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import BottomSheet from './BottomSheet';
+import BottomSheet from '@/components/ui/BottomSheet';
 import type { Direction } from '@/stores/siteSurveySlices/types';
 
 const PRESETS = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000];

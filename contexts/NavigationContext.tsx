@@ -11,6 +11,7 @@ export type PageType =
     | 'estimates'        // 見積書
     | 'site-surveys'     // 図面（現場調査）
     | 'invoices'         // 請求書
+    | 'billing-drafts'   // 請求予定
     | 'partners'         // 協力会社
     | 'customers'        // 顧客管理
     | 'company'          // 自社情報
