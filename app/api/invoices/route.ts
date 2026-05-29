@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requireManagerOrAbove, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
 import { formatInvoice } from '@/lib/formatters';
 import { createInvoiceSchema, validateRequest } from '@/lib/validations';
 import { createInvoiceVersion } from '@/lib/versions/snapshot';
+import { createInvoiceWithRetry } from '@/lib/billing/createInvoiceWithRetry';
 
 /** 請求書に紐付く案件マスタ情報を取得 */
 async function getInvoiceProjectMasters(invoiceId: string) {
@@ -87,25 +89,8 @@ export async function POST(req: NextRequest) {
         // 案件なしの請求書も許可する（明細の見出しは items 内に保持する）。
         // resolvedPmIds が空のときは代表案件 null・中間テーブルなしで作成する。
 
-        // 請求番号: 指定がなければサーバー側で自動採番
-        let finalInvoiceNumber = invoiceNumber;
-        if (!finalInvoiceNumber) {
-            const year = new Date().getFullYear();
-            const prefix = `I${year}`;
-            const latest = await prisma.invoice.findFirst({
-                where: { invoiceNumber: { startsWith: prefix } },
-                orderBy: { invoiceNumber: 'desc' },
-                select: { invoiceNumber: true },
-            });
-            let nextSeq = 1;
-            if (latest) {
-                const seq = parseInt(latest.invoiceNumber.replace(prefix, ''), 10);
-                if (!isNaN(seq)) nextSeq = seq + 1;
-            }
-            finalInvoiceNumber = `${prefix}${String(nextSeq).padStart(4, '0')}`;
-        }
-
-        const newInvoice = await prisma.$transaction(async (tx) => {
+        // Invoice 作成本体（採番済み番号を受け取る）。手動 POST / Phase 3 で共通の処理。
+        const runCreate = async (tx: Prisma.TransactionClient, finalInvoiceNumber: string) => {
             const created = await tx.invoice.create({
                 data: {
                     projectMasterId: resolvedPmIds[0] || null, // 代表案件（後方互換・案件なしは null）
@@ -134,7 +119,13 @@ export async function POST(req: NextRequest) {
             }
             await createInvoiceVersion(tx, created.id, session!.user.id);
             return created;
-        });
+        };
+
+        // 採番: 明示指定があればその番号で作成。無指定なら自動採番 + 衝突リトライ（advisory lock）。
+        // 採番ロジックは lib/billing/createInvoiceWithRetry に集約（§17.27.6、無リトライ問題の解消）。
+        const newInvoice = invoiceNumber
+            ? await prisma.$transaction((tx) => runCreate(tx, invoiceNumber))
+            : await createInvoiceWithRetry(runCreate);
 
         const enriched = await enrichInvoice(formatInvoice(newInvoice));
         return NextResponse.json(enriched);

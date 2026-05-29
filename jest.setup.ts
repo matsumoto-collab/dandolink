@@ -126,6 +126,7 @@ jest.mock('@/lib/prisma', () => ({
         },
         invoice: {
             findMany: jest.fn(),
+            findFirst: jest.fn(),
             findUnique: jest.fn(),
             create: jest.fn(),
             update: jest.fn(),
@@ -148,6 +149,7 @@ jest.mock('@/lib/prisma', () => ({
             findUnique: jest.fn(),
             create: jest.fn(),
             update: jest.fn(),
+            updateMany: jest.fn(),
             delete: jest.fn(),
             count: jest.fn(),
         },
@@ -180,9 +182,21 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn(),
         },
+        // Raw SQL (advisory lock 等) は no-op
+        $executeRaw: jest.fn().mockResolvedValue(0),
+        $executeRawUnsafe: jest.fn().mockResolvedValue(0),
+        $queryRaw: jest.fn().mockResolvedValue([]),
         // Mock $transaction to execute the callback immediately
         $transaction: jest.fn((callback) => callback(require('@/lib/prisma').prisma)),
     },
+}));
+
+// Mock @/lib/versions/snapshot
+// 実体は tx.invoice.findUniqueOrThrow / invoiceVersion.* を使うが、これらはバージョン履歴の
+// 内部実装。API 単体テストでは関心外なので no-op にする（本番コードでは実呼び出しされる）。
+jest.mock('@/lib/versions/snapshot', () => ({
+    createInvoiceVersion: jest.fn().mockResolvedValue(undefined),
+    createEstimateVersion: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock @/lib/api/utils

@@ -19,6 +19,12 @@ interface BillingDraftRowProps {
     highlightQuery: string;
     onEdit: (draft: BillingDraft) => void;
     onDelete: (draft: BillingDraft) => void;
+    /** 請求書化の選択列を表示するか（Phase 3） */
+    selectionEnabled?: boolean;
+    /** この行が選択中か */
+    selected?: boolean;
+    /** チェックボックス切替（pending のみ有効） */
+    onToggleSelect?: (draft: BillingDraft) => void;
 }
 
 function formatYen(amount: BillingDraft['amount']): string {
@@ -34,6 +40,9 @@ export default function BillingDraftRow({
     highlightQuery,
     onEdit,
     onDelete,
+    selectionEnabled = false,
+    selected = false,
+    onToggleSelect,
 }: BillingDraftRowProps) {
     const status = STATUS_LABEL[draft.status];
     const isPending = draft.status === 'pending';
@@ -44,7 +53,20 @@ export default function BillingDraftRow({
     const q = highlightQuery;
 
     return (
-        <tr className="hover:bg-slate-50 transition-colors">
+        <tr className={`transition-colors ${selected ? 'bg-slate-50' : 'hover:bg-slate-50'}`}>
+            {selectionEnabled && (
+                <td className="px-4 py-4 whitespace-nowrap">
+                    <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={!isPending}
+                        onChange={() => onToggleSelect?.(draft)}
+                        title={isPending ? '請求書化の対象に含める' : '保留中のみ選択できます'}
+                        aria-label="請求書化の対象に含める"
+                        className="w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-2 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                    />
+                </td>
+            )}
             <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                 {highlightText(customerName, q)}
             </td>

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { Plus } from 'lucide-react';
+import { Plus, FileText } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -12,8 +12,10 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import BillingDraftFilters from '@/components/BillingDraft/BillingDraftFilters';
 import BillingDraftList from '@/components/BillingDraft/BillingDraftList';
+import { billingDraftToInvoiceItem } from '@/lib/billing/draftToInvoiceItem';
 import type { BillingDraft, BillingDraftStatus } from '@/types/billingDraft';
 import type { ProjectMaster } from '@/types/calendar';
+import type { InvoiceInput } from '@/types/invoice';
 import { logger } from '@/lib/logger';
 
 // FormPanel は重め（CRUD フォーム）なので遅延読み込み
@@ -21,6 +23,12 @@ const BillingDraftFormPanel = dynamic(
     () => import('@/components/BillingDraft/BillingDraftFormPanel'),
     { ssr: false, loading: () => null },
 );
+
+// 請求書化プレビュー（既存の請求書作成フォームを転用）。重いので遅延読み込み。
+const InvoiceModal = dynamic(() => import('@/components/Invoices/InvoiceModal'), {
+    ssr: false,
+    loading: () => null,
+});
 
 const ITEMS_PER_PAGE = 20;
 
@@ -147,6 +155,126 @@ export default function BillingDraftListPage() {
     const [isPanelOpen, setIsPanelOpen] = useState(false);
     const [editingDraft, setEditingDraft] = useState<BillingDraft | null>(null);
 
+    // ── Phase 3: 請求書化（顧客選択 → チェック → プレビュー → Invoice 発行）──────────
+    // 顧客で絞り込んだときだけチェック列を出す（1 顧客ずつまとめる運用）
+    const selectionEnabled = !!customerIdFilter;
+    const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set());
+    const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+    const [invoiceInitialData, setInvoiceInitialData] = useState<Partial<InvoiceInput> | undefined>(undefined);
+    const [issuingDraftIds, setIssuingDraftIds] = useState<string[]>([]);
+
+    // 表示中（顧客フィルタ済み）の pending とその選択状態
+    const pendingIds = useMemo(
+        () => drafts.filter((d) => d.status === 'pending').map((d) => d.id),
+        [drafts],
+    );
+    const selectedPendingIds = useMemo(
+        () => pendingIds.filter((id) => selectedDraftIds.has(id)),
+        [pendingIds, selectedDraftIds],
+    );
+    const allPendingSelected = pendingIds.length > 0 && selectedPendingIds.length === pendingIds.length;
+    const canCreateInvoice = selectionEnabled && selectedPendingIds.length > 0;
+
+    // 顧客フィルタが変わったら、その顧客の pending を既定で全チェック（顧客ごとに 1 回だけ）
+    const lastAutofillKeyRef = useRef<string>('');
+    useEffect(() => {
+        if (!customerIdFilter) {
+            setSelectedDraftIds(new Set());
+            lastAutofillKeyRef.current = '';
+            return;
+        }
+        if (!isInitialized || isLoading) return;
+        if (lastAutofillKeyRef.current === customerIdFilter) return;
+        setSelectedDraftIds(new Set(drafts.filter((d) => d.status === 'pending').map((d) => d.id)));
+        lastAutofillKeyRef.current = customerIdFilter;
+    }, [customerIdFilter, isInitialized, isLoading, drafts]);
+
+    const handleToggleSelect = useCallback((draft: BillingDraft) => {
+        setSelectedDraftIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(draft.id)) next.delete(draft.id);
+            else next.add(draft.id);
+            return next;
+        });
+    }, []);
+
+    const handleToggleSelectAll = useCallback(() => {
+        setSelectedDraftIds((prev) => {
+            const allSelected = pendingIds.length > 0 && pendingIds.every((id) => prev.has(id));
+            return allSelected ? new Set() : new Set(pendingIds);
+        });
+    }, [pendingIds]);
+
+    const handleCreateInvoice = useCallback(() => {
+        const chosen = drafts.filter((d) => selectedDraftIds.has(d.id) && d.status === 'pending');
+        if (chosen.length === 0) {
+            toast.error('請求書化する請求予定を選択してください');
+            return;
+        }
+        // D-f: 金額未入力（null）は確認のうえ除外。0 円は明示として通す。
+        let finalDrafts = chosen;
+        const nullAmount = chosen.filter((d) => d.amount == null);
+        if (nullAmount.length > 0) {
+            const ok = window.confirm(
+                `金額が未入力の請求予定が ${nullAmount.length} 件あります。除外して続けますか？`,
+            );
+            if (!ok) return;
+            finalDrafts = chosen.filter((d) => d.amount != null);
+            if (finalDrafts.length === 0) {
+                toast.error('金額が入力された請求予定がありません');
+                return;
+            }
+        }
+        const customerId = customerIdFilter || finalDrafts[0].customerId;
+        const projectMasterIds = Array.from(new Set(finalDrafts.map((d) => d.projectId)));
+        const items = finalDrafts.map((d) => billingDraftToInvoiceItem(d));
+        setIssuingDraftIds(finalDrafts.map((d) => d.id));
+        // 件名は空欄（D-h、未入力では InvoiceForm が発行を弾く）。発行日/支払期限は InvoiceForm 既定。
+        setInvoiceInitialData({ customerId, projectMasterIds, items, title: '' });
+        setIsInvoiceModalOpen(true);
+    }, [drafts, selectedDraftIds, customerIdFilter]);
+
+    const handleCloseInvoiceModal = useCallback(() => {
+        setIsInvoiceModalOpen(false);
+        setInvoiceInitialData(undefined);
+        setIssuingDraftIds([]);
+    }, []);
+
+    const handleIssueInvoice = useCallback(
+        async (data: InvoiceInput) => {
+            try {
+                const res = await fetch('/api/invoices/from-billing-drafts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify({
+                        billingDraftIds: issuingDraftIds,
+                        title: data.title,
+                        dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
+                        status: data.status,
+                        notes: data.notes ?? null,
+                        items: data.items,
+                    }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.error || '請求書の発行に失敗しました');
+                }
+                toast.success('請求書を発行しました');
+                setIsInvoiceModalOpen(false);
+                setInvoiceInitialData(undefined);
+                setIssuingDraftIds([]);
+                setSelectedDraftIds(new Set());
+                lastAutofillKeyRef.current = ''; // 残りの pending を再オートフィルできるように
+                await refresh();
+            } catch (e) {
+                logger.error('Failed to issue invoice from billing drafts:', e);
+                toast.error(e instanceof Error ? e.message : '請求書の発行に失敗しました');
+            }
+        },
+        [issuingDraftIds, refresh],
+    );
+
     const handleNewClick = useCallback(() => {
         setEditingDraft(null);
         setIsPanelOpen(true);
@@ -201,14 +329,34 @@ export default function BillingDraftListPage() {
                         請求書化前の予定を管理します。確定済みは編集・削除できません。
                     </p>
                 </div>
-                <Button
-                    variant="primary"
-                    leftIcon={<Plus className="w-5 h-5" />}
-                    onClick={handleNewClick}
-                >
-                    <span className="hidden sm:inline">新規請求予定</span>
-                    <span className="sm:hidden">新規</span>
-                </Button>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                        variant="gradient"
+                        leftIcon={<FileText className="w-5 h-5" />}
+                        onClick={handleCreateInvoice}
+                        disabled={!canCreateInvoice}
+                        title={
+                            !customerIdFilter
+                                ? '顧客で絞り込むと請求書を作成できます'
+                                : selectedPendingIds.length === 0
+                                  ? '保留中の請求予定を選択してください'
+                                  : undefined
+                        }
+                    >
+                        <span className="hidden sm:inline">
+                            請求書を作成{selectedPendingIds.length > 0 ? `（${selectedPendingIds.length}件）` : ''}
+                        </span>
+                        <span className="sm:hidden">請求書</span>
+                    </Button>
+                    <Button
+                        variant="primary"
+                        leftIcon={<Plus className="w-5 h-5" />}
+                        onClick={handleNewClick}
+                    >
+                        <span className="hidden sm:inline">新規請求予定</span>
+                        <span className="sm:hidden">新規</span>
+                    </Button>
+                </div>
             </div>
 
             <BillingDraftFilters
@@ -241,6 +389,12 @@ export default function BillingDraftListPage() {
                 totalCount={drafts.length}
                 onPageChange={setCurrentPage}
                 hasActiveFilter={hasActiveFilter}
+                selectionEnabled={selectionEnabled}
+                selectedIds={selectedDraftIds}
+                onToggleSelect={handleToggleSelect}
+                onToggleSelectAll={handleToggleSelectAll}
+                allPendingSelected={allPendingSelected}
+                hasPendingInView={pendingIds.length > 0}
             />
 
             <BillingDraftFormPanel
@@ -252,6 +406,15 @@ export default function BillingDraftListPage() {
                 onCreate={create}
                 onUpdate={update}
             />
+
+            {isInvoiceModalOpen && (
+                <InvoiceModal
+                    isOpen={isInvoiceModalOpen}
+                    onClose={handleCloseInvoiceModal}
+                    onSubmit={handleIssueInvoice}
+                    initialData={invoiceInitialData}
+                />
+            )}
         </div>
     );
 }
