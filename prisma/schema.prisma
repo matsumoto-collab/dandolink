@@ -1669,6 +1669,7 @@ model Message {
   attachments MessageAttachment[]
   mentions    MessageMention[]
   reads       MessageRead[]
+  reactions   MessageReaction[]
 
   @@index([roomId, createdAt(sort: Desc)])
   @@index([senderId])
@@ -1722,6 +1723,21 @@ model MessageRead {
 
   @@unique([messageId, userId])
   @@index([userId])
+  @@schema("public")
+}
+
+// メッセージへのリアクション（LINE方式: 1ユーザー1メッセージにつき1種類）
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
   @@schema("public")
 }
 

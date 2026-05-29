@@ -51,6 +51,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ room
                 mentions: true,
                 attachments: true,
                 reads: { select: { userId: true, readAt: true } },
+                reactions: { select: { id: true, userId: true, emoji: true } },
             },
         });
         const hasMore = rows.length > limit;
@@ -221,7 +222,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ roo
                         }
                         : undefined,
                 },
-                include: { mentions: true, attachments: true, reads: true },
+                include: { mentions: true, attachments: true, reads: true, reactions: true },
             });
             await tx.chatRoom.update({
                 where: { id: roomId },

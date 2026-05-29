@@ -50,6 +50,12 @@ export interface MessageRead {
     readAt: string | Date;
 }
 
+export interface MessageReaction {
+    id: string;
+    userId: string;
+    emoji: string;
+}
+
 export interface ChatMessage {
     id: string;
     roomId: string;
@@ -63,4 +69,5 @@ export interface ChatMessage {
     mentions: MessageMention[];
     attachments: MessageAttachment[];
     reads: MessageRead[];
+    reactions?: MessageReaction[];
 }
