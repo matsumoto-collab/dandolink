@@ -374,22 +374,47 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
             }
 
             const updatedAssignment = await response.json();
-            set((state) => ({
-                assignments: state.assignments.map((a) =>
-                    a.id === id ? {
-                        ...a,
-                        ...updatedAssignment,
-                        date: new Date(updatedAssignment.date),
-                        createdAt: new Date(updatedAssignment.createdAt),
-                        updatedAt: new Date(updatedAssignment.updatedAt),
-                        projectMaster: updatedAssignment.projectMaster ? {
-                            ...updatedAssignment.projectMaster,
-                            createdAt: new Date(updatedAssignment.projectMaster.createdAt),
-                            updatedAt: new Date(updatedAssignment.projectMaster.updatedAt),
-                        } : a.projectMaster,
-                    } : a
-                ),
-            }));
+            set((state) => {
+                const exists = state.assignments.some((a) => a.id === id);
+                if (exists) {
+                    // 在席時: 従来どおり置換（既存挙動を完全維持＝通常編集のデグレ回避）
+                    return {
+                        assignments: state.assignments.map((a) =>
+                            a.id === id ? {
+                                ...a,
+                                ...updatedAssignment,
+                                date: new Date(updatedAssignment.date),
+                                createdAt: new Date(updatedAssignment.createdAt),
+                                updatedAt: new Date(updatedAssignment.updatedAt),
+                                projectMaster: updatedAssignment.projectMaster ? {
+                                    ...updatedAssignment.projectMaster,
+                                    createdAt: new Date(updatedAssignment.projectMaster.createdAt),
+                                    updatedAt: new Date(updatedAssignment.projectMaster.updatedAt),
+                                } : a.projectMaster,
+                            } : a
+                        ),
+                    };
+                }
+                // 退避済み（週またぎ長押し移動）: 対象がストアに無いので応答配置を追加する。
+                // 移動先セルは必ず現在表示中の週＝ロード範囲内なので、範囲外データの混入は起きない。
+                // parse の流儀は fetchAssignments（このファイル冒頭）と揃える。
+                const parsedUpdated = {
+                    ...updatedAssignment,
+                    date: new Date(updatedAssignment.date),
+                    createdAt: new Date(updatedAssignment.createdAt),
+                    updatedAt: new Date(updatedAssignment.updatedAt),
+                    workStartedAt: updatedAssignment.workStartedAt ? new Date(updatedAssignment.workStartedAt) : null,
+                    workEndedAt: updatedAssignment.workEndedAt ? new Date(updatedAssignment.workEndedAt) : null,
+                    workStartedComment: updatedAssignment.workStartedComment ?? null,
+                    workEndedComment: updatedAssignment.workEndedComment ?? null,
+                    projectMaster: updatedAssignment.projectMaster ? {
+                        ...updatedAssignment.projectMaster,
+                        createdAt: new Date(updatedAssignment.projectMaster.createdAt),
+                        updatedAt: new Date(updatedAssignment.projectMaster.updatedAt),
+                    } : undefined,
+                };
+                return { assignments: [...state.assignments, parsedUpdated] };
+            });
         } catch (error) {
             if (!(error instanceof ConflictUpdateError)) {
                 set({ assignments: previousAssignments });

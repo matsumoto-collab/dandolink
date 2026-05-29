@@ -36,7 +36,7 @@ interface DesktopCalendarViewProps {
     moveForeman?: (employeeId: string, direction: 'up' | 'down') => void;
     handleOpenDispatchModal?: (projectId: string) => void;
     handleCopyEvent?: (eventId: string) => void;
-    handleMoveToCell?: (eventId: string, employeeId: string, date: Date) => void;
+    handleMoveToCell?: (event: CalendarEvent, employeeId: string, date: Date) => void;
     handleOpenSearch?: () => void;
     highlightedEventId?: string | null;
     getMemberAdjustment?: (dateKey: string) => number;
@@ -118,7 +118,7 @@ export default function DesktopCalendarView({
     const commitMove = useCallback((employeeId: string, date: Date) => {
         if (Date.now() - moveStartedAtRef.current < COMMIT_COOLDOWN_MS) return;
         if (!movingEvent || !handleMoveToCell) return;
-        handleMoveToCell(movingEvent.id, employeeId, date);
+        handleMoveToCell(movingEvent, employeeId, date);
         setMovingEvent(null);
     }, [movingEvent, handleMoveToCell]);
 

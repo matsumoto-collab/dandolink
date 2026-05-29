@@ -337,6 +337,39 @@ describe('assignmentSlice', () => {
       const { updateProject } = useCalendarStore.getState();
       await expect(updateProject('a1', {} as any)).rejects.toThrow('Failed to update assignment');
     });
+
+    it('対象がストアに不在（週またぎ移動で退避）の場合、応答配置をappendする', async () => {
+      // 移動元 a1 は退避済み＝ストアに無い。別週の配置 other だけ load 済み
+      useCalendarStore.setState({
+        assignments: [{ id: 'other', date: new Date('2026-06-18') } as any],
+      });
+
+      (global.fetch as jest.Mock).mockImplementation(async (url) => {
+        if (url.includes('/api/assignments/')) {
+          return {
+            ok: true,
+            json: async () => ({
+              id: 'a1',
+              date: '2026-06-18T00:00:00.000Z',
+              createdAt: '2026-06-04T00:00:00.000Z',
+              updatedAt: '2026-06-18T00:00:00.000Z',
+              assignedEmployeeId: 'e2',
+              sortOrder: 0,
+            }),
+          };
+        }
+        return { ok: true };
+      });
+
+      const { updateProject } = useCalendarStore.getState();
+      await updateProject('a1', { startDate: new Date('2026-06-18'), assignedEmployeeId: 'e2' } as any);
+
+      const state = useCalendarStore.getState();
+      expect(state.assignments).toHaveLength(2);                 // other 維持 + a1 追加
+      const appended = state.assignments.find((x) => x.id === 'a1');
+      expect(appended).toBeDefined();
+      expect(appended!.date).toEqual(new Date('2026-06-18T00:00:00.000Z'));
+    });
   });
 
   describe('updateProjects (batch update)', () => {

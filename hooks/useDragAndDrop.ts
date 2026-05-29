@@ -25,6 +25,9 @@ export interface PendingMove {
     toDate: Date;
     currentTrucks: string[];
     currentMemberCount: number;
+    // 確認モーダルのタイトル表示用。週またぎ移動では移動元がストアから退避され
+    // projects.find で件名を解決できないため、掴んだイベントの件名を持ち回す。
+    title?: string;
 }
 
 interface UseDragAndDropOptions {
@@ -209,6 +212,7 @@ export function useDragAndDrop(
                     toDate: newDate,
                     currentTrucks: movingEvent.trucks ?? [],
                     currentMemberCount: movingEvent.memberCount ?? 0,
+                    title: movingEvent.title,
                 });
             }
             pendingEventsRef.current = null;
