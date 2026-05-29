@@ -5,11 +5,13 @@ import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/ui/BottomSheet';
+import ProjectContextSection from '@/components/BillingDraft/ProjectContextSection';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { logger } from '@/lib/logger';
 import type {
     BillingDraft,
     CreateBillingDraftInput,
+    ProjectContext,
     UpdateBillingDraftInput,
 } from '@/types/billingDraft';
 import type { Customer } from '@/types/customer';
@@ -25,6 +27,18 @@ interface BillingDraftFormPanelProps {
     onClose: () => void;
     onCreate: (data: CreateBillingDraftInput) => Promise<void>;
     onUpdate: (id: string, data: UpdateBillingDraftInput) => Promise<void>;
+    /**
+     * Phase 2: 新規作成モードのときに案件 ID を初期値として入れる（カレンダー右クリック / 案件詳細ボタンで使用）。
+     * draft が指定されている（編集モード）ときは無視される。
+     */
+    initialProjectId?: string;
+    /** Phase 2: 同じく顧客 ID を初期値として入れる。draft 指定時は無視。 */
+    initialCustomerId?: string;
+    /**
+     * Phase 2: パネル上部に表示する案件サマリ（契約金額 / 過去合計 / 見積書 / 履歴）。
+     * 未指定（請求予定タブからの起動時）は表示なし＝Phase 1 の最小フォーム挙動を維持。
+     */
+    projectContext?: ProjectContext;
 }
 
 const TAX_RATE_OPTIONS = [
@@ -43,6 +57,9 @@ export default function BillingDraftFormPanel({
     onClose,
     onCreate,
     onUpdate,
+    initialProjectId,
+    initialCustomerId,
+    projectContext,
 }: BillingDraftFormPanelProps) {
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const isEdit = !!draft;
@@ -56,7 +73,8 @@ export default function BillingDraftFormPanel({
     const [note, setNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
-    // open / draft の変化に合わせてフォームを初期化
+    // open / draft の変化に合わせてフォームを初期化。
+    // 新規作成モードのときは Phase 2 のプレフィル値（initialProjectId / initialCustomerId）を使う。
     useEffect(() => {
         if (!open) return;
         if (draft) {
@@ -67,14 +85,14 @@ export default function BillingDraftFormPanel({
             setTaxRate(draft.taxRate != null ? String(draft.taxRate) : '0.10');
             setNote(draft.note ?? '');
         } else {
-            setProjectId('');
-            setCustomerId('');
+            setProjectId(initialProjectId ?? '');
+            setCustomerId(initialCustomerId ?? '');
             setTitle('');
             setAmount('');
             setTaxRate('0.10');
             setNote('');
         }
-    }, [open, draft]);
+    }, [open, draft, initialProjectId, initialCustomerId]);
 
     // 新規作成時のみ、案件選択で customerId を自動補完
     useEffect(() => {
@@ -141,6 +159,9 @@ export default function BillingDraftFormPanel({
 
     const formBody = (
         <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Phase 2 起動経路：案件サマリ（契約金額・過去合計・見積書・履歴） */}
+            {projectContext && <ProjectContextSection projectContext={projectContext} />}
+
             {/* 編集モードかつ pending でないときは注意書き */}
             {isEdit && !isEditableDraft && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
