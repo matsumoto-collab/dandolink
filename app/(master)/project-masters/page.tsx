@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
+import { useBillingDrafts } from '@/hooks/useBillingDrafts';
+import type { ProjectContext } from '@/types/billingDraft';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -37,6 +39,10 @@ const InvoiceModal = dynamic(
 const InvoiceDetailModal = dynamic(
     () => import('@/components/Invoices/InvoiceDetailModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[70]"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
+const BillingDraftFormPanel = dynamic(
+    () => import('@/components/BillingDraft/BillingDraftFormPanel'),
+    { ssr: false, loading: () => null }
 );
 
 // useSearchParams() を含むため、ビルド時のプリレンダリングで Suspense 境界が必要
@@ -602,6 +608,43 @@ function ProjectMasterListPageContent() {
         }
     }, [deleteInvoice]);
 
+    // ===== Phase 2: 請求予定サイドパネル統合 =====
+    const { create: createBillingDraft, update: updateBillingDraft } = useBillingDrafts({});
+    const [isBillingDraftPanelOpen, setIsBillingDraftPanelOpen] = useState(false);
+    const [billingDraftInitialProjectId, setBillingDraftInitialProjectId] = useState<string | undefined>();
+    const [billingDraftInitialCustomerId, setBillingDraftInitialCustomerId] = useState<string | undefined>();
+    const [billingDraftProjectContext, setBillingDraftProjectContext] = useState<ProjectContext | undefined>();
+
+    const handleAddBillingDraft = useCallback(async (pm: ProjectMaster) => {
+        // モーダル → サイドパネル遷移：z-index 衝突回避のためモーダルを先に閉じる
+        setDetailPm(null);
+        setOpenModalInEditMode(false);
+
+        // 初期値をセットしてパネルを即時表示（projectContext は未取得 = 最小表示）
+        setBillingDraftInitialProjectId(pm.id);
+        setBillingDraftInitialCustomerId(pm.customerId || undefined);
+        setBillingDraftProjectContext(undefined);
+        setIsBillingDraftPanelOpen(true);
+
+        // billing-context を取得して上部サマリを後追い表示
+        try {
+            const res = await fetch(`/api/project-masters/${pm.id}/billing-context`, { cache: 'no-store' });
+            if (res.ok) {
+                const data: ProjectContext = await res.json();
+                setBillingDraftProjectContext(data);
+            }
+        } catch (e) {
+            logger.error('Failed to fetch billing-context:', e);
+        }
+    }, []);
+
+    const handleCloseBillingDraftPanel = useCallback(() => {
+        setIsBillingDraftPanelOpen(false);
+        setBillingDraftInitialProjectId(undefined);
+        setBillingDraftInitialCustomerId(undefined);
+        setBillingDraftProjectContext(undefined);
+    }, []);
+
     const openDetailModal = (pm: ProjectMaster) => {
         setDetailPm(pm);
         setOpenModalInEditMode(false);
@@ -633,7 +676,20 @@ function ProjectMasterListPageContent() {
                 initialEditMode={openModalInEditMode}
                 onCreateEstimate={isAdminOrManager ? handleCreateEstimate : undefined}
                 onViewEstimate={isAdminOrManager && estimateForDetailPm ? handleViewEstimate : undefined}
+                onAddBillingDraft={isAdminOrManager && detailPm ? () => handleAddBillingDraft(detailPm) : undefined}
                 readOnly={isForeman2}
+            />
+            <BillingDraftFormPanel
+                open={isBillingDraftPanelOpen}
+                draft={null}
+                customers={customers}
+                projectMasters={projectMasters}
+                onClose={handleCloseBillingDraftPanel}
+                onCreate={createBillingDraft}
+                onUpdate={updateBillingDraft}
+                initialProjectId={billingDraftInitialProjectId}
+                initialCustomerId={billingDraftInitialCustomerId}
+                projectContext={billingDraftProjectContext}
             />
             <EstimateModal
                 isOpen={isEstimateModalOpen}

@@ -29,6 +29,12 @@ interface EmployeeRowComponentProps {
     onCommitMove?: (employeeId: string, date: Date) => void;
     onCancelMove?: () => void;
     highlightedEventId?: string | null;
+    /**
+     * Phase 2: assignment セルを右クリックしたときのコンテキストメニュー。
+     * PC 限定（DesktopCalendarView 配下に置く構造で実現、モバイルは props を渡さない）。
+     * event から projectMasterId / customerId を解決して請求予定パネルを起動する想定。
+     */
+    onEventContextMenu?: (event: CalendarEvent, e: React.MouseEvent) => void;
 }
 
 export default function EmployeeRowComponent({
@@ -53,6 +59,7 @@ export default function EmployeeRowComponent({
     onCommitMove,
     onCancelMove,
     highlightedEventId = null,
+    onEventContextMenu,
 }: EmployeeRowComponentProps) {
     const isMoving = movingEventId !== null;
 
@@ -191,6 +198,7 @@ export default function EmployeeRowComponent({
                                     onLongPress={onLongPressEvent && !isMoving ? () => onLongPressEvent(event) : undefined}
                                     isMovingSource={isThisMoving}
                                     isHighlighted={highlightedEventId !== null && (event.id === highlightedEventId || projectId === highlightedEventId)}
+                                    onContextMenu={onEventContextMenu ? (e) => onEventContextMenu(event, e) : undefined}
                                 />
                             );
                         })}
