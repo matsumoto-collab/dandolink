@@ -30,6 +30,18 @@ interface BillingDraftListProps {
     onPageChange: (page: number) => void;
     /** フィルタが空かどうか（空表示の文言切替に使う） */
     hasActiveFilter: boolean;
+    /** 請求書化の選択列を表示するか（Phase 3、未指定なら非表示） */
+    selectionEnabled?: boolean;
+    /** 選択中の draft ID 集合 */
+    selectedIds?: Set<string>;
+    /** チェックボックス切替（pending のみ） */
+    onToggleSelect?: (draft: BillingDraft) => void;
+    /** ヘッダの全選択切替 */
+    onToggleSelectAll?: () => void;
+    /** 表示中の pending がすべて選択済みか（ヘッダチェックボックス用） */
+    allPendingSelected?: boolean;
+    /** 表示中に選択可能な pending が存在するか */
+    hasPendingInView?: boolean;
 }
 
 function formatYen(amount: BillingDraft['amount']): string {
@@ -52,8 +64,15 @@ export default function BillingDraftList({
     totalCount,
     onPageChange,
     hasActiveFilter,
+    selectionEnabled = false,
+    selectedIds,
+    onToggleSelect,
+    onToggleSelectAll,
+    allPendingSelected = false,
+    hasPendingInView = false,
 }: BillingDraftListProps) {
     const showSkeleton = !isInitialized || isLoading;
+    const columnCount = selectionEnabled ? 9 : 8;
     const emptyMessage = hasActiveFilter
         ? '検索結果が見つかりませんでした'
         : '請求予定が登録されていません';
@@ -97,15 +116,27 @@ export default function BillingDraftList({
                                     className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-md transition-shadow"
                                 >
                                     <div className="flex items-start justify-between gap-3 mb-2">
-                                        <div className="min-w-0">
-                                            <div className="text-xs text-slate-500 mb-0.5">
-                                                {highlightText(customerName, highlightQuery)}
-                                            </div>
-                                            <div className="text-sm font-semibold text-slate-800 break-words">
-                                                {highlightText(d.title, highlightQuery)}
-                                            </div>
-                                            <div className="text-xs text-slate-600 mt-1 break-words">
-                                                {highlightText(projectName, highlightQuery)}
+                                        <div className="flex items-start gap-2 min-w-0">
+                                            {selectionEnabled && (
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds?.has(d.id) ?? false}
+                                                    disabled={!isPending}
+                                                    onChange={() => onToggleSelect?.(d)}
+                                                    aria-label="請求書化の対象に含める"
+                                                    className="mt-0.5 w-4 h-4 shrink-0 rounded border-slate-300 text-slate-700 focus:ring-2 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                />
+                                            )}
+                                            <div className="min-w-0">
+                                                <div className="text-xs text-slate-500 mb-0.5">
+                                                    {highlightText(customerName, highlightQuery)}
+                                                </div>
+                                                <div className="text-sm font-semibold text-slate-800 break-words">
+                                                    {highlightText(d.title, highlightQuery)}
+                                                </div>
+                                                <div className="text-xs text-slate-600 mt-1 break-words">
+                                                    {highlightText(projectName, highlightQuery)}
+                                                </div>
                                             </div>
                                         </div>
                                         <span
@@ -169,6 +200,19 @@ export default function BillingDraftList({
                     <table className="min-w-full divide-y divide-slate-200">
                         <thead className="bg-slate-100 sticky top-0 z-10">
                             <tr>
+                                {selectionEnabled && (
+                                    <th className="px-4 py-4 text-left w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={allPendingSelected}
+                                            disabled={!hasPendingInView}
+                                            onChange={onToggleSelectAll}
+                                            aria-label="表示中の保留中をすべて選択"
+                                            title="表示中の保留中をすべて選択"
+                                            className="w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-2 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                        />
+                                    </th>
+                                )}
                                 <Th>顧客</Th>
                                 <Th>案件</Th>
                                 <Th>タイトル</Th>
@@ -183,7 +227,7 @@ export default function BillingDraftList({
                             {showSkeleton ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i} className="animate-pulse">
-                                        {[...Array(8)].map((_, j) => (
+                                        {[...Array(columnCount)].map((_, j) => (
                                             <td key={j} className="px-6 py-4">
                                                 <div className="h-4 bg-slate-200 rounded w-20" />
                                             </td>
@@ -193,7 +237,7 @@ export default function BillingDraftList({
                             ) : drafts.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={8}
+                                        colSpan={columnCount}
                                         className="px-6 py-12 text-center text-slate-500"
                                     >
                                         {emptyMessage}
@@ -208,6 +252,9 @@ export default function BillingDraftList({
                                         highlightQuery={highlightQuery}
                                         onEdit={onEdit}
                                         onDelete={onDelete}
+                                        selectionEnabled={selectionEnabled}
+                                        selected={selectedIds?.has(d.id) ?? false}
+                                        onToggleSelect={onToggleSelect}
                                     />
                                 ))
                             )}
