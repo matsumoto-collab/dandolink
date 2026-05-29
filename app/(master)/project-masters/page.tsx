@@ -18,6 +18,12 @@ import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDe
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import { useBillingDrafts } from '@/hooks/useBillingDrafts';
 import type { ProjectContext } from '@/types/billingDraft';
+import {
+    computeInvoicedByProject,
+    getBillingStatus,
+    type BillingStatus,
+    type InvoiceForBillingSummary,
+} from '@/lib/billing/billingStatus';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
@@ -45,12 +51,40 @@ const BillingDraftFormPanel = dynamic(
     { ssr: false, loading: () => null }
 );
 
+/** Phase 4: 請求列の 3 段階表示。状態ごとの文言・色（灰/黄/緑）・ツールチップ（§14.2 / §14.5）。 */
+const BILLING_CELL_META: Record<BillingStatus, { text: string; className: string; showCheck: boolean; title: string }> = {
+    none: {
+        text: '—',
+        className: 'bg-white text-slate-300 border border-slate-200',
+        showCheck: false,
+        title: '契約金額が未設定です',
+    },
+    unbilled: {
+        text: '未',
+        className: 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600',
+        showCheck: false,
+        title: '未請求（クリックで請求書を作成）',
+    },
+    partial: {
+        text: '一部',
+        className: 'bg-amber-100 text-amber-700 border border-amber-300 hover:bg-amber-200',
+        showCheck: false,
+        title: '一部請求済（クリックで請求書を確認・追加）',
+    },
+    full: {
+        text: '済',
+        className: 'bg-emerald-600 text-white border border-emerald-600 hover:bg-emerald-700 shadow-sm',
+        showCheck: true,
+        title: '全額請求済（クリックで請求書を確認）',
+    },
+};
+
 // useSearchParams() を含むため、ビルド時のプリレンダリングで Suspense 境界が必要
 // （Next.js App Router の制約: https://nextjs.org/docs/messages/missing-suspense-with-csr-bailout）
 function ProjectMasterListPageContent() {
     const { projectMasters, isLoading, createProjectMaster, updateProjectMaster, deleteProjectMaster, getProjectMasterById, fetchProjectMasters } = useProjectMasters();
     const { addEstimate, updateEstimate, deleteEstimate, ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
-    const { addInvoice, updateInvoice, deleteInvoice, ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
+    const { invoices, addInvoice, updateInvoice, deleteInvoice, ensureDataLoaded: ensureInvoicesLoaded, getInvoicesByProject } = useInvoices();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
     const { data: session } = useSession();
@@ -410,9 +444,13 @@ function ProjectMasterListPageContent() {
     const hasEstimateFor = useCallback((pm: ProjectMaster) => {
         return pm.hasEstimate || getEstimatesByProject(pm.id).length > 0;
     }, [getEstimatesByProject]);
-    const hasInvoiceFor = useCallback((pm: ProjectMaster) => {
-        return pm.hasInvoice || getInvoicesByProject(pm.id).length > 0;
-    }, [getInvoicesByProject]);
+    // Phase 4: 案件ごとの請求済み合計（税抜・明細按分、cancelled 除外）。
+    // 読み込み済みの invoices store から算出するため、請求書発行・削除に追従して自動更新される。
+    // 「未請求 / 一部請求済 / 全額請求済」の 3 段階表示に使う（旧 hasInvoiceFor の 2 段階を置換）。
+    const invoicedByProject = useMemo(
+        () => computeInvoicedByProject(invoices as unknown as InvoiceForBillingSummary[]),
+        [invoices],
+    );
 
     // 見積「済/未」セルのクリック
     // 1件以上ある場合は常にピッカーを開き、既存閲覧と「新規作成（追加見積書）」のどちらも選べるようにする
@@ -922,7 +960,7 @@ function ProjectMasterListPageContent() {
                                         <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
                                             {(() => {
                                                 const hasEst = hasEstimateFor(pm);
-                                                const hasInv = hasInvoiceFor(pm);
+                                                const billMeta = BILLING_CELL_META[getBillingStatus(pm.contractAmount, invoicedByProject[pm.id] ?? 0)];
                                                 const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
                                                 const done = 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm';
                                                 const todo = 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600';
@@ -937,10 +975,11 @@ function ProjectMasterListPageContent() {
                                                         </button>
                                                         <button
                                                             onClick={() => handleInvoiceCellClick(pm)}
-                                                            className={`${base} ${hasInv ? done : todo}`}
+                                                            title={billMeta.title}
+                                                            className={`${base} ${billMeta.className}`}
                                                         >
-                                                            {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                            <span>請求 {hasInv ? '済' : '未'}</span>
+                                                            {billMeta.showCheck && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                            <span>請求 {billMeta.text}</span>
                                                         </button>
                                                     </>
                                                 );
@@ -1106,15 +1145,15 @@ function ProjectMasterListPageContent() {
                                                 </td>
                                                 <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                                                     {(() => {
-                                                        const hasInv = hasInvoiceFor(pm);
+                                                        const billMeta = BILLING_CELL_META[getBillingStatus(pm.contractAmount, invoicedByProject[pm.id] ?? 0)];
                                                         return (
                                                             <button
                                                                 onClick={() => handleInvoiceCellClick(pm)}
-                                                                title={hasInv ? '請求書を確認' : '請求書を作成'}
-                                                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${hasInv ? 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm' : 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600'}`}
+                                                                title={billMeta.title}
+                                                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${billMeta.className}`}
                                                             >
-                                                                {hasInv && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                                {hasInv ? '済' : '未'}
+                                                                {billMeta.showCheck && <Check className="w-3 h-3" strokeWidth={3} />}
+                                                                {billMeta.text}
                                                             </button>
                                                         );
                                                     })()}
