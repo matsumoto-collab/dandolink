@@ -31,6 +31,8 @@ export const invoiceStyles = StyleSheet.create({
     tableHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: COLORS.borderDark, minHeight: 16 },
     tableRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderMedium, minHeight: 17 },
     tableRowLast: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderMedium, minHeight: 17 },
+    // 用紙下端まで余白を埋める空行。flex が効けば伸びて正確にフィット、効かなくても minHeight で 26 行分の高さを確保し、グリッド線を保つ
+    tableEmptyRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderMedium, flexGrow: 1, minHeight: 17 },
     projectHeaderRow: { flexDirection: 'row', borderBottomWidth: 0.3, borderBottomColor: COLORS.borderLight, minHeight: 17 },
     totalRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: COLORS.borderDark, minHeight: 17 },
     totalLabelCell: { width: 273, padding: 2, borderRightWidth: 0.5, borderRightColor: COLORS.borderMedium, justifyContent: 'center', alignItems: 'flex-end' },
