@@ -60,6 +60,55 @@ function formatYen(amount: BillingDraft['amount']): string {
 
 const yen = (n: number) => `¥${n.toLocaleString()}`;
 
+/** 顧客グループ見出しの中身（トグル・顧客名・集計・請求ボタン）。デスクトップ td / モバイル div で共用。 */
+function GroupHeaderInner({
+    group,
+    expanded,
+    onToggleExpand,
+    onCreateInvoiceForCustomer,
+}: {
+    group: BillingDraftCustomerGroup;
+    expanded: boolean;
+    onToggleExpand: () => void;
+    onCreateInvoiceForCustomer: (customerId: string) => void;
+}) {
+    return (
+        <div className="flex items-center gap-2">
+            <button
+                type="button"
+                onClick={onToggleExpand}
+                aria-expanded={expanded}
+                className="flex items-center gap-1.5 min-w-0 flex-1 text-left"
+            >
+                {expanded ? (
+                    <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
+                ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
+                )}
+                <span className="font-semibold text-slate-800 truncate">{group.customerName}</span>
+                <span className="shrink-0 text-xs text-slate-500 whitespace-nowrap">
+                    未請求 {group.pendingCount}件・{yen(group.pendingTotal)}（税抜）
+                    {group.drafts.length > group.pendingCount && (
+                        <span className="text-slate-400">・全{group.drafts.length}件</span>
+                    )}
+                </span>
+            </button>
+            <button
+                type="button"
+                onClick={() => onCreateInvoiceForCustomer(group.customerId)}
+                disabled={group.selectedPendingCount === 0}
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                title={group.selectedPendingCount === 0 ? '保留中を選択すると請求書を作成できます' : undefined}
+            >
+                <FileText className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">請求書を作成</span>
+                <span className="lg:hidden">請求</span>
+                {group.selectedPendingCount > 0 && `（${group.selectedPendingCount}）`}
+            </button>
+        </div>
+    );
+}
+
 /** モバイル用：1 請求予定のカード（顧客はグループ見出しにあるため省略） */
 function MobileDraftCard({
     draft,
@@ -193,138 +242,164 @@ export default function BillingDraftList({
 
     return (
         <>
-            <div className="flex-1 overflow-auto space-y-3 min-h-0">
+            {/* デスクトップ: ひとつのテーブル（顧客は見出し行・列は全体で揃う） */}
+            <div className="hidden md:flex md:flex-col flex-1 min-h-0 bg-white rounded-xl shadow-lg border border-slate-200">
+                <div className="flex-1 overflow-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-100 sticky top-0 z-20">
+                            <tr>
+                                <th className="px-4 py-3 w-10" />
+                                <Th>案件</Th>
+                                <Th>タイトル</Th>
+                                <Th align="right">金額</Th>
+                                <Th>ステータス</Th>
+                                <Th>担当者</Th>
+                                <Th>作成者</Th>
+                                <Th align="right">操作</Th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {groups.map((g) => {
+                                const expanded = isExpanded(g.customerId);
+                                return (
+                                    <React.Fragment key={g.customerId}>
+                                        {/* 顧客グループ見出し行 */}
+                                        <tr className="bg-slate-50 border-t-2 border-slate-200">
+                                            <td className="px-4 py-2.5 align-middle">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={g.allPendingSelected}
+                                                    disabled={g.pendingCount === 0}
+                                                    onChange={() => onToggleSelectCustomer(g.customerId)}
+                                                    title="この顧客の保留中をすべて選択"
+                                                    aria-label="この顧客の保留中をすべて選択"
+                                                    className="w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-2 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                />
+                                            </td>
+                                            <td colSpan={7} className="px-3 py-2">
+                                                <GroupHeaderInner
+                                                    group={g}
+                                                    expanded={expanded}
+                                                    onToggleExpand={() => toggleExpand(g.customerId)}
+                                                    onCreateInvoiceForCustomer={onCreateInvoiceForCustomer}
+                                                />
+                                            </td>
+                                        </tr>
+                                        {/* 明細行 */}
+                                        {expanded &&
+                                            g.drafts.map((d) => (
+                                                <BillingDraftRow
+                                                    key={d.id}
+                                                    draft={d}
+                                                    hideCustomer
+                                                    selectionEnabled
+                                                    assigneeName={assigneeMap.get(d.projectId) || ''}
+                                                    highlightQuery={highlightQuery}
+                                                    selected={selectedIds.has(d.id)}
+                                                    onToggleSelect={onToggleSelect}
+                                                    onEdit={onEdit}
+                                                    onDelete={onDelete}
+                                                />
+                                            ))}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+
+                {totalPages > 1 && (
+                    <div className="flex-shrink-0 flex justify-center items-center gap-2 py-3 border-t border-slate-200">
+                        <button
+                            type="button"
+                            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            前へ
+                        </button>
+                        <span className="text-sm font-medium text-slate-600 px-4">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            次へ
+                        </button>
+                    </div>
+                )}
+            </div>
+
+            {/* モバイル: 顧客ごとセクション（カード） */}
+            <div className="md:hidden flex-1 overflow-auto space-y-3 min-h-0">
                 {groups.map((g) => {
                     const expanded = isExpanded(g.customerId);
                     return (
-                        <div
-                            key={g.customerId}
-                            className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden"
-                        >
-                            {/* 顧客グループ見出し */}
-                            <div className="flex items-center gap-2 px-3 sm:px-4 py-2.5 bg-slate-50 border-b border-slate-100">
+                        <div key={g.customerId} className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                            <div className="flex items-center gap-2 px-3 py-2.5 bg-slate-50 border-b border-slate-100">
                                 <input
                                     type="checkbox"
                                     checked={g.allPendingSelected}
                                     disabled={g.pendingCount === 0}
                                     onChange={() => onToggleSelectCustomer(g.customerId)}
-                                    title="この顧客の保留中をすべて選択"
                                     aria-label="この顧客の保留中をすべて選択"
                                     className="w-4 h-4 shrink-0 rounded border-slate-300 text-slate-700 focus:ring-2 focus:ring-slate-500 disabled:opacity-40 disabled:cursor-not-allowed"
                                 />
-                                <button
-                                    type="button"
-                                    onClick={() => toggleExpand(g.customerId)}
-                                    className="flex items-center gap-1.5 flex-1 min-w-0 text-left"
-                                    aria-expanded={expanded}
-                                >
-                                    {expanded ? (
-                                        <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                                    ) : (
-                                        <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
-                                    )}
-                                    <span className="font-semibold text-slate-800 truncate">{g.customerName}</span>
-                                    <span className="shrink-0 text-xs text-slate-500 whitespace-nowrap">
-                                        未請求 {g.pendingCount}件・{yen(g.pendingTotal)}（税抜）
-                                        {g.drafts.length > g.pendingCount && (
-                                            <span className="text-slate-400">・全{g.drafts.length}件</span>
-                                        )}
-                                    </span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => onCreateInvoiceForCustomer(g.customerId)}
-                                    disabled={g.selectedPendingCount === 0}
-                                    className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                    title={g.selectedPendingCount === 0 ? '保留中を選択すると請求書を作成できます' : undefined}
-                                >
-                                    <FileText className="w-3.5 h-3.5" />
-                                    <span className="hidden sm:inline">請求書を作成</span>
-                                    <span className="sm:hidden">請求</span>
-                                    {g.selectedPendingCount > 0 && `（${g.selectedPendingCount}）`}
-                                </button>
+                                <div className="flex-1 min-w-0">
+                                    <GroupHeaderInner
+                                        group={g}
+                                        expanded={expanded}
+                                        onToggleExpand={() => toggleExpand(g.customerId)}
+                                        onCreateInvoiceForCustomer={onCreateInvoiceForCustomer}
+                                    />
+                                </div>
                             </div>
-
                             {expanded && (
-                                <>
-                                    {/* デスクトップ: テーブル */}
-                                    <div className="hidden md:block overflow-auto">
-                                        <table className="min-w-full divide-y divide-slate-200">
-                                            <thead className="bg-white">
-                                                <tr>
-                                                    <th className="w-10" />
-                                                    <Th>案件</Th>
-                                                    <Th>タイトル</Th>
-                                                    <Th align="right">金額</Th>
-                                                    <Th>ステータス</Th>
-                                                    <Th>担当者</Th>
-                                                    <Th>作成者</Th>
-                                                    <Th align="right">操作</Th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {g.drafts.map((d) => (
-                                                    <BillingDraftRow
-                                                        key={d.id}
-                                                        draft={d}
-                                                        hideCustomer
-                                                        selectionEnabled
-                                                        assigneeName={assigneeMap.get(d.projectId) || ''}
-                                                        highlightQuery={highlightQuery}
-                                                        selected={selectedIds.has(d.id)}
-                                                        onToggleSelect={onToggleSelect}
-                                                        onEdit={onEdit}
-                                                        onDelete={onDelete}
-                                                    />
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    {/* モバイル: カード */}
-                                    <div className="md:hidden p-3 space-y-2">
-                                        {g.drafts.map((d) => (
-                                            <MobileDraftCard
-                                                key={d.id}
-                                                draft={d}
-                                                assigneeName={assigneeMap.get(d.projectId) || ''}
-                                                highlightQuery={highlightQuery}
-                                                selected={selectedIds.has(d.id)}
-                                                onToggleSelect={onToggleSelect}
-                                                onEdit={onEdit}
-                                                onDelete={onDelete}
-                                            />
-                                        ))}
-                                    </div>
-                                </>
+                                <div className="p-3 space-y-2">
+                                    {g.drafts.map((d) => (
+                                        <MobileDraftCard
+                                            key={d.id}
+                                            draft={d}
+                                            assigneeName={assigneeMap.get(d.projectId) || ''}
+                                            highlightQuery={highlightQuery}
+                                            selected={selectedIds.has(d.id)}
+                                            onToggleSelect={onToggleSelect}
+                                            onEdit={onEdit}
+                                            onDelete={onDelete}
+                                        />
+                                    ))}
+                                </div>
                             )}
                         </div>
                     );
                 })}
+                {totalPages > 1 && (
+                    <div className="flex justify-center items-center gap-2 py-3">
+                        <button
+                            type="button"
+                            onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            前へ
+                        </button>
+                        <span className="text-sm font-medium text-slate-600 px-4">
+                            {currentPage} / {totalPages}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                        >
+                            次へ
+                        </button>
+                    </div>
+                )}
             </div>
-
-            {totalPages > 1 && (
-                <div className="flex-shrink-0 flex justify-center items-center gap-2 py-3">
-                    <button
-                        type="button"
-                        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-                    >
-                        前へ
-                    </button>
-                    <span className="text-sm font-medium text-slate-600 px-4">
-                        {currentPage} / {totalPages}
-                    </span>
-                    <button
-                        type="button"
-                        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
-                    >
-                        次へ
-                    </button>
-                </div>
-            )}
 
             <div className="mt-3 flex-shrink-0 text-sm text-slate-600">全 {totalCount} 件</div>
         </>
@@ -335,7 +410,7 @@ function Th({ children, align = 'left' }: { children: React.ReactNode; align?: '
     const alignClass = align === 'right' ? 'text-right' : 'text-left';
     return (
         <th
-            className={`px-6 py-2.5 ${alignClass} text-[11px] font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap`}
+            className={`px-6 py-3 ${alignClass} text-[11px] font-bold text-slate-600 uppercase tracking-wider whitespace-nowrap`}
         >
             {children}
         </th>
