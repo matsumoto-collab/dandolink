@@ -25,6 +25,8 @@ export interface BillingDraftForInvoiceItem {
     taxRate: DecimalLike;
     projectId: string;
     note?: string | null;
+    /** 複数明細（新モデル）。あればこれを展開し、無ければ title/amount の単一行にフォールバック */
+    items?: InvoiceItem[] | null;
 }
 
 /** Decimal / string / number / null を安全に number へ。非有限・null は 0。 */
@@ -50,4 +52,26 @@ export function billingDraftToInvoiceItem(draft: BillingDraftForInvoiceItem): In
         projectMasterId: draft.projectId,
         // sectionTitle は設定しない（見出しは案件マスタ名にフォールバック）
     };
+}
+
+/**
+ * BillingDraft → InvoiceItem[]（複数明細・仕切り書モデル）。
+ * - `draft.items`（複数行）があればそれを展開し、各行に `projectMasterId`（案件ごとの
+ *   セクション化用）と `sectionTitle`（= 請求予定の見出し `draft.title`）を付与する。
+ *   請求書では案件＝セクション見出しの下に明細が並ぶ。
+ * - `items` が無い旧モデルは `billingDraftToInvoiceItem` の単一行にフォールバックする
+ *   （見出しは案件マスタ名にフォールバック＝`sectionTitle` 未設定）。
+ */
+export function billingDraftToInvoiceItems(draft: BillingDraftForInvoiceItem): InvoiceItem[] {
+    const items = Array.isArray(draft.items) ? draft.items : [];
+    if (items.length > 0) {
+        const sectionTitle = draft.title?.trim() || undefined;
+        return items.map((it, idx) => ({
+            ...it,
+            id: it.id || `${draft.id}-${idx}`,
+            projectMasterId: draft.projectId,
+            sectionTitle,
+        }));
+    }
+    return [billingDraftToInvoiceItem(draft)];
 }
