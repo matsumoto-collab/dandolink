@@ -95,7 +95,7 @@ function CoverPage({
     // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
     const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
 
-    const maxRows = 18;
+    const maxRows = 26;
 
     // 支払期限の表示
     const paymentTermText = (() => {
@@ -227,8 +227,8 @@ function CoverPage({
                 </View>
             </View>
 
-            {/* Details Table */}
-            <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark }}>
+            {/* Details Table（用紙下端まで伸ばす） */}
+            <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark, flexGrow: 1, flexDirection: 'column' }}>
                 <View style={styles.tableHeader}>
                     <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
@@ -268,7 +268,7 @@ function CoverPage({
                         const isNegative = item ? item.amount < 0 : false;
 
                         rows.push(
-                            <View key={i} style={isLast ? styles.tableRowLast : styles.tableRow}>
+                            <View key={i} style={!row ? styles.tableEmptyRow : (isLast ? styles.tableRowLast : styles.tableRow)}>
                                 <View style={styles.cellNo}>
                                     <Text style={styles.cellTextCenter}>{item ? idx : ''}</Text>
                                 </View>
@@ -370,8 +370,8 @@ function DetailsPage({
                 </Text>
             </View>
 
-            {/* Table */}
-            <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark }}>
+            {/* Table（用紙下端まで伸ばす） */}
+            <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark, flexGrow: 1, flexDirection: 'column' }}>
                 <View style={styles.tableHeader}>
                     <View style={styles.cellNo}><Text style={styles.headerCellText}></Text></View>
                     <View style={styles.cellName}><Text style={styles.headerCellText}>名称</Text></View>
@@ -411,7 +411,7 @@ function DetailsPage({
                         const isNegative = item ? item.amount < 0 : false;
 
                         rows.push(
-                            <View key={i} style={isLast ? styles.tableRowLast : styles.tableRow}>
+                            <View key={i} style={!row ? styles.tableEmptyRow : (isLast ? styles.tableRowLast : styles.tableRow)}>
                                 <View style={styles.cellNo}>
                                     <Text style={styles.cellTextCenter}>{item ? idx : ''}</Text>
                                 </View>
