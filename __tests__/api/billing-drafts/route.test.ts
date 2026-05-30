@@ -172,6 +172,32 @@ describe('/api/billing-drafts', () => {
             }));
         });
 
+        it('persists items as JSON and derives amount from item totals (値引き含む)', async () => {
+            (prisma.billingDraft.create as jest.Mock).mockResolvedValue({});
+
+            const body = {
+                projectId: 'pm-1',
+                customerId: 'c-1',
+                title: '宮崎様邸 仮設工事',
+                amount: '999999', // 明細がある場合は無視され、明細合計で上書きされる
+                items: [
+                    { description: '外部足場組立・解体', quantity: 210, unit: '㎡', unitPrice: 600, amount: 126000, taxType: 'standard' },
+                    { description: 'メッシュシート貼り', quantity: 210, unit: '㎡', unitPrice: 100, amount: 21000, taxType: 'standard' },
+                    { description: '値引き', quantity: -1, unit: '', unitPrice: 12000, amount: -12000, taxType: 'standard' },
+                ],
+            };
+            const req = new NextRequest('http://localhost:3000/api/billing-drafts', {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+            const res = await POST(req);
+
+            expect(res.status).toBe(200);
+            const call = (prisma.billingDraft.create as jest.Mock).mock.calls[0][0];
+            expect(call.data.amount).toBe('135000'); // 126000 + 21000 - 12000
+            expect(JSON.parse(call.data.items)).toHaveLength(3);
+        });
+
         it('returns 400 when title is empty', async () => {
             const body = { projectId: 'pm-1', customerId: 'c-1', title: '' };
             const req = new NextRequest('http://localhost:3000/api/billing-drafts', {

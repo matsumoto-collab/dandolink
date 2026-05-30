@@ -72,6 +72,28 @@ describe('/api/billing-drafts/[id]', () => {
             }));
         });
 
+        it('persists items as JSON and derives amount when items provided', async () => {
+            (prisma.billingDraft.findUnique as jest.Mock).mockResolvedValue(baseDraft);
+            (prisma.billingDraft.update as jest.Mock).mockResolvedValue({ ...baseDraft });
+
+            const body = {
+                items: [
+                    { description: '外部足場組立・解体', quantity: 1, unit: '式', unitPrice: 40000, amount: 40000, taxType: 'standard' },
+                    { description: '運搬費', quantity: 1, unit: '式', unitPrice: 30000, amount: 30000, taxType: 'standard' },
+                ],
+            };
+            const req = new NextRequest('http://localhost:3000/api/billing-drafts/bd-1', {
+                method: 'PATCH',
+                body: JSON.stringify(body),
+            });
+            const res = await PATCH(req, { params: { id: 'bd-1' } });
+
+            expect(res.status).toBe(200);
+            const call = (prisma.billingDraft.update as jest.Mock).mock.calls[0][0];
+            expect(call.data.amount).toBe('70000');
+            expect(JSON.parse(call.data.items)).toHaveLength(2);
+        });
+
         it('rejects PATCH when status=confirmed', async () => {
             (prisma.billingDraft.findUnique as jest.Mock).mockResolvedValue({ ...baseDraft, status: 'confirmed' });
 

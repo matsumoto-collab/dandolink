@@ -9,6 +9,8 @@ import {
     deleteSuccessResponse,
     errorResponse,
 } from '@/lib/api/utils';
+import { formatBillingDraft } from '@/lib/formatters';
+import { sumDraftItemAmounts } from '@/lib/billing/billingDraftItems';
 
 const billingDraftInclude = {
     projectMaster: { select: { id: true, title: true, name: true } },
@@ -34,7 +36,7 @@ export async function GET(
             include: billingDraftInclude,
         });
         if (!item) return notFoundResponse('請求予定');
-        return NextResponse.json(item, { headers: { 'Cache-Control': 'no-store' } });
+        return NextResponse.json(formatBillingDraft(item), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求予定の取得', error);
     }
@@ -75,9 +77,19 @@ export async function PATCH(
         const updateData: Record<string, unknown> = {};
 
         if (data.title !== undefined) updateData.title = data.title.trim();
-        if (data.amount !== undefined) updateData.amount = data.amount;
         if (data.taxRate !== undefined) updateData.taxRate = data.taxRate;
         if (data.note !== undefined) updateData.note = data.note?.trim() || null;
+
+        // 明細（複数行）が来た場合は items に JSON 保存し、amount は明細合計（税別小計）で上書き。
+        // items 未指定なら従来どおり amount 単体を更新する（旧・単一行モデル）。
+        if (data.items !== undefined) {
+            const itemsArr = Array.isArray(data.items) ? data.items : [];
+            const hasItems = itemsArr.length > 0;
+            updateData.items = hasItems ? JSON.stringify(itemsArr) : null;
+            updateData.amount = hasItems ? sumDraftItemAmounts(itemsArr).toString() : null;
+        } else if (data.amount !== undefined) {
+            updateData.amount = data.amount;
+        }
 
         const updated = await prisma.billingDraft.update({
             where: { id: params.id },
@@ -85,7 +97,7 @@ export async function PATCH(
             include: billingDraftInclude,
         });
 
-        return NextResponse.json(updated, { headers: { 'Cache-Control': 'no-store' } });
+        return NextResponse.json(formatBillingDraft(updated), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求予定の更新', error);
     }
