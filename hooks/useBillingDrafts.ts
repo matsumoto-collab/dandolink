@@ -95,6 +95,16 @@ export function useBillingDrafts(params: BillingDraftListParams = {}) {
         await fetchDrafts();
     }, [fetchDrafts]);
 
+    // 確定解除：確定済み → 保留中に戻す（戻した後は編集・削除可能になる）
+    const unconfirm = useCallback(async (id: string) => {
+        const res = await fetch(`/api/billing-drafts/${id}/unconfirm`, { method: 'POST' });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || '確定解除に失敗しました');
+        }
+        await fetchDrafts();
+    }, [fetchDrafts]);
+
     return {
         drafts,
         isLoading,
@@ -103,5 +113,6 @@ export function useBillingDrafts(params: BillingDraftListParams = {}) {
         create,
         update,
         remove,
+        unconfirm,
     };
 }

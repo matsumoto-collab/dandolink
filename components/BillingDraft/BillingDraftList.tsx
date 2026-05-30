@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Edit, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Edit, Trash2, RotateCcw } from 'lucide-react';
 import BillingDraftRow from './BillingDraftRow';
 import { highlightText } from '@/lib/highlightText';
 import type { BillingDraft, BillingDraftStatus } from '@/types/billingDraft';
@@ -37,6 +37,8 @@ interface BillingDraftListProps {
     assigneeMap: Map<string, string>;
     onEdit: (draft: BillingDraft) => void;
     onDelete: (draft: BillingDraft) => void;
+    /** 確定済み → 保留中に戻す（戻すと編集・削除できるようになる） */
+    onUnconfirm: (draft: BillingDraft) => void;
     currentPage: number;
     totalPages: number;
     /** フィルタ適用後の総件数（明細件数） */
@@ -118,6 +120,7 @@ function MobileDraftCard({
     onToggleSelect,
     onEdit,
     onDelete,
+    onUnconfirm,
 }: {
     draft: BillingDraft;
     assigneeName: string;
@@ -126,6 +129,7 @@ function MobileDraftCard({
     onToggleSelect: (d: BillingDraft) => void;
     onEdit: (d: BillingDraft) => void;
     onDelete: (d: BillingDraft) => void;
+    onUnconfirm: (d: BillingDraft) => void;
 }) {
     const status = STATUS_LABEL[draft.status];
     const isPending = draft.status === 'pending';
@@ -164,6 +168,15 @@ function MobileDraftCard({
                         <span className="text-base font-bold text-slate-900 shrink-0">{formatYen(draft.amount)}</span>
                     </div>
                     <div className="mt-2 flex justify-end gap-2">
+                        {isConfirmed && (
+                            <button
+                                type="button"
+                                onClick={() => onUnconfirm(draft)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors"
+                            >
+                                <RotateCcw className="w-3.5 h-3.5" /> 確定解除
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => onEdit(draft)}
@@ -195,6 +208,7 @@ export default function BillingDraftList({
     assigneeMap,
     onEdit,
     onDelete,
+    onUnconfirm,
     currentPage,
     totalPages,
     totalCount,
@@ -299,6 +313,7 @@ export default function BillingDraftList({
                                                     onToggleSelect={onToggleSelect}
                                                     onEdit={onEdit}
                                                     onDelete={onDelete}
+                                                    onUnconfirm={onUnconfirm}
                                                 />
                                             ))}
                                     </React.Fragment>
@@ -369,6 +384,7 @@ export default function BillingDraftList({
                                             onToggleSelect={onToggleSelect}
                                             onEdit={onEdit}
                                             onDelete={onDelete}
+                                            onUnconfirm={onUnconfirm}
                                         />
                                     ))}
                                 </div>

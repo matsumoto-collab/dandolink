@@ -76,7 +76,7 @@ export default function BillingDraftListPage() {
 
     const trimmedQuery = debouncedQuery.trim();
 
-    const { drafts, isLoading, isInitialized, refresh, create, update, remove } = useBillingDrafts({
+    const { drafts, isLoading, isInitialized, refresh, create, update, remove, unconfirm } = useBillingDrafts({
         status: statusFilter === 'all' ? undefined : statusFilter,
         customerId: customerIdFilter || undefined,
         projectId: projectIdFilter || undefined,
@@ -345,7 +345,7 @@ export default function BillingDraftListPage() {
     const handleDelete = useCallback(
         async (draft: BillingDraft) => {
             if (draft.status === 'confirmed') {
-                toast.error('確定済みの請求予定は削除できません');
+                toast.error('確定済みの請求予定は「確定解除」してから削除してください');
                 return;
             }
             if (!window.confirm(`「${draft.title}」を削除してもよろしいですか？`)) return;
@@ -358,6 +358,26 @@ export default function BillingDraftListPage() {
             }
         },
         [remove],
+    );
+
+    // 確定解除：確定済み → 保留中に戻す。請求書との紐づけは外れる（請求書本体は残る）。
+    const handleUnconfirm = useCallback(
+        async (draft: BillingDraft) => {
+            if (draft.status !== 'confirmed') return;
+            const invNo = draft.invoice?.invoiceNumber;
+            const msg = invNo
+                ? `「${draft.title}」を保留中に戻します。\n\n発行済み請求書 ${invNo} との紐づけを解除します（請求書自体は残ります）。重複請求を避けるため、不要な請求書は請求書一覧から削除してください。\n\n確定解除しますか？`
+                : `「${draft.title}」を保留中に戻します。確定解除しますか？`;
+            if (!window.confirm(msg)) return;
+            try {
+                await unconfirm(draft.id);
+                toast.success('確定解除しました（保留中に戻しました）');
+            } catch (e) {
+                logger.error('Failed to unconfirm billing draft:', e);
+                toast.error(e instanceof Error ? e.message : '確定解除に失敗しました');
+            }
+        },
+        [unconfirm],
     );
 
     const hasActiveFilter =
@@ -379,7 +399,7 @@ export default function BillingDraftListPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-slate-800">請求予定</h1>
                     <p className="text-sm text-slate-500 mt-1">
-                        請求書化前の予定を管理します。確定済みは編集・削除できません。
+                        請求書化前の予定を管理します。確定済みは「確定解除」で保留中に戻すと編集・削除できます。
                     </p>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -422,6 +442,7 @@ export default function BillingDraftListPage() {
                 assigneeMap={assigneeMap}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
+                onUnconfirm={handleUnconfirm}
                 currentPage={currentPage}
                 totalPages={totalPages}
                 totalCount={filteredDrafts.length}
