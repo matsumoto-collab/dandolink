@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
-import { Plus, FileText } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -11,7 +11,7 @@ import { useBillingDrafts } from '@/hooks/useBillingDrafts';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import BillingDraftFilters from '@/components/BillingDraft/BillingDraftFilters';
-import BillingDraftList from '@/components/BillingDraft/BillingDraftList';
+import BillingDraftList, { type BillingDraftCustomerGroup } from '@/components/BillingDraft/BillingDraftList';
 import { billingDraftToInvoiceItems } from '@/lib/billing/draftToInvoiceItem';
 import type { BillingDraft, BillingDraftStatus } from '@/types/billingDraft';
 import type { ProjectMaster } from '@/types/calendar';
@@ -168,47 +168,57 @@ export default function BillingDraftListPage() {
             .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
     }, [drafts]);
 
-    // ページネーション
-    const [currentPage, setCurrentPage] = useState(1);
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [statusFilter, customerIdFilter, projectIdFilter, createdByIdFilter, assigneeIdFilter, trimmedQuery]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredDrafts.length / ITEMS_PER_PAGE));
-    const paginatedDrafts = useMemo(() => {
-        const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return filteredDrafts.slice(start, start + ITEMS_PER_PAGE);
-    }, [filteredDrafts, currentPage]);
-
-    // FormPanel ステート
-    const [isPanelOpen, setIsPanelOpen] = useState(false);
-    const [editingDraft, setEditingDraft] = useState<BillingDraft | null>(null);
-
-    // ── Phase 3: 請求書化（顧客選択 → チェック → プレビュー → Invoice 発行）──────────
-    // 顧客で絞り込んだときだけチェック列を出す（1 顧客ずつまとめる運用）
-    const selectionEnabled = !!customerIdFilter;
+    // 請求書化（顧客ごとにグループ化 → チェック → プレビュー → Invoice 発行）
     const [selectedDraftIds, setSelectedDraftIds] = useState<Set<string>>(new Set());
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [invoiceInitialData, setInvoiceInitialData] = useState<Partial<InvoiceInput> | undefined>(undefined);
     const [issuingDraftIds, setIssuingDraftIds] = useState<string[]>([]);
 
-    // 表示中（顧客フィルタ済み）の pending とその選択状態
-    const pendingIds = useMemo(
-        () => filteredDrafts.filter((d) => d.status === 'pending').map((d) => d.id),
-        [filteredDrafts],
-    );
-    const selectedPendingIds = useMemo(
-        () => pendingIds.filter((id) => selectedDraftIds.has(id)),
-        [pendingIds, selectedDraftIds],
-    );
-    const allPendingSelected = pendingIds.length > 0 && selectedPendingIds.length === pendingIds.length;
-    const canCreateInvoice = selectionEnabled && selectedPendingIds.length > 0;
+    // 顧客ごとにグループ化（見出しに件数・合計・選択状況を集計）
+    const customerGroups = useMemo<BillingDraftCustomerGroup[]>(() => {
+        const map = new Map<string, BillingDraft[]>();
+        for (const d of filteredDrafts) {
+            const arr = map.get(d.customerId);
+            if (arr) arr.push(d);
+            else map.set(d.customerId, [d]);
+        }
+        const groups = Array.from(map.entries()).map(([customerId, ds]) => {
+            const pending = ds.filter((d) => d.status === 'pending');
+            const pendingTotal = pending.reduce((s, d) => s + (d.amount != null ? Number(d.amount) : 0), 0);
+            const selectedPendingCount = pending.filter((d) => selectedDraftIds.has(d.id)).length;
+            return {
+                customerId,
+                customerName: ds[0].customer?.name ?? '—',
+                drafts: ds,
+                pendingCount: pending.length,
+                pendingTotal,
+                selectedPendingCount,
+                allPendingSelected: pending.length > 0 && selectedPendingCount === pending.length,
+            };
+        });
+        groups.sort((a, b) => a.customerName.localeCompare(b.customerName, 'ja'));
+        return groups;
+    }, [filteredDrafts, selectedDraftIds]);
+
+    // ページネーション（顧客グループ単位）
+    const [currentPage, setCurrentPage] = useState(1);
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [statusFilter, customerIdFilter, projectIdFilter, createdByIdFilter, assigneeIdFilter, trimmedQuery]);
+    const totalPages = Math.max(1, Math.ceil(customerGroups.length / ITEMS_PER_PAGE));
+    const paginatedGroups = useMemo(() => {
+        const start = (currentPage - 1) * ITEMS_PER_PAGE;
+        return customerGroups.slice(start, start + ITEMS_PER_PAGE);
+    }, [customerGroups, currentPage]);
+
+    // FormPanel ステート
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [editingDraft, setEditingDraft] = useState<BillingDraft | null>(null);
 
     // 顧客フィルタが変わったら、その顧客の pending を既定で全チェック（顧客ごとに 1 回だけ）
     const lastAutofillKeyRef = useRef<string>('');
     useEffect(() => {
         if (!customerIdFilter) {
-            setSelectedDraftIds(new Set());
             lastAutofillKeyRef.current = '';
             return;
         }
@@ -227,41 +237,54 @@ export default function BillingDraftListPage() {
         });
     }, []);
 
-    const handleToggleSelectAll = useCallback(() => {
-        setSelectedDraftIds((prev) => {
-            const allSelected = pendingIds.length > 0 && pendingIds.every((id) => prev.has(id));
-            return allSelected ? new Set() : new Set(pendingIds);
-        });
-    }, [pendingIds]);
+    // 顧客の保留中をすべて選択 / 解除
+    const handleToggleSelectCustomer = useCallback(
+        (customerId: string) => {
+            const group = customerGroups.find((g) => g.customerId === customerId);
+            if (!group) return;
+            const ids = group.drafts.filter((d) => d.status === 'pending').map((d) => d.id);
+            setSelectedDraftIds((prev) => {
+                const next = new Set(prev);
+                const allSelected = ids.length > 0 && ids.every((id) => next.has(id));
+                if (allSelected) ids.forEach((id) => next.delete(id));
+                else ids.forEach((id) => next.add(id));
+                return next;
+            });
+        },
+        [customerGroups],
+    );
 
-    const handleCreateInvoice = useCallback(() => {
-        const chosen = filteredDrafts.filter((d) => selectedDraftIds.has(d.id) && d.status === 'pending');
-        if (chosen.length === 0) {
-            toast.error('請求書化する請求予定を選択してください');
-            return;
-        }
-        // D-f: 金額未入力（null）は確認のうえ除外。0 円は明示として通す。
-        let finalDrafts = chosen;
-        const nullAmount = chosen.filter((d) => d.amount == null);
-        if (nullAmount.length > 0) {
-            const ok = window.confirm(
-                `金額が未入力の請求予定が ${nullAmount.length} 件あります。除外して続けますか？`,
-            );
-            if (!ok) return;
-            finalDrafts = chosen.filter((d) => d.amount != null);
-            if (finalDrafts.length === 0) {
-                toast.error('金額が入力された請求予定がありません');
+    // その顧客で請求書を作成（選択中の保留中が対象。1 顧客 = 1 請求書）
+    const handleCreateInvoiceForCustomer = useCallback(
+        (customerId: string) => {
+            const group = customerGroups.find((g) => g.customerId === customerId);
+            if (!group) return;
+            const chosen = group.drafts.filter((d) => selectedDraftIds.has(d.id) && d.status === 'pending');
+            if (chosen.length === 0) {
+                toast.error('請求書化する請求予定を選択してください');
                 return;
             }
-        }
-        const customerId = customerIdFilter || finalDrafts[0].customerId;
-        const projectMasterIds = Array.from(new Set(finalDrafts.map((d) => d.projectId)));
-        const items = finalDrafts.flatMap((d) => billingDraftToInvoiceItems(d));
-        setIssuingDraftIds(finalDrafts.map((d) => d.id));
-        // 件名は空欄（D-h、未入力では InvoiceForm が発行を弾く）。発行日/支払期限は InvoiceForm 既定。
-        setInvoiceInitialData({ customerId, projectMasterIds, items, title: '' });
-        setIsInvoiceModalOpen(true);
-    }, [filteredDrafts, selectedDraftIds, customerIdFilter]);
+            // D-f: 金額未入力（null）は確認のうえ除外。0 円は明示として通す。
+            let finalDrafts = chosen;
+            const nullAmount = chosen.filter((d) => d.amount == null);
+            if (nullAmount.length > 0) {
+                const ok = window.confirm(`金額が未入力の請求予定が ${nullAmount.length} 件あります。除外して続けますか？`);
+                if (!ok) return;
+                finalDrafts = chosen.filter((d) => d.amount != null);
+                if (finalDrafts.length === 0) {
+                    toast.error('金額が入力された請求予定がありません');
+                    return;
+                }
+            }
+            const projectMasterIds = Array.from(new Set(finalDrafts.map((d) => d.projectId)));
+            const items = finalDrafts.flatMap((d) => billingDraftToInvoiceItems(d));
+            setIssuingDraftIds(finalDrafts.map((d) => d.id));
+            // 件名は空欄（D-h、未入力では InvoiceForm が発行を弾く）。発行日/支払期限は InvoiceForm 既定。
+            setInvoiceInitialData({ customerId, projectMasterIds, items, title: '' });
+            setIsInvoiceModalOpen(true);
+        },
+        [customerGroups, selectedDraftIds],
+    );
 
     const handleCloseInvoiceModal = useCallback(() => {
         setIsInvoiceModalOpen(false);
@@ -361,24 +384,6 @@ export default function BillingDraftListPage() {
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                     <Button
-                        variant="gradient"
-                        leftIcon={<FileText className="w-5 h-5" />}
-                        onClick={handleCreateInvoice}
-                        disabled={!canCreateInvoice}
-                        title={
-                            !customerIdFilter
-                                ? '顧客で絞り込むと請求書を作成できます'
-                                : selectedPendingIds.length === 0
-                                  ? '保留中の請求予定を選択してください'
-                                  : undefined
-                        }
-                    >
-                        <span className="hidden sm:inline">
-                            請求書を作成{selectedPendingIds.length > 0 ? `（${selectedPendingIds.length}件）` : ''}
-                        </span>
-                        <span className="sm:hidden">請求書</span>
-                    </Button>
-                    <Button
                         variant="primary"
                         leftIcon={<Plus className="w-5 h-5" />}
                         onClick={handleNewClick}
@@ -410,7 +415,7 @@ export default function BillingDraftListPage() {
             />
 
             <BillingDraftList
-                drafts={paginatedDrafts}
+                groups={paginatedGroups}
                 isLoading={isLoading}
                 isInitialized={isInitialized}
                 highlightQuery={trimmedQuery}
@@ -422,12 +427,10 @@ export default function BillingDraftListPage() {
                 totalCount={filteredDrafts.length}
                 onPageChange={setCurrentPage}
                 hasActiveFilter={hasActiveFilter}
-                selectionEnabled={selectionEnabled}
                 selectedIds={selectedDraftIds}
                 onToggleSelect={handleToggleSelect}
-                onToggleSelectAll={handleToggleSelectAll}
-                allPendingSelected={allPendingSelected}
-                hasPendingInView={pendingIds.length > 0}
+                onToggleSelectCustomer={handleToggleSelectCustomer}
+                onCreateInvoiceForCustomer={handleCreateInvoiceForCustomer}
             />
 
             <BillingDraftFormPanel

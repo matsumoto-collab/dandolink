@@ -25,6 +25,8 @@ interface BillingDraftRowProps {
     selected?: boolean;
     /** チェックボックス切替（pending のみ有効） */
     onToggleSelect?: (draft: BillingDraft) => void;
+    /** 顧客列を隠す（顧客ごとのグループ表示で使用。グループ見出しに顧客名があるため） */
+    hideCustomer?: boolean;
 }
 
 function formatYen(amount: BillingDraft['amount']): string {
@@ -43,6 +45,7 @@ export default function BillingDraftRow({
     selectionEnabled = false,
     selected = false,
     onToggleSelect,
+    hideCustomer = false,
 }: BillingDraftRowProps) {
     const status = STATUS_LABEL[draft.status];
     const isPending = draft.status === 'pending';
@@ -67,9 +70,11 @@ export default function BillingDraftRow({
                     />
                 </td>
             )}
-            <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                {highlightText(customerName, q)}
-            </td>
+            {!hideCustomer && (
+                <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
+                    {highlightText(customerName, q)}
+                </td>
+            )}
             <td className="px-6 py-4 text-[12px] text-slate-700">
                 {highlightText(projectName, q)}
             </td>
