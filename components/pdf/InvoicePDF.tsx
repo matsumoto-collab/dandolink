@@ -95,7 +95,72 @@ function CoverPage({
     // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
     const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
 
-    const maxRows = 26;
+    // 1枚に収まらない場合はページ分割（各ページは独立した完結テーブル）。
+    // *_NO_TOTALS = そのページが続く場合に載る行数 / *_WITH_TOTALS = そのページが最終（小計・備考あり）に載る行数。
+    const FIRST_NO_TOTALS = 29;
+    const FIRST_WITH_TOTALS = 26;
+    const CONT_NO_TOTALS = 40;
+    const CONT_WITH_TOTALS = 34;
+    const pageChunks: (typeof displayRows)[] = [];
+    {
+        let idx = 0;
+        while (idx < displayRows.length) {
+            const isFirstChunk = idx === 0;
+            const remaining = displayRows.length - idx;
+            const capNo = isFirstChunk ? FIRST_NO_TOTALS : CONT_NO_TOTALS;
+            const capWith = isFirstChunk ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS;
+            // 残りが「集計欄ありで1ページに収まる」なら最終ページ、そうでなければ集計欄なしで詰める
+            const take = remaining <= capWith ? remaining : remaining <= capNo ? capWith : capNo;
+            pageChunks.push(displayRows.slice(idx, idx + take));
+            idx += take;
+        }
+        if (pageChunks.length === 0) pageChunks.push([]);
+    }
+    const totalPages = pageChunks.length;
+
+    const renderRow = (row: (typeof displayRows)[number], i: number) => {
+        if (row.type === 'header') {
+            return (
+                <View key={`header-${i}`} style={styles.projectHeaderRow}>
+                    <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
+                    <View style={{ ...styles.cellName, width: 220 }}>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
+                    </View>
+                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+                </View>
+            );
+        }
+        const item = row.item;
+        const isNegative = item.amount < 0;
+        return (
+            <View key={`item-${i}`} style={styles.tableRow}>
+                <View style={styles.cellNo}><Text style={styles.cellTextCenter}>{row.index}</Text></View>
+                <View style={styles.cellName}>
+                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>{sanitizePdfText(item.description || '')}</Text>
+                </View>
+                <View style={styles.cellSpec}>
+                    <Text style={styles.cellText}>{item.specification ? sanitizePdfText(item.specification) : ''}</Text>
+                </View>
+                <View style={styles.cellQty}>
+                    <Text style={styles.cellText}>{item.quantity > 0 ? item.quantity.toLocaleString() : ''}</Text>
+                </View>
+                <View style={styles.cellUnit}>
+                    <Text style={styles.cellText}>{sanitizePdfText(item.unit || '')}</Text>
+                </View>
+                <View style={styles.cellPrice}>
+                    <Text style={styles.cellText}>{item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}</Text>
+                </View>
+                <View style={styles.cellAmount}>
+                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>{isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()}</Text>
+                </View>
+                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
+            </View>
+        );
+    };
 
     // 支払期限の表示
     const paymentTermText = (() => {
@@ -114,8 +179,18 @@ function CoverPage({
     const bankAccounts = companyInfo.bankAccounts || [];
 
     return (
-        <Page size="A4" orientation="portrait" style={styles.page}>
+        <>
+            {pageChunks.map((chunk, pageIdx) => {
+                const isFirst = pageIdx === 0;
+                const isLast = pageIdx === totalPages - 1;
+                const fillRows = isLast
+                    ? Math.max(0, (isFirst ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS) - chunk.length)
+                    : 0;
+                return (
+        <Page key={pageIdx} size="A4" orientation="portrait" style={styles.page}>
 
+            {isFirst ? (
+            <View>
             {/* 1段目: 〒住所(左) + 御請求書タイトル(右) */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 12, marginBottom: 4 }}>
                 <View style={{ width: '45%', paddingLeft: 40 }}>
@@ -226,6 +301,18 @@ function CoverPage({
                     </View>
                 </View>
             </View>
+            </View>
+            ) : (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, marginBottom: 10 }}>
+                <Text style={{ fontSize: 14, letterSpacing: 6, color: COLORS.navy, fontWeight: 'bold', paddingBottom: 2, borderBottomWidth: 1.5, borderBottomColor: COLORS.navy }}>
+                    {isCopy ? '御 請 求 書（控・続き）' : '御 請 求 書（続き）'}
+                </Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 9, fontWeight: 'bold', color: COLORS.navy }}>{customerFullName}</Text>
+                    <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginTop: 2 }}>請求No. {invoice.invoiceNumber}</Text>
+                </View>
+            </View>
+            )}
 
             {/* Details Table（用紙下端まで伸ばす） */}
             <View style={{ width: '100%', borderWidth: 1, borderColor: COLORS.borderDark, flexGrow: 1, flexDirection: 'column' }}>
@@ -240,76 +327,28 @@ function CoverPage({
                     <View style={styles.cellRemarks}><Text style={styles.headerCellText}>備考</Text></View>
                 </View>
 
-                {(() => {
-                    const rows = [];
-                    for (let i = 0; i < maxRows; i++) {
-                        const row = i < displayRows.length ? displayRows[i] : null;
+                {chunk.map((row, i) => renderRow(row, i))}
 
-                        if (row && row.type === 'header') {
-                            rows.push(
-                                <View key={`header-${i}`} style={styles.projectHeaderRow}>
-                                    <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
-                                    <View style={{ ...styles.cellName, width: 220 }}>
-                                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
-                                    </View>
-                                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
-                                </View>
-                            );
-                            continue;
-                        }
-
-                        const item = row && row.type === 'item' ? row.item : null;
-                        const idx = row && row.type === 'item' ? row.index : 0;
-                        const isLast = i === maxRows - 1;
-                        const isNegative = item ? item.amount < 0 : false;
-
-                        rows.push(
-                            <View key={i} style={!row ? styles.tableEmptyRow : (isLast ? styles.tableRowLast : styles.tableRow)}>
-                                <View style={styles.cellNo}>
-                                    <Text style={styles.cellTextCenter}>{item ? idx : ''}</Text>
-                                </View>
-                                <View style={styles.cellName}>
-                                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                                        {item ? sanitizePdfText(item.description || '') : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.cellSpec}>
-                                    <Text style={styles.cellText}>
-                                        {item?.specification ? sanitizePdfText(item.specification) : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.cellQty}>
-                                    <Text style={styles.cellText}>
-                                        {item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.cellUnit}>
-                                    <Text style={styles.cellText}>
-                                        {item ? sanitizePdfText(item.unit || '') : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.cellPrice}>
-                                    <Text style={styles.cellText}>
-                                        {item && item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.cellAmount}>
-                                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                                        {item ? (isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()) : ''}
-                                    </Text>
-                                </View>
-                                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
+                {/* 余白を用紙下端まで空行で埋める（最終/単一ページのみ。flex 伸縮・グリッド線維持） */}
+                {fillRows > 0 && (
+                    <View style={{ flexGrow: 1, flexDirection: 'column' }}>
+                        {Array.from({ length: fillRows }).map((_, i) => (
+                            <View key={`empty-${i}`} style={styles.tableEmptyRow}>
+                                <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellName}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
+                                <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                             </View>
-                        );
-                    }
-                    return rows;
-                })()}
+                        ))}
+                    </View>
+                )}
 
-                {/* Subtotal */}
+                {/* Subtotal（最終ページのみ） */}
+                {isLast && (
                 <View style={styles.totalRow}>
                     <View style={styles.totalLabelCell}><Text style={styles.cellText}></Text></View>
                     <View style={styles.totalSubtotalLabel}>
@@ -320,22 +359,28 @@ function CoverPage({
                     </View>
                     <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
+                )}
             </View>
 
-            {/* 備考欄 */}
+            {/* 備考欄（最終ページのみ） */}
+            {isLast && (
             <View style={{ marginTop: 6, borderWidth: 0.5, borderColor: COLORS.borderDark, minHeight: 40, padding: 4 }}>
                 <Text style={{ fontSize: 8, color: COLORS.textSecondary, marginBottom: 3 }}>備考</Text>
                 {invoice.notes && (
                     <Text style={{ fontSize: 9 }}>{sanitizePdfText(invoice.notes)}</Text>
                 )}
             </View>
+            )}
 
             {/* Footer */}
             <View style={styles.footer} fixed>
                 <Text style={styles.footerText}></Text>
-                <Text style={styles.footerText}>No. 1</Text>
+                <Text style={styles.footerText}>{totalPages > 1 ? `${pageIdx + 1} / ${totalPages}` : 'No. 1'}</Text>
             </View>
         </Page>
+                );
+            })}
+        </>
     );
 }
 
