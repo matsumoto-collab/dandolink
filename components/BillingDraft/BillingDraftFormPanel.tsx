@@ -1,16 +1,18 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { X, Plus, FileDown, Minus } from 'lucide-react';
+import { X, Plus, FileDown, Minus, List } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/ui/BottomSheet';
 import ProjectContextSection from '@/components/BillingDraft/ProjectContextSection';
 import ItemCard from '@/components/Estimates/ItemRow';
 import SummaryFooter from '@/components/Estimates/SummaryFooter';
-import UnitPriceMasterModal from '@/components/Estimates/UnitPriceMasterModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useEstimates } from '@/hooks/useEstimates';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useCompany } from '@/hooks/useCompany';
+import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import { logger } from '@/lib/logger';
 import type {
     BillingDraft,
@@ -19,10 +21,9 @@ import type {
     UpdateBillingDraftInput,
 } from '@/types/billingDraft';
 import type { Customer } from '@/types/customer';
-import type { ProjectMaster } from '@/types/calendar';
-import type { InvoiceItem } from '@/types/invoice';
+import type { ProjectMaster, Project } from '@/types/calendar';
+import type { InvoiceItem, BillingTitle } from '@/types/invoice';
 import type { EstimateItem } from '@/types/estimate';
-import type { UnitPriceMaster } from '@/types/unitPrice';
 
 interface BillingDraftFormPanelProps {
     /** パネルの開閉。false のときは何も描画しない（アニメーションのため Drawer/Sheet 側に open を渡す） */
@@ -50,7 +51,15 @@ interface BillingDraftFormPanelProps {
 
 const TAX_RATE = 0.1;
 
+/** 案件セレクト等の表示用：短縮名を優先（コンパクト表示）。 */
 const projectLabel = (pm: ProjectMaster): string => pm.name || pm.title;
+
+/**
+ * 見出しの既定値：請求書のセクション見出しと同じ「正式名称」を使う。
+ * title は name + 敬称 + 工事名称 の自動合成（例: 佐藤様邸 仮設工事）なので、
+ * 短縮名(name)ではなく title を優先し、敬称・工事名称まで含めて初期表示する。
+ */
+const projectHeading = (pm: ProjectMaster): string => pm.title || pm.name || '';
 
 let itemSeq = 0;
 function newItemId(): string {
@@ -118,13 +127,43 @@ export default function BillingDraftFormPanel({
     const [items, setItems] = useState<InvoiceItem[]>([]);
     const [note, setNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
-    const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
+    const [billingTitles, setBillingTitles] = useState<BillingTitle[]>([]);
+    const [billingTitleMenuOpen, setBillingTitleMenuOpen] = useState(false);
 
-    // 見積書（見積から引用用）。遅延ロードなので開いたときに ensureDataLoaded を呼ぶ。
+    // 案件を選んで開いた場合（カレンダー右クリック / 案件詳細 / 編集）は案件・顧客をコンパクト表示にする
+    const preSelected = isEdit || !!initialProjectId;
+
+    // 見積書（見積から引用 + PDF閲覧用）・請求書（PDF閲覧用）・会社情報（PDF用）。遅延ロード。
     const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
+    const { invoices, ensureDataLoaded: ensureInvoicesLoaded } = useInvoices();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     useEffect(() => {
-        if (open) ensureEstimatesLoaded();
-    }, [open, ensureEstimatesLoaded]);
+        if (!open) return;
+        ensureEstimatesLoaded();
+        ensureInvoicesLoaded();
+        ensureCompanyLoaded();
+    }, [open, ensureEstimatesLoaded, ensureInvoicesLoaded, ensureCompanyLoaded]);
+
+    // 請求書項目マスタ（「請求書項目から追加」用）を開いたときに取得
+    useEffect(() => {
+        if (!open) return;
+        fetch('/api/master-data/billing-titles')
+            .then((r) => (r.ok ? r.json() : []))
+            .then((data) => setBillingTitles(Array.isArray(data) ? data : []))
+            .catch(() => {});
+    }, [open]);
+
+    // 「請求書項目から追加」ドロップダウンの外側クリックで閉じる
+    useEffect(() => {
+        if (!billingTitleMenuOpen) return;
+        const onDown = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement)?.closest('[data-billing-title-menu]')) {
+                setBillingTitleMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', onDown);
+        return () => document.removeEventListener('mousedown', onDown);
+    }, [billingTitleMenuOpen]);
 
     // open / draft の変化に合わせてフォームを初期化。
     useEffect(() => {
@@ -166,7 +205,7 @@ export default function BillingDraftFormPanel({
         if (isEdit || !projectId) return;
         const pm = projectMasters.find((p) => p.id === projectId);
         if (pm?.customerId) setCustomerId(pm.customerId);
-        setSectionTitle((prev) => (prev.trim() === '' && pm ? projectLabel(pm) : prev));
+        setSectionTitle((prev) => (prev.trim() === '' && pm ? projectHeading(pm) : prev));
     }, [projectId, projectMasters, isEdit]);
 
     const selectedProject = useMemo(
@@ -181,6 +220,71 @@ export default function BillingDraftFormPanel({
         () => estimates.filter((e) => e.projectId === projectId),
         [estimates, projectId],
     );
+
+    // ── 見積書 / 請求書 PDF のインライン表示 ──────────────
+    const [pdfPreview, setPdfPreview] = useState<{ url: string; title: string } | null>(null);
+    const [pdfLoading, setPdfLoading] = useState(false);
+
+    // PDF 生成用の一時 Project（選択中の案件マスタ＋顧客から組み立て。InvoiceForm と同じ方式）
+    const pdfProject = useMemo(() => {
+        const p: Project & { customerPostalCode?: string; customerAddress?: string } = {
+            id: selectedProject?.id ?? '',
+            title: selectedProject?.title ?? '',
+            startDate: new Date(),
+            category: 'construction',
+            color: '#3B82F6',
+            customer: selectedCustomer?.name ?? '',
+            customerHonorific: selectedCustomer?.honorific ?? '御中',
+            location: [selectedProject?.prefecture, selectedProject?.city, selectedProject?.location].filter(Boolean).join(''),
+            customerPostalCode: selectedCustomer?.postalCode ?? '',
+            customerAddress: selectedCustomer?.address ?? '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        return p;
+    }, [selectedProject, selectedCustomer]);
+
+    const closePdfPreview = useCallback(() => {
+        setPdfPreview((prev) => {
+            if (prev?.url) URL.revokeObjectURL(prev.url);
+            return null;
+        });
+    }, []);
+    useEffect(() => () => { if (pdfPreview?.url) URL.revokeObjectURL(pdfPreview.url); }, [pdfPreview?.url]);
+
+    const handleViewEstimate = useCallback(async (estimateId: string) => {
+        const est = estimates.find((e) => e.id === estimateId);
+        if (!est) { toast.error('見積書が見つかりません'); return; }
+        if (!companyInfo) { toast.error('会社情報を読み込み中です。少し待って再度お試しください'); return; }
+        try {
+            setPdfLoading(true);
+            const { generateEstimatePDFBlobReact } = await import('@/utils/reactPdfGenerator');
+            const url = await generateEstimatePDFBlobReact(est, pdfProject, companyInfo, { creatorName: est.createdByName || '' });
+            setPdfPreview({ url, title: `見積書　${est.estimateNumber}` });
+        } catch (e) {
+            logger.error('見積PDF生成エラー:', e);
+            toast.error('PDF の生成に失敗しました');
+        } finally {
+            setPdfLoading(false);
+        }
+    }, [estimates, companyInfo, pdfProject]);
+
+    const handleViewInvoice = useCallback(async (invoiceId: string) => {
+        const inv = invoices.find((i) => i.id === invoiceId);
+        if (!inv) { toast.error('請求書が見つかりません'); return; }
+        if (!companyInfo) { toast.error('会社情報を読み込み中です。少し待って再度お試しください'); return; }
+        try {
+            setPdfLoading(true);
+            const { generateInvoicePDFBlobReact } = await import('@/utils/reactPdfGenerator');
+            const url = await generateInvoicePDFBlobReact(inv, pdfProject, companyInfo, inv.projectMasters, { includeCopy: true, includeDetails: false });
+            setPdfPreview({ url, title: `請求書　${inv.invoiceNumber}` });
+        } catch (e) {
+            logger.error('請求書PDF生成エラー:', e);
+            toast.error('PDF の生成に失敗しました');
+        } finally {
+            setPdfLoading(false);
+        }
+    }, [invoices, companyInfo, pdfProject]);
 
     // ── 明細操作 ───────────────────────────────────────
     const addItem = useCallback(() => setItems((prev) => [...prev, makeEmptyItem()]), []);
@@ -242,21 +346,21 @@ export default function BillingDraftFormPanel({
         toast.success(`${latest.estimateNumber} の明細を読み込みました（不要な行は削除・まとめてください）`);
     }, [projectEstimates]);
 
-    const handleSelectFromMaster = useCallback((masters: UnitPriceMaster[]) => {
-        const added: InvoiceItem[] = masters.map((m) => {
-            const qty = m.quantity ?? 1;
-            return {
+    const addFromBillingTitle = useCallback((bt: BillingTitle) => {
+        const qty = bt.quantity ?? 1;
+        setItems((prev) => [
+            ...prev,
+            {
                 id: newItemId(),
-                description: m.description,
+                description: bt.name,
                 quantity: qty,
-                unit: m.unit,
-                unitPrice: m.unitPrice,
-                amount: Math.round(qty * m.unitPrice),
+                unit: bt.unit || '式',
+                unitPrice: 0,
+                amount: 0,
                 taxType: 'standard',
-            };
-        });
-        setItems((prev) => [...prev, ...added]);
-        setIsUnitPriceModalOpen(false);
+            },
+        ]);
+        setBillingTitleMenuOpen(false);
     }, []);
 
     // ── 合計（税別小計 / 消費税 / 税込）───────────────────
@@ -318,7 +422,13 @@ export default function BillingDraftFormPanel({
     const formBody = (
         <form onSubmit={handleSubmit} className="space-y-4">
             {/* Phase 2 起動経路：案件サマリ（契約金額・過去合計・見積書・履歴） */}
-            {projectContext && <ProjectContextSection projectContext={projectContext} />}
+            {projectContext && (
+                <ProjectContextSection
+                    projectContext={projectContext}
+                    onViewEstimate={handleViewEstimate}
+                    onViewInvoice={handleViewInvoice}
+                />
+            )}
 
             {/* 編集モードかつ pending でないときは注意書き */}
             {readOnly && (
@@ -329,43 +439,41 @@ export default function BillingDraftFormPanel({
                 </div>
             )}
 
-            {/* 案件 */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    案件 <span className="text-red-500">*</span>
-                </label>
-                {isEdit ? (
-                    <div className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
-                        {selectedProject ? projectLabel(selectedProject) : '—'}
+            {/* 案件・顧客：案件を選んで開いた場合（カレンダー/案件詳細/編集）はコンパクト1行で縦を節約。
+                請求予定タブからの新規作成（案件未選択）のときだけ選択 UI を出す。 */}
+            {preSelected ? (
+                <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 rounded-lg bg-slate-50 border border-slate-200 px-3 py-1.5 text-xs">
+                    <span className="font-semibold text-slate-700">{selectedCustomer?.name ?? '顧客未設定'}</span>
+                    <span className="text-slate-300">/</span>
+                    <span className="text-slate-600">{selectedProject ? projectLabel(selectedProject) : '—'}</span>
+                </div>
+            ) : (
+                <>
+                    {/* 案件 */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            案件 <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            value={projectId}
+                            onChange={(e) => setProjectId(e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
+                        >
+                            <option value="">案件を選択...</option>
+                            {projectMasters.map((pm) => (
+                                <option key={pm.id} value={pm.id}>
+                                    {projectLabel(pm)}
+                                </option>
+                            ))}
+                        </select>
                     </div>
-                ) : (
-                    <select
-                        value={projectId}
-                        onChange={(e) => setProjectId(e.target.value)}
-                        required
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
-                    >
-                        <option value="">案件を選択...</option>
-                        {projectMasters.map((pm) => (
-                            <option key={pm.id} value={pm.id}>
-                                {projectLabel(pm)}
-                            </option>
-                        ))}
-                    </select>
-                )}
-            </div>
 
-            {/* 顧客 */}
-            <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-                    顧客 <span className="text-red-500">*</span>
-                </label>
-                {isEdit ? (
-                    <div className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
-                        {selectedCustomer?.name ?? '—'}
-                    </div>
-                ) : (
-                    <>
+                    {/* 顧客 */}
+                    <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            顧客 <span className="text-red-500">*</span>
+                        </label>
                         <select
                             value={customerId}
                             onChange={(e) => setCustomerId(e.target.value)}
@@ -384,9 +492,9 @@ export default function BillingDraftFormPanel({
                                 案件選択時に自動で設定されます。必要に応じて変更できます。
                             </p>
                         )}
-                    </>
-                )}
-            </div>
+                    </div>
+                </>
+            )}
 
             {/* 見出し（請求書の現場名） */}
             <div>
@@ -404,7 +512,7 @@ export default function BillingDraftFormPanel({
                         onChange={(e) => setSectionTitle(e.target.value)}
                         required
                         maxLength={200}
-                        placeholder={selectedProject ? projectLabel(selectedProject) : '例：○○邸 仮設工事'}
+                        placeholder={selectedProject ? projectHeading(selectedProject) : '例：○○邸 仮設工事'}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                     />
                 )}
@@ -429,13 +537,39 @@ export default function BillingDraftFormPanel({
                                     <FileDown className="w-3.5 h-3.5" /> 見積から引用
                                 </button>
                             )}
-                            <button
-                                type="button"
-                                onClick={() => setIsUnitPriceModalOpen(true)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                            >
-                                単価マスタ
-                            </button>
+                            <div className="relative" data-billing-title-menu>
+                                <button
+                                    type="button"
+                                    onClick={() => setBillingTitleMenuOpen((v) => !v)}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    <List className="w-3.5 h-3.5" /> 請求書項目から追加
+                                </button>
+                                {billingTitleMenuOpen && (
+                                    <div className="absolute left-0 z-50 mt-1 w-56 bg-white border border-slate-300 rounded-lg shadow-lg">
+                                        {billingTitles.length > 0 ? (
+                                            <ul className="max-h-52 overflow-y-auto py-1">
+                                                {billingTitles.map((bt) => (
+                                                    <li
+                                                        key={bt.id}
+                                                        className="px-3 py-2 hover:bg-slate-100 cursor-pointer text-sm text-slate-700"
+                                                        onClick={() => addFromBillingTitle(bt)}
+                                                    >
+                                                        {bt.name}
+                                                        {(bt.quantity != null || bt.unit) && (
+                                                            <span className="ml-1 text-slate-400">
+                                                                ({bt.quantity != null ? bt.quantity : ''}{bt.unit ? ` ${bt.unit}` : ''})
+                                                            </span>
+                                                        )}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <div className="px-3 py-2 text-xs text-slate-500">請求書項目マスタがありません</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 type="button"
                                 onClick={addDiscount}
@@ -539,29 +673,55 @@ export default function BillingDraftFormPanel({
                 )}
             </div>
 
-            <UnitPriceMasterModal
-                isOpen={isUnitPriceModalOpen}
-                onClose={() => setIsUnitPriceModalOpen(false)}
-                onSelect={handleSelectFromMaster}
-            />
         </form>
     );
+
+    const pdfOverlay = (pdfPreview || pdfLoading) ? (
+        <div className="fixed inset-0 lg:left-48 z-[80] bg-black/70 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+                <h3 className="text-base font-semibold text-slate-800">{pdfPreview?.title ?? 'PDF を生成しています…'}</h3>
+                <button
+                    type="button"
+                    onClick={closePdfPreview}
+                    className="p-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                    aria-label="閉じる"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-slate-100">
+                {pdfPreview ? (
+                    <InlinePdfViewer url={pdfPreview.url} />
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-600" />
+                    </div>
+                )}
+            </div>
+        </div>
+    ) : null;
 
     // 媒体サイズが確定するまでは描画しない（PC/モバイル切替時のチラつき回避）
     if (isDesktop === null) return null;
 
     if (isDesktop) {
         return (
-            <SideDrawer open={open} onClose={onClose} title={headerTitle}>
-                {formBody}
-            </SideDrawer>
+            <>
+                <SideDrawer open={open} onClose={onClose} title={headerTitle}>
+                    {formBody}
+                </SideDrawer>
+                {pdfOverlay}
+            </>
         );
     }
 
     return (
-        <BottomSheet open={open} onClose={onClose} title={headerTitle}>
-            {formBody}
-        </BottomSheet>
+        <>
+            <BottomSheet open={open} onClose={onClose} title={headerTitle}>
+                {formBody}
+            </BottomSheet>
+            {pdfOverlay}
+        </>
     );
 }
 

@@ -136,12 +136,13 @@ describe('GET /api/project-masters/[id]/billing-context', () => {
     it('orders estimates with approved first, then createdAt desc, with totalCount and 3-item cap', async () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: PM_ID, contractAmount: 0 });
 
+        // subtotal(税別) を total と別値にして、税別が返ることも検証する
         const estimates = [
-            { id: 'e-1', estimateNumber: 'E001', title: '古い approved', status: 'approved', total: 100, createdAt: new Date('2026-01-01'), createdByName: 'A' },
-            { id: 'e-2', estimateNumber: 'E002', title: '新しい draft', status: 'draft', total: 200, createdAt: new Date('2026-03-01'), createdByName: 'B' },
-            { id: 'e-3', estimateNumber: 'E003', title: '新しい approved', status: 'approved', total: 300, createdAt: new Date('2026-02-01'), createdByName: 'C' },
-            { id: 'e-4', estimateNumber: 'E004', title: '中間 sent', status: 'sent', total: 400, createdAt: new Date('2026-02-15'), createdByName: 'D' },
-            { id: 'e-5', estimateNumber: 'E005', title: '古い rejected', status: 'rejected', total: 500, createdAt: new Date('2025-12-01'), createdByName: 'E' },
+            { id: 'e-1', estimateNumber: 'E001', title: '古い approved', status: 'approved', total: 110, subtotal: 100, createdAt: new Date('2026-01-01'), createdByName: 'A' },
+            { id: 'e-2', estimateNumber: 'E002', title: '新しい draft', status: 'draft', total: 220, subtotal: 200, createdAt: new Date('2026-03-01'), createdByName: 'B' },
+            { id: 'e-3', estimateNumber: 'E003', title: '新しい approved', status: 'approved', total: 330, subtotal: 300, createdAt: new Date('2026-02-01'), createdByName: 'C' },
+            { id: 'e-4', estimateNumber: 'E004', title: '中間 sent', status: 'sent', total: 440, subtotal: 400, createdAt: new Date('2026-02-15'), createdByName: 'D' },
+            { id: 'e-5', estimateNumber: 'E005', title: '古い rejected', status: 'rejected', total: 550, subtotal: 500, createdAt: new Date('2025-12-01'), createdByName: 'E' },
         ];
         (prisma.estimate.findMany as jest.Mock).mockResolvedValue(estimates);
 
@@ -155,6 +156,9 @@ describe('GET /api/project-masters/[id]/billing-context', () => {
         expect(json.estimates.items[0].id).toBe('e-3');
         expect(json.estimates.items[1].id).toBe('e-1');
         expect(json.estimates.items[2].id).toBe('e-2');
+        // 金額は税別(subtotal)で返る（total 330 ではなく subtotal 300）
+        expect(json.estimates.items[0].subtotal).toBe(300);
+        expect(json.estimates.items[0]).not.toHaveProperty('total');
     });
 
     it('merges history (BillingDraft + Invoice) sorted by createdAt desc', async () => {

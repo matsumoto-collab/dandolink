@@ -16,6 +16,10 @@ import type {
 
 interface ProjectContextSectionProps {
     projectContext: ProjectContext;
+    /** 見積書PDFをインライン表示（パネル側で生成） */
+    onViewEstimate?: (estimateId: string) => void;
+    /** 請求書PDFをインライン表示（パネル側で生成） */
+    onViewInvoice?: (invoiceId: string) => void;
 }
 
 const yen = (n: number): string => `¥${n.toLocaleString()}`;
@@ -55,7 +59,7 @@ const fallbackBadge = (status: string) => ({
     cls: 'bg-slate-100 text-slate-600',
 });
 
-function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
+function HistoryRow({ item, onView }: { item: ProjectContextHistoryItem; onView?: () => void }) {
     const statusMap =
         item.type === 'billing-draft' ? BILLING_DRAFT_STATUS_LABEL : INVOICE_STATUS_LABEL;
     const status = statusMap[item.status] ?? fallbackBadge(item.status);
@@ -65,8 +69,9 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
             ? 'bg-amber-50 text-amber-700 border border-amber-200'
             : 'bg-blue-50 text-blue-700 border border-blue-200';
     const amount = item.amount;
-    return (
-        <li className="flex items-start justify-between gap-2 text-xs">
+
+    const inner = (
+        <>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span
@@ -84,6 +89,7 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
                             {item.invoiceNumber}
                         </span>
                     )}
+                    {onView && <FileText className="w-3 h-3 shrink-0 text-slate-400" />}
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-700 truncate">{item.title}</div>
                 <div className="text-[10px] text-slate-500">{formatDate(item.createdAt)}</div>
@@ -91,30 +97,66 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
             <span className="shrink-0 text-slate-900 font-semibold tabular-nums">
                 {amount != null ? yen(amount) : '—'}
             </span>
-        </li>
+        </>
     );
+
+    if (onView) {
+        return (
+            <li>
+                <button
+                    type="button"
+                    onClick={onView}
+                    title="請求書（PDF）を表示"
+                    className="w-full flex items-start justify-between gap-2 text-xs text-left rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-slate-100 transition-colors"
+                >
+                    {inner}
+                </button>
+            </li>
+        );
+    }
+    return <li className="flex items-start justify-between gap-2 text-xs">{inner}</li>;
 }
 
-export default function ProjectContextSection({ projectContext }: ProjectContextSectionProps) {
+export default function ProjectContextSection({ projectContext, onViewEstimate, onViewInvoice }: ProjectContextSectionProps) {
     const { contractAmount, totalInvoicedAmount, estimates, history } = projectContext;
     const [openEstimates, setOpenEstimates] = useState(true);
     const [openHistory, setOpenHistory] = useState(false);
 
     const remainingEstimates = Math.max(0, estimates.totalCount - estimates.items.length);
 
+    // 見積額（代表＝approved 優先 / 最新が先頭。税別）と、残り（見積額 − この案件の請求済み）
+    const estimateAmount = estimates.items[0]?.subtotal ?? null;
+    const remaining = estimateAmount != null ? estimateAmount - totalInvoicedAmount : null;
+
     return (
         <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             {/* 金額情報 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-500">見積額<span className="text-slate-400">（税別）</span></div>
+                    <div className="text-sm font-bold text-slate-900">
+                        {estimateAmount != null ? yen(estimateAmount) : '—'}
+                    </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-500">この案件の請求済み<span className="text-slate-400">（税別）</span></div>
+                    <div className="text-sm font-bold text-slate-900">{yen(totalInvoicedAmount)}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-500">残り<span className="text-slate-400">（見積−請求済）</span></div>
+                    <div className={`text-sm font-bold ${remaining != null && remaining < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {remaining == null
+                            ? '—'
+                            : remaining < 0
+                              ? `-¥${Math.abs(remaining).toLocaleString()}`
+                              : yen(remaining)}
+                    </div>
+                </div>
                 <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                     <div className="text-[11px] text-slate-500">契約金額</div>
                     <div className="text-sm font-bold text-slate-900">
                         {contractAmount != null ? yen(contractAmount) : '未設定'}
                     </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <div className="text-[11px] text-slate-500">この案件の請求済み<span className="text-slate-400">（税抜）</span></div>
-                    <div className="text-sm font-bold text-slate-900">{yen(totalInvoicedAmount)}</div>
                 </div>
             </div>
 
@@ -146,29 +188,35 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                                     const status =
                                         ESTIMATE_STATUS_LABEL[e.status] ?? fallbackBadge(e.status);
                                     return (
-                                        <li
-                                            key={e.id}
-                                            className="flex items-start justify-between gap-2 text-xs"
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span
-                                                        className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${status.cls}`}
-                                                    >
-                                                        {status.label}
-                                                    </span>
-                                                    <span className="truncate text-slate-800 font-medium">
-                                                        {e.title}
-                                                    </span>
+                                        <li key={e.id}>
+                                            <button
+                                                type="button"
+                                                onClick={() => onViewEstimate?.(e.id)}
+                                                title="見積書（PDF）を表示"
+                                                className="w-full flex items-start justify-between gap-2 text-xs text-left rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-slate-100 transition-colors"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span
+                                                            className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${status.cls}`}
+                                                        >
+                                                            {status.label}
+                                                        </span>
+                                                        <span className="truncate text-slate-800 font-medium">
+                                                            {e.title}
+                                                        </span>
+                                                        <FileText className="w-3 h-3 shrink-0 text-slate-400" />
+                                                    </div>
+                                                    <div className="mt-0.5 text-[10px] text-slate-500">
+                                                        {e.estimateNumber}　{formatDate(e.createdAt)}
+                                                        {e.createdByName ? `　${e.createdByName}` : ''}
+                                                    </div>
                                                 </div>
-                                                <div className="mt-0.5 text-[10px] text-slate-500">
-                                                    {e.estimateNumber}　{formatDate(e.createdAt)}
-                                                    {e.createdByName ? `　${e.createdByName}` : ''}
+                                                <div className="shrink-0 text-right">
+                                                    <div className="text-slate-900 font-semibold tabular-nums">{yen(e.subtotal)}</div>
+                                                    <div className="text-[9px] text-slate-400 leading-none">税別</div>
                                                 </div>
-                                            </div>
-                                            <span className="shrink-0 text-slate-900 font-semibold tabular-nums">
-                                                {yen(e.total)}
-                                            </span>
+                                            </button>
                                         </li>
                                     );
                                 })}
@@ -206,7 +254,11 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                         ) : (
                             <ul className="space-y-1.5">
                                 {history.map((h) => (
-                                    <HistoryRow key={`${h.type}-${h.id}`} item={h} />
+                                    <HistoryRow
+                                        key={`${h.type}-${h.id}`}
+                                        item={h}
+                                        onView={h.type === 'invoice' && onViewInvoice ? () => onViewInvoice(h.id) : undefined}
+                                    />
                                 ))}
                             </ul>
                         )}
