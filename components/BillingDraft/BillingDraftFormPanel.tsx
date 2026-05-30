@@ -677,7 +677,7 @@ export default function BillingDraftFormPanel({
     );
 
     const pdfOverlay = (pdfPreview || pdfLoading) ? (
-        <div className="fixed inset-0 z-[80] bg-black/70 flex flex-col">
+        <div className="fixed inset-0 lg:left-48 z-[80] bg-black/70 flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
                 <h3 className="text-base font-semibold text-slate-800">{pdfPreview?.title ?? 'PDF を生成しています…'}</h3>
                 <button
