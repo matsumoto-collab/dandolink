@@ -21,7 +21,7 @@ import ItemsEditor from '../Estimates/ItemsEditor';
 import SummaryFooter from '../Estimates/SummaryFooter';
 import ConditionNotes from '../Estimates/ConditionNotes';
 import InvoiceHeader from './InvoiceHeader';
-import { FileDown, Plus, List, Eye, X } from 'lucide-react';
+import { FileDown, Plus, List, Eye, X, Trash2 } from 'lucide-react';
 import { logger } from '@/lib/logger';
 
 interface InvoiceFormProps {
@@ -34,6 +34,60 @@ function getDefault30DaysLater(): string {
     const date = new Date();
     date.setDate(date.getDate() + 30);
     return formatDateKey(date);
+}
+
+// 手入力（案件に紐付かない）セクションのキー。'_none' / '_none-<n>'。
+const MANUAL_KEY_PREFIX = '_none';
+function isManualKey(key?: string | null): boolean {
+    return !!key && (key === MANUAL_KEY_PREFIX || key.startsWith(`${MANUAL_KEY_PREFIX}-`));
+}
+
+/**
+ * 既存データ/新規から明細グループの初期状態を構築する。
+ * - 案件セクション: キー = 案件ID（見出し未入力は表示側で案件マスタ名にフォールバック）
+ * - 手入力セクション: キー = '_none' / '_none-<n>'。案件IDなしの明細を sectionTitle ごとに別セクションへ復元。
+ */
+function buildInitialGroups(initialData?: Partial<InvoiceInput>): {
+    itemsByProject: Record<string, InvoiceItem[]>;
+    sectionTitles: Record<string, string>;
+    manualKeys: string[];
+} {
+    const itemsByProject: Record<string, InvoiceItem[]> = {};
+    const sectionTitles: Record<string, string> = {};
+    const manualKeys: string[] = [];
+    const items = initialData?.items;
+    if (items && items.length > 0) {
+        const titleToManualKey = new Map<string, string>();
+        for (const item of items) {
+            const pmId = item.projectMasterId || initialData?.projectId;
+            if (pmId) {
+                if (!itemsByProject[pmId]) itemsByProject[pmId] = [];
+                itemsByProject[pmId].push(item);
+                const st = item.sectionTitle?.trim();
+                if (st && sectionTitles[pmId] === undefined) sectionTitles[pmId] = st;
+            } else {
+                const st = item.sectionTitle?.trim() ?? '';
+                let key = titleToManualKey.get(st);
+                if (key === undefined) {
+                    key = manualKeys.length === 0 ? MANUAL_KEY_PREFIX : `${MANUAL_KEY_PREFIX}-${manualKeys.length}`;
+                    titleToManualKey.set(st, key);
+                    manualKeys.push(key);
+                    if (st) sectionTitles[key] = st;
+                }
+                if (!itemsByProject[key]) itemsByProject[key] = [];
+                // 手入力セクションは projectMasterId をフォームのキーに合わせる（保存時に null へ戻す）
+                itemsByProject[key].push({ ...item, projectMasterId: key });
+            }
+        }
+    }
+    // 新規（明細なし）かつ案件も未選択なら、手入力セクションを1つ用意して従来挙動を維持
+    if (manualKeys.length === 0) {
+        const preProjects = initialData?.projectMasterIds || (initialData?.projectId ? [initialData.projectId] : []);
+        if (preProjects.length === 0 && Object.keys(itemsByProject).length === 0) {
+            manualKeys.push(MANUAL_KEY_PREFIX);
+        }
+    }
+    return { itemsByProject, sectionTitles, manualKeys };
 }
 
 export default function InvoiceForm({ initialData, onSubmit, onCancel }: InvoiceFormProps) {
@@ -79,35 +133,22 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
     const [unitPriceTargetPmId, setUnitPriceTargetPmId] = useState<string>('');
 
-    // 明細: 案件ごとにグループ化 { [projectMasterId]: InvoiceItem[] }
-    const [itemsByProject, setItemsByProject] = useState<Record<string, InvoiceItem[]>>(() => {
-        if (initialData?.items && initialData.items.length > 0) {
-            // 既存データ: projectMasterId でグループ化
-            const grouped: Record<string, InvoiceItem[]> = {};
-            for (const item of initialData.items) {
-                const pmId = item.projectMasterId || initialData.projectId || '_none';
-                if (!grouped[pmId]) grouped[pmId] = [];
-                grouped[pmId].push(item);
-            }
-            return grouped;
-        }
-        return {};
-    });
+    // 明細グループ（案件セクション＋案件なしの手入力セクション）の初期状態を一度だけ構築。
+    // 明細: グループごとに { [案件ID | 手入力キー]: InvoiceItem[] }
+    const [itemsByProject, setItemsByProject] = useState<Record<string, InvoiceItem[]>>(
+        () => buildInitialGroups(initialData).itemsByProject,
+    );
 
-    // 明細グループの見出し（この請求書だけのローカル上書き）
-    // キー: 案件ID または '_none'（案件なし）。値: ユーザーが入力した見出し。
-    // 未設定の案件グループは従来どおり案件マスタの名称を自動表示する。
-    const [sectionTitles, setSectionTitles] = useState<Record<string, string>>(() => {
-        const map: Record<string, string> = {};
-        if (initialData?.items && initialData.items.length > 0) {
-            for (const item of initialData.items) {
-                const key = item.projectMasterId || initialData.projectId || '_none';
-                const st = item.sectionTitle?.trim();
-                if (st && map[key] === undefined) map[key] = st;
-            }
-        }
-        return map;
-    });
+    // 明細グループの見出し（この請求書だけのローカル上書き）。
+    // キー: 案件ID または手入力キー（'_none' / '_none-<n>'）。未設定の案件は案件マスタ名にフォールバック。
+    const [sectionTitles, setSectionTitles] = useState<Record<string, string>>(
+        () => buildInitialGroups(initialData).sectionTitles,
+    );
+
+    // 案件に紐付かない手入力セクションのキー一覧（描画順）。「セクションを追加」で増やせる。
+    const [manualKeys, setManualKeys] = useState<string[]>(
+        () => buildInitialGroups(initialData).manualKeys,
+    );
 
     // 顧客変更時にcustomerIdから案件を自動特定
     useEffect(() => {
@@ -312,10 +353,39 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         });
     };
 
-    // 全明細をフラット化
+    // 手入力セクション（案件に紐付かない見出し付きブロック）を追加
+    const addManualSection = useCallback(() => {
+        setManualKeys(prev => {
+            const used = new Set(prev);
+            if (!used.has(MANUAL_KEY_PREFIX)) return [...prev, MANUAL_KEY_PREFIX];
+            let n = 1;
+            while (used.has(`${MANUAL_KEY_PREFIX}-${n}`)) n++;
+            return [...prev, `${MANUAL_KEY_PREFIX}-${n}`];
+        });
+    }, []);
+
+    // 手入力セクションを削除（その明細・見出しも破棄）
+    const removeManualSection = useCallback((key: string) => {
+        setManualKeys(prev => prev.filter(k => k !== key));
+        setItemsByProject(prev => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+        setSectionTitles(prev => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    }, []);
+
+    // 全明細をフラット化（案件→手入力セクションの描画順を維持して連結）
     const allItems = React.useMemo(() => {
-        return Object.values(itemsByProject).flat();
-    }, [itemsByProject]);
+        const orderedKeys = [...selectedProjectIds, ...manualKeys];
+        const seen = new Set(orderedKeys);
+        const restKeys = Object.keys(itemsByProject).filter(k => !seen.has(k));
+        return [...orderedKeys, ...restKeys].flatMap(key => itemsByProject[key] || []);
+    }, [itemsByProject, selectedProjectIds, manualKeys]);
 
     // 明細に見出し(sectionTitle)を焼き付けたもの（保存・プレビュー用）。
     // 案件グループはユーザーが入力したときだけ上書き値を焼き付ける。
@@ -384,7 +454,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             customerId: customerId || undefined,
             invoiceNumber: invoiceNumber || '（自動採番）',
             title: title || '請求書',
-            items: allItemsWithTitles.map(it => it.projectMasterId === '_none' ? { ...it, projectMasterId: undefined } : it),
+            items: allItemsWithTitles.map(it => isManualKey(it.projectMasterId) ? { ...it, projectMasterId: undefined } : it),
             subtotal,
             tax,
             total,
@@ -475,7 +545,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 customerId,
                 invoiceNumber,
                 title,
-                items: allItemsWithTitles.map(item => item.projectMasterId === '_none' ? { ...item, projectMasterId: null } : item),
+                items: allItemsWithTitles.map(item => isManualKey(item.projectMasterId) ? { ...item, projectMasterId: null } : item),
                 subtotal,
                 tax,
                 total,
@@ -632,19 +702,19 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 );
             })}
 
-            {/* 案件なしの明細セクション */}
-            {selectedProjectIds.length === 0 && (
-                <div className="border border-slate-200 rounded-xl overflow-hidden">
+            {/* 案件なしの手入力セクション（複数可・見出しごとに分かれる） */}
+            {manualKeys.map((key, idx) => (
+                <div key={key} className="border border-slate-200 rounded-xl overflow-hidden">
                     <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                             <div className="flex-1 min-w-0">
                                 <label className="block text-[11px] font-medium text-slate-500 mb-1">
-                                    明細の見出し（任意）
+                                    明細の見出し（任意）{manualKeys.length > 1 ? `・セクション ${idx + 1}` : ''}
                                 </label>
                                 <input
                                     type="text"
-                                    value={sectionTitles['_none'] ?? ''}
-                                    onChange={(e) => setSectionTitles(prev => ({ ...prev, ['_none']: e.target.value }))}
+                                    value={sectionTitles[key] ?? ''}
+                                    onChange={(e) => setSectionTitles(prev => ({ ...prev, [key]: e.target.value }))}
                                     placeholder="例: 〇〇工事 / 品目名など"
                                     className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm font-semibold text-slate-800 bg-white"
                                 />
@@ -653,13 +723,13 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 <div className="relative">
                                     <button
                                         type="button"
-                                        onClick={() => setBillingDropdownPmId(billingDropdownPmId === '_none' ? null : '_none')}
+                                        onClick={() => setBillingDropdownPmId(billingDropdownPmId === key ? null : key)}
                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
                                     >
                                         <List className="w-3.5 h-3.5" />
                                         請求項目から追加
                                     </button>
-                                    {billingDropdownPmId === '_none' && billingTitles.length > 0 && (
+                                    {billingDropdownPmId === key && billingTitles.length > 0 && (
                                         <div className="absolute right-0 z-50 mt-1 w-64 bg-white border border-slate-300 rounded-lg shadow-lg">
                                             <ul className="max-h-48 overflow-y-auto py-1">
                                                 {billingTitles.map(bt => (
@@ -667,7 +737,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                                         key={bt.id}
                                                         className="px-4 py-2 hover:bg-slate-100 cursor-pointer text-sm"
                                                         onClick={() => {
-                                                            addFromBillingTitle('_none', bt);
+                                                            addFromBillingTitle(key, bt);
                                                             setBillingDropdownPmId(null);
                                                         }}
                                                     >
@@ -686,7 +756,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 <button
                                     type="button"
                                     onClick={() => {
-                                        setUnitPriceTargetPmId('_none');
+                                        setUnitPriceTargetPmId(key);
                                         setIsUnitPriceModalOpen(true);
                                     }}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
@@ -695,32 +765,43 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 </button>
                                 <button
                                     type="button"
-                                    onClick={() => addEmptyItem('_none')}
+                                    onClick={() => addEmptyItem(key)}
                                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
                                     行追加
                                 </button>
+                                {(manualKeys.length > 1 || selectedProjectIds.length > 0) && (
+                                    <button
+                                        type="button"
+                                        onClick={() => removeManualSection(key)}
+                                        title="このセクションを削除"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                        削除
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
                     <div className="p-4">
-                        {(itemsByProject['_none'] || []).length === 0 ? (
+                        {(itemsByProject[key] || []).length === 0 ? (
                             <p className="text-sm text-slate-500 text-center py-4">
                                 明細がありません。上のボタンから追加してください。
                             </p>
                         ) : (
                             <ItemsEditor
-                                items={itemsByProject['_none'] || []}
-                                onUpdate={(id, field, value) => updateItem('_none', id, field as string, value)}
-                                onRemove={(id) => removeItem('_none', id)}
-                                onMoveUp={(index) => moveItemUp('_none', index)}
-                                onMoveDown={(index) => moveItemDown('_none', index)}
-                                onReorder={(fromIndex, toIndex) => reorderItems('_none', fromIndex, toIndex)}
-                                onReorderChildItem={(parentId, fromIndex, toIndex) => reorderChildItems('_none', parentId, fromIndex, toIndex)}
-                                onAddItem={() => addEmptyItem('_none')}
+                                items={itemsByProject[key] || []}
+                                onUpdate={(id, field, value) => updateItem(key, id, field as string, value)}
+                                onRemove={(id) => removeItem(key, id)}
+                                onMoveUp={(index) => moveItemUp(key, index)}
+                                onMoveDown={(index) => moveItemDown(key, index)}
+                                onReorder={(fromIndex, toIndex) => reorderItems(key, fromIndex, toIndex)}
+                                onReorderChildItem={(parentId, fromIndex, toIndex) => reorderChildItems(key, parentId, fromIndex, toIndex)}
+                                onAddItem={() => addEmptyItem(key)}
                                 onOpenUnitPriceModal={() => {
-                                    setUnitPriceTargetPmId('_none');
+                                    setUnitPriceTargetPmId(key);
                                     setIsUnitPriceModalOpen(true);
                                 }}
                                 hideAddButtons={true}
@@ -728,7 +809,17 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                         )}
                     </div>
                 </div>
-            )}
+            ))}
+
+            {/* セクション（見出し）を追加 */}
+            <button
+                type="button"
+                onClick={addManualSection}
+                className="w-full flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-medium text-slate-600 border border-dashed border-slate-300 rounded-xl hover:bg-slate-50 hover:border-slate-400 transition-colors"
+            >
+                <Plus className="w-4 h-4" />
+                セクション（見出し）を追加
+            </button>
 
             <ConditionNotes notes={notes} setNotes={setNotes} />
 
