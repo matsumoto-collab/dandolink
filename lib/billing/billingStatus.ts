@@ -60,6 +60,29 @@ export function computeInvoicedByProject(
 }
 
 /**
+ * 1 つの Invoice について、指定案件ぶんの請求額（税抜）を返す。
+ *
+ * - 明細（items）に `projectMasterId` タグがあれば、その案件に一致する明細 `amount`（税抜）の合計
+ * - タグが 1 つも無いレガシー Invoice は、代表案件（`projectMasterId`）に一致するときだけ `subtotal` を計上
+ *
+ * 請求書全体の `total`（税込・全案件）ではなく **この案件ぶけ** を返すのが要点
+ * （複数案件まとめ請求でも案件単位で正しく按分される）。cancelled 判定は呼び出し側で行う。
+ */
+export function invoicedAmountForProject(
+    inv: InvoiceForBillingSummary,
+    projectMasterId: string,
+): number {
+    const items = inv.items ?? [];
+    const hasTags = items.some((it) => it.projectMasterId);
+    if (hasTags) {
+        return items
+            .filter((it) => it.projectMasterId === projectMasterId)
+            .reduce((sum, it) => sum + toNum(it.amount), 0);
+    }
+    return inv.projectMasterId === projectMasterId ? toNum(inv.subtotal) : 0;
+}
+
+/**
  * 契約金額（税抜）と請求済み合計（税抜）から請求ステータスを判定する（§14.2 / §14.5）。
  *
  * - `contractAmount` 未設定（null/undefined）→ `'none'`（「—」表示）

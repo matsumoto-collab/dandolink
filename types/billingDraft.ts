@@ -105,7 +105,7 @@ export interface BillingDraftListParams {
 export interface ProjectContext {
     /** ProjectMaster.contractAmount（税抜円、未設定なら null） */
     contractAmount: number | null;
-    /** 過去の請求済み合計（Invoice.total の和、cancelled は除外） */
+    /** この案件ぶんの請求済み合計（税抜）。Invoice 明細を projectMasterId で按分し合算、cancelled 除外。 */
     totalInvoicedAmount: number;
     /** 見積書一覧（approved 先頭 + createdAt desc、最大 3 件 + 全件数） */
     estimates: {
@@ -141,7 +141,7 @@ export type ProjectContextHistoryItem =
           id: string;
           invoiceNumber: string;
           title: string;
-          /** Invoice の場合は常に total（number、null にならない） */
+          /** Invoice の場合はこの案件ぶんの請求額（税抜・按分、null にならない） */
           amount: number;
           status: string;
           createdAt: string;

@@ -65,17 +65,24 @@ describe('GET /api/project-masters/[id]/billing-context', () => {
         expect(json.contractAmount).toBe(1_500_000);
     });
 
-    it('sums totalInvoicedAmount across direct + linked invoices (deduped by id)', async () => {
+    it('totalInvoicedAmount はこの案件ぶんの明細按分で算出する（請求書合計ではない）・dedup', async () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: PM_ID, contractAmount: 0 });
 
+        // 各請求書に「この案件ぶん」と「別案件ぶん」の明細を混在させ、按分されることを検証
+        const itemsFor = (forThis: number, forOther: number) =>
+            JSON.stringify([
+                { projectMasterId: PM_ID, amount: forThis },
+                { projectMasterId: 'pm-other', amount: forOther },
+            ]);
+
         const directInvoices = [
-            { id: 'inv-A', invoiceNumber: 'I001', title: '直接1', total: 100_000, status: 'sent', createdAt: new Date('2026-01-01') },
-            { id: 'inv-B', invoiceNumber: 'I002', title: '直接2', total: 50_000, status: 'draft', createdAt: new Date('2026-01-02') },
+            { id: 'inv-A', invoiceNumber: 'I001', title: '直接1', total: 110_000, subtotal: 100_000, projectMasterId: PM_ID, items: itemsFor(80_000, 20_000), status: 'sent', createdAt: new Date('2026-01-01') },
+            { id: 'inv-B', invoiceNumber: 'I002', title: '直接2', total: 55_000, subtotal: 50_000, projectMasterId: PM_ID, items: itemsFor(50_000, 0), status: 'draft', createdAt: new Date('2026-01-02') },
         ];
         const linkedInvoices = [
             // inv-B は direct と重複（dedup される）
-            { id: 'inv-B', invoiceNumber: 'I002', title: '直接2', total: 50_000, status: 'draft', createdAt: new Date('2026-01-02') },
-            { id: 'inv-C', invoiceNumber: 'I003', title: 'N:N経由', total: 200_000, status: 'paid', createdAt: new Date('2026-01-03') },
+            { id: 'inv-B', invoiceNumber: 'I002', title: '直接2', total: 55_000, subtotal: 50_000, projectMasterId: PM_ID, items: itemsFor(50_000, 0), status: 'draft', createdAt: new Date('2026-01-02') },
+            { id: 'inv-C', invoiceNumber: 'I003', title: 'N:N経由', total: 220_000, subtotal: 200_000, projectMasterId: 'pm-other', items: itemsFor(120_000, 80_000), status: 'paid', createdAt: new Date('2026-01-03') },
         ];
 
         (prisma.invoice.findMany as jest.Mock)
@@ -89,24 +96,40 @@ describe('GET /api/project-masters/[id]/billing-context', () => {
         const res = await GET(buildReq(), { params: { id: PM_ID } });
         const json = await res.json();
 
-        // 100,000 + 50,000 + 200,000 = 350,000（inv-B は dedup されて 1 回のみカウント）
-        expect(json.totalInvoicedAmount).toBe(350_000);
+        // この案件ぶん: 80,000 + 50,000 + 120,000 = 250,000
+        // （請求書合計の 110k+55k+220k=385k ではない。inv-B は dedup されて 1 回のみ）
+        expect(json.totalInvoicedAmount).toBe(250_000);
+    });
+
+    it('明細に projectMasterId タグが無いレガシー Invoice は代表案件のとき subtotal を計上', async () => {
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: PM_ID, contractAmount: 0 });
+
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+            { id: 'inv-legacy', invoiceNumber: 'I900', title: '旧', total: 99_000, subtotal: 90_000, projectMasterId: PM_ID, items: '[]', status: 'sent', createdAt: new Date('2026-01-01') },
+        ]);
+
+        const res = await GET(buildReq(), { params: { id: PM_ID } });
+        const json = await res.json();
+
+        // 無タグ → 代表案件(PM_ID)に税抜 subtotal を計上（total 99,000 ではない）
+        expect(json.totalInvoicedAmount).toBe(90_000);
     });
 
     it('excludes cancelled invoices from totalInvoicedAmount', async () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: PM_ID, contractAmount: 0 });
 
+        const items = (amt: number) => JSON.stringify([{ projectMasterId: PM_ID, amount: amt }]);
         const invoices = [
-            { id: 'inv-A', invoiceNumber: 'I001', title: '送付済', total: 100_000, status: 'sent', createdAt: new Date('2026-01-01') },
-            { id: 'inv-B', invoiceNumber: 'I002', title: 'キャンセル', total: 999_999, status: 'cancelled', createdAt: new Date('2026-01-02') },
-            { id: 'inv-C', invoiceNumber: 'I003', title: '支払済', total: 50_000, status: 'paid', createdAt: new Date('2026-01-03') },
+            { id: 'inv-A', invoiceNumber: 'I001', title: '送付済', total: 110_000, subtotal: 100_000, projectMasterId: PM_ID, items: items(100_000), status: 'sent', createdAt: new Date('2026-01-01') },
+            { id: 'inv-B', invoiceNumber: 'I002', title: 'キャンセル', total: 999_999, subtotal: 900_000, projectMasterId: PM_ID, items: items(900_000), status: 'cancelled', createdAt: new Date('2026-01-02') },
+            { id: 'inv-C', invoiceNumber: 'I003', title: '支払済', total: 55_000, subtotal: 50_000, projectMasterId: PM_ID, items: items(50_000), status: 'paid', createdAt: new Date('2026-01-03') },
         ];
         (prisma.invoice.findMany as jest.Mock).mockResolvedValue(invoices);
 
         const res = await GET(buildReq(), { params: { id: PM_ID } });
         const json = await res.json();
 
-        // cancelled は除外、100,000 + 50,000 = 150,000
+        // cancelled は除外、案件ぶん 100,000 + 50,000 = 150,000
         expect(json.totalInvoicedAmount).toBe(150_000);
     });
 
@@ -138,7 +161,8 @@ describe('GET /api/project-masters/[id]/billing-context', () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: PM_ID, contractAmount: 0 });
 
         (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-            { id: 'inv-A', invoiceNumber: 'I001', title: '請求書1', total: 100, status: 'sent', createdAt: new Date('2026-02-01') },
+            // total 100 だが、この案件ぶんは 70（pm-other ぶん 30 は含めない）
+            { id: 'inv-A', invoiceNumber: 'I001', title: '請求書1', total: 110, subtotal: 100, projectMasterId: PM_ID, items: JSON.stringify([{ projectMasterId: PM_ID, amount: 70 }, { projectMasterId: 'pm-other', amount: 30 }]), status: 'sent', createdAt: new Date('2026-02-01') },
         ]);
         (prisma.billingDraft.findMany as jest.Mock).mockResolvedValue([
             { id: 'bd-A', title: '予定1', amount: '500', status: 'pending', createdAt: new Date('2026-03-01') },
@@ -151,7 +175,8 @@ describe('GET /api/project-masters/[id]/billing-context', () => {
         // createdAt desc: bd-A (3/1) → inv-A (2/1) → bd-B (1/1)
         expect(json.history).toHaveLength(3);
         expect(json.history[0]).toEqual(expect.objectContaining({ type: 'billing-draft', id: 'bd-A', amount: 500 }));
-        expect(json.history[1]).toEqual(expect.objectContaining({ type: 'invoice', id: 'inv-A', invoiceNumber: 'I001', amount: 100 }));
+        // 請求書は total(100) ではなく案件ぶん按分の 70
+        expect(json.history[1]).toEqual(expect.objectContaining({ type: 'invoice', id: 'inv-A', invoiceNumber: 'I001', amount: 70 }));
         expect(json.history[2]).toEqual(expect.objectContaining({ type: 'billing-draft', id: 'bd-B', amount: null }));
     });
 
