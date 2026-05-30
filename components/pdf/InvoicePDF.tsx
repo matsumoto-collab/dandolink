@@ -62,16 +62,18 @@ export function buildInvoiceDisplayRows(
     const orphanItems = allItems.filter(
         item => !item.projectMasterId || !pmList.find(pm => pm.id === item.projectMasterId),
     );
-    if (orphanItems.length > 0) {
-        const orphanTitle = orphanItems.find(it => it.sectionTitle && it.sectionTitle.trim())?.sectionTitle?.trim();
-        if (orphanTitle) {
-            rows.push({ type: 'header', title: `【${orphanTitle}】` });
+    // 案件なし（手入力）の明細は見出し(sectionTitle)ごとに別セクションへ分ける。
+    // 連続する同一見出しは1ブロックにまとめ、見出しが変わるたびに見出し行を差し込む。
+    let prevOrphanTitle: string | null = null;
+    orphanItems.forEach((item, idx) => {
+        const title = item.sectionTitle?.trim() || '';
+        if (idx === 0 || title !== prevOrphanTitle) {
+            if (title) rows.push({ type: 'header', title: `【${title}】` });
+            prevOrphanTitle = title;
         }
-        orphanItems.forEach(item => {
-            itemIndex++;
-            rows.push({ type: 'item', item, index: itemIndex });
-        });
-    }
+        itemIndex++;
+        rows.push({ type: 'item', item, index: itemIndex });
+    });
 
     return rows;
 }
