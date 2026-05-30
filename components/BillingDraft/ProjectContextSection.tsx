@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Receipt, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Receipt } from 'lucide-react';
 import type {
     ProjectContext,
     ProjectContextHistoryItem,
@@ -16,6 +16,10 @@ import type {
 
 interface ProjectContextSectionProps {
     projectContext: ProjectContext;
+    /** 見積書PDFをインライン表示（パネル側で生成） */
+    onViewEstimate?: (estimateId: string) => void;
+    /** 請求書PDFをインライン表示（パネル側で生成） */
+    onViewInvoice?: (invoiceId: string) => void;
 }
 
 const yen = (n: number): string => `¥${n.toLocaleString()}`;
@@ -55,7 +59,7 @@ const fallbackBadge = (status: string) => ({
     cls: 'bg-slate-100 text-slate-600',
 });
 
-function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
+function HistoryRow({ item, onView }: { item: ProjectContextHistoryItem; onView?: () => void }) {
     const statusMap =
         item.type === 'billing-draft' ? BILLING_DRAFT_STATUS_LABEL : INVOICE_STATUS_LABEL;
     const status = statusMap[item.status] ?? fallbackBadge(item.status);
@@ -65,8 +69,9 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
             ? 'bg-amber-50 text-amber-700 border border-amber-200'
             : 'bg-blue-50 text-blue-700 border border-blue-200';
     const amount = item.amount;
-    return (
-        <li className="flex items-start justify-between gap-2 text-xs">
+
+    const inner = (
+        <>
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span
@@ -84,6 +89,7 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
                             {item.invoiceNumber}
                         </span>
                     )}
+                    {onView && <FileText className="w-3 h-3 shrink-0 text-slate-400" />}
                 </div>
                 <div className="mt-0.5 text-[11px] text-slate-700 truncate">{item.title}</div>
                 <div className="text-[10px] text-slate-500">{formatDate(item.createdAt)}</div>
@@ -91,11 +97,27 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
             <span className="shrink-0 text-slate-900 font-semibold tabular-nums">
                 {amount != null ? yen(amount) : '—'}
             </span>
-        </li>
+        </>
     );
+
+    if (onView) {
+        return (
+            <li>
+                <button
+                    type="button"
+                    onClick={onView}
+                    title="請求書（PDF）を表示"
+                    className="w-full flex items-start justify-between gap-2 text-xs text-left rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-slate-100 transition-colors"
+                >
+                    {inner}
+                </button>
+            </li>
+        );
+    }
+    return <li className="flex items-start justify-between gap-2 text-xs">{inner}</li>;
 }
 
-export default function ProjectContextSection({ projectContext }: ProjectContextSectionProps) {
+export default function ProjectContextSection({ projectContext, onViewEstimate, onViewInvoice }: ProjectContextSectionProps) {
     const { contractAmount, totalInvoicedAmount, estimates, history } = projectContext;
     const [openEstimates, setOpenEstimates] = useState(true);
     const [openHistory, setOpenHistory] = useState(false);
@@ -169,8 +191,8 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                                         <li key={e.id}>
                                             <button
                                                 type="button"
-                                                onClick={() => window.open(`/estimates/${e.id}`, '_blank', 'noopener,noreferrer')}
-                                                title="見積書（PDF）を新しいタブで開く"
+                                                onClick={() => onViewEstimate?.(e.id)}
+                                                title="見積書（PDF）を表示"
                                                 className="w-full flex items-start justify-between gap-2 text-xs text-left rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-slate-100 transition-colors"
                                             >
                                                 <div className="min-w-0 flex-1">
@@ -183,7 +205,7 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                                                         <span className="truncate text-slate-800 font-medium">
                                                             {e.title}
                                                         </span>
-                                                        <ExternalLink className="w-3 h-3 shrink-0 text-slate-400" />
+                                                        <FileText className="w-3 h-3 shrink-0 text-slate-400" />
                                                     </div>
                                                     <div className="mt-0.5 text-[10px] text-slate-500">
                                                         {e.estimateNumber}　{formatDate(e.createdAt)}
@@ -232,7 +254,11 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                         ) : (
                             <ul className="space-y-1.5">
                                 {history.map((h) => (
-                                    <HistoryRow key={`${h.type}-${h.id}`} item={h} />
+                                    <HistoryRow
+                                        key={`${h.type}-${h.id}`}
+                                        item={h}
+                                        onView={h.type === 'invoice' && onViewInvoice ? () => onViewInvoice(h.id) : undefined}
+                                    />
                                 ))}
                             </ul>
                         )}

@@ -10,6 +10,9 @@ import ItemCard from '@/components/Estimates/ItemRow';
 import SummaryFooter from '@/components/Estimates/SummaryFooter';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useEstimates } from '@/hooks/useEstimates';
+import { useInvoices } from '@/hooks/useInvoices';
+import { useCompany } from '@/hooks/useCompany';
+import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import { logger } from '@/lib/logger';
 import type {
     BillingDraft,
@@ -18,7 +21,7 @@ import type {
     UpdateBillingDraftInput,
 } from '@/types/billingDraft';
 import type { Customer } from '@/types/customer';
-import type { ProjectMaster } from '@/types/calendar';
+import type { ProjectMaster, Project } from '@/types/calendar';
 import type { InvoiceItem, BillingTitle } from '@/types/invoice';
 import type { EstimateItem } from '@/types/estimate';
 
@@ -130,11 +133,16 @@ export default function BillingDraftFormPanel({
     // 案件を選んで開いた場合（カレンダー右クリック / 案件詳細 / 編集）は案件・顧客をコンパクト表示にする
     const preSelected = isEdit || !!initialProjectId;
 
-    // 見積書（見積から引用用）。遅延ロードなので開いたときに ensureDataLoaded を呼ぶ。
+    // 見積書（見積から引用 + PDF閲覧用）・請求書（PDF閲覧用）・会社情報（PDF用）。遅延ロード。
     const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
+    const { invoices, ensureDataLoaded: ensureInvoicesLoaded } = useInvoices();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     useEffect(() => {
-        if (open) ensureEstimatesLoaded();
-    }, [open, ensureEstimatesLoaded]);
+        if (!open) return;
+        ensureEstimatesLoaded();
+        ensureInvoicesLoaded();
+        ensureCompanyLoaded();
+    }, [open, ensureEstimatesLoaded, ensureInvoicesLoaded, ensureCompanyLoaded]);
 
     // 請求書項目マスタ（「請求書項目から追加」用）を開いたときに取得
     useEffect(() => {
@@ -212,6 +220,71 @@ export default function BillingDraftFormPanel({
         () => estimates.filter((e) => e.projectId === projectId),
         [estimates, projectId],
     );
+
+    // ── 見積書 / 請求書 PDF のインライン表示 ──────────────
+    const [pdfPreview, setPdfPreview] = useState<{ url: string; title: string } | null>(null);
+    const [pdfLoading, setPdfLoading] = useState(false);
+
+    // PDF 生成用の一時 Project（選択中の案件マスタ＋顧客から組み立て。InvoiceForm と同じ方式）
+    const pdfProject = useMemo(() => {
+        const p: Project & { customerPostalCode?: string; customerAddress?: string } = {
+            id: selectedProject?.id ?? '',
+            title: selectedProject?.title ?? '',
+            startDate: new Date(),
+            category: 'construction',
+            color: '#3B82F6',
+            customer: selectedCustomer?.name ?? '',
+            customerHonorific: selectedCustomer?.honorific ?? '御中',
+            location: [selectedProject?.prefecture, selectedProject?.city, selectedProject?.location].filter(Boolean).join(''),
+            customerPostalCode: selectedCustomer?.postalCode ?? '',
+            customerAddress: selectedCustomer?.address ?? '',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+        return p;
+    }, [selectedProject, selectedCustomer]);
+
+    const closePdfPreview = useCallback(() => {
+        setPdfPreview((prev) => {
+            if (prev?.url) URL.revokeObjectURL(prev.url);
+            return null;
+        });
+    }, []);
+    useEffect(() => () => { if (pdfPreview?.url) URL.revokeObjectURL(pdfPreview.url); }, [pdfPreview?.url]);
+
+    const handleViewEstimate = useCallback(async (estimateId: string) => {
+        const est = estimates.find((e) => e.id === estimateId);
+        if (!est) { toast.error('見積書が見つかりません'); return; }
+        if (!companyInfo) { toast.error('会社情報を読み込み中です。少し待って再度お試しください'); return; }
+        try {
+            setPdfLoading(true);
+            const { generateEstimatePDFBlobReact } = await import('@/utils/reactPdfGenerator');
+            const url = await generateEstimatePDFBlobReact(est, pdfProject, companyInfo, { creatorName: est.createdByName || '' });
+            setPdfPreview({ url, title: `見積書　${est.estimateNumber}` });
+        } catch (e) {
+            logger.error('見積PDF生成エラー:', e);
+            toast.error('PDF の生成に失敗しました');
+        } finally {
+            setPdfLoading(false);
+        }
+    }, [estimates, companyInfo, pdfProject]);
+
+    const handleViewInvoice = useCallback(async (invoiceId: string) => {
+        const inv = invoices.find((i) => i.id === invoiceId);
+        if (!inv) { toast.error('請求書が見つかりません'); return; }
+        if (!companyInfo) { toast.error('会社情報を読み込み中です。少し待って再度お試しください'); return; }
+        try {
+            setPdfLoading(true);
+            const { generateInvoicePDFBlobReact } = await import('@/utils/reactPdfGenerator');
+            const url = await generateInvoicePDFBlobReact(inv, pdfProject, companyInfo, inv.projectMasters, { includeCopy: true, includeDetails: false });
+            setPdfPreview({ url, title: `請求書　${inv.invoiceNumber}` });
+        } catch (e) {
+            logger.error('請求書PDF生成エラー:', e);
+            toast.error('PDF の生成に失敗しました');
+        } finally {
+            setPdfLoading(false);
+        }
+    }, [invoices, companyInfo, pdfProject]);
 
     // ── 明細操作 ───────────────────────────────────────
     const addItem = useCallback(() => setItems((prev) => [...prev, makeEmptyItem()]), []);
@@ -349,7 +422,13 @@ export default function BillingDraftFormPanel({
     const formBody = (
         <form onSubmit={handleSubmit} className="space-y-4">
             {/* Phase 2 起動経路：案件サマリ（契約金額・過去合計・見積書・履歴） */}
-            {projectContext && <ProjectContextSection projectContext={projectContext} />}
+            {projectContext && (
+                <ProjectContextSection
+                    projectContext={projectContext}
+                    onViewEstimate={handleViewEstimate}
+                    onViewInvoice={handleViewInvoice}
+                />
+            )}
 
             {/* 編集モードかつ pending でないときは注意書き */}
             {readOnly && (
@@ -597,21 +676,52 @@ export default function BillingDraftFormPanel({
         </form>
     );
 
+    const pdfOverlay = (pdfPreview || pdfLoading) ? (
+        <div className="fixed inset-0 z-[80] bg-black/70 flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-200">
+                <h3 className="text-base font-semibold text-slate-800">{pdfPreview?.title ?? 'PDF を生成しています…'}</h3>
+                <button
+                    type="button"
+                    onClick={closePdfPreview}
+                    className="p-2 text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100"
+                    aria-label="閉じる"
+                >
+                    <X className="w-6 h-6" />
+                </button>
+            </div>
+            <div className="flex-1 overflow-auto bg-slate-100">
+                {pdfPreview ? (
+                    <InlinePdfViewer url={pdfPreview.url} />
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-slate-600" />
+                    </div>
+                )}
+            </div>
+        </div>
+    ) : null;
+
     // 媒体サイズが確定するまでは描画しない（PC/モバイル切替時のチラつき回避）
     if (isDesktop === null) return null;
 
     if (isDesktop) {
         return (
-            <SideDrawer open={open} onClose={onClose} title={headerTitle}>
-                {formBody}
-            </SideDrawer>
+            <>
+                <SideDrawer open={open} onClose={onClose} title={headerTitle}>
+                    {formBody}
+                </SideDrawer>
+                {pdfOverlay}
+            </>
         );
     }
 
     return (
-        <BottomSheet open={open} onClose={onClose} title={headerTitle}>
-            {formBody}
-        </BottomSheet>
+        <>
+            <BottomSheet open={open} onClose={onClose} title={headerTitle}>
+                {formBody}
+            </BottomSheet>
+            {pdfOverlay}
+        </>
     );
 }
 
