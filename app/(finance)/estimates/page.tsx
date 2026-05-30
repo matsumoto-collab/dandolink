@@ -14,6 +14,7 @@ import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off, Copy, Check } from 'lucide-react';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { Button } from '@/components/ui/Button';
+import StatusPillSelect, { type StatusOption } from '@/components/ui/StatusPillSelect';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
@@ -32,6 +33,14 @@ const EstimateDetailModal = dynamic(
     () => import('@/components/Estimates/EstimateDetailModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
+
+// 一覧から直接変更できるステータス選択肢（編集モーダルと同一）
+const ESTIMATE_STATUS_OPTIONS: StatusOption[] = [
+    { value: 'draft', label: '下書き' },
+    { value: 'sent', label: '送付済み' },
+    { value: 'approved', label: '承認済み' },
+    { value: 'rejected', label: '却下' },
+];
 
 export default function EstimateListPage() {
     const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
@@ -57,6 +66,8 @@ export default function EstimateListPage() {
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedEstimate, setSelectedEstimate] = useState<Estimate | null>(null);
     const [_isSubmitting, setIsSubmitting] = useState(false);
+    // 一覧からステータス変更中の見積書 ID（多重送信防止用）
+    const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
     // 案件作成モーダル（見積書から案件を作成）
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
@@ -178,6 +189,21 @@ export default function EstimateListPage() {
         setIsModalOpen(true);
     };
 
+    // 一覧から直接ステータスを変更（編集モーダルを開かずに更新）
+    const handleStatusChange = useCallback(async (estimate: Estimate, newStatus: string) => {
+        if (newStatus === estimate.status) return;
+        setStatusUpdatingId(estimate.id);
+        try {
+            await updateEstimate(estimate.id, { status: newStatus } as Partial<EstimateInput>);
+            toast.success('ステータスを変更しました');
+        } catch (error) {
+            logger.error('Failed to update estimate status:', error);
+            toast.error(error instanceof Error ? error.message : 'ステータスの変更に失敗しました');
+        } finally {
+            setStatusUpdatingId(null);
+        }
+    }, [updateEstimate]);
+
     // 見積書コピー
     const handleCopy = (estimate: Estimate) => {
         setEditingEstimate(null);
@@ -287,7 +313,6 @@ export default function EstimateListPage() {
                     <div className="grid grid-cols-1 gap-4">
                         {paginatedEstimates.map((estimate) => {
                             const statusInfo = getStatusInfo(estimate.status);
-                            const StatusIcon = statusInfo.icon;
 
                             return (
                                 <div
@@ -353,13 +378,15 @@ export default function EstimateListPage() {
                                         ¥{estimate.total.toLocaleString()}
                                     </div>
 
-                                    {/* ステータスと日付 */}
+                                    {/* ステータス（一覧から直接変更可）と日付 */}
                                     <div className="flex items-center justify-between gap-2">
-                                        {/* バッジ側はモバイルで縮められるよう min-w-0 truncate */}
-                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold min-w-0 ${statusInfo.bg} ${statusInfo.color}`}>
-                                            <StatusIcon className="w-4 h-4 flex-shrink-0" />
-                                            <span className="truncate">{statusInfo.label}</span>
-                                        </span>
+                                        <StatusPillSelect
+                                            value={estimate.status}
+                                            options={ESTIMATE_STATUS_OPTIONS}
+                                            colorClass={`${statusInfo.bg} ${statusInfo.color}`}
+                                            disabled={statusUpdatingId === estimate.id}
+                                            onChange={(s) => handleStatusChange(estimate, s)}
+                                        />
                                         {/* 有効期限が右端で見切れないよう flex-shrink-0 + whitespace-nowrap */}
                                         <span className="text-xs text-slate-500 flex-shrink-0 whitespace-nowrap">
                                             有効期限: {formatDate(estimate.validUntil, 'short')}
@@ -455,7 +482,6 @@ export default function EstimateListPage() {
                         ) : (
                             paginatedEstimates.map((estimate) => {
                                 const statusInfo = getStatusInfo(estimate.status);
-                                const StatusIcon = statusInfo.icon;
 
                                 return (
                                     <tr
@@ -502,10 +528,13 @@ export default function EstimateListPage() {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
-                                                <StatusIcon className="w-4 h-4" />
-                                                {statusInfo.label}
-                                            </span>
+                                            <StatusPillSelect
+                                                value={estimate.status}
+                                                options={ESTIMATE_STATUS_OPTIONS}
+                                                colorClass={`${statusInfo.bg} ${statusInfo.color}`}
+                                                disabled={statusUpdatingId === estimate.id}
+                                                onChange={(s) => handleStatusChange(estimate, s)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {formatDate(estimate.validUntil, 'full')}
