@@ -16,6 +16,7 @@ export const createBillingDraftSchema = z.object({
     amount: decimalString.nullable().optional(),
     taxRate: decimalString.optional().default('0.10'),
     note: z.string().max(2000, 'メモは2000文字以内で入力してください').nullable().optional(),
+    items: z.array(z.unknown()).optional().nullable(),
 });
 
 export const updateBillingDraftSchema = z.object({
@@ -23,6 +24,7 @@ export const updateBillingDraftSchema = z.object({
     amount: decimalString.nullable().optional(),
     taxRate: decimalString.optional(),
     note: z.string().max(2000, 'メモは2000文字以内で入力してください').nullable().optional(),
+    items: z.array(z.unknown()).optional().nullable(),
 });
 
 export const billingDraftListQuerySchema = z.object({

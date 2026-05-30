@@ -11,6 +11,8 @@
  * 数値として扱うときは Number(...) を使うこと。
  */
 
+import type { InvoiceItem } from './invoice';
+
 export type BillingDraftStatus = 'pending' | 'confirmed' | 'cancelled';
 
 export interface BillingDraftProjectMaster {
@@ -47,6 +49,8 @@ export interface BillingDraft {
     invoiceId: string | null;
     createdById: string;
     note: string | null;
+    /** 明細（複数行）。API で JSON 文字列からパース済。空配列 = 旧・単一行モデル（title/amount を使用） */
+    items: InvoiceItem[];
     createdAt: string;
     updatedAt: string;
     deletedAt: string | null;
@@ -65,6 +69,8 @@ export interface CreateBillingDraftInput {
     amount?: string | null;
     taxRate?: string;
     note?: string | null;
+    /** 明細（複数行）。指定時はサーバーが items に JSON 保存し amount を明細合計で上書き */
+    items?: InvoiceItem[] | null;
 }
 
 /** PATCH /api/billing-drafts/[id] の body（pending のみ編集可） */
@@ -73,6 +79,8 @@ export interface UpdateBillingDraftInput {
     amount?: string | null;
     taxRate?: string;
     note?: string | null;
+    /** 明細（複数行）。指定時はサーバーが items に JSON 保存し amount を明細合計で上書き */
+    items?: InvoiceItem[] | null;
 }
 
 /** GET /api/billing-drafts のクエリ */

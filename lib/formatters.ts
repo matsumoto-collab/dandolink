@@ -211,3 +211,17 @@ export function formatInvoice(invoice: RawInvoice) {
         updatedAt: invoice.updatedAt.toISOString(),
     };
 }
+
+/**
+ * 請求予定（BillingDraft）を API レスポンス用にフォーマット
+ * - items: JSON 文字列 → パース済み配列（InvoiceItem[] 相当。null/未設定は []）
+ *
+ * Decimal（amount/taxRate）と Date（createdAt 等）は NextResponse.json の
+ * 既定シリアライズに委ねる（items 以外は既存挙動を維持）。
+ */
+export function formatBillingDraft<T extends { items: string | null }>(draft: T) {
+    return {
+        ...draft,
+        items: parseJsonField<unknown[]>(draft.items, []),
+    };
+}

@@ -11,6 +11,8 @@ import {
     serverErrorResponse,
     validationErrorResponse,
 } from '@/lib/api/utils';
+import { formatBillingDraft } from '@/lib/formatters';
+import { sumDraftItemAmounts } from '@/lib/billing/billingDraftItems';
 
 /**
  * Get billing drafts (with filters)
@@ -76,7 +78,7 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        return NextResponse.json(drafts, { headers: { 'Cache-Control': 'no-store' } });
+        return NextResponse.json(drafts.map(formatBillingDraft), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求予定の取得', error);
     }
@@ -99,14 +101,21 @@ export async function POST(req: NextRequest) {
 
         const data = validation.data;
 
+        // 明細（複数行）が来た場合は items に JSON 保存し、amount は明細合計（税別小計）で上書きする。
+        // 旧・単一行モデル（items 未指定）のときは従来どおり amount をそのまま使う。
+        const itemsArr = Array.isArray(data.items) ? data.items : null;
+        const hasItems = !!itemsArr && itemsArr.length > 0;
+        const amount = hasItems ? sumDraftItemAmounts(itemsArr).toString() : (data.amount ?? null);
+
         const created = await prisma.billingDraft.create({
             data: {
                 projectId: data.projectId,
                 customerId: data.customerId,
                 title: data.title.trim(),
-                amount: data.amount ?? null,
+                amount,
                 taxRate: data.taxRate ?? '0.10',
                 note: data.note?.trim() || null,
+                items: hasItems ? JSON.stringify(itemsArr) : null,
                 createdById: session!.user.id,
             },
             include: {
@@ -116,7 +125,7 @@ export async function POST(req: NextRequest) {
             },
         });
 
-        return NextResponse.json(created, { headers: { 'Cache-Control': 'no-store' } });
+        return NextResponse.json(formatBillingDraft(created), { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求予定の作成', error);
     }

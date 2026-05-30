@@ -1896,6 +1896,8 @@ model BillingDraft {
   invoiceId   String?
   createdById String
   note        String?
+  // InvoiceItem[] を JSON 文字列で保存（複数明細セクション化）。null = 旧・単一行モデル（amount/title を使用・後方互換）
+  items       String?
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
   deletedAt   DateTime?

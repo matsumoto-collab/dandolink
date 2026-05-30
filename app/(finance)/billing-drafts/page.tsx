@@ -12,7 +12,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import BillingDraftFilters from '@/components/BillingDraft/BillingDraftFilters';
 import BillingDraftList from '@/components/BillingDraft/BillingDraftList';
-import { billingDraftToInvoiceItem } from '@/lib/billing/draftToInvoiceItem';
+import { billingDraftToInvoiceItems } from '@/lib/billing/draftToInvoiceItem';
 import type { BillingDraft, BillingDraftStatus } from '@/types/billingDraft';
 import type { ProjectMaster } from '@/types/calendar';
 import type { InvoiceInput } from '@/types/invoice';
@@ -227,7 +227,7 @@ export default function BillingDraftListPage() {
         }
         const customerId = customerIdFilter || finalDrafts[0].customerId;
         const projectMasterIds = Array.from(new Set(finalDrafts.map((d) => d.projectId)));
-        const items = finalDrafts.map((d) => billingDraftToInvoiceItem(d));
+        const items = finalDrafts.flatMap((d) => billingDraftToInvoiceItems(d));
         setIssuingDraftIds(finalDrafts.map((d) => d.id));
         // 件名は空欄（D-h、未入力では InvoiceForm が発行を弾く）。発行日/支払期限は InvoiceForm 既定。
         setInvoiceInitialData({ customerId, projectMasterIds, items, title: '' });

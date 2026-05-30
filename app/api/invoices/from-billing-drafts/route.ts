@@ -9,7 +9,8 @@ import { issueInvoiceFromDraftsSchema, validateRequest } from '@/lib/validations
 import { formatInvoice } from '@/lib/formatters';
 import { createInvoiceVersion } from '@/lib/versions/snapshot';
 import { createInvoiceWithRetry } from '@/lib/billing/createInvoiceWithRetry';
-import { billingDraftToInvoiceItem } from '@/lib/billing/draftToInvoiceItem';
+import { billingDraftToInvoiceItems } from '@/lib/billing/draftToInvoiceItem';
+import { parseJsonField } from '@/lib/json-utils';
 import type { InvoiceItem } from '@/types/invoice';
 
 const TAX_RATE = 0.1;
@@ -82,11 +83,24 @@ export async function POST(req: NextRequest) {
             items = bodyItems as InvoiceItem[];
             sourceDrafts = drafts;
         } else {
-            const billable = drafts.filter((d) => d.amount !== null);
+            // 明細（複数行）があるか、旧モデルで金額が入っている draft のみ対象（D-f: 空は除外）
+            const billable = drafts.filter(
+                (d) => parseJsonField<InvoiceItem[]>(d.items, []).length > 0 || d.amount !== null,
+            );
             if (billable.length === 0) {
                 return validationErrorResponse('金額が入力された請求予定がありません');
             }
-            items = billable.map(billingDraftToInvoiceItem);
+            items = billable.flatMap((d) =>
+                billingDraftToInvoiceItems({
+                    id: d.id,
+                    title: d.title,
+                    amount: d.amount,
+                    taxRate: d.taxRate,
+                    projectId: d.projectId,
+                    note: d.note,
+                    items: parseJsonField<InvoiceItem[]>(d.items, []),
+                }),
+            );
             sourceDrafts = billable;
         }
 

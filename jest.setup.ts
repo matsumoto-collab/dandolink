@@ -241,6 +241,7 @@ jest.mock('@/lib/formatters', () => ({
     formatAssignment: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
     formatEstimate: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
     formatInvoice: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
+    formatBillingDraft: (item: any) => ({ ...item, items: item.items ? JSON.parse(item.items) : [] }),
     formatUser: (item: any) => item,
     formatCustomer: (item: any) => item,
 }));
