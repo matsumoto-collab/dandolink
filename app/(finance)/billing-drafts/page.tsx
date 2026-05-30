@@ -14,8 +14,8 @@ import BillingDraftFilters from '@/components/BillingDraft/BillingDraftFilters';
 import BillingDraftList, { type BillingDraftCustomerGroup } from '@/components/BillingDraft/BillingDraftList';
 import { billingDraftToInvoiceItems } from '@/lib/billing/draftToInvoiceItem';
 import type { BillingDraft, BillingDraftStatus } from '@/types/billingDraft';
-import type { ProjectMaster } from '@/types/calendar';
 import type { InvoiceInput } from '@/types/invoice';
+import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { logger } from '@/lib/logger';
 
 // FormPanel は重め（CRUD フォーム）なので遅延読み込み
@@ -31,34 +31,6 @@ const InvoiceModal = dynamic(() => import('@/components/Invoices/InvoiceModal'),
 });
 
 const ITEMS_PER_PAGE = 20;
-
-/**
- * 案件マスタの `createdBy` を担当者 ID 配列に正規化する。
- * - 配列ならそのまま
- * - JSON 文字列（["id1","id2"]）なら parse
- * - 単独文字列なら 1 要素配列
- * - null / undefined / 不正値は空配列
- *
- * 経緯: §MEMORY.md「ProjectMaster 担当者フィールドの落とし穴」参照。
- */
-function extractAssigneeIds(createdBy: ProjectMaster['createdBy']): string[] {
-    if (!createdBy) return [];
-    if (Array.isArray(createdBy)) return createdBy.filter(Boolean);
-    if (typeof createdBy === 'string') {
-        const trimmed = createdBy.trim();
-        if (!trimmed) return [];
-        if (trimmed.startsWith('[')) {
-            try {
-                const parsed = JSON.parse(trimmed);
-                return Array.isArray(parsed) ? parsed.filter(Boolean) : [trimmed];
-            } catch {
-                return [trimmed];
-            }
-        }
-        return [trimmed];
-    }
-    return [];
-}
 
 export default function BillingDraftListPage() {
     const { data: session, status: sessionStatus } = useSession();

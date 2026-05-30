@@ -16,6 +16,7 @@ import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
+import { extractAssigneeIds } from '@/lib/projectAssignees';
 
 // モーダルを遅延読み込み
 const InvoiceModal = dynamic(
@@ -52,6 +53,13 @@ export default function InvoiceListPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
     const [statusFilter, setStatusFilter] = useState<string>('all');
+    // 案件担当者フィルタ（その請求書に含まれる案件の担当者で絞り込み）
+    const [assigneeIdFilter, setAssigneeIdFilter] = useState('');
+    // 作成日フィルタ（範囲・YYYY-MM-DD。空なら無制限）
+    const [createdFrom, setCreatedFrom] = useState('');
+    const [createdTo, setCreatedTo] = useState('');
+    // /api/users の id → displayName マップ（案件担当者の名前解決用）
+    const [userMap, setUserMap] = useState<Record<string, string>>({});
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -134,25 +142,97 @@ export default function InvoiceListPage() {
         }
     };
 
+    // /api/users から id → displayName マップを構築（案件担当者の解決用）
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/users', { cache: 'no-store' });
+                if (!res.ok) return;
+                const users: Array<{ id: string; displayName: string }> = await res.json();
+                if (cancelled) return;
+                const map: Record<string, string> = {};
+                for (const u of users) map[u.id] = u.displayName;
+                setUserMap(map);
+            } catch (e) {
+                logger.error('ユーザー一覧の取得に失敗:', e);
+            }
+        })();
+        return () => { cancelled = true; };
+    }, []);
+
+    // 案件 ID → 案件担当者の User ID 配列（ProjectMaster.createdBy 由来）
+    const projectAssigneeIds = useMemo(() => {
+        const m = new Map<string, string[]>();
+        for (const pm of projectMasters) m.set(pm.id, extractAssigneeIds(pm.createdBy));
+        return m;
+    }, [projectMasters]);
+
+    // 請求書に紐づく案件マスタ ID（複数案件 projectMasters + レガシー projectId を集約）
+    const getInvoiceProjectIds = useCallback((invoice: Invoice): string[] => {
+        const ids = new Set<string>();
+        if (invoice.projectMasters) {
+            for (const pm of invoice.projectMasters) if (pm.id) ids.add(pm.id);
+        }
+        if (invoice.projectId) ids.add(invoice.projectId);
+        return Array.from(ids);
+    }, []);
+
+    // 請求書に含まれる案件担当者の User ID（ユニーク）
+    const getInvoiceAssigneeIds = useCallback((invoice: Invoice): string[] => {
+        const set = new Set<string>();
+        for (const pid of getInvoiceProjectIds(invoice)) {
+            for (const aid of (projectAssigneeIds.get(pid) ?? [])) set.add(aid);
+        }
+        return Array.from(set);
+    }, [getInvoiceProjectIds, projectAssigneeIds]);
+
+    // 請求書に含まれる案件担当者の表示名（「、」連結）
+    const getInvoiceAssigneeNames = useCallback((invoice: Invoice): string => {
+        return getInvoiceAssigneeIds(invoice).map(id => userMap[id]).filter(Boolean).join('、');
+    }, [getInvoiceAssigneeIds, userMap]);
+
+    // 担当者フィルタの選択肢（請求書群に実際に含まれる担当者のユニーク一覧、名前順）
+    const assigneeOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        for (const inv of invoices) {
+            for (const id of getInvoiceAssigneeIds(inv)) {
+                const name = userMap[id];
+                if (name && !seen.has(id)) seen.set(id, name);
+            }
+        }
+        return Array.from(seen.entries())
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    }, [invoices, getInvoiceAssigneeIds, userMap]);
+
     // フィルタリング（useMemoでメモ化）
     const filteredInvoices = useMemo(() => {
+        const fromTs = createdFrom ? new Date(`${createdFrom}T00:00:00`).getTime() : null;
+        const toTs = createdTo ? new Date(`${createdTo}T23:59:59.999`).getTime() : null;
         return invoices
             .filter(inv => {
                 const q = debouncedSearchTerm;
                 const matched = matchesSearch(inv.title, q) ||
                     matchesSearch(inv.invoiceNumber, q) ||
                     matchesSearch(getProjectName(inv), q) ||
-                    matchesSearch(getCustomerName(inv), q);
+                    matchesSearch(getCustomerName(inv), q) ||
+                    matchesSearch(getInvoiceAssigneeNames(inv), q);
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
-                return matched && matchesStatus;
+                const matchesAssignee = !assigneeIdFilter || getInvoiceAssigneeIds(inv).includes(assigneeIdFilter);
+                const createdTs = new Date(inv.createdAt).getTime();
+                const matchesCreated =
+                    (fromTs === null || createdTs >= fromTs) &&
+                    (toTs === null || createdTs <= toTs);
+                return matched && matchesStatus && matchesAssignee && matchesCreated;
             })
             .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-    }, [invoices, debouncedSearchTerm, statusFilter, getProjectName, getCustomerName]);
+    }, [invoices, debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, getProjectName, getCustomerName, getInvoiceAssigneeNames, getInvoiceAssigneeIds]);
 
     // フィルター変更時にページをリセット
     useEffect(() => {
         setCurrentPage(1);
-    }, [debouncedSearchTerm, statusFilter]);
+    }, [debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo]);
 
     const totalPages = Math.ceil(filteredInvoices.length / ITEMS_PER_PAGE);
     const paginatedInvoices = useMemo(() => {
@@ -251,13 +331,13 @@ export default function InvoiceListPage() {
             {/* ツールバー */}
             <div className="mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
                 {/* 検索バーとフィルター */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 flex-1">
                     {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
                             type="text"
-                            placeholder="請求番号、案件名で検索..."
+                            placeholder="請求番号、タイトル、担当者で検索..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
@@ -276,6 +356,49 @@ export default function InvoiceListPage() {
                         <option value="paid">支払済み</option>
                         <option value="overdue">期限超過</option>
                     </select>
+
+                    {/* 案件担当者フィルター */}
+                    <select
+                        value={assigneeIdFilter}
+                        onChange={(e) => setAssigneeIdFilter(e.target.value)}
+                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                    >
+                        <option value="">全ての担当者</option>
+                        {assigneeOptions.map((o) => (
+                            <option key={o.id} value={o.id}>{o.name}</option>
+                        ))}
+                    </select>
+
+                    {/* 作成日フィルター（範囲） */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-500 whitespace-nowrap">作成日</span>
+                        <input
+                            type="date"
+                            value={createdFrom}
+                            max={createdTo || undefined}
+                            onChange={(e) => setCreatedFrom(e.target.value)}
+                            aria-label="作成日（開始）"
+                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
+                        />
+                        <span className="text-slate-400">〜</span>
+                        <input
+                            type="date"
+                            value={createdTo}
+                            min={createdFrom || undefined}
+                            onChange={(e) => setCreatedTo(e.target.value)}
+                            aria-label="作成日（終了）"
+                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
+                        />
+                        {(createdFrom || createdTo) && (
+                            <button
+                                type="button"
+                                onClick={() => { setCreatedFrom(''); setCreatedTo(''); }}
+                                className="text-xs text-slate-500 hover:text-slate-700 underline whitespace-nowrap"
+                            >
+                                クリア
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* 新規追加ボタン */}
@@ -342,18 +465,19 @@ export default function InvoiceListPage() {
                                         </div>
                                     </div>
 
-                                    {/* 案件名 */}
-                                    {getProjectName(invoice) ? (
-                                        <div className="text-sm text-slate-700 mb-3">
-                                            {getProjectName(invoice)}
-                                        </div>
-                                    ) : (
-                                        <div className="text-sm text-slate-500 mb-3">案件未紐付け</div>
-                                    )}
+                                    {/* タイトル */}
+                                    <div className="text-sm font-medium text-slate-800 mb-2 break-words">
+                                        {invoice.title || '(タイトル未設定)'}
+                                    </div>
 
                                     {/* 顧客名 */}
                                     {getCustomerName(invoice) && (
-                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(invoice)}</div>
+                                        <div className="text-sm text-slate-600 mb-1">{getCustomerName(invoice)}</div>
+                                    )}
+
+                                    {/* 案件担当者 */}
+                                    {getInvoiceAssigneeNames(invoice) && (
+                                        <div className="text-xs text-slate-500 mb-3">担当: {getInvoiceAssigneeNames(invoice)}</div>
                                     )}
 
                                     {/* 金額 */}
@@ -391,11 +515,14 @@ export default function InvoiceListPage() {
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 請求番号
                             </th>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
-                                案件名
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider min-w-[220px]">
+                                タイトル
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 顧客名
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                担当者
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 金額
@@ -419,7 +546,8 @@ export default function InvoiceListPage() {
                             [...Array(5)].map((_, i) => (
                                 <tr key={i} className="animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
                                     <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-16"></div></td>
@@ -430,8 +558,8 @@ export default function InvoiceListPage() {
                             ))
                         ) : filteredInvoices.length === 0 ? (
                             <tr>
-                                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
-                                    {searchTerm || statusFilter !== 'all' ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
+                                <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                                    {searchTerm || statusFilter !== 'all' || assigneeIdFilter || createdFrom || createdTo ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
                                 </td>
                             </tr>
                         ) : (
@@ -449,17 +577,16 @@ export default function InvoiceListPage() {
                                                 {invoice.invoiceNumber}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {getProjectName(invoice) ? (
-                                                <span className="text-[12px] text-slate-700">
-                                                    {getProjectName(invoice)}
-                                                </span>
-                                            ) : (
-                                                <span className="text-[12px] text-slate-500">案件未紐付け</span>
-                                            )}
+                                        <td className="px-6 py-4 min-w-[220px]">
+                                            <span className="text-[12px] text-slate-800 break-words">
+                                                {invoice.title || '(タイトル未設定)'}
+                                            </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {getCustomerName(invoice) || '−'}
+                                        </td>
+                                        <td className="px-6 py-4 text-[12px] text-slate-700">
+                                            {getInvoiceAssigneeNames(invoice) || '−'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
@@ -528,7 +655,7 @@ export default function InvoiceListPage() {
             {/* 統計情報 */}
             <div className="mt-4 flex-shrink-0 text-sm text-slate-600">
                 全 {filteredInvoices.length} 件の請求書
-                {(searchTerm || statusFilter !== 'all') && ` (${invoices.length}件中)`}
+                {(searchTerm || statusFilter !== 'all' || assigneeIdFilter || createdFrom || createdTo) && ` (${invoices.length}件中)`}
             </div>
 
             {/* 編集モーダル */}
