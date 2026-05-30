@@ -95,12 +95,15 @@ function CoverPage({
     // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
     const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
 
-    // 1枚に収まらない場合はページ分割（各ページは独立した完結テーブル）。
+    // 1枚に収まらない場合のみページ分割（各ページは独立した完結テーブル）。
     // *_NO_TOTALS = そのページが続く場合に載る行数 / *_WITH_TOTALS = そのページが最終（小計・備考あり）に載る行数。
-    const FIRST_NO_TOTALS = 29;
-    const FIRST_WITH_TOTALS = 26;
-    const CONT_NO_TOTALS = 40;
-    const CONT_WITH_TOTALS = 34;
+    // FIRST_* は表紙の大きなヘッダー（住所・御請求書・合計金額・件名・会社情報＝約290pt）ぶん容量が小さい。
+    // CONT_* は続きページの小ヘッダー（「御請求書（続き）」1行）ぶん容量が大きい。
+    // 値は A4 実寸（使用域約777pt・1行minHeight17pt）から安全側に算出。大きすぎると1枚物が溢れて2枚化するので注意。
+    const FIRST_NO_TOTALS = 24;
+    const FIRST_WITH_TOTALS = 21;
+    const CONT_NO_TOTALS = 38;
+    const CONT_WITH_TOTALS = 33;
     const pageChunks: (typeof displayRows)[] = [];
     {
         let idx = 0;
