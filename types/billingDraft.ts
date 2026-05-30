@@ -122,7 +122,8 @@ export interface ProjectContextEstimate {
     title: string;
     /** 'draft' | 'sent' | 'approved' | 'rejected' 等（DB 制約なし、自由文字列） */
     status: string;
-    total: number;
+    /** 見積金額（税別＝subtotal）。請求書 PDF は税込だが、ここでは税別で表示し残り計算に使う。 */
+    subtotal: number;
     createdAt: string;
     createdByName: string | null;
 }

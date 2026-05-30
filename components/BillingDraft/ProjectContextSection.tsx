@@ -102,19 +102,39 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
 
     const remainingEstimates = Math.max(0, estimates.totalCount - estimates.items.length);
 
+    // 見積額（代表＝approved 優先 / 最新が先頭。税別）と、残り（見積額 − この案件の請求済み）
+    const estimateAmount = estimates.items[0]?.subtotal ?? null;
+    const remaining = estimateAmount != null ? estimateAmount - totalInvoicedAmount : null;
+
     return (
         <div className="mb-4 space-y-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             {/* 金額情報 */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-500">見積額<span className="text-slate-400">（税別）</span></div>
+                    <div className="text-sm font-bold text-slate-900">
+                        {estimateAmount != null ? yen(estimateAmount) : '—'}
+                    </div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-500">この案件の請求済み<span className="text-slate-400">（税別）</span></div>
+                    <div className="text-sm font-bold text-slate-900">{yen(totalInvoicedAmount)}</div>
+                </div>
+                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div className="text-[11px] text-slate-500">残り<span className="text-slate-400">（見積−請求済）</span></div>
+                    <div className={`text-sm font-bold ${remaining != null && remaining < 0 ? 'text-rose-600' : 'text-slate-900'}`}>
+                        {remaining == null
+                            ? '—'
+                            : remaining < 0
+                              ? `-¥${Math.abs(remaining).toLocaleString()}`
+                              : yen(remaining)}
+                    </div>
+                </div>
                 <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
                     <div className="text-[11px] text-slate-500">契約金額</div>
                     <div className="text-sm font-bold text-slate-900">
                         {contractAmount != null ? yen(contractAmount) : '未設定'}
                     </div>
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <div className="text-[11px] text-slate-500">この案件の請求済み<span className="text-slate-400">（税抜）</span></div>
-                    <div className="text-sm font-bold text-slate-900">{yen(totalInvoicedAmount)}</div>
                 </div>
             </div>
 
@@ -166,9 +186,10 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                                                     {e.createdByName ? `　${e.createdByName}` : ''}
                                                 </div>
                                             </div>
-                                            <span className="shrink-0 text-slate-900 font-semibold tabular-nums">
-                                                {yen(e.total)}
-                                            </span>
+                                            <div className="shrink-0 text-right">
+                                                <div className="text-slate-900 font-semibold tabular-nums">{yen(e.subtotal)}</div>
+                                                <div className="text-[9px] text-slate-400 leading-none">税別</div>
+                                            </div>
                                         </li>
                                     );
                                 })}

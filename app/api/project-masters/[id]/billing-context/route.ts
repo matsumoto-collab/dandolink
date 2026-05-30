@@ -119,7 +119,7 @@ export async function GET(
                 estimateNumber: e.estimateNumber,
                 title: e.title,
                 status: e.status,
-                total: Number(e.total),
+                subtotal: Number(e.subtotal),
                 createdAt: e.createdAt.toISOString(),
                 createdByName: e.createdByName ?? null,
             }));
