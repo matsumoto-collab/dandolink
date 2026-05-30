@@ -11,6 +11,7 @@ import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import StatusPillSelect, { type StatusOption } from '@/components/ui/StatusPillSelect';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
@@ -26,6 +27,14 @@ const InvoiceDetailModal = dynamic(
     () => import('@/components/Invoices/InvoiceDetailModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
+
+// 一覧から直接変更できるステータス選択肢（getStatusInfo が扱う 4 種。cancelled は UI 非対応のため除外）
+const INVOICE_STATUS_OPTIONS: StatusOption[] = [
+    { value: 'draft', label: '下書き' },
+    { value: 'sent', label: '送付済み' },
+    { value: 'paid', label: '支払済み' },
+    { value: 'overdue', label: '期限超過' },
+];
 
 export default function InvoiceListPage() {
     const { invoices, isLoading, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
@@ -50,6 +59,8 @@ export default function InvoiceListPage() {
     const [_isSubmitting, setIsSubmitting] = useState(false);
     const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+    // 一覧からステータス変更中の請求書 ID（多重送信防止用）
+    const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
 
     // プロジェクト名を取得（複数案件対応）
     const getProjectName = useCallback((invoice: Invoice) => {
@@ -175,6 +186,21 @@ export default function InvoiceListPage() {
         setIsDetailModalOpen(true);
     };
 
+    // 一覧から直接ステータスを変更（編集モーダルを開かずに更新）
+    const handleStatusChange = useCallback(async (invoice: Invoice, newStatus: string) => {
+        if (newStatus === invoice.status) return;
+        setStatusUpdatingId(invoice.id);
+        try {
+            await updateInvoice(invoice.id, { status: newStatus } as Partial<InvoiceInput>);
+            toast.success('ステータスを変更しました');
+        } catch (error) {
+            logger.error('Failed to update invoice status:', error);
+            toast.error(error instanceof Error ? error.message : 'ステータスの変更に失敗しました');
+        } finally {
+            setStatusUpdatingId(null);
+        }
+    }, [updateInvoice]);
+
     const handleSubmit = async (data: InvoiceInput) => {
         try {
             setIsSubmitting(true);
@@ -286,7 +312,6 @@ export default function InvoiceListPage() {
                     <div className="grid grid-cols-1 gap-4">
                         {paginatedInvoices.map((invoice) => {
                             const statusInfo = getStatusInfo(invoice.status);
-                            const StatusIcon = statusInfo.icon;
 
                             return (
                                 <div
@@ -336,12 +361,15 @@ export default function InvoiceListPage() {
                                         ¥{invoice.total.toLocaleString()}
                                     </div>
 
-                                    {/* ステータスと支払期限 */}
+                                    {/* ステータス（一覧から直接変更可）と支払期限 */}
                                     <div className="flex items-center justify-between">
-                                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
-                                            <StatusIcon className="w-4 h-4" />
-                                            {statusInfo.label}
-                                        </span>
+                                        <StatusPillSelect
+                                            value={invoice.status}
+                                            options={INVOICE_STATUS_OPTIONS}
+                                            colorClass={`${statusInfo.bg} ${statusInfo.color}`}
+                                            disabled={statusUpdatingId === invoice.id}
+                                            onChange={(s) => handleStatusChange(invoice, s)}
+                                        />
                                         <span className="text-xs text-slate-500">
                                             期限: {formatDate(invoice.dueDate, 'short')}
                                         </span>
@@ -409,7 +437,6 @@ export default function InvoiceListPage() {
                         ) : (
                             paginatedInvoices.map((invoice) => {
                                 const statusInfo = getStatusInfo(invoice.status);
-                                const StatusIcon = statusInfo.icon;
 
                                 return (
                                     <tr
@@ -438,10 +465,13 @@ export default function InvoiceListPage() {
                                             ¥{invoice.total.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${statusInfo.bg} ${statusInfo.color}`}>
-                                                <StatusIcon className="w-4 h-4" />
-                                                {statusInfo.label}
-                                            </span>
+                                            <StatusPillSelect
+                                                value={invoice.status}
+                                                options={INVOICE_STATUS_OPTIONS}
+                                                colorClass={`${statusInfo.bg} ${statusInfo.color}`}
+                                                disabled={statusUpdatingId === invoice.id}
+                                                onChange={(s) => handleStatusChange(invoice, s)}
+                                            />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                             {formatDate(invoice.dueDate, 'full')}
