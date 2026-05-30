@@ -1,12 +1,16 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Plus, FileDown, Minus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import BottomSheet from '@/components/ui/BottomSheet';
 import ProjectContextSection from '@/components/BillingDraft/ProjectContextSection';
+import ItemCard from '@/components/Estimates/ItemRow';
+import SummaryFooter from '@/components/Estimates/SummaryFooter';
+import UnitPriceMasterModal from '@/components/Estimates/UnitPriceMasterModal';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useEstimates } from '@/hooks/useEstimates';
 import { logger } from '@/lib/logger';
 import type {
     BillingDraft,
@@ -16,6 +20,9 @@ import type {
 } from '@/types/billingDraft';
 import type { Customer } from '@/types/customer';
 import type { ProjectMaster } from '@/types/calendar';
+import type { InvoiceItem } from '@/types/invoice';
+import type { EstimateItem } from '@/types/estimate';
+import type { UnitPriceMaster } from '@/types/unitPrice';
 
 interface BillingDraftFormPanelProps {
     /** パネルの開閉。false のときは何も描画しない（アニメーションのため Drawer/Sheet 側に open を渡す） */
@@ -36,18 +43,57 @@ interface BillingDraftFormPanelProps {
     initialCustomerId?: string;
     /**
      * Phase 2: パネル上部に表示する案件サマリ（契約金額 / 過去合計 / 見積書 / 履歴）。
-     * 未指定（請求予定タブからの起動時）は表示なし＝Phase 1 の最小フォーム挙動を維持。
+     * 未指定（請求予定タブからの起動時）は表示なし。
      */
     projectContext?: ProjectContext;
 }
 
-const TAX_RATE_OPTIONS = [
-    { value: '0.10', label: '10%' },
-    { value: '0.08', label: '8%' },
-    { value: '0.00', label: '0%（非課税）' },
-];
+const TAX_RATE = 0.1;
 
 const projectLabel = (pm: ProjectMaster): string => pm.name || pm.title;
+
+let itemSeq = 0;
+function newItemId(): string {
+    itemSeq += 1;
+    return `bd-item-${Date.now().toString(36)}-${itemSeq}`;
+}
+
+/** 空の明細行 */
+function makeEmptyItem(): InvoiceItem {
+    return { id: newItemId(), description: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' };
+}
+
+/** 値引き行（仕切り書に倣い 数量 -1 × 単価 = マイナス金額） */
+function makeDiscountItem(): InvoiceItem {
+    return { id: newItemId(), description: '値引き', quantity: -1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' };
+}
+
+/** 見積明細 → 請求明細（請求で使わない原価・カテゴリは落とす。カテゴリは子に展開） */
+function estimateItemToBilling(it: EstimateItem): InvoiceItem {
+    return {
+        id: newItemId(),
+        description: it.description,
+        specification: it.specification,
+        quantity: it.quantity,
+        unit: it.unit,
+        unitPrice: it.unitPrice,
+        amount: it.amount,
+        taxType: it.taxType,
+        notes: it.notes,
+    };
+}
+
+function flattenEstimateItems(items: EstimateItem[]): InvoiceItem[] {
+    const out: InvoiceItem[] = [];
+    for (const it of items) {
+        if (it.isCategory) {
+            for (const child of it.children ?? []) out.push(estimateItemToBilling(child));
+        } else {
+            out.push(estimateItemToBilling(it));
+        }
+    }
+    return out;
+}
 
 export default function BillingDraftFormPanel({
     open,
@@ -64,44 +110,63 @@ export default function BillingDraftFormPanel({
     const isDesktop = useMediaQuery('(min-width: 1024px)');
     const isEdit = !!draft;
     const isEditableDraft = draft?.status === 'pending';
+    const readOnly = isEdit && !isEditableDraft;
 
     const [projectId, setProjectId] = useState('');
     const [customerId, setCustomerId] = useState('');
-    const [title, setTitle] = useState('');
-    const [amount, setAmount] = useState('');
-    const [taxRate, setTaxRate] = useState('0.10');
+    const [sectionTitle, setSectionTitle] = useState('');
+    const [items, setItems] = useState<InvoiceItem[]>([]);
     const [note, setNote] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [isUnitPriceModalOpen, setIsUnitPriceModalOpen] = useState(false);
+
+    // 見積書（見積から引用用）。遅延ロードなので開いたときに ensureDataLoaded を呼ぶ。
+    const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
+    useEffect(() => {
+        if (open) ensureEstimatesLoaded();
+    }, [open, ensureEstimatesLoaded]);
 
     // open / draft の変化に合わせてフォームを初期化。
-    // 新規作成モードのときは Phase 2 のプレフィル値（initialProjectId / initialCustomerId）を使う。
     useEffect(() => {
         if (!open) return;
         if (draft) {
             setProjectId(draft.projectId);
             setCustomerId(draft.customerId);
-            setTitle(draft.title);
-            setAmount(draft.amount != null ? String(draft.amount) : '');
-            setTaxRate(draft.taxRate != null ? String(draft.taxRate) : '0.10');
+            setSectionTitle(draft.title);
             setNote(draft.note ?? '');
+            if (Array.isArray(draft.items) && draft.items.length > 0) {
+                // 新モデル: 保存済み明細をそのまま編集
+                setItems(draft.items.map((it) => ({ ...it, id: it.id || newItemId() })));
+            } else if (draft.amount != null && Number(draft.amount) !== 0) {
+                // 旧モデル（単一 title+amount）: 1 明細に変換して編集可能にする
+                const amt = Number(draft.amount);
+                setItems([{
+                    id: newItemId(),
+                    description: draft.title,
+                    quantity: 1,
+                    unit: '式',
+                    unitPrice: amt,
+                    amount: amt,
+                    taxType: Number(draft.taxRate) > 0 ? 'standard' : 'none',
+                }]);
+            } else {
+                setItems([]);
+            }
         } else {
             setProjectId(initialProjectId ?? '');
             setCustomerId(initialCustomerId ?? '');
-            setTitle('');
-            setAmount('');
-            setTaxRate('0.10');
+            setSectionTitle('');
+            setItems([]);
             setNote('');
         }
     }, [open, draft, initialProjectId, initialCustomerId]);
 
-    // 新規作成時のみ、案件選択で customerId を自動補完
+    // 新規作成時のみ：案件選択で customerId を自動補完し、見出し未入力なら案件名を既定にする
     useEffect(() => {
-        if (isEdit) return;
-        if (!projectId) return;
+        if (isEdit || !projectId) return;
         const pm = projectMasters.find((p) => p.id === projectId);
-        if (pm?.customerId) {
-            setCustomerId(pm.customerId);
-        }
+        if (pm?.customerId) setCustomerId(pm.customerId);
+        setSectionTitle((prev) => (prev.trim() === '' && pm ? projectLabel(pm) : prev));
     }, [projectId, projectMasters, isEdit]);
 
     const selectedProject = useMemo(
@@ -112,11 +177,102 @@ export default function BillingDraftFormPanel({
         () => customers.find((c) => c.id === customerId) ?? null,
         [customers, customerId],
     );
-
-    const titleTrimmed = title.trim();
-    const canSubmit = !submitting && titleTrimmed.length > 0 && (
-        isEdit ? isEditableDraft === true : !!projectId && !!customerId
+    const projectEstimates = useMemo(
+        () => estimates.filter((e) => e.projectId === projectId),
+        [estimates, projectId],
     );
+
+    // ── 明細操作 ───────────────────────────────────────
+    const addItem = useCallback(() => setItems((prev) => [...prev, makeEmptyItem()]), []);
+    const addDiscount = useCallback(() => setItems((prev) => [...prev, makeDiscountItem()]), []);
+
+    const updateItem = useCallback(
+        (id: string, field: keyof EstimateItem, value: EstimateItem[keyof EstimateItem]) => {
+            setItems((prev) =>
+                prev.map((it) => {
+                    if (it.id !== id) return it;
+                    const updated = { ...it, [field]: value } as InvoiceItem;
+                    if (field === 'quantity' || field === 'unitPrice') {
+                        updated.amount = Math.round((updated.quantity || 0) * (updated.unitPrice || 0));
+                    }
+                    return updated;
+                }),
+            );
+        },
+        [],
+    );
+
+    const removeItem = useCallback((id: string) => setItems((prev) => prev.filter((it) => it.id !== id)), []);
+
+    const moveUp = useCallback(
+        (index: number) =>
+            setItems((prev) => {
+                if (index <= 0) return prev;
+                const a = [...prev];
+                [a[index - 1], a[index]] = [a[index], a[index - 1]];
+                return a;
+            }),
+        [],
+    );
+    const moveDown = useCallback(
+        (index: number) =>
+            setItems((prev) => {
+                if (index >= prev.length - 1) return prev;
+                const a = [...prev];
+                [a[index], a[index + 1]] = [a[index + 1], a[index]];
+                return a;
+            }),
+        [],
+    );
+
+    const loadFromEstimate = useCallback(() => {
+        if (projectEstimates.length === 0) {
+            toast.error('この案件に紐づく見積書がありません');
+            return;
+        }
+        const latest = [...projectEstimates].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )[0];
+        const loaded = flattenEstimateItems(latest.items ?? []);
+        if (loaded.length === 0) {
+            toast.error('見積書に明細がありません');
+            return;
+        }
+        setItems((prev) => [...prev, ...loaded]);
+        toast.success(`${latest.estimateNumber} の明細を読み込みました（不要な行は削除・まとめてください）`);
+    }, [projectEstimates]);
+
+    const handleSelectFromMaster = useCallback((masters: UnitPriceMaster[]) => {
+        const added: InvoiceItem[] = masters.map((m) => {
+            const qty = m.quantity ?? 1;
+            return {
+                id: newItemId(),
+                description: m.description,
+                quantity: qty,
+                unit: m.unit,
+                unitPrice: m.unitPrice,
+                amount: Math.round(qty * m.unitPrice),
+                taxType: 'standard',
+            };
+        });
+        setItems((prev) => [...prev, ...added]);
+        setIsUnitPriceModalOpen(false);
+    }, []);
+
+    // ── 合計（税別小計 / 消費税 / 税込）───────────────────
+    const subtotal = useMemo(() => items.reduce((s, it) => s + (it.amount || 0), 0), [items]);
+    const tax = useMemo(
+        () =>
+            Math.floor(
+                items.filter((it) => it.taxType === 'standard').reduce((s, it) => s + (it.amount || 0), 0) * TAX_RATE,
+            ),
+        [items],
+    );
+    const total = subtotal + tax;
+
+    const headingTrimmed = sectionTitle.trim();
+    const canSubmit =
+        !submitting && headingTrimmed.length > 0 && (isEdit ? isEditableDraft === true : !!projectId && !!customerId);
 
     const handleSubmit = useCallback(
         async (e: React.FormEvent) => {
@@ -124,11 +280,14 @@ export default function BillingDraftFormPanel({
             if (!canSubmit) return;
             try {
                 setSubmitting(true);
+                // 完全に空の行（品名なし・金額0）は落とす。projectMasterId を付けて請求書のセクション化に備える。
+                const payloadItems = items
+                    .filter((it) => it.description.trim() !== '' || (it.amount || 0) !== 0)
+                    .map((it) => ({ ...it, projectMasterId: projectId }));
                 if (isEdit && draft) {
                     await onUpdate(draft.id, {
-                        title: titleTrimmed,
-                        amount: amount.trim() === '' ? null : amount.trim(),
-                        taxRate: taxRate.trim() || '0.10',
+                        title: headingTrimmed,
+                        items: payloadItems,
                         note: note.trim() === '' ? null : note.trim(),
                     });
                     toast.success('請求予定を更新しました');
@@ -136,9 +295,8 @@ export default function BillingDraftFormPanel({
                     await onCreate({
                         projectId,
                         customerId,
-                        title: titleTrimmed,
-                        amount: amount.trim() === '' ? null : amount.trim(),
-                        taxRate: taxRate.trim() || '0.10',
+                        title: headingTrimmed,
+                        items: payloadItems,
                         note: note.trim() === '' ? null : note.trim(),
                     });
                     toast.success('請求予定を作成しました');
@@ -151,7 +309,7 @@ export default function BillingDraftFormPanel({
                 setSubmitting(false);
             }
         },
-        [canSubmit, isEdit, draft, titleTrimmed, amount, taxRate, note, projectId, customerId, onUpdate, onCreate, onClose],
+        [canSubmit, items, projectId, customerId, isEdit, draft, headingTrimmed, note, onUpdate, onCreate, onClose],
     );
 
     const headerTitle = isEdit ? '請求予定の編集' : '請求予定の新規作成';
@@ -163,7 +321,7 @@ export default function BillingDraftFormPanel({
             {projectContext && <ProjectContextSection projectContext={projectContext} />}
 
             {/* 編集モードかつ pending でないときは注意書き */}
-            {isEdit && !isEditableDraft && (
+            {readOnly && (
                 <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     {draft?.status === 'confirmed'
                         ? '確定済みのため編集できません。内容は閲覧のみです。'
@@ -230,67 +388,143 @@ export default function BillingDraftFormPanel({
                 )}
             </div>
 
-            {/* タイトル */}
+            {/* 見出し（請求書の現場名） */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                    タイトル <span className="text-red-500">*</span>
+                    見出し（請求書の現場名）<span className="text-red-500">*</span>
                 </label>
-                <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    required
-                    maxLength={200}
-                    disabled={isEdit && !isEditableDraft}
-                    placeholder="例：○○邸 着手金"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                />
-            </div>
-
-            {/* 金額 + 税率 */}
-            <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">金額（税抜）</label>
+                {readOnly ? (
+                    <div className="text-sm text-slate-700 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200">
+                        {sectionTitle || '—'}
+                    </div>
+                ) : (
                     <input
                         type="text"
-                        inputMode="numeric"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        disabled={isEdit && !isEditableDraft}
-                        placeholder="例：100000"
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
+                        value={sectionTitle}
+                        onChange={(e) => setSectionTitle(e.target.value)}
+                        required
+                        maxLength={200}
+                        placeholder={selectedProject ? projectLabel(selectedProject) : '例：○○邸 仮設工事'}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                     />
-                    <p className="text-xs text-slate-500 mt-1">未入力で保存可（後から編集できます）</p>
+                )}
+                <p className="text-xs text-slate-500 mt-1">請求書ではこの見出しの下に明細が並びます（既定は案件名）。</p>
+            </div>
+
+            {/* 明細 */}
+            <div>
+                <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <label className="text-sm font-medium text-slate-700">
+                        明細
+                        <span className="ml-1 text-xs font-normal text-slate-400">請求書にそのまま出ます</span>
+                    </label>
+                    {!readOnly && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {projectEstimates.length > 0 && (
+                                <button
+                                    type="button"
+                                    onClick={loadFromEstimate}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                >
+                                    <FileDown className="w-3.5 h-3.5" /> 見積から引用
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={() => setIsUnitPriceModalOpen(true)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                単価マスタ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={addDiscount}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                            >
+                                <Minus className="w-3.5 h-3.5" /> 値引き
+                            </button>
+                            <button
+                                type="button"
+                                onClick={addItem}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                            >
+                                <Plus className="w-3.5 h-3.5" /> 行追加
+                            </button>
+                        </div>
+                    )}
                 </div>
-                <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">税率</label>
-                    <select
-                        value={taxRate}
-                        onChange={(e) => setTaxRate(e.target.value)}
-                        disabled={isEdit && !isEditableDraft}
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white disabled:bg-slate-50 disabled:text-slate-500"
-                    >
-                        {TAX_RATE_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>
-                                {o.label}
-                            </option>
+
+                {readOnly ? (
+                    items.length === 0 ? (
+                        <p className="text-sm text-slate-400 py-3 text-center">明細がありません</p>
+                    ) : (
+                        <div className="border border-slate-200 rounded-xl divide-y divide-slate-100">
+                            {items.map((it) => (
+                                <div key={it.id} className="flex items-center gap-2 px-3 py-2 text-sm">
+                                    <span className="flex-1 min-w-0 truncate text-slate-700">{it.description || '—'}</span>
+                                    <span className="text-xs text-slate-500 whitespace-nowrap">
+                                        {it.quantity}
+                                        {it.unit} × ¥{(it.unitPrice || 0).toLocaleString()}
+                                    </span>
+                                    <span
+                                        className={`w-24 text-right font-medium ${it.amount < 0 ? 'text-red-600' : 'text-slate-800'}`}
+                                    >
+                                        {it.amount < 0
+                                            ? `-¥${Math.abs(it.amount).toLocaleString()}`
+                                            : `¥${it.amount.toLocaleString()}`}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                ) : items.length === 0 ? (
+                    <div className="border border-dashed border-slate-300 rounded-xl px-4 py-6 text-center">
+                        <p className="text-sm text-slate-500">明細がありません。</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            「行追加」または「見積から引用」で明細を追加してください。
+                        </p>
+                    </div>
+                ) : (
+                    <div className="space-y-2">
+                        {items.map((it, index) => (
+                            <ItemCard
+                                key={it.id}
+                                item={it}
+                                index={index}
+                                totalItems={items.length}
+                                onUpdate={updateItem}
+                                onRemove={removeItem}
+                                onMoveUp={moveUp}
+                                onMoveDown={moveDown}
+                            />
                         ))}
-                    </select>
-                </div>
+                    </div>
+                )}
+
+                {items.length > 0 && (
+                    <div className="mt-2 border border-slate-200 rounded-xl overflow-hidden">
+                        <SummaryFooter subtotal={subtotal} tax={tax} total={total} />
+                    </div>
+                )}
             </div>
 
             {/* メモ */}
             <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">メモ</label>
-                <textarea
-                    value={note}
-                    onChange={(e) => setNote(e.target.value)}
-                    rows={4}
-                    maxLength={2000}
-                    disabled={isEdit && !isEditableDraft}
-                    placeholder="補足情報など（任意）"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white disabled:bg-slate-50 disabled:text-slate-500 resize-y"
-                />
+                {readOnly ? (
+                    <div className="text-sm text-slate-600 bg-slate-50 rounded-xl px-3 py-2 border border-slate-200 whitespace-pre-wrap min-h-[2.5rem]">
+                        {note || '—'}
+                    </div>
+                ) : (
+                    <textarea
+                        value={note}
+                        onChange={(e) => setNote(e.target.value)}
+                        rows={3}
+                        maxLength={2000}
+                        placeholder="補足情報など（任意）"
+                        className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white resize-y"
+                    />
+                )}
             </div>
 
             {/* アクション */}
@@ -298,17 +532,18 @@ export default function BillingDraftFormPanel({
                 <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>
                     キャンセル
                 </Button>
-                {(!isEdit || isEditableDraft) && (
-                    <Button
-                        type="submit"
-                        variant="primary"
-                        disabled={!canSubmit}
-                        isLoading={submitting}
-                    >
+                {!readOnly && (
+                    <Button type="submit" variant="primary" disabled={!canSubmit} isLoading={submitting}>
                         {submitLabel}
                     </Button>
                 )}
             </div>
+
+            <UnitPriceMasterModal
+                isOpen={isUnitPriceModalOpen}
+                onClose={() => setIsUnitPriceModalOpen(false)}
+                onSelect={handleSelectFromMaster}
+            />
         </form>
     );
 
@@ -361,15 +596,12 @@ function SideDrawer({ open, onClose, title, children }: SideDrawerProps) {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="billing-draft-panel-title"
-                className={`fixed top-0 right-0 z-50 h-full w-full max-w-[520px] bg-white shadow-2xl border-l border-slate-200 transition-transform duration-200 ease-out ${
+                className={`fixed top-0 right-0 z-50 h-full w-full max-w-[720px] bg-white shadow-2xl border-l border-slate-200 transition-transform duration-200 ease-out ${
                     open ? 'translate-x-0' : 'translate-x-full'
                 } flex flex-col`}
             >
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 flex-shrink-0">
-                    <h3
-                        id="billing-draft-panel-title"
-                        className="text-base font-semibold text-slate-900"
-                    >
+                    <h3 id="billing-draft-panel-title" className="text-base font-semibold text-slate-900">
                         {title}
                     </h3>
                     <button
