@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, FileText, Receipt } from 'lucide-react';
+import { ChevronDown, ChevronRight, FileText, Receipt, ExternalLink } from 'lucide-react';
 import type {
     ProjectContext,
     ProjectContextHistoryItem,
@@ -166,30 +166,35 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                                     const status =
                                         ESTIMATE_STATUS_LABEL[e.status] ?? fallbackBadge(e.status);
                                     return (
-                                        <li
-                                            key={e.id}
-                                            className="flex items-start justify-between gap-2 text-xs"
-                                        >
-                                            <div className="min-w-0 flex-1">
-                                                <div className="flex items-center gap-1.5">
-                                                    <span
-                                                        className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${status.cls}`}
-                                                    >
-                                                        {status.label}
-                                                    </span>
-                                                    <span className="truncate text-slate-800 font-medium">
-                                                        {e.title}
-                                                    </span>
+                                        <li key={e.id}>
+                                            <button
+                                                type="button"
+                                                onClick={() => window.open(`/estimates/${e.id}`, '_blank', 'noopener,noreferrer')}
+                                                title="見積書（PDF）を新しいタブで開く"
+                                                className="w-full flex items-start justify-between gap-2 text-xs text-left rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-slate-100 transition-colors"
+                                            >
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span
+                                                            className={`shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${status.cls}`}
+                                                        >
+                                                            {status.label}
+                                                        </span>
+                                                        <span className="truncate text-slate-800 font-medium">
+                                                            {e.title}
+                                                        </span>
+                                                        <ExternalLink className="w-3 h-3 shrink-0 text-slate-400" />
+                                                    </div>
+                                                    <div className="mt-0.5 text-[10px] text-slate-500">
+                                                        {e.estimateNumber}　{formatDate(e.createdAt)}
+                                                        {e.createdByName ? `　${e.createdByName}` : ''}
+                                                    </div>
                                                 </div>
-                                                <div className="mt-0.5 text-[10px] text-slate-500">
-                                                    {e.estimateNumber}　{formatDate(e.createdAt)}
-                                                    {e.createdByName ? `　${e.createdByName}` : ''}
+                                                <div className="shrink-0 text-right">
+                                                    <div className="text-slate-900 font-semibold tabular-nums">{yen(e.subtotal)}</div>
+                                                    <div className="text-[9px] text-slate-400 leading-none">税別</div>
                                                 </div>
-                                            </div>
-                                            <div className="shrink-0 text-right">
-                                                <div className="text-slate-900 font-semibold tabular-nums">{yen(e.subtotal)}</div>
-                                                <div className="text-[9px] text-slate-400 leading-none">税別</div>
-                                            </div>
+                                            </button>
                                         </li>
                                     );
                                 })}
