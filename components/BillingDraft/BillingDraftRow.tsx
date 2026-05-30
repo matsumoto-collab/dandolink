@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, RotateCcw } from 'lucide-react';
 import { highlightText } from '@/lib/highlightText';
 import type { BillingDraft, BillingDraftStatus } from '@/types/billingDraft';
 
@@ -19,6 +19,8 @@ interface BillingDraftRowProps {
     highlightQuery: string;
     onEdit: (draft: BillingDraft) => void;
     onDelete: (draft: BillingDraft) => void;
+    /** 確定済み → 保留中に戻す（戻すと編集・削除できるようになる） */
+    onUnconfirm?: (draft: BillingDraft) => void;
     /** 請求書化の選択列を表示するか（Phase 3） */
     selectionEnabled?: boolean;
     /** この行が選択中か */
@@ -42,6 +44,7 @@ export default function BillingDraftRow({
     highlightQuery,
     onEdit,
     onDelete,
+    onUnconfirm,
     selectionEnabled = false,
     selected = false,
     onToggleSelect,
@@ -98,6 +101,17 @@ export default function BillingDraftRow({
                 {highlightText(createdByName, q)}
             </td>
             <td className="px-6 py-4 whitespace-nowrap text-right text-[12px] font-medium">
+                {isConfirmed && onUnconfirm && (
+                    <button
+                        type="button"
+                        onClick={() => onUnconfirm(draft)}
+                        title="確定を解除して保留中に戻す（編集・削除できるようになります）"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors mr-2 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        確定解除
+                    </button>
+                )}
                 <button
                     type="button"
                     onClick={() => onEdit(draft)}
@@ -106,7 +120,7 @@ export default function BillingDraftRow({
                         isPending
                             ? '編集'
                             : isConfirmed
-                              ? '確定済みは編集できません'
+                              ? '確定解除すると編集できます'
                               : 'キャンセル済みは編集できません'
                     }
                     className={`inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors mr-2 ${
@@ -122,7 +136,7 @@ export default function BillingDraftRow({
                     type="button"
                     onClick={() => onDelete(draft)}
                     disabled={isConfirmed}
-                    title={isConfirmed ? '確定済みは削除できません' : '削除'}
+                    title={isConfirmed ? '確定解除すると削除できます' : '削除'}
                     className={`inline-flex items-center gap-1 px-3 py-1.5 text-[12px] font-medium rounded-lg transition-colors ${
                         !isConfirmed
                             ? 'bg-red-50 text-red-600 hover:bg-red-100'
