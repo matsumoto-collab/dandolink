@@ -66,8 +66,13 @@ export default function InvoiceListPage() {
         return pm?.title ?? null;
     }, [projectMasters]);
 
-    // 顧客名を取得
-    const getCustomerName = useCallback((projectId: string) => {
+    // 顧客名を取得（請求書自身の customerId を優先＝案件未紐付けでも顧客を表示。無ければ案件経由）
+    const getCustomerName = useCallback((invoice: Invoice) => {
+        if (invoice.customerId) {
+            const c = customers.find(c => c.id === invoice.customerId);
+            if (c) return c.shortName || c.name;
+        }
+        const projectId = invoice.projectId;
         if (!projectId) return null;
         const pm = projectMasters.find(p => p.id === projectId);
         if (!pm) return null;
@@ -83,17 +88,23 @@ export default function InvoiceListPage() {
         return c?.shortName || c?.name || customerName;
     }, [projectMasters, customers]);
 
-    // 顧客情報を取得（DetailModal用）
-    const getCustomerInfo = useCallback((projectId: string) => {
-        if (!projectId) return { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
+    // 顧客情報を取得（DetailModal/PDF用。請求書自身の customerId を優先＝案件未紐付けでも顧客を表示）
+    const getCustomerInfo = useCallback((invoice: Invoice) => {
+        const empty = { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
+        if (invoice.customerId) {
+            const c = customers.find(c => c.id === invoice.customerId);
+            if (c) return { name: c.name, honorific: c.honorific, postalCode: c.postalCode, address: c.address };
+        }
+        const projectId = invoice.projectId;
+        if (!projectId) return empty;
         const pm = projectMasters.find(p => p.id === projectId);
-        if (!pm) return { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
+        if (!pm) return empty;
         if (pm.customerId) {
             const c = customers.find(c => c.id === pm.customerId);
             return { name: c?.name, honorific: c?.honorific, postalCode: c?.postalCode, address: c?.address };
         }
         const customerName = pm.customerName || pm.customerShortName;
-        if (!customerName) return { name: undefined, honorific: undefined, postalCode: undefined, address: undefined };
+        if (!customerName) return empty;
         const c = customers.find(c => c.name === customerName || c.shortName === customerName);
         return { name: c?.name || customerName, honorific: c?.honorific, postalCode: c?.postalCode, address: c?.address };
     }, [projectMasters, customers]);
@@ -120,7 +131,7 @@ export default function InvoiceListPage() {
                 const matched = matchesSearch(inv.title, q) ||
                     matchesSearch(inv.invoiceNumber, q) ||
                     matchesSearch(getProjectName(inv), q) ||
-                    matchesSearch(getCustomerName(inv.projectId || ''), q);
+                    matchesSearch(getCustomerName(inv), q);
                 const matchesStatus = statusFilter === 'all' || inv.status === statusFilter;
                 return matched && matchesStatus;
             })
@@ -316,8 +327,8 @@ export default function InvoiceListPage() {
                                     )}
 
                                     {/* 顧客名 */}
-                                    {getCustomerName(invoice.projectId || '') && (
-                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(invoice.projectId || '')}</div>
+                                    {getCustomerName(invoice) && (
+                                        <div className="text-sm text-slate-600 mb-3">{getCustomerName(invoice)}</div>
                                     )}
 
                                     {/* 金額 */}
@@ -421,7 +432,7 @@ export default function InvoiceListPage() {
                                             )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
-                                            {getCustomerName(invoice.projectId || '') || '−'}
+                                            {getCustomerName(invoice) || '−'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
@@ -508,10 +519,10 @@ export default function InvoiceListPage() {
                     companyInfo={companyInfo}
                     onDelete={handleDelete}
                     onEdit={handleEdit}
-                    customerName={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').name : undefined}
-                    customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').honorific : undefined}
-                    customerPostalCode={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').postalCode : undefined}
-                    customerAddress={selectedInvoice ? getCustomerInfo(selectedInvoice.projectId || '').address : undefined}
+                    customerName={selectedInvoice ? getCustomerInfo(selectedInvoice).name : undefined}
+                    customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice).honorific : undefined}
+                    customerPostalCode={selectedInvoice ? getCustomerInfo(selectedInvoice).postalCode : undefined}
+                    customerAddress={selectedInvoice ? getCustomerInfo(selectedInvoice).address : undefined}
                 />
             )}
         </div>
