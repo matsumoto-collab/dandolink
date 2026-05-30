@@ -50,7 +50,15 @@ interface BillingDraftFormPanelProps {
 
 const TAX_RATE = 0.1;
 
+/** 案件セレクト等の表示用：短縮名を優先（コンパクト表示）。 */
 const projectLabel = (pm: ProjectMaster): string => pm.name || pm.title;
+
+/**
+ * 見出しの既定値：請求書のセクション見出しと同じ「正式名称」を使う。
+ * title は name + 敬称 + 工事名称 の自動合成（例: 佐藤様邸 仮設工事）なので、
+ * 短縮名(name)ではなく title を優先し、敬称・工事名称まで含めて初期表示する。
+ */
+const projectHeading = (pm: ProjectMaster): string => pm.title || pm.name || '';
 
 let itemSeq = 0;
 function newItemId(): string {
@@ -166,7 +174,7 @@ export default function BillingDraftFormPanel({
         if (isEdit || !projectId) return;
         const pm = projectMasters.find((p) => p.id === projectId);
         if (pm?.customerId) setCustomerId(pm.customerId);
-        setSectionTitle((prev) => (prev.trim() === '' && pm ? projectLabel(pm) : prev));
+        setSectionTitle((prev) => (prev.trim() === '' && pm ? projectHeading(pm) : prev));
     }, [projectId, projectMasters, isEdit]);
 
     const selectedProject = useMemo(
@@ -404,7 +412,7 @@ export default function BillingDraftFormPanel({
                         onChange={(e) => setSectionTitle(e.target.value)}
                         required
                         maxLength={200}
-                        placeholder={selectedProject ? projectLabel(selectedProject) : '例：○○邸 仮設工事'}
+                        placeholder={selectedProject ? projectHeading(selectedProject) : '例：○○邸 仮設工事'}
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white"
                     />
                 )}
