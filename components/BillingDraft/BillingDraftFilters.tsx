@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Search, RotateCw } from 'lucide-react';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import type { Customer } from '@/types/customer';
 import type { ProjectMaster } from '@/types/calendar';
 import type { BillingDraftStatus } from '@/types/billingDraft';
@@ -20,19 +21,24 @@ interface BillingDraftFiltersProps {
     projectIdFilter: string;
     onProjectChange: (id: string) => void;
 
+    /** 担当者（案件担当者）での絞り込み */
+    assigneeIdFilter: string;
+    onAssigneeChange: (id: string) => void;
+
     createdByIdFilter: string;
     onCreatedByChange: (id: string) => void;
 
     customers: Customer[];
     projectMasters: ProjectMaster[];
+    /** 案件担当者の (id, name) リスト */
+    assigneeOptions: Array<{ id: string; name: string }>;
     /** 一覧から派生した作成者の (id, displayName) リスト */
     createdByOptions: Array<{ id: string; name: string }>;
 
     onRefresh?: () => void;
 }
 
-const SELECT_CLASS =
-    'px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm max-w-[220px]';
+const FILTER_WIDTH = 'w-[200px]';
 
 export default function BillingDraftFilters({
     searchTerm,
@@ -43,13 +49,33 @@ export default function BillingDraftFilters({
     onCustomerChange,
     projectIdFilter,
     onProjectChange,
+    assigneeIdFilter,
+    onAssigneeChange,
     createdByIdFilter,
     onCreatedByChange,
     customers,
     projectMasters,
+    assigneeOptions,
     createdByOptions,
     onRefresh,
 }: BillingDraftFiltersProps) {
+    const customerOptions = useMemo(
+        () => customers.map((c) => ({ id: c.id, label: c.shortName || c.name })),
+        [customers],
+    );
+    const projectOptions = useMemo(
+        () => projectMasters.map((pm) => ({ id: pm.id, label: pm.name || pm.title })),
+        [projectMasters],
+    );
+    const assigneeSelectOptions = useMemo(
+        () => assigneeOptions.map((o) => ({ id: o.id, label: o.name })),
+        [assigneeOptions],
+    );
+    const createdBySelectOptions = useMemo(
+        () => createdByOptions.map((o) => ({ id: o.id, label: o.name })),
+        [createdByOptions],
+    );
+
     return (
         <div className="mb-4 flex-shrink-0 flex flex-col gap-3">
             {/* 横断検索バー */}
@@ -64,28 +90,23 @@ export default function BillingDraftFilters({
                 />
             </div>
 
-            {/* 個別フィルタ（顧客 / ステータス / 案件 / 作成者）+ 更新ボタン */}
+            {/* 個別フィルタ（顧客 / ステータス / 案件 / 担当者 / 作成者）+ 更新ボタン。
+                顧客・案件・担当者・作成者は検索付きコンボボックス（候補が多くても入力で素早く絞り込める）。 */}
             <div className="flex flex-wrap gap-2 items-center">
-                <select
+                <SearchableSelect
+                    className={FILTER_WIDTH}
+                    options={customerOptions}
                     value={customerIdFilter}
-                    onChange={(e) => onCustomerChange(e.target.value)}
-                    className={SELECT_CLASS}
-                    aria-label="顧客で絞り込み"
-                >
-                    <option value="">顧客（全て）</option>
-                    {customers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                            {c.shortName || c.name}
-                        </option>
-                    ))}
-                </select>
+                    onChange={onCustomerChange}
+                    placeholder="顧客（全て）"
+                    emptyLabel="顧客（全て）"
+                    searchable
+                />
 
                 <select
                     value={statusFilter}
-                    onChange={(e) =>
-                        onStatusChange(e.target.value as BillingDraftStatus | 'all')
-                    }
-                    className={SELECT_CLASS}
+                    onChange={(e) => onStatusChange(e.target.value as BillingDraftStatus | 'all')}
+                    className="px-3 py-2 border border-slate-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white w-[150px]"
                     aria-label="ステータスで絞り込み"
                 >
                     <option value="all">ステータス（全て）</option>
@@ -94,33 +115,35 @@ export default function BillingDraftFilters({
                     <option value="cancelled">キャンセル</option>
                 </select>
 
-                <select
+                <SearchableSelect
+                    className={FILTER_WIDTH}
+                    options={projectOptions}
                     value={projectIdFilter}
-                    onChange={(e) => onProjectChange(e.target.value)}
-                    className={SELECT_CLASS}
-                    aria-label="案件で絞り込み"
-                >
-                    <option value="">案件（全て）</option>
-                    {projectMasters.map((pm) => (
-                        <option key={pm.id} value={pm.id}>
-                            {pm.name || pm.title}
-                        </option>
-                    ))}
-                </select>
+                    onChange={onProjectChange}
+                    placeholder="案件（全て）"
+                    emptyLabel="案件（全て）"
+                    searchable
+                />
 
-                <select
+                <SearchableSelect
+                    className={FILTER_WIDTH}
+                    options={assigneeSelectOptions}
+                    value={assigneeIdFilter}
+                    onChange={onAssigneeChange}
+                    placeholder="担当者（全て）"
+                    emptyLabel="担当者（全て）"
+                    searchable
+                />
+
+                <SearchableSelect
+                    className={FILTER_WIDTH}
+                    options={createdBySelectOptions}
                     value={createdByIdFilter}
-                    onChange={(e) => onCreatedByChange(e.target.value)}
-                    className={SELECT_CLASS}
-                    aria-label="作成者で絞り込み"
-                >
-                    <option value="">作成者（全て）</option>
-                    {createdByOptions.map((o) => (
-                        <option key={o.id} value={o.id}>
-                            {o.name}
-                        </option>
-                    ))}
-                </select>
+                    onChange={onCreatedByChange}
+                    placeholder="作成者（全て）"
+                    emptyLabel="作成者（全て）"
+                    searchable
+                />
 
                 {onRefresh && (
                     <button

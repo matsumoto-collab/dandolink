@@ -70,6 +70,7 @@ export default function BillingDraftListPage() {
     const [customerIdFilter, setCustomerIdFilter] = useState('');
     const [projectIdFilter, setProjectIdFilter] = useState('');
     const [createdByIdFilter, setCreatedByIdFilter] = useState('');
+    const [assigneeIdFilter, setAssigneeIdFilter] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const debouncedQuery = useDebounce(searchTerm, 300);
 
@@ -126,6 +127,34 @@ export default function BillingDraftListPage() {
         return m;
     }, [projectMasters, userMap]);
 
+    // 案件ID → 担当者ユーザーID配列（担当者フィルタ判定用）
+    const projectAssigneeIds = useMemo(() => {
+        const m = new Map<string, string[]>();
+        for (const pm of projectMasters) m.set(pm.id, extractAssigneeIds(pm.createdBy));
+        return m;
+    }, [projectMasters]);
+
+    // 担当者の絞り込み候補（案件担当者のユニーク一覧、名前順）
+    const assigneeOptions = useMemo(() => {
+        const seen = new Map<string, string>();
+        for (const pm of projectMasters) {
+            for (const id of extractAssigneeIds(pm.createdBy)) {
+                const name = userMap[id];
+                if (name && !seen.has(id)) seen.set(id, name);
+            }
+        }
+        return Array.from(seen.entries())
+            .map(([id, name]) => ({ id, name }))
+            .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    }, [projectMasters, userMap]);
+
+    // 担当者フィルタはクライアント側で適用（サーバーは status/customer/project/createdBy/q で絞り込み済み）。
+    // 案件担当者は ProjectMaster.createdBy（JSON 配列）由来で API クエリに無いため、ここで案件単位に突き合わせる。
+    const filteredDrafts = useMemo(() => {
+        if (!assigneeIdFilter) return drafts;
+        return drafts.filter((d) => (projectAssigneeIds.get(d.projectId) ?? []).includes(assigneeIdFilter));
+    }, [drafts, assigneeIdFilter, projectAssigneeIds]);
+
     // 作成者ドロップダウン候補：取得済みの drafts から重複排除して抽出
     const createdByOptions = useMemo(() => {
         const seen = new Map<string, string>();
@@ -143,13 +172,13 @@ export default function BillingDraftListPage() {
     const [currentPage, setCurrentPage] = useState(1);
     useEffect(() => {
         setCurrentPage(1);
-    }, [statusFilter, customerIdFilter, projectIdFilter, createdByIdFilter, trimmedQuery]);
+    }, [statusFilter, customerIdFilter, projectIdFilter, createdByIdFilter, assigneeIdFilter, trimmedQuery]);
 
-    const totalPages = Math.max(1, Math.ceil(drafts.length / ITEMS_PER_PAGE));
+    const totalPages = Math.max(1, Math.ceil(filteredDrafts.length / ITEMS_PER_PAGE));
     const paginatedDrafts = useMemo(() => {
         const start = (currentPage - 1) * ITEMS_PER_PAGE;
-        return drafts.slice(start, start + ITEMS_PER_PAGE);
-    }, [drafts, currentPage]);
+        return filteredDrafts.slice(start, start + ITEMS_PER_PAGE);
+    }, [filteredDrafts, currentPage]);
 
     // FormPanel ステート
     const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -165,8 +194,8 @@ export default function BillingDraftListPage() {
 
     // 表示中（顧客フィルタ済み）の pending とその選択状態
     const pendingIds = useMemo(
-        () => drafts.filter((d) => d.status === 'pending').map((d) => d.id),
-        [drafts],
+        () => filteredDrafts.filter((d) => d.status === 'pending').map((d) => d.id),
+        [filteredDrafts],
     );
     const selectedPendingIds = useMemo(
         () => pendingIds.filter((id) => selectedDraftIds.has(id)),
@@ -185,9 +214,9 @@ export default function BillingDraftListPage() {
         }
         if (!isInitialized || isLoading) return;
         if (lastAutofillKeyRef.current === customerIdFilter) return;
-        setSelectedDraftIds(new Set(drafts.filter((d) => d.status === 'pending').map((d) => d.id)));
+        setSelectedDraftIds(new Set(filteredDrafts.filter((d) => d.status === 'pending').map((d) => d.id)));
         lastAutofillKeyRef.current = customerIdFilter;
-    }, [customerIdFilter, isInitialized, isLoading, drafts]);
+    }, [customerIdFilter, isInitialized, isLoading, filteredDrafts]);
 
     const handleToggleSelect = useCallback((draft: BillingDraft) => {
         setSelectedDraftIds((prev) => {
@@ -206,7 +235,7 @@ export default function BillingDraftListPage() {
     }, [pendingIds]);
 
     const handleCreateInvoice = useCallback(() => {
-        const chosen = drafts.filter((d) => selectedDraftIds.has(d.id) && d.status === 'pending');
+        const chosen = filteredDrafts.filter((d) => selectedDraftIds.has(d.id) && d.status === 'pending');
         if (chosen.length === 0) {
             toast.error('請求書化する請求予定を選択してください');
             return;
@@ -232,7 +261,7 @@ export default function BillingDraftListPage() {
         // 件名は空欄（D-h、未入力では InvoiceForm が発行を弾く）。発行日/支払期限は InvoiceForm 既定。
         setInvoiceInitialData({ customerId, projectMasterIds, items, title: '' });
         setIsInvoiceModalOpen(true);
-    }, [drafts, selectedDraftIds, customerIdFilter]);
+    }, [filteredDrafts, selectedDraftIds, customerIdFilter]);
 
     const handleCloseInvoiceModal = useCallback(() => {
         setIsInvoiceModalOpen(false);
@@ -312,6 +341,7 @@ export default function BillingDraftListPage() {
         statusFilter !== 'all' ||
         !!customerIdFilter ||
         !!projectIdFilter ||
+        !!assigneeIdFilter ||
         !!createdByIdFilter ||
         !!trimmedQuery;
 
@@ -368,10 +398,13 @@ export default function BillingDraftListPage() {
                 onCustomerChange={setCustomerIdFilter}
                 projectIdFilter={projectIdFilter}
                 onProjectChange={setProjectIdFilter}
+                assigneeIdFilter={assigneeIdFilter}
+                onAssigneeChange={setAssigneeIdFilter}
                 createdByIdFilter={createdByIdFilter}
                 onCreatedByChange={setCreatedByIdFilter}
                 customers={customers}
                 projectMasters={projectMasters}
+                assigneeOptions={assigneeOptions}
                 createdByOptions={createdByOptions}
                 onRefresh={refresh}
             />
@@ -386,7 +419,7 @@ export default function BillingDraftListPage() {
                 onDelete={handleDelete}
                 currentPage={currentPage}
                 totalPages={totalPages}
-                totalCount={drafts.length}
+                totalCount={filteredDrafts.length}
                 onPageChange={setCurrentPage}
                 hasActiveFilter={hasActiveFilter}
                 selectionEnabled={selectionEnabled}
