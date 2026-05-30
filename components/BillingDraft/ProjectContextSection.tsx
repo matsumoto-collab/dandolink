@@ -64,7 +64,7 @@ function HistoryRow({ item }: { item: ProjectContextHistoryItem }) {
         item.type === 'billing-draft'
             ? 'bg-amber-50 text-amber-700 border border-amber-200'
             : 'bg-blue-50 text-blue-700 border border-blue-200';
-    const amount = item.type === 'invoice' ? item.amount : item.amount;
+    const amount = item.amount;
     return (
         <li className="flex items-start justify-between gap-2 text-xs">
             <div className="min-w-0 flex-1">
@@ -113,7 +113,7 @@ export default function ProjectContextSection({ projectContext }: ProjectContext
                     </div>
                 </div>
                 <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
-                    <div className="text-[11px] text-slate-500">過去の請求済み合計</div>
+                    <div className="text-[11px] text-slate-500">この案件の請求済み<span className="text-slate-400">（税抜）</span></div>
                     <div className="text-sm font-bold text-slate-900">{yen(totalInvoicedAmount)}</div>
                 </div>
             </div>

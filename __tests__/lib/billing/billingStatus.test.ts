@@ -3,6 +3,7 @@
  */
 import {
     computeInvoicedByProject,
+    invoicedAmountForProject,
     getBillingStatus,
     type InvoiceForBillingSummary,
 } from '@/lib/billing/billingStatus';
@@ -79,6 +80,43 @@ describe('computeInvoicedByProject', () => {
             { status: 'draft', subtotal: '100000', projectMasterId: 'pm-1', items: [{ projectMasterId: 'pm-1', amount: '100000' }] },
         ];
         expect(computeInvoicedByProject(invoices)).toEqual({ 'pm-1': 100000 });
+    });
+});
+
+describe('invoicedAmountForProject', () => {
+    it('returns this project portion from tagged items (not the whole invoice)', () => {
+        const inv: InvoiceForBillingSummary = {
+            status: 'sent',
+            subtotal: 500000,
+            projectMasterId: 'pm-1',
+            items: [
+                { projectMasterId: 'pm-1', amount: 100000 },
+                { projectMasterId: 'pm-2', amount: 400000 },
+            ],
+        };
+        expect(invoicedAmountForProject(inv, 'pm-1')).toBe(100000);
+        expect(invoicedAmountForProject(inv, 'pm-2')).toBe(400000);
+        expect(invoicedAmountForProject(inv, 'pm-x')).toBe(0);
+    });
+
+    it('falls back to subtotal for an untagged legacy invoice only on its top-level project', () => {
+        const inv: InvoiceForBillingSummary = {
+            status: 'sent', subtotal: 250000, projectMasterId: 'pm-9', items: [{ amount: 250000 }],
+        };
+        expect(invoicedAmountForProject(inv, 'pm-9')).toBe(250000);
+        expect(invoicedAmountForProject(inv, 'pm-1')).toBe(0);
+    });
+
+    it('sums multiple tagged lines (incl. 値引きマイナス) and handles string amounts', () => {
+        const inv: InvoiceForBillingSummary = {
+            status: 'draft', subtotal: 0, projectMasterId: 'pm-1',
+            items: [
+                { projectMasterId: 'pm-1', amount: '126000' },
+                { projectMasterId: 'pm-1', amount: -12000 },
+                { projectMasterId: 'pm-2', amount: 5000 },
+            ],
+        };
+        expect(invoicedAmountForProject(inv, 'pm-1')).toBe(114000); // 126000 - 12000
     });
 });
 

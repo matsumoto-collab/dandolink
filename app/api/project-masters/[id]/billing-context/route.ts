@@ -10,6 +10,8 @@ import type {
     ProjectContextEstimate,
     ProjectContextHistoryItem,
 } from '@/types/billingDraft';
+import { parseJsonField } from '@/lib/json-utils';
+import { invoicedAmountForProject, type InvoiceForBillingSummary } from '@/lib/billing/billingStatus';
 
 /** 見積書一覧の表示上限（残りは totalCount で「他 N 件」として返す）。 */
 const ESTIMATE_DISPLAY_LIMIT = 3;
@@ -83,10 +85,24 @@ export async function GET(
         }
         const allInvoices = Array.from(invoiceMap.values());
 
-        // 過去の請求済み合計（cancelled 除外）
+        // この案件ぶんの請求額（税抜）を Invoice ごとに算出する。
+        // 請求書全体の total（税込・全案件）ではなく、明細(items)の projectMasterId タグで
+        // 案件単位に按分する（複数案件まとめ請求でもこの案件の行だけを合算）。
+        // 無タグのレガシー Invoice は代表案件のときだけ subtotal を計上（computeInvoicedByProject と同一ルール）。
+        const toSummary = (inv: (typeof allInvoices)[number]): InvoiceForBillingSummary => ({
+            status: inv.status,
+            subtotal: Number(inv.subtotal),
+            items: parseJsonField<InvoiceForBillingSummary['items']>(inv.items, []),
+            projectMasterId: inv.projectMasterId,
+        });
+        const invoicedByInvoiceId = new Map<string, number>(
+            allInvoices.map((inv) => [inv.id, invoicedAmountForProject(toSummary(inv), pmId)]),
+        );
+
+        // 過去の請求済み合計（この案件ぶん・税抜、cancelled 除外）
         const totalInvoicedAmount = allInvoices
             .filter((inv) => !isInvoiceCancelled(inv.status))
-            .reduce((sum, inv) => sum + Number(inv.total), 0);
+            .reduce((sum, inv) => sum + (invoicedByInvoiceId.get(inv.id) ?? 0), 0);
 
         // 見積書の並び替え：approved 先頭、残りは createdAt desc
         const sortedEstimates = [...estimates].sort((a, b) => {
@@ -123,7 +139,7 @@ export async function GET(
                 id: inv.id,
                 invoiceNumber: inv.invoiceNumber,
                 title: inv.title,
-                amount: Number(inv.total),
+                amount: invoicedByInvoiceId.get(inv.id) ?? 0,
                 status: inv.status,
                 createdAt: inv.createdAt.toISOString(),
             })),
