@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
     Plus,
     Edit,
@@ -73,6 +73,18 @@ export default function PaymentSchedulesPage() {
     const [editing, setEditing] = useState<PaymentSchedule | null>(null);
     const [pdfExporting, setPdfExporting] = useState(false);
     const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
+
+    // チェック操作で再描画が走っても支払リストのスクロール位置を維持するための保険。
+    // handleTogglePaid で直前のスクロール位置を控え、描画後（ペイント前）に復元する。
+    const listRef = useRef<HTMLDivElement>(null);
+    const pendingScrollTop = useRef<number | null>(null);
+
+    useLayoutEffect(() => {
+        if (pendingScrollTop.current != null && listRef.current) {
+            listRef.current.scrollTop = pendingScrollTop.current;
+            pendingScrollTop.current = null;
+        }
+    });
 
     // 月切替（詳細画面なら閉じる）
     const goPrev = () => {
@@ -172,6 +184,8 @@ export default function PaymentSchedulesPage() {
     };
 
     const handleTogglePaid = async (item: PaymentSchedule) => {
+        // 楽観更新による再描画でスクロール位置が先頭に戻らないよう、直前位置を控えておく
+        pendingScrollTop.current = listRef.current?.scrollTop ?? null;
         try {
             await togglePaid(item.id, !item.isPaid);
         } catch (e) {
@@ -285,7 +299,7 @@ export default function PaymentSchedulesPage() {
                 </div>
 
                 {/* 支払いリスト */}
-                <div className="flex-1 overflow-auto space-y-2 pr-1">
+                <div ref={listRef} className="flex-1 overflow-auto space-y-2 pr-1">
                     {/* スケルトンは初回ロード時のみ。再取得中(isLoading)に差し替えると
                         リスト高が縮んでスクロールが先頭に戻るため、ここでは isLoading を見ない。 */}
                     {!isInitialized ? (
