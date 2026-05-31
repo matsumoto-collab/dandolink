@@ -108,38 +108,67 @@ export default function DispatchConfirmModal({
     }, [isOpen]);
 
     // 同日の他案件で使用中のワーカーと車両を取得（どの班で使われているか）
-    const { workerTeamMap, vehicleTeamMap } = useMemo(() => {
+    // - 確定済み案件 → 確定メンバー / 確定車両（vehicleTeamMap・琥珀バッジ）
+    // - 未確定案件 → スケジュール登録時の予定車両（vehiclePlannedTeamMap・水色バッジ）
+    //   ※予定車両は車両「名」で保存されているため、車両マスターで名前→IDに変換する
+    const { workerTeamMap, vehicleTeamMap, vehiclePlannedTeamMap } = useMemo(() => {
         const dateKey = formatDateKey(project.startDate);
         const sameDayProjects = projects.filter(p =>
             p.id !== project.id &&
-            formatDateKey(p.startDate) === dateKey &&
-            p.isDispatchConfirmed
+            formatDateKey(p.startDate) === dateKey
         );
 
+        // 予定車両の名前→ID 逆引き
+        const vehicleIdByName = new Map<string, string>();
+        vehicles.forEach(v => vehicleIdByName.set(v.name, v.id));
+
         const workerMap = new Map<string, string[]>();
-        const vehicleMap = new Map<string, string[]>();
+        const vehicleMap = new Map<string, string[]>();        // 他班が確定済み
+        const vehiclePlannedMap = new Map<string, string[]>(); // 他班が予定（未確定）
 
         sameDayProjects.forEach(p => {
             const foreman = allForemen.find(f => f.id === p.assignedEmployeeId);
             const teamName = foreman ? `${foreman.displayName}班` : '他班';
 
-            p.confirmedWorkerIds?.forEach(id => {
-                const teams = workerMap.get(id) || [];
-                if (!teams.includes(teamName)) teams.push(teamName);
-                workerMap.set(id, teams);
-            });
-            p.confirmedVehicleIds?.forEach(id => {
-                const teams = vehicleMap.get(id) || [];
-                if (!teams.includes(teamName)) teams.push(teamName);
-                vehicleMap.set(id, teams);
-            });
+            if (p.isDispatchConfirmed) {
+                p.confirmedWorkerIds?.forEach(id => {
+                    const teams = workerMap.get(id) || [];
+                    if (!teams.includes(teamName)) teams.push(teamName);
+                    workerMap.set(id, teams);
+                });
+                p.confirmedVehicleIds?.forEach(id => {
+                    const teams = vehicleMap.get(id) || [];
+                    if (!teams.includes(teamName)) teams.push(teamName);
+                    vehicleMap.set(id, teams);
+                });
+            } else {
+                // スケジュール登録時に指定された予定車両（まだ手配確定されていない）
+                const plannedNames = (p.trucks || p.vehicles || []) as string[];
+                plannedNames.forEach(name => {
+                    const id = vehicleIdByName.get(name);
+                    if (!id) return;
+                    const teams = vehiclePlannedMap.get(id) || [];
+                    if (!teams.includes(teamName)) teams.push(teamName);
+                    vehiclePlannedMap.set(id, teams);
+                });
+            }
+        });
+
+        // 同じ車両を同じ班が「確定」もしている場合は「予定」表示から省く（重複防止）
+        vehiclePlannedMap.forEach((teams, id) => {
+            const confirmedTeams = vehicleMap.get(id);
+            if (!confirmedTeams) return;
+            const remaining = teams.filter(t => !confirmedTeams.includes(t));
+            if (remaining.length > 0) vehiclePlannedMap.set(id, remaining);
+            else vehiclePlannedMap.delete(id);
         });
 
         return {
             workerTeamMap: workerMap,
             vehicleTeamMap: vehicleMap,
+            vehiclePlannedTeamMap: vehiclePlannedMap,
         };
-    }, [projects, project.id, project.startDate, allForemen]);
+    }, [projects, project.id, project.startDate, allForemen, vehicles]);
 
     // 連動対象: 同じ班・同じ日・自分以外。作業完了済み（workEndedAt あり）はスキップ。
     // 確定/変更の連動先であり、ラジオの表示判定にも使う。
@@ -493,6 +522,7 @@ export default function DispatchConfirmModal({
                                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                         {vehicles.map(vehicle => {
                                             const teams = vehicleTeamMap.get(vehicle.id);
+                                            const plannedTeams = vehiclePlannedTeamMap.get(vehicle.id);
                                             const isSelected = selectedVehicleIds.includes(vehicle.id);
 
                                             return (
@@ -507,9 +537,16 @@ export default function DispatchConfirmModal({
                                                 >
                                                     {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
                                                     <span className="truncate">{vehicle.name}</span>
+                                                    {/* 他班が確定済み（琥珀） */}
                                                     {teams && (
                                                         <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
                                                             {teams.join('・')}
+                                                        </span>
+                                                    )}
+                                                    {/* 他班がスケジュールで予定（水色・未確定） */}
+                                                    {plannedTeams && (
+                                                        <span className="absolute -top-2 -left-1 px-1.5 py-0.5 text-[10px] bg-sky-400 text-sky-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                                                            {plannedTeams.join('・')}予定
                                                         </span>
                                                     )}
                                                 </button>
