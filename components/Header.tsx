@@ -7,12 +7,16 @@ import NotificationsInbox from '@/components/Notifications/NotificationsInbox';
 import { APP_NAME, APP_LOGO } from '@/lib/branding';
 
 export default function Header() {
-    const { toggleMobileMenu } = useNavigation();
+    const { toggleMobileMenu, setActivePage } = useNavigation();
     const [isReloading, setIsReloading] = useState(false);
 
+    // ロゴタップ: 全リロード（白→濃紺→明の暗転の原因）をやめ、SPA 内でホーム（工程管理）へ遷移。
+    // 業務データは Realtime/ポーリング/broadcast で自動更新されるため再取得は不要。
+    // ローディングバーはタップのフィードバックとして一瞬だけ見せる。
     const handleReload = () => {
         setIsReloading(true);
-        window.location.reload();
+        setActivePage('schedule');
+        setTimeout(() => setIsReloading(false), 400);
     };
 
     return (

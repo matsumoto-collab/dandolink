@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 
 export type PageType =
     | 'schedule'         // スケジュール管理
@@ -60,11 +60,18 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     }, []);
 
     // 永続化 + body data attr 同期（CSSフックとして利用）
+    // 初回マウント時は layout.tsx のインラインスクリプトが paint 前に設定済みの data 属性を
+    // 尊重し、上書きしない（古い state 値で上書きするとメインコンテンツが一瞬ジャンプするため）。
+    const isFirstAttrSync = useRef(true);
     useEffect(() => {
         try {
             localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isSidebarCollapsed));
         } catch {
             // ignore
+        }
+        if (isFirstAttrSync.current) {
+            isFirstAttrSync.current = false;
+            return;
         }
         if (typeof document !== 'undefined') {
             document.body.dataset.sidebarCollapsed = String(isSidebarCollapsed);

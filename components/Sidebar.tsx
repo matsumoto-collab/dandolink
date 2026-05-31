@@ -71,7 +71,7 @@ const navigationSections: NavSection[] = [
 ];
 
 export default function Sidebar() {
-    const { activePage, setActivePage, isMobileMenuOpen, closeMobileMenu, isSidebarCollapsed, toggleSidebarCollapse } = useNavigation();
+    const { activePage, setActivePage, isMobileMenuOpen, closeMobileMenu, toggleSidebarCollapse } = useNavigation();
     const { data: session } = useSession();
     const [isReloading, setIsReloading] = useState(false);
     const totalChatUnread = useChatStore((s) => s.totalUnread);
@@ -86,9 +86,13 @@ export default function Sidebar() {
         }
     }, [session?.user?.id, fetchRooms]);
 
+    // ロゴタップ: 全リロード（暗転の原因）をやめ、SPA 内でホーム（工程管理）へ遷移＋モバイルメニューを閉じる。
+    // 業務データは Realtime/ポーリング/broadcast で自動更新されるため再取得は不要。
     const handleReload = () => {
         setIsReloading(true);
-        window.location.reload();
+        setActivePage('schedule');
+        closeMobileMenu();
+        setTimeout(() => setIsReloading(false), 400);
     };
 
     const handleLogout = async () => {
@@ -156,12 +160,13 @@ export default function Sidebar() {
 
             {/* Sidebar */}
             <aside
+                data-dl-sidebar
                 className={`
                     fixed left-0 top-0 h-dvh bg-gradient-to-b from-slate-950 to-slate-900
                     border-r border-slate-800/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
                     w-48 pwa-sidebar-safe
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-                    ${isSidebarCollapsed ? 'lg:-translate-x-full' : 'lg:translate-x-0'}
+                    lg:translate-x-0
                 `}
             >
                 {/* Logo Area */}

@@ -211,6 +211,15 @@ body {
   }
 }
 
+/* サイドバー折りたたみ時: サイドバー本体 (data-dl-sidebar) を画面外へスライド。
+   React state ではなく body の data 属性で制御することで、layout.tsx のインライン
+   スクリプトが paint 前に確定 → 折りたたみユーザーでもサイドバーのちらつき/ジャンプが起きない。 */
+@media (min-width: 1024px) {
+  body[data-sidebar-collapsed='true'] [data-dl-sidebar] {
+    transform: translateX(-100%) !important;
+  }
+}
+
 /* トースト通知の表示位置（react-hot-toast の Toaster containerClassName）。
    モバイル/タブレット(<1024px)は上部固定ヘッダー(h-16=64px)+ノッチ余白を避けて下げ、
    PC(>=1024px)はヘッダーが無いので上端から80pxに収める。

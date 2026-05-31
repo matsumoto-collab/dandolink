@@ -7,7 +7,6 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
 import { CalendarProviders } from './providers/CalendarProviders';
 import { FinanceProviders } from './providers/FinanceProviders';
-import { ProfitDashboardProvider } from '@/contexts/ProfitDashboardContext';
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 const notoSansJP = Noto_Sans_JP({
@@ -53,7 +52,15 @@ export default function RootLayout({
 }) {
     return (
         <html lang="ja">
-            <body className={`${notoSansJP.variable} ${inter.variable} font-sans`}>
+            <body className={`${notoSansJP.variable} ${inter.variable} font-sans`} suppressHydrationWarning>
+                {/* サイドバー折りたたみ状態を paint 前に確定し、メインコンテンツのレイアウトジャンプを防ぐ。
+                    localStorage を同期読み込みして body の data 属性へ反映 → CSS が左オフセットを即座に適用する。
+                    （React state だとマウント後の useEffect で反映されるため一瞬ジャンプしていた） */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `(function(){try{var v=localStorage.getItem('dandolink:sidebarCollapsed');document.body.dataset.sidebarCollapsed=(v==='true')?'true':'false';}catch(e){}})();`,
+                    }}
+                />
                 <Toaster
                     position="top-center"
                     containerClassName="dl-toast-container"
@@ -82,9 +89,7 @@ export default function RootLayout({
                         <NavigationProvider>
                             <CalendarProviders>
                                 <FinanceProviders>
-                                    <ProfitDashboardProvider>
-                                        {children}
-                                    </ProfitDashboardProvider>
+                                    {children}
                                 </FinanceProviders>
                             </CalendarProviders>
                         </NavigationProvider>
