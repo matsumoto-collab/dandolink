@@ -32,7 +32,8 @@ function getExtra(project: Project): { customerPostalCode?: string; customerAddr
 
 type InvoiceDisplayRow =
     | { type: 'header'; title: string }
-    | { type: 'item'; item: InvoiceItem; index: number };
+    | { type: 'category'; item: InvoiceItem }
+    | { type: 'item'; item: InvoiceItem; index: number; isChild?: boolean };
 
 /**
  * 明細を案件グループごとに並べ、各グループの見出し行を差し込む。
@@ -48,15 +49,30 @@ export function buildInvoiceDisplayRows(
     let itemIndex = 0;
     const pmList = projectMasters ?? [];
 
+    // カテゴリ（isCategory）かつ categoryType==='inline' のとき、見出し行＋子明細行に展開する。
+    // detail カテゴリ／通常項目はそのまま1行（従来どおり）。子明細の金額は親カテゴリの amount に
+    // 含まれており合計（invoice.subtotal）はカテゴリ amount で計上済みのため、ここで子を展開しても
+    // 表示が増えるだけで二重加算は起きない（合計欄は invoice.subtotal/total を表示）。
+    const pushItem = (item: InvoiceItem) => {
+        const children = (item.children || []).filter(c => c.description);
+        if (item.isCategory && item.categoryType === 'inline' && children.length > 0) {
+            rows.push({ type: 'category', item });
+            children.forEach(child => {
+                itemIndex++;
+                rows.push({ type: 'item', item: child, index: itemIndex, isChild: true });
+            });
+        } else {
+            itemIndex++;
+            rows.push({ type: 'item', item, index: itemIndex });
+        }
+    };
+
     for (const pm of pmList) {
         const pmItems = allItems.filter(item => item.projectMasterId === pm.id);
         if (pmItems.length === 0) continue;
         const override = pmItems.find(it => it.sectionTitle && it.sectionTitle.trim())?.sectionTitle?.trim();
         rows.push({ type: 'header', title: `【${override || pm.title}】` });
-        pmItems.forEach(item => {
-            itemIndex++;
-            rows.push({ type: 'item', item, index: itemIndex });
-        });
+        pmItems.forEach(pushItem);
     }
 
     const orphanItems = allItems.filter(
@@ -71,8 +87,7 @@ export function buildInvoiceDisplayRows(
             if (title) rows.push({ type: 'header', title: `【${title}】` });
             prevOrphanTitle = title;
         }
-        itemIndex++;
-        rows.push({ type: 'item', item, index: itemIndex });
+        pushItem(item);
     });
 
     return rows;
@@ -137,13 +152,35 @@ function CoverPage({
                 </View>
             );
         }
+        if (row.type === 'category') {
+            const cat = row.item;
+            const catNegative = cat.amount < 0;
+            return (
+                <View key={`cat-${i}`} style={styles.tableRow}>
+                    <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellName}>
+                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(cat.description || '')}</Text>
+                    </View>
+                    <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
+                    <View style={styles.cellAmount}>
+                        <Text style={catNegative ? { fontSize: 9, fontWeight: 'bold', color: COLORS.red } : { fontSize: 9, fontWeight: 'bold' }}>
+                            {catNegative ? `(${Math.abs(cat.amount).toLocaleString()})` : cat.amount.toLocaleString()}
+                        </Text>
+                    </View>
+                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+                </View>
+            );
+        }
         const item = row.item;
         const isNegative = item.amount < 0;
         return (
             <View key={`item-${i}`} style={styles.tableRow}>
                 <View style={styles.cellNo}><Text style={styles.cellTextCenter}>{row.index}</Text></View>
                 <View style={styles.cellName}>
-                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>{sanitizePdfText(item.description || '')}</Text>
+                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>{row.isChild ? '　' : ''}{sanitizePdfText(item.description || '')}</Text>
                 </View>
                 <View style={styles.cellSpec}>
                     <Text style={styles.cellText}>{item.specification ? sanitizePdfText(item.specification) : ''}</Text>
@@ -453,8 +490,33 @@ function DetailsPage({
                             continue;
                         }
 
+                        if (row && row.type === 'category') {
+                            const cat = row.item;
+                            const catNeg = cat.amount < 0;
+                            rows.push(
+                                <View key={`cat-${i}`} style={styles.tableRow}>
+                                    <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellName}>
+                                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(cat.description || '')}</Text>
+                                    </View>
+                                    <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
+                                    <View style={styles.cellAmount}>
+                                        <Text style={catNeg ? { fontSize: 9, fontWeight: 'bold', color: COLORS.red } : { fontSize: 9, fontWeight: 'bold' }}>
+                                            {catNeg ? `(${Math.abs(cat.amount).toLocaleString()})` : cat.amount.toLocaleString()}
+                                        </Text>
+                                    </View>
+                                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+                                </View>
+                            );
+                            continue;
+                        }
+
                         const item = row && row.type === 'item' ? row.item : null;
                         const idx = row && row.type === 'item' ? row.index : 0;
+                        const isChild = row && row.type === 'item' ? row.isChild : false;
                         const isLast = i === maxRows - 1;
                         const isNegative = item ? item.amount < 0 : false;
 
@@ -465,7 +527,7 @@ function DetailsPage({
                                 </View>
                                 <View style={styles.cellName}>
                                     <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                                        {item ? sanitizePdfText(item.description || '') : ''}
+                                        {item ? `${isChild ? '　' : ''}${sanitizePdfText(item.description || '')}` : ''}
                                     </Text>
                                 </View>
                                 <View style={styles.cellSpec}>

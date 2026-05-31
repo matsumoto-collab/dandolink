@@ -21,7 +21,7 @@ import ItemsEditor from '../Estimates/ItemsEditor';
 import SummaryFooter from '../Estimates/SummaryFooter';
 import ConditionNotes from '../Estimates/ConditionNotes';
 import InvoiceHeader from './InvoiceHeader';
-import { FileDown, Plus, List, Eye, X, Trash2 } from 'lucide-react';
+import { FileDown, Plus, List, Eye, X, Trash2, ChevronDown } from 'lucide-react';
 import { logger } from '@/lib/logger';
 
 interface InvoiceFormProps {
@@ -200,8 +200,11 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         });
     }, []);
 
-    // 見積書から案件の明細を読み込み
-    const loadFromEstimate = useCallback((pmId: string) => {
+    // 見積書から案件の明細を読み込み。
+    // mode='category': カテゴリは合計1行で読込（categoryType='detail'）＝従来挙動。
+    // mode='full':     カテゴリ見出し＋子明細を展開して読込（categoryType='inline'）。
+    // いずれも子明細データ（children）は保持し、合計はカテゴリ amount で計上されるため変わらない。
+    const loadFromEstimate = useCallback((pmId: string, mode: 'category' | 'full') => {
         const pmEstimates = estimates.filter(e => e.projectId === pmId);
         if (pmEstimates.length === 0) {
             toast.error('この案件に紐付く見積書がありません');
@@ -209,15 +212,20 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         }
         // 最新の見積書を使用
         const latest = pmEstimates.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-        const items: InvoiceItem[] = latest.items.map(item => ({
-            ...item,
-            projectMasterId: pmId,
-        }));
+        const items: InvoiceItem[] = latest.items.map(item => {
+            const next: InvoiceItem = { ...item, projectMasterId: pmId };
+            if (item.isCategory) {
+                next.categoryType = mode === 'full' ? 'inline' : 'detail';
+            }
+            return next;
+        });
         setItemsByProject(prev => ({ ...prev, [pmId]: items }));
         if (!title) {
             setTitle(latest.title.replace('見積書', '請求書'));
         }
-        toast.success(`${latest.estimateNumber} の明細を読み込みました`);
+        toast.success(
+            `${latest.estimateNumber} の明細を読み込みました（${mode === 'full' ? '明細もすべて' : 'カテゴリのみ'}）`,
+        );
     }, [estimates, title]);
 
     // 請求項目マスタから追加
@@ -563,6 +571,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
     // 請求項目マスタ選択ドロップダウン
     const [billingDropdownPmId, setBillingDropdownPmId] = useState<string | null>(null);
+    const [estimateDropdownPmId, setEstimateDropdownPmId] = useState<string | null>(null);
 
     return (
         <form onSubmit={handleSubmit} className="lg:h-full lg:flex lg:flex-col lg:min-h-0">
@@ -615,14 +624,37 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 </div>
                                 <div className="flex flex-wrap gap-2 sm:pt-5">
                                     {pmEstimates.length > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => loadFromEstimate(pmId)}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
-                                        >
-                                            <FileDown className="w-3.5 h-3.5" />
-                                            見積書から読込
-                                        </button>
+                                        <div className="relative">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEstimateDropdownPmId(estimateDropdownPmId === pmId ? null : pmId)}
+                                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
+                                            >
+                                                <FileDown className="w-3.5 h-3.5" />
+                                                見積書から読込
+                                                <ChevronDown className="w-3 h-3" />
+                                            </button>
+                                            {estimateDropdownPmId === pmId && (
+                                                <div className="absolute right-0 z-50 mt-1 w-56 bg-white border border-slate-300 rounded-lg shadow-lg">
+                                                    <ul className="py-1">
+                                                        <li
+                                                            className="px-4 py-2.5 hover:bg-slate-100 cursor-pointer"
+                                                            onClick={() => { loadFromEstimate(pmId, 'category'); setEstimateDropdownPmId(null); }}
+                                                        >
+                                                            <div className="text-sm font-medium text-slate-800">カテゴリのみ</div>
+                                                            <div className="text-[11px] text-slate-500">カテゴリを合計1行で読込（従来）</div>
+                                                        </li>
+                                                        <li
+                                                            className="px-4 py-2.5 hover:bg-slate-100 cursor-pointer border-t border-slate-100"
+                                                            onClick={() => { loadFromEstimate(pmId, 'full'); setEstimateDropdownPmId(null); }}
+                                                        >
+                                                            <div className="text-sm font-medium text-slate-800">明細もすべて</div>
+                                                            <div className="text-[11px] text-slate-500">カテゴリ見出し＋子明細を展開</div>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                     <div className="relative">
                                         <button

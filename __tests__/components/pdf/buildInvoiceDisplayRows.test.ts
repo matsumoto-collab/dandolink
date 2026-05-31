@@ -103,4 +103,61 @@ describe('buildInvoiceDisplayRows', () => {
         const itemRows = rows.filter(r => r.type === 'item') as Array<{ index: number }>;
         expect(itemRows.map(r => r.index)).toEqual([1, 2]);
     });
+
+    // 追加: 「明細もすべて」読込 = inlineカテゴリの子明細展開
+    it('inlineカテゴリ: 見出し行(category)＋子明細行に展開し、通し番号は子に振る', () => {
+        const items = [
+            item({
+                id: 'cat1', description: '仮設工事', isCategory: true, categoryType: 'inline', amount: 200,
+                children: [
+                    item({ id: 'c1', description: '単管', amount: 120 }),
+                    item({ id: 'c2', description: 'クランプ', amount: 80 }),
+                ],
+            }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, []);
+        expect(rows.map(r => r.type)).toEqual(['category', 'item', 'item']);
+        expect((rows[0] as { item: InvoiceItem }).item.description).toBe('仮設工事');
+        const itemRows = rows.filter(r => r.type === 'item') as Array<{ index: number; item: InvoiceItem; isChild?: boolean }>;
+        expect(itemRows.map(r => r.item.description)).toEqual(['単管', 'クランプ']);
+        expect(itemRows.map(r => r.index)).toEqual([1, 2]);
+        expect(itemRows.every(r => r.isChild === true)).toBe(true);
+    });
+
+    // 「カテゴリのみ」読込 = detailカテゴリは展開せず合計1行
+    it('detailカテゴリ: 展開せずカテゴリ自身が1行（従来挙動）', () => {
+        const items = [
+            item({
+                id: 'cat1', description: '仮設工事', isCategory: true, categoryType: 'detail', amount: 200,
+                children: [item({ id: 'c1', description: '単管', amount: 120 })],
+            }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, []);
+        expect(rows.map(r => r.type)).toEqual(['item']);
+        const only = rows[0] as { type: 'item'; item: InvoiceItem; index: number };
+        expect(only.item.description).toBe('仮設工事');
+        expect(only.index).toBe(1);
+    });
+
+    it('inlineカテゴリでも子明細が無ければ展開しない（1行）', () => {
+        const items = [
+            item({ id: 'cat1', description: '仮設工事', isCategory: true, categoryType: 'inline', amount: 0, children: [] }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, []);
+        expect(rows.map(r => r.type)).toEqual(['item']);
+    });
+
+    it('案件見出し配下でも inlineカテゴリは展開される', () => {
+        const items = [
+            item({
+                id: 'cat1', description: '仮設工事', projectMasterId: 'pm1', isCategory: true, categoryType: 'inline', amount: 200,
+                children: [
+                    item({ id: 'c1', description: '単管', amount: 120 }),
+                    item({ id: 'c2', description: 'クランプ', amount: 80 }),
+                ],
+            }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, [{ id: 'pm1', title: 'A様邸' }]);
+        expect(rows.map(r => r.type)).toEqual(['header', 'category', 'item', 'item']);
+    });
 });
