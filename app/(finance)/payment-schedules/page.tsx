@@ -286,7 +286,9 @@ export default function PaymentSchedulesPage() {
 
                 {/* 支払いリスト */}
                 <div className="flex-1 overflow-auto space-y-2 pr-1">
-                    {!isInitialized || isLoading ? (
+                    {/* スケルトンは初回ロード時のみ。再取得中(isLoading)に差し替えると
+                        リスト高が縮んでスクロールが先頭に戻るため、ここでは isLoading を見ない。 */}
+                    {!isInitialized ? (
                         [...Array(4)].map((_, i) => (
                             <div
                                 key={i}

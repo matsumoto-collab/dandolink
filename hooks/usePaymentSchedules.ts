@@ -90,8 +90,27 @@ export function usePaymentSchedules(query: PaymentSchedulesQuery = {}) {
     }, [fetchItems]);
 
     const togglePaid = useCallback(async (id: string, isPaid: boolean) => {
-        await updateItem(id, { isPaid });
-    }, [updateItem]);
+        // 楽観更新: チェック操作を即座にローカル state へ反映する。
+        // ここで fetchItems() を走らせると isLoading=true で一覧がスケルトンに差し替わり、
+        // スクロール領域の高さが一瞬縮んでブラウザが先頭までスクロールを戻してしまう。
+        // 表示に使うのは isPaid のみなので、再フェッチせずローカル更新で完結させる。
+        setItems((prev) => prev.map((it) => (it.id === id ? { ...it, isPaid } : it)));
+        try {
+            const res = await fetch(`/api/payment-schedules/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isPaid }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || '支払予定の更新に失敗しました');
+            }
+        } catch (e) {
+            // 失敗時は元の状態へ戻す（isPaid はトグルなので直前値は !isPaid）
+            setItems((prev) => prev.map((it) => (it.id === id ? { ...it, isPaid: !isPaid } : it)));
+            throw e;
+        }
+    }, []);
 
     return {
         items,
