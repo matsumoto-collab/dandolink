@@ -160,6 +160,8 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
     type Aggregate = {
         userId: string;
         days: number;
+        absent: number;
+        paidLeave: number;
         earlyStart: number;
         morningLoading: number;
         overtime: number;
@@ -174,6 +176,8 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
             const a = map.get(r.userId) ?? {
                 userId: r.userId,
                 days: 0,
+                absent: 0,
+                paidLeave: 0,
                 earlyStart: 0,
                 morningLoading: 0,
                 overtime: 0,
@@ -183,6 +187,8 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
             };
             // 出勤日のみカウント（status='present'）
             if (r.status === 'present') a.days += 1;
+            if (r.status === 'absent') a.absent += 1;
+            if (r.status === 'paid_leave') a.paidLeave += 1;
             a.earlyStart += r.earlyStartMinutes;
             a.morningLoading += r.morningLoadingMinutes;
             a.overtime += r.overtimeMinutes;
@@ -237,6 +243,8 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
         return aggregates.find(a => a.userId === selectedUserId) ?? {
             userId: selectedUserId,
             days: 0,
+            absent: 0,
+            paidLeave: 0,
             earlyStart: 0,
             morningLoading: 0,
             overtime: 0,
@@ -519,6 +527,8 @@ interface DetailMonthTableProps {
     detailAggregate: {
         userId: string;
         days: number;
+        absent: number;
+        paidLeave: number;
         earlyStart: number;
         morningLoading: number;
         overtime: number;
@@ -931,7 +941,7 @@ function DetailMonthTable({
                             <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate ? minutesToHm(detailAggregate.earlyStart) || '-' : '-'}</td>
                             <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate ? minutesToHm(detailAggregate.morningLoading) || '-' : '-'}</td>
                             <td className="border border-slate-200 px-2 py-2"></td>
-                            <td className="border border-slate-200 px-2 py-2"></td>
+                            <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate && detailAggregate.earlyEnd > 0 ? minutesToHm(detailAggregate.earlyEnd) : '-'}</td>
                             <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate ? minutesToHm(detailAggregate.overtime) || '-' : '-'}</td>
                             <td className="border border-slate-200 px-2 py-2 text-right tabular-nums">{detailAggregate ? minutesToHm(detailAggregate.eveningLoading) || '-' : '-'}</td>
                             <td className="border border-slate-200 px-2 py-2"></td>
@@ -998,7 +1008,7 @@ function DetailMonthTable({
                         <SummaryRow label="出勤" value={`${detailAggregate.days} 日`} />
                         <SummaryRow label="朝積" value={minutesToHm(detailAggregate.morningLoading) || '-'} />
                         <SummaryRow label="夕積" value={minutesToHm(detailAggregate.eveningLoading) || '-'} />
-                        <SummaryRow label="欠勤" value="-" muted />
+                        <SummaryRow label="欠勤" value={`${detailAggregate.absent} 日`} />
                         <SummaryRow label="早出/残業" value={minutesToHm(detailAggregate.earlyStart + detailAggregate.overtime) || '-'} />
                         <SummaryRow
                             label="早残合計"
@@ -1009,19 +1019,22 @@ function DetailMonthTable({
                             })()}
                             highlight
                         />
-                        <SummaryRow label="有給" value="-" muted />
+                        <SummaryRow label="有給" value={`${detailAggregate.paidLeave} 日`} />
                         <SummaryRow label="早終" value={detailAggregate.earlyEnd > 0 ? `${minutesToHm(detailAggregate.earlyEnd)} (${detailAggregate.earlyEndCount}日)` : '-'} />
                         <SummaryRow
                             label="合計"
                             value={(() => {
-                                const total = detailAggregate.earlyStart + detailAggregate.morningLoading + detailAggregate.overtime + detailAggregate.eveningLoading;
-                                return minutesToHm(total) || '-';
+                                // 合計 = 朝積 + 早出 + 残業 + 夕積 − 早終
+                                const total = detailAggregate.morningLoading + detailAggregate.earlyStart + detailAggregate.overtime + detailAggregate.eveningLoading - detailAggregate.earlyEnd;
+                                if (total === 0) return '-';
+                                return total > 0 ? minutesToHmZero(total) : `−${minutesToHmZero(Math.abs(total))}`;
                             })()}
                             highlight
                         />
                     </div>
-                    <div className="mt-3 text-xs text-slate-500">
-                        ※「早残合計」= 早出 + 残業 − 早終時間。プラスは超過、マイナスは早終わり超過分を表します。
+                    <div className="mt-3 space-y-1 text-xs text-slate-500">
+                        <div>※「合計」= 朝積 + 早出 + 残業 + 夕積 − 早終</div>
+                        <div>※「早残合計」= 早出 + 残業 − 早終時間。プラスは超過、マイナスは早終わり超過分を表します。</div>
                     </div>
                 </div>
             )}
