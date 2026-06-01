@@ -361,6 +361,74 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
         });
     };
 
+    // ---- カテゴリ子明細の編集（請求書でも見積書と同様に子明細を追加/編集/削除/移動できるようにする）----
+    // カテゴリの amount は常に子明細合計で再計算する（合計の整合性を保つ）。
+    const recalcCategoryAmount = (item: InvoiceItem): InvoiceItem =>
+        item.isCategory ? { ...item, amount: (item.children || []).reduce((s, c) => s + c.amount, 0) } : item;
+
+    const addChildItem = (pmId: string, categoryId: string) => {
+        setItemsByProject(prev => ({
+            ...prev,
+            [pmId]: (prev[pmId] || []).map(item => {
+                if (item.id === categoryId && item.isCategory) {
+                    const newChild: InvoiceItem = {
+                        id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        description: '', specification: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard', notes: '',
+                    };
+                    return recalcCategoryAmount({ ...item, children: [...(item.children || []), newChild] });
+                }
+                return item;
+            }),
+        }));
+    };
+
+    const updateChildItem = (pmId: string, categoryId: string, childId: string, field: string, value: unknown) => {
+        setItemsByProject(prev => ({
+            ...prev,
+            [pmId]: (prev[pmId] || []).map(item => {
+                if (item.id === categoryId && item.isCategory) {
+                    const children = (item.children || []).map(child => {
+                        if (child.id !== childId) return child;
+                        const updated = { ...child, [field]: value };
+                        if (field === 'quantity' || field === 'unitPrice') {
+                            updated.amount = Math.round(updated.quantity * updated.unitPrice);
+                        }
+                        return updated;
+                    });
+                    return recalcCategoryAmount({ ...item, children });
+                }
+                return item;
+            }),
+        }));
+    };
+
+    const removeChildItem = (pmId: string, categoryId: string, childId: string) => {
+        setItemsByProject(prev => ({
+            ...prev,
+            [pmId]: (prev[pmId] || []).map(item =>
+                item.id === categoryId && item.isCategory
+                    ? recalcCategoryAmount({ ...item, children: (item.children || []).filter(c => c.id !== childId) })
+                    : item
+            ),
+        }));
+    };
+
+    const moveChildItem = (pmId: string, categoryId: string, childIndex: number, direction: 'up' | 'down') => {
+        setItemsByProject(prev => ({
+            ...prev,
+            [pmId]: (prev[pmId] || []).map(item => {
+                if (item.id === categoryId && item.isCategory) {
+                    const children = [...(item.children || [])];
+                    const swapIdx = direction === 'up' ? childIndex - 1 : childIndex + 1;
+                    if (swapIdx < 0 || swapIdx >= children.length) return item;
+                    [children[childIndex], children[swapIdx]] = [children[swapIdx], children[childIndex]];
+                    return { ...item, children };
+                }
+                return item;
+            }),
+        }));
+    };
+
     // 手入力セクション（案件に紐付かない見出し付きブロック）を追加
     const addManualSection = useCallback(() => {
         setManualKeys(prev => {
@@ -721,6 +789,11 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                     onMoveDown={(index) => moveItemDown(pmId, index)}
                                     onReorder={(fromIndex, toIndex) => reorderItems(pmId, fromIndex, toIndex)}
                                     onReorderChildItem={(parentId, fromIndex, toIndex) => reorderChildItems(pmId, parentId, fromIndex, toIndex)}
+                                    onAddChildItem={(categoryId) => addChildItem(pmId, categoryId)}
+                                    onUpdateChildItem={(categoryId, childId, field, value) => updateChildItem(pmId, categoryId, childId, field as string, value)}
+                                    onRemoveChildItem={(categoryId, childId) => removeChildItem(pmId, categoryId, childId)}
+                                    onMoveChildItem={(categoryId, childIndex, direction) => moveChildItem(pmId, categoryId, childIndex, direction)}
+                                    autoExpandInlineCategories
                                     onAddItem={() => addEmptyItem(pmId)}
                                     onOpenUnitPriceModal={() => {
                                         setUnitPriceTargetPmId(pmId);
@@ -831,6 +904,11 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 onMoveDown={(index) => moveItemDown(key, index)}
                                 onReorder={(fromIndex, toIndex) => reorderItems(key, fromIndex, toIndex)}
                                 onReorderChildItem={(parentId, fromIndex, toIndex) => reorderChildItems(key, parentId, fromIndex, toIndex)}
+                                onAddChildItem={(categoryId) => addChildItem(key, categoryId)}
+                                onUpdateChildItem={(categoryId, childId, field, value) => updateChildItem(key, categoryId, childId, field as string, value)}
+                                onRemoveChildItem={(categoryId, childId) => removeChildItem(key, categoryId, childId)}
+                                onMoveChildItem={(categoryId, childIndex, direction) => moveChildItem(key, categoryId, childIndex, direction)}
+                                autoExpandInlineCategories
                                 onAddItem={() => addEmptyItem(key)}
                                 onOpenUnitPriceModal={() => {
                                     setUnitPriceTargetPmId(key);

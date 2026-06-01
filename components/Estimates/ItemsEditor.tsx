@@ -31,6 +31,8 @@ interface ItemsEditorProps {
     unitPriceSpecifications?: UnitPriceSpecification[];
     onSelectMaster?: (itemId: string, master: UnitPriceMaster) => void;
     costMasters?: Array<{ id: string; name: string; quantity?: number | null; unit?: string | null; unitPrice?: number | null }>;
+    // 「表紙に展開(inline)」カテゴリを最初から開いた状態で表示する（請求書で明細を編集可能にするため）
+    autoExpandInlineCategories?: boolean;
 }
 
 /** カテゴリ名入力（単価マスターカテゴリ候補ドロップダウン付き） */
@@ -449,9 +451,26 @@ export default function ItemsEditor({
     items, onUpdate, onRemove, onMoveUp, onMoveDown, onAddItem,
     onAddCategory, onAddChildItem, onUpdateChildItem, onRemoveChildItem, onMoveChildItem,
     onReorder, onReorderChildItem, onOpenUnitPriceModal, hideAddButtons, unitPriceMasters, unitPriceCategories, unitPriceSpecifications, onSelectMaster, costMasters,
+    autoExpandInlineCategories,
 }: ItemsEditorProps) {
-    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(() =>
+        autoExpandInlineCategories
+            ? new Set(items.filter(i => i.isCategory && i.categoryType === 'inline').map(i => i.id))
+            : new Set()
+    );
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+    // 読込やモード切替で inline カテゴリが現れたら自動的に展開する（手動で閉じた分は尊重し、
+    // カテゴリ構成が変わったときだけ開く）。値の編集ではキーが変わらないので再展開しない。
+    const inlineCategoryKey = items.filter(i => i.isCategory && i.categoryType === 'inline').map(i => i.id).join(',');
+    React.useEffect(() => {
+        if (!autoExpandInlineCategories || !inlineCategoryKey) return;
+        setExpandedCategories(prev => {
+            const next = new Set(prev);
+            inlineCategoryKey.split(',').forEach(id => next.add(id));
+            return next;
+        });
+    }, [autoExpandInlineCategories, inlineCategoryKey]);
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;

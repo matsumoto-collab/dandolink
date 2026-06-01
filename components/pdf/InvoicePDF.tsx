@@ -93,6 +93,28 @@ export function buildInvoiceDisplayRows(
     return rows;
 }
 
+// 文字の表示幅（全角=1.0 / 半角英数・半角ｶﾅ=0.5）の概算。折り返し行数の見積りに使う。
+function visualLen(s = ''): number {
+    let n = 0;
+    for (const ch of s) n += /[\x00-\xff｡-ﾟ]/.test(ch) ? 0.5 : 1;
+    return n;
+}
+
+// 1行=17pt前提の行数ベースpage分割を、長い品名・規格で2行以上に折り返すケースへ対応させる
+// ための「推定占有行数」。名称(幅120)・規格(幅100)・備考(可変)の最大折り返し数で見積もる。
+// 列幅から安全側に小さめの1行あたり文字数を採用（少し多めに見積もって溢れを防ぐ）。
+function rowSpan(row: InvoiceDisplayRow): number {
+    if (row.type === 'header') {
+        return Math.max(1, Math.ceil(visualLen(row.title) / 22));
+    }
+    const it = row.item;
+    const nameExtra = row.type === 'item' && row.isChild ? 1 : 0; // 子明細インデント(全角space)分
+    const nameLines = Math.ceil((visualLen(it.description || '') + nameExtra) / 11);
+    const specLines = Math.ceil(visualLen(it.specification || '') / 9);
+    const noteLines = Math.ceil(visualLen(it.notes || '') / 12);
+    return Math.max(1, nameLines, specLines, noteLines);
+}
+
 // ===== Cover Page Component =====
 function CoverPage({
     invoice,
@@ -119,18 +141,36 @@ function CoverPage({
     const FIRST_WITH_TOTALS = 21;
     const CONT_NO_TOTALS = 38;
     const CONT_WITH_TOTALS = 33;
+    // 各行の推定占有行数（折り返し考慮）。行数ではなくこの合計でページを分割する。
+    const spans = displayRows.map(rowSpan);
+    const spanFrom = (start: number) => {
+        let s = 0;
+        for (let k = start; k < displayRows.length; k++) s += spans[k];
+        return s;
+    };
+    const takeUntilSpan = (start: number, budget: number) => {
+        let acc = 0;
+        let j = start;
+        while (j < displayRows.length && acc + spans[j] <= budget) { acc += spans[j]; j++; }
+        if (j === start) j = start + 1; // 1行が予算超でも最低1行は進める
+        return j;
+    };
     const pageChunks: (typeof displayRows)[] = [];
     {
         let idx = 0;
         while (idx < displayRows.length) {
-            const isFirstChunk = idx === 0;
-            const remaining = displayRows.length - idx;
+            const isFirstChunk = pageChunks.length === 0;
             const capNo = isFirstChunk ? FIRST_NO_TOTALS : CONT_NO_TOTALS;
             const capWith = isFirstChunk ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS;
+            const remaining = spanFrom(idx);
             // 残りが「集計欄ありで1ページに収まる」なら最終ページ、そうでなければ集計欄なしで詰める
-            const take = remaining <= capWith ? remaining : remaining <= capNo ? capWith : capNo;
-            pageChunks.push(displayRows.slice(idx, idx + take));
-            idx += take;
+            const next = remaining <= capWith
+                ? displayRows.length
+                : remaining <= capNo
+                    ? takeUntilSpan(idx, capWith)
+                    : takeUntilSpan(idx, capNo);
+            pageChunks.push(displayRows.slice(idx, next));
+            idx = next;
         }
         if (pageChunks.length === 0) pageChunks.push([]);
     }
@@ -223,8 +263,9 @@ function CoverPage({
             {pageChunks.map((chunk, pageIdx) => {
                 const isFirst = pageIdx === 0;
                 const isLast = pageIdx === totalPages - 1;
+                const chunkSpan = chunk.reduce((s, row) => s + rowSpan(row), 0);
                 const fillRows = isLast
-                    ? Math.max(0, (isFirst ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS) - chunk.length)
+                    ? Math.max(0, (isFirst ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS) - chunkSpan)
                     : 0;
                 return (
         <Page key={pageIdx} size="A4" orientation="portrait" style={styles.page}>
