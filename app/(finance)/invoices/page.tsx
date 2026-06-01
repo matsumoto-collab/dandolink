@@ -171,13 +171,29 @@ export default function InvoiceListPage() {
         return m;
     }, [projectMasters]);
 
-    // 請求書に紐づく案件マスタ ID（複数案件 projectMasters + レガシー projectId を集約）
+    // 顧客 ID → その顧客に紐づく案件群の担当者 User ID（ユニーク）。
+    // 案件未紐付けの請求書（顧客のみ）で案件担当者を引けないときのフォールバック用。
+    const customerAssigneeIds = useMemo(() => {
+        const m = new Map<string, Set<string>>();
+        for (const pm of projectMasters) {
+            if (!pm.customerId) continue;
+            const set = m.get(pm.customerId) ?? new Set<string>();
+            for (const aid of extractAssigneeIds(pm.createdBy)) set.add(aid);
+            m.set(pm.customerId, set);
+        }
+        return m;
+    }, [projectMasters]);
+
+    // 請求書に紐づく案件マスタ ID（複数案件 projectMasters + レガシー projectId + 明細行タグを集約）
+    // 明細行の projectMasterId は、締めまとめ等で中間テーブル/代表案件が無くても
+    // 実際に束ねた案件を特定できるため担当者解決のソースに含める。
     const getInvoiceProjectIds = useCallback((invoice: Invoice): string[] => {
         const ids = new Set<string>();
         if (invoice.projectMasters) {
             for (const pm of invoice.projectMasters) if (pm.id) ids.add(pm.id);
         }
         if (invoice.projectId) ids.add(invoice.projectId);
+        for (const it of invoice.items ?? []) if (it.projectMasterId) ids.add(it.projectMasterId);
         return Array.from(ids);
     }, []);
 
@@ -187,8 +203,13 @@ export default function InvoiceListPage() {
         for (const pid of getInvoiceProjectIds(invoice)) {
             for (const aid of (projectAssigneeIds.get(pid) ?? [])) set.add(aid);
         }
+        // 案件から担当者を一切引けない（顧客のみ請求書で明細タグも無い等）場合は、
+        // その顧客に紐づく案件群の担当者を集約してフォールバック表示する。
+        if (set.size === 0 && invoice.customerId) {
+            for (const aid of (customerAssigneeIds.get(invoice.customerId) ?? [])) set.add(aid);
+        }
         return Array.from(set);
-    }, [getInvoiceProjectIds, projectAssigneeIds]);
+    }, [getInvoiceProjectIds, projectAssigneeIds, customerAssigneeIds]);
 
     // 請求書に含まれる案件担当者の表示名（「、」連結）
     const getInvoiceAssigneeNames = useCallback((invoice: Invoice): string => {
