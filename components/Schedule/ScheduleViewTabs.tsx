@@ -31,7 +31,7 @@ export default function ScheduleViewTabs({ activeView, onViewChange }: ScheduleV
                                 text-xs sm:text-sm font-medium rounded-lg
                                 transition-all duration-300
                                 ${isActive
-                                    ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md'
+                                    ? 'bg-slate-700 text-white shadow-md'
                                     : 'text-slate-500 hover:text-slate-700'}
                             `}
                         >

@@ -104,7 +104,7 @@ export default function LengthInputSheet({
                     type="button"
                     onClick={() => isValid && onConfirm(numericValue)}
                     disabled={!isValid}
-                    className="flex-1 py-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white font-medium shadow-sm disabled:opacity-50"
+                    className="flex-1 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-medium shadow-sm disabled:opacity-50"
                 >
                     {closing ? '閉じる' : '壁を追加'}
                 </button>

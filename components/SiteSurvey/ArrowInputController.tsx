@@ -315,7 +315,7 @@ export default function ArrowInputController({
                                 aria-label={`${dir} 方向に壁を追加`}
                                 className={`absolute flex items-center justify-center h-10 w-10 rounded-xl border shadow-sm transition-all duration-150 active:scale-95 pointer-events-auto ${
                                     isClosing
-                                        ? 'bg-gradient-to-br from-teal-500 to-emerald-500 text-white border-teal-500 ring-2 ring-amber-400'
+                                        ? 'bg-teal-500 text-white border-teal-500 ring-2 ring-amber-400'
                                         : 'bg-white text-teal-700 border-teal-300 hover:bg-teal-50'
                                 }`}
                                 style={{

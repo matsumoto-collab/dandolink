@@ -165,7 +165,7 @@ export default function InventoryPage() {
                 {isManager && !editMode && (
                     <button
                         onClick={enterEditMode}
-                        className="px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-teal-600 to-teal-700 rounded-xl hover:shadow-md transition-shadow"
+                        className="px-4 py-2 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-xl hover:shadow-md transition-shadow"
                     >
                         在庫数を調整
                     </button>
@@ -176,7 +176,7 @@ export default function InventoryPage() {
                         <button
                             onClick={saveAdjustments}
                             disabled={isSaving}
-                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-teal-600 to-teal-700 rounded-xl hover:shadow-md disabled:opacity-50"
+                            className="flex items-center gap-1.5 px-4 py-2 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-xl hover:shadow-md disabled:opacity-50"
                         >
                             <Save className="w-3.5 h-3.5" />
                             {isSaving ? '保存中...' : '保存'}

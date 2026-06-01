@@ -20,7 +20,7 @@ export default function Header() {
     };
 
     return (
-        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-slate-950 to-slate-900 border-b border-slate-800/50 flex flex-col z-30 shadow-xl pwa-header-safe pwa-status-bar-bg">
+        <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-950 border-b border-slate-800/50 flex flex-col z-30 shadow-xl pwa-header-safe pwa-status-bar-bg">
             <div className="flex-1 flex items-center px-4">
                 {/* Hamburger Menu Button */}
                 <button

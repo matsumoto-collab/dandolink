@@ -78,7 +78,7 @@ export default function TextInputSheet({
                     type="button"
                     onClick={() => isValid && onConfirm(text)}
                     disabled={!isValid}
-                    className="flex-1 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-white font-medium shadow-sm disabled:opacity-50"
+                    className="flex-1 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-medium shadow-sm disabled:opacity-50"
                 >
                     保存
                 </button>

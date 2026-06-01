@@ -190,7 +190,7 @@ export default function SettingsPage() {
                                 px-3 md:px-4 py-2 md:py-2.5 text-xs md:text-sm font-medium rounded-lg
                                 transition-all duration-300 whitespace-nowrap
                                 ${activeTab === tab.id
-                                    ? 'bg-gradient-to-r from-slate-700 to-slate-600 text-white shadow-md'
+                                    ? 'bg-slate-700 text-white shadow-md'
                                     : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
                                 }
                             `}

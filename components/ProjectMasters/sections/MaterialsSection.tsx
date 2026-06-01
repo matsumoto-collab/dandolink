@@ -134,7 +134,7 @@ export default function MaterialsSection({ projectMasterId }: MaterialsSectionPr
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-teal-600 to-teal-700 rounded-xl hover:shadow-md disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-xl hover:shadow-md disabled:opacity-50"
                     >
                         <Save className="w-3.5 h-3.5" />
                         {isSaving ? '保存中...' : '保存'}

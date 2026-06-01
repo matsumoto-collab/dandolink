@@ -612,7 +612,7 @@ export default function SiteSurveyEditor({
                 <button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-gradient-to-r from-teal-600 to-emerald-600 text-white text-sm font-medium shadow-sm disabled:opacity-50"
+                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium shadow-sm disabled:opacity-50"
                 >
                     {isSaving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />

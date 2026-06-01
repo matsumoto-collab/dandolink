@@ -57,7 +57,7 @@ export default function SiteSurveyTab({ projectMasterId }: SiteSurveyTabProps) {
                 <button
                     type="button"
                     onClick={handleNew}
-                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 text-white text-sm font-medium shadow-sm hover:opacity-90"
+                    className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium shadow-sm"
                 >
                     <Plus className="w-4 h-4" />
                     新規作成

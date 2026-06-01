@@ -197,7 +197,7 @@ export default function ScheduleSearchPanel({ isOpen, onClose, onJump }: Schedul
                 className="relative bg-white flex flex-col w-full h-full flex-1 lg:flex-none lg:h-auto lg:max-h-[75vh] lg:rounded-2xl lg:shadow-2xl lg:max-w-2xl lg:mx-4 border-0 lg:border lg:border-slate-200 overflow-hidden"
             >
                 {/* グラデーションヘッダー */}
-                <div className="flex-shrink-0 bg-gradient-to-r from-slate-900 to-slate-700 px-4 py-3 lg:rounded-t-2xl flex items-center justify-between">
+                <div className="flex-shrink-0 bg-slate-900 px-4 py-3 lg:rounded-t-2xl flex items-center justify-between">
                     <div className="flex items-center gap-2 text-white">
                         <Search className="w-4 h-4" />
                         <span className="text-sm font-bold tracking-wide">案件を検索</span>
@@ -253,7 +253,7 @@ export default function ScheduleSearchPanel({ isOpen, onClose, onJump }: Schedul
                                 key={item.masterId}
                                 className="rounded-xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition-shadow overflow-hidden"
                             >
-                                <div className="px-4 pt-3 pb-2 bg-gradient-to-r from-slate-50 to-white border-b border-slate-100">
+                                <div className="px-4 pt-3 pb-2 bg-slate-50 border-b border-slate-100">
                                     <div className="font-bold text-slate-800 text-sm leading-tight">{renderTitle(item)}</div>
                                     {(item.customerName || item.customerShortName) && (
                                         <div className="text-xs text-slate-500 mt-1">

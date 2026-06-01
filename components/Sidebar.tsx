@@ -162,7 +162,7 @@ export default function Sidebar() {
             <aside
                 data-dl-sidebar
                 className={`
-                    fixed left-0 top-0 h-dvh bg-gradient-to-b from-slate-950 to-slate-900
+                    fixed left-0 top-0 h-dvh bg-slate-950
                     border-r border-slate-800/50 flex flex-col shadow-2xl z-50 transition-transform duration-300
                     w-48 pwa-sidebar-safe
                     ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -212,7 +212,7 @@ export default function Sidebar() {
                 {session?.user && (
                     <div className="px-3 py-4 border-b border-slate-800/50">
                         <div className="flex items-center gap-3 px-3 py-2.5 bg-slate-800/40 rounded-xl">
-                            <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-700 rounded-full flex items-center justify-center ring-2 ring-teal-400/30 shadow-md">
+                            <div className="w-10 h-10 bg-teal-600 rounded-full flex items-center justify-center ring-2 ring-teal-400/30 shadow-md">
                                 <span className="text-sm font-bold text-white">
                                     {(session.user.name || session.user.username || '?').charAt(0).toUpperCase()}
                                 </span>
