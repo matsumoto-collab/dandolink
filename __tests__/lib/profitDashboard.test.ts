@@ -219,7 +219,7 @@ describe('lib/profitDashboard', () => {
             expect(r.previous.sales).toBe(70000);
         });
 
-        it('cancelled を除外する where 条件と JST 月範囲でクエリする', async () => {
+        it('送付済み以降のみ計上する where 条件と JST 月範囲でクエリする', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
 
             await fetchMonthlySales(12, now);
@@ -227,7 +227,7 @@ describe('lib/profitDashboard', () => {
             expect(prisma.invoice.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
                     where: expect.objectContaining({
-                        status: { not: 'cancelled' },
+                        status: { in: ['sent', 'paid', 'overdue'] },
                         createdAt: expect.objectContaining({ gte: expect.any(Date), lt: expect.any(Date) }),
                     }),
                 }),

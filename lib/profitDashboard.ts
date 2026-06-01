@@ -611,10 +611,11 @@ export async function fetchProfitDashboardData(
 /**
  * 「今月の売上」とその月次推移を集計する（請求日ベース）。
  *
- * - 売上＝当該 JST 月に発行された請求書（Invoice）の total(税込) 合計。
- *   `Invoice.createdAt` が請求日として保存されている（InvoiceForm の請求日入力 → createdAt、
- *   BillingDraft 確定経由は確定時刻＝実質発行日）。
- * - `status === 'cancelled'` は除外（lib/billing/billingStatus.ts と整合）。draft は含める（請求日が立っている）。
+ * - 売上＝当該 JST 月に作成された請求書（Invoice）の total(税込) 合計。
+ *   `Invoice.createdAt` が請求日（作成日）として保存されている（InvoiceForm の請求日入力 → createdAt、
+ *   BillingDraft 確定経由は確定時刻）。
+ * - 計上対象は **送付済み以降**（status: sent/paid/overdue）。下書き・担当確認済み・取消は除外（kei 決定 2026-06-02）。
+ *   現在ステータスで判定するため、過去月の値は後からステータスが進む/戻ると変動しうる。
  * - 本番サーバは UTC 稼働のため、月境界は JST(UTC+9) で算出する
  *   （`Date.UTC(y, m, d, -9, …)` ＝ JST 00:00。app/api/partner-schedule/route.ts と同じイディオム）。
  * - フィルタ非依存の全社・当月 KPI。返り値は number/string のみ（API/server props 双方でそのまま JSON 化可能）。
@@ -622,6 +623,9 @@ export async function fetchProfitDashboardData(
  * @param monthsBack trend に含める月数（末尾が当月）
  * @param now 基準時刻（テスト用に注入可能）
  */
+// 売上として計上する請求書ステータス（送付済み以降）。下書き/担当確認済み/取消は除外。
+export const SALES_INVOICE_STATUSES = ['sent', 'paid', 'overdue'] as const;
+
 export async function fetchMonthlySales(
     monthsBack = 12,
     now: Date = new Date(),
@@ -638,7 +642,7 @@ export async function fetchMonthlySales(
     const invoices = await prisma.invoice.findMany({
         where: {
             createdAt: { gte: rangeStart, lt: rangeEnd },
-            status: { not: 'cancelled' },
+            status: { in: [...SALES_INVOICE_STATUSES] },
         },
         select: { total: true, createdAt: true },
     });
