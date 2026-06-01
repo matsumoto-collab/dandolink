@@ -217,7 +217,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 <button
                     type="button"
                     onClick={onSubmit}
-                    className="px-6 py-2 bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-700 transition-colors"
+                    className="px-6 py-2 bg-teal-600 text-white font-semibold rounded-lg hover:bg-teal-700 transition-colors"
                 >
                     {isEdit ? '更新' : '作成'}
                 </button>

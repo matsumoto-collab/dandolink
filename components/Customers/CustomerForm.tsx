@@ -5,6 +5,7 @@ import { CustomerInput, ContactPerson } from '@/types/customer';
 import { Plus, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePostalCodeAutofill } from '@/hooks/usePostalCodeAutofill';
+import { Button } from '@/components/ui/Button';
 
 interface CustomerFormProps {
     initialData?: Partial<CustomerInput>;
@@ -337,19 +338,12 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
 
             {/* ボタン */}
             <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="px-6 py-2.5 border border-slate-300 text-slate-700 rounded-lg hover:bg-slate-50 transition-colors"
-                >
+                <Button type="button" variant="outline" size="lg" onClick={onCancel}>
                     キャンセル
-                </button>
-                <button
-                    type="submit"
-                    className="px-6 py-2.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-all shadow-md hover:shadow-lg"
-                >
+                </Button>
+                <Button type="submit" variant="primary" size="lg">
                     保存
-                </button>
+                </Button>
             </div>
         </form>
     );

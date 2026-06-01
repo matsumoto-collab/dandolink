@@ -3,7 +3,14 @@
 import React, { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 
-export type ButtonVariant = 'primary' | 'gradient' | 'secondary' | 'danger' | 'outline' | 'ghost';
+export type ButtonVariant =
+  | 'primary'
+  | 'gradient'
+  | 'secondary'
+  | 'danger'
+  | 'dangerOutline'
+  | 'outline'
+  | 'ghost';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'icon';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -21,41 +28,66 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
+/**
+ * セマンティック配色（役割で色を固定する）
+ * - primary / gradient … 前進・確定アクション（保存・作成・送信）= ブランドのティール
+ * - danger / dangerOutline … 破壊アクション（削除・破棄）= 赤
+ * - secondary / outline … 中立アクション（キャンセル・閉じる）= グレー
+ * - ghost … 補助アクション（アイコン操作など）
+ *
+ * 「保存＝ティール」「削除＝赤」を一目で区別できるようにすることが目的。
+ */
 const variantStyles: Record<ButtonVariant, string> = {
+  // 前進アクション（塗り）
   primary: `
-    bg-slate-800
+    bg-teal-600
     text-white
-    hover:bg-slate-700
-    focus:ring-slate-500
+    hover:bg-teal-700
+    focus:ring-teal-500
     shadow-sm
   `,
+  // 前進アクション（gradient は後方互換。グラデーションは使わず primary と同じ単色ティール）
   gradient: `
-    bg-slate-800
+    bg-teal-600
     text-white
-    hover:bg-slate-700
-    focus:ring-slate-500
+    hover:bg-teal-700
+    focus:ring-teal-500
     shadow-sm
   `,
+  // 中立アクション（やわらかい塗り）
   secondary: `
     bg-slate-100
     text-slate-700
     hover:bg-slate-200
     focus:ring-slate-400
   `,
+  // 破壊アクション（塗り）— モーダルの削除確定など
   danger: `
-    bg-slate-700
+    bg-red-600
     text-white
-    hover:bg-slate-600
-    focus:ring-slate-500
+    hover:bg-red-700
+    focus:ring-red-500
+    shadow-sm
   `,
+  // 破壊アクション（枠線）— 一覧行内の削除など軽めの破壊操作
+  dangerOutline: `
+    bg-transparent
+    text-red-600
+    border border-red-300
+    hover:bg-red-50
+    hover:border-red-400
+    focus:ring-red-400
+  `,
+  // 中立アクション（枠線）— キャンセル・閉じる
   outline: `
     bg-transparent
     text-slate-700
-    border border-slate-200
+    border border-slate-300
     hover:bg-slate-50
-    hover:border-slate-300
+    hover:border-slate-400
     focus:ring-slate-400
   `,
+  // 補助アクション（枠なし）
   ghost: `
     bg-transparent
     text-slate-600
@@ -81,9 +113,14 @@ const iconSizeStyles: Record<ButtonSize, string> = {
 /**
  * 統一されたボタンコンポーネント
  *
+ * 配色は役割で固定（保存=ティール / 削除=赤 / キャンセル=グレー枠）。
+ *
  * @example
- * // プライマリボタン
+ * // 保存（前進アクション=ティール）
  * <Button>保存</Button>
+ *
+ * // キャンセル（中立アクション=グレー枠）
+ * <Button variant="outline" onClick={onCancel}>キャンセル</Button>
  *
  * // アイコン付きボタン
  * <Button leftIcon={<Plus className="w-4 h-4" />}>新規作成</Button>

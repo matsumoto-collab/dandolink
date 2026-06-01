@@ -1121,7 +1121,7 @@ export default function DailyReportModal({ isOpen, onClose, initialDate, foreman
                         <button
                             onClick={handleSave}
                             disabled={isSaving || !effectiveForemanId}
-                            className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 transition-colors"
                         >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             保存

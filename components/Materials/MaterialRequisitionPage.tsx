@@ -887,7 +887,7 @@ export default function MaterialRequisitionPage() {
                                                     {/* Delete */}
                                                     {deleteConfirm === req.id ? (
                                                         <div className="flex gap-1">
-                                                            <button onClick={() => handleDelete(req.id)} className="px-2 py-1 text-xs bg-slate-700 text-white rounded-xl">削除</button>
+                                                            <button onClick={() => handleDelete(req.id)} className="px-2 py-1 text-xs bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors">削除</button>
                                                             <button onClick={() => setDeleteConfirm(null)} className="px-2 py-1 text-xs bg-slate-300 text-slate-700 rounded-xl">取消</button>
                                                         </div>
                                                     ) : (

@@ -580,7 +580,7 @@ export default function EstimateForm({ initialData, onSubmit, onCancel }: Estima
                             <Eye className="w-4 h-4" />
                             {isGeneratingPreview ? '生成中...' : 'プレビュー'}
                         </button>
-                        <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 active:bg-slate-900 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 md:py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 active:bg-teal-800 transition-all shadow-md text-base md:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                             {isSubmitting ? '保存中...' : '保存'}
                         </button>
                     </div>
