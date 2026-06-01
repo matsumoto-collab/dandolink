@@ -93,7 +93,7 @@ export default function OverviewCalendarView({
                                     <th
                                         key={i}
                                         className={`text-[8px] font-bold border border-slate-300 px-0 py-0.5 ${
-                                            day.isToday ? 'bg-slate-700 text-white' :
+                                            day.isToday ? 'bg-teal-600 text-white' :
                                             isSat ? 'bg-blue-50 text-blue-700' :
                                             isSun ? 'bg-rose-50 text-rose-700' :
                                             'text-slate-700'

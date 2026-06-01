@@ -349,7 +349,7 @@ export default function MobileCalendarView({
                                 <div
                                     key={dateKey}
                                     className={`grow flex-shrink-0 border-r border-slate-200 flex flex-col items-center justify-center ${
-                                        isToday ? 'bg-slate-700'
+                                        isToday ? 'bg-teal-600'
                                         : isSat ? 'bg-blue-50'
                                         : isSun ? 'bg-rose-50'
                                         : 'bg-slate-100'
@@ -361,7 +361,7 @@ export default function MobileCalendarView({
                                     }`}>
                                         {formatDate(day.date, 'short')}({getDayOfWeekString(day.date, 'short')})
                                     </span>
-                                    {isToday && <span className="text-[8px] text-slate-300">今日</span>}
+                                    {isToday && <span className="text-[8px] text-teal-100">今日</span>}
                                 </div>
                             );
                         })}

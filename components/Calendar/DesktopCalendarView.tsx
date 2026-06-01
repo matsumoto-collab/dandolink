@@ -208,8 +208,9 @@ export default function DesktopCalendarView({
                                     const combinedDate = `${dateString}(${dayOfWeekString})`;
 
                                     return (
-                                        <div key={index} className={`flex-1 min-w-[88px] lg:min-w-[100px] xl:min-w-[140px] border-r border-slate-300 h-8 flex items-center justify-center ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-slate-700' : ''}`}>
+                                        <div key={index} className={`flex-1 min-w-[88px] lg:min-w-[100px] xl:min-w-[140px] border-r border-slate-300 h-8 flex flex-col items-center justify-center leading-none gap-0.5 ${isSaturday ? 'bg-blue-50' : isSunday ? 'bg-rose-50' : 'bg-slate-100'} ${day.isToday ? 'bg-teal-600' : ''}`}>
                                             <div className={`text-[11px] font-bold ${isSaturday ? 'text-slate-700' : isSunday ? 'text-slate-600' : 'text-slate-700'} ${day.isToday ? 'text-white' : ''}`}>{combinedDate}</div>
+                                            {day.isToday && <span className="text-[8px] font-medium text-teal-100">今日</span>}
                                         </div>
                                     );
                                 })}
