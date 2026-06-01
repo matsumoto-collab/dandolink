@@ -99,7 +99,7 @@ function GroupHeaderInner({
                 type="button"
                 onClick={() => onCreateInvoiceForCustomer(group.customerId)}
                 disabled={group.selectedPendingCount === 0}
-                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-teal-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 title={group.selectedPendingCount === 0 ? '保留中を選択すると請求書を作成できます' : undefined}
             >
                 <FileText className="w-3.5 h-3.5" />
