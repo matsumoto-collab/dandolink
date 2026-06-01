@@ -419,7 +419,7 @@ export default function MobileCalendarView({
                                         </button>
                                     )}
                                     <span className={remaining === 0
-                                        ? 'text-[10px] font-bold px-1.5 py-0.5 rounded-full text-white whitespace-nowrap bg-slate-400'
+                                        ? 'text-[10px] font-bold px-1.5 py-0.5 whitespace-nowrap text-emerald-600'
                                         : remaining > 0
                                         ? 'text-[10px] font-bold px-1.5 py-0.5 whitespace-nowrap text-blue-600'
                                         : 'text-[10px] font-bold px-1.5 py-0.5 whitespace-nowrap text-red-600'}>

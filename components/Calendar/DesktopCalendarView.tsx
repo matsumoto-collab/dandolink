@@ -261,11 +261,11 @@ export default function DesktopCalendarView({
                                             )}
                                             <span
                                                 className={remainingCount === 0
-                                                    ? 'inline-block px-1.5 py-0.5 rounded-full text-xs font-bold shadow-sm text-white bg-slate-400'
+                                                    ? 'inline-block px-1.5 py-0.5 text-xs font-bold text-emerald-600'
                                                     : remainingCount > 0
                                                     ? 'inline-block px-1.5 py-0.5 text-xs font-bold text-blue-600'
                                                     : 'inline-block px-1.5 py-0.5 text-xs font-bold text-red-600'}
-                                                title={remainingCount < 0 ? `${Math.abs(remainingCount)}人の人手不足（過剰アサイン）` : undefined}
+                                                title={remainingCount < 0 ? `${Math.abs(remainingCount)}人の人手不足（過剰アサイン）` : remainingCount === 0 ? '過不足なし（ちょうど充足）' : undefined}
                                             >
                                                 {remainingCount}人<span className="opacity-70">/{totalCount}人</span>
                                             </span>

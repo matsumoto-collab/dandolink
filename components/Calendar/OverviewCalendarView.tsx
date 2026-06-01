@@ -131,7 +131,7 @@ export default function OverviewCalendarView({
                                 const remaining = getTotalMembersForDate(dateKey) + adj - assigned - vacation;
                                 return (
                                     <td key={i} className="text-center border border-slate-300 px-0 py-0.5">
-                                        <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-blue-600' : remaining === 0 ? 'text-slate-400' : 'text-red-600'}`}>
+                                        <span className={`text-[8px] font-bold ${remaining > 0 ? 'text-blue-600' : remaining === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                                             {remaining}人
                                         </span>
                                     </td>
