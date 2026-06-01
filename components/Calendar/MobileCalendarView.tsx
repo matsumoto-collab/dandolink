@@ -487,7 +487,7 @@ export default function MobileCalendarView({
                                                     placeholder="備考を入力..."
                                                 />
                                             ) : (
-                                                <div className={`w-full min-h-[20px] p-0.5 text-[9px] whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white' : 'text-slate-400 italic'}`}>
+                                                <div className={`w-full min-h-[20px] p-0.5 text-[9px] whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-amber-50 text-slate-700 border-l-2 border-amber-400' : 'text-slate-400 italic'}`}>
                                                     {remarkText || (isReadOnly ? '' : 'タップで入力')}
                                                 </div>
                                             )}
@@ -571,7 +571,7 @@ export default function MobileCalendarView({
                                                         return memo ? (
                                                             <div
                                                                 onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
-                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-slate-800 text-white mt-auto whitespace-pre-wrap break-words leading-tight"
+                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-amber-50 text-slate-700 border-l-2 border-amber-400 mt-auto whitespace-pre-wrap break-words leading-tight"
                                                             >
                                                                 {memo}
                                                             </div>
@@ -687,7 +687,7 @@ export default function MobileCalendarView({
                                                         return memo ? (
                                                             <div
                                                                 onClick={(e) => { e.stopPropagation(); startEditCellMemo(row.employeeId, dateKey); }}
-                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-slate-800 text-white mt-0.5 whitespace-pre-wrap break-words leading-tight"
+                                                                className="w-full text-[8px] px-1 py-0.5 rounded bg-amber-50 text-slate-700 border-l-2 border-amber-400 mt-0.5 whitespace-pre-wrap break-words leading-tight"
                                                             >
                                                                 {memo}
                                                             </div>
@@ -999,7 +999,7 @@ export default function MobileCalendarView({
                                 <span className="text-sm font-bold text-slate-700">メモ編集</span>
                                 <button
                                     onClick={saveCellMemo}
-                                    className="flex items-center gap-1 px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-medium hover:bg-slate-800 transition-colors"
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-teal-600 text-white rounded-lg text-xs font-medium hover:bg-teal-700 transition-colors"
                                 >
                                     <Check className="w-3 h-3" /> 保存
                                 </button>

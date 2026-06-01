@@ -98,7 +98,7 @@ export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowPro
                                         placeholder="備考を入力..."
                                     />
                                 ) : (
-                                    <div className={`w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-700'}`}>
+                                    <div className={`w-full h-full min-h-[40px] p-1.5 text-xs whitespace-pre-wrap break-words rounded ${remarkText ? 'bg-amber-50 text-slate-700 border-l-2 border-amber-400 shadow-sm' : 'text-slate-700'}`}>
                                         {remarkText || (
                                             readOnly ? null : <span className="text-slate-400 italic text-[10px]">クリックして入力</span>
                                         )}

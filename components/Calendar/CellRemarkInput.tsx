@@ -70,7 +70,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                 {savedRemark ? (
                     <div
                         onClick={handleStartEdit}
-                        className="w-full text-[12px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-slate-800 text-white shadow-sm hover:bg-slate-700 transition-colors whitespace-pre-wrap break-words"
+                        className="w-full text-[12px] px-1 py-0.5 rounded cursor-pointer mt-1 bg-amber-50 text-slate-700 border-l-2 border-amber-400 shadow-sm hover:bg-amber-100 transition-colors whitespace-pre-wrap break-words"
                     >
                         {savedRemark}
                     </div>
@@ -122,7 +122,7 @@ export default function CellRemarkInput({ foremanId, dateKey, isReadOnly = false
                         <div className="flex justify-end gap-2">
                             <button
                                 onClick={handleSave}
-                                className="px-2 py-1 bg-slate-700 text-white rounded text-xs hover:bg-slate-800 flex items-center gap-1"
+                                className="px-2 py-1 bg-teal-600 text-white rounded text-xs hover:bg-teal-700 flex items-center gap-1"
                             >
                                 <Check className="w-3 h-3" /> 保存
                             </button>
