@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useCallback, useRef } from 'react';
-import { ChevronLeft, ChevronRight, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search } from 'lucide-react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ArrowUpDown, Users, ClipboardCheck, CheckCircle, Copy, Edit3, Plus, MoveRight, X, Pencil, Check, MessageSquare, Search } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CalendarEvent, EmployeeRow, Project, WeekDay, EditingUser } from '@/types/calendar';
 import { formatDateKey, getEventsForDate } from '@/utils/employeeUtils';
@@ -75,7 +75,7 @@ export default function MobileCalendarView({
     goToToday,
     handleEventClick,
     handleCellClick,
-    handleMoveEvent: _handleMoveEvent,
+    handleMoveEvent,
     handleOpenDispatchModal,
     handleCopyEvent,
     handleMoveToCell,
@@ -164,6 +164,21 @@ export default function MobileCalendarView({
         setMovingEvent(null);
     }, [movingEvent, handleMoveToCell]);
 
+    // ── 長押し選択メニュー（同一セルに複数案件があるとき：並び替え or 移動） ──
+    const [longPressMenu, setLongPressMenu] = useState<{ event: CalendarEvent; employeeId: string; date: Date } | null>(null);
+
+    // ── セル内並び替えモード ──
+    const [reorderTarget, setReorderTarget] = useState<{ employeeId: string; date: Date } | null>(null);
+
+    // 並び替え対象セルのイベント（sortOrder 順）。events 更新のたびに最新順を反映。
+    const reorderEvents = useMemo(() => {
+        if (!reorderTarget) return [] as CalendarEvent[];
+        const dk = formatDateKey(reorderTarget.date);
+        return events
+            .filter(e => (e.assignedEmployeeId ?? '') === reorderTarget.employeeId && formatDateKey(e.startDate) === dk)
+            .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+    }, [reorderTarget, events]);
+
     // ── スクロール vs タップ判定 ──
     const touchMoved = useRef(false);
     const touchStart = useRef({ x: 0, y: 0 });
@@ -188,16 +203,21 @@ export default function MobileCalendarView({
         }
     }, []);
 
-    const onCardTouchStart = useCallback((event: CalendarEvent) => {
-        if (isReadOnly || !handleMoveToCell) return;
+    const onCardTouchStart = useCallback((event: CalendarEvent, employeeId: string, date: Date, cellCount: number) => {
+        if (isReadOnly || movingEvent) return;
         longPressTimer.current = setTimeout(() => {
             longPressTimer.current = null;
             if (touchMoved.current) return; // スクロール中なら無視
             navigator.vibrate?.(60);
             touchMoved.current = true; // 長押し確定後はタップ判定させない
-            setMovingEvent(event);
+            // 同一セルに複数 → 「並び替え/移動」の選択メニュー。単一 → そのまま移動モード。
+            if (cellCount >= 2 && handleMoveEvent) {
+                setLongPressMenu({ event, employeeId, date });
+            } else if (handleMoveToCell) {
+                setMovingEvent(event);
+            }
         }, LONG_PRESS_MS);
-    }, [isReadOnly, handleMoveToCell]);
+    }, [isReadOnly, movingEvent, handleMoveToCell, handleMoveEvent]);
 
     const onCardTouchEnd = useCallback(() => {
         if (longPressTimer.current) {
@@ -577,7 +597,7 @@ export default function MobileCalendarView({
                                                             <button
                                                                 key={event.id}
                                                                 data-project-id={projectId}
-                                                                onTouchStart={() => onCardTouchStart(event)}
+                                                                onTouchStart={() => onCardTouchStart(event, row.employeeId, day.date, cellEvents.length)}
                                                                 onTouchEnd={onCardTouchEnd}
                                                                 onTouchCancel={onCardTouchEnd}
                                                                 onClick={(e) => {
@@ -778,6 +798,29 @@ export default function MobileCalendarView({
                                 </button>
                             )}
 
+                            {!isReadOnly && handleMoveEvent && (() => {
+                                const ev = actionSheet.event!;
+                                const dk = formatDateKey(ev.startDate);
+                                const siblings = events.filter(e =>
+                                    (e.assignedEmployeeId ?? '') === (ev.assignedEmployeeId ?? '') &&
+                                    formatDateKey(e.startDate) === dk
+                                ).length;
+                                if (siblings < 2) return null;
+                                return (
+                                    <button
+                                        onClick={() => {
+                                            const target = { employeeId: ev.assignedEmployeeId ?? '', date: ev.startDate };
+                                            closeActionSheet();
+                                            setReorderTarget(target);
+                                        }}
+                                        className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
+                                    >
+                                        <ArrowUpDown className="w-5 h-5 text-slate-500" />
+                                        このセル内で並び替え
+                                    </button>
+                                );
+                            })()}
+
                             {!isReadOnly && handleCopyEvent && (
                                 <button
                                     onClick={() => { closeActionSheet(); handleCopyEvent(actionSheet.event!.id); }}
@@ -815,6 +858,129 @@ export default function MobileCalendarView({
                             >
                                 閉じる
                             </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ── 長押し選択メニュー（並び替え or 移動） ── */}
+            {longPressMenu && (
+                <>
+                    <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setLongPressMenu(null)} />
+                    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 animate-slide-up safe-area-bottom">
+                        <div className="flex justify-center pt-3 pb-2">
+                            <div className="w-10 h-1 bg-slate-300 rounded-full" />
+                        </div>
+                        <div className="px-4 pb-3 border-b border-slate-100">
+                            <div className="flex items-start gap-3">
+                                <div
+                                    className="w-3 min-h-[36px] rounded-full flex-shrink-0 mt-0.5"
+                                    style={{ backgroundColor: longPressMenu.event.color }}
+                                />
+                                <div className="flex-1 min-w-0">
+                                    <div className="font-bold text-slate-800 text-base truncate">{longPressMenu.event.title}</div>
+                                    <div className="text-slate-400 text-xs mt-0.5">操作を選択</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-2">
+                            <button
+                                onClick={() => {
+                                    const t = longPressMenu;
+                                    setLongPressMenu(null);
+                                    setReorderTarget({ employeeId: t.employeeId, date: t.date });
+                                }}
+                                className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <ArrowUpDown className="w-5 h-5 text-slate-500" />
+                                このセル内で並び替え
+                            </button>
+                            {handleMoveToCell && (
+                                <button
+                                    onClick={() => {
+                                        const ev = longPressMenu.event;
+                                        setLongPressMenu(null);
+                                        setMovingEvent(ev);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-slate-700 hover:bg-slate-50 active:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    <MoveRight className="w-5 h-5 text-slate-500" />
+                                    別の日・職長へ移動
+                                </button>
+                            )}
+                            <button
+                                onClick={() => setLongPressMenu(null)}
+                                className="w-full mt-1 py-3 text-center text-sm text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
+                            >
+                                キャンセル
+                            </button>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            {/* ── セル内並び替えシート ── */}
+            {reorderTarget && (
+                <>
+                    <div className="fixed inset-0 bg-black/40 z-40" onClick={() => setReorderTarget(null)} />
+                    <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-50 animate-slide-up safe-area-bottom">
+                        <div className="flex justify-center pt-3 pb-2">
+                            <div className="w-10 h-1 bg-slate-300 rounded-full" />
+                        </div>
+                        <div className="px-4 pb-2 flex items-center justify-between border-b border-slate-100">
+                            <div className="flex items-center gap-2">
+                                <ArrowUpDown className="w-4 h-4 text-slate-500" />
+                                <span className="text-sm font-bold text-slate-700">並び替え</span>
+                            </div>
+                            <button
+                                onClick={() => setReorderTarget(null)}
+                                className="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-medium hover:bg-slate-800 active:bg-slate-900 transition-colors"
+                            >
+                                完了
+                            </button>
+                        </div>
+                        <div className="px-2 py-1 text-[11px] text-slate-400 text-center">▲▼ で順番を入れ替えます</div>
+                        <div className="p-2 space-y-1.5 max-h-[55vh] overflow-y-auto">
+                            {reorderEvents.length === 0 ? (
+                                <div className="py-8 text-center text-sm text-slate-400">案件がありません</div>
+                            ) : (
+                                reorderEvents.map((ev, idx) => (
+                                    <div
+                                        key={ev.id}
+                                        className="flex items-center gap-2 p-2 rounded-xl border border-slate-200 bg-white"
+                                    >
+                                        <span className="w-5 text-center text-xs font-bold text-slate-400 flex-shrink-0">{idx + 1}</span>
+                                        <div
+                                            className="w-1.5 self-stretch rounded-full flex-shrink-0"
+                                            style={{ backgroundColor: ev.color }}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-sm font-semibold text-slate-800 truncate">{ev.title}</div>
+                                            {ev.customer && (
+                                                <div className="text-xs text-slate-500 truncate">{ev.customer}</div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            <button
+                                                onClick={() => handleMoveEvent?.(ev.id, 'up')}
+                                                disabled={idx === 0}
+                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 active:bg-slate-200 disabled:opacity-30 disabled:active:bg-slate-100 transition-colors"
+                                                aria-label="上に移動"
+                                            >
+                                                <ChevronUp className="w-5 h-5" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleMoveEvent?.(ev.id, 'down')}
+                                                disabled={idx === reorderEvents.length - 1}
+                                                className="w-10 h-10 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 active:bg-slate-200 disabled:opacity-30 disabled:active:bg-slate-100 transition-colors"
+                                                aria-label="下に移動"
+                                            >
+                                                <ChevronDown className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
                         </div>
                     </div>
                 </>
