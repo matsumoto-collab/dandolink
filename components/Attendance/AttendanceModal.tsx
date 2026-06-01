@@ -532,7 +532,7 @@ export default function AttendanceModal({
                         キャンセル
                     </Button>
                     <Button
-                        variant="gradient"
+                        variant="primary"
                         onClick={handleSave}
                         isLoading={saving}
                         disabled={members.length === 0}

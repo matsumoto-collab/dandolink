@@ -487,7 +487,7 @@ export default function AttendancePage() {
                                                 {canDelete && (
                                                     <button
                                                         onClick={(e) => handleDelete(e, g)}
-                                                        className="p-2 text-slate-400 hover:text-red-500 rounded-lg transition-colors"
+                                                        className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
                                                         aria-label="削除"
                                                     >
                                                         <Trash2 className="w-4 h-4" />

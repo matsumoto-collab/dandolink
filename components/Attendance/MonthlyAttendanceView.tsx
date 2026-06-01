@@ -979,7 +979,7 @@ function DetailMonthTable({
                                 type="button"
                                 onClick={handleAddDate}
                                 disabled={savingCellId?.startsWith('add:')}
-                                className="px-3 py-1.5 text-sm bg-slate-800 text-white rounded-xl hover:bg-slate-900 transition-colors disabled:opacity-50"
+                                className="px-3 py-1.5 text-sm bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors disabled:opacity-50"
                             >
                                 追加
                             </button>
