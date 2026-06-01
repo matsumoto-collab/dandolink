@@ -8,8 +8,9 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
 import { matchesSearch } from '@/utils/searchNormalize';
 import type {
-    DashboardSummary, AggregateRow, FilterOptions, DashboardFilters,
+    DashboardSummary, AggregateRow, FilterOptions, DashboardFilters, MonthlySalesData,
 } from '@/lib/profitDashboard';
+import MonthlySalesPanel from './MonthlySalesPanel';
 
 export interface SerializedProjectProfit {
     id: string;
@@ -43,6 +44,7 @@ interface Props {
     byForeman: AggregateRow[];
     filterOptions: FilterOptions;
     initialFilters: DashboardFilters;
+    monthlySales: MonthlySalesData;
 }
 
 type TabKey = 'project' | 'customer' | 'constructionType' | 'foreman';
@@ -81,6 +83,7 @@ export default function ProfitDashboardClient({
     byForeman: initialByForeman,
     filterOptions,
     initialFilters,
+    monthlySales: initialMonthlySales,
 }: Props) {
     const [filters, setFilters] = useState<DashboardFilters>({
         status: initialFilters.status ?? 'active',
@@ -95,6 +98,7 @@ export default function ProfitDashboardClient({
     const [byCustomer, setByCustomer] = useState(initialByCustomer);
     const [byConstructionType, setByConstructionType] = useState(initialByConstructionType);
     const [byForeman, setByForeman] = useState(initialByForeman);
+    const [monthlySales, setMonthlySales] = useState(initialMonthlySales);
     const [activeTab, setActiveTab] = useState<TabKey>('project');
     const [sortBy, setSortBy] = useState<SortKey>('profitMargin');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
@@ -124,6 +128,8 @@ export default function ProfitDashboardClient({
                 setByCustomer(data.byCustomer);
                 setByConstructionType(data.byConstructionType);
                 setByForeman(data.byForeman);
+                // フィルタ非依存だが API が常に返すので最新化（値は一定）
+                if (data.monthlySales) setMonthlySales(data.monthlySales);
             } catch (e) {
                 logger.error('Failed to refetch profit dashboard:', e);
                 toast.error('データの取得に失敗しました');
@@ -187,6 +193,9 @@ export default function ProfitDashboardClient({
                     </div>
                     {isLoading && <div className="text-sm text-slate-500">読み込み中…</div>}
                 </div>
+
+                {/* 今月の売上（請求日ベース・税込）— フィルタ非依存の当月 KPI */}
+                <MonthlySalesPanel data={monthlySales} />
 
                 {/* フィルタパネル */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">

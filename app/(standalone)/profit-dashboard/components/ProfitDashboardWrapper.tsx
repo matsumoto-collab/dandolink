@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import ProfitDashboardClient, { type SerializedProjectProfit } from './ProfitDashboardClient';
 import ProfitDashboardLoading from '../loading';
-import type { DashboardSummary, AggregateRow, FilterOptions } from '@/lib/profitDashboard';
+import type { DashboardSummary, AggregateRow, FilterOptions, MonthlySalesData } from '@/lib/profitDashboard';
 
 interface InitialPayload {
     projects: SerializedProjectProfit[];
@@ -13,6 +13,7 @@ interface InitialPayload {
     byCustomer: AggregateRow[];
     byConstructionType: AggregateRow[];
     byForeman: AggregateRow[];
+    monthlySales: MonthlySalesData;
 }
 
 export default function ProfitDashboardWrapper() {
@@ -54,6 +55,7 @@ export default function ProfitDashboardWrapper() {
             byForeman={initial.byForeman}
             filterOptions={options}
             initialFilters={{ status: 'active' }}
+            monthlySales={initial.monthlySales}
         />
     );
 }

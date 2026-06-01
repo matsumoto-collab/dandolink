@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireManagerOrAbove, serverErrorResponse } from '@/lib/api/utils';
-import { fetchProfitDashboardData, fetchDashboardFilterOptions, type DashboardFilters } from '@/lib/profitDashboard';
+import { fetchProfitDashboardData, fetchDashboardFilterOptions, fetchMonthlySales, type DashboardFilters } from '@/lib/profitDashboard';
 
 function parseList(v: string | null): string[] | undefined {
     if (!v) return undefined;
@@ -29,7 +29,12 @@ export async function GET(request: NextRequest) {
             constructionTypeIds: parseList(searchParams.get('types')),
         };
 
-        const data = await fetchProfitDashboardData(filters);
+        // monthlySales はフィルタ非依存（全社・当月 KPI）だが、毎回併走させても
+        // createdAt インデックス済みで安価。値はフィルタ変更によらず一定。
+        const [data, monthlySales] = await Promise.all([
+            fetchProfitDashboardData(filters),
+            fetchMonthlySales(),
+        ]);
 
         const projects = data.projects.map(p => ({
             ...p,
@@ -43,6 +48,7 @@ export async function GET(request: NextRequest) {
                 byCustomer: data.byCustomer,
                 byConstructionType: data.byConstructionType,
                 byForeman: data.byForeman,
+                monthlySales,
             },
             { headers: { 'Cache-Control': 'no-store' } },
         );

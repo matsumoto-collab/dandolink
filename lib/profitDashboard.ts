@@ -69,6 +69,21 @@ export interface FilterOptions {
     constructionTypes: { id: string; name: string }[];
 }
 
+export interface MonthlySalesPoint {
+    year: number;          // JST 年
+    month: number;         // JST 月 (1-12)
+    sales: number;         // その JST 月に発行された Invoice.total(税込) 合計、cancelled 除外
+    invoiceCount: number;
+}
+
+export interface MonthlySalesData {
+    current: MonthlySalesPoint;     // 当月
+    previous: MonthlySalesPoint;    // 前月
+    momDelta: number;               // current.sales - previous.sales
+    momPercent: number | null;      // 前月比%（前月 0 のとき null）
+    trend: MonthlySalesPoint[];     // 直近 monthsBack ヶ月（古い→新しい、末尾が当月）
+}
+
 export async function fetchDashboardFilterOptions(): Promise<FilterOptions> {
     const [customerRows, assignedForemen, types] = await Promise.all([
         prisma.projectMaster.findMany({
@@ -591,4 +606,70 @@ export async function fetchProfitDashboardData(
         byConstructionType,
         byForeman,
     };
+}
+
+/**
+ * 「今月の売上」とその月次推移を集計する（請求日ベース）。
+ *
+ * - 売上＝当該 JST 月に発行された請求書（Invoice）の total(税込) 合計。
+ *   `Invoice.createdAt` が請求日として保存されている（InvoiceForm の請求日入力 → createdAt、
+ *   BillingDraft 確定経由は確定時刻＝実質発行日）。
+ * - `status === 'cancelled'` は除外（lib/billing/billingStatus.ts と整合）。draft は含める（請求日が立っている）。
+ * - 本番サーバは UTC 稼働のため、月境界は JST(UTC+9) で算出する
+ *   （`Date.UTC(y, m, d, -9, …)` ＝ JST 00:00。app/api/partner-schedule/route.ts と同じイディオム）。
+ * - フィルタ非依存の全社・当月 KPI。返り値は number/string のみ（API/server props 双方でそのまま JSON 化可能）。
+ *
+ * @param monthsBack trend に含める月数（末尾が当月）
+ * @param now 基準時刻（テスト用に注入可能）
+ */
+export async function fetchMonthlySales(
+    monthsBack = 12,
+    now: Date = new Date(),
+): Promise<MonthlySalesData> {
+    // JST 現在の年月（UTC+9 にずらして年月を取り出す）
+    const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
+    const y = jstNow.getUTCFullYear();
+    const m = jstNow.getUTCMonth(); // 0-based
+
+    // クエリ範囲: (monthsBack-1)ヶ月前の月初(JST) 〜 翌月初(JST)
+    const rangeStart = new Date(Date.UTC(y, m - (monthsBack - 1), 1, -9, 0, 0, 0));
+    const rangeEnd = new Date(Date.UTC(y, m + 1, 1, -9, 0, 0, 0));
+
+    const invoices = await prisma.invoice.findMany({
+        where: {
+            createdAt: { gte: rangeStart, lt: rangeEnd },
+            status: { not: 'cancelled' },
+        },
+        select: { total: true, createdAt: true },
+    });
+
+    // 月バケットを古い順に生成（Date.UTC は月のアンダーフローを正規化＝年跨ぎ対応）
+    const trend: MonthlySalesPoint[] = [];
+    const indexByKey = new Map<string, number>();
+    for (let i = monthsBack - 1; i >= 0; i--) {
+        const d = new Date(Date.UTC(y, m - i, 1));
+        const yy = d.getUTCFullYear();
+        const mm = d.getUTCMonth(); // 0-based
+        indexByKey.set(`${yy}-${mm}`, trend.length);
+        trend.push({ year: yy, month: mm + 1, sales: 0, invoiceCount: 0 });
+    }
+
+    for (const inv of invoices) {
+        const jst = new Date(inv.createdAt.getTime() + 9 * 60 * 60 * 1000);
+        const idx = indexByKey.get(`${jst.getUTCFullYear()}-${jst.getUTCMonth()}`);
+        if (idx == null) continue;
+        trend[idx].sales += Number(inv.total);
+        trend[idx].invoiceCount += 1;
+    }
+
+    const current = trend[trend.length - 1];
+    const previous = trend.length >= 2
+        ? trend[trend.length - 2]
+        : { year: current.year, month: current.month, sales: 0, invoiceCount: 0 };
+    const momDelta = current.sales - previous.sales;
+    const momPercent = previous.sales > 0
+        ? Math.round((momDelta / previous.sales) * 1000) / 10
+        : null;
+
+    return { current, previous, momDelta, momPercent, trend };
 }

@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { fetchProfitDashboardData, fetchDashboardFilterOptions, type DashboardFilters } from '@/lib/profitDashboard';
+import { fetchProfitDashboardData, fetchDashboardFilterOptions, fetchMonthlySales, type DashboardFilters } from '@/lib/profitDashboard';
 import ProfitDashboardClient, { type SerializedProjectProfit } from './components/ProfitDashboardClient';
 import ProfitDashboardLoading from './loading';
 
@@ -15,9 +15,10 @@ interface Props {
 }
 
 async function ProfitDashboardContent({ filters }: { filters: DashboardFilters }) {
-    const [data, options] = await Promise.all([
+    const [data, options, monthlySales] = await Promise.all([
         fetchProfitDashboardData(filters),
         fetchDashboardFilterOptions(),
+        fetchMonthlySales(),
     ]);
 
     const serializedProjects: SerializedProjectProfit[] = data.projects.map(p => ({
@@ -34,6 +35,7 @@ async function ProfitDashboardContent({ filters }: { filters: DashboardFilters }
             byForeman={data.byForeman}
             filterOptions={options}
             initialFilters={filters}
+            monthlySales={monthlySales}
         />
     );
 }

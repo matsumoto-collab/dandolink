@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { fetchProfitDashboardData } from '@/lib/profitDashboard';
+import { fetchProfitDashboardData, fetchMonthlySales } from '@/lib/profitDashboard';
 import { prisma } from '@/lib/prisma';
 
 // Mock Prisma
@@ -177,6 +177,91 @@ describe('lib/profitDashboard', () => {
             // 協力業者費は手配確定済み & partner ロール職長のアサインが必要なのでここでは0
             const expectedTotalCost = 14400 + 1800 + 5000 + 12000;
             expect(result.projects[0].totalCost).toBe(expectedTotalCost);
+        });
+    });
+
+    describe('fetchMonthlySales', () => {
+        // JST 2026-06-15 09:00（= UTC 00:00）。当月=2026年6月、前月=2026年5月。
+        const now = new Date('2026-06-15T00:00:00Z');
+
+        it('当月・前月を JST 月で振り分け、前月比を算出する', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 100000, createdAt: new Date('2026-06-10T03:00:00Z') }, // JST 6月
+                { total: 50000, createdAt: new Date('2026-05-20T03:00:00Z') },  // JST 5月
+            ]);
+
+            const r = await fetchMonthlySales(12, now);
+
+            expect(r.current.year).toBe(2026);
+            expect(r.current.month).toBe(6);
+            expect(r.current.sales).toBe(100000);
+            expect(r.current.invoiceCount).toBe(1);
+            expect(r.previous.month).toBe(5);
+            expect(r.previous.sales).toBe(50000);
+            expect(r.momDelta).toBe(50000);
+            expect(r.momPercent).toBe(100); // (100000-50000)/50000 = +100%
+            expect(r.trend).toHaveLength(12);
+            // trend は古い→新しい。末尾が当月。
+            expect(r.trend[r.trend.length - 1]).toMatchObject({ year: 2026, month: 6, sales: 100000 });
+            expect(r.trend[r.trend.length - 2]).toMatchObject({ month: 5, sales: 50000 });
+            expect(r.trend[0]).toMatchObject({ year: 2025, month: 7 }); // 12ヶ月前
+        });
+
+        it('UTC 月末深夜は JST 翌月（=当月）として集計する', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 30000, createdAt: new Date('2026-05-31T15:30:00Z') }, // JST 6/1 00:30 → 6月
+                { total: 70000, createdAt: new Date('2026-05-31T14:30:00Z') }, // JST 5/31 23:30 → 5月
+            ]);
+
+            const r = await fetchMonthlySales(12, now);
+
+            expect(r.current.sales).toBe(30000);
+            expect(r.previous.sales).toBe(70000);
+        });
+
+        it('cancelled を除外する where 条件と JST 月範囲でクエリする', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+            await fetchMonthlySales(12, now);
+
+            expect(prisma.invoice.findMany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    where: expect.objectContaining({
+                        status: { not: 'cancelled' },
+                        createdAt: expect.objectContaining({ gte: expect.any(Date), lt: expect.any(Date) }),
+                    }),
+                }),
+            );
+            // lt は翌月初(JST) = 2026-07-01 00:00 JST = 2026-06-30T15:00:00Z
+            const arg = (prisma.invoice.findMany as jest.Mock).mock.calls[0][0];
+            expect(arg.where.createdAt.lt.toISOString()).toBe('2026-06-30T15:00:00.000Z');
+            // gte は11ヶ月前の月初(JST) = 2025-07-01 00:00 JST = 2025-06-30T15:00:00Z
+            expect(arg.where.createdAt.gte.toISOString()).toBe('2025-06-30T15:00:00.000Z');
+        });
+
+        it('前月が 0 のとき momPercent は null', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 80000, createdAt: new Date('2026-06-05T03:00:00Z') },
+            ]);
+
+            const r = await fetchMonthlySales(12, now);
+
+            expect(r.current.sales).toBe(80000);
+            expect(r.previous.sales).toBe(0);
+            expect(r.momDelta).toBe(80000);
+            expect(r.momPercent).toBeNull();
+        });
+
+        it('請求書が無ければすべて 0・momPercent は null', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+
+            const r = await fetchMonthlySales(12, now);
+
+            expect(r.current.sales).toBe(0);
+            expect(r.previous.sales).toBe(0);
+            expect(r.momPercent).toBeNull();
+            expect(r.trend).toHaveLength(12);
+            expect(r.trend.every(p => p.sales === 0 && p.invoiceCount === 0)).toBe(true);
         });
     });
 });
