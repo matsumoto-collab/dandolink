@@ -281,7 +281,7 @@ export default function NotificationSettings() {
                     <button
                         onClick={handleEnable}
                         disabled={loading || permission === 'unsupported' || iosNeedsInstall}
-                        className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Bell className="w-4 h-4" />
                         通知を有効にする

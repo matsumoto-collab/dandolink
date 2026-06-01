@@ -155,7 +155,7 @@ export default function SystemSettingsPanel() {
             <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="px-5 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg text-sm disabled:opacity-50"
+                className="px-5 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg text-sm disabled:opacity-50"
             >
                 {isSaving ? '保存中...' : '保存'}
             </button>

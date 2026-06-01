@@ -189,7 +189,7 @@ function CategoryListTab({ categories, onAdd, onUpdate, onDelete }: {
                 </div>
                 <button
                     onClick={handleAdd}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium shadow-md hover:shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -230,7 +230,7 @@ function CategoryListTab({ categories, onAdd, onUpdate, onDelete }: {
                                         className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-center"
                                         placeholder="単位"
                                     />
-                                    <button onClick={() => handleUpdate(cat.id)} className="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">保存</button>
+                                    <button onClick={() => handleUpdate(cat.id)} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700">保存</button>
                                     <button onClick={() => setEditingId(null)} className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50">取消</button>
                                 </>
                             ) : (
@@ -327,7 +327,7 @@ function SimpleListTab({ title, items, onAdd, onUpdate, onDelete, placeholder }:
                 />
                 <button
                     onClick={handleAdd}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all font-medium shadow-md hover:shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -353,7 +353,7 @@ function SimpleListTab({ title, items, onAdd, onUpdate, onDelete, placeholder }:
                                         className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         autoFocus
                                     />
-                                    <button onClick={() => handleUpdate(item.id)} className="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-sm hover:bg-slate-700">保存</button>
+                                    <button onClick={() => handleUpdate(item.id)} className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm hover:bg-teal-700">保存</button>
                                     <button onClick={() => setEditingId(null)} className="px-3 py-1.5 border border-slate-300 text-slate-700 rounded-lg text-sm hover:bg-slate-50">取消</button>
                                 </>
                             ) : (
@@ -440,7 +440,7 @@ function SpecificationsPanel({ unitPriceMasterId, specifications, onAdd, onUpdat
                                         className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-slate-500"
                                         autoFocus
                                     />
-                                    <button onClick={() => handleUpdate(spec.id)} className="text-xs px-2 py-1 bg-slate-700 text-white rounded">保存</button>
+                                    <button onClick={() => handleUpdate(spec.id)} className="text-xs px-2 py-1 bg-teal-600 text-white rounded hover:bg-teal-700">保存</button>
                                     <button onClick={() => setEditingId(null)} className="text-xs px-2 py-1 border border-slate-300 rounded">取消</button>
                                 </>
                             ) : (
@@ -470,7 +470,7 @@ function SpecificationsPanel({ unitPriceMasterId, specifications, onAdd, onUpdat
                 <button
                     onClick={handleAdd}
                     disabled={!newName.trim()}
-                    className="px-2 py-1 bg-slate-700 text-white rounded-lg text-xs hover:bg-slate-600 disabled:opacity-50"
+                    className="px-2 py-1 bg-teal-600 text-white rounded-lg text-xs hover:bg-teal-700 disabled:opacity-50"
                 >
                     追加
                 </button>
@@ -607,7 +607,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
                 <h3 className="text-lg font-semibold text-slate-900">単価マスター管理</h3>
                 <button
                     onClick={() => handleOpenForm()}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     新規登録
@@ -850,7 +850,7 @@ function UnitPriceItemsTab({ unitPrices, templates, categories, specifications, 
                                     </button>
                                     <button
                                         type="submit"
-                                        className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all"
+                                        className="px-6 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all"
                                     >
                                         保存
                                     </button>

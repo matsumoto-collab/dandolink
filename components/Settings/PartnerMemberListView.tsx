@@ -189,7 +189,7 @@ export default function PartnerMemberListView({ partner, onBack }: PartnerMember
                 </div>
                 <button
                     onClick={handleCreate}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg flex-shrink-0"
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg flex-shrink-0"
                 >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="hidden sm:inline">メンバー追加</span>
@@ -325,7 +325,7 @@ export default function PartnerMemberListView({ partner, onBack }: PartnerMember
                                     <button onClick={closeResetDialog} disabled={isResetting} className="px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50">
                                         キャンセル
                                     </button>
-                                    <button onClick={confirmResetPassword} disabled={isResetting} className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2">
+                                    <button onClick={confirmResetPassword} disabled={isResetting} className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2">
                                         {isResetting && <Loading size="sm" />}
                                         リセット
                                     </button>

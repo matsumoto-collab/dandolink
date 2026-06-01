@@ -122,7 +122,7 @@ export default function MaterialMasterSettings() {
                 />
                 <button
                     onClick={handleAddCategory}
-                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                    className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     カテゴリ追加
@@ -181,7 +181,7 @@ export default function MaterialMasterSettings() {
                                     </button>
                                     {deleteConfirm === `cat-${cat.id}` ? (
                                         <div className="flex gap-1">
-                                            <button onClick={() => handleDeleteCategory(cat.id)} className="px-3 py-1 text-xs bg-slate-700 text-white rounded-xl hover:bg-slate-800">削除</button>
+                                            <button onClick={() => handleDeleteCategory(cat.id)} className="px-3 py-1 text-xs bg-red-600 text-white rounded-xl hover:bg-red-700">削除</button>
                                             <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-xl hover:bg-slate-400">取消</button>
                                         </div>
                                     ) : (
@@ -238,7 +238,7 @@ export default function MaterialMasterSettings() {
                                                 </button>
                                                 {deleteConfirm === `item-${item.id}` ? (
                                                     <div className="flex gap-1">
-                                                        <button onClick={() => handleDeleteItem(item.id)} className="px-2 py-0.5 text-xs bg-slate-700 text-white rounded-lg">削除</button>
+                                                        <button onClick={() => handleDeleteItem(item.id)} className="px-2 py-0.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700">削除</button>
                                                         <button onClick={() => setDeleteConfirm(null)} className="px-2 py-0.5 text-xs bg-slate-300 text-slate-700 rounded-lg">取消</button>
                                                     </div>
                                                 ) : (
@@ -278,7 +278,7 @@ export default function MaterialMasterSettings() {
                                         />
                                         <button
                                             onClick={() => handleAddItem(cat.id)}
-                                            className="p-1.5 text-white bg-slate-700 hover:bg-slate-800 rounded-lg"
+                                            className="p-1.5 text-white bg-teal-600 hover:bg-teal-700 rounded-lg"
                                         >
                                             <Check className="w-3.5 h-3.5" />
                                         </button>

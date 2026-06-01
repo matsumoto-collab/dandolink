@@ -316,7 +316,7 @@ export default function ConstructionTypeSettings() {
                 </div>
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg flex-shrink-0"
+                    className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg flex-shrink-0"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -398,7 +398,7 @@ export default function ConstructionTypeSettings() {
                                                     <div className="flex gap-1">
                                                         <button
                                                             onClick={() => handleDelete(item.id)}
-                                                            className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
+                                                            className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                                                         >
                                                             削除
                                                         </button>

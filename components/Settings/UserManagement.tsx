@@ -227,7 +227,7 @@ export default function UserManagement() {
                 </div>
                 <button
                     onClick={handleCreateUser}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="hidden sm:inline">ユーザー追加</span>
@@ -441,7 +441,7 @@ export default function UserManagement() {
                                     <button
                                         onClick={confirmResetPassword}
                                         disabled={isResetting}
-                                        className="px-4 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 disabled:opacity-50 flex items-center gap-2"
+                                        className="px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2"
                                     >
                                         {isResetting && <Loading size="sm" />}
                                         リセット

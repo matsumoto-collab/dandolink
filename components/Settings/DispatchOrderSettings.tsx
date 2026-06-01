@@ -224,7 +224,7 @@ export default function DispatchOrderSettings() {
                         type="button"
                         onClick={handleSave}
                         disabled={!isDirty || isSaving}
-                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-slate-800 rounded-xl hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-xl hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                         <Save className="w-3.5 h-3.5" />
                         {isSaving ? '保存中...' : '保存'}

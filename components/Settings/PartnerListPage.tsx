@@ -129,7 +129,7 @@ function PartnerModal({ isOpen, onClose, onSave, partner, mode }: PartnerModalPr
                     </div>
                     <div className="flex justify-end gap-3 pt-6 border-t border-slate-200">
                         <button type="button" onClick={onClose} className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50" disabled={isLoading}>キャンセル</button>
-                        <button type="submit" className="px-6 py-2 bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50" disabled={isLoading}>
+                        <button type="submit" className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 disabled:opacity-50" disabled={isLoading}>
                             {isLoading ? <span className="flex items-center gap-2"><ButtonLoading />保存中...</span> : mode === 'create' ? '追加' : '更新'}
                         </button>
                     </div>
@@ -237,7 +237,7 @@ export default function PartnerListPage() {
                     <h3 className="text-lg font-semibold text-slate-900">協力会社管理</h3>
                     <p className="text-sm text-slate-500">協力会社とその所属メンバーを管理します</p>
                 </div>
-                <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 font-medium shadow-md hover:shadow-lg">
+                <button onClick={handleCreate} className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 font-medium shadow-md hover:shadow-lg">
                     <Plus className="w-4 h-4 md:w-5 md:h-5" />
                     <span className="hidden sm:inline">協力会社追加</span>
                     <span className="sm:hidden">追加</span>

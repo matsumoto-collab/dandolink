@@ -83,7 +83,7 @@ function InvoiceTitleSuggestionSection() {
                 />
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md"
+                    className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -111,7 +111,7 @@ function InvoiceTitleSuggestionSection() {
                                 <button onClick={() => { setEditingId(item.id); setEditingName(item.name); }} className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl" title="編集"><Edit className="w-4 h-4" /></button>
                                 {deleteConfirm === item.id ? (
                                     <div className="flex gap-1">
-                                        <button onClick={() => handleDelete(item.id)} className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md">削除</button>
+                                        <button onClick={() => handleDelete(item.id)} className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700">削除</button>
                                         <button onClick={() => setDeleteConfirm(null)} className="px-3 py-1 text-xs bg-slate-300 text-slate-700 rounded-md">キャンセル</button>
                                     </div>
                                 ) : (
@@ -295,7 +295,7 @@ export default function BillingTitleSettings() {
                 </div>
                 <button
                     onClick={handleAdd}
-                    className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
+                    className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
                 >
                     <Plus className="w-4 h-4" />
                     追加
@@ -372,7 +372,7 @@ export default function BillingTitleSettings() {
                                     <div className="flex gap-1">
                                         <button
                                             onClick={() => handleDelete(item.id)}
-                                            className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors"
+                                            className="px-3 py-1 text-xs bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                                         >
                                             削除
                                         </button>

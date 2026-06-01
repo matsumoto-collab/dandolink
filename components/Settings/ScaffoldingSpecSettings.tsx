@@ -177,7 +177,7 @@ export default function ScaffoldingSpecSettings() {
                     placeholder="新しいグループを追加"
                     className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                 />
-                <button onClick={addGroup} className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 font-medium flex items-center justify-center gap-2">
+                <button onClick={addGroup} className="px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium flex items-center justify-center gap-2">
                     <Plus className="w-4 h-4" />グループ追加
                 </button>
             </div>
@@ -211,7 +211,7 @@ export default function ScaffoldingSpecSettings() {
                                     <button onClick={() => { setEditingGroupId(group.id); setEditingGroupName(group.name); }} className="p-2 text-slate-700 hover:bg-slate-100 rounded"><Edit className="w-4 h-4" /></button>
                                     {confirmDelete === `g:${group.id}` ? (
                                         <div className="flex gap-1">
-                                            <button onClick={() => deleteGroup(group.id)} className="px-3 py-1 text-xs bg-slate-700 text-white rounded">削除</button>
+                                            <button onClick={() => deleteGroup(group.id)} className="px-3 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700">削除</button>
                                             <button onClick={() => setConfirmDelete(null)} className="px-3 py-1 text-xs bg-slate-300 rounded">取消</button>
                                         </div>
                                     ) : (
@@ -274,7 +274,7 @@ export default function ScaffoldingSpecSettings() {
                                                 <button onClick={() => startEditItem(item)} className="p-1.5 text-slate-700 hover:bg-slate-100 rounded"><Edit className="w-4 h-4" /></button>
                                                 {confirmDelete === `i:${item.id}` ? (
                                                     <div className="flex gap-1">
-                                                        <button onClick={() => deleteItem(item.id)} className="px-2 py-1 text-xs bg-slate-700 text-white rounded">削除</button>
+                                                        <button onClick={() => deleteItem(item.id)} className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700">削除</button>
                                                         <button onClick={() => setConfirmDelete(null)} className="px-2 py-1 text-xs bg-slate-300 rounded">取消</button>
                                                     </div>
                                                 ) : (
@@ -320,7 +320,7 @@ export default function ScaffoldingSpecSettings() {
                                             +テキスト
                                         </label>
                                     )}
-                                    <button onClick={() => addItem(group.id)} className="px-3 py-1 bg-slate-800 text-white rounded text-xs flex items-center gap-1">
+                                    <button onClick={() => addItem(group.id)} className="px-3 py-1 bg-teal-600 text-white rounded text-xs flex items-center gap-1">
                                         <Plus className="w-3 h-3" />追加
                                     </button>
                                 </div>
