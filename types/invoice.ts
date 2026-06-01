@@ -31,7 +31,7 @@ export interface Invoice {
     tax: number;
     total: number;
     dueDate: Date;
-    status: 'draft' | 'sent' | 'paid' | 'overdue';
+    status: 'draft' | 'confirmed' | 'sent' | 'paid' | 'overdue';
     paidDate?: Date;
     notes?: string;
     createdAt: Date;

@@ -9,7 +9,7 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import StatusPillSelect, { type StatusOption } from '@/components/ui/StatusPillSelect';
 import toast from 'react-hot-toast';
@@ -29,9 +29,10 @@ const InvoiceDetailModal = dynamic(
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
 
-// 一覧から直接変更できるステータス選択肢（getStatusInfo が扱う 4 種。cancelled は UI 非対応のため除外）
+// 一覧から直接変更できるステータス選択肢（getStatusInfo が扱う 5 種。cancelled は UI 非対応のため除外）
 const INVOICE_STATUS_OPTIONS: StatusOption[] = [
     { value: 'draft', label: '下書き' },
+    { value: 'confirmed', label: '担当確認済み' },
     { value: 'sent', label: '送付済み' },
     { value: 'paid', label: '支払済み' },
     { value: 'overdue', label: '期限超過' },
@@ -133,6 +134,8 @@ export default function InvoiceListPage() {
         switch (status) {
             case 'draft':
                 return { icon: Clock, color: 'text-slate-500', bg: 'bg-slate-100', label: '下書き' };
+            case 'confirmed':
+                return { icon: UserCheck, color: 'text-slate-600', bg: 'bg-slate-100', label: '担当確認済み' };
             case 'sent':
                 return { icon: FileText, color: 'text-slate-600', bg: 'bg-slate-100', label: '送付済み' };
             case 'paid':
@@ -352,6 +355,7 @@ export default function InvoiceListPage() {
                     >
                         <option value="all">全てのステータス</option>
                         <option value="draft">下書き</option>
+                        <option value="confirmed">担当確認済み</option>
                         <option value="sent">送付済み</option>
                         <option value="paid">支払済み</option>
                         <option value="overdue">期限超過</option>

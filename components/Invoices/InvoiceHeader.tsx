@@ -234,6 +234,7 @@ export default function InvoiceHeader({
                     <label className={labelClass}>ステータス</label>
                     <select value={status} onChange={(e) => setStatus(e.target.value)} className={inputClass}>
                         <option value="draft">下書き</option>
+                        <option value="confirmed">担当確認済み</option>
                         <option value="sent">送付済み</option>
                         <option value="paid">支払済み</option>
                         <option value="overdue">期限超過</option>
