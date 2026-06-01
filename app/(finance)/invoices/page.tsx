@@ -39,7 +39,7 @@ const INVOICE_STATUS_OPTIONS: StatusOption[] = [
 ];
 
 export default function InvoiceListPage() {
-    const { invoices, isLoading, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
+    const { invoices, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
@@ -418,7 +418,7 @@ export default function InvoiceListPage() {
 
             {/* モバイルカードビュー */}
             <div className="md:hidden flex-1 overflow-auto">
-                {!isInitialized || isLoading ? (
+                {!isInitialized ? (
                     <div className="grid grid-cols-1 gap-4">
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 animate-pulse">
@@ -546,7 +546,7 @@ export default function InvoiceListPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                        {!isInitialized || isLoading ? (
+                        {!isInitialized ? (
                             [...Array(5)].map((_, i) => (
                                 <tr key={i} className="animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>

@@ -43,7 +43,7 @@ const ESTIMATE_STATUS_OPTIONS: StatusOption[] = [
 ];
 
 export default function EstimateListPage() {
-    const { estimates, isLoading, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
+    const { estimates, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
     const { addProject } = useProjects();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
@@ -292,7 +292,7 @@ export default function EstimateListPage() {
 
             {/* モバイルカードビュー */}
             <div className="md:hidden flex-1 overflow-auto">
-                {!isInitialized || isLoading ? (
+                {!isInitialized ? (
                     <div className="grid grid-cols-1 gap-4">
                         {[...Array(5)].map((_, i) => (
                             <div key={i} className="bg-white border border-slate-200 rounded-lg p-4 animate-pulse">
@@ -458,7 +458,7 @@ export default function EstimateListPage() {
                         </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                        {!isInitialized || isLoading ? (
+                        {!isInitialized ? (
                             /* 読み込み中はスケルトン表示 */
                             [...Array(5)].map((_, i) => (
                                 <tr key={i} className="animate-pulse">
