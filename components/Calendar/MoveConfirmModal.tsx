@@ -154,7 +154,7 @@ export default function MoveConfirmModal({
                             <div className="space-y-3">
                                 <button
                                     onClick={onConfirmKeep}
-                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
                                 >
                                     <Check className="w-5 h-5" />
                                     <span>そのまま引き継ぐ</span>
@@ -288,7 +288,7 @@ export default function MoveConfirmModal({
                         <button
                             onClick={handleReassignOk}
                             disabled={availableVehicles === null}
-                            className="flex items-center gap-2 px-5 py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
+                            className="flex items-center gap-2 px-5 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
                         >
                             <Check className="w-4 h-4" />
                             OK

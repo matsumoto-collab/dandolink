@@ -76,7 +76,7 @@ export default function ConflictResolutionModal({
                     <div className="space-y-3">
                         <button
                             onClick={() => onResolve('reload')}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
                         >
                             <RefreshCw className="w-5 h-5" />
                             <span>最新のデータを読み込む</span>
@@ -84,7 +84,7 @@ export default function ConflictResolutionModal({
 
                         <button
                             onClick={() => onResolve('overwrite')}
-                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-slate-100 text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-200 transition-colors"
                         >
                             <Upload className="w-5 h-5" />
                             <span>自分の変更で上書き</span>
