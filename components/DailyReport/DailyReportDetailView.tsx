@@ -319,7 +319,7 @@ export default function DailyReportDetailView({ report, onEdit, onClose, onDelet
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
+                                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors font-medium"
                             >
                                 削除
                             </button>

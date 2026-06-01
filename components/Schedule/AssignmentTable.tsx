@@ -797,7 +797,7 @@ function QuickEditSheet({ project, onSave, onClose }: QuickEditSheetProps) {
                     <button
                         onClick={handleSave}
                         disabled={isSaving}
-                        className="w-full flex items-center justify-center gap-2 py-3 bg-slate-800 text-white font-medium rounded-xl hover:bg-slate-900 active:bg-slate-700 transition-colors disabled:opacity-50"
+                        className="w-full flex items-center justify-center gap-2 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 active:bg-teal-800 transition-colors disabled:opacity-50"
                     >
                         {isSaving ? (
                             <>

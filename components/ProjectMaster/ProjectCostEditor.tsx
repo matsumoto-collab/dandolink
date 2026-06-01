@@ -314,7 +314,7 @@ export default function ProjectCostEditor({ projectMasterId, initialValues, onSa
                     type="button"
                     onClick={handleSave}
                     disabled={!isDirty || isSaving}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-slate-800 rounded-xl hover:bg-slate-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-xl hover:bg-teal-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     <Save className="w-4 h-4" />
                     {isSaving ? '保存中...' : '保存'}

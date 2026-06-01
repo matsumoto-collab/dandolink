@@ -205,7 +205,7 @@ export default function UnitPriceMasterModal({ isOpen, onClose, onSelect }: Unit
                                 type="button"
                                 onClick={handleAdd}
                                 disabled={selectedItems.size === 0}
-                                className="px-6 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="px-6 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 追加 ({selectedItems.size}件)
                             </button>

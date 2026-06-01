@@ -356,7 +356,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                             type="button"
                             onClick={saveAll}
                             disabled={saving || dirtyCount === 0}
-                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50"
+                            className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-teal-600 hover:bg-teal-700 text-white disabled:opacity-50"
                         >
                             <Save className="w-3.5 h-3.5" />
                             {saving ? '保存中…' : '保存'}

@@ -168,7 +168,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                     <button
                         type="button"
                         onClick={addContactPerson}
-                        className="flex items-center gap-1 px-3 py-1 text-sm bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors"
+                        className="flex items-center gap-1 px-3 py-1 text-sm bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
                     >
                         <Plus className="w-4 h-4" />
                         担当者追加

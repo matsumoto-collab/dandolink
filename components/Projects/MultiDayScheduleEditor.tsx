@@ -387,7 +387,7 @@ export default function MultiDayScheduleEditor({
                         <button
                             type="button"
                             onClick={() => generateFromRange(false)}
-                            className="flex-1 px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium text-sm"
+                            className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium text-sm"
                         >
                             期間を生成
                         </button>
@@ -408,7 +408,7 @@ export default function MultiDayScheduleEditor({
                     <button
                         type="button"
                         onClick={addIndividualDay}
-                        className="w-full px-4 py-2 bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                        className="w-full px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium text-sm flex items-center justify-center gap-2"
                     >
                         <Plus className="w-4 h-4" />
                         日程を追加
@@ -439,7 +439,7 @@ export default function MultiDayScheduleEditor({
                                 <button
                                     type="button"
                                     onClick={applyBulkType}
-                                    className="px-3 py-1 text-xs bg-slate-700 text-white rounded-md hover:bg-slate-800 transition-colors font-medium"
+                                    className="px-3 py-1 text-xs bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors font-medium"
                                 >
                                     全日程に適用
                                 </button>

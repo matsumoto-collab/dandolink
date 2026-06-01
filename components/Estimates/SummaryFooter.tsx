@@ -225,7 +225,7 @@ export default function SummaryFooter({ subtotal, tax, total, onAdjustSubtotal, 
                             type="button"
                             onClick={handleApply}
                             disabled={!isValid}
-                            className="text-sm px-4 py-1.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
+                            className="text-sm px-4 py-1.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150"
                         >
                             適用
                         </button>

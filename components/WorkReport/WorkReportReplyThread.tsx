@@ -179,7 +179,7 @@ export default function WorkReportReplyThread({
                             type="button"
                             onClick={() => submit(text, 'free')}
                             disabled={postingSource !== null || text.trim().length === 0}
-                            className="px-2.5 py-1.5 text-xs bg-slate-700 text-white rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-1"
+                            className="px-2.5 py-1.5 text-xs bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center gap-1"
                         >
                             {postingSource === 'free' ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />

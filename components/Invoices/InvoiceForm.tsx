@@ -765,7 +765,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                     <button
                                         type="button"
                                         onClick={() => addEmptyItem(pmId)}
-                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
                                     >
                                         <Plus className="w-3.5 h-3.5" />
                                         行追加
@@ -871,7 +871,7 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                                 <button
                                     type="button"
                                     onClick={() => addEmptyItem(key)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 text-white rounded-lg hover:bg-slate-700 transition-colors"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
                                 >
                                     <Plus className="w-3.5 h-3.5" />
                                     行追加

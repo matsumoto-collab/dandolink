@@ -650,7 +650,7 @@ export default function ProjectDetailView({ project, onClose, readOnly = false }
                                         type="button"
                                         onClick={saveVehicles}
                                         disabled={isSavingVehicles}
-                                        className="px-3 py-1.5 text-sm border border-slate-700 bg-slate-700 text-white rounded-xl hover:bg-slate-800 disabled:opacity-40"
+                                        className="px-3 py-1.5 text-sm border border-teal-600 bg-teal-600 text-white rounded-xl hover:bg-teal-700 disabled:opacity-40"
                                     >
                                         保存
                                     </button>

@@ -205,7 +205,7 @@ export default function ProjectMasterSearchModal({
                         <div className="flex gap-2">
                             <button
                                 onClick={handleCreateNew}
-                                className="px-4 py-2 text-white bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+                                className="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors"
                             >
                                 新規作成
                             </button>

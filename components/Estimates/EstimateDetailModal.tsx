@@ -233,7 +233,7 @@ export default function EstimateDetailModal({
                             {!estimate.projectId && onCreateProject && (
                                 <button
                                     onClick={() => { onCreateProject(); onClose(); }}
-                                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 text-white hover:bg-slate-800 rounded-lg transition-colors"
+                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
                                     title="この見積書から案件を作成"
                                 >
                                     <FolderOpen size={18} />

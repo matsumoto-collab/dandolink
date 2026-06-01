@@ -368,7 +368,7 @@ export default function EstimateHeader({
                             customers={customers}
                             inputClass={"flex-1 px-3 py-3 md:py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base md:text-sm"}
                         />
-                        <button type="button" onClick={onOpenCustomerModal} className="px-4 py-3 md:py-2 bg-slate-700 text-white rounded-lg hover:bg-slate-800 active:bg-slate-900 transition-colors whitespace-nowrap text-sm font-medium">
+                        <button type="button" onClick={onOpenCustomerModal} className="px-4 py-3 md:py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 active:bg-teal-800 transition-colors whitespace-nowrap text-sm font-medium">
                             + 新規顧客
                         </button>
                     </div>

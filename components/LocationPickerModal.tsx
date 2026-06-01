@@ -286,7 +286,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
                 <button
                     type="button"
                     onClick={handleConfirm}
-                    className="px-4 h-9 text-sm font-semibold text-white bg-slate-800 hover:bg-slate-700 rounded-full"
+                    className="px-4 h-9 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 rounded-full"
                 >
                     追加
                 </button>

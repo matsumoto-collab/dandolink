@@ -816,7 +816,7 @@ export default function MaterialRequisitionPage() {
                                     <p>出庫伝票がありません</p>
                                     <button
                                         onClick={() => { setView('create'); expandAll(); }}
-                                        className="mt-4 px-4 py-2 bg-slate-800 text-white rounded-xl hover:bg-slate-700 text-sm"
+                                        className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm"
                                     >
                                         新規作成
                                     </button>
@@ -1315,7 +1315,7 @@ export default function MaterialRequisitionPage() {
                                 <button
                                     onClick={() => handleSubmit('confirmed')}
                                     disabled={isSaving}
-                                    className="flex-1 px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+                                    className="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
                                 >
                                     {isSaving ? '保存中...' : '確定して保存'}
                                 </button>

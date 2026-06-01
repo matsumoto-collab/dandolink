@@ -643,7 +643,7 @@ export default function ProjectForm({
                         <button
                             type="button"
                             onClick={() => setShowNewCustomerModal(true)}
-                            className="flex items-center gap-1 px-3 py-2 bg-slate-700 text-white text-sm rounded-md hover:bg-slate-600 transition-colors whitespace-nowrap"
+                            className="flex items-center gap-1 px-3 py-2 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 transition-colors whitespace-nowrap"
                         >
                             <Plus className="w-4 h-4" />
                             新規登録
@@ -970,7 +970,7 @@ export default function ProjectForm({
                     <button
                         type="submit"
                         disabled={isSaving}
-                        className="flex-1 px-4 py-2 bg-slate-800 text-white rounded-md hover:bg-slate-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                        className="flex-1 px-4 py-2 bg-teal-600 text-white rounded-md hover:bg-teal-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
                         {isSaving ? (
                             <>

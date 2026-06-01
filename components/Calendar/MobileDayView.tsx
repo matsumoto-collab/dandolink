@@ -190,7 +190,7 @@ export default function MobileDayView({
             {!isReadOnly && onAddEvent && (
                 <button
                     onClick={onAddEvent}
-                    className="fixed bottom-6 right-6 w-14 h-14 bg-slate-800 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-slate-700 active:scale-95 transition-all z-50"
+                    className="fixed bottom-6 right-6 w-14 h-14 bg-teal-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-teal-700 active:scale-95 transition-all z-50"
                 >
                     <Plus className="w-7 h-7" />
                 </button>
