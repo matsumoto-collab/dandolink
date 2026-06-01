@@ -606,9 +606,9 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
                 const pmEstimates = estimates.filter(e => e.projectId === pmId);
 
                 return (
-                    <div key={pmId} className="border border-slate-200 rounded-xl overflow-hidden">
+                    <div key={pmId} className="border border-slate-200 rounded-xl">
                         {/* 案件ヘッダー */}
-                        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                        <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 rounded-t-xl">
                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                     <label className="block text-[11px] font-medium text-slate-500 mb-1">
@@ -736,8 +736,8 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
 
             {/* 案件なしの手入力セクション（複数可・見出しごとに分かれる） */}
             {manualKeys.map((key, idx) => (
-                <div key={key} className="border border-slate-200 rounded-xl overflow-hidden">
-                    <div className="bg-slate-50 px-4 py-3 border-b border-slate-200">
+                <div key={key} className="border border-slate-200 rounded-xl">
+                    <div className="bg-slate-50 px-4 py-3 border-b border-slate-200 rounded-t-xl">
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
                             <div className="flex-1 min-w-0">
                                 <label className="block text-[11px] font-medium text-slate-500 mb-1">
