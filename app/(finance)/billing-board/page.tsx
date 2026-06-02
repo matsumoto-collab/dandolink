@@ -40,6 +40,18 @@ function defaultMonth(): { from: string; to: string } {
     return monthBounds(jst.getUTCFullYear(), jst.getUTCMonth());
 }
 
+/**
+ * 締め日 closingDay（0=末締め）の「reference 月(year, month0)で締まる期間」[from, to]。
+ * 末締め＝暦月そのもの。N日締め＝前月(N+1)日 〜 当月N日（例: 15日締め・6月分＝5/16〜6/15）。
+ */
+function periodForClosing(year: number, month0: number, closingDay: number): { from: string; to: string } {
+    if (closingDay <= 0) return monthBounds(year, month0);
+    const to = `${year}-${pad(month0 + 1)}-${pad(closingDay)}`;
+    const prev = new Date(Date.UTC(year, month0 - 1, 1));
+    const from = `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-${pad(closingDay + 1)}`;
+    return { from, to };
+}
+
 /** その行が現在のタブに属するか（請求済み=full はそのタブのみ、他タブは full を除外）。 */
 function inTab(r: Row, tab: TabKey): boolean {
     if (tab === 'billed') return r.billingStatus === 'full';
@@ -67,6 +79,8 @@ export default function BillingBoardPage() {
     // 表示期間（既定＝当月）。日付指定で任意の範囲に変更できる。
     const [from, setFrom] = useState<string>(() => defaultMonth().from);
     const [to, setTo] = useState<string>(() => defaultMonth().to);
+    // 締め日（0=末締め）。前月/翌月/今月のナビをこの締め日に合わせて算出する。
+    const [closingDay, setClosingDay] = useState<number>(0);
 
     const [tab, setTab] = useState<TabKey>('pending');
     const [assigneeId, setAssigneeId] = useState<string>(''); // '' = 全員
@@ -145,22 +159,34 @@ export default function BillingBoardPage() {
         [userMap],
     );
 
-    // 期間ナビ
+    // 期間ナビ（締め日 closingDay に合わせて算出。reference 月＝to の月）
     const shiftMonth = useCallback(
         (delta: number) => {
-            const [y, m] = from.split('-').map(Number);
+            const [y, m] = to.split('-').map(Number);
             const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-            const b = monthBounds(d.getUTCFullYear(), d.getUTCMonth());
+            const b = periodForClosing(d.getUTCFullYear(), d.getUTCMonth(), closingDay);
             setFrom(b.from);
             setTo(b.to);
         },
-        [from],
+        [to, closingDay],
     );
     const goThisMonth = useCallback(() => {
-        const b = defaultMonth();
+        const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+        const b = periodForClosing(jst.getUTCFullYear(), jst.getUTCMonth(), closingDay);
         setFrom(b.from);
         setTo(b.to);
-    }, []);
+    }, [closingDay]);
+    // 締め日変更＝現在の reference 月（to の月）を保ったまま期間を締め日に合わせて再計算
+    const handleClosingDayChange = useCallback(
+        (d: number) => {
+            setClosingDay(d);
+            const [y, m] = to.split('-').map(Number);
+            const b = periodForClosing(y, m - 1, d);
+            setFrom(b.from);
+            setTo(b.to);
+        },
+        [to],
+    );
 
     // 担当者・顧客のフィルタ候補（取得済みの行から導出）
     const assigneeOptions = useMemo(() => {
@@ -376,6 +402,19 @@ export default function BillingBoardPage() {
             {/* 期間コントロール */}
             <div className="mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-slate-600">表示期間</span>
+                <select
+                    value={closingDay}
+                    onChange={(e) => handleClosingDayChange(Number(e.target.value))}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    title="締め日（前月/翌月/今月の期間をこの締め日に合わせます）"
+                >
+                    <option value={0}>末締め</option>
+                    <option value={5}>5日締め</option>
+                    <option value={10}>10日締め</option>
+                    <option value={15}>15日締め</option>
+                    <option value={20}>20日締め</option>
+                    <option value={25}>25日締め</option>
+                </select>
                 <button
                     onClick={() => shiftMonth(-1)}
                     className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
