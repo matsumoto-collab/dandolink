@@ -19,6 +19,10 @@ interface EstimatePickerDialogProps {
     projectTitle: string;
     estimates: EstimateChoice[];
     submitting?: boolean;
+    /** ダイアログ見出し（既定＝請求予定作成用）。 */
+    title?: string;
+    /** 確定ボタンの文言（既定＝請求予定作成用）。 */
+    confirmLabel?: string;
     onClose: () => void;
     onConfirm: (selectedIds: string[]) => void;
 }
@@ -32,15 +36,18 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * 1 案件に見積が複数あるとき「どの見積から請求予定を作るか」を選ぶダイアログ。
+ * 1 案件に見積が複数あるとき「どの見積を使うか」を選ぶ汎用ダイアログ。
+ * 請求予定の作成（請求待ちボード）と、契約金額への反映（案件フォーム）で共用する。
  * 見積が 1 件（または承認済みが 1 件）のときは親側で自動採用し、本ダイアログは開かない。
- * 既定では承認済みの見積にチェックを入れる（無ければ全件）。
+ * 既定では承認済みの見積にチェックを入れる（無ければ全件）。選択分の合計を親へ返す。
  */
 export default function EstimatePickerDialog({
     open,
     projectTitle,
     estimates,
     submitting,
+    title,
+    confirmLabel,
     onClose,
     onConfirm,
 }: EstimatePickerDialogProps) {
@@ -73,7 +80,7 @@ export default function EstimatePickerDialog({
                 <div className="flex items-start justify-between border-b border-slate-200 px-5 py-4">
                     <div className="min-w-0">
                         <h2 className="text-base font-semibold text-slate-900">
-                            どの見積から請求予定を作成しますか？
+                            {title ?? 'どの見積から請求予定を作成しますか？'}
                         </h2>
                         <p className="mt-0.5 truncate text-xs text-slate-500">{projectTitle}</p>
                     </div>
@@ -145,7 +152,7 @@ export default function EstimatePickerDialog({
                             disabled={submitting || selected.size === 0}
                             isLoading={submitting}
                         >
-                            この見積で作成
+                            {confirmLabel ?? 'この見積で作成'}
                         </Button>
                     </div>
                 </div>

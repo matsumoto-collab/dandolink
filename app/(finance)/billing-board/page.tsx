@@ -10,7 +10,7 @@ import { useBillingDrafts } from '@/hooks/useBillingDrafts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
-import EstimatePickerDialog, { type EstimateChoice } from '@/components/BillingBoard/EstimatePickerDialog';
+import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem } from '@/types/invoice';
 import type { Estimate } from '@/types/estimate';
