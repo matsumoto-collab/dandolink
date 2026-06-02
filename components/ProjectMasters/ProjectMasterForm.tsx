@@ -151,7 +151,7 @@ export function ProjectMasterForm({ formData, setFormData, onSubmit, onCancel, i
                 isExpanded={expandedSections.construction}
                 onToggle={() => toggleSection('construction')}
             >
-                <ConstructionSection formData={formData} setFormData={setFormData} />
+                <ConstructionSection formData={formData} setFormData={setFormData} projectMasterId={projectMasterId} />
             </CollapsibleSection>
 
             {/* 協力業者費セクション */}

@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
-import { AlertCircle, Loader2, Users, X, Plus } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { AlertCircle, Loader2, Users, X, Plus, FileDown } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useSession } from 'next-auth/react';
 import { FormField } from '../common/FormField';
 import { ProjectMasterFormData, WorkDateEntry } from '../ProjectMasterForm';
@@ -9,10 +10,14 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { useCalendarStore } from '@/stores/calendarStore';
 import { useMasterStore, selectConstructionTypes } from '@/stores/masterStore';
 import { ConstructionTypeMaster, ProjectAssignment } from '@/types/calendar';
+import { useEstimates } from '@/hooks/useEstimates';
+import EstimatePickerDialog from '@/components/Estimates/EstimatePickerDialog';
 
 interface ConstructionSectionProps {
     formData: ProjectMasterFormData;
     setFormData: React.Dispatch<React.SetStateAction<ProjectMasterFormData>>;
+    /** 編集時のみ：見積から契約金額(足場工事金額)へ反映するために使用。 */
+    projectMasterId?: string;
 }
 
 function toJSTDateStr(date: Date | string): string {
@@ -318,7 +323,7 @@ function WorkDateRow({
     );
 }
 
-export function ConstructionSection({ formData, setFormData }: ConstructionSectionProps) {
+export function ConstructionSection({ formData, setFormData, projectMasterId }: ConstructionSectionProps) {
     const { data: session } = useSession();
     const role = session?.user?.role;
     const isAdminOrManager = role === 'admin' || role === 'manager';
@@ -326,6 +331,56 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
     const getVacationEmployees = useCalendarStore(state => state.getVacationEmployees);
     const getTotalMembersForDate = useMasterStore(state => state.getTotalMembersForDate);
     const constructionTypes = useMasterStore(selectConstructionTypes);
+
+    // 見積から契約金額（足場工事金額）への反映（請求待ちと同じ方式：1件→自動／複数→選んで合計）
+    const { estimates, ensureDataLoaded: ensureEstimatesLoaded } = useEstimates();
+    useEffect(() => {
+        if (projectMasterId) ensureEstimatesLoaded();
+    }, [projectMasterId, ensureEstimatesLoaded]);
+    const projectEstimates = useMemo(
+        () => (projectMasterId ? estimates.filter((e) => e.projectId === projectMasterId) : []),
+        [estimates, projectMasterId],
+    );
+    const [estimatePickerOpen, setEstimatePickerOpen] = useState(false);
+
+    const applyContractFromEstimates = useCallback(
+        (ests: { subtotal: number }[]) => {
+            const sum = ests.reduce((s, e) => s + (e.subtotal || 0), 0);
+            setFormData((prev) => ({ ...prev, contractAmount: String(Math.round(sum)) }));
+            toast.success('見積金額を契約金額（足場工事金額）に反映しました');
+        },
+        [setFormData],
+    );
+
+    const handleReflectEstimate = useCallback(() => {
+        if (projectEstimates.length === 0) {
+            toast.error('この案件に見積書がありません');
+            return;
+        }
+        const approved = projectEstimates.filter((e) => e.status === 'approved');
+        if (projectEstimates.length === 1) {
+            applyContractFromEstimates([projectEstimates[0]]);
+            return;
+        }
+        if (approved.length === 1) {
+            applyContractFromEstimates([approved[0]]);
+            return;
+        }
+        setEstimatePickerOpen(true);
+    }, [projectEstimates, applyContractFromEstimates]);
+
+    const handleEstimatePickerConfirm = useCallback(
+        (selectedIds: string[]) => {
+            const chosen = projectEstimates.filter((e) => selectedIds.includes(e.id));
+            if (chosen.length === 0) {
+                toast.error('見積を選択してください');
+                return;
+            }
+            applyContractFromEstimates(chosen);
+            setEstimatePickerOpen(false);
+        },
+        [projectEstimates, applyContractFromEstimates],
+    );
 
     // constructionTypes ロード後にデフォルト種別を自動セット（全行が未設定の場合のみ）
     useEffect(() => {
@@ -474,9 +529,39 @@ export function ConstructionSection({ formData, setFormData }: ConstructionSecti
                             placeholder="例: 500000"
                         />
                         <span className="text-sm text-slate-500">円(税抜)</span>
+                        {projectEstimates.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={handleReflectEstimate}
+                                className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+                            >
+                                <FileDown className="h-4 w-4" /> 見積から反映
+                            </button>
+                        )}
                     </div>
+                    {projectEstimates.length > 0 && (
+                        <p className="mt-1 text-xs text-slate-500">
+                            「見積から反映」で見積金額を契約金額に取り込めます（複数見積は選択して合計）。
+                        </p>
+                    )}
                 </FormField>
             )}
+
+            <EstimatePickerDialog
+                open={estimatePickerOpen}
+                projectTitle={formData.title || formData.name || ''}
+                estimates={projectEstimates.map((e) => ({
+                    id: e.id,
+                    estimateNumber: e.estimateNumber,
+                    title: e.title,
+                    status: e.status,
+                    subtotal: e.subtotal,
+                }))}
+                title="どの見積を契約金額に反映しますか？"
+                confirmLabel="この見積で反映"
+                onClose={() => setEstimatePickerOpen(false)}
+                onConfirm={handleEstimatePickerConfirm}
+            />
         </div>
     );
 }
