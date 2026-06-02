@@ -60,7 +60,7 @@ interface BillingBoardRowProps {
     userMap: Record<string, string>;
     /** この行で操作実行中はボタンを無効化。 */
     busy?: boolean;
-    tab: 'pending' | 'hold' | 'excluded';
+    tab: 'pending' | 'hold' | 'excluded' | 'billed';
     onRequest: (row: Row) => void;
     onHold: (row: Row) => void;
     onExclude: (row: Row) => void;
@@ -131,9 +131,15 @@ export default function BillingBoardRow({
                     </div>
                 </div>
 
-                {/* 右：判断アクション（既に請求予定があるときは「請求する」を出さず重複起票を防ぐ） */}
+                {/* 右：請求済みタブは請求額を表示、それ以外は判断ボタン（請求予定があるときは「請求する」を出さない） */}
                 <div className="flex flex-shrink-0 items-center gap-2">
-                    {row.hasPendingDraft && (
+                    {tab === 'billed' && (
+                        <div className="text-right">
+                            <div className="text-[10px] text-slate-500">請求済み(税抜)</div>
+                            <div className="text-lg font-bold text-emerald-700">{yen(row.invoicedAmount)}</div>
+                        </div>
+                    )}
+                    {tab !== 'billed' && row.hasPendingDraft && (
                         <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
                             請求予定あり
                         </span>

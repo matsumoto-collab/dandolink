@@ -36,9 +36,9 @@ function defaultMonthRange(): { from: string; to: string } {
  *
  * 請求判断ボードの行を集約して返す（admin / manager 限定）。
  *
- * 掲載条件：指定期間内に配置(ProjectAssignment)があり、status≠cancelled かつ
- *           全額請求済み（billingStatus='full'）でない案件。
- * from/to 未指定時は当月（JST）。'excluded'（対象外）は除外せず返す（対象外タブ用）。
+ * 掲載条件：指定期間内に配置(ProjectAssignment)があり、status≠cancelled の案件。
+ *           全額請求済み(full)も含めて返し、クライアントの「請求済み」タブで請求額を確認できる。
+ * from/to 未指定時は当月（JST）。full/excluded もそのまま返し、タブ振り分けはクライアント側で行う。
  *
  * 日付境界：ProjectAssignment.date は「JST 0時 = UTC前日15時」で保存されるため、
  *           JST 日付を `T00:00:00+09:00` / `T23:59:59.999+09:00` の UTC instant に直して比較する
@@ -154,7 +154,6 @@ export async function GET(req: NextRequest) {
             const invoiced = invoicedByProject[p.id] ?? 0;
             const contract = p.contractAmount ?? null;
             const billingStatus = getBillingStatus(contract, invoiced);
-            if (billingStatus === 'full') continue; // 全額請求済みはボードから外す
 
             const work = workByProject.get(p.id) ?? [];
             rows.push({

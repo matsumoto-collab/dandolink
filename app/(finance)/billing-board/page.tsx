@@ -16,13 +16,14 @@ import type { InvoiceItem } from '@/types/invoice';
 import type { Estimate } from '@/types/estimate';
 import { logger } from '@/lib/logger';
 
-type TabKey = 'pending' | 'hold' | 'excluded';
+type TabKey = 'pending' | 'hold' | 'excluded' | 'billed';
 type CtypeMap = Record<string, { name: string; color: string }>;
 
 const TABS: { key: TabKey; label: string }[] = [
     { key: 'pending', label: '判断待ち' },
     { key: 'hold', label: '保留' },
     { key: 'excluded', label: '対象外' },
+    { key: 'billed', label: '請求済み' },
 ];
 
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -39,8 +40,10 @@ function defaultMonth(): { from: string; to: string } {
     return monthBounds(jst.getUTCFullYear(), jst.getUTCMonth());
 }
 
-/** その行が現在のタブに属するか（判断待ちは請求予定がまだ無いものだけ）。 */
+/** その行が現在のタブに属するか（請求済み=full はそのタブのみ、他タブは full を除外）。 */
 function inTab(r: Row, tab: TabKey): boolean {
+    if (tab === 'billed') return r.billingStatus === 'full';
+    if (r.billingStatus === 'full') return false; // 全額請求済みは「請求済み」タブだけに出す
     if (tab === 'pending') return r.billingDecision === 'pending' && !r.hasPendingDraft;
     if (tab === 'hold') return r.billingDecision === 'hold';
     return r.billingDecision === 'excluded';
@@ -200,7 +203,7 @@ export default function BillingBoardPage() {
     );
 
     const counts = useMemo(() => {
-        const c: Record<TabKey, number> = { pending: 0, hold: 0, excluded: 0 };
+        const c: Record<TabKey, number> = { pending: 0, hold: 0, excluded: 0, billed: 0 };
         for (const r of rows) {
             if (!passesFilters(r)) continue;
             for (const t of TABS) if (inTab(r, t.key)) c[t.key] += 1;
@@ -489,7 +492,9 @@ export default function BillingBoardPage() {
                             ? 'この期間に判断待ちの案件はありません'
                             : tab === 'hold'
                               ? '保留中の案件はありません'
-                              : '対象外の案件はありません'}
+                              : tab === 'excluded'
+                                ? '対象外の案件はありません'
+                                : 'この期間に請求済みの案件はありません'}
                     </div>
                 ) : (
                     visibleRows.map((row) => (
