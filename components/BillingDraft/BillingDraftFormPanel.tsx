@@ -14,6 +14,7 @@ import { useInvoices } from '@/hooks/useInvoices';
 import { useCompany } from '@/hooks/useCompany';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import { logger } from '@/lib/logger';
+import { newBillingItemId, flattenEstimateItems } from '@/lib/billing/estimateToBillingItems';
 import type {
     BillingDraft,
     CreateBillingDraftInput,
@@ -61,47 +62,14 @@ const projectLabel = (pm: ProjectMaster): string => pm.name || pm.title;
  */
 const projectHeading = (pm: ProjectMaster): string => pm.title || pm.name || '';
 
-let itemSeq = 0;
-function newItemId(): string {
-    itemSeq += 1;
-    return `bd-item-${Date.now().toString(36)}-${itemSeq}`;
-}
-
 /** 空の明細行 */
 function makeEmptyItem(): InvoiceItem {
-    return { id: newItemId(), description: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' };
+    return { id: newBillingItemId(), description: '', quantity: 0, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' };
 }
 
 /** 値引き行（仕切り書に倣い 数量 -1 × 単価 = マイナス金額） */
 function makeDiscountItem(): InvoiceItem {
-    return { id: newItemId(), description: '値引き', quantity: -1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' };
-}
-
-/** 見積明細 → 請求明細（請求で使わない原価・カテゴリは落とす。カテゴリは子に展開） */
-function estimateItemToBilling(it: EstimateItem): InvoiceItem {
-    return {
-        id: newItemId(),
-        description: it.description,
-        specification: it.specification,
-        quantity: it.quantity,
-        unit: it.unit,
-        unitPrice: it.unitPrice,
-        amount: it.amount,
-        taxType: it.taxType,
-        notes: it.notes,
-    };
-}
-
-function flattenEstimateItems(items: EstimateItem[]): InvoiceItem[] {
-    const out: InvoiceItem[] = [];
-    for (const it of items) {
-        if (it.isCategory) {
-            for (const child of it.children ?? []) out.push(estimateItemToBilling(child));
-        } else {
-            out.push(estimateItemToBilling(it));
-        }
-    }
-    return out;
+    return { id: newBillingItemId(), description: '値引き', quantity: -1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' };
 }
 
 export default function BillingDraftFormPanel({
@@ -175,12 +143,12 @@ export default function BillingDraftFormPanel({
             setNote(draft.note ?? '');
             if (Array.isArray(draft.items) && draft.items.length > 0) {
                 // 新モデル: 保存済み明細をそのまま編集
-                setItems(draft.items.map((it) => ({ ...it, id: it.id || newItemId() })));
+                setItems(draft.items.map((it) => ({ ...it, id: it.id || newBillingItemId() })));
             } else if (draft.amount != null && Number(draft.amount) !== 0) {
                 // 旧モデル（単一 title+amount）: 1 明細に変換して編集可能にする
                 const amt = Number(draft.amount);
                 setItems([{
-                    id: newItemId(),
+                    id: newBillingItemId(),
                     description: draft.title,
                     quantity: 1,
                     unit: '式',
@@ -351,7 +319,7 @@ export default function BillingDraftFormPanel({
         setItems((prev) => [
             ...prev,
             {
-                id: newItemId(),
+                id: newBillingItemId(),
                 description: bt.name,
                 quantity: qty,
                 unit: bt.unit || '式',
