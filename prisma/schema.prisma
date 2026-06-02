@@ -86,6 +86,9 @@ model ProjectMaster {
   roadPermitCompletionDate   DateTime?
   roadPermitReceiveDate      DateTime?
   roadPermitExpiryDate       DateTime?
+  billingDecision            String                           @default("pending")
+  billingDecisionBy          String?
+  billingDecisionAt          DateTime?
   assignments                ProjectAssignment[]
   calendarEvents             CalendarEvent[]
   files                      ProjectMasterFile[]
@@ -99,6 +102,7 @@ model ProjectMaster {
   @@index([customerName])
   @@index([status])
   @@index([createdAt])
+  @@index([billingDecision])
   @@index([customerId], map: "idx_project_master_customer")
   @@index([title], map: "idx_project_master_title")
   @@schema("public")
