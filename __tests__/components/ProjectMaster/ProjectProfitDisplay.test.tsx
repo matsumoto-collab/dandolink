@@ -203,6 +203,6 @@ describe('ProjectProfitDisplay', () => {
     it('should call fetch with correct API endpoint', () => {
         global.fetch = jest.fn(() => new Promise(() => { })) as jest.Mock;
         render(<ProjectProfitDisplay projectMasterId="pm123" />);
-        expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/pm123/profit');
+        expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/pm123/profit', { cache: 'no-store' });
     });
 });

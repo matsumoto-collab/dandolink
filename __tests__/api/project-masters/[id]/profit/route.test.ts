@@ -4,154 +4,91 @@
 import { GET } from '@/app/api/project-masters/[id]/profit/route';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/api/utils';
+import { computeProjectCosts } from '@/lib/projectCost';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock dependencies
 jest.mock('@/lib/prisma', () => ({
     prisma: {
-        projectMaster: {
-            findUnique: jest.fn(),
-        },
-        systemSettings: {
-            findFirst: jest.fn(),
-        },
-        estimate: {
-            findMany: jest.fn(),
-        },
-        invoice: {
-            findMany: jest.fn(),
-        },
-        vehicle: {
-            findMany: jest.fn(),
-        },
-        user: {
-            findMany: jest.fn().mockResolvedValue([]),
-        },
-        worker: {
-            findMany: jest.fn().mockResolvedValue([]),
-        },
-        dailyReportWorkItem: {
-            groupBy: jest.fn(),
-        },
+        projectMaster: { findUnique: jest.fn() },
+        estimate: { findMany: jest.fn() },
+        invoice: { findMany: jest.fn() },
     },
 }));
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
-    parseJsonField: (val: any) => typeof val === 'string' ? JSON.parse(val) : val,
     notFoundResponse: jest.fn().mockImplementation((msg) => NextResponse.json({ error: `${msg}が見つかりません` }, { status: 404 })),
-    serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
+    serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: String(error) }, { status: 500 })),
     errorResponse: jest.fn().mockImplementation((msg, status) => NextResponse.json({ error: msg }, { status })),
 }));
+
+// 原価エンジンは projectCost.test.ts で検証済み。ここでは結果をモックして売上・レスポンス形に集中する。
+jest.mock('@/lib/projectCost', () => ({ computeProjectCosts: jest.fn() }));
+
+const breakdown = (over: Partial<Record<string, number>> = {}) => ({
+    laborCost: 0, loadingCost: 0, vehicleCost: 0, materialCost: 0, subcontractorCost: 0, otherExpenses: 0, totalCost: 0, ...over,
+});
+const costResult = (b: ReturnType<typeof breakdown>) => new Map([['proj-1', {
+    breakdown: b,
+    detail: { labor: [], vehicle: [], subcontractor: [], materialCost: b.materialCost, otherExpenses: b.otherExpenses, loadingCost: b.loadingCost },
+}]]);
 
 describe('/api/project-masters/[id]/profit', () => {
     const mockSession = { user: { id: 'user-1', role: 'admin' } };
     const mockId = 'proj-1';
-
-    // Mock Data
-    // 協力業者費は手配確定済み & パートナーロール職長のアサインがある工事種別分のみ計上されるため、
-    // アサインなしのベースケースでは加算されない
-    const mockProject = {
-        id: mockId,
-        title: 'Project A',
-        materialCost: 10000,
-        otherExpenses: 2000,
-        subcontractorCosts: [],
-        assignments: [],
-    };
-
-    const mockSettings = { laborDailyRate: 14400, standardWorkMinutes: 480 }; // rate = 30/min
-    const mockEstimates = [{ total: 100000, subtotal: 90909, costTotal: null }];
-    const mockInvoices = [{ total: 120000, subtotal: 109091 }];
-    const mockVehicles = [{ id: 'veh-1', dailyRate: 5000 }];
+    const context = { params: Promise.resolve({ id: mockId }) };
+    const createReq = () => new NextRequest(`http://localhost:3000/api/project-masters/${mockId}/profit`);
 
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
-        (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
-        (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+        (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown()));
     });
 
-    describe('GET', () => {
-        const createReq = () => new NextRequest(`http://localhost:3000/api/project-masters/${mockId}/profit`);
-        const context = { params: Promise.resolve({ id: mockId }) };
+    it('売上(請求 税抜フォールバック)と computeProjectCosts の原価から粗利を出す', async () => {
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
+        (prisma.estimate.findMany as jest.Mock).mockResolvedValue([{ total: 100000, subtotal: 90909, costTotal: null }]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 120000, subtotal: 109091 }]);
+        (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ materialCost: 10000, otherExpenses: 2000, totalCost: 12000 })));
 
-        it('should calculate profit correctly with minimal data', async () => {
-            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(mockProject);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(mockSettings);
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue(mockEstimates);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue(mockInvoices);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue(mockVehicles);
+        const res = await GET(createReq(), context);
+        const json = await res.json();
 
-            const res = await GET(createReq(), context);
-            const json = await res.json();
+        expect(res.status).toBe(200);
+        expect(json.revenue).toBe(109091); // 請求の税抜小計を優先
+        expect(json.revenueSource).toBe('invoice');
+        expect(json.estimateAmount).toBe(100000);
+        expect(json.costBreakdown.totalCost).toBe(12000);
+        expect(json.grossProfit).toBe(109091 - 12000);
+        expect(computeProjectCosts).toHaveBeenCalledWith(['proj-1'], { withDetail: true });
+    });
 
-            expect(res.status).toBe(200);
-            // Revenue now uses invoice subtotal (税別)
-            expect(json.revenue).toBe(109091);
-            expect(json.revenueSource).toBe('invoice');
-            expect(json.estimateAmount).toBe(100000);
-            // Costs: Material(10000) + Other(2000) = 12000 (協力業者費はアサインなしのため0)
-            expect(json.costBreakdown.totalCost).toBe(12000);
-            expect(json.grossProfit).toBe(109091 - 12000);
-        });
+    it('costBreakdown は computeProjectCosts の結果をそのまま反映する', async () => {
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
+        (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ laborCost: 14400, vehicleCost: 5000, totalCost: 19400 })));
 
-        it('should calculate labor and vehicle costs from assignments', async () => {
-            // 1 assignment, 2 workers, 1 vehicle, 08:00-12:00 (240 mins work)
-            const mockAssignment = {
-                workers: '["w1", "w2"]',
-                vehicles: '["veh-1"]',
-                dailyReportWorkItems: [
-                    {
-                        startTime: '08:00',
-                        endTime: '12:00',
-                        breakMinutes: 0,
-                        workerIds: [],
-                        dailyReport: {
-                            id: 'rep-1',
-                            morningLoadingMinutes: 30,
-                            eveningLoadingMinutes: 30,
-                        },
-                    },
-                ],
-            };
-            const mockProjectWithAssign = { ...mockProject, assignments: [mockAssignment] };
+        const res = await GET(createReq(), context);
+        const json = await res.json();
+        expect(json.costBreakdown.laborCost).toBe(14400);
+        expect(json.costBreakdown.vehicleCost).toBe(5000);
+        expect(json.costBreakdown.totalCost).toBe(19400);
+    });
 
-            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(mockProjectWithAssign);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(mockSettings); // rate = 30
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue(mockVehicles);
+    it('revenueOverride があれば売上に優先採用する', async () => {
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: 500000 });
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 120000, subtotal: 109091 }]);
 
-            const res = await GET(createReq(), context);
-            const json = await res.json();
+        const res = await GET(createReq(), context);
+        const json = await res.json();
+        expect(json.revenue).toBe(500000);
+        expect(json.revenueSource).toBe('override');
+    });
 
-            // Vehicle Cost: 5000 * 1 = 5000
-            expect(json.costBreakdown.vehicleCost).toBe(5000);
-
-            // Labor Cost: 240 min * 2 workers * 30 JPY/min = 14400
-            expect(json.costBreakdown.laborCost).toBe(14400);
-
-            // Loading Cost: reportTotal = 240 (only 1 work item in report), ratio = 240/240 = 1.0
-            // (30+30) * 1.0 * 2 workers * 30 JPY/min = 3600
-            expect(json.costBreakdown.loadingCost).toBe(3600);
-        });
-
-        it('should handle missing settings (fallback defaults)', async () => {
-            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(mockProject);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(null); // Defaults: 15000 / 480 = 31.25 rate
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
-
-            const res = await GET(createReq(), context);
-            expect(res.status).toBe(200);
-        });
-
-        it('should return 404 if project not found', async () => {
-            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(null);
-            const res = await GET(createReq(), context);
-            expect(res.status).toBe(404);
-        });
+    it('案件が無ければ 404', async () => {
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue(null);
+        const res = await GET(createReq(), context);
+        expect(res.status).toBe(404);
     });
 });

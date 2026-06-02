@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { parseJsonField } from '@/lib/json-utils';
 import { calcTimeDiffMinutes } from '@/utils/dateUtils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
+import { computeProjectCosts } from '@/lib/projectCost';
 
 export type RevenueSource = 'invoice' | 'contract' | 'estimate' | 'none';
 
@@ -271,12 +272,7 @@ export async function fetchProfitDashboardData(
             status: true,
             constructionType: true,
             contractAmount: true,
-            materialCost: true,
-            otherExpenses: true,
             updatedAt: true,
-            subcontractorCosts: {
-                select: { constructionTypeId: true, amount: true, transportCost: true },
-            },
             _count: {
                 select: { assignments: true },
             },
@@ -286,8 +282,8 @@ export async function fetchProfitDashboardData(
 
     const projectIds = projectMasters.map(pm => pm.id);
 
-    // 全クエリを並列実行
-    const [estimates, invoices, settings, workItems, assignments, vehicles, allUsers, allWorkers, foremanShares, constructionTypes] = await Promise.all([
+    // 全クエリを並列実行（原価は共通エンジン computeProjectCosts に一本化）
+    const [estimates, invoices, allUsers, foremanShares, constructionTypes, costMap] = await Promise.all([
         // 見積書(最新の作成日順)
         prisma.estimate.findMany({
             where: { projectMasterId: { in: projectIds } },
@@ -299,59 +295,9 @@ export async function fetchProfitDashboardData(
             where: { projectMasterId: { in: projectIds } },
             select: { projectMasterId: true, total: true },
         }),
-        // システム設定
-        prisma.systemSettings.findFirst(),
-        // 日報作業明細
-        prisma.dailyReportWorkItem.findMany({
-            where: {
-                assignment: {
-                    projectMasterId: { in: projectIds },
-                },
-            },
-            select: {
-                id: true,
-                startTime: true,
-                endTime: true,
-                breakMinutes: true,
-                workerIds: true,
-                dailyReport: {
-                    select: {
-                        date: true,
-                    },
-                },
-                assignment: {
-                    select: {
-                        id: true,
-                        projectMasterId: true,
-                        workers: true,
-                        memberCount: true,
-                        assignedEmployeeId: true,
-                    },
-                },
-            },
-        }),
-        // 配置情報（協力業者判定にも使うため isDispatchConfirmed / assignedEmployeeId / constructionType も取得）
-        prisma.projectAssignment.findMany({
-            where: { projectMasterId: { in: projectIds } },
-            select: {
-                projectMasterId: true,
-                vehicles: true,
-                assignedEmployeeId: true,
-                isDispatchConfirmed: true,
-                constructionType: true,
-            },
-        }),
-        // 車両情報
-        prisma.vehicle.findMany({
-            select: { id: true, dailyRate: true },
-        }),
-        // ユーザー日給+表示名+ロール（協力業者判定）
+        // 職長名の解決（byForeman 集計用）
         prisma.user.findMany({
-            select: { id: true, dailyRate: true, displayName: true, role: true },
-        }),
-        // 応援ワーカー日給
-        prisma.worker.findMany({
-            select: { id: true, dailyRate: true },
+            select: { id: true, displayName: true },
         }),
         // 職長別アサイン件数(各案件における按分計算用)
         prisma.projectAssignment.groupBy({
@@ -363,6 +309,8 @@ export async function fetchProfitDashboardData(
         prisma.constructionType.findMany({
             select: { id: true, name: true },
         }),
+        // 案件原価（人件費＋車両費＋材料費＋外注費＋その他、配置ごと上書き込み）
+        computeProjectCosts(projectIds),
     ]);
 
     // 見積書: 各案件で全件合算(追加見積書を含む。見積額の表示・売上フォールバック用)
@@ -391,66 +339,7 @@ export async function fetchProfitDashboardData(
         }
     }
 
-    // システム設定: 日給未設定時のデフォルト
-    const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
-
-    // ユーザー/応援ごとの日給マップ
-    const dailyRateMap = new Map<string, number>();
-    for (const u of allUsers) {
-        dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
-    }
-    for (const w of allWorkers) {
-        if (!dailyRateMap.has(w.id)) {
-            dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
-        }
-    }
-
-    // 協力業者ロールのユーザーIDセット（labor 集計でも参照するため早期に作る）
-    const partnerForemanIdSet = new Set(
-        allUsers.filter(u => u.role === 'partner').map(u => u.id)
-    );
-
-    // 人件費按分（共有純関数。当月のみの月次集計でも同じロジックを再利用）
-    const laborCostByProject = allocateLaborCostByProject(workItems, {
-        dailyRateMap, defaultDailyRate, partnerForemanIdSet,
-    });
-
-    // 車両費を計算
-    const vehicleRates = new Map<string, number>();
-    for (const v of vehicles) {
-        vehicleRates.set(v.id, Number(v.dailyRate || 0));
-    }
-
-    const vehicleCostByProject = new Map<string, number>();
-    for (const a of assignments) {
-        const vehicleIds: string[] = parseJsonField<string[]>(a.vehicles, []);
-        let cost = 0;
-        for (const vid of vehicleIds) {
-            cost += vehicleRates.get(vid) || 0;
-        }
-        if (cost > 0) {
-            vehicleCostByProject.set(
-                a.projectMasterId,
-                (vehicleCostByProject.get(a.projectMasterId) || 0) + cost
-            );
-        }
-    }
-
-    // 案件ごとに「手配確定済み & 職長がpartnerロール」のアサインから工事種別IDを収集
-    const activeTypeIdsByProject = new Map<string, Set<string>>();
-    for (const a of assignments) {
-        if (!a.isDispatchConfirmed) continue;
-        if (!partnerForemanIdSet.has(a.assignedEmployeeId)) continue;
-        if (!a.constructionType) continue;
-        let set = activeTypeIdsByProject.get(a.projectMasterId);
-        if (!set) {
-            set = new Set<string>();
-            activeTypeIdsByProject.set(a.projectMasterId, set);
-        }
-        set.add(a.constructionType);
-    }
-
-    // 結果を組み立て
+    // 結果を組み立て（原価は costMap＝computeProjectCosts から取得）
     const profitSummaries: ProjectProfit[] = projectMasters.map(pm => {
         const estimateAmount = estimateByProject.get(pm.id) || 0;
         const estimateCostTotal = estimateCostByProject.get(pm.id) ?? null;
@@ -471,21 +360,15 @@ export async function fetchProfitDashboardData(
             revenueSource = 'estimate';
         }
 
-        const laborCost = laborCostByProject.get(pm.id) || 0;
-        const loadingCost = 0;
-        const vehicleCost = vehicleCostByProject.get(pm.id) || 0;
-        const materialCost = Number(pm.materialCost || 0);
-        const activeTypeIds = activeTypeIdsByProject.get(pm.id) ?? new Set<string>();
-        // 作業費 + 運搬費 を合算して協力業者費として計上
-        const subcontractorCost = pm.subcontractorCosts.reduce((sum, c) =>
-            activeTypeIds.has(c.constructionTypeId)
-                ? sum + Number(c.amount || 0) + Number(c.transportCost || 0)
-                : sum,
-            0,
-        );
-        const otherExpenses = Number(pm.otherExpenses || 0);
-
-        const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
+        // 原価は共通エンジン（人件費＋車両費＋材料費＋外注費＋その他、配置ごと上書き込み）
+        const cb = costMap.get(pm.id)?.breakdown;
+        const laborCost = cb?.laborCost ?? 0;
+        const loadingCost = cb?.loadingCost ?? 0;
+        const vehicleCost = cb?.vehicleCost ?? 0;
+        const materialCost = cb?.materialCost ?? 0;
+        const subcontractorCost = cb?.subcontractorCost ?? 0;
+        const otherExpenses = cb?.otherExpenses ?? 0;
+        const totalCost = cb?.totalCost ?? 0;
         const grossProfit = revenue - totalCost;
         const profitMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
 
@@ -723,15 +606,12 @@ export type BreakdownPeriod = 'month' | 'year';
 
 // グループ（担当者 or 顧客）を展開したときの案件1件ぶんの明細行。
 export interface MonthlyAssigneeProjectRow {
-    projectId: string;          // ProjectMaster.id。'' = 案件なし請求（編集不可）
+    projectId: string;          // ProjectMaster.id。'' = 案件なし請求
     projectName: string;        // 正式名称（title＝敬称・工事名称込み）
     customerName: string;       // 顧客名（無ければ ''）
     sales: number;              // 期間内の請求書(税込)のうちこの案件ぶん
-    autoCost: number;           // 期間内の日報(人件費)＋配置(車両費)のこの案件ぶん
-    costOverride: number | null; // 当月表示のみ（年間は null）
-    cost: number;               // 当月: costOverride ?? autoCost ／ 年間: 月次(override ?? auto)の積み上げ
+    cost: number;               // 案件の確定原価（computeProjectCosts。配置上書き・材料費等込み）
     grossProfit: number;
-    editable: boolean;          // 案件×月で原価を手修正できるか（当月かつ案件ありのみ true）
 }
 
 // 集計グループ（担当者 or 顧客）1件ぶん。
@@ -739,10 +619,9 @@ export interface MonthlyAssigneeRow {
     key: string;               // 担当者ID or 顧客キー（識別子 & React key）
     name: string;
     sales: number;             // items の合計
-    autoCost: number;          // items の自動原価合計
-    cost: number;              // items の採用原価合計
+    cost: number;              // items の原価合計
     grossProfit: number;       // sales - cost
-    items: MonthlyAssigneeProjectRow[]; // このグループの案件明細（売上 or 原価のある案件）
+    items: MonthlyAssigneeProjectRow[]; // このグループの案件明細
 }
 
 export interface MonthlyAssigneeBreakdown {
@@ -761,8 +640,8 @@ const NO_CUSTOMER_KEY = '__nocustomer__';
  *
  * - 対象: 期間内に発行(createdAt)した請求書がある案件のみ（未請求の案件は一覧に出さない）。
  * - 売上: 期間内の請求書(送付済み以降, 税込 total)。複数案件まとめ請求は明細額で案件按分。
- * - 原価＝「その請求に対する原価」＝請求した案件の **総原価**（全期間の人件費＋車両費。`allocateLaborCostByProject`）。
- *   `MonthlyProjectCostOverride`(year,month,projectId) があれば手修正値を採用（当月は編集可・年間は閲覧のみ）。
+ * - 原価＝請求した案件の**確定原価**＝`computeProjectCosts`（人件費＋車両費＋材料費＋外注費＋その他、配置ごとの上書き込み）。
+ *   原価の手修正は案件詳細（利益タブの配置別上書き＋案件マスタの材料費等）に一本化。ここは表示のみ。
  * - axis='assignee' は主担当（`extractAssigneeIds(createdBy)[0]`）、'customer' は案件の顧客名でグルーピング。明細は顧客名→案件名順。
  * - 注意: 原価は案件の全期間合計のため、1案件を複数月に分けて請求すると各請求月に原価が重複計上されうる（完成時一括請求を想定）。
  */
@@ -784,33 +663,17 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     const rangeEnd = period === 'year'
         ? new Date(Date.UTC(year + 1, 0, 1, -9, 0, 0, 0))
         : new Date(Date.UTC(year, m0 + 1, 1, -9, 0, 0, 0));
-    // 1段目: 期間内の請求書＋単価マスタ＋当年の原価上書き
-    const [invoices, vehicles, allUsers, allWorkers, settings, overrides] = await Promise.all([
+
+    // 1段目: 期間内の請求書＋担当者名（売上の按分・グルーピング用）
+    const [invoices, allUsers] = await Promise.all([
         prisma.invoice.findMany({
             where: { createdAt: { gte: rangeStart, lt: rangeEnd }, status: { in: [...SALES_INVOICE_STATUSES] } },
             select: { total: true, items: true, projectMasterId: true },
         }),
-        prisma.vehicle.findMany({ select: { id: true, dailyRate: true } }),
-        prisma.user.findMany({ select: { id: true, dailyRate: true, displayName: true, role: true } }),
-        prisma.worker.findMany({ select: { id: true, dailyRate: true } }),
-        prisma.systemSettings.findFirst(),
-        prisma.monthlyProjectCostOverride.findMany({ where: { year } }),
+        prisma.user.findMany({ select: { id: true, displayName: true } }),
     ]);
-
-    const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
-    const dailyRateMap = new Map<string, number>();
-    for (const u of allUsers) dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
-    for (const w of allWorkers) if (!dailyRateMap.has(w.id)) dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
-    const partnerForemanIdSet = new Set(allUsers.filter(u => u.role === 'partner').map(u => u.id));
     const userNameMap = new Map<string, string>();
     for (const u of allUsers) userNameMap.set(u.id, u.displayName);
-    const vehicleRates = new Map<string, number>();
-    for (const v of vehicles) vehicleRates.set(v.id, Number(v.dailyRate || 0));
-    const vehicleCostOf = (vehiclesJson: string | null) => {
-        let c = 0;
-        for (const vid of parseJsonField<string[]>(vehiclesJson, [])) c += vehicleRates.get(vid) || 0;
-        return c;
-    };
 
     // ---- 売上を案件ごとに（期間内の全請求書）。案件なし請求は projectless へ ----
     const salesByProject = new Map<string, number>();
@@ -839,24 +702,9 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     // 当該期間に「請求のある」案件だけを対象にする（未請求の案件は一覧に出さない）
     const billedPids = [...salesByProject.keys()].filter(pid => (salesByProject.get(pid) || 0) > 0);
 
-    // 2段目: 請求した案件の「総原価」（全期間の日報・配置）＋案件メタ
-    const [workItems, projAssignments, projects] = await Promise.all([
-        billedPids.length > 0
-            ? prisma.dailyReportWorkItem.findMany({
-                where: { assignment: { projectMasterId: { in: billedPids } } },
-                select: {
-                    id: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
-                    dailyReport: { select: { date: true } },
-                    assignment: { select: { projectMasterId: true, workers: true, memberCount: true, assignedEmployeeId: true } },
-                },
-            })
-            : Promise.resolve([]),
-        billedPids.length > 0
-            ? prisma.projectAssignment.findMany({
-                where: { projectMasterId: { in: billedPids } },
-                select: { projectMasterId: true, vehicles: true },
-            })
-            : Promise.resolve([]),
+    // 2段目: 共通原価エンジンで確定原価＋案件メタ
+    const [costMap, projects] = await Promise.all([
+        computeProjectCosts(billedPids),
         billedPids.length > 0
             ? prisma.projectMaster.findMany({
                 where: { id: { in: billedPids } },
@@ -864,23 +712,6 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
             })
             : Promise.resolve([]),
     ]);
-
-    // 案件の総原価（その案件にこれまでかかった人件費＋車両費の全期間合計）
-    const labor = allocateLaborCostByProject(workItems, { dailyRateMap, defaultDailyRate, partnerForemanIdSet });
-    const vehicleByProject = new Map<string, number>();
-    for (const a of projAssignments) {
-        const c = vehicleCostOf(a.vehicles);
-        if (c > 0) vehicleByProject.set(a.projectMasterId, (vehicleByProject.get(a.projectMasterId) || 0) + c);
-    }
-    const autoCostByProject = new Map<string, number>();
-    for (const pid of billedPids) autoCostByProject.set(pid, (labor.get(pid) || 0) + (vehicleByProject.get(pid) || 0));
-
-    // 案件×（当月: その月／年間: 当年いずれか）の原価上書き。通常1案件1回請求＝1件。
-    const ovMap = new Map<string, number>();
-    for (const o of overrides) {
-        if (period === 'month' && o.month !== month) continue;
-        ovMap.set(o.projectId, Number(o.cost));
-    }
 
     // 案件メタ（正式名称＝title／顧客名／主担当）
     const principalByProject = new Map<string, string>();
@@ -897,19 +728,13 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     const aggs: Agg[] = [];
     for (const pid of billedPids) {
         const sales = Math.round(salesByProject.get(pid) || 0);
-        const autoCost = Math.round(autoCostByProject.get(pid) || 0);
-        const ov = ovMap.has(pid) ? Math.round(ovMap.get(pid)!) : null;
-        const cost = ov ?? autoCost;
+        const cost = Math.round(costMap.get(pid)?.breakdown.totalCost ?? 0);
         aggs.push({
             projectId: pid,
             projectName: projectNameMap.get(pid) || '(案件名なし)',
             customerName: customerByProject.get(pid) || '',
             assigneeId: principalByProject.get(pid) ?? UNASSIGNED_ASSIGNEE_ID,
-            sales, autoCost,
-            costOverride: period === 'month' ? ov : null, // 年間は閲覧のみ（↺非表示）
-            cost,
-            grossProfit: sales - cost,
-            editable: period === 'month',
+            sales, cost, grossProfit: sales - cost,
         });
     }
     if (projectlessSales > 0) {
@@ -917,7 +742,7 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         aggs.push({
             projectId: '', projectName: '(案件なし)', customerName: '',
             assigneeId: UNASSIGNED_ASSIGNEE_ID,
-            sales: s, autoCost: 0, costOverride: null, cost: 0, grossProfit: s, editable: false,
+            sales: s, cost: 0, grossProfit: s,
         });
     }
 
@@ -934,8 +759,7 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         if (!g) { g = { name: groupNameOf(a), items: [] }; groups.set(key, g); }
         g.items.push({
             projectId: a.projectId, projectName: a.projectName, customerName: a.customerName,
-            sales: a.sales, autoCost: a.autoCost, costOverride: a.costOverride, cost: a.cost,
-            grossProfit: a.grossProfit, editable: a.editable,
+            sales: a.sales, cost: a.cost, grossProfit: a.grossProfit,
         });
     }
 
@@ -944,9 +768,8 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         const items = g.items.sort((a, b) =>
             collator.compare(a.customerName, b.customerName) || collator.compare(a.projectName, b.projectName));
         const sales = items.reduce((s, i) => s + i.sales, 0);
-        const autoCost = items.reduce((s, i) => s + i.autoCost, 0);
         const cost = items.reduce((s, i) => s + i.cost, 0);
-        return { key, name: g.name, sales, autoCost, cost, grossProfit: sales - cost, items };
+        return { key, name: g.name, sales, cost, grossProfit: sales - cost, items };
     }).sort((a, b) => b.sales - a.sales || b.grossProfit - a.grossProfit);
 
     const totals = rows.reduce(

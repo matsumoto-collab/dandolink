@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { RotateCcw, ChevronRight, ChevronDown, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, Download } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { formatCurrency } from '@/utils/costCalculation';
-import type { MonthlyAssigneeBreakdown, MonthlyAssigneeProjectRow, BreakdownAxis, BreakdownPeriod } from '@/lib/profitDashboard';
+import type { MonthlyAssigneeBreakdown, BreakdownAxis, BreakdownPeriod } from '@/lib/profitDashboard';
 
 interface Props {
     year: number;
@@ -15,7 +15,6 @@ interface Props {
 export default function MonthlyAssigneeTable({ year, month }: Props) {
     const [data, setData] = useState<MonthlyAssigneeBreakdown | null>(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [savingId, setSavingId] = useState<string | null>(null);
     const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
     const [axis, setAxis] = useState<BreakdownAxis>('assignee');
     const [period, setPeriod] = useState<BreakdownPeriod>('month');
@@ -41,26 +40,6 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
         }, 200);
         return () => { cancelled = true; clearTimeout(t); };
     }, [year, month, axis, period]);
-
-    const saveCost = useCallback(async (projectId: string, cost: number | null) => {
-        setSavingId(projectId);
-        try {
-            const res = await fetch('/api/profit-dashboard/monthly-detail', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ year, month, projectId, cost, axis }),
-            });
-            if (!res.ok) throw new Error('failed');
-            const json = await res.json();
-            setData(json);
-            toast.success(cost === null ? '自動値に戻しました' : '原価を保存しました');
-        } catch (e) {
-            logger.error('Failed to save project cost:', e);
-            toast.error('原価の保存に失敗しました');
-        } finally {
-            setSavingId(null);
-        }
-    }, [year, month, axis]);
 
     const toggle = (key: string) => setCollapsed(prev => {
         const next = new Set(prev);
@@ -102,10 +81,8 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
                 </div>
             </div>
             <p className="text-xs text-slate-400 mb-3">
-                {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額、原価=その案件の総原価＝全期間の人件費＋車両費・主担当に全額計上）。
-                {period === 'month'
-                    ? <>原価は<strong className="text-slate-500">案件ごとに手修正</strong>できます。</>
-                    : <>年間は<strong className="text-slate-500">閲覧のみ</strong>（手修正は「当月」に切り替えて行ってください）。</>}
+                {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額、原価=案件の確定原価＝人件費＋車両費＋材料費＋外注費＋その他、主担当に全額計上）。
+                <strong className="text-slate-500">原価の修正は案件詳細の利益タブ</strong>（配置ごとの上書き・材料費等）で行います。
             </p>
 
             {/* PC: テーブル */}
@@ -115,7 +92,7 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
                         <tr>
                             <th className="px-3 py-2 text-left text-xs font-semibold text-slate-600">{groupColLabel} / 案件</th>
                             <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">売上</th>
-                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">原価{period === 'month' ? '（自動/手修正）' : ''}</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">原価</th>
                             <th className="px-3 py-2 text-right text-xs font-semibold text-slate-600">粗利</th>
                         </tr>
                     </thead>
@@ -145,9 +122,7 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
                                                 {it.projectName}
                                             </td>
                                             <td className="px-3 py-1.5 text-right text-sm text-slate-600 tabular-nums">{formatCurrency(it.sales)}</td>
-                                            <td className="px-3 py-1.5 text-right">
-                                                <CostCell item={it} disabled={savingId === it.projectId} onSave={(c) => saveCost(it.projectId, c)} />
-                                            </td>
+                                            <td className="px-3 py-1.5 text-right text-sm text-slate-600 tabular-nums">{formatCurrency(it.cost)}</td>
                                             <td className={`px-3 py-1.5 text-right text-sm tabular-nums ${it.grossProfit < 0 ? 'text-red-600' : 'text-slate-700'}`}>{formatCurrency(it.grossProfit)}</td>
                                         </tr>
                                     ))}
@@ -189,12 +164,10 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
                                         {axis === 'assignee' && it.customerName && <span className="text-slate-400">{it.customerName}　</span>}
                                         {it.projectName}
                                     </div>
-                                    <div className="flex items-center justify-between gap-2 pl-2">
-                                        <span className="text-xs text-slate-500">売上 {formatCurrency(it.sales)}</span>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-xs text-slate-500">原価</span>
-                                            <CostCell item={it} disabled={savingId === it.projectId} onSave={(c) => saveCost(it.projectId, c)} />
-                                        </div>
+                                    <div className="flex items-center justify-between gap-2 pl-2 text-xs text-slate-500">
+                                        <span>売上 {formatCurrency(it.sales)}</span>
+                                        <span>原価 {formatCurrency(it.cost)}</span>
+                                        <span className={it.grossProfit < 0 ? 'text-red-600' : 'text-slate-700'}>粗利 {formatCurrency(it.grossProfit)}</span>
                                     </div>
                                 </div>
                             ))}
@@ -230,52 +203,6 @@ function Segmented({ value, onChange, options }: {
                     {o.label}
                 </button>
             ))}
-        </div>
-    );
-}
-
-// 案件1件の原価編集セル。表示は採用値（override ?? auto）。変更で上書き保存、↺ で自動値へ戻す。
-// 編集不可（年間・案件なし行）は表示のみ。
-function CostCell({ item, disabled, onSave }: { item: MonthlyAssigneeProjectRow; disabled: boolean; onSave: (cost: number | null) => void }) {
-    const [text, setText] = useState(String(item.cost));
-    useEffect(() => { setText(String(item.cost)); }, [item.cost]);
-
-    if (!item.editable) {
-        return <span className="text-sm text-slate-500 tabular-nums">{formatCurrency(item.cost)}</span>;
-    }
-
-    const commit = () => {
-        const n = Math.round(Number(text.replace(/[^0-9.-]/g, '')));
-        if (!Number.isFinite(n)) { setText(String(item.cost)); return; }
-        if (n !== item.cost) onSave(n);
-    };
-
-    return (
-        <div className="flex items-center justify-end gap-1.5">
-            <input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onBlur={commit}
-                onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                onClick={(e) => e.stopPropagation()}
-                inputMode="numeric"
-                disabled={disabled}
-                aria-label={`${item.projectName} の原価`}
-                className="w-28 text-right border border-slate-200 rounded-lg px-2 py-1 text-sm tabular-nums focus:ring-2 focus:ring-teal-500 disabled:opacity-50"
-            />
-            {item.costOverride != null ? (
-                <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); onSave(null); }}
-                    disabled={disabled}
-                    title="自動値に戻す（手修正を解除）"
-                    className="text-teal-700 hover:text-teal-900 disabled:opacity-50"
-                >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-            ) : (
-                <span className="text-[10px] text-slate-400 w-3.5 text-center" title="日報・配置からの自動算出値">自</span>
-            )}
         </div>
     );
 }

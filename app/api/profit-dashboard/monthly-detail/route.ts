@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { requireManagerOrAbove, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
-import { prisma } from '@/lib/prisma';
 import { fetchMonthlyAssigneeBreakdown } from '@/lib/profitDashboard';
 
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 
-/** GET ?year=&month= → 当該月の案件担当者別 売上/原価/粗利 */
+/**
+ * GET ?year=&month=&axis=assignee|customer&period=month|year
+ * → 当該期間に請求のあった案件の 担当者別/顧客別 売上・原価・粗利（案件明細つき）。
+ *
+ * 原価は案件の確定原価（computeProjectCosts）で表示のみ。手修正は案件詳細の利益タブに一本化したため、
+ * この画面からの保存（旧 PUT）は廃止した。
+ */
 export async function GET(request: NextRequest) {
     try {
         const { error } = await requireManagerOrAbove();
@@ -24,48 +28,6 @@ export async function GET(request: NextRequest) {
         const data = await fetchMonthlyAssigneeBreakdown({ year, month, axis, period });
         return NextResponse.json(data, { headers: NO_STORE });
     } catch (error) {
-        return serverErrorResponse('月次担当者別内訳の取得', error);
-    }
-}
-
-const putSchema = z.object({
-    year: z.number().int().min(2000).max(3000),
-    month: z.number().int().min(1).max(12),
-    projectId: z.string().min(1),
-    // number = 手修正の上書き値 / null = 上書きを解除して自動値へ戻す
-    cost: z.number().min(0).max(1_000_000_000).nullable(),
-    // クライアントの現在の表示軸（保存後に同じ軸の内訳を返すため）
-    axis: z.enum(['assignee', 'customer']).optional(),
-});
-
-/** PUT 案件×月の原価上書きを保存/解除し、更新後の内訳を返す */
-export async function PUT(request: NextRequest) {
-    try {
-        const { session, error } = await requireManagerOrAbove();
-        if (error) return error;
-
-        const body = await request.json().catch(() => null);
-        const parsed = putSchema.safeParse(body);
-        if (!parsed.success) {
-            return validationErrorResponse('入力が不正です', parsed.error.flatten());
-        }
-        const { year, month, projectId, cost, axis } = parsed.data;
-
-        if (cost === null) {
-            // 上書き解除（行削除）→ 自動値に戻る
-            await prisma.monthlyProjectCostOverride.deleteMany({ where: { year, month, projectId } });
-        } else {
-            await prisma.monthlyProjectCostOverride.upsert({
-                where: { year_month_projectId: { year, month, projectId } },
-                create: { year, month, projectId, cost, updatedBy: session!.user.id },
-                update: { cost, updatedBy: session!.user.id },
-            });
-        }
-
-        // 更新後の内訳（合計含む）を返し、クライアントを一貫した状態にする（編集は当月のみ）
-        const data = await fetchMonthlyAssigneeBreakdown({ year, month, axis: axis ?? 'assignee', period: 'month' });
-        return NextResponse.json(data, { headers: NO_STORE });
-    } catch (error) {
-        return serverErrorResponse('月次案件別原価の保存', error);
+        return serverErrorResponse('月次内訳の取得', error);
     }
 }

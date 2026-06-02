@@ -3,6 +3,16 @@
  */
 import { fetchProfitDashboardData, fetchMonthlySales, fetchMonthlyAssigneeBreakdown } from '@/lib/profitDashboard';
 import { prisma } from '@/lib/prisma';
+import { computeProjectCosts } from '@/lib/projectCost';
+
+// 原価エンジンは projectCost.test.ts で単体検証済み。ここでは結果をモックして売上/グルーピングに集中する。
+jest.mock('@/lib/projectCost', () => ({ computeProjectCosts: jest.fn() }));
+
+// projectId → totalCost のモック原価マップを返すヘルパ
+const mockCosts = (costs: Record<string, number> = {}) =>
+    (ids: string[]) => new Map(ids.map(id => [id, {
+        breakdown: { laborCost: 0, loadingCost: 0, vehicleCost: 0, materialCost: 0, subcontractorCost: 0, otherExpenses: 0, totalCost: costs[id] ?? 0 },
+    }]));
 
 // Mock Prisma
 jest.mock('@/lib/prisma', () => ({
@@ -66,8 +76,6 @@ describe('lib/profitDashboard', () => {
 
     const mockEstimates = [{ projectMasterId: 'proj-1', total: 100000, costTotal: null, createdAt: new Date() }];
     const mockInvoices = [{ projectMasterId: 'proj-1', total: 120000 }];
-    const mockSettings = { laborDailyRate: 14400, standardWorkMinutes: 480 }; // rate = 30/min
-    const mockVehicles = [{ id: 'veh-1', dailyRate: 5000 }];
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -75,114 +83,35 @@ describe('lib/profitDashboard', () => {
         (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.projectAssignment.groupBy as jest.Mock).mockResolvedValue([]);
+        (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({}));
     });
 
     describe('fetchProfitDashboardData', () => {
-        it('should return correct data in fast mode (estimates/revenue only)', async () => {
+        it('売上（請求書フォールバック）と computeProjectCosts の確定原価から粗利を出す', async () => {
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([mockProject]);
             (prisma.estimate.findMany as jest.Mock).mockResolvedValue(mockEstimates);
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue(mockInvoices);
-
-            // Fast mode internally only calls these 3 prisma methods in the conditional block? 
-            // Checking the implementation in Step 425:
-            // "if (mode === 'fast')" block calls estimates and invoices.
-            // Wait, fetchProfitDashboardData signature is (status: string). It doesn't take mode as arg directly?
-            // Re-checking Step 425 source code.
-            // export async function fetchProfitDashboardData(status: string = 'all'): Promise<DashboardData>
-            // The implementation calls ALL queries in Promise.all unconditionally in lines 69-114.
-            // Wait, looking at Step 353 (API route), the API route handles mode='fast'.
-            // looking at Step 425 (Lib file), it DOES NOT accept a mode argument. It always runs full queries.
-            // Ah, I see. The implementation plan said "Handle 'fast' mode" for the *test*, but looking at the lib code, it doesn't seem to support fast mode via argument.
-            // Let me re-read Step 425 carefully.
-            // Line 40: export async function fetchProfitDashboardData(status: string = 'all')
-            // And then line 69: const [...] = await Promise.all([...])
-            // It fetches everything.
-            // The `mode` logic seems to be in the API route (app/api/profit-dashboard/route.ts) lines 28-65, where it branches logic.
-            // But the Library function `fetchProfitDashboardData` seems to be the "full" implementation or maybe I misread where it's used.
-            // Let's check if `fetchProfitDashboardData` is actually the code extracted from the route or independent.
-            // Only `app/api/profit-dashboard/route.ts` was shown in Step 353. 
-            // Step 425 shows `lib/profitDashboard.ts`.
-            // The content of `lib/profitDashboard.ts` in step 425 is the FULL implementation that does ALL queries. It does not have a 'fast' mode switch.
-            // So my test should reflect that. The `fast` mode test case in my thought process was incorrect for the LIB function, it was for the API route (which I already tested).
-            // The lib function `fetchProfitDashboardData` is likely used by Server Components or the API route default.
-
-            // Correct test strategy for LIB:
-            // Verify it calculates everything correctly.
-
-            // Mock everything needed for full calculation
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([mockProject]);
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue(mockEstimates);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue(mockInvoices);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(mockSettings);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue(mockVehicles);
-            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([]);
+            (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({ 'proj-1': 12000 }));
 
             const result = await fetchProfitDashboardData('all');
 
-            expect(result.projects[0].revenue).toBe(120000);
-            expect(result.projects[0].laborCost).toBe(0);
-            // material(10000) + other(2000) = 12000 (協力業者費はアサイン無しで0)
-            expect(result.projects[0].grossProfit).toBe(120000 - 12000);
+            expect(result.projects[0].revenue).toBe(120000);   // 請求書優先
+            expect(result.projects[0].totalCost).toBe(12000);   // 共通エンジンの確定原価
+            expect(result.projects[0].grossProfit).toBe(108000);
+            expect(computeProjectCosts).toHaveBeenCalledWith(['proj-1']);
             expect(prisma.projectMaster.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {} }));
         });
 
-        it('should filter by status', async () => {
+        it('ステータスで案件を絞り込む', async () => {
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
             (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(mockSettings);
-            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
 
             await fetchProfitDashboardData('completed');
 
             expect(prisma.projectMaster.findMany).toHaveBeenCalledWith(expect.objectContaining({
-                where: { status: 'completed' }
+                where: { status: 'completed' },
             }));
-        });
-
-        it('should calculate labor and vehicle costs', async () => {
-            const mockWorkItems = [
-                {
-                    startTime: '08:00',
-                    endTime: '12:00',
-                    breakMinutes: 0,
-                    workerIds: [],
-                    dailyReport: { morningLoadingMinutes: 30, eveningLoadingMinutes: 30 },
-                    assignment: { projectMasterId: 'proj-1', workers: '["w1", "w2"]', memberCount: 2 },
-                },
-            ];
-            const mockAssignments = [{
-                projectMasterId: 'proj-1',
-                vehicles: '["veh-1"]',
-                assignedEmployeeId: 'user-1',
-                isDispatchConfirmed: false,
-                constructionType: null,
-            }];
-
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([mockProject]);
-            (prisma.estimate.findMany as jest.Mock).mockResolvedValue(mockEstimates);
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue(mockInvoices);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue(mockSettings);
-            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue(mockWorkItems);
-            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue(mockAssignments);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue(mockVehicles);
-
-            const result = await fetchProfitDashboardData('all');
-
-            // Labor: 240 * 2 * 30 = 14400
-            expect(result.projects[0].laborCost).toBe(14400);
-            // Loading: (30+30) * 0.5 * 2 * 30 = 1800
-            expect(result.projects[0].loadingCost).toBe(1800);
-            // Vehicle: 5000 * 1 = 5000
-            expect(result.projects[0].vehicleCost).toBe(5000);
-
-            // labor(14400) + loading(1800) + vehicle(5000) + material(10000) + other(2000)
-            // 協力業者費は手配確定済み & partner ロール職長のアサインが必要なのでここでは0
-            const expectedTotalCost = 14400 + 1800 + 5000 + 12000;
-            expect(result.projects[0].totalCost).toBe(expectedTotalCost);
         });
     });
 
@@ -273,14 +202,11 @@ describe('lib/profitDashboard', () => {
 
     describe('fetchMonthlyAssigneeBreakdown', () => {
         beforeEach(() => {
-            // 既定は全部空。各テストで必要なものだけ上書きする。
+            // 既定は全部空。原価は computeProjectCosts をモック（既定 0）。
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue({ laborDailyRate: 18000 });
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+            (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({}));
         });
 
         it('案件の売上を主担当へ全額計上する', async () => {
@@ -293,10 +219,10 @@ describe('lib/profitDashboard', () => {
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
 
             expect(r.rows).toHaveLength(1);
-            expect(r.rows[0]).toMatchObject({ key: 'u1', name: '担当A', sales: 100000, autoCost: 0, cost: 0, grossProfit: 100000 });
+            expect(r.rows[0]).toMatchObject({ key: 'u1', name: '担当A', sales: 100000, cost: 0, grossProfit: 100000 });
             // 案件明細（展開時に見える行）
             expect(r.rows[0].items).toHaveLength(1);
-            expect(r.rows[0].items[0]).toMatchObject({ projectId: 'p1', projectName: '案件1', sales: 100000, cost: 0, editable: true });
+            expect(r.rows[0].items[0]).toMatchObject({ projectId: 'p1', projectName: '案件1', sales: 100000, cost: 0 });
             expect(r.totals).toEqual({ sales: 100000, cost: 0, grossProfit: 100000 });
         });
 
@@ -321,49 +247,20 @@ describe('lib/profitDashboard', () => {
             expect(r.totals.sales).toBe(100000);
         });
 
-        it('請求した案件の総原価（人件費＋車両費）を主担当に集約する', async () => {
+        it('案件の確定原価（computeProjectCosts）を主担当に集約する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
                 { total: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
             ]);
-            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
-                {
-                    id: 'wi1', startTime: '08:00', endTime: '17:00', breakMinutes: 60, workerIds: ['w1'],
-                    dailyReport: { date: new Date('2026-06-10T03:00:00Z') },
-                    assignment: { projectMasterId: 'p1', workers: '[]', memberCount: 1, assignedEmployeeId: 'u1' },
-                },
-            ]);
-            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([{ projectMasterId: 'p1', vehicles: '["veh1"]' }]);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
-            (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1', dailyRate: 20000 }]);
-            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
+            // 原価は共通エンジンの確定値（人件費＋車両費＋材料費＋外注費＋その他）
+            (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({ p1: 25000 }));
 
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
 
             expect(r.rows).toHaveLength(1);
-            // 人件費 20000（1人・1日）＋車両費 5000 = 25000、売上 100000
-            expect(r.rows[0]).toMatchObject({ key: 'u1', sales: 100000, autoCost: 25000, cost: 25000, grossProfit: 75000 });
-        });
-
-        it('原価の手修正（上書き）は案件単位で採用し、担当者合計に積み上がる', async () => {
-            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
-                { total: 100000, items: '[{"projectMasterId":"p1","amount":100000}]', projectMasterId: 'p1' },
-            ]);
-            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([{ projectMasterId: 'p1', vehicles: '["veh1"]' }]);
-            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
-            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
-            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([{ month: 6, projectId: 'p1', cost: 9999 }]);
-
-            const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
-
-            const u1 = r.rows.find(x => x.key === 'u1')!;
-            const item = u1.items.find(i => i.projectId === 'p1')!;
-            expect(item.autoCost).toBe(5000);   // 自動（車両費）
-            expect(item.costOverride).toBe(9999);
-            expect(item.cost).toBe(9999);        // 案件の上書きを採用
-            expect(u1.autoCost).toBe(5000);      // 担当者の自動合計
-            expect(u1.cost).toBe(9999);          // 担当者の採用合計（上書き積み上げ）
+            expect(r.rows[0]).toMatchObject({ key: 'u1', sales: 100000, cost: 25000, grossProfit: 75000 });
+            expect(computeProjectCosts).toHaveBeenCalledWith(['p1']);
         });
 
         it('担当者・案件のない請求は「未設定」バケットへ集約する', async () => {
@@ -395,31 +292,20 @@ describe('lib/profitDashboard', () => {
             expect(r.rows[0].items[0]).toMatchObject({ projectName: '佐藤様邸 仮設工事', customerName: '佐藤建設' });
         });
 
-        it('年間(period=year)は請求案件の総原価（全期間の人件費）で集計し、閲覧のみ', async () => {
-            const makeItem = (id: string, dateIso: string) => ({
-                id, startTime: '08:00', endTime: '17:00', breakMinutes: 60, workerIds: ['w1'],
-                dailyReport: { date: new Date(dateIso) },
-                assignment: { projectMasterId: 'p1', workers: '[]', memberCount: 1, assignedEmployeeId: 'u1' },
-            });
+        it('年間(period=year)は当年に請求のあった案件を集計する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
                 { total: 200000, items: '[{"projectMasterId":"p1","amount":180000}]', projectMasterId: 'p1' },
             ]);
-            // 案件の全期間に2日作業（各 20000）→ 総原価 40000（月別バケットはしない）
-            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
-                makeItem('wi1', '2026-03-10T03:00:00Z'),
-                makeItem('wi2', '2026-09-10T03:00:00Z'),
-            ]);
-            (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1', dailyRate: 20000 }]);
-            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A' }]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1', customerName: '顧客X' }]);
+            (computeProjectCosts as jest.Mock).mockImplementation(mockCosts({ p1: 40000 }));
 
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6, period: 'year' });
 
             expect(r.period).toBe('year');
             const u1 = r.rows.find(x => x.key === 'u1')!;
-            expect(u1.autoCost).toBe(40000);   // 全期間の人件費（3月＋9月）
+            expect(u1.sales).toBe(200000);
             expect(u1.cost).toBe(40000);
-            expect(u1.items[0].editable).toBe(false); // 年間は閲覧のみ
         });
     });
 });

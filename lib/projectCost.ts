@@ -1,0 +1,273 @@
+import { prisma } from '@/lib/prisma';
+import { parseJsonField } from '@/lib/json-utils';
+import { calcTimeDiffMinutes } from '@/utils/dateUtils';
+import type { CostBreakdown } from '@/utils/costCalculation';
+
+/**
+ * 案件原価の唯一の計算ロジック（正準）。
+ *
+ * 利益ダッシュボード一覧 / 月次の担当者・顧客別内訳 / 案件詳細の利益タブ がすべてこれを共有し、
+ * 同じ案件は必ず同じ原価になるようにする。
+ *
+ * - 人件費: 日報の作業時間 × 日当を、**同日(worker,date)の全案件作業時間で正確に按分**（掛け持ち日の過大計上を防ぐ）。
+ *   配置ごとに `laborCostOverride` があれば採用（`override ?? auto`）。協力業者(role=partner)職長の配置は労務に計上しない。
+ * - 車両費: 配置の車両 × 車両マスタ日額。`vehicleCostOverride` 採用可。
+ * - 外注費: 手配確定 × partner 職長 × 工事種別単価(作業費+運搬費) を**種別ごと初回計上**。`subcontractorCostOverride` 採用可。
+ * - 材料費 / その他 / 積込: `ProjectMaster.materialCost / otherExpenses / loadingCost`。
+ *
+ * 手修正の入口は配置ごとの上書き（cost-override API・`ProjectProfitDisplay`）＋案件マスタの材料費等のみ（単一系統）。
+ */
+
+export interface LaborCostRow {
+    assignmentId: string;
+    date: string;
+    constructionTypeName: string | null;
+    hours: number;
+    foremanName: string | null;
+    memberCount: number;
+    autoCost: number;
+    override: number | null;
+    effectiveCost: number;
+}
+export interface VehicleCostRow {
+    assignmentId: string;
+    date: string;
+    vehicleNames: string[];
+    autoCost: number;
+    override: number | null;
+    effectiveCost: number;
+}
+export interface SubcontractorCostRow {
+    assignmentId: string;
+    date: string;
+    constructionTypeName: string | null;
+    foremanName: string | null;
+    autoCost: number;
+    override: number | null;
+    effectiveCost: number;
+}
+export interface ProjectCostDetail {
+    labor: LaborCostRow[];
+    vehicle: VehicleCostRow[];
+    subcontractor: SubcontractorCostRow[];
+    materialCost: number;
+    otherExpenses: number;
+    loadingCost: number;
+}
+export interface ProjectCostResult {
+    breakdown: CostBreakdown;
+    detail?: ProjectCostDetail; // opts.withDetail のときのみ
+}
+
+function emptyBreakdown(): CostBreakdown {
+    return { laborCost: 0, loadingCost: 0, vehicleCost: 0, materialCost: 0, subcontractorCost: 0, otherExpenses: 0, totalCost: 0 };
+}
+
+const calcMins = (s: string | null, e: string | null, brk: number) =>
+    (!s || !e) ? 0 : Math.max(0, calcTimeDiffMinutes(s, e) - brk);
+
+/**
+ * 指定案件群の原価を一括計算する。返り値は projectId → ProjectCostResult（指定 ID は必ずキーに存在）。
+ */
+export async function computeProjectCosts(
+    projectIds: string[],
+    opts: { withDetail?: boolean } = {},
+): Promise<Map<string, ProjectCostResult>> {
+    const result = new Map<string, ProjectCostResult>();
+    if (projectIds.length === 0) return result;
+
+    const projectMasters = await prisma.projectMaster.findMany({
+        where: { id: { in: projectIds } },
+        select: {
+            id: true,
+            materialCost: true,
+            otherExpenses: true,
+            loadingCost: true,
+            subcontractorCosts: { select: { constructionTypeId: true, amount: true, transportCost: true } },
+            assignments: {
+                select: {
+                    id: true, date: true, assignedEmployeeId: true, isDispatchConfirmed: true,
+                    constructionType: true, workers: true, memberCount: true, vehicles: true,
+                    laborCostOverride: true, vehicleCostOverride: true, subcontractorCostOverride: true,
+                    dailyReportWorkItems: {
+                        select: {
+                            id: true, startTime: true, endTime: true, breakMinutes: true, workerIds: true,
+                            dailyReport: { select: { id: true, date: true } },
+                        },
+                    },
+                },
+            },
+        },
+    });
+
+    // 日当解決用の worker/foreman ID と、按分分母を取る作業日
+    const workerIdSet = new Set<string>();
+    const foremanIdSet = new Set<string>();
+    const dateStrSet = new Set<string>();
+    for (const pm of projectMasters) {
+        for (const a of pm.assignments) {
+            if (a.assignedEmployeeId) foremanIdSet.add(a.assignedEmployeeId);
+            for (const wid of parseJsonField<string[]>(a.workers, [])) workerIdSet.add(wid);
+            for (const wi of a.dailyReportWorkItems) {
+                for (const wid of wi.workerIds) workerIdSet.add(wid);
+                if (wi.dailyReport) dateStrSet.add(new Date(wi.dailyReport.date).toISOString().slice(0, 10));
+            }
+        }
+    }
+
+    const [settings, allVehicles, users, workers, foremanUsers, constructionTypes, denomItems] = await Promise.all([
+        prisma.systemSettings.findFirst(),
+        prisma.vehicle.findMany({ select: { id: true, name: true, dailyRate: true } }),
+        workerIdSet.size > 0
+            ? prisma.user.findMany({ where: { id: { in: [...workerIdSet] } }, select: { id: true, dailyRate: true } })
+            : Promise.resolve([] as { id: string; dailyRate: unknown }[]),
+        workerIdSet.size > 0
+            ? prisma.worker.findMany({ where: { id: { in: [...workerIdSet] } }, select: { id: true, dailyRate: true } })
+            : Promise.resolve([] as { id: string; dailyRate: unknown }[]),
+        foremanIdSet.size > 0
+            ? prisma.user.findMany({ where: { id: { in: [...foremanIdSet] } }, select: { id: true, displayName: true, role: true } })
+            : Promise.resolve([] as { id: string; displayName: string; role: string }[]),
+        prisma.constructionType.findMany({ select: { id: true, name: true } }),
+        // 同日(worker,date)の全案件作業時間（按分の分母）。対象案件の作業日に限定して取得。
+        dateStrSet.size > 0
+            ? prisma.dailyReportWorkItem.findMany({
+                where: { dailyReport: { date: { in: [...dateStrSet].map(d => new Date(`${d}T00:00:00.000Z`)) } } },
+                select: {
+                    startTime: true, endTime: true, breakMinutes: true, workerIds: true,
+                    assignment: { select: { workers: true } },
+                    dailyReport: { select: { date: true } },
+                },
+            })
+            : Promise.resolve([] as Array<{ startTime: string | null; endTime: string | null; breakMinutes: number | null; workerIds: string[]; assignment: { workers: string | null }; dailyReport: { date: Date } | null }>),
+    ]);
+
+    const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
+    const dailyRateMap = new Map<string, number>();
+    for (const u of users) dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
+    for (const w of workers) if (!dailyRateMap.has(w.id)) dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
+    const vehicleRateMap = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
+    const vehicleNameMap = new Map(allVehicles.map(v => [v.id, v.name]));
+    const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
+    const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
+    const partnerForemanIds = new Set(foremanUsers.filter(u => u.role === 'partner').map(u => u.id));
+
+    // 分母: (worker|date) → その日の総作業分（全案件）
+    const workerDayTotalMinutes = new Map<string, number>();
+    for (const it of denomItems) {
+        if (!it.dailyReport) continue;
+        const mins = calcMins(it.startTime, it.endTime, it.breakMinutes || 0);
+        if (mins <= 0) continue;
+        const d = new Date(it.dailyReport.date).toISOString().slice(0, 10);
+        const ids = it.workerIds.length > 0 ? it.workerIds : parseJsonField<string[]>(it.assignment.workers, []);
+        for (const wid of ids) {
+            const key = `${wid}|${d}`;
+            workerDayTotalMinutes.set(key, (workerDayTotalMinutes.get(key) || 0) + mins);
+        }
+    }
+
+    for (const pm of projectMasters) {
+        let laborCost = 0, vehicleCost = 0, subcontractorCost = 0;
+        const subcontractorTypeUsed = new Set<string>(); // 案件ごとに種別初回のみ自動計上
+        const subcontractorTypeAmount = new Map<string, number>(
+            pm.subcontractorCosts.map(c => [c.constructionTypeId, Number(c.amount || 0) + Number(c.transportCost || 0)]),
+        );
+        const laborRows: LaborCostRow[] = [];
+        const vehicleRows: VehicleCostRow[] = [];
+        const subRows: SubcontractorCostRow[] = [];
+
+        for (const a of pm.assignments) {
+            const dateStr = new Date(a.date).toISOString().slice(0, 10);
+            const ctName = a.constructionType ? (ctNameMap.get(a.constructionType) ?? null) : null;
+            const foremanName = foremanNameMap.get(a.assignedEmployeeId) ?? null;
+            const isPartnerForeman = partnerForemanIds.has(a.assignedEmployeeId);
+
+            // ---- 労務費（配置単位・正確按分・上書き） ----
+            let raw = 0, assignmentMinutes = 0;
+            for (const wi of a.dailyReportWorkItems) {
+                if (!wi.dailyReport) continue;
+                const mins = calcMins(wi.startTime, wi.endTime, wi.breakMinutes || 0);
+                if (mins <= 0) continue;
+                assignmentMinutes += mins;
+                const wDate = new Date(wi.dailyReport.date).toISOString().slice(0, 10);
+                let ids = wi.workerIds.length > 0 ? wi.workerIds : parseJsonField<string[]>(a.workers, []);
+                if (ids.length === 0) {
+                    const count = a.memberCount || 1;
+                    ids = Array.from({ length: count }, (_, i) => `__fb__:${wi.id}:${i}`);
+                    for (const wid of ids) workerDayTotalMinutes.set(`${wid}|${wDate}`, mins);
+                }
+                for (const wid of ids) {
+                    const total = workerDayTotalMinutes.get(`${wid}|${wDate}`) || mins;
+                    const rate = dailyRateMap.get(wid) ?? defaultDailyRate;
+                    raw += rate * (mins / total);
+                }
+            }
+            const autoLabor = Math.round(raw / 100) * 100;
+            const effLabor = a.laborCostOverride != null ? a.laborCostOverride : autoLabor;
+            if (!isPartnerForeman) {
+                laborCost += effLabor;
+                if (opts.withDetail) {
+                    laborRows.push({
+                        assignmentId: a.id, date: dateStr, constructionTypeName: ctName,
+                        hours: Math.round((assignmentMinutes / 60) * 10) / 10,
+                        foremanName, memberCount: a.memberCount || 0,
+                        autoCost: autoLabor, override: a.laborCostOverride, effectiveCost: effLabor,
+                    });
+                }
+            }
+
+            // ---- 車両費 ----
+            const vehIds = parseJsonField<string[]>(a.vehicles, []);
+            const autoVeh = vehIds.reduce((s, vid) => s + (vehicleRateMap.get(vid) || 0), 0);
+            const effVeh = a.vehicleCostOverride != null ? a.vehicleCostOverride : autoVeh;
+            vehicleCost += effVeh;
+            if (opts.withDetail && (vehIds.length > 0 || a.vehicleCostOverride != null)) {
+                vehicleRows.push({
+                    assignmentId: a.id, date: dateStr,
+                    vehicleNames: vehIds.map(vid => vehicleNameMap.get(vid) ?? '不明').filter(Boolean),
+                    autoCost: autoVeh, override: a.vehicleCostOverride, effectiveCost: effVeh,
+                });
+            }
+
+            // ---- 外注費（協力業者） ----
+            const isPartnerSub = a.isDispatchConfirmed
+                && partnerForemanIds.has(a.assignedEmployeeId)
+                && !!a.constructionType
+                && subcontractorTypeAmount.has(a.constructionType);
+            const autoSub = isPartnerSub && a.constructionType && !subcontractorTypeUsed.has(a.constructionType)
+                ? (subcontractorTypeAmount.get(a.constructionType) ?? 0)
+                : 0;
+            if (autoSub > 0 && a.constructionType) subcontractorTypeUsed.add(a.constructionType);
+            const hasSubOv = a.subcontractorCostOverride != null;
+            const effSub = hasSubOv ? (a.subcontractorCostOverride as number) : autoSub;
+            subcontractorCost += effSub;
+            if (opts.withDetail && (isPartnerSub || hasSubOv)) {
+                subRows.push({
+                    assignmentId: a.id, date: dateStr, constructionTypeName: ctName, foremanName,
+                    autoCost: autoSub, override: a.subcontractorCostOverride, effectiveCost: effSub,
+                });
+            }
+        }
+
+        const materialCost = Number(pm.materialCost || 0);
+        const otherExpenses = Number(pm.otherExpenses || 0);
+        const loadingCost = Number(pm.loadingCost || 0);
+        const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
+
+        result.set(pm.id, {
+            breakdown: { laborCost, loadingCost, vehicleCost, materialCost, subcontractorCost, otherExpenses, totalCost },
+            detail: opts.withDetail
+                ? {
+                    labor: laborRows.sort((x, y) => x.date.localeCompare(y.date)),
+                    vehicle: vehicleRows.sort((x, y) => x.date.localeCompare(y.date)),
+                    subcontractor: subRows.sort((x, y) => x.date.localeCompare(y.date)),
+                    materialCost, otherExpenses, loadingCost,
+                }
+                : undefined,
+        });
+    }
+
+    // 取得できなかった案件IDも空原価でキーを埋める（呼び出し側 get の undefined 回避）
+    for (const pid of projectIds) if (!result.has(pid)) result.set(pid, { breakdown: emptyBreakdown() });
+
+    return result;
+}
