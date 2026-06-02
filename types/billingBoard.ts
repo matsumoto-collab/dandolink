@@ -56,4 +56,9 @@ export interface BillingBoardRow {
     /** 未処理（pending）の請求予定が既にあるか＝「請求予定あり」。 */
     hasPendingDraft: boolean;
     billingDecision: BillingDecision;
+    /** 顧客の請求締め日（0=末締め）。締め分モードで顧客ごとに期間を出し分ける。 */
+    customerClosingDay: number;
+    /** この行の集計対象期間（締め分＝顧客の締め日ウィンドウ、任意範囲＝指定 from/to。YYYY-MM-DD）。 */
+    periodFrom: string;
+    periodTo: string;
 }

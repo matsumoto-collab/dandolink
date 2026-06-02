@@ -9,6 +9,7 @@ import { useEstimates } from '@/hooks/useEstimates';
 import { useBillingDrafts } from '@/hooks/useBillingDrafts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
+import { closingDayLabel } from '@/lib/closingDay';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
 import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
@@ -18,6 +19,7 @@ import { logger } from '@/lib/logger';
 
 type TabKey = 'pending' | 'hold' | 'excluded' | 'billed';
 type CtypeMap = Record<string, { name: string; color: string }>;
+type PeriodMode = 'closing' | 'range';
 
 const TABS: { key: TabKey; label: string }[] = [
     { key: 'pending', label: '判断待ち' },
@@ -27,6 +29,12 @@ const TABS: { key: TabKey; label: string }[] = [
 ];
 
 const pad = (n: number) => String(n).padStart(2, '0');
+const yen = (n: number) => `¥${Math.round(n).toLocaleString()}`;
+/** YYYY-MM-DD → "M/D"。 */
+const mdYmd = (ymd: string) => {
+    const p = ymd.split('-');
+    return p.length === 3 ? `${Number(p[1])}/${Number(p[2])}` : ymd;
+};
 
 /** 指定した年・月(0-11)の初日〜末日（YYYY-MM-DD）。 */
 function monthBounds(year: number, month0: number): { from: string; to: string } {
@@ -40,16 +48,16 @@ function defaultMonth(): { from: string; to: string } {
     return monthBounds(jst.getUTCFullYear(), jst.getUTCMonth());
 }
 
-/**
- * 締め日 closingDay（0=末締め）の「reference 月(year, month0)で締まる期間」[from, to]。
- * 末締め＝暦月そのもの。N日締め＝前月(N+1)日 〜 当月N日（例: 15日締め・6月分＝5/16〜6/15）。
- */
-function periodForClosing(year: number, month0: number, closingDay: number): { from: string; to: string } {
-    if (closingDay <= 0) return monthBounds(year, month0);
-    const to = `${year}-${pad(month0 + 1)}-${pad(closingDay)}`;
-    const prev = new Date(Date.UTC(year, month0 - 1, 1));
-    const from = `${prev.getUTCFullYear()}-${pad(prev.getUTCMonth() + 1)}-${pad(closingDay + 1)}`;
-    return { from, to };
+/** 当月（JST）の YYYY-MM。 */
+function currentMonthYm(): string {
+    const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    return `${jst.getUTCFullYear()}-${pad(jst.getUTCMonth() + 1)}`;
+}
+
+/** YYYY-MM → "YYYY年M月"。 */
+function ymLabel(ym: string): string {
+    const [y, m] = ym.split('-').map(Number);
+    return `${y}年${m}月`;
 }
 
 /** その行が現在のタブに属するか（請求済み=full はそのタブのみ、他タブは full を除外）。 */
@@ -59,6 +67,17 @@ function inTab(r: Row, tab: TabKey): boolean {
     if (tab === 'pending') return r.billingDecision === 'pending' && !r.hasPendingDraft;
     if (tab === 'hold') return r.billingDecision === 'hold';
     return r.billingDecision === 'excluded';
+}
+
+/** 顧客ごとのグループ（締め分モードでは顧客の締め日ウィンドウ単位で並ぶ）。 */
+interface CustomerGroup {
+    key: string;
+    customerId: string | null;
+    customerName: string;
+    closingDay: number;
+    periodFrom: string;
+    periodTo: string;
+    rows: Row[];
 }
 
 export default function BillingBoardPage() {
@@ -76,11 +95,13 @@ export default function BillingBoardPage() {
     const [userMap, setUserMap] = useState<Record<string, string>>({});
     const [ctypeMap, setCtypeMap] = useState<CtypeMap>({});
 
-    // 表示期間（既定＝当月）。日付指定で任意の範囲に変更できる。
+    // 表示モード：'closing'＝顧客ごとの締め分（既定）、'range'＝任意範囲（全顧客同一）。
+    const [mode, setMode] = useState<PeriodMode>('closing');
+    // 締め分モードの基準月（YYYY-MM、既定＝当月JST）。各顧客は自分の締め日でこの月分を集計。
+    const [month, setMonth] = useState<string>(() => currentMonthYm());
+    // 任意範囲モードの期間（YYYY-MM-DD）。日付指定で任意の範囲に変更できる。
     const [from, setFrom] = useState<string>(() => defaultMonth().from);
     const [to, setTo] = useState<string>(() => defaultMonth().to);
-    // 締め日（0=末締め）。前月/翌月/今月のナビをこの締め日に合わせて算出する。
-    const [closingDay, setClosingDay] = useState<number>(0);
 
     const [tab, setTab] = useState<TabKey>('pending');
     const [assigneeId, setAssigneeId] = useState<string>(''); // '' = 全員
@@ -96,7 +117,8 @@ export default function BillingBoardPage() {
     const fetchBoard = useCallback(async () => {
         try {
             setIsLoading(true);
-            const res = await fetch(`/api/billing-board?from=${from}&to=${to}`, { cache: 'no-store' });
+            const qs = mode === 'closing' ? `month=${month}` : `from=${from}&to=${to}`;
+            const res = await fetch(`/api/billing-board?${qs}`, { cache: 'no-store' });
             if (!res.ok) throw new Error('請求判断ボードの取得に失敗しました');
             const data = (await res.json()) as Row[];
             setRows(data);
@@ -107,9 +129,9 @@ export default function BillingBoardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [from, to]);
+    }, [mode, month, from, to]);
 
-    // 期間変更時も含めてボードを再取得
+    // 期間・モード変更時も含めてボードを再取得
     useEffect(() => {
         if (!isAuthorized) return;
         fetchBoard();
@@ -159,34 +181,33 @@ export default function BillingBoardPage() {
         [userMap],
     );
 
-    // 期間ナビ（締め日 closingDay に合わせて算出。reference 月＝to の月）
+    // 締め分モードの基準月ナビ
+    const shiftRefMonth = useCallback(
+        (delta: number) => {
+            const [y, m] = month.split('-').map(Number);
+            const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+            setMonth(`${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`);
+        },
+        [month],
+    );
+    const goThisRefMonth = useCallback(() => setMonth(currentMonthYm()), []);
+
+    // 任意範囲モードの暦月ナビ（末締め相当）
     const shiftMonth = useCallback(
         (delta: number) => {
-            const [y, m] = to.split('-').map(Number);
+            const [y, m] = from.split('-').map(Number);
             const d = new Date(Date.UTC(y, m - 1 + delta, 1));
-            const b = periodForClosing(d.getUTCFullYear(), d.getUTCMonth(), closingDay);
+            const b = monthBounds(d.getUTCFullYear(), d.getUTCMonth());
             setFrom(b.from);
             setTo(b.to);
         },
-        [to, closingDay],
+        [from],
     );
     const goThisMonth = useCallback(() => {
-        const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
-        const b = periodForClosing(jst.getUTCFullYear(), jst.getUTCMonth(), closingDay);
+        const b = defaultMonth();
         setFrom(b.from);
         setTo(b.to);
-    }, [closingDay]);
-    // 締め日変更＝現在の reference 月（to の月）を保ったまま期間を締め日に合わせて再計算
-    const handleClosingDayChange = useCallback(
-        (d: number) => {
-            setClosingDay(d);
-            const [y, m] = to.split('-').map(Number);
-            const b = periodForClosing(y, m - 1, d);
-            setFrom(b.from);
-            setTo(b.to);
-        },
-        [to],
-    );
+    }, []);
 
     // 担当者・顧客のフィルタ候補（取得済みの行から導出）
     const assigneeOptions = useMemo(() => {
@@ -240,6 +261,36 @@ export default function BillingBoardPage() {
     const visibleRows = useMemo(
         () => rows.filter((r) => inTab(r, tab) && passesFilters(r)),
         [rows, tab, passesFilters],
+    );
+
+    // 顧客ごとにグループ化（締め分モードでは顧客の締め日ウィンドウ単位）。顧客名の五十音順。
+    const customerGroups = useMemo<CustomerGroup[]>(() => {
+        const map = new Map<string, CustomerGroup>();
+        for (const r of visibleRows) {
+            const key = r.customerId ?? '__none__';
+            const g = map.get(key);
+            if (g) g.rows.push(r);
+            else
+                map.set(key, {
+                    key,
+                    customerId: r.customerId,
+                    customerName: r.customerName || '顧客未設定',
+                    closingDay: r.customerClosingDay,
+                    periodFrom: r.periodFrom,
+                    periodTo: r.periodTo,
+                    rows: [r],
+                });
+        }
+        return Array.from(map.values()).sort((a, b) => a.customerName.localeCompare(b.customerName, 'ja'));
+    }, [visibleRows]);
+
+    // 顧客グループの小計（請求済みタブ＝請求済み合計、それ以外＝残額合計。税抜）
+    const groupSubtotal = useCallback(
+        (g: CustomerGroup) =>
+            tab === 'billed'
+                ? g.rows.reduce((s, r) => s + (r.invoicedAmount || 0), 0)
+                : g.rows.reduce((s, r) => s + (r.remainingAmount ?? r.contractAmount ?? 0), 0),
+        [tab],
     );
 
     // ── 請求予定の作成（請求する）─────────────────────────────
@@ -386,7 +437,7 @@ export default function BillingBoardPage() {
                         <ClipboardList className="h-6 w-6 text-slate-500" /> 請求待ち
                     </h1>
                     <p className="mt-1 text-sm text-slate-500">
-                        指定期間に作業した案件を、担当者が「請求する／まだ／対象外」で判断します。請求すると「請求予定」に追加されます。
+                        顧客ごと（締め日単位）に、担当者が「請求する／まだ／対象外」で判断します。請求すると「請求予定」に追加されます。
                     </p>
                 </div>
                 <Button
@@ -402,54 +453,93 @@ export default function BillingBoardPage() {
             {/* 期間コントロール */}
             <div className="mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
                 <span className="text-sm font-medium text-slate-600">表示期間</span>
-                <select
-                    value={closingDay}
-                    onChange={(e) => handleClosingDayChange(Number(e.target.value))}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                    title="締め日（前月/翌月/今月の期間をこの締め日に合わせます）"
-                >
-                    <option value={0}>末締め</option>
-                    <option value={5}>5日締め</option>
-                    <option value={10}>10日締め</option>
-                    <option value={15}>15日締め</option>
-                    <option value={20}>20日締め</option>
-                    <option value={25}>25日締め</option>
-                </select>
-                <button
-                    onClick={() => shiftMonth(-1)}
-                    className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
-                    title="前月"
-                >
-                    <ChevronLeft className="h-4 w-4 text-slate-600" />
-                </button>
-                <input
-                    type="date"
-                    value={from}
-                    max={to}
-                    onChange={(e) => setFrom(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                />
-                <span className="text-slate-400">〜</span>
-                <input
-                    type="date"
-                    value={to}
-                    min={from}
-                    onChange={(e) => setTo(e.target.value)}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                />
-                <button
-                    onClick={() => shiftMonth(1)}
-                    className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
-                    title="翌月"
-                >
-                    <ChevronRight className="h-4 w-4 text-slate-600" />
-                </button>
-                <button
-                    onClick={goThisMonth}
-                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
-                >
-                    今月
-                </button>
+                {/* モード切替 */}
+                <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
+                    {(
+                        [
+                            { key: 'closing', label: '締め分' },
+                            { key: 'range', label: '任意範囲' },
+                        ] as { key: PeriodMode; label: string }[]
+                    ).map((m) => (
+                        <button
+                            key={m.key}
+                            onClick={() => setMode(m.key)}
+                            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                                mode === m.key ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                            {m.label}
+                        </button>
+                    ))}
+                </div>
+
+                {mode === 'closing' ? (
+                    <>
+                        <button
+                            onClick={() => shiftRefMonth(-1)}
+                            className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
+                            title="前月"
+                        >
+                            <ChevronLeft className="h-4 w-4 text-slate-600" />
+                        </button>
+                        <span className="min-w-[8.5rem] text-center text-sm font-semibold text-slate-800">
+                            {ymLabel(month)} 締め分
+                        </span>
+                        <button
+                            onClick={() => shiftRefMonth(1)}
+                            className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
+                            title="翌月"
+                        >
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                        </button>
+                        <button
+                            onClick={goThisRefMonth}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            今月
+                        </button>
+                        <span className="text-xs text-slate-500">各顧客の締め日で集計します</span>
+                    </>
+                ) : (
+                    <>
+                        <button
+                            onClick={() => shiftMonth(-1)}
+                            className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
+                            title="前月"
+                        >
+                            <ChevronLeft className="h-4 w-4 text-slate-600" />
+                        </button>
+                        <input
+                            type="date"
+                            value={from}
+                            max={to}
+                            onChange={(e) => setFrom(e.target.value)}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        />
+                        <span className="text-slate-400">〜</span>
+                        <input
+                            type="date"
+                            value={to}
+                            min={from}
+                            onChange={(e) => setTo(e.target.value)}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        />
+                        <button
+                            onClick={() => shiftMonth(1)}
+                            className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
+                            title="翌月"
+                        >
+                            <ChevronRight className="h-4 w-4 text-slate-600" />
+                        </button>
+                        <button
+                            onClick={goThisMonth}
+                            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+                        >
+                            今月
+                        </button>
+                        <span className="text-xs text-slate-500">全顧客同一期間</span>
+                    </>
+                )}
             </div>
 
             {/* タブ */}
@@ -516,8 +606,8 @@ export default function BillingBoardPage() {
                 </label>
             </div>
 
-            {/* 一覧 */}
-            <div className="flex-1 space-y-2 overflow-auto pr-1">
+            {/* 一覧（顧客ごと） */}
+            <div className="flex-1 space-y-4 overflow-auto pr-1">
                 {!isInitialized ? (
                     [...Array(4)].map((_, i) => (
                         <div key={i} className="animate-pulse rounded-xl border border-slate-200 bg-white p-4">
@@ -536,20 +626,50 @@ export default function BillingBoardPage() {
                                 : 'この期間に請求済みの案件はありません'}
                     </div>
                 ) : (
-                    visibleRows.map((row) => (
-                        <BillingBoardRow
-                            key={row.id}
-                            row={row}
-                            assigneeNames={resolveNames(row.assigneeIds)}
-                            ctypeMap={ctypeMap}
-                            userMap={userMap}
-                            busy={busyRowId === row.id}
-                            tab={tab}
-                            onRequest={handleRequest}
-                            onHold={handleHold}
-                            onExclude={handleExclude}
-                            onRestore={handleRestore}
-                        />
+                    customerGroups.map((g) => (
+                        <div key={g.key} className="space-y-2">
+                            {/* 顧客ヘッダー */}
+                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <span className="text-sm font-bold text-slate-900">{g.customerName}</span>
+                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                        {closingDayLabel(g.closingDay)}
+                                    </span>
+                                    {mode === 'closing' && (
+                                        <span className="tabular-nums text-xs text-slate-500">
+                                            {mdYmd(g.periodFrom)}〜{mdYmd(g.periodTo)}
+                                        </span>
+                                    )}
+                                    <span className="text-xs text-slate-400">{g.rows.length}件</span>
+                                </div>
+                                <div className="text-right">
+                                    <span className="text-[10px] text-slate-500">
+                                        {tab === 'billed' ? '請求済み(税抜)' : '残(税抜)'}
+                                    </span>
+                                    <span className="ml-1.5 text-base font-bold text-slate-900">
+                                        {yen(groupSubtotal(g))}
+                                    </span>
+                                </div>
+                            </div>
+                            {/* 案件行 */}
+                            <div className="space-y-2">
+                                {g.rows.map((row) => (
+                                    <BillingBoardRow
+                                        key={row.id}
+                                        row={row}
+                                        assigneeNames={resolveNames(row.assigneeIds)}
+                                        ctypeMap={ctypeMap}
+                                        userMap={userMap}
+                                        busy={busyRowId === row.id}
+                                        tab={tab}
+                                        onRequest={handleRequest}
+                                        onHold={handleHold}
+                                        onExclude={handleExclude}
+                                        onRestore={handleRestore}
+                                    />
+                                ))}
+                            </div>
+                        </div>
                     ))
                 )}
             </div>
