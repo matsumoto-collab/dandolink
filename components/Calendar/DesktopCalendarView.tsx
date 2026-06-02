@@ -50,11 +50,6 @@ interface DesktopCalendarViewProps {
     weekLabel?: string;
     hideRemarks?: boolean;
     hideForemanSelector?: boolean;
-    /**
-     * Phase 2: assignment 右クリックでサイドパネル起動。
-     * 親（WeeklyCalendar）が PC 限定で渡す（モバイル経路には流れない構造的判定）。
-     */
-    onEventContextMenu?: (event: CalendarEvent, e: React.MouseEvent) => void;
 }
 
 export default function DesktopCalendarView({
@@ -83,7 +78,6 @@ export default function DesktopCalendarView({
     handleMoveToCell,
     handleOpenSearch,
     highlightedEventId = null,
-    onEventContextMenu,
     getMemberAdjustment,
     onMemberAdjustmentChange,
     goToPreviousWeek,
@@ -312,7 +306,6 @@ export default function DesktopCalendarView({
                                     onCommitMove={movingEvent ? commitMove : undefined}
                                     onCancelMove={cancelMoving}
                                     highlightedEventId={highlightedEventId}
-                                    onEventContextMenu={onEventContextMenu}
                                 />
                             ))}
                         </div>

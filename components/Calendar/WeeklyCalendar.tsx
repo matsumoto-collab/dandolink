@@ -6,10 +6,6 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useNavigation } from '@/contexts/NavigationContext';
 import { useCalendar } from '@/hooks/useCalendar';
-import { useCustomers } from '@/hooks/useCustomers';
-import { useProjectMasters } from '@/hooks/useProjectMasters';
-import { useBillingDrafts } from '@/hooks/useBillingDrafts';
-import type { ProjectContext } from '@/types/billingDraft';
 import { useDragAndDrop } from '@/hooks/useDragAndDrop';
 import type { PendingMove } from '@/hooks/useDragAndDrop';
 import type { Vehicle } from '@/types/master';
@@ -54,10 +50,6 @@ const ConflictResolutionModal = dynamic(() => import('./ConflictResolutionModal'
 const MoveConfirmModal = dynamic(() => import('./MoveConfirmModal'), {
     loading: () => <Loading overlay />
 });
-const BillingDraftFormPanel = dynamic(
-    () => import('@/components/BillingDraft/BillingDraftFormPanel'),
-    { ssr: false, loading: () => null }
-);
 
 interface WeeklyCalendarProps {
     partnerMode?: boolean;
@@ -76,7 +68,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     const userRole = session?.user?.role;
     const isForeman2 = userRole === 'foreman2';
     const isReadOnly = partnerMode || isForeman2;
-    const isAdminOrManager = userRole === 'admin' || userRole === 'manager';
     // Tailwindの`lg`と同条件で「デスクトップではない」= モバイルレイアウト判定
     // （iPad横向きはアスペクト比が16:10未満なのでモバイル扱いになる）
     const isMobile = useMediaQuery('not all and (min-width: 1024px) and (min-aspect-ratio: 16/10)');
@@ -126,56 +117,6 @@ export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavig
     }, [modalInitialData.projectMasterId, handleCloseModal, setActivePage, router]);
 
 useEffect(() => { setIsMounted(true); }, []);
-
-    // ===== Phase 2: 請求予定サイドパネル統合 =====
-    const { projectMasters } = useProjectMasters();
-    const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
-    const { create: createBillingDraft, update: updateBillingDraft } = useBillingDrafts({});
-    const [isBillingDraftPanelOpen, setIsBillingDraftPanelOpen] = useState(false);
-    const [billingDraftInitialProjectId, setBillingDraftInitialProjectId] = useState<string | undefined>();
-    const [billingDraftInitialCustomerId, setBillingDraftInitialCustomerId] = useState<string | undefined>();
-    const [billingDraftProjectContext, setBillingDraftProjectContext] = useState<ProjectContext | undefined>();
-
-    // 顧客一覧は遅延ロード（useCustomers は ensureDataLoaded を呼ぶまで取得しない）。
-    // 右クリック起票時に顧客が連動表示されるよう、admin/manager のとき先読みしておく。
-    // これが無いと customerId はセットされても select のオプションが空で「顧客を選択」表示になる。
-    useEffect(() => {
-        if (isAdminOrManager) ensureCustomersLoaded();
-    }, [isAdminOrManager, ensureCustomersLoaded]);
-
-    const handleEventContextMenu = useCallback((event: CalendarEvent, e: React.MouseEvent) => {
-        // 権限ガード：admin/manager のみ。それ以外は何もしない（ブラウザ標準のコンテキストメニューが出る）
-        if (!isAdminOrManager) return;
-        e.preventDefault();
-
-        // event.id から projectMasterId を解決
-        // - event は Project 由来（line 90: events = projects as CalendarEvent[]）なので projectMasterId を持つ可能性あり
-        // - 旧データで projectMasterId が無い場合は event.id から -assembly/-demolition サフィックスを剥がして fallback
-        const fromEvent = (event as Project).projectMasterId;
-        const pmId = fromEvent || event.id.replace(/-assembly$|-demolition$/, '');
-        if (!pmId) return;
-        const pm = projectMasters.find((p) => p.id === pmId);
-
-        setBillingDraftInitialProjectId(pmId);
-        setBillingDraftInitialCustomerId(pm?.customerId || undefined);
-        setBillingDraftProjectContext(undefined);
-        setIsBillingDraftPanelOpen(true);
-
-        // billing-context を後追い取得
-        fetch(`/api/project-masters/${pmId}/billing-context`, { cache: 'no-store' })
-            .then((res) => (res.ok ? res.json() : null))
-            .then((data: ProjectContext | null) => {
-                if (data) setBillingDraftProjectContext(data);
-            })
-            .catch((err) => logger.error('Failed to fetch billing-context:', err));
-    }, [isAdminOrManager, projectMasters]);
-
-    const handleCloseBillingDraftPanel = useCallback(() => {
-        setIsBillingDraftPanelOpen(false);
-        setBillingDraftInitialProjectId(undefined);
-        setBillingDraftInitialCustomerId(undefined);
-        setBillingDraftProjectContext(undefined);
-    }, []);
 
     // 競合解決ハンドラー
     const handleConflictResolution = useCallback(async (action: ConflictResolutionAction) => {
@@ -775,7 +716,6 @@ useEffect(() => { setIsMounted(true); }, []);
                     onMemberAdjustmentChange={isReadOnly ? undefined : handleMemberAdjustmentChange}
                     hideRemarks={partnerMode}
                     hideForemanSelector={partnerMode}
-                    onEventContextMenu={isAdminOrManager ? handleEventContextMenu : undefined}
                 />
             )}
 
@@ -861,20 +801,6 @@ useEffect(() => { setIsMounted(true); }, []);
                 isOpen={isSearchOpen}
                 onClose={handleCloseSearch}
                 onJump={handleSearchJump}
-            />
-
-            {/* Phase 2: 請求予定サイドパネル（カレンダー右クリックから起動、admin/manager 限定） */}
-            <BillingDraftFormPanel
-                open={isBillingDraftPanelOpen}
-                draft={null}
-                customers={customers}
-                projectMasters={projectMasters}
-                onClose={handleCloseBillingDraftPanel}
-                onCreate={createBillingDraft}
-                onUpdate={updateBillingDraft}
-                initialProjectId={billingDraftInitialProjectId}
-                initialCustomerId={billingDraftInitialCustomerId}
-                projectContext={billingDraftProjectContext}
             />
 
         </>

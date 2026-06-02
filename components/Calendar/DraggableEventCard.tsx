@@ -25,12 +25,6 @@ interface DraggableEventCardProps {
     onLongPress?: () => void;
     isMovingSource?: boolean;
     isHighlighted?: boolean;
-    /**
-     * Phase 2: 右クリック（PC のみ）で発火するコンテキストメニュー。
-     * 通常は `e.preventDefault()` した上で請求予定サイドパネルを起動する。
-     * @dnd-kit の listeners は左ボタン（button 0）のみ反応、長押し検出も line 86 で右ボタン除外済みなので衝突なし。
-     */
-    onContextMenu?: (e: React.MouseEvent) => void;
 }
 
 export default function DraggableEventCard({
@@ -49,7 +43,6 @@ export default function DraggableEventCard({
     isMovingSource = false,
     isHighlighted = false,
     editingUsers = [],
-    onContextMenu,
 }: DraggableEventCardProps) {
     const hasOtherEditors = editingUsers.length > 0;
     const {
@@ -163,7 +156,6 @@ export default function DraggableEventCard({
             onPointerCancelCapture={onCardPointerEnd}
             onMouseEnter={onCardMouseEnter}
             onMouseLeave={onCardMouseLeave}
-            onContextMenu={onContextMenu}
             data-event-card="true"
             data-project-id={projectId}
             className={`
