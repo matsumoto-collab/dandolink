@@ -171,7 +171,7 @@ export async function GET(req: NextRequest) {
                 assigneeIds: extractAssigneeIds(p.createdBy ?? undefined),
                 lastWorkDate: lastWorkByProject.get(p.id) ?? null,
                 constructionTypeIds: ctypeByProject.get(p.id) ?? [],
-                workHistory: work.slice(-MAX_WORK_ITEMS).reverse(), // 直近を上に
+                workHistory: work.slice(-MAX_WORK_ITEMS), // 日付の若い順（昇順：古い→新しい）。上限超過時は直近側を残す
                 workCount: work.length,
                 estimateCount: estimateCountByProject.get(p.id) ?? 0,
                 hasApprovedEstimate: approvedProjects.has(p.id),
