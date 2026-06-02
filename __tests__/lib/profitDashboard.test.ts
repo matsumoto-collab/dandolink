@@ -321,7 +321,10 @@ describe('lib/profitDashboard', () => {
             expect(r.totals.sales).toBe(100000);
         });
 
-        it('原価は当月の日報(人件費)＋配置(車両費)を主担当へ集約する', async () => {
+        it('請求した案件の総原価（人件費＋車両費）を主担当に集約する', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
+            ]);
             (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
                 {
                     id: 'wi1', startTime: '08:00', endTime: '17:00', breakMinutes: 60, workerIds: ['w1'],
@@ -333,21 +336,24 @@ describe('lib/profitDashboard', () => {
             (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
             (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1', dailyRate: 20000 }]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]' }]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
 
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
 
             expect(r.rows).toHaveLength(1);
-            // 人件費 20000（1人・1案件・1日）＋車両費 5000 = 25000、売上0
-            expect(r.rows[0]).toMatchObject({ key: 'u1', sales: 0, autoCost: 25000, cost: 25000, grossProfit: -25000 });
+            // 人件費 20000（1人・1日）＋車両費 5000 = 25000、売上 100000
+            expect(r.rows[0]).toMatchObject({ key: 'u1', sales: 100000, autoCost: 25000, cost: 25000, grossProfit: 75000 });
         });
 
         it('原価の手修正（上書き）は案件単位で採用し、担当者合計に積み上がる', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 100000, items: '[{"projectMasterId":"p1","amount":100000}]', projectMasterId: 'p1' },
+            ]);
             (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([{ projectMasterId: 'p1', vehicles: '["veh1"]' }]);
             (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
-            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([{ projectId: 'p1', cost: 9999 }]);
+            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([{ month: 6, projectId: 'p1', cost: 9999 }]);
 
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6 });
 
@@ -389,29 +395,30 @@ describe('lib/profitDashboard', () => {
             expect(r.rows[0].items[0]).toMatchObject({ projectName: '佐藤様邸 仮設工事', customerName: '佐藤建設' });
         });
 
-        it('年間(period=year)は月ごとの原価を積み上げ、月次の上書きも反映する', async () => {
+        it('年間(period=year)は請求案件の総原価（全期間の人件費）で集計し、閲覧のみ', async () => {
             const makeItem = (id: string, dateIso: string) => ({
                 id, startTime: '08:00', endTime: '17:00', breakMinutes: 60, workerIds: ['w1'],
                 dailyReport: { date: new Date(dateIso) },
                 assignment: { projectMasterId: 'p1', workers: '[]', memberCount: 1, assignedEmployeeId: 'u1' },
             });
-            // 6月・7月に1日ずつ作業（各 20000 の人件費）→ 年間 autoCost 40000
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 200000, items: '[{"projectMasterId":"p1","amount":180000}]', projectMasterId: 'p1' },
+            ]);
+            // 案件の全期間に2日作業（各 20000）→ 総原価 40000（月別バケットはしない）
             (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
-                makeItem('wi6', '2026-06-10T03:00:00Z'),
-                makeItem('wi7', '2026-07-10T03:00:00Z'),
+                makeItem('wi1', '2026-03-10T03:00:00Z'),
+                makeItem('wi2', '2026-09-10T03:00:00Z'),
             ]);
             (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1', dailyRate: 20000 }]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1', customerName: '顧客X' }]);
-            // 6月だけ原価を 5000 に手修正
-            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([{ month: 6, projectId: 'p1', cost: 5000 }]);
 
             const r = await fetchMonthlyAssigneeBreakdown({ year: 2026, month: 6, period: 'year' });
 
             expect(r.period).toBe('year');
             const u1 = r.rows.find(x => x.key === 'u1')!;
-            expect(u1.autoCost).toBe(40000);   // 6月 20000 ＋ 7月 20000
-            expect(u1.cost).toBe(25000);       // 6月=override 5000 ＋ 7月=auto 20000
+            expect(u1.autoCost).toBe(40000);   // 全期間の人件費（3月＋9月）
+            expect(u1.cost).toBe(40000);
             expect(u1.items[0].editable).toBe(false); // 年間は閲覧のみ
         });
     });

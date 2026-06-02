@@ -102,9 +102,9 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
                 </div>
             </div>
             <p className="text-xs text-slate-400 mb-3">
-                {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。売上=請求日基準／原価=作業日基準・主担当に全額計上。原価は日報（人件費）＋配置（車両費）の自動算出値で、
+                {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額、原価=その案件の総原価＝全期間の人件費＋車両費・主担当に全額計上）。
                 {period === 'month'
-                    ? <><strong className="text-slate-500">案件ごとに手修正</strong>できます。</>
+                    ? <>原価は<strong className="text-slate-500">案件ごとに手修正</strong>できます。</>
                     : <>年間は<strong className="text-slate-500">閲覧のみ</strong>（手修正は「当月」に切り替えて行ってください）。</>}
             </p>
 
