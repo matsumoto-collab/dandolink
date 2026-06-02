@@ -15,6 +15,12 @@ export const createCustomerSchema = z.object({
         .max(200, '会社名は200文字以内で入力してください'),
     shortName: z.string().max(50, '略称は50文字以内で入力してください').optional().nullable(),
     honorific: z.enum(['御中', '様']).optional().default('御中'),
+    closingDay: z
+        .number()
+        .int()
+        .min(0, '締め日が不正です')
+        .max(28, '締め日は28日以内で指定してください')
+        .optional(),
     contactPersons: z.array(contactPersonSchema).optional().nullable(),
     email: z.string().email('有効なメールアドレスを入力してください').or(z.literal('')).optional().nullable(),
     phone: phoneSchema,

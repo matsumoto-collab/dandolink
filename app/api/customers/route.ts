@@ -88,13 +88,14 @@ export async function POST(req: NextRequest) {
             return validationErrorResponse(validation.error!, validation.details);
         }
 
-        const { name, shortName, honorific, contactPersons, email, phone, fax, postalCode, address, notes } = validation.data;
+        const { name, shortName, honorific, closingDay, contactPersons, email, phone, fax, postalCode, address, notes } = validation.data;
 
         const newCustomer = await prisma.customer.create({
             data: {
                 name,
                 shortName: shortName || null,
                 honorific: honorific || '御中',
+                closingDay: closingDay ?? 0,
                 contactPersons: stringifyJsonField(contactPersons),
                 email: email || null,
                 phone: phone || null,

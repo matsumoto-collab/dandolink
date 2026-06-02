@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
+import { closingDayLabel } from '@/lib/closingDay';
 
 export default function CustomersPage() {
     const { customers, isLoading, isInitialized, ensureDataLoaded, addCustomer, updateCustomer, deleteCustomer } = useCustomers();
@@ -166,6 +167,9 @@ export default function CustomersPage() {
                                             {customer.shortName}
                                         </span>
                                     )}
+                                    <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-teal-50 text-teal-700">
+                                        {closingDayLabel(customer.closingDay)}
+                                    </span>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-slate-600 flex-wrap">
                                     {customer.contactPersons && customer.contactPersons.length > 0 && (
@@ -218,6 +222,9 @@ export default function CustomersPage() {
                                 略称
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                締め日
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 担当者
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -240,6 +247,7 @@ export default function CustomersPage() {
                                 <tr key={i} className="animate-pulse">
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                                    <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-36"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-28"></div></td>
@@ -249,7 +257,7 @@ export default function CustomersPage() {
                             ))
                         ) : filteredCustomers.length === 0 ? (
                             <tr>
-                                <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                     {searchQuery ? '該当する顧客が見つかりません' : '顧客が登録されていません'}
                                 </td>
                             </tr>
@@ -266,6 +274,9 @@ export default function CustomersPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                         {customer.shortName || '-'}
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
+                                        {closingDayLabel(customer.closingDay)}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-[12px] text-slate-700">
                                         {customer.contactPersons && customer.contactPersons.length > 0

@@ -209,6 +209,7 @@ model Customer {
   updatedAt      DateTime @updatedAt
   updatedBy      String?
   honorific      String   @default("御中")
+  closingDay     Int      @default(0) // 請求の締め日。0=末締め、それ以外は締め日(5/10/15/20/25)
   billingDrafts  BillingDraft[]
 
   @@index([name])

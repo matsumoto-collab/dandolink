@@ -12,6 +12,7 @@ export interface Customer {
     name: string;              // 会社名
     shortName?: string;        // 略称
     honorific: string;         // 敬称（御中/様）
+    closingDay?: number;       // 請求の締め日（0=末締め、それ以外は5/10/15/20/25等）
     contactPersons: ContactPerson[]; // 担当者（複数）
     email?: string;            // 代表メールアドレス
     phone?: string;            // 代表電話番号

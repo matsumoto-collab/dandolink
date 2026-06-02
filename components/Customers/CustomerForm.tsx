@@ -6,6 +6,7 @@ import { Plus, Trash2, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { usePostalCodeAutofill } from '@/hooks/usePostalCodeAutofill';
 import { Button } from '@/components/ui/Button';
+import { CLOSING_DAY_OPTIONS, closingDayLabel } from '@/lib/closingDay';
 
 interface CustomerFormProps {
     initialData?: Partial<CustomerInput>;
@@ -18,6 +19,7 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
         name: initialData?.name || '',
         shortName: initialData?.shortName || '',
         honorific: initialData?.honorific || '御中',
+        closingDay: initialData?.closingDay ?? 0,
         contactPersons: initialData?.contactPersons || [],
         email: initialData?.email || '',
         phone: initialData?.phone || '',
@@ -156,6 +158,31 @@ export default function CustomerForm({ initialData, onSubmit, onCancel }: Custom
                         <option value="御中">御中</option>
                         <option value="様">様</option>
                     </select>
+                </div>
+            </div>
+
+            {/* 請求の締め日 */}
+            <div className="grid grid-cols-3 gap-4">
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                        請求の締め日
+                    </label>
+                    <select
+                        value={formData.closingDay ?? 0}
+                        onChange={(e) => setFormData({ ...formData, closingDay: Number(e.target.value) })}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
+                    >
+                        {CLOSING_DAY_OPTIONS.map((d) => (
+                            <option key={d} value={d}>
+                                {closingDayLabel(d)}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <div className="col-span-2 flex items-end">
+                    <p className="text-xs text-slate-500 pb-2">
+                        請求書をまとめる締め日です。請求待ちボードがこの締め日で期間（前月＋1日〜当月締め日）を区切ります。
+                    </p>
                 </div>
             </div>
 
