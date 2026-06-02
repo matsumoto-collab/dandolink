@@ -41,6 +41,9 @@ jest.mock('@/lib/prisma', () => ({
         monthlyAssigneeCostOverride: {
             findMany: jest.fn(),
         },
+        monthlyProjectCostOverride: {
+            findMany: jest.fn(),
+        },
     },
 }));
 
@@ -277,20 +280,23 @@ describe('lib/profitDashboard', () => {
             (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
             (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue({ laborDailyRate: 18000 });
             (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
-            (prisma.monthlyAssigneeCostOverride.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([]);
         });
 
         it('案件の売上を主担当へ全額計上する', async () => {
             (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
                 { total: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
             ]);
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]' }]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
 
             const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
 
             expect(r.rows).toHaveLength(1);
-            expect(r.rows[0]).toMatchObject({ assigneeId: 'u1', name: '担当A', sales: 100000, autoCost: 0, costOverride: null, cost: 0, grossProfit: 100000 });
+            expect(r.rows[0]).toMatchObject({ assigneeId: 'u1', name: '担当A', sales: 100000, autoCost: 0, cost: 0, grossProfit: 100000 });
+            // 案件明細（展開時に見える行）
+            expect(r.rows[0].items).toHaveLength(1);
+            expect(r.rows[0].items[0]).toMatchObject({ projectId: 'p1', projectName: '案件1', sales: 100000, cost: 0, editable: true });
             expect(r.totals).toEqual({ sales: 100000, cost: 0, grossProfit: 100000 });
         });
 
@@ -336,19 +342,22 @@ describe('lib/profitDashboard', () => {
             expect(r.rows[0]).toMatchObject({ assigneeId: 'u1', sales: 0, autoCost: 25000, cost: 25000, grossProfit: -25000 });
         });
 
-        it('原価の手修正（上書き）があれば採用し、自動値より優先する', async () => {
+        it('原価の手修正（上書き）は案件単位で採用し、担当者合計に積み上がる', async () => {
             (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([{ projectMasterId: 'p1', vehicles: '["veh1"]' }]);
             (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
             (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
-            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]' }]);
-            (prisma.monthlyAssigneeCostOverride.findMany as jest.Mock).mockResolvedValue([{ assigneeId: 'u1', cost: 9999 }]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]', name: '案件1', title: '案件1' }]);
+            (prisma.monthlyProjectCostOverride.findMany as jest.Mock).mockResolvedValue([{ projectId: 'p1', cost: 9999 }]);
 
             const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
 
             const u1 = r.rows.find(x => x.assigneeId === 'u1')!;
-            expect(u1.autoCost).toBe(5000);     // 自動（車両費）
-            expect(u1.costOverride).toBe(9999);
-            expect(u1.cost).toBe(9999);          // 上書きを採用
+            const item = u1.items.find(i => i.projectId === 'p1')!;
+            expect(item.autoCost).toBe(5000);   // 自動（車両費）
+            expect(item.costOverride).toBe(9999);
+            expect(item.cost).toBe(9999);        // 案件の上書きを採用
+            expect(u1.autoCost).toBe(5000);      // 担当者の自動合計
+            expect(u1.cost).toBe(9999);          // 担当者の採用合計（上書き積み上げ）
         });
 
         it('担当者・案件のない請求は「未設定」バケットへ集約する', async () => {

@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
 const putSchema = z.object({
     year: z.number().int().min(2000).max(3000),
     month: z.number().int().min(1).max(12),
-    assigneeId: z.string().min(1),
+    projectId: z.string().min(1),
     // number = 手修正の上書き値 / null = 上書きを解除して自動値へ戻す
     cost: z.number().min(0).max(1_000_000_000).nullable(),
 });
 
-/** PUT 担当者×月の原価上書きを保存/解除し、更新後の内訳を返す */
+/** PUT 案件×月の原価上書きを保存/解除し、更新後の内訳を返す */
 export async function PUT(request: NextRequest) {
     try {
         const { session, error } = await requireManagerOrAbove();
@@ -45,15 +45,15 @@ export async function PUT(request: NextRequest) {
         if (!parsed.success) {
             return validationErrorResponse('入力が不正です', parsed.error.flatten());
         }
-        const { year, month, assigneeId, cost } = parsed.data;
+        const { year, month, projectId, cost } = parsed.data;
 
         if (cost === null) {
             // 上書き解除（行削除）→ 自動値に戻る
-            await prisma.monthlyAssigneeCostOverride.deleteMany({ where: { year, month, assigneeId } });
+            await prisma.monthlyProjectCostOverride.deleteMany({ where: { year, month, projectId } });
         } else {
-            await prisma.monthlyAssigneeCostOverride.upsert({
-                where: { year_month_assigneeId: { year, month, assigneeId } },
-                create: { year, month, assigneeId, cost, updatedBy: session!.user.id },
+            await prisma.monthlyProjectCostOverride.upsert({
+                where: { year_month_projectId: { year, month, projectId } },
+                create: { year, month, projectId, cost, updatedBy: session!.user.id },
                 update: { cost, updatedBy: session!.user.id },
             });
         }
@@ -62,6 +62,6 @@ export async function PUT(request: NextRequest) {
         const data = await fetchMonthlyAssigneeBreakdown(year, month);
         return NextResponse.json(data, { headers: NO_STORE });
     } catch (error) {
-        return serverErrorResponse('月次担当者別原価の保存', error);
+        return serverErrorResponse('月次案件別原価の保存', error);
     }
 }
