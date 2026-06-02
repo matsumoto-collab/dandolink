@@ -18,8 +18,10 @@ export async function GET(request: NextRequest) {
         if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
             return validationErrorResponse('year/month が不正です');
         }
+        const axis = searchParams.get('axis') === 'customer' ? 'customer' : 'assignee';
+        const period = searchParams.get('period') === 'year' ? 'year' : 'month';
 
-        const data = await fetchMonthlyAssigneeBreakdown(year, month);
+        const data = await fetchMonthlyAssigneeBreakdown({ year, month, axis, period });
         return NextResponse.json(data, { headers: NO_STORE });
     } catch (error) {
         return serverErrorResponse('月次担当者別内訳の取得', error);
@@ -32,6 +34,8 @@ const putSchema = z.object({
     projectId: z.string().min(1),
     // number = 手修正の上書き値 / null = 上書きを解除して自動値へ戻す
     cost: z.number().min(0).max(1_000_000_000).nullable(),
+    // クライアントの現在の表示軸（保存後に同じ軸の内訳を返すため）
+    axis: z.enum(['assignee', 'customer']).optional(),
 });
 
 /** PUT 案件×月の原価上書きを保存/解除し、更新後の内訳を返す */
@@ -45,7 +49,7 @@ export async function PUT(request: NextRequest) {
         if (!parsed.success) {
             return validationErrorResponse('入力が不正です', parsed.error.flatten());
         }
-        const { year, month, projectId, cost } = parsed.data;
+        const { year, month, projectId, cost, axis } = parsed.data;
 
         if (cost === null) {
             // 上書き解除（行削除）→ 自動値に戻る
@@ -58,8 +62,8 @@ export async function PUT(request: NextRequest) {
             });
         }
 
-        // 更新後の内訳（合計含む）を返し、クライアントを一貫した状態にする
-        const data = await fetchMonthlyAssigneeBreakdown(year, month);
+        // 更新後の内訳（合計含む）を返し、クライアントを一貫した状態にする（編集は当月のみ）
+        const data = await fetchMonthlyAssigneeBreakdown({ year, month, axis: axis ?? 'assignee', period: 'month' });
         return NextResponse.json(data, { headers: NO_STORE });
     } catch (error) {
         return serverErrorResponse('月次案件別原価の保存', error);
