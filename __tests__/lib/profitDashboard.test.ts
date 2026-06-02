@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { fetchProfitDashboardData, fetchMonthlySales } from '@/lib/profitDashboard';
+import { fetchProfitDashboardData, fetchMonthlySales, fetchMonthlyAssigneeBreakdown } from '@/lib/profitDashboard';
 import { prisma } from '@/lib/prisma';
 
 // Mock Prisma
@@ -36,6 +36,9 @@ jest.mock('@/lib/prisma', () => ({
             findMany: jest.fn(),
         },
         constructionType: {
+            findMany: jest.fn(),
+        },
+        monthlyAssigneeCostOverride: {
             findMany: jest.fn(),
         },
     },
@@ -262,6 +265,101 @@ describe('lib/profitDashboard', () => {
             expect(r.momPercent).toBeNull();
             expect(r.trend).toHaveLength(12);
             expect(r.trend.every(p => p.sales === 0 && p.invoiceCount === 0)).toBe(true);
+        });
+    });
+
+    describe('fetchMonthlyAssigneeBreakdown', () => {
+        beforeEach(() => {
+            // 既定は全部空。各テストで必要なものだけ上書きする。
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.systemSettings.findFirst as jest.Mock).mockResolvedValue({ laborDailyRate: 18000 });
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
+            (prisma.monthlyAssigneeCostOverride.findMany as jest.Mock).mockResolvedValue([]);
+        });
+
+        it('案件の売上を主担当へ全額計上する', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 100000, items: '[{"projectMasterId":"p1","amount":90909}]', projectMasterId: 'p1' },
+            ]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]' }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
+
+            const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
+
+            expect(r.rows).toHaveLength(1);
+            expect(r.rows[0]).toMatchObject({ assigneeId: 'u1', name: '担当A', sales: 100000, autoCost: 0, costOverride: null, cost: 0, grossProfit: 100000 });
+            expect(r.totals).toEqual({ sales: 100000, cost: 0, grossProfit: 100000 });
+        });
+
+        it('複数案件まとめ請求は明細額で按分し、各案件の主担当へ計上する', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 100000, items: '[{"projectMasterId":"p1","amount":30000},{"projectMasterId":"p2","amount":70000}]', projectMasterId: 'p1' },
+            ]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([
+                { id: 'p1', createdBy: '["u1"]' },
+                { id: 'p2', createdBy: '["u2"]' },
+            ]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([
+                { id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' },
+                { id: 'u2', displayName: '担当B', dailyRate: null, role: 'manager' },
+            ]);
+
+            const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
+
+            const byId = Object.fromEntries(r.rows.map(x => [x.assigneeId, x.sales]));
+            expect(byId['u1']).toBe(30000);
+            expect(byId['u2']).toBe(70000);
+            expect(r.totals.sales).toBe(100000);
+        });
+
+        it('原価は当月の日報(人件費)＋配置(車両費)を主担当へ集約する', async () => {
+            (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
+                {
+                    id: 'wi1', startTime: '08:00', endTime: '17:00', breakMinutes: 60, workerIds: ['w1'],
+                    dailyReport: { date: new Date('2026-06-10T03:00:00Z') },
+                    assignment: { projectMasterId: 'p1', workers: '[]', memberCount: 1, assignedEmployeeId: 'u1' },
+                },
+            ]);
+            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([{ projectMasterId: 'p1', vehicles: '["veh1"]' }]);
+            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
+            (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1', dailyRate: 20000 }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]' }]);
+
+            const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
+
+            expect(r.rows).toHaveLength(1);
+            // 人件費 20000（1人・1案件・1日）＋車両費 5000 = 25000、売上0
+            expect(r.rows[0]).toMatchObject({ assigneeId: 'u1', sales: 0, autoCost: 25000, cost: 25000, grossProfit: -25000 });
+        });
+
+        it('原価の手修正（上書き）があれば採用し、自動値より優先する', async () => {
+            (prisma.projectAssignment.findMany as jest.Mock).mockResolvedValue([{ projectMasterId: 'p1', vehicles: '["veh1"]' }]);
+            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([{ id: 'veh1', dailyRate: 5000 }]);
+            (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'u1', displayName: '担当A', dailyRate: null, role: 'manager' }]);
+            (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{ id: 'p1', createdBy: '["u1"]' }]);
+            (prisma.monthlyAssigneeCostOverride.findMany as jest.Mock).mockResolvedValue([{ assigneeId: 'u1', cost: 9999 }]);
+
+            const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
+
+            const u1 = r.rows.find(x => x.assigneeId === 'u1')!;
+            expect(u1.autoCost).toBe(5000);     // 自動（車両費）
+            expect(u1.costOverride).toBe(9999);
+            expect(u1.cost).toBe(9999);          // 上書きを採用
+        });
+
+        it('担当者・案件のない請求は「未設定」バケットへ集約する', async () => {
+            (prisma.invoice.findMany as jest.Mock).mockResolvedValue([
+                { total: 50000, items: '[]', projectMasterId: null },
+            ]);
+
+            const r = await fetchMonthlyAssigneeBreakdown(2026, 6);
+
+            expect(r.rows).toHaveLength(1);
+            expect(r.rows[0]).toMatchObject({ assigneeId: '__unassigned__', name: '(担当者未設定)', sales: 50000 });
         });
     });
 });

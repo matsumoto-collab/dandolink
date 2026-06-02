@@ -7,6 +7,7 @@ import {
 import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/utils/costCalculation';
 import type { MonthlySalesData } from '@/lib/profitDashboard';
+import MonthlyAssigneeTable from './MonthlyAssigneeTable';
 
 // 選択中の月のバーのみ teal-600（保存=ティールの配色方針）、その他は slate-300
 const SLATE_300 = '#cbd5e1';
@@ -168,6 +169,9 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
                     </ResponsiveContainer>
                 </div>
             </div>
+
+            {/* 案件担当者別（選択中の月）：売上・原価（日報＋配置の自動／手修正可）・粗利 */}
+            <MonthlyAssigneeTable year={selected.year} month={selected.month} />
         </div>
     );
 }

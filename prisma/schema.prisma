@@ -1913,3 +1913,21 @@ model BillingDraft {
   @@index([deletedAt])
   @@schema("public")
 }
+
+/// 利益ダッシュボードの月次・案件担当者別「原価」の手修正（上書き）値。
+/// 既定は日報・配置から自動算出（人件費＋車両費）し、行が在ればその月・担当者の原価を上書きする。
+/// assigneeId は User.id。担当者未設定ぶんは '__unassigned__' センチネルを使う（FK は張らない）。
+model MonthlyAssigneeCostOverride {
+  id         String   @id @default(uuid())
+  year       Int
+  month      Int      // 1-12（JST）
+  assigneeId String
+  cost       Decimal  @db.Decimal(12, 2)
+  updatedBy  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@unique([year, month, assigneeId])
+  @@index([year, month])
+  @@schema("public")
+}
