@@ -338,7 +338,7 @@ export default function BillingBoardPage() {
     const handleHold = useCallback((row: Row) => setDecision(row, 'hold', '保留にしました'), [setDecision]);
     const handleExclude = useCallback(
         (row: Row) => {
-            if (!window.confirm(`「${row.name || row.title}」を請求対象外にします。よろしいですか？`)) return;
+            if (!window.confirm(`「${row.title || row.name}」を請求対象外にします。よろしいですか？`)) return;
             setDecision(row, 'excluded', '対象外にしました');
         },
         [setDecision],
