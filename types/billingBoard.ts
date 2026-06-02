@@ -1,13 +1,25 @@
 /**
  * 請求判断ボード（GET /api/billing-board）の行データ型。
  *
- * カレンダーに配置済み（assignment が 1 件以上）かつ全額請求済みでない案件を、
+ * 指定期間（from〜to, 既定=当月JST）に配置のある、かつ全額請求済みでない案件を、
  * 担当者が「請求する / まだ / 対象外」を判断するための一覧。金額はすべて税抜（円）。
  */
 import type { BillingStatus } from '@/lib/billing/billingStatus';
 
 /** 案件ごとの請求判断（'請求する' は BillingDraft 作成で表現するため列には持たない）。 */
 export type BillingDecision = 'pending' | 'hold' | 'excluded';
+
+/** 期間内の配置1件分の作業履歴。工事種別/職長は ID で返し、表示名は呼び出し側で解決する。 */
+export interface BillingBoardWorkItem {
+    /** 配置日（ISO 文字列）。 */
+    date: string;
+    /** 工事種別 ID（ConstructionType.id、レガシー文字列の場合あり・無ければ null）。 */
+    constructionType: string | null;
+    /** 職長 User ID（assignedEmployeeId・無ければ null）。 */
+    foremanId: string | null;
+    /** 人数。 */
+    memberCount: number;
+}
 
 export interface BillingBoardRow {
     id: string;
@@ -29,8 +41,14 @@ export interface BillingBoardRow {
     remainingAmount: number | null;
     /** 案件担当者の User ID 配列（createdBy 由来）。表示名は /api/users で解決。 */
     assigneeIds: string[];
-    /** 最終作業日（配置の最大日付、ISO 文字列・無ければ null）。 */
+    /** 期間内の最終作業日（ISO・無ければ null）。 */
     lastWorkDate: string | null;
+    /** 期間内に登場した工事種別 ID（重複排除・初出順）。チップ表示用。 */
+    constructionTypeIds: string[];
+    /** 期間内の作業履歴（直近順・上限あり）。 */
+    workHistory: BillingBoardWorkItem[];
+    /** 期間内の作業件数（workHistory は上限で間引く場合があるため総数を別途返す）。 */
+    workCount: number;
     /** 紐づく見積書の件数。 */
     estimateCount: number;
     /** approved の見積書が 1 件以上あるか。 */
