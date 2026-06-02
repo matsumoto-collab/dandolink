@@ -136,7 +136,12 @@ export function sanitizePdfText(text: string): string {
         .replace(/㎝/g, 'cm')
         .replace(/㎜/g, 'mm')
         .replace(/㎞/g, 'km')
-        .replace(/㏄/g, 'cc');
+        .replace(/㏄/g, 'cc')
+        // フォントサブセット(noto-sans-jp japanese)にグリフが無い文字 → 描画可能な等価字へ
+        .replace(/～/g, '〜')   // U+FF5E 全角チルダ → U+301C 波ダッシュ
+        .replace(/－/g, '−')   // U+FF0D 全角ハイフンマイナス → U+2212 マイナス
+        .replace(/‐/g, '−')   // U+2010 ハイフン → U+2212 マイナス
+        .replace(/―/g, '—');  // U+2015 水平バー → U+2014 emダッシュ
 }
 
 // Helper function to format currency

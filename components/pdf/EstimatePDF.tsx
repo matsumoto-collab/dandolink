@@ -4,10 +4,10 @@ import React from 'react';
 import {
     Document,
     Page,
-    Text,
     View,
     Image,
 } from '@react-pdf/renderer';
+import { Text } from './SafeText';
 import { Estimate } from '@/types/estimate';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
