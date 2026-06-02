@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { RefreshCw, Search, ClipboardList } from 'lucide-react';
+import { RefreshCw, Search, ClipboardList, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useEstimates } from '@/hooks/useEstimates';
@@ -17,12 +17,27 @@ import type { Estimate } from '@/types/estimate';
 import { logger } from '@/lib/logger';
 
 type TabKey = 'pending' | 'hold' | 'excluded';
+type CtypeMap = Record<string, { name: string; color: string }>;
 
 const TABS: { key: TabKey; label: string }[] = [
     { key: 'pending', label: '判断待ち' },
     { key: 'hold', label: '保留' },
     { key: 'excluded', label: '対象外' },
 ];
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/** 指定した年・月(0-11)の初日〜末日（YYYY-MM-DD）。 */
+function monthBounds(year: number, month0: number): { from: string; to: string } {
+    const last = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
+    return { from: `${year}-${pad(month0 + 1)}-01`, to: `${year}-${pad(month0 + 1)}-${pad(last)}` };
+}
+
+/** 当月（JST）の初日〜末日。 */
+function defaultMonth(): { from: string; to: string } {
+    const jst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    return monthBounds(jst.getUTCFullYear(), jst.getUTCMonth());
+}
 
 /** その行が現在のタブに属するか（判断待ちは請求予定がまだ無いものだけ）。 */
 function inTab(r: Row, tab: TabKey): boolean {
@@ -44,6 +59,11 @@ export default function BillingBoardPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const [userMap, setUserMap] = useState<Record<string, string>>({});
+    const [ctypeMap, setCtypeMap] = useState<CtypeMap>({});
+
+    // 表示期間（既定＝当月）。日付指定で任意の範囲に変更できる。
+    const [from, setFrom] = useState<string>(() => defaultMonth().from);
+    const [to, setTo] = useState<string>(() => defaultMonth().to);
 
     const [tab, setTab] = useState<TabKey>('pending');
     const [assigneeId, setAssigneeId] = useState<string>(''); // '' = 全員
@@ -59,7 +79,7 @@ export default function BillingBoardPage() {
     const fetchBoard = useCallback(async () => {
         try {
             setIsLoading(true);
-            const res = await fetch('/api/billing-board', { cache: 'no-store' });
+            const res = await fetch(`/api/billing-board?from=${from}&to=${to}`, { cache: 'no-store' });
             if (!res.ok) throw new Error('請求判断ボードの取得に失敗しました');
             const data = (await res.json()) as Row[];
             setRows(data);
@@ -70,25 +90,43 @@ export default function BillingBoardPage() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [from, to]);
 
+    // 期間変更時も含めてボードを再取得
     useEffect(() => {
         if (!isAuthorized) return;
         fetchBoard();
+    }, [isAuthorized, fetchBoard]);
+
+    // 初回のみ：見積・ユーザー・工事種別マスタを取得
+    useEffect(() => {
+        if (!isAuthorized) return;
         ensureEstimatesLoaded();
         (async () => {
             try {
                 const res = await fetch('/api/users', { cache: 'no-store' });
-                if (!res.ok) return;
-                const users: Array<{ id: string; displayName: string }> = await res.json();
-                const m: Record<string, string> = {};
-                for (const u of users) m[u.id] = u.displayName;
-                setUserMap(m);
+                if (res.ok) {
+                    const users: Array<{ id: string; displayName: string }> = await res.json();
+                    const m: Record<string, string> = {};
+                    for (const u of users) m[u.id] = u.displayName;
+                    setUserMap(m);
+                }
             } catch (e) {
                 logger.error('ユーザー一覧の取得に失敗:', e);
             }
+            try {
+                const res = await fetch('/api/master-data/construction-types');
+                if (res.ok) {
+                    const list: Array<{ id: string; name: string; color: string }> = await res.json();
+                    const m: CtypeMap = {};
+                    for (const t of Array.isArray(list) ? list : []) m[t.id] = { name: t.name, color: t.color };
+                    setCtypeMap(m);
+                }
+            } catch (e) {
+                logger.error('工事種別マスタの取得に失敗:', e);
+            }
         })();
-    }, [isAuthorized, fetchBoard, ensureEstimatesLoaded]);
+    }, [isAuthorized, ensureEstimatesLoaded]);
 
     // 既定の担当者フィルタ＝自分（自分が担当の案件が在るときだけ。無ければ全員のまま）。初回のみ。
     const didInitAssignee = useRef(false);
@@ -103,6 +141,23 @@ export default function BillingBoardPage() {
         (ids: string[]) => ids.map((id) => userMap[id]).filter(Boolean).join('、'),
         [userMap],
     );
+
+    // 期間ナビ
+    const shiftMonth = useCallback(
+        (delta: number) => {
+            const [y, m] = from.split('-').map(Number);
+            const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+            const b = monthBounds(d.getUTCFullYear(), d.getUTCMonth());
+            setFrom(b.from);
+            setTo(b.to);
+        },
+        [from],
+    );
+    const goThisMonth = useCallback(() => {
+        const b = defaultMonth();
+        setFrom(b.from);
+        setTo(b.to);
+    }, []);
 
     // 担当者・顧客のフィルタ候補（取得済みの行から導出）
     const assigneeOptions = useMemo(() => {
@@ -302,7 +357,7 @@ export default function BillingBoardPage() {
                         <ClipboardList className="h-6 w-6 text-slate-500" /> 請求待ち
                     </h1>
                     <p className="mt-1 text-sm text-slate-500">
-                        カレンダーに配置した案件を、担当者が「請求する／まだ／対象外」で判断します。請求すると「請求予定」に追加されます。
+                        指定期間に作業した案件を、担当者が「請求する／まだ／対象外」で判断します。請求すると「請求予定」に追加されます。
                     </p>
                 </div>
                 <Button
@@ -313,6 +368,46 @@ export default function BillingBoardPage() {
                 >
                     更新
                 </Button>
+            </div>
+
+            {/* 期間コントロール */}
+            <div className="mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-slate-600">表示期間</span>
+                <button
+                    onClick={() => shiftMonth(-1)}
+                    className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
+                    title="前月"
+                >
+                    <ChevronLeft className="h-4 w-4 text-slate-600" />
+                </button>
+                <input
+                    type="date"
+                    value={from}
+                    max={to}
+                    onChange={(e) => setFrom(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                />
+                <span className="text-slate-400">〜</span>
+                <input
+                    type="date"
+                    value={to}
+                    min={from}
+                    onChange={(e) => setTo(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                />
+                <button
+                    onClick={() => shiftMonth(1)}
+                    className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm hover:bg-slate-50"
+                    title="翌月"
+                >
+                    <ChevronRight className="h-4 w-4 text-slate-600" />
+                </button>
+                <button
+                    onClick={goThisMonth}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm hover:bg-slate-50"
+                >
+                    今月
+                </button>
             </div>
 
             {/* タブ */}
@@ -391,7 +486,7 @@ export default function BillingBoardPage() {
                 ) : visibleRows.length === 0 ? (
                     <div className="rounded-xl border border-slate-200 bg-white p-12 text-center text-slate-500 shadow-sm">
                         {tab === 'pending'
-                            ? '判断待ちの案件はありません'
+                            ? 'この期間に判断待ちの案件はありません'
                             : tab === 'hold'
                               ? '保留中の案件はありません'
                               : '対象外の案件はありません'}
@@ -402,6 +497,8 @@ export default function BillingBoardPage() {
                             key={row.id}
                             row={row}
                             assigneeNames={resolveNames(row.assigneeIds)}
+                            ctypeMap={ctypeMap}
+                            userMap={userMap}
                             busy={busyRowId === row.id}
                             tab={tab}
                             onRequest={handleRequest}

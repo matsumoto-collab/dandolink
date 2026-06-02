@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { CheckCircle2, FileText, CalendarClock } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import type { BillingBoardRow as Row } from '@/types/billingBoard';
 
@@ -21,10 +21,43 @@ const BILLING_BADGE: Record<string, { text: string; cls: string }> = {
     full: { text: '請求済', cls: 'bg-emerald-100 text-emerald-700' },
 };
 
+/** マスタに無いレガシー工事種別値のフォールバック（マスタ既定色に合わせる）。 */
+const LEGACY_CTYPE: Record<string, { name: string; color: string }> = {
+    assembly: { name: '組立', color: '#a8c8e8' },
+    demolition: { name: '解体', color: '#f0a8a8' },
+    other: { name: 'その他', color: '#fef08a' },
+};
+
+type CtypeMap = Record<string, { name: string; color: string }>;
+
+function resolveCtype(id: string, map: CtypeMap): { name: string; color: string } {
+    return map[id] ?? LEGACY_CTYPE[id] ?? { name: id, color: '#94a3b8' };
+}
+
+/** 工事種別チップ（マスタ色のドット＋名称）。 */
+function CTypeChip({ id, map, small }: { id: string; map: CtypeMap; small?: boolean }) {
+    const c = resolveCtype(id, map);
+    return (
+        <span
+            className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border font-medium ${
+                small ? 'px-1.5 py-0 text-[10px]' : 'px-2 py-0.5 text-[10px]'
+            }`}
+            style={{ borderColor: c.color, backgroundColor: `${c.color}22`, color: '#334155' }}
+        >
+            <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.color }} />
+            {c.name}
+        </span>
+    );
+}
+
 interface BillingBoardRowProps {
     row: Row;
     /** 担当者の表示名（"山本、鈴木" など。未解決なら空文字）。 */
     assigneeNames: string;
+    /** 工事種別 ID → 名称・色（/api/master-data/construction-types 由来）。 */
+    ctypeMap: CtypeMap;
+    /** User ID → 表示名（職長名の解決用、/api/users 由来）。 */
+    userMap: Record<string, string>;
     /** この行で操作実行中はボタンを無効化。 */
     busy?: boolean;
     tab: 'pending' | 'hold' | 'excluded';
@@ -34,9 +67,13 @@ interface BillingBoardRowProps {
     onRestore: (row: Row) => void;
 }
 
+const COLLAPSED_COUNT = 3;
+
 export default function BillingBoardRow({
     row,
     assigneeNames,
+    ctypeMap,
+    userMap,
     busy,
     tab,
     onRequest,
@@ -45,10 +82,12 @@ export default function BillingBoardRow({
     onRestore,
 }: BillingBoardRowProps) {
     const badge = BILLING_BADGE[row.billingStatus] ?? BILLING_BADGE.unbilled;
+    const [expanded, setExpanded] = useState(false);
+    const shown = expanded ? row.workHistory : row.workHistory.slice(0, COLLAPSED_COUNT);
 
     return (
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 {/* 左：案件情報 */}
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -69,13 +108,15 @@ export default function BillingBoardRow({
                                 {row.hasApprovedEstimate ? '・承認あり' : ''}
                             </span>
                         )}
+                        {/* 工事種別チップ（色付き） */}
+                        {row.constructionTypeIds.map((id) => (
+                            <CTypeChip key={id} id={id} map={ctypeMap} />
+                        ))}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500">
                         <span>{row.customerName || '顧客未設定'}</span>
                         <span>担当: {assigneeNames || '—'}</span>
-                        <span className="inline-flex items-center gap-1">
-                            <CalendarClock className="h-3 w-3" /> 最終作業 {md(row.lastWorkDate)}
-                        </span>
+                        <span>最終作業 {md(row.lastWorkDate)}</span>
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs">
                         <span className="text-slate-500">
@@ -131,6 +172,43 @@ export default function BillingBoardRow({
                     )}
                 </div>
             </div>
+
+            {/* 作業履歴（期間内・直近順。多いときは折りたたみ） */}
+            {row.workHistory.length > 0 && (
+                <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+                    <div className="mb-1 text-[11px] font-medium text-slate-500">作業履歴（{row.workCount}件）</div>
+                    <div className="space-y-1">
+                        {shown.map((w, i) => (
+                            <div key={i} className="flex items-center gap-2 text-xs">
+                                <span className="w-10 shrink-0 tabular-nums text-slate-500">{md(w.date)}</span>
+                                {w.constructionType ? (
+                                    <CTypeChip id={w.constructionType} map={ctypeMap} small />
+                                ) : (
+                                    <span className="text-slate-300">—</span>
+                                )}
+                                <span className="truncate text-slate-600">
+                                    {(w.foremanId && userMap[w.foremanId]) || '—'}
+                                    {w.memberCount ? `（${w.memberCount}名）` : ''}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    {row.workCount > COLLAPSED_COUNT && (
+                        <button
+                            type="button"
+                            onClick={() => setExpanded((v) => !v)}
+                            className="mt-1 text-[11px] font-medium text-teal-700 hover:underline"
+                        >
+                            {expanded ? '閉じる' : `他 ${row.workCount - COLLAPSED_COUNT} 件を表示`}
+                        </button>
+                    )}
+                    {expanded && row.workCount > row.workHistory.length && (
+                        <div className="mt-1 text-[11px] text-slate-400">
+                            最新 {row.workHistory.length} 件を表示（ほか {row.workCount - row.workHistory.length} 件）
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
