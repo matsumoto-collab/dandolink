@@ -20,6 +20,7 @@ import type { InvoiceItem, InvoiceInput, BillingTitle } from '@/types/invoice';
 import type { Estimate } from '@/types/estimate';
 import type { Project } from '@/types/calendar';
 import { logger } from '@/lib/logger';
+import { useFinanceStore } from '@/stores/financeStore';
 
 // 請求書プレビュー（既存の請求書作成フォームを転用・重いので遅延読み込み）
 const InvoiceModal = dynamic(() => import('@/components/Invoices/InvoiceModal'), { ssr: false, loading: () => null });
@@ -663,6 +664,13 @@ export default function BillingBoardPage() {
                     throw new Error(err?.error || '請求書の作成に失敗しました');
                 }
                 toast.success('請求書を作成しました（「請求書」で確認できます）');
+                // 請求書一覧（financeストア）が既にロード済みなら最新化して、ボード発行分を即反映する。
+                // ボードはストアを介さず直接 POST するため、これが無いと一覧が古いまま（ハード更新まで出ない）。
+                // 未ロードなら一覧を開いた初回 fetch で取得されるので何もしない。
+                const financeState = useFinanceStore.getState();
+                if (financeState.invoicesInitialized) {
+                    void financeState.fetchInvoices();
+                }
                 // 発行した案件を請求対象から外す
                 const issued = issuingProjectIds;
                 setStaged((prev) => {
