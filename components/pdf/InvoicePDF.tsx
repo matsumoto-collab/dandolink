@@ -8,11 +8,22 @@ import {
     Image,
 } from '@react-pdf/renderer';
 import { Text } from './SafeText';
+import { FitText } from './FitText';
 import { Invoice, InvoiceItem } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 import { toReiwa, sanitizePdfText, PDF_COLORS as COLORS } from './styles';
 import { invoiceStyles as styles } from './invoice/invoiceStyles';
+
+// 各列セルの内寸（cell width − 左右padding2 − 罫線0.5）。長い文字列はこの幅に1行で
+// 収まるよう FitText がフォントを自動縮小する。備考は flex 列なので概算内寸。
+const INV_FS = 9;            // テーブル基本フォント
+const INV_W = {
+    no: 14, name: 115, spec: 95, qty: 31, unit: 21, price: 46, amount: 56, remarks: 116,
+    headerName: 216,         // 見出し行（名称セルを width220 に拡張）
+} as const;
+const INV_SUBJECT_FS = 8;    // 表紙・件名/支払期限などの値セル（infoValueCell）
+const INV_SUBJECT_W = 197;
 
 interface InvoicePDFProps {
     invoice: Invoice;
@@ -182,7 +193,7 @@ function CoverPage({
                 <View key={`header-${i}`} style={styles.projectHeaderRow}>
                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
                     <View style={{ ...styles.cellName, width: 220 }}>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
+                        <FitText width={INV_W.headerName} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</FitText>
                     </View>
                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
@@ -199,16 +210,16 @@ function CoverPage({
                 <View key={`cat-${i}`} style={styles.tableRow}>
                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellName}>
-                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(cat.description || '')}</Text>
+                        <FitText width={INV_W.name} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(cat.description || '')}</FitText>
                     </View>
                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
                     <View style={styles.cellAmount}>
-                        <Text style={catNegative ? { fontSize: 9, fontWeight: 'bold', color: COLORS.red } : { fontSize: 9, fontWeight: 'bold' }}>
+                        <FitText width={INV_W.amount} base={INV_FS} style={catNegative ? { fontWeight: 'bold', color: COLORS.red } : { fontWeight: 'bold' }}>
                             {catNegative ? `(${Math.abs(cat.amount).toLocaleString()})` : cat.amount.toLocaleString()}
-                        </Text>
+                        </FitText>
                     </View>
                     <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                 </View>
@@ -218,26 +229,26 @@ function CoverPage({
         const isNegative = item.amount < 0;
         return (
             <View key={`item-${i}`} style={styles.tableRow}>
-                <View style={styles.cellNo}><Text style={styles.cellTextCenter}>{row.index}</Text></View>
+                <View style={styles.cellNo}><FitText width={INV_W.no} base={INV_FS} style={styles.cellTextCenter}>{row.index}</FitText></View>
                 <View style={styles.cellName}>
-                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>{row.isChild ? '　' : ''}{sanitizePdfText(item.description || '')}</Text>
+                    <FitText width={INV_W.name} base={INV_FS} style={isNegative ? styles.cellTextRed : styles.cellText}>{`${row.isChild ? '　' : ''}${sanitizePdfText(item.description || '')}`}</FitText>
                 </View>
                 <View style={styles.cellSpec}>
-                    <Text style={styles.cellText}>{item.specification ? sanitizePdfText(item.specification) : ''}</Text>
+                    <FitText width={INV_W.spec} base={INV_FS} style={styles.cellText}>{item.specification ? sanitizePdfText(item.specification) : ''}</FitText>
                 </View>
                 <View style={styles.cellQty}>
-                    <Text style={styles.cellText}>{item.quantity > 0 ? item.quantity.toLocaleString() : ''}</Text>
+                    <FitText width={INV_W.qty} base={INV_FS} style={styles.cellText}>{item.quantity > 0 ? item.quantity.toLocaleString() : ''}</FitText>
                 </View>
                 <View style={styles.cellUnit}>
-                    <Text style={styles.cellText}>{sanitizePdfText(item.unit || '')}</Text>
+                    <FitText width={INV_W.unit} base={INV_FS} style={styles.cellText}>{sanitizePdfText(item.unit || '')}</FitText>
                 </View>
                 <View style={styles.cellPrice}>
-                    <Text style={styles.cellText}>{item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}</Text>
+                    <FitText width={INV_W.price} base={INV_FS} style={styles.cellText}>{item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}</FitText>
                 </View>
                 <View style={styles.cellAmount}>
-                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>{isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()}</Text>
+                    <FitText width={INV_W.amount} base={INV_FS} style={isNegative ? styles.cellTextRed : styles.cellText}>{isNegative ? `(${Math.abs(item.amount).toLocaleString()})` : item.amount.toLocaleString()}</FitText>
                 </View>
-                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
+                <View style={styles.cellRemarks}><FitText width={INV_W.remarks} base={INV_FS} style={styles.cellText}>{item.notes ? sanitizePdfText(item.notes) : ''}</FitText></View>
             </View>
         );
     };
@@ -336,7 +347,7 @@ function CoverPage({
                             <Text style={styles.infoLabelText}>{row.label}</Text>
                         </View>
                         <View style={styles.infoValueCell}>
-                            <Text style={styles.infoValueText}>{row.value}</Text>
+                            <FitText width={INV_SUBJECT_W} base={INV_SUBJECT_FS} style={styles.infoValueText}>{row.value}</FitText>
                         </View>
                     </View>
                 ))}
@@ -436,7 +447,7 @@ function CoverPage({
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
                     <View style={styles.totalAmountCell}>
-                        <Text style={styles.totalAmountText}>¥{invoice.subtotal.toLocaleString()}</Text>
+                        <FitText width={INV_W.amount} base={INV_FS} style={styles.totalAmountText}>{`¥${invoice.subtotal.toLocaleString()}`}</FitText>
                     </View>
                     <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
@@ -519,7 +530,7 @@ function DetailsPage({
                                 <View key={`header-${i}`} style={styles.projectHeaderRow}>
                                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
                                     <View style={{ ...styles.cellName, width: 220 }}>
-                                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</Text>
+                                        <FitText width={INV_W.headerName} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</FitText>
                                     </View>
                                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
@@ -538,16 +549,16 @@ function DetailsPage({
                                 <View key={`cat-${i}`} style={styles.tableRow}>
                                     <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellName}>
-                                        <Text style={{ fontSize: 9, fontWeight: 'bold' }}>{sanitizePdfText(cat.description || '')}</Text>
+                                        <FitText width={INV_W.name} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(cat.description || '')}</FitText>
                                     </View>
                                     <View style={styles.cellSpec}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
                                     <View style={styles.cellAmount}>
-                                        <Text style={catNeg ? { fontSize: 9, fontWeight: 'bold', color: COLORS.red } : { fontSize: 9, fontWeight: 'bold' }}>
+                                        <FitText width={INV_W.amount} base={INV_FS} style={catNeg ? { fontWeight: 'bold', color: COLORS.red } : { fontWeight: 'bold' }}>
                                             {catNeg ? `(${Math.abs(cat.amount).toLocaleString()})` : cat.amount.toLocaleString()}
-                                        </Text>
+                                        </FitText>
                                     </View>
                                     <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
                                 </View>
@@ -564,39 +575,27 @@ function DetailsPage({
                         rows.push(
                             <View key={i} style={!row ? styles.tableEmptyRow : (isLast ? styles.tableRowLast : styles.tableRow)}>
                                 <View style={styles.cellNo}>
-                                    <Text style={styles.cellTextCenter}>{item ? idx : ''}</Text>
+                                    <FitText width={INV_W.no} base={INV_FS} style={styles.cellTextCenter}>{item ? idx : ''}</FitText>
                                 </View>
                                 <View style={styles.cellName}>
-                                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                                        {item ? `${isChild ? '　' : ''}${sanitizePdfText(item.description || '')}` : ''}
-                                    </Text>
+                                    <FitText width={INV_W.name} base={INV_FS} style={isNegative ? styles.cellTextRed : styles.cellText}>{item ? `${isChild ? '　' : ''}${sanitizePdfText(item.description || '')}` : ''}</FitText>
                                 </View>
                                 <View style={styles.cellSpec}>
-                                    <Text style={styles.cellText}>
-                                        {item?.specification ? sanitizePdfText(item.specification) : ''}
-                                    </Text>
+                                    <FitText width={INV_W.spec} base={INV_FS} style={styles.cellText}>{item?.specification ? sanitizePdfText(item.specification) : ''}</FitText>
                                 </View>
                                 <View style={styles.cellQty}>
-                                    <Text style={styles.cellText}>
-                                        {item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}
-                                    </Text>
+                                    <FitText width={INV_W.qty} base={INV_FS} style={styles.cellText}>{item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}</FitText>
                                 </View>
                                 <View style={styles.cellUnit}>
-                                    <Text style={styles.cellText}>
-                                        {item ? sanitizePdfText(item.unit || '') : ''}
-                                    </Text>
+                                    <FitText width={INV_W.unit} base={INV_FS} style={styles.cellText}>{item ? sanitizePdfText(item.unit || '') : ''}</FitText>
                                 </View>
                                 <View style={styles.cellPrice}>
-                                    <Text style={styles.cellText}>
-                                        {item && item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}
-                                    </Text>
+                                    <FitText width={INV_W.price} base={INV_FS} style={styles.cellText}>{item && item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}</FitText>
                                 </View>
                                 <View style={styles.cellAmount}>
-                                    <Text style={isNegative ? styles.cellTextRed : styles.cellText}>
-                                        {item ? formatAmount(item.amount, isNegative) : ''}
-                                    </Text>
+                                    <FitText width={INV_W.amount} base={INV_FS} style={isNegative ? styles.cellTextRed : styles.cellText}>{item ? formatAmount(item.amount, isNegative) : ''}</FitText>
                                 </View>
-                                <View style={styles.cellRemarks}><Text style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</Text></View>
+                                <View style={styles.cellRemarks}><FitText width={INV_W.remarks} base={INV_FS} style={styles.cellText}>{item?.notes ? sanitizePdfText(item.notes) : ''}</FitText></View>
                             </View>
                         );
                     }
@@ -610,7 +609,7 @@ function DetailsPage({
                         <Text style={styles.totalLabelText}>小計</Text>
                     </View>
                     <View style={styles.totalAmountCell}>
-                        <Text style={styles.totalAmountText}>{invoice.subtotal.toLocaleString()}</Text>
+                        <FitText width={INV_W.amount} base={8} style={styles.totalAmountText}>{invoice.subtotal.toLocaleString()}</FitText>
                     </View>
                     <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
@@ -622,7 +621,7 @@ function DetailsPage({
                         <Text style={styles.totalLabelText}>消費税</Text>
                     </View>
                     <View style={styles.totalAmountCell}>
-                        <Text style={styles.totalAmountText}>{invoice.tax.toLocaleString()}</Text>
+                        <FitText width={INV_W.amount} base={8} style={styles.totalAmountText}>{invoice.tax.toLocaleString()}</FitText>
                     </View>
                     <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
@@ -634,9 +633,7 @@ function DetailsPage({
                         <Text style={{ ...styles.totalLabelText, fontSize: 9 }}>合計</Text>
                     </View>
                     <View style={styles.totalAmountCell}>
-                        <Text style={{ ...styles.totalAmountText, fontSize: 9 }}>
-                            {invoice.total.toLocaleString()}
-                        </Text>
+                        <FitText width={INV_W.amount} base={9} style={styles.totalAmountText}>{invoice.total.toLocaleString()}</FitText>
                     </View>
                     <View style={styles.totalRemarksCell}><Text style={styles.cellText}></Text></View>
                 </View>
