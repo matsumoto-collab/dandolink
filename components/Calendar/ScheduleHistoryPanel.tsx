@@ -3,6 +3,36 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X, History, Calendar, Users, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useCalendarStore } from '@/stores/calendarStore';
+
+// 復元/戻しのAPIレスポンス（更新後の配置）をストアへ即時反映する。
+// 同一ブラウザでは Realtime(postgres_changes) が届きにくく、ページ移動まで反映されないため、
+// パネル操作の結果はここで直接 upsert して即時にカレンダーへ出す。
+function pushAssignmentToCalendar(assignment: {
+    id?: string;
+    date: string;
+    createdAt: string;
+    updatedAt: string;
+    workStartedAt?: string | null;
+    workEndedAt?: string | null;
+    projectMaster?: { createdAt: string; updatedAt: string } | null;
+} | null): void {
+    if (!assignment || !assignment.id) return;
+    useCalendarStore.getState().upsertAssignment({
+        ...assignment,
+        date: new Date(assignment.date),
+        createdAt: new Date(assignment.createdAt),
+        updatedAt: new Date(assignment.updatedAt),
+        workStartedAt: assignment.workStartedAt ? new Date(assignment.workStartedAt) : null,
+        workEndedAt: assignment.workEndedAt ? new Date(assignment.workEndedAt) : null,
+        projectMaster: assignment.projectMaster ? {
+            ...assignment.projectMaster,
+            createdAt: new Date(assignment.projectMaster.createdAt),
+            updatedAt: new Date(assignment.projectMaster.updatedAt),
+        } : undefined,
+    // formatAssignment 由来の他フィールドはそのまま流用するため部分型で受けてキャストする
+    } as unknown as Parameters<ReturnType<typeof useCalendarStore.getState>['upsertAssignment']>[0]);
+}
 
 interface ProjectInfo {
     id: string;
@@ -133,6 +163,9 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                 toast.error(data?.error || '元に戻せませんでした');
                 return;
             }
+            // 戻した配置をカレンダーへ即時反映（ページ移動を待たずに反映させる）
+            const assignment = await res.json().catch(() => null);
+            pushAssignmentToCalendar(assignment);
             toast.success('移動を元に戻しました');
             await fetchHistories(searchQuery);
         } catch {
@@ -157,6 +190,9 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                 toast.error(data?.error || '復元できませんでした');
                 return;
             }
+            // 復元した配置をカレンダーへ即時反映（ページ移動を待たずに反映させる）
+            const assignment = await res.json().catch(() => null);
+            pushAssignmentToCalendar(assignment);
             toast.success('削除した配置を復元しました');
             await fetchHistories(searchQuery);
         } catch {
