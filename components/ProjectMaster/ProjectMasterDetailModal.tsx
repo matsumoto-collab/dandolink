@@ -234,7 +234,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                                 <button
                                     onClick={handleCancelEdit}
                                     title="閲覧に戻る"
-                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium text-slate-600 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg transition-colors"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors"
                                 >
                                     <ArrowLeft className="w-4 h-4" />
                                     <span className="hidden md:inline">閲覧に戻る</span>
@@ -243,7 +243,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                                 <button
                                     onClick={handleStartEdit}
                                     title="編集"
-                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 rounded-lg transition-colors"
+                                    className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 border border-slate-300 rounded-lg transition-colors"
                                 >
                                     <Edit className="w-4 h-4" />
                                     <span className="hidden md:inline">編集</span>
@@ -254,7 +254,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             <button
                                 onClick={onCreateEstimate}
                                 title="見積書を作成"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <FileText className="w-4 h-4" />
                                 <span className="hidden md:inline">見積書を作成</span>
@@ -264,7 +264,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             <button
                                 onClick={onViewEstimate}
                                 title="見積書を確認"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm border border-teal-300 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-teal-300 rounded-lg text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
                             >
                                 <FileSearch className="w-4 h-4" />
                                 <span className="hidden md:inline">見積書を確認</span>
@@ -274,7 +274,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             <button
                                 onClick={onAddBillingDraft}
                                 title="請求予定を追加"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <CreditCard className="w-4 h-4" />
                                 <span className="hidden md:inline">請求予定を追加</span>

@@ -113,71 +113,77 @@ export default function ProjectModal({
             {/* モーダルコンテンツ */}
             <div ref={modalRef} role="dialog" aria-modal="true" tabIndex={-1} className="relative bg-white flex flex-col w-full h-full lg:h-auto flex-1 lg:flex-none lg:rounded-lg lg:shadow-xl lg:max-w-2xl lg:mx-4 lg:max-h-[90vh]">
                 {/* ヘッダー */}
-                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <div>
-                            <h2 className="text-xl font-semibold text-slate-900">{modalTitle}</h2>
+                <div className="flex-shrink-0 bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0 mr-3">
+                        <div className="min-w-0">
+                            <h2 className="text-lg md:text-xl font-semibold text-slate-900 truncate">{modalTitle}</h2>
                             {initialData && <LastUpdatedLabel updatedAt={initialData.updatedAt} updatedBy={initialData.updatedBy} />}
                         </div>
                         {otherEditingUsers.length > 0 && (
                             <EditingIndicator users={otherEditingUsers} />
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
                         {!isEditMode && initialData?.id && initialData?.projectMasterId && (
                             <button
                                 onClick={() => setShowChat((v) => !v)}
-                                className={`hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-sm border rounded-xl transition-colors ${
+                                title={showChat ? '詳細を表示' : 'チャット'}
+                                className={`hidden lg:flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border rounded-lg transition-colors ${
                                     showChat
-                                        ? 'border-teal-500 bg-teal-50 text-teal-700'
+                                        ? 'border-teal-300 bg-teal-50 text-teal-700 hover:bg-teal-100'
                                         : 'border-slate-300 text-slate-700 hover:bg-slate-50'
                                 }`}
                             >
                                 <MessageSquare className="w-4 h-4" />
-                                {showChat ? '詳細を表示' : 'チャット'}
+                                <span className="hidden md:inline">{showChat ? '詳細を表示' : 'チャット'}</span>
                             </button>
                         )}
                         {!readOnly && !isEditMode && !showChat && initialData?.id && (
                             <button
                                 onClick={() => setIsEditMode(true)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                                title="編集"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <Pencil className="w-4 h-4" />
-                                編集
+                                <span className="hidden md:inline">編集</span>
                             </button>
                         )}
                         {!isEditMode && !showChat && initialData?.id && initialData?.projectMasterId && onEditProjectMaster && (
                             <button
                                 onClick={onEditProjectMaster}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                                title="案件マスタを編集"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <ExternalLink className="w-4 h-4" />
-                                案件マスタを編集
+                                <span className="hidden md:inline">案件マスタを編集</span>
                             </button>
                         )}
                         {!readOnly && !isEditMode && initialData?.id && onDelete && (
                             <button
                                 onClick={handleDelete}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-red-300 rounded-xl text-red-600 hover:bg-red-50 transition-colors"
+                                title="削除"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-red-300 rounded-lg text-red-600 hover:bg-red-50 transition-colors"
                             >
                                 <Trash2 className="w-4 h-4" />
-                                削除
+                                <span className="hidden md:inline">削除</span>
                             </button>
                         )}
                         {!readOnly && !isEditMode && onCreateEstimate && (
                             <button
                                 onClick={onCreateEstimate}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-sm border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
+                                title="見積書を作成"
+                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 <FileText className="w-4 h-4" />
-                                見積書を作成
+                                <span className="hidden md:inline">見積書を作成</span>
                             </button>
                         )}
                         <button
                             onClick={onClose}
-                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                            title="閉じる"
+                            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         >
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
                         </button>
@@ -185,7 +191,7 @@ export default function ProjectModal({
                 </div>
 
                 {/* コンテンツ */}
-                <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
+                <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     {initialData?.id && showChat && initialData?.projectMasterId ? (
                         <ProjectChatTab projectId={initialData.projectMasterId} />
                     ) : initialData?.id && (!isEditMode || readOnly) ? (
