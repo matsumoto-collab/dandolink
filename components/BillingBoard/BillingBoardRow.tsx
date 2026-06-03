@@ -61,7 +61,10 @@ interface BillingBoardRowProps {
     /** この行で操作実行中はボタンを無効化。 */
     busy?: boolean;
     tab: 'pending' | 'hold' | 'excluded' | 'billed';
+    /** ボード上の請求対象（クライアント保持・null=未選択）。請求書発行までの選択を表す。 */
+    staged?: { amount: number; note?: string } | null;
     onRequest: (row: Row) => void;
+    onUnstage?: (row: Row) => void;
     onHold: (row: Row) => void;
     onExclude: (row: Row) => void;
     onRestore: (row: Row) => void;
@@ -76,7 +79,9 @@ export default function BillingBoardRow({
     userMap,
     busy,
     tab,
+    staged,
     onRequest,
+    onUnstage,
     onHold,
     onExclude,
     onRestore,
@@ -131,50 +136,59 @@ export default function BillingBoardRow({
                     </div>
                 </div>
 
-                {/* 右：請求済みタブは請求額を表示、それ以外は判断ボタン（請求予定があるときは「請求する」を出さない） */}
+                {/* 右：請求済み=請求額／請求対象=金額+取消／旧請求予定=表示のみ／それ以外=判断ボタン */}
                 <div className="flex flex-shrink-0 items-center gap-2">
-                    {tab === 'billed' && (
+                    {tab === 'billed' ? (
                         <div className="text-right">
                             <div className="text-[10px] text-slate-500">請求済み(税抜)</div>
                             <div className="text-lg font-bold text-emerald-700">{yen(row.invoicedAmount)}</div>
                         </div>
-                    )}
-                    {tab !== 'billed' && row.hasPendingDraft && (
-                        <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">
-                            請求予定あり
-                        </span>
-                    )}
-                    {tab === 'pending' && (
+                    ) : staged ? (
                         <>
-                            {!row.hasPendingDraft && (
+                            <div className="text-right">
+                                <div className="text-[10px] text-slate-500">
+                                    請求対象(税抜){staged.note ? `・${staged.note}` : ''}
+                                </div>
+                                <div className="text-base font-bold text-teal-700">{yen(staged.amount)}</div>
+                            </div>
+                            <Button type="button" variant="ghost" onClick={() => onUnstage?.(row)} disabled={busy}>
+                                取消
+                            </Button>
+                        </>
+                    ) : row.hasPendingDraft ? (
+                        <>
+                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
+                                請求予定あり（旧）
+                            </span>
+                            {(tab === 'hold' || tab === 'excluded') && (
+                                <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
+                                    判断に戻す
+                                </Button>
+                            )}
+                        </>
+                    ) : (
+                        <>
+                            {(tab === 'pending' || tab === 'hold') && (
                                 <Button type="button" variant="primary" onClick={() => onRequest(row)} disabled={busy}>
                                     請求する
                                 </Button>
                             )}
-                            <Button type="button" variant="outline" onClick={() => onHold(row)} disabled={busy}>
-                                まだ
-                            </Button>
-                            <Button type="button" variant="ghost" onClick={() => onExclude(row)} disabled={busy}>
-                                対象外
-                            </Button>
-                        </>
-                    )}
-                    {tab === 'hold' && (
-                        <>
-                            {!row.hasPendingDraft && (
-                                <Button type="button" variant="primary" onClick={() => onRequest(row)} disabled={busy}>
-                                    請求する
+                            {tab === 'pending' && (
+                                <>
+                                    <Button type="button" variant="outline" onClick={() => onHold(row)} disabled={busy}>
+                                        まだ
+                                    </Button>
+                                    <Button type="button" variant="ghost" onClick={() => onExclude(row)} disabled={busy}>
+                                        対象外
+                                    </Button>
+                                </>
+                            )}
+                            {(tab === 'hold' || tab === 'excluded') && (
+                                <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
+                                    判断に戻す
                                 </Button>
                             )}
-                            <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
-                                判断に戻す
-                            </Button>
                         </>
-                    )}
-                    {tab === 'excluded' && (
-                        <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
-                            判断に戻す
-                        </Button>
                     )}
                 </div>
             </div>

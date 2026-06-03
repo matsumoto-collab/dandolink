@@ -44,7 +44,6 @@ const navigationSections: NavSection[] = [
             { name: '見積書', page: 'estimates' },
             { name: '請求書', page: 'invoices' },
             { name: '請求待ち', page: 'billing-board', requiredRoles: ['admin', 'manager'] },
-            { name: '請求予定', page: 'billing-drafts', requiredRoles: ['admin', 'manager'] },
             { name: '図面', page: 'site-surveys' },
             { name: '協力業者出来高', page: 'partner-work-volume', requiredRoles: ['admin', 'manager'] },
             { name: '支払予定', page: 'payment-schedules', requiredRoles: ['admin'] },

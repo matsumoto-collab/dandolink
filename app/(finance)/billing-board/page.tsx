@@ -7,21 +7,18 @@ import { RefreshCw, Search, ClipboardList, ChevronLeft, ChevronRight } from 'luc
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useEstimates } from '@/hooks/useEstimates';
-import { useBillingDrafts } from '@/hooks/useBillingDrafts';
 import { useDebounce } from '@/hooks/useDebounce';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
-import { billingDraftToInvoiceItems } from '@/lib/billing/draftToInvoiceItem';
 import { closingDayLabel } from '@/lib/closingDay';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
 import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
 import RequestBillingDialog, { type RequestBillingResult } from '@/components/BillingBoard/RequestBillingDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem, InvoiceInput } from '@/types/invoice';
-import type { BillingDraft } from '@/types/billingDraft';
 import type { Estimate } from '@/types/estimate';
 import { logger } from '@/lib/logger';
 
-// 請求書化プレビュー（既存の請求書作成フォームを転用・重いので遅延読み込み）
+// 請求書プレビュー（既存の請求書作成フォームを転用・重いので遅延読み込み）
 const InvoiceModal = dynamic(() => import('@/components/Invoices/InvoiceModal'), { ssr: false, loading: () => null });
 
 type TabKey = 'pending' | 'hold' | 'excluded' | 'billed';
@@ -87,6 +84,14 @@ interface CustomerGroup {
     rows: Row[];
 }
 
+/** ボード上で「請求する」した案件を、請求書発行までクライアントに保持する選択行（請求予定は作らない）。 */
+interface StagedLine {
+    customerId: string;
+    items: InvoiceItem[]; // 各 item に projectMasterId を持たせる（請求済み按分のため）
+    total: number; // items の税抜合計
+    label: string; // 摘要 / 見積どおり 等（行表示用）
+}
+
 export default function BillingBoardPage() {
     const { data: session, status: sessionStatus } = useSession();
     const role = session?.user?.role;
@@ -94,8 +99,6 @@ export default function BillingBoardPage() {
     const myId = session?.user?.id;
 
     const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
-    // pending な請求予定を読み込み（顧客ヘッダーの「請求書化」で束ねる対象）。create 後は自動 refetch。
-    const { drafts: pendingDrafts, create, refresh: refreshDrafts } = useBillingDrafts({ status: 'pending' });
 
     const [rows, setRows] = useState<Row[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -125,10 +128,14 @@ export default function BillingBoardPage() {
     const [requestDialog, setRequestDialog] = useState<{ row: Row } | null>(null);
     const [requestSubmitting, setRequestSubmitting] = useState(false);
 
-    // 請求書化（顧客ごと）モーダル
+    // 請求対象（請求書発行までクライアントに保持）。key = projectId。
+    const [staged, setStaged] = useState<Record<string, StagedLine>>({});
+
+    // 請求書プレビュー（顧客ごと）
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
     const [invoiceInitialData, setInvoiceInitialData] = useState<Partial<InvoiceInput> | undefined>(undefined);
-    const [issuingDraftIds, setIssuingDraftIds] = useState<string[]>([]);
+    const [issuingCustomerId, setIssuingCustomerId] = useState<string | null>(null);
+    const [issuingProjectIds, setIssuingProjectIds] = useState<string[]>([]);
 
     const fetchBoard = useCallback(async () => {
         try {
@@ -309,45 +316,37 @@ export default function BillingBoardPage() {
         [tab],
     );
 
-    // 顧客ごとの pending 請求予定（「この顧客を請求書化」で束ねる対象。create/発行後に自動更新）
-    const pendingDraftsByCustomer = useMemo(() => {
-        const m = new Map<string, BillingDraft[]>();
-        for (const d of pendingDrafts) {
-            if (d.status !== 'pending' || d.deletedAt) continue;
-            const arr = m.get(d.customerId);
-            if (arr) arr.push(d);
-            else m.set(d.customerId, [d]);
+    // 顧客ごとの請求対象（staged を顧客単位に集約）
+    const stagedByCustomer = useMemo(() => {
+        const m = new Map<string, { projectIds: string[]; total: number; items: InvoiceItem[] }>();
+        for (const [pid, line] of Object.entries(staged)) {
+            const g = m.get(line.customerId) ?? { projectIds: [], total: 0, items: [] };
+            g.projectIds.push(pid);
+            g.total += line.total;
+            g.items.push(...line.items);
+            m.set(line.customerId, g);
         }
         return m;
-    }, [pendingDrafts]);
+    }, [staged]);
 
-    const draftTotal = (ds: BillingDraft[]) => ds.reduce((s, d) => s + (d.amount != null ? Number(d.amount) : 0), 0);
+    // ── 請求対象に追加 / 取消（請求予定は作らずクライアントに保持）──────────
+    const stageProject = useCallback((row: Row, items: InvoiceItem[], label: string) => {
+        if (!row.customerId) {
+            toast.error('顧客が未設定の案件です。先に案件へ顧客を設定してください');
+            return;
+        }
+        const total = items.reduce((s, it) => s + (Number(it.amount) || 0), 0);
+        setStaged((prev) => ({ ...prev, [row.id]: { customerId: row.customerId as string, items, total, label } }));
+        toast.success('請求対象に追加しました');
+    }, []);
 
-    // ── 請求予定の作成（請求する）─────────────────────────────
-    const createDraftFromItems = useCallback(
-        async (row: Row, items: InvoiceItem[]) => {
-            if (!row.customerId) {
-                toast.error('顧客が未設定の案件です。先に案件へ顧客を設定してください');
-                return;
-            }
-            if (items.length === 0) {
-                toast.error('明細を作成できませんでした');
-                return;
-            }
-            setBusyRowId(row.id);
-            try {
-                await create({ projectId: row.id, customerId: row.customerId, title: row.title, items });
-                toast.success('請求予定を作成しました（「請求予定」で内容確認・請求書化できます）');
-                await fetchBoard();
-            } catch (e) {
-                logger.error('Failed to create billing draft from board:', e);
-                toast.error(e instanceof Error ? e.message : '請求予定の作成に失敗しました');
-            } finally {
-                setBusyRowId(null);
-            }
-        },
-        [create, fetchBoard],
-    );
+    const unstageProject = useCallback((row: Row) => {
+        setStaged((prev) => {
+            const next = { ...prev };
+            delete next[row.id];
+            return next;
+        });
+    }, []);
 
     const itemsFromEstimates = useCallback(
         (row: Row, ests: Estimate[]): InvoiceItem[] =>
@@ -364,9 +363,9 @@ export default function BillingBoardPage() {
         [ensureEstimatesLoaded],
     );
 
-    // 見積から請求予定を作成（1件=自動 / 承認1件=自動 / 複数=ピッカー / 見積なし=契約1行）
-    const requestFromEstimates = useCallback(
-        async (row: Row) => {
+    // 見積から請求対象に追加（1件=自動 / 承認1件=自動 / 複数=ピッカー / 見積なし=契約1行）
+    const stageFromEstimates = useCallback(
+        (row: Row) => {
             const ests = getEstimatesByProject(row.id) ?? [];
             if (ests.length === 0) {
                 const line: InvoiceItem = {
@@ -379,16 +378,16 @@ export default function BillingBoardPage() {
                     taxType: 'standard',
                     projectMasterId: row.id,
                 };
-                await createDraftFromItems(row, [line]);
+                stageProject(row, [line], '契約金額');
                 return;
             }
             const approved = ests.filter((e) => e.status === 'approved');
             if (ests.length === 1) {
-                await createDraftFromItems(row, itemsFromEstimates(row, [ests[0]]));
+                stageProject(row, itemsFromEstimates(row, [ests[0]]), '見積どおり');
                 return;
             }
             if (approved.length === 1) {
-                await createDraftFromItems(row, itemsFromEstimates(row, [approved[0]]));
+                stageProject(row, itemsFromEstimates(row, [approved[0]]), '見積どおり');
                 return;
             }
             // 複数見積 → 選択ダイアログ
@@ -403,7 +402,7 @@ export default function BillingBoardPage() {
                 })),
             });
         },
-        [getEstimatesByProject, createDraftFromItems, itemsFromEstimates],
+        [getEstimatesByProject, stageProject, itemsFromEstimates],
     );
 
     // 金額指定ダイアログの確定（金額指定/残額すべて → 1行、見積どおり → 見積展開）
@@ -416,7 +415,7 @@ export default function BillingBoardPage() {
             try {
                 if (result.kind === 'estimate') {
                     setRequestDialog(null);
-                    await requestFromEstimates(row);
+                    stageFromEstimates(row);
                 } else {
                     const line: InvoiceItem = {
                         id: newBillingItemId(),
@@ -428,14 +427,14 @@ export default function BillingBoardPage() {
                         taxType: 'standard',
                         projectMasterId: row.id,
                     };
-                    await createDraftFromItems(row, [line]);
+                    stageProject(row, [line], result.note?.trim() || '金額指定');
                     setRequestDialog(null);
                 }
             } finally {
                 setRequestSubmitting(false);
             }
         },
-        [requestDialog, requestFromEstimates, createDraftFromItems],
+        [requestDialog, stageFromEstimates, stageProject],
     );
 
     const handlePickerConfirm = useCallback(
@@ -448,13 +447,13 @@ export default function BillingBoardPage() {
             }
             setPickerSubmitting(true);
             try {
-                await createDraftFromItems(picker.row, itemsFromEstimates(picker.row, chosen));
+                stageProject(picker.row, itemsFromEstimates(picker.row, chosen), '見積どおり');
                 setPicker(null);
             } finally {
                 setPickerSubmitting(false);
             }
         },
-        [picker, getEstimatesByProject, createDraftFromItems, itemsFromEstimates],
+        [picker, getEstimatesByProject, stageProject, itemsFromEstimates],
     );
 
     // ── 請求判断（保留 / 対象外 / 戻す）───────────────────────
@@ -493,74 +492,67 @@ export default function BillingBoardPage() {
     );
     const handleRestore = useCallback((row: Row) => setDecision(row, 'pending', '判断待ちに戻しました'), [setDecision]);
 
-    // ── 顧客まとめて請求書化（請求予定 → 請求書）─────────────────
-    // その顧客の pending 請求予定をすべて束ねて請求書プレビューを開く（1 顧客 = 1 請求書）。
-    const handleInvoiceCustomer = useCallback(
-        (customerId: string) => {
-            const ds = (pendingDraftsByCustomer.get(customerId) ?? []).filter((d) => d.status === 'pending');
-            if (ds.length === 0) {
-                toast.error('この顧客の請求予定がありません');
+    // ── 顧客ごとに請求書を作成（請求予定を介さず /api/invoices に直接発行）──────
+    const handleCreateInvoiceForCustomer = useCallback(
+        (custId: string) => {
+            const sc = stagedByCustomer.get(custId);
+            if (!sc || sc.items.length === 0) {
+                toast.error('請求対象がありません');
                 return;
             }
-            // 金額未入力（null）は確認のうえ除外。0 円は明示として通す。
-            let finalDrafts = ds;
-            const nullAmount = ds.filter((d) => d.amount == null);
-            if (nullAmount.length > 0) {
-                const ok = window.confirm(`金額が未入力の請求予定が ${nullAmount.length} 件あります。除外して続けますか？`);
-                if (!ok) return;
-                finalDrafts = ds.filter((d) => d.amount != null);
-                if (finalDrafts.length === 0) {
-                    toast.error('金額が入力された請求予定がありません');
-                    return;
-                }
-            }
-            const projectMasterIds = Array.from(new Set(finalDrafts.map((d) => d.projectId)));
-            const items = finalDrafts.flatMap((d) => billingDraftToInvoiceItems(d));
-            setIssuingDraftIds(finalDrafts.map((d) => d.id));
-            // 件名は空欄（InvoiceForm が未入力では発行を弾く）。発行日/支払期限は InvoiceForm 既定。
-            setInvoiceInitialData({ customerId, projectMasterIds, items, title: '' });
+            setIssuingCustomerId(custId);
+            setIssuingProjectIds(sc.projectIds);
+            // 件名は空欄（InvoiceForm が未入力では発行を弾く）。発行日/支払期限/採番は InvoiceForm 既定。
+            setInvoiceInitialData({ customerId: custId, projectMasterIds: sc.projectIds, items: sc.items, title: '' });
             setIsInvoiceModalOpen(true);
         },
-        [pendingDraftsByCustomer],
+        [stagedByCustomer],
     );
 
     const handleCloseInvoiceModal = useCallback(() => {
         setIsInvoiceModalOpen(false);
         setInvoiceInitialData(undefined);
-        setIssuingDraftIds([]);
+        setIssuingCustomerId(null);
+        setIssuingProjectIds([]);
     }, []);
 
     const handleIssueInvoice = useCallback(
         async (data: InvoiceInput) => {
             try {
-                const res = await fetch('/api/invoices/from-billing-drafts', {
+                const res = await fetch('/api/invoices', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store',
                     body: JSON.stringify({
-                        billingDraftIds: issuingDraftIds,
-                        title: data.title,
+                        ...data,
+                        customerId: issuingCustomerId,
+                        projectMasterIds: issuingProjectIds,
                         dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
-                        status: data.status,
-                        notes: data.notes ?? null,
-                        items: data.items,
                     }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    throw new Error(err?.error || '請求書の発行に失敗しました');
+                    throw new Error(err?.error || '請求書の作成に失敗しました');
                 }
-                toast.success('請求書を発行しました（「請求書」で確認できます）');
+                toast.success('請求書を作成しました（「請求書」で確認できます）');
+                // 発行した案件を請求対象から外す
+                const issued = issuingProjectIds;
+                setStaged((prev) => {
+                    const next = { ...prev };
+                    for (const pid of issued) delete next[pid];
+                    return next;
+                });
                 setIsInvoiceModalOpen(false);
                 setInvoiceInitialData(undefined);
-                setIssuingDraftIds([]);
-                await Promise.all([refreshDrafts(), fetchBoard()]);
+                setIssuingCustomerId(null);
+                setIssuingProjectIds([]);
+                await fetchBoard();
             } catch (e) {
-                logger.error('Failed to issue invoice from board:', e);
-                toast.error(e instanceof Error ? e.message : '請求書の発行に失敗しました');
+                logger.error('Failed to create invoice from board:', e);
+                toast.error(e instanceof Error ? e.message : '請求書の作成に失敗しました');
             }
         },
-        [issuingDraftIds, refreshDrafts, fetchBoard],
+        [issuingCustomerId, issuingProjectIds, fetchBoard],
     );
 
     if (sessionStatus === 'loading') return null;
@@ -575,7 +567,7 @@ export default function BillingBoardPage() {
                         <ClipboardList className="h-6 w-6 text-slate-500" /> 請求待ち
                     </h1>
                     <p className="mt-1 text-sm text-slate-500">
-                        顧客ごと（締め日単位）に、担当者が「請求する／まだ／対象外」で判断します。請求すると「請求予定」に追加されます。
+                        顧客ごと（締め日単位）に「請求する／まだ／対象外」で判断し、顧客ごとにまとめて請求書を作成します。
                     </p>
                 </div>
                 <Button
@@ -765,68 +757,76 @@ export default function BillingBoardPage() {
                     </div>
                 ) : (
                     customerGroups.map((g) => {
-                        const ds = g.customerId ? (pendingDraftsByCustomer.get(g.customerId) ?? []) : [];
-                        const canInvoice = tab !== 'billed' && !!g.customerId && ds.length > 0;
+                        const sc = g.customerId ? stagedByCustomer.get(g.customerId) : undefined;
+                        const stagedCount = sc?.projectIds.length ?? 0;
+                        const canInvoice = tab !== 'billed' && !!g.customerId && stagedCount > 0;
                         return (
-                        <div key={g.key} className="space-y-2">
-                            {/* 顧客ヘッダー */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
-                                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                    <span className="text-sm font-bold text-slate-900">{g.customerName}</span>
-                                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                                        {closingDayLabel(g.closingDay)}
-                                    </span>
-                                    {mode === 'closing' && (
-                                        <span className="tabular-nums text-xs text-slate-500">
-                                            {mdYmd(g.periodFrom)}〜{mdYmd(g.periodTo)}
+                            <div key={g.key} className="space-y-2">
+                                {/* 顧客ヘッダー */}
+                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        <span className="text-sm font-bold text-slate-900">{g.customerName}</span>
+                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                            {closingDayLabel(g.closingDay)}
                                         </span>
+                                        {mode === 'closing' && (
+                                            <span className="tabular-nums text-xs text-slate-500">
+                                                {mdYmd(g.periodFrom)}〜{mdYmd(g.periodTo)}
+                                            </span>
+                                        )}
+                                        <span className="text-xs text-slate-400">{g.rows.length}件</span>
+                                    </div>
+                                    {canInvoice ? (
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs text-slate-500">
+                                                残(税抜){' '}
+                                                <span className="font-semibold text-slate-700">{yen(groupSubtotal(g))}</span>
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="primary"
+                                                onClick={() => handleCreateInvoiceForCustomer(g.customerId as string)}
+                                                title="請求対象の案件をまとめて請求書にします"
+                                            >
+                                                請求書を作成（{stagedCount}件 {yen(sc?.total ?? 0)}）
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <div className="text-right">
+                                            <span className="text-[10px] text-slate-500">
+                                                {tab === 'billed' ? '請求済み(税抜)' : '残(税抜)'}
+                                            </span>
+                                            <span className="ml-1.5 text-base font-bold text-slate-900">
+                                                {yen(groupSubtotal(g))}
+                                            </span>
+                                        </div>
                                     )}
-                                    <span className="text-xs text-slate-400">{g.rows.length}件</span>
                                 </div>
-                                {canInvoice ? (
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-slate-500">
-                                            残(税抜) <span className="font-semibold text-slate-700">{yen(groupSubtotal(g))}</span>
-                                        </span>
-                                        <Button
-                                            type="button"
-                                            variant="primary"
-                                            onClick={() => handleInvoiceCustomer(g.customerId as string)}
-                                            title="この顧客の請求予定をまとめて請求書にします"
-                                        >
-                                            請求書化（{ds.length}件 {yen(draftTotal(ds))}）
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="text-right">
-                                        <span className="text-[10px] text-slate-500">
-                                            {tab === 'billed' ? '請求済み(税抜)' : '残(税抜)'}
-                                        </span>
-                                        <span className="ml-1.5 text-base font-bold text-slate-900">
-                                            {yen(groupSubtotal(g))}
-                                        </span>
-                                    </div>
-                                )}
+                                {/* 案件行 */}
+                                <div className="space-y-2">
+                                    {g.rows.map((row) => (
+                                        <BillingBoardRow
+                                            key={row.id}
+                                            row={row}
+                                            assigneeNames={resolveNames(row.assigneeIds)}
+                                            ctypeMap={ctypeMap}
+                                            userMap={userMap}
+                                            busy={busyRowId === row.id}
+                                            tab={tab}
+                                            staged={
+                                                staged[row.id]
+                                                    ? { amount: staged[row.id].total, note: staged[row.id].label }
+                                                    : null
+                                            }
+                                            onRequest={handleRequest}
+                                            onUnstage={unstageProject}
+                                            onHold={handleHold}
+                                            onExclude={handleExclude}
+                                            onRestore={handleRestore}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                            {/* 案件行 */}
-                            <div className="space-y-2">
-                                {g.rows.map((row) => (
-                                    <BillingBoardRow
-                                        key={row.id}
-                                        row={row}
-                                        assigneeNames={resolveNames(row.assigneeIds)}
-                                        ctypeMap={ctypeMap}
-                                        userMap={userMap}
-                                        busy={busyRowId === row.id}
-                                        tab={tab}
-                                        onRequest={handleRequest}
-                                        onHold={handleHold}
-                                        onExclude={handleExclude}
-                                        onRestore={handleRestore}
-                                    />
-                                ))}
-                            </div>
-                        </div>
                         );
                     })
                 )}
