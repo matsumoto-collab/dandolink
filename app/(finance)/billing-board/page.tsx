@@ -68,7 +68,7 @@ function ymLabel(ym: string): string {
 function inTab(r: Row, tab: TabKey): boolean {
     if (tab === 'billed') return r.billingStatus === 'full';
     if (r.billingStatus === 'full') return false; // 全額請求済みは「請求済み」タブだけに出す
-    if (tab === 'pending') return r.billingDecision === 'pending' && !r.hasPendingDraft;
+    if (tab === 'pending') return r.billingDecision === 'pending';
     if (tab === 'hold') return r.billingDecision === 'hold';
     return r.billingDecision === 'excluded';
 }

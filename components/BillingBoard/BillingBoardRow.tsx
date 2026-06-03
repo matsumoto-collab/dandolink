@@ -155,17 +155,6 @@ export default function BillingBoardRow({
                                 取消
                             </Button>
                         </>
-                    ) : row.hasPendingDraft ? (
-                        <>
-                            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700">
-                                請求予定あり（旧）
-                            </span>
-                            {(tab === 'hold' || tab === 'excluded') && (
-                                <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
-                                    判断に戻す
-                                </Button>
-                            )}
-                        </>
                     ) : (
                         <>
                             {(tab === 'pending' || tab === 'hold') && (
