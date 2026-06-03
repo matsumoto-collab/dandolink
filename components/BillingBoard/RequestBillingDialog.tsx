@@ -2,9 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { FileText } from 'lucide-react';
+import { FileText, Plus, Minus, List, FileDown, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
+import { newBillingItemId, flattenEstimateItems } from '@/lib/billing/estimateToBillingItems';
 import type { Estimate } from '@/types/estimate';
+import type { InvoiceItem, BillingTitle } from '@/types/invoice';
 
 // PDF プレビューは重い（pdfjs）ので、見積書を開いたときだけ読み込む
 const LivePdfPreview = dynamic(
@@ -18,11 +21,14 @@ const LivePdfPreview = dynamic(
 );
 
 const yen = (n: number | null) => (n == null ? '—' : `¥${Math.round(n).toLocaleString()}`);
+const yenSigned = (n: number) =>
+    n < 0 ? `-¥${Math.abs(n).toLocaleString()}` : `¥${Math.round(n).toLocaleString()}`;
 
 /** 「請求する」ダイアログの確定結果。 */
 export type RequestBillingResult =
     | { kind: 'estimate' } // 見積どおり（明細展開・複数は呼び出し側でピッカー）
-    | { kind: 'amount'; amount: number; note: string }; // 金額指定（出来高・残額すべて）
+    | { kind: 'amount'; amount: number; note: string } // 金額指定（出来高・残額すべて）
+    | { kind: 'items'; items: InvoiceItem[] }; // 請求項目で明細をつくる（見積と違う名称・代表的な行）
 
 interface RequestBillingDialogProps {
     open: boolean;
@@ -33,8 +39,10 @@ interface RequestBillingDialogProps {
     /** 見積の合計（税抜・全見積の subtotal 合算）。未取得/無しは null。 */
     estimateTotal: number | null;
     estimateCount: number;
-    /** プレビュー用の見積一覧（空 or renderEstimatePdf 未指定なら「見積書を確認」非表示）。 */
+    /** プレビュー & 「見積から引用」用の見積一覧（renderEstimatePdf 未指定なら「見積書を確認」非表示）。 */
     estimates?: Estimate[];
+    /** 請求項目マスタ（設定＞請求項目一覧）。「請求項目から追加」で使用。 */
+    billingTitles?: BillingTitle[];
     /** 見積 1 件を PDF Blob にする（親が案件・自社情報を解決）。 */
     renderEstimatePdf?: (estimate: Estimate) => Promise<Blob | null>;
     submitting?: boolean;
@@ -42,16 +50,65 @@ interface RequestBillingDialogProps {
     onConfirm: (result: RequestBillingResult) => void;
 }
 
-type Choice = 'amount' | 'remaining' | 'estimate';
+type Choice = 'amount' | 'remaining' | 'estimate' | 'items';
 type Unit = 'yen' | 'pct';
 
 const NOTE_PRESETS = ['着手金', '中間金', '完成', '出来高'];
+const ITEM_INPUT = 'rounded-lg border border-slate-200 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500';
 
 /**
- * 「請求する」時に請求金額を指定するダイアログ（Phase 4）。
+ * 数値入力（マイナス・小数対応）。入力途中の空欄を保持し、空欄は 0 として扱う。
+ * `parseInt('') || N` 方式だとスマホで空にした瞬間に値がリセットされる問題を避けるため、
+ * ローカル文字列 state を併用する（ItemRow.DecimalInput と同方針。bundle 軽量化のためここに内製）。
+ */
+function NumInput({
+    value,
+    onChange,
+    className,
+    placeholder,
+}: {
+    value: number;
+    onChange: (n: number) => void;
+    className: string;
+    placeholder?: string;
+}) {
+    const [local, setLocal] = useState(value === 0 ? '' : String(value));
+    useEffect(() => {
+        setLocal(value === 0 ? '' : String(value));
+    }, [value]);
+    return (
+        <input
+            type="text"
+            inputMode="decimal"
+            value={local}
+            onChange={(e) => {
+                const v = e.target.value;
+                if (v === '' || /^-?\d*\.?\d*$/.test(v)) {
+                    setLocal(v);
+                    const n = Number(v);
+                    if (v !== '' && !isNaN(n) && !v.endsWith('.')) onChange(n);
+                }
+            }}
+            onBlur={() => {
+                const n = local === '' ? 0 : Number(local);
+                if (!isNaN(n)) {
+                    onChange(n);
+                    setLocal(n === 0 ? '' : String(n));
+                }
+            }}
+            className={className}
+            placeholder={placeholder}
+        />
+    );
+}
+
+/**
+ * 「請求する」時に請求金額を指定するダイアログ（Phase 4 + 請求項目エディタ）。
  * - 金額・比率で指定（出来高）：¥ または 見積金額×% で金額を決め、摘要（着手金 等）を付ける → 1 行で請求対象。
  * - 残額すべて：見積金額 − 既請求 の残額を 1 行で請求対象。
  * - 見積どおり：見積明細を展開（複数見積は呼び出し側でピッカー）。
+ * - 請求項目で明細をつくる：見積と違う名称（請求項目一覧）で代表的な明細を組む。見積から引用して
+ *   不要な行を削除・1 行にまとめることも可能。
  * 残額は発行（請求書化）後に自動で繰り越される（partial 表示）ため、出来高は複数回に分けられる。
  */
 export default function RequestBillingDialog({
@@ -63,6 +120,7 @@ export default function RequestBillingDialog({
     estimateTotal,
     estimateCount,
     estimates = [],
+    billingTitles = [],
     renderEstimatePdf,
     submitting,
     onClose,
@@ -79,6 +137,9 @@ export default function RequestBillingDialog({
     const [note, setNote] = useState<string>('');
     const [showPreview, setShowPreview] = useState(false);
     const [selectedEstimateId, setSelectedEstimateId] = useState<string>('');
+    // 請求項目エディタ
+    const [customItems, setCustomItems] = useState<InvoiceItem[]>([]);
+    const [billingTitleMenuOpen, setBillingTitleMenuOpen] = useState(false);
     const canPreview = !!renderEstimatePdf && estimates.length > 0;
 
     // 開くたびに初期化（既定＝残額を金額に prefill）
@@ -90,6 +151,8 @@ export default function RequestBillingDialog({
         setPctInput('');
         setNote('');
         setShowPreview(false);
+        setCustomItems([]);
+        setBillingTitleMenuOpen(false);
         const approved = estimates.find((e) => e.status === 'approved');
         setSelectedEstimateId(approved?.id ?? estimates[0]?.id ?? '');
         // remaining/estimates は props 由来。open 立ち上がり時のみ初期化したいので open のみ依存。
@@ -107,17 +170,91 @@ export default function RequestBillingDialog({
         return Number.isFinite(v) && v > 0 ? Math.round(v) : 0;
     }, [unit, pctInput, yenInput, hasEstimate, estimateAmount]);
 
+    const itemsSubtotal = useMemo(
+        () => customItems.reduce((s, it) => s + (it.amount || 0), 0),
+        [customItems],
+    );
+
+    // ── 請求項目エディタの操作 ───────────────────────────────
+    const addItem = () =>
+        setCustomItems((p) => [
+            ...p,
+            { id: newBillingItemId(), description: '', quantity: 1, unit: '式', unitPrice: 0, amount: 0, taxType: 'standard' },
+        ]);
+    const addDiscount = () =>
+        setCustomItems((p) => [
+            ...p,
+            { id: newBillingItemId(), description: '値引き', quantity: -1, unit: '', unitPrice: 0, amount: 0, taxType: 'standard' },
+        ]);
+    const updateItem = (id: string, field: 'description' | 'quantity' | 'unit' | 'unitPrice', value: string | number) =>
+        setCustomItems((p) =>
+            p.map((it) => {
+                if (it.id !== id) return it;
+                const u = { ...it, [field]: value } as InvoiceItem;
+                if (field === 'quantity' || field === 'unitPrice') {
+                    u.amount = Math.round((u.quantity || 0) * (u.unitPrice || 0));
+                }
+                return u;
+            }),
+        );
+    const removeItem = (id: string) => setCustomItems((p) => p.filter((it) => it.id !== id));
+    const addFromBillingTitle = (bt: BillingTitle) => {
+        setCustomItems((p) => [
+            ...p,
+            {
+                id: newBillingItemId(),
+                description: bt.name,
+                quantity: bt.quantity ?? 1,
+                unit: bt.unit || '式',
+                unitPrice: 0,
+                amount: 0,
+                taxType: 'standard',
+            },
+        ]);
+        setBillingTitleMenuOpen(false);
+    };
+    const loadFromEstimate = () => {
+        if (estimates.length === 0) {
+            toast.error('この案件に紐づく見積書がありません');
+            return;
+        }
+        const latest = [...estimates].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        )[0];
+        const loaded = flattenEstimateItems(latest.items ?? []);
+        if (loaded.length === 0) {
+            toast.error('見積書に明細がありません');
+            return;
+        }
+        setCustomItems((p) => [...p, ...loaded]);
+        toast.success(`${latest.estimateNumber} の明細を読み込みました（不要な行は削除・まとめてください）`);
+    };
+
     if (!open) return null;
 
     const selectedEstimate = estimates.find((e) => e.id === selectedEstimateId) ?? null;
+    const hasItemContent = customItems.some((it) => it.description.trim() !== '' || (it.amount || 0) !== 0);
     const resolvedAmount =
-        choice === 'remaining' ? Math.max(0, Math.round(remaining)) : choice === 'amount' ? amountFromInputs : 0;
-    const canConfirm = choice === 'estimate' ? hasEstimates : resolvedAmount > 0;
+        choice === 'remaining'
+            ? Math.max(0, Math.round(remaining))
+            : choice === 'amount'
+              ? amountFromInputs
+              : choice === 'items'
+                ? itemsSubtotal
+                : 0;
+    const canConfirm =
+        choice === 'estimate' ? hasEstimates : choice === 'items' ? hasItemContent : resolvedAmount > 0;
     const afterRemaining = hasEstimate ? (remainingAmount ?? 0) - resolvedAmount : null;
 
     const handleConfirm = () => {
         if (choice === 'estimate') {
             onConfirm({ kind: 'estimate' });
+            return;
+        }
+        if (choice === 'items') {
+            const valid = customItems.filter((it) => it.description.trim() !== '' || (it.amount || 0) !== 0);
+            if (valid.length === 0) return;
+            onConfirm({ kind: 'items', items: valid });
             return;
         }
         if (resolvedAmount <= 0) return;
@@ -135,7 +272,7 @@ export default function RequestBillingDialog({
             >
                 <div
                     className={`flex flex-col rounded-xl bg-white p-5 shadow-xl ${
-                        showPreview ? 'w-full max-w-md shrink-0 overflow-y-auto lg:w-[400px]' : 'w-full'
+                        showPreview ? 'w-full max-w-md shrink-0 overflow-y-auto lg:w-[400px]' : 'max-h-[88vh] w-full overflow-y-auto'
                     }`}
                 >
                 <h3 className="text-base font-bold text-slate-900">請求金額を指定</h3>
@@ -274,10 +411,161 @@ export default function RequestBillingDialog({
                             </span>
                         </label>
                     )}
+
+                    {/* 請求項目で明細をつくる（見積と違う名称・代表的な行） */}
+                    <label className="flex cursor-pointer items-start gap-2">
+                        <input
+                            type="radio"
+                            checked={choice === 'items'}
+                            onChange={() => setChoice('items')}
+                            className="mt-1"
+                        />
+                        <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-slate-800">請求項目で明細をつくる</div>
+                            <div className="text-xs text-slate-500">
+                                見積と違う名称・代表的な明細で請求できます（請求項目一覧から）。
+                            </div>
+                            <div className={`mt-2 ${choice === 'items' ? '' : 'pointer-events-none opacity-50'}`}>
+                                {/* ツールバー */}
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <button
+                                        type="button"
+                                        onClick={() => setBillingTitleMenuOpen((v) => !v)}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        <List className="h-3.5 w-3.5" /> 請求項目から追加
+                                    </button>
+                                    {estimates.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={loadFromEstimate}
+                                            className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                        >
+                                            <FileDown className="h-3.5 w-3.5" /> 見積から引用
+                                        </button>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={addDiscount}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                                    >
+                                        <Minus className="h-3.5 w-3.5" /> 値引き
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={addItem}
+                                        className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-2 py-1 text-xs font-medium text-white hover:bg-teal-700"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" /> 行追加
+                                    </button>
+                                </div>
+
+                                {/* 請求項目マスタ（インライン展開・クリップ回避のため絶対配置にしない） */}
+                                {billingTitleMenuOpen && (
+                                    <div className="mt-1.5 rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+                                        {billingTitles.length > 0 ? (
+                                            <ul className="max-h-44 overflow-y-auto">
+                                                {billingTitles.map((bt) => (
+                                                    <li key={bt.id}>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => addFromBillingTitle(bt)}
+                                                            className="w-full rounded px-2 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-100"
+                                                        >
+                                                            {bt.name}
+                                                            {(bt.quantity != null || bt.unit) && (
+                                                                <span className="ml-1 text-slate-400">
+                                                                    ({bt.quantity != null ? bt.quantity : ''}
+                                                                    {bt.unit ? ` ${bt.unit}` : ''})
+                                                                </span>
+                                                            )}
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        ) : (
+                                            <div className="px-2 py-1.5 text-xs text-slate-500">
+                                                請求項目マスタがありません（設定 ＞ 請求項目一覧で追加）
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* 明細リスト */}
+                                {customItems.length === 0 ? (
+                                    <p className="mt-2 rounded-lg border border-dashed border-slate-300 px-3 py-4 text-center text-xs text-slate-400">
+                                        「請求項目から追加」「見積から引用」「行追加」で明細を作成してください。
+                                        <br />
+                                        見積と違う名称・代表的な 1 行にまとめられます。
+                                    </p>
+                                ) : (
+                                    <div className="mt-2 space-y-2">
+                                        {customItems.map((it) => (
+                                            <div key={it.id} className="rounded-lg border border-slate-200 bg-white p-2.5">
+                                                <div className="flex items-start gap-1.5">
+                                                    <input
+                                                        type="text"
+                                                        value={it.description}
+                                                        onChange={(e) => updateItem(it.id, 'description', e.target.value)}
+                                                        placeholder="品目・内容"
+                                                        className={`min-w-0 flex-1 ${ITEM_INPUT}`}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => removeItem(it.id)}
+                                                        className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                                        aria-label="削除"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                                <div className="mt-1.5 flex items-center gap-1.5">
+                                                    <NumInput
+                                                        value={it.quantity}
+                                                        onChange={(n) => updateItem(it.id, 'quantity', n)}
+                                                        className={`w-14 ${ITEM_INPUT}`}
+                                                        placeholder="数量"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={it.unit || ''}
+                                                        onChange={(e) => updateItem(it.id, 'unit', e.target.value)}
+                                                        placeholder="単位"
+                                                        className={`w-14 ${ITEM_INPUT}`}
+                                                    />
+                                                    <span className="text-slate-400">×</span>
+                                                    <div className="flex items-center gap-0.5">
+                                                        <span className="text-slate-400">¥</span>
+                                                        <NumInput
+                                                            value={it.unitPrice}
+                                                            onChange={(n) => updateItem(it.id, 'unitPrice', n)}
+                                                            className={`w-24 ${ITEM_INPUT}`}
+                                                            placeholder="単価"
+                                                        />
+                                                    </div>
+                                                    <span
+                                                        className={`ml-auto whitespace-nowrap font-medium tabular-nums ${
+                                                            it.amount < 0 ? 'text-red-600' : 'text-slate-800'
+                                                        }`}
+                                                    >
+                                                        {yenSigned(it.amount)}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                        <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-sm">
+                                            <span className="text-slate-500">小計（税抜）</span>
+                                            <span className="font-semibold text-slate-900">{yen(itemsSubtotal)}</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </label>
                 </div>
 
                 {/* 持ち越しプレビュー */}
-                {choice !== 'estimate' && afterRemaining != null && (
+                {choice !== 'estimate' && afterRemaining != null && resolvedAmount > 0 && (
                     <p className="mt-3 text-xs text-slate-500">
                         今回 {yen(resolvedAmount)} を請求対象に追加。
                         {afterRemaining > 0

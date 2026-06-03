@@ -16,7 +16,7 @@ import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
 import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
 import RequestBillingDialog, { type RequestBillingResult } from '@/components/BillingBoard/RequestBillingDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
-import type { InvoiceItem, InvoiceInput } from '@/types/invoice';
+import type { InvoiceItem, InvoiceInput, BillingTitle } from '@/types/invoice';
 import type { Estimate } from '@/types/estimate';
 import type { Project } from '@/types/calendar';
 import { logger } from '@/lib/logger';
@@ -110,6 +110,7 @@ export default function BillingBoardPage() {
     const [isInitialized, setIsInitialized] = useState(false);
     const [userMap, setUserMap] = useState<Record<string, string>>({});
     const [ctypeMap, setCtypeMap] = useState<CtypeMap>({});
+    const [billingTitles, setBillingTitles] = useState<BillingTitle[]>([]); // 請求項目マスタ（請求項目で明細をつくる 用）
 
     // 表示モード：'closing'＝顧客ごとの締め分（既定）、'range'＝任意範囲（全顧客同一）。
     const [mode, setMode] = useState<PeriodMode>('closing');
@@ -196,6 +197,15 @@ export default function BillingBoardPage() {
                 }
             } catch (e) {
                 logger.error('工事種別マスタの取得に失敗:', e);
+            }
+            try {
+                const res = await fetch('/api/master-data/billing-titles');
+                if (res.ok) {
+                    const list = await res.json();
+                    setBillingTitles(Array.isArray(list) ? list : []);
+                }
+            } catch (e) {
+                logger.error('請求項目マスタの取得に失敗:', e);
             }
         })();
     }, [isAuthorized, ensureEstimatesLoaded, ensureCompanyLoaded, fetchProjectMasters]);
@@ -426,6 +436,13 @@ export default function BillingBoardPage() {
                 if (result.kind === 'estimate') {
                     setRequestDialog(null);
                     stageFromEstimates(row);
+                } else if (result.kind === 'items') {
+                    // 請求項目で明細をつくる：見積と違う名称の明細をそのまま請求対象へ（案件タグ付与）
+                    const items = result.items.map((it) => ({ ...it, projectMasterId: row.id }));
+                    const label =
+                        items.length === 1 ? items[0].description?.trim() || '明細指定' : `${items.length}明細`;
+                    stageProject(row, items, label);
+                    setRequestDialog(null);
                 } else {
                     const line: InvoiceItem = {
                         id: newBillingItemId(),
@@ -966,6 +983,7 @@ export default function BillingBoardPage() {
                             estimateTotal={estTotal}
                             estimateCount={requestDialog.row.estimateCount}
                             estimates={ests}
+                            billingTitles={billingTitles}
                             renderEstimatePdf={renderEstimatePdf}
                             submitting={requestSubmitting}
                             onClose={() => setRequestDialog(null)}
