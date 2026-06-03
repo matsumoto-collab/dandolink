@@ -267,7 +267,13 @@ export default function RequestBillingDialog({
             onClick={onClose}
         >
             <div
-                className={`flex gap-3 ${showPreview ? 'h-[88vh] w-full max-w-6xl' : 'w-full max-w-md'}`}
+                className={`flex gap-3 transition-[max-width] duration-200 ${
+                    showPreview
+                        ? 'h-[88vh] w-full max-w-6xl'
+                        : choice === 'items'
+                          ? 'w-full max-w-2xl'
+                          : 'w-full max-w-md'
+                }`}
                 onClick={(e) => e.stopPropagation()}
             >
                 <div
