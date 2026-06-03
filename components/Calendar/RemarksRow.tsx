@@ -64,7 +64,7 @@ export default function RemarksRow({ weekDays, readOnly = false }: RemarksRowPro
                     <div
                         key={index}
                         className={`
-                            flex-1 min-w-[88px] lg:min-w-[100px] xl:min-w-[140px] border-r border-slate-200 p-1.5
+                            flex-1 min-w-[84px] border-r border-slate-200 p-1.5
                             transition-all duration-200
                             ${isSaturday ? 'bg-slate-50/40' : isSunday ? 'bg-slate-50/40' : 'bg-white'}
                         `}
