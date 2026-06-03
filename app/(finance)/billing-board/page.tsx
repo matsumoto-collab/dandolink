@@ -14,6 +14,7 @@ import { billingDraftToInvoiceItems } from '@/lib/billing/draftToInvoiceItem';
 import { closingDayLabel } from '@/lib/closingDay';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
 import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
+import RequestBillingDialog, { type RequestBillingResult } from '@/components/BillingBoard/RequestBillingDialog';
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem, InvoiceInput } from '@/types/invoice';
 import type { BillingDraft } from '@/types/billingDraft';
@@ -120,6 +121,9 @@ export default function BillingBoardPage() {
     const [busyRowId, setBusyRowId] = useState<string | null>(null);
     const [picker, setPicker] = useState<{ row: Row; choices: EstimateChoice[] } | null>(null);
     const [pickerSubmitting, setPickerSubmitting] = useState(false);
+    // 「請求する」金額指定ダイアログ（出来高対応）
+    const [requestDialog, setRequestDialog] = useState<{ row: Row } | null>(null);
+    const [requestSubmitting, setRequestSubmitting] = useState(false);
 
     // 請求書化（顧客ごと）モーダル
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
@@ -351,12 +355,19 @@ export default function BillingBoardPage() {
         [],
     );
 
+    // 「請求する」→ 金額指定ダイアログを開く（見積は先にロードしておく）
     const handleRequest = useCallback(
         async (row: Row) => {
             await ensureEstimatesLoaded(); // クリック時点で見積が未ロードでも取り違えないよう保証
-            const ests = getEstimatesByProject(row.id) ?? [];
+            setRequestDialog({ row });
+        },
+        [ensureEstimatesLoaded],
+    );
 
-            // 見積なし → 契約金額 1 行で作成
+    // 見積から請求予定を作成（1件=自動 / 承認1件=自動 / 複数=ピッカー / 見積なし=契約1行）
+    const requestFromEstimates = useCallback(
+        async (row: Row) => {
+            const ests = getEstimatesByProject(row.id) ?? [];
             if (ests.length === 0) {
                 const line: InvoiceItem = {
                     id: newBillingItemId(),
@@ -371,7 +382,6 @@ export default function BillingBoardPage() {
                 await createDraftFromItems(row, [line]);
                 return;
             }
-
             const approved = ests.filter((e) => e.status === 'approved');
             if (ests.length === 1) {
                 await createDraftFromItems(row, itemsFromEstimates(row, [ests[0]]));
@@ -393,7 +403,39 @@ export default function BillingBoardPage() {
                 })),
             });
         },
-        [ensureEstimatesLoaded, getEstimatesByProject, createDraftFromItems, itemsFromEstimates],
+        [getEstimatesByProject, createDraftFromItems, itemsFromEstimates],
+    );
+
+    // 金額指定ダイアログの確定（金額指定/残額すべて → 1行、見積どおり → 見積展開）
+    const handleRequestConfirm = useCallback(
+        async (result: RequestBillingResult) => {
+            const dlg = requestDialog;
+            if (!dlg) return;
+            const row = dlg.row;
+            setRequestSubmitting(true);
+            try {
+                if (result.kind === 'estimate') {
+                    setRequestDialog(null);
+                    await requestFromEstimates(row);
+                } else {
+                    const line: InvoiceItem = {
+                        id: newBillingItemId(),
+                        description: result.note?.trim() || row.name || row.title,
+                        quantity: 1,
+                        unit: '式',
+                        unitPrice: result.amount,
+                        amount: result.amount,
+                        taxType: 'standard',
+                        projectMasterId: row.id,
+                    };
+                    await createDraftFromItems(row, [line]);
+                    setRequestDialog(null);
+                }
+            } finally {
+                setRequestSubmitting(false);
+            }
+        },
+        [requestDialog, requestFromEstimates, createDraftFromItems],
     );
 
     const handlePickerConfirm = useCallback(
@@ -807,6 +849,26 @@ export default function BillingBoardPage() {
                     initialData={invoiceInitialData}
                 />
             )}
+
+            {requestDialog &&
+                (() => {
+                    const ests = getEstimatesByProject(requestDialog.row.id) ?? [];
+                    const estTotal = ests.length ? ests.reduce((s, e) => s + Number(e.subtotal || 0), 0) : null;
+                    return (
+                        <RequestBillingDialog
+                            open
+                            projectTitle={requestDialog.row.title || requestDialog.row.name || ''}
+                            contractAmount={requestDialog.row.contractAmount}
+                            invoicedAmount={requestDialog.row.invoicedAmount}
+                            remainingAmount={requestDialog.row.remainingAmount}
+                            estimateTotal={estTotal}
+                            estimateCount={requestDialog.row.estimateCount}
+                            submitting={requestSubmitting}
+                            onClose={() => setRequestDialog(null)}
+                            onConfirm={handleRequestConfirm}
+                        />
+                    );
+                })()}
         </div>
     );
 }
