@@ -10,6 +10,7 @@ import {
 } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
+import { logger } from '@/lib/logger';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -191,9 +192,50 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
 
         const { id } = await context.params;
 
+        // 誤削除の「元に戻す」用に、削除前の配置をスナップショットとして控える。
+        // テーブル未作成（マイグレ未適用）等で控えに失敗しても削除自体は継続する（best-effort）。
+        let logId: string | null = null;
+        const full = await prisma.projectAssignment.findUnique({
+            where: { id },
+            include: { assignmentWorkers: true, assignmentVehicles: true },
+        });
+        if (full) {
+            // スカラーは Prisma 結果 full から、workers/vehicles 等の配列は formatAssignment から取る。
+            const f = formatAssignment(full);
+            const snapshot = {
+                assignedEmployeeId: full.assignedEmployeeId,
+                date: full.date.toISOString(),
+                memberCount: full.memberCount,
+                workers: f.workers,
+                vehicles: f.vehicles,
+                meetingTime: full.meetingTime,
+                sortOrder: full.sortOrder,
+                remarks: full.remarks,
+                dispatchRemark: full.dispatchRemark,
+                constructionType: full.constructionType,
+                estimatedHours: full.estimatedHours,
+                isDispatchConfirmed: full.isDispatchConfirmed,
+                confirmedWorkerIds: f.confirmedWorkerIds,
+                confirmedVehicleIds: f.confirmedVehicleIds,
+            };
+            try {
+                const log = await prisma.deletedAssignmentLog.create({
+                    data: {
+                        assignmentId: id,
+                        projectMasterId: full.projectMasterId,
+                        snapshot: JSON.stringify(snapshot),
+                        deletedById: session!.user.id,
+                    },
+                });
+                logId = log.id;
+            } catch (e) {
+                logger.warn(`Failed to write DeletedAssignmentLog (continuing delete): ${String(e)}`);
+            }
+        }
+
         await prisma.projectAssignment.delete({ where: { id } });
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, logId });
     } catch (error) {
         return serverErrorResponse('配置の削除', error);
     }
