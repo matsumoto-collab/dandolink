@@ -31,13 +31,17 @@ export interface BillingBoardRow {
     customerName: string | null;
     /** 案件ステータス（'active' | 'completed'）。完了はヒント表示に使う。 */
     status: string;
-    /** 契約金額（税抜・未設定 null）。 */
+    /** 契約金額（足場工事金額・税抜・未設定 null）。見積金額の手入力＝上書き値として使う。 */
     contractAmount: number | null;
+    /** 見積金額（請求待ちの基準額・税抜）。contractAmount(上書き) ?? 見積1件の額。複数見積で未設定なら null。 */
+    estimateAmount: number | null;
+    /** 見積が複数あり見積金額が未設定＝行で「見積を選択」が必要。 */
+    needsEstimatePick: boolean;
     /** この案件ぶんの請求済み合計（税抜）。 */
     invoicedAmount: number;
     /** 'none'|'unbilled'|'partial'（'full' はボードから除外済み）。 */
     billingStatus: BillingStatus;
-    /** 残額（契約−請求済、契約未設定なら null）。 */
+    /** 残額（見積金額−請求済、見積金額未設定なら null）。 */
     remainingAmount: number | null;
     /** 案件担当者の User ID 配列（createdBy 由来）。表示名は /api/users で解決。 */
     assigneeIds: string[];

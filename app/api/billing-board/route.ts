@@ -135,7 +135,7 @@ export async function GET(req: NextRequest) {
             }),
             prisma.estimate.findMany({
                 where: { projectMasterId: { in: projectIds } },
-                select: { projectMasterId: true, status: true },
+                select: { projectMasterId: true, status: true, subtotal: true },
             }),
             prisma.billingDraft.findMany({
                 where: { projectId: { in: projectIds }, status: 'pending', deletedAt: null },
@@ -163,10 +163,14 @@ export async function GET(req: NextRequest) {
 
         const estimateCountByProject = new Map<string, number>();
         const approvedProjects = new Set<string>();
+        const firstEstimateSubtotal = new Map<string, number>(); // 見積1件のときの基準額（税抜）
         for (const e of estimates) {
             if (!e.projectMasterId) continue;
             estimateCountByProject.set(e.projectMasterId, (estimateCountByProject.get(e.projectMasterId) ?? 0) + 1);
             if (e.status === 'approved') approvedProjects.add(e.projectMasterId);
+            if (!firstEstimateSubtotal.has(e.projectMasterId)) {
+                firstEstimateSubtotal.set(e.projectMasterId, Number(e.subtotal) || 0);
+            }
         }
 
         const draftProjectIds = new Set(pendingDrafts.map((d) => d.projectId));
@@ -202,7 +206,21 @@ export async function GET(req: NextRequest) {
 
             const invoiced = invoicedByProject[p.id] ?? 0;
             const contract = p.contractAmount ?? null;
-            const billingStatus = getBillingStatus(contract, invoiced);
+            const eCount = estimateCountByProject.get(p.id) ?? 0;
+            // 見積金額の基準：手入力(contractAmount)があればそれ／無く見積1件なら自動でその額／複数は要選択(null)
+            let estimateAmount: number | null;
+            let needsEstimatePick = false;
+            if (contract != null) {
+                estimateAmount = contract;
+            } else if (eCount === 1) {
+                estimateAmount = firstEstimateSubtotal.get(p.id) ?? 0;
+            } else if (eCount > 1) {
+                estimateAmount = null;
+                needsEstimatePick = true;
+            } else {
+                estimateAmount = null;
+            }
+            const billingStatus = getBillingStatus(estimateAmount, invoiced);
 
             rows.push({
                 id: p.id,
@@ -212,9 +230,11 @@ export async function GET(req: NextRequest) {
                 customerName: p.customerName,
                 status: p.status,
                 contractAmount: contract,
+                estimateAmount,
+                needsEstimatePick,
                 invoicedAmount: invoiced,
                 billingStatus,
-                remainingAmount: contract != null ? contract - invoiced : null,
+                remainingAmount: estimateAmount != null ? estimateAmount - invoiced : null,
                 assigneeIds: extractAssigneeIds(p.createdBy ?? undefined),
                 lastWorkDate,
                 constructionTypeIds: ctypes,

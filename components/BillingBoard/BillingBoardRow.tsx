@@ -65,6 +65,8 @@ interface BillingBoardRowProps {
     staged?: { amount: number; note?: string } | null;
     onRequest: (row: Row) => void;
     onUnstage?: (row: Row) => void;
+    /** 見積が複数で見積金額が未設定のとき「見積を選択」を押した。 */
+    onPickEstimate?: (row: Row) => void;
     onHold: (row: Row) => void;
     onExclude: (row: Row) => void;
     onRestore: (row: Row) => void;
@@ -82,6 +84,7 @@ export default function BillingBoardRow({
     staged,
     onRequest,
     onUnstage,
+    onPickEstimate,
     onHold,
     onExclude,
     onRestore,
@@ -125,7 +128,18 @@ export default function BillingBoardRow({
                     </div>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0.5 text-xs">
                         <span className="text-slate-500">
-                            契約 <span className="font-medium text-slate-700">{yen(row.contractAmount)}</span>
+                            見積金額{' '}
+                            {row.needsEstimatePick ? (
+                                <button
+                                    type="button"
+                                    onClick={() => onPickEstimate?.(row)}
+                                    className="font-medium text-teal-700 hover:underline"
+                                >
+                                    見積を選択
+                                </button>
+                            ) : (
+                                <span className="font-medium text-slate-700">{yen(row.estimateAmount)}</span>
+                            )}
                         </span>
                         <span className="text-slate-500">
                             請求済 <span className="font-medium text-slate-700">{yen(row.invoicedAmount)}</span>

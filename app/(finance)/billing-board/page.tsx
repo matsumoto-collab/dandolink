@@ -7,6 +7,8 @@ import { RefreshCw, Search, ClipboardList, ChevronLeft, ChevronRight } from 'luc
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { useEstimates } from '@/hooks/useEstimates';
+import { useCompany } from '@/hooks/useCompany';
+import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useDebounce } from '@/hooks/useDebounce';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
 import { closingDayLabel } from '@/lib/closingDay';
@@ -16,6 +18,7 @@ import RequestBillingDialog, { type RequestBillingResult } from '@/components/Bi
 import type { BillingBoardRow as Row, BillingDecision } from '@/types/billingBoard';
 import type { InvoiceItem, InvoiceInput } from '@/types/invoice';
 import type { Estimate } from '@/types/estimate';
+import type { Project } from '@/types/calendar';
 import { logger } from '@/lib/logger';
 
 // 請求書プレビュー（既存の請求書作成フォームを転用・重いので遅延読み込み）
@@ -99,6 +102,8 @@ export default function BillingBoardPage() {
     const myId = session?.user?.id;
 
     const { ensureDataLoaded: ensureEstimatesLoaded, getEstimatesByProject } = useEstimates();
+    const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
+    const { projectMasters, fetchProjectMasters } = useProjectMasters();
 
     const [rows, setRows] = useState<Row[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -127,6 +132,9 @@ export default function BillingBoardPage() {
     // 「請求する」金額指定ダイアログ（出来高対応）
     const [requestDialog, setRequestDialog] = useState<{ row: Row } | null>(null);
     const [requestSubmitting, setRequestSubmitting] = useState(false);
+    // 「見積を選択」＝複数見積から見積金額を決めるピッカー（選択合計を案件の見積金額に保存）
+    const [estimatePicker, setEstimatePicker] = useState<{ row: Row; choices: EstimateChoice[] } | null>(null);
+    const [estimatePickerSubmitting, setEstimatePickerSubmitting] = useState(false);
 
     // 請求対象（請求書発行までクライアントに保持）。key = projectId。
     const [staged, setStaged] = useState<Record<string, StagedLine>>({});
@@ -160,10 +168,12 @@ export default function BillingBoardPage() {
         fetchBoard();
     }, [isAuthorized, fetchBoard]);
 
-    // 初回のみ：見積・ユーザー・工事種別マスタを取得
+    // 初回のみ：見積・ユーザー・工事種別マスタ・自社情報・案件マスタを取得
     useEffect(() => {
         if (!isAuthorized) return;
         ensureEstimatesLoaded();
+        ensureCompanyLoaded();
+        fetchProjectMasters();
         (async () => {
             try {
                 const res = await fetch('/api/users', { cache: 'no-store' });
@@ -188,7 +198,7 @@ export default function BillingBoardPage() {
                 logger.error('工事種別マスタの取得に失敗:', e);
             }
         })();
-    }, [isAuthorized, ensureEstimatesLoaded]);
+    }, [isAuthorized, ensureEstimatesLoaded, ensureCompanyLoaded, fetchProjectMasters]);
 
     // 既定の担当者フィルタ＝自分（自分が担当の案件が在るときだけ。無ければ全員のまま）。初回のみ。
     const didInitAssignee = useRef(false);
@@ -454,6 +464,86 @@ export default function BillingBoardPage() {
             }
         },
         [picker, getEstimatesByProject, stageProject, itemsFromEstimates],
+    );
+
+    // ── 見積金額の選択（複数見積→選択合計を案件の見積金額に保存）──────────
+    const handlePickEstimate = useCallback(
+        async (row: Row) => {
+            await ensureEstimatesLoaded();
+            const ests = getEstimatesByProject(row.id) ?? [];
+            if (ests.length === 0) {
+                toast.error('見積がありません');
+                return;
+            }
+            setEstimatePicker({
+                row,
+                choices: ests.map((e) => ({
+                    id: e.id,
+                    estimateNumber: e.estimateNumber,
+                    title: e.title,
+                    status: e.status,
+                    subtotal: e.subtotal,
+                })),
+            });
+        },
+        [ensureEstimatesLoaded, getEstimatesByProject],
+    );
+
+    const handleEstimatePickerConfirm = useCallback(
+        async (selectedIds: string[]) => {
+            if (!estimatePicker) return;
+            const chosen = (getEstimatesByProject(estimatePicker.row.id) ?? []).filter((e) => selectedIds.includes(e.id));
+            if (chosen.length === 0) {
+                toast.error('見積を選択してください');
+                return;
+            }
+            const sum = Math.round(chosen.reduce((s, e) => s + (Number(e.subtotal) || 0), 0));
+            setEstimatePickerSubmitting(true);
+            try {
+                const res = await fetch(`/api/project-masters/${estimatePicker.row.id}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contractAmount: sum }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err?.error || '見積金額の設定に失敗しました');
+                }
+                toast.success('見積金額を設定しました');
+                setEstimatePicker(null);
+                await fetchBoard();
+            } catch (e) {
+                logger.error('Failed to set estimate amount:', e);
+                toast.error(e instanceof Error ? e.message : '見積金額の設定に失敗しました');
+            } finally {
+                setEstimatePickerSubmitting(false);
+            }
+        },
+        [estimatePicker, getEstimatesByProject, fetchBoard],
+    );
+
+    // 見積PDFプレビュー用の Blob 生成（見積＋案件＋自社情報）。案件は開いている請求ダイアログの行で解決。
+    const renderEstimatePdf = useCallback(
+        async (est: Estimate): Promise<Blob | null> => {
+            if (!companyInfo || !requestDialog) return null;
+            const pm = projectMasters.find((p) => p.id === requestDialog.row.id);
+            if (!pm) return null;
+            const project = {
+                id: pm.id,
+                title: pm.title,
+                startDate: new Date(),
+                category: 'construction' as const,
+                color: '#3B82F6',
+                customer: pm.customerName || pm.customerShortName || '',
+                customerHonorific: '御中',
+                location: pm.location || '',
+                createdAt: pm.createdAt,
+                updatedAt: pm.updatedAt,
+            } as unknown as Project;
+            const { generateEstimatePDFBlobOnlyReact } = await import('@/utils/reactPdfGenerator');
+            return generateEstimatePDFBlobOnlyReact(est, project, companyInfo, { includeDetails: true });
+        },
+        [companyInfo, projectMasters, requestDialog],
     );
 
     // ── 請求判断（保留 / 対象外 / 戻す）───────────────────────
@@ -820,6 +910,7 @@ export default function BillingBoardPage() {
                                             }
                                             onRequest={handleRequest}
                                             onUnstage={unstageProject}
+                                            onPickEstimate={handlePickEstimate}
                                             onHold={handleHold}
                                             onExclude={handleExclude}
                                             onRestore={handleRestore}
@@ -841,6 +932,17 @@ export default function BillingBoardPage() {
                 onConfirm={handlePickerConfirm}
             />
 
+            <EstimatePickerDialog
+                open={!!estimatePicker}
+                projectTitle={estimatePicker ? estimatePicker.row.title : ''}
+                estimates={estimatePicker?.choices ?? []}
+                submitting={estimatePickerSubmitting}
+                title="見積金額にする見積を選択（複数可）"
+                confirmLabel="見積金額に設定"
+                onClose={() => setEstimatePicker(null)}
+                onConfirm={handleEstimatePickerConfirm}
+            />
+
             {isInvoiceModalOpen && (
                 <InvoiceModal
                     isOpen={isInvoiceModalOpen}
@@ -858,11 +960,13 @@ export default function BillingBoardPage() {
                         <RequestBillingDialog
                             open
                             projectTitle={requestDialog.row.title || requestDialog.row.name || ''}
-                            contractAmount={requestDialog.row.contractAmount}
+                            estimateAmount={requestDialog.row.estimateAmount}
                             invoicedAmount={requestDialog.row.invoicedAmount}
                             remainingAmount={requestDialog.row.remainingAmount}
                             estimateTotal={estTotal}
                             estimateCount={requestDialog.row.estimateCount}
+                            estimates={ests}
+                            renderEstimatePdf={renderEstimatePdf}
                             submitting={requestSubmitting}
                             onClose={() => setRequestDialog(null)}
                             onConfirm={handleRequestConfirm}
