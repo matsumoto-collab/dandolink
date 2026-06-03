@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Customer } from '@/types/customer';
 import { matchesSearch } from '@/utils/searchNormalize';
+import { DUE_DATE_PRESETS, dueDateFromClosing } from '@/lib/closingDay';
 
 function TitleAutocomplete({ value, onChange, inputClass }: { value: string; onChange: (v: string) => void; inputClass: string }) {
     const [suggestions, setSuggestions] = useState<Array<{ id: string; name: string }>>([]);
@@ -228,6 +229,29 @@ export default function InvoiceHeader({
                 <div>
                     <label className={labelClass}>支払期限</label>
                     <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputClass} />
+                    {issueDate && (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {DUE_DATE_PRESETS.map((p) => {
+                                const [yy, mm] = issueDate.split('-').map(Number);
+                                const ymd = dueDateFromClosing(yy, mm - 1, p.key);
+                                const active = dueDate === ymd;
+                                return (
+                                    <button
+                                        key={p.key}
+                                        type="button"
+                                        onClick={() => setDueDate(ymd)}
+                                        className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                                            active
+                                                ? 'border-teal-600 bg-teal-600 text-white'
+                                                : 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {p.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 <div>

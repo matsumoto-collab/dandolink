@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useEstimates } from '@/hooks/useEstimates';
@@ -11,6 +11,7 @@ import { CompanyInfo } from '@/types/company';
 import { UnitPriceMaster } from '@/types/unitPrice';
 import toast from 'react-hot-toast';
 import { formatDateKey } from '@/utils/employeeUtils';
+import { dueDateFromClosing, currentClosingDate, closingInvoiceTitleFromYmd } from '@/lib/closingDay';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import { PdfPreviewToggle } from '@/components/ui/PdfPreviewToggle';
@@ -28,12 +29,6 @@ interface InvoiceFormProps {
     initialData?: Partial<InvoiceInput>;
     onSubmit: (data: InvoiceInput) => Promise<void> | void;
     onCancel: () => void;
-}
-
-function getDefault30DaysLater(): string {
-    const date = new Date();
-    date.setDate(date.getDate() + 30);
-    return formatDateKey(date);
 }
 
 // 手入力（案件に紐付かない）セクションのキー。'_none' / '_none-<n>'。
@@ -117,7 +112,9 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
     const [invoiceNumber, setInvoiceNumber] = useState(initialData?.invoiceNumber || '');
     const [dueDate, setDueDate] = useState(() => {
         if (initialData?.dueDate) return formatDateKey(new Date(initialData.dueDate));
-        return getDefault30DaysLater();
+        // 既定＝請求日（=締め日 or 今日）基準の翌月末
+        const base = initialData?.createdAt ? new Date(initialData.createdAt) : new Date();
+        return dueDateFromClosing(base.getFullYear(), base.getMonth(), 'nextMonthEnd');
     });
     const [issueDate, setIssueDate] = useState(() => {
         if (initialData?.createdAt) return formatDateKey(new Date(initialData.createdAt));
@@ -169,6 +166,26 @@ export default function InvoiceForm({ initialData, onSubmit, onCancel }: Invoice
             if (c) setCustomerId(c.id);
         }
     }, [customerId, selectedProjectIds, projectMasters, customers]);
+
+    // 顧客を変更したら、その顧客の締め日から タイトル/請求日/支払期限 を自動補完する。
+    // 請求待ちボードからの起動時は customerId が初期値のまま＝発火せず、ボードが渡した値（選択月の締め日）を優先。
+    // 顧客一覧の遅延ロード等での再実行は customerId 不変なので無視（lastFilledCustomerRef で判定）。
+    // 既存請求書の編集時（initialData が id を持つ＝保存済み Invoice）は自動補完しない＝保存済みの値を尊重。
+    const isExistingInvoice = !!(initialData as { id?: string } | undefined)?.id;
+    const lastFilledCustomerRef = useRef(initialData?.customerId ?? '');
+    useEffect(() => {
+        if (isExistingInvoice) return;
+        if (customerId === lastFilledCustomerRef.current) return;
+        lastFilledCustomerRef.current = customerId;
+        if (!customerId) return;
+        const c = customers.find(cc => cc.id === customerId);
+        if (!c) return;
+        const closingYmd = currentClosingDate(c.closingDay); // 今日を含む締め期間の締め日
+        setTitle(closingInvoiceTitleFromYmd(closingYmd));
+        setIssueDate(closingYmd);
+        const [yy, mm] = closingYmd.split('-').map(Number);
+        setDueDate(dueDateFromClosing(yy, mm - 1, 'nextMonthEnd'));
+    }, [customerId, customers, isExistingInvoice]);
 
     // 顧客に紐付く案件一覧
     const customerProjects = React.useMemo(() => {

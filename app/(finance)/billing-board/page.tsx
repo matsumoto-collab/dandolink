@@ -11,7 +11,7 @@ import { useCompany } from '@/hooks/useCompany';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useDebounce } from '@/hooks/useDebounce';
 import { flattenEstimateItems, newBillingItemId } from '@/lib/billing/estimateToBillingItems';
-import { closingDayLabel } from '@/lib/closingDay';
+import { closingDayLabel, formatClosingInvoiceTitle, dueDateFromClosing } from '@/lib/closingDay';
 import BillingBoardRow from '@/components/BillingBoard/BillingBoardRow';
 import EstimatePickerDialog, { type EstimateChoice } from '@/components/Estimates/EstimatePickerDialog';
 import RequestBillingDialog, { type RequestBillingResult } from '@/components/BillingBoard/RequestBillingDialog';
@@ -609,11 +609,32 @@ export default function BillingBoardPage() {
             }
             setIssuingCustomerId(custId);
             setIssuingProjectIds(sc.projectIds);
-            // 件名は空欄（InvoiceForm が未入力では発行を弾く）。発行日/支払期限/採番は InvoiceForm 既定。
-            setInvoiceInitialData({ customerId: custId, projectMasterIds: sc.projectIds, items: sc.items, title: '' });
+            // 顧客の締め日（periodTo＝その顧客の締め期間の末日＝請求締め日）から
+            // タイトル「令和X年Y月Z日締めご請求書」・請求日（=締め日）・支払期限（既定=翌月末）を自動生成。
+            // 締め日が取れない（任意範囲モード等）ときは空欄で開き、従来どおり手入力させる。
+            const sampleRow = rows.find((r) => r.customerId === custId);
+            const closingYmd = sampleRow?.periodTo;
+            let title = '';
+            let createdAt: Date | undefined;
+            let dueDate: Date | undefined;
+            if (mode === 'closing' && closingYmd && /^\d{4}-\d{2}-\d{2}$/.test(closingYmd)) {
+                const [yy, mm, dd] = closingYmd.split('-').map(Number);
+                title = formatClosingInvoiceTitle(yy, mm, dd);
+                createdAt = new Date(yy, mm - 1, dd); // 請求日＝締め日（ローカル暦日）
+                const [dyy, dmm, ddd] = dueDateFromClosing(yy, mm - 1, 'nextMonthEnd').split('-').map(Number);
+                dueDate = new Date(dyy, dmm - 1, ddd);
+            }
+            setInvoiceInitialData({
+                customerId: custId,
+                projectMasterIds: sc.projectIds,
+                items: sc.items,
+                title,
+                createdAt,
+                dueDate,
+            });
             setIsInvoiceModalOpen(true);
         },
-        [stagedByCustomer],
+        [stagedByCustomer, rows, mode],
     );
 
     const handleCloseInvoiceModal = useCallback(() => {
