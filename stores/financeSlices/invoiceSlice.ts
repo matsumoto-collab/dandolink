@@ -108,6 +108,14 @@ export const createInvoiceSlice: FinanceSlice<InvoiceSlice> = (set, get) => ({
 
     getInvoice: (id: string) => get().invoices.find((i) => i.id === id),
 
+    // 案件に紐付く請求書を取得。
+    // 「当月まとめ」で 1 枚の請求書が複数案件をカバーするため、代表案件（projectId）だけでなく
+    // 中間テーブル（projectMasterIds）と明細タグ（items[].projectMasterId）も照合する。
+    // これにより請求バッジ（computeInvoicedByProject）と取得結果が一致する。
     getInvoicesByProject: (projectId: string) =>
-        get().invoices.filter((i) => i.projectId === projectId),
+        get().invoices.filter((i) =>
+            i.projectId === projectId ||
+            (i.projectMasterIds?.includes(projectId) ?? false) ||
+            (i.items?.some((it) => it.projectMasterId === projectId) ?? false)
+        ),
 });
