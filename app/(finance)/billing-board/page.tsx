@@ -143,9 +143,14 @@ export default function BillingBoardPage() {
 
     // 請求書プレビュー（顧客ごと）
     const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
-    const [invoiceInitialData, setInvoiceInitialData] = useState<Partial<InvoiceInput> | undefined>(undefined);
+    const [invoiceInitialData, setInvoiceInitialData] = useState<(Partial<InvoiceInput> & { updatedAt?: Date | string; updatedBy?: string }) | undefined>(undefined);
     const [issuingCustomerId, setIssuingCustomerId] = useState<string | null>(null);
     const [issuingProjectIds, setIssuingProjectIds] = useState<string[]>([]);
+    // 当月まとめ: 既存の当月請求書へ追記する場合の対象ID（null=新規作成）と、その既存請求書が持つ案件ID。
+    const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
+    const [editingExistingProjectIds, setEditingExistingProjectIds] = useState<string[]>([]);
+    // 既存請求書（当月まとめ判定用）。finance ストアから参照する。
+    const financeInvoices = useFinanceStore((s) => s.invoices);
 
     const fetchBoard = useCallback(async () => {
         try {
@@ -163,6 +168,12 @@ export default function BillingBoardPage() {
             setIsLoading(false);
         }
     }, [mode, month, from, to]);
+
+    // 当月まとめ判定のため、既存請求書を最新化して読み込んでおく。
+    useEffect(() => {
+        if (!isAuthorized) return;
+        void useFinanceStore.getState().fetchInvoices();
+    }, [isAuthorized]);
 
     // 期間・モード変更時も含めてボードを再取得
     useEffect(() => {
@@ -608,13 +619,59 @@ export default function BillingBoardPage() {
                 toast.error('請求対象がありません');
                 return;
             }
-            setIssuingCustomerId(custId);
-            setIssuingProjectIds(sc.projectIds);
-            // 顧客の締め日（periodTo＝その顧客の締め期間の末日＝請求締め日）から
-            // タイトル「令和X年Y月Z日締めご請求書」・請求日（=締め日）・支払期限（既定=翌月末）を自動生成。
-            // 締め日が取れない（任意範囲モード等）ときは空欄で開き、従来どおり手入力させる。
             const sampleRow = rows.find((r) => r.customerId === custId);
             const closingYmd = sampleRow?.periodTo;
+            const periodFrom = sampleRow?.periodFrom;
+
+            setIssuingCustomerId(custId);
+            setIssuingProjectIds(sc.projectIds);
+
+            // 当月まとめ: 締め分モードで、同じ顧客・同じ締め期間・編集可（下書き/担当確認済み）の
+            // 既存請求書があれば、新規作成せずにその請求書へ今回の明細を追記する（編集モードで開く）。
+            // 送付済/支払済/期限超過の請求書は対象外＝新規作成（顧客へ送った後の請求書は書き換えない）。
+            const EDITABLE = new Set(['draft', 'confirmed']);
+            const pad2 = (n: number) => String(n).padStart(2, '0');
+            const toLocalYmd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+            const existing =
+                mode === 'closing' && periodFrom && closingYmd
+                    ? financeInvoices
+                          .filter((inv) => inv.customerId === custId && EDITABLE.has(inv.status))
+                          .filter((inv) => {
+                              const ymd = toLocalYmd(new Date(inv.createdAt));
+                              return ymd >= periodFrom && ymd <= closingYmd;
+                          })
+                          .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0]
+                    : undefined;
+
+            if (existing) {
+                // 既存の当月請求書へ追記（編集モードで開く）。明細＝既存＋今回、合計はフォームが自動再計算する。
+                const existingPmIds = existing.projectMasterIds ?? existing.projectMasters?.map((p) => p.id) ?? [];
+                const combinedPmIds = Array.from(new Set([...existingPmIds, ...sc.projectIds]));
+                const combinedItems = [...(existing.items ?? []), ...sc.items];
+                setEditingInvoiceId(existing.id);
+                setEditingExistingProjectIds(existingPmIds);
+                setInvoiceInitialData({
+                    customerId: custId,
+                    projectMasterIds: combinedPmIds,
+                    items: combinedItems,
+                    title: existing.title,
+                    invoiceNumber: existing.invoiceNumber,
+                    createdAt: new Date(existing.createdAt),
+                    dueDate: new Date(existing.dueDate),
+                    status: existing.status,
+                    notes: existing.notes,
+                    updatedAt: existing.updatedAt,
+                    updatedBy: existing.updatedBy,
+                });
+                setIsInvoiceModalOpen(true);
+                toast('当月の請求書に追記します。内容を確認して保存してください', { icon: 'ℹ️', duration: 4000 });
+                return;
+            }
+
+            // 新規作成（従来どおり）。締め分なら締め日からタイトル・請求日・支払期限を自動生成。
+            // 締め日が取れない（任意範囲モード等）ときは空欄で開き、従来どおり手入力させる。
+            setEditingInvoiceId(null);
+            setEditingExistingProjectIds([]);
             let title = '';
             let createdAt: Date | undefined;
             let dueDate: Date | undefined;
@@ -635,7 +692,7 @@ export default function BillingBoardPage() {
             });
             setIsInvoiceModalOpen(true);
         },
-        [stagedByCustomer, rows, mode],
+        [stagedByCustomer, rows, mode, financeInvoices],
     );
 
     const handleCloseInvoiceModal = useCallback(() => {
@@ -643,35 +700,40 @@ export default function BillingBoardPage() {
         setInvoiceInitialData(undefined);
         setIssuingCustomerId(null);
         setIssuingProjectIds([]);
+        setEditingInvoiceId(null);
+        setEditingExistingProjectIds([]);
     }, []);
 
     const handleIssueInvoice = useCallback(
         async (data: InvoiceInput) => {
+            const isUpdate = !!editingInvoiceId;
             try {
-                const res = await fetch('/api/invoices', {
-                    method: 'POST',
+                // 既存の当月請求書へ追記する場合は PATCH（案件リンクは既存＋今回をまとめる）。新規は POST。
+                const projectMasterIds = isUpdate
+                    ? Array.from(new Set([...editingExistingProjectIds, ...issuingProjectIds]))
+                    : issuingProjectIds;
+                const res = await fetch(isUpdate ? `/api/invoices/${editingInvoiceId}` : '/api/invoices', {
+                    method: isUpdate ? 'PATCH' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store',
                     body: JSON.stringify({
                         ...data,
                         customerId: issuingCustomerId,
-                        projectMasterIds: issuingProjectIds,
+                        projectMasterIds,
                         dueDate: data.dueDate instanceof Date ? data.dueDate.toISOString() : data.dueDate,
                     }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
-                    throw new Error(err?.error || '請求書の作成に失敗しました');
+                    throw new Error(err?.error || (isUpdate ? '請求書の更新に失敗しました' : '請求書の作成に失敗しました'));
                 }
-                toast.success('請求書を作成しました（「請求書」で確認できます）');
-                // 請求書一覧（financeストア）が既にロード済みなら最新化して、ボード発行分を即反映する。
-                // ボードはストアを介さず直接 POST するため、これが無いと一覧が古いまま（ハード更新まで出ない）。
-                // 未ロードなら一覧を開いた初回 fetch で取得されるので何もしない。
+                toast.success(isUpdate ? '当月の請求書にまとめました（「請求書」で確認できます）' : '請求書を作成しました（「請求書」で確認できます）');
+                // 請求書一覧（financeストア）を最新化（ボードはストアを介さず直接APIを叩くため）。
                 const financeState = useFinanceStore.getState();
                 if (financeState.invoicesInitialized) {
                     void financeState.fetchInvoices();
                 }
-                // 発行した案件を請求対象から外す
+                // 今回ステージした案件のみ請求対象から外す
                 const issued = issuingProjectIds;
                 setStaged((prev) => {
                     const next = { ...prev };
@@ -682,13 +744,15 @@ export default function BillingBoardPage() {
                 setInvoiceInitialData(undefined);
                 setIssuingCustomerId(null);
                 setIssuingProjectIds([]);
+                setEditingInvoiceId(null);
+                setEditingExistingProjectIds([]);
                 await fetchBoard();
             } catch (e) {
-                logger.error('Failed to create invoice from board:', e);
-                toast.error(e instanceof Error ? e.message : '請求書の作成に失敗しました');
+                logger.error('Failed to create/update invoice from board:', e);
+                toast.error(e instanceof Error ? e.message : (isUpdate ? '請求書の更新に失敗しました' : '請求書の作成に失敗しました'));
             }
         },
-        [issuingCustomerId, issuingProjectIds, fetchBoard],
+        [issuingCustomerId, issuingProjectIds, editingInvoiceId, editingExistingProjectIds, fetchBoard],
     );
 
     if (sessionStatus === 'loading') return null;
