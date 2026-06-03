@@ -26,6 +26,7 @@ import DesktopCalendarView from './DesktopCalendarView';
 import MobileCalendarView from './MobileCalendarView';
 import { logger } from '@/lib/logger';
 import toast from 'react-hot-toast';
+import { showUndoToast } from './undoToast';
 
 // モーダルを遅延読み込み
 const ProjectModal = dynamic(() => import('../Projects/ProjectModal'), {
@@ -60,7 +61,7 @@ interface WeeklyCalendarProps {
 
 export default function WeeklyCalendar({ partnerMode = false, partnerId, onNavigationReady, onSearchReady }: WeeklyCalendarProps) {
     const { data: session, status } = useSession();
-    const { projects, addProject, updateProject, updateProjects, deleteProject, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
+    const { projects, addProject, updateProject, updateProjects, deleteProject, restoreAssignment, restoreDeletedAssignment, fetchForDateRange, isInitialized, refreshProjects, forceRefreshRange } = useProjects();
     const { getTotalMembersForDate } = useMasterData();
     const { getVacationEmployees } = useVacation();
     const { displayedForemanIds, removeForeman, allForemen, moveForeman, isLoading: isCalendarLoading } = useCalendarDisplay();
@@ -386,6 +387,28 @@ useEffect(() => { setIsMounted(true); }, []);
         if (extra?.memberCount !== undefined) updates.memberCount = extra.memberCount;
 
         updateProjectWithConflictHandling(projectId, updates);
+
+        // 誤操作対策: 移動直後に「元に戻す」トーストを表示し、元のセル（職長・日付）へ戻せるようにする。
+        // PendingMove が移動元（fromEmployeeId / fromDate）を保持しているのでそれを使う。
+        const beforeEmployeeId = pending.fromEmployeeId;
+        const beforeDate = pending.fromDate;
+        const label = pending.title || '案件';
+        showUndoToast({
+            message: `${label} を移動しました`,
+            onUndo: () => {
+                const undoUpdates: Partial<Project> = { assignedEmployeeId: beforeEmployeeId };
+                if (pending.eventId.endsWith('-assembly')) {
+                    undoUpdates.assemblyStartDate = beforeDate;
+                    undoUpdates.startDate = beforeDate;
+                } else if (pending.eventId.endsWith('-demolition')) {
+                    undoUpdates.demolitionStartDate = beforeDate;
+                    undoUpdates.startDate = beforeDate;
+                } else {
+                    undoUpdates.startDate = beforeDate;
+                }
+                updateProjectWithConflictHandling(projectId, undoUpdates);
+            },
+        });
     }, [updateProjectWithConflictHandling, projectsRef]);
 
     const closeMoveModal = useCallback(() => {
@@ -513,6 +536,41 @@ useEffect(() => { setIsMounted(true); }, []);
             title: movingEvent.title,
         });
     }, [handlePendingMove]);
+
+    // 誤操作対策: 削除直後に「元に戻す」トーストを表示する。
+    // 削除するとストア／DBから即時に消えるため、消す前にスナップショットを退避し、
+    // Undo 時はそのスナップショットから配置を再作成する（新IDで復元）。
+    const handleDeleteWithUndo = useCallback(async (id: string) => {
+        const snapshot = useCalendarStore.getState().assignments.find((a) => a.id === id);
+        let logId: string | null = null;
+        try {
+            logId = await deleteProject(id);
+        } catch (e) {
+            logger.error('Failed to delete assignment:', e);
+            toast.error('削除に失敗しました');
+            return;
+        }
+        if (!snapshot) return;
+        const pm = snapshot.projectMaster;
+        const label = pm?.name ? `${pm.name}${pm.honorific ?? ''}` : (pm?.title || '案件');
+        showUndoToast({
+            message: `${label} を削除しました`,
+            onUndo: async () => {
+                try {
+                    // 通常は削除控え（logId）から復元。控えが取れなかった場合のみスナップショットで再作成。
+                    if (logId) {
+                        await restoreDeletedAssignment(logId);
+                    } else {
+                        await restoreAssignment(snapshot);
+                    }
+                    toast.success('削除を取り消しました');
+                } catch (e) {
+                    logger.error('Failed to restore assignment:', e);
+                    toast.error('元に戻せませんでした');
+                }
+            },
+        });
+    }, [deleteProject, restoreAssignment, restoreDeletedAssignment]);
 
     // 日別メンバー調整
     const memberAdjustments = useCalendarStore((state) => state.memberAdjustments);
@@ -724,7 +782,7 @@ useEffect(() => { setIsMounted(true); }, []);
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 onSubmit={handleSaveProject}
-                onDelete={deleteProject}
+                onDelete={handleDeleteWithUndo}
                 initialData={modalInitialData.projectMasterId || modalInitialData.id ? modalInitialData : undefined}
                 defaultDate={modalInitialData.startDate}
                 defaultEmployeeId={modalInitialData.assignedEmployeeId}

@@ -34,6 +34,8 @@ export function useProjects() {
     const updateProjectStore = useCalendarStore((state) => state.updateProject);
     const updateProjectsStore = useCalendarStore((state) => state.updateProjects);
     const deleteProjectStore = useCalendarStore((state) => state.deleteProject);
+    const restoreAssignmentStore = useCalendarStore((state) => state.restoreAssignment);
+    const restoreDeletedAssignmentStore = useCalendarStore((state) => state.restoreDeletedAssignment);
     const getProjectByIdStore = useCalendarStore((state) => state.getProjectById);
     const getCalendarEventsStore = useCalendarStore((state) => state.getCalendarEvents);
     const fetchCellRemarksStore = useCalendarStore((state) => state.fetchCellRemarks);
@@ -361,12 +363,53 @@ export function useProjects() {
     }, [updateProjectsStore]);
 
     const deleteProject = useCallback(async (id: string) => {
-        await deleteProjectStore(id);
+        const logId = await deleteProjectStore(id);
         // 同一デバイスの別タブへ即時通知
         broadcastRef.current?.postMessage({ type: 'assignment_deleted', id });
         // 別デバイスへ即時通知（Supabase Realtime broadcast）
         sendBroadcast('assignment_deleted', { id });
+        return logId;
     }, [deleteProjectStore]);
+
+    // 誤削除のUndo: スナップショットから配置を再作成する（控えが使えないとき用のフォールバック）。
+    // addProject 同様 isUpdating ガードを張り、Realtime の二重反映を防ぐ。
+    const restoreAssignment = useCallback(async (snapshot: Parameters<typeof restoreAssignmentStore>[0]) => {
+        isUpdatingRef.current = true;
+        setIsUpdating(true);
+        try {
+            const created = await restoreAssignmentStore(snapshot);
+            // 同一デバイスの別タブ／別デバイスへ即時通知（新IDで作成された配置を反映）
+            broadcastRef.current?.postMessage({ type: 'assignment_updated', id: created.id });
+            sendBroadcast('assignment_updated', { id: created.id });
+            return created;
+        } finally {
+            const tid = setTimeout(() => {
+                isUpdatingRef.current = false;
+                setIsUpdating(false);
+                timeoutRefs.current = timeoutRefs.current.filter(t => t !== tid);
+            }, 500);
+            timeoutRefs.current.push(tid);
+        }
+    }, [restoreAssignmentStore]);
+
+    // 誤削除のUndo（通常経路）: サーバーの削除控え（logId）から復元する。
+    const restoreDeletedAssignment = useCallback(async (logId: string) => {
+        isUpdatingRef.current = true;
+        setIsUpdating(true);
+        try {
+            const created = await restoreDeletedAssignmentStore(logId);
+            broadcastRef.current?.postMessage({ type: 'assignment_updated', id: created.id });
+            sendBroadcast('assignment_updated', { id: created.id });
+            return created;
+        } finally {
+            const tid = setTimeout(() => {
+                isUpdatingRef.current = false;
+                setIsUpdating(false);
+                timeoutRefs.current = timeoutRefs.current.filter(t => t !== tid);
+            }, 500);
+            timeoutRefs.current.push(tid);
+        }
+    }, [restoreDeletedAssignmentStore]);
 
     const getProjectById = useCallback((id: string) => {
         return getProjectByIdStore(id);
@@ -470,6 +513,8 @@ export function useProjects() {
         updateProject,
         updateProjects,
         deleteProject,
+        restoreAssignment,
+        restoreDeletedAssignment,
         getProjectById,
         getCalendarEvents,
         refreshProjects,

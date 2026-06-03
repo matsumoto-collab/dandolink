@@ -1,26 +1,47 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { X, History, Calendar, Users, RefreshCw, Search } from 'lucide-react';
+import { X, History, Calendar, Users, RefreshCw, Search, Trash2, Undo2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-interface HistoryEntry {
+interface ProjectInfo {
     id: string;
-    assignmentId: string;
+    title: string;
+    name: string | null;
+    honorific: string | null;
+    customerName: string | null;
+}
+
+interface BaseEntry {
+    id: string;
     changedAt: string;
+    changedBy: { id: string; displayName: string };
+    project: ProjectInfo | null;
+}
+
+interface MoveEntry extends BaseEntry {
+    kind: 'move';
+    historyId: string;
+    assignmentId: string;
     changeType: 'date' | 'foreman' | string;
     previousValue: string;
     newValue: string;
-    changedBy: { id: string; displayName: string };
     previousLabel: string | null;
     newLabel: string | null;
-    project: {
-        id: string;
-        title: string;
-        name: string | null;
-        honorific: string | null;
-        customerName: string | null;
-    } | null;
 }
+
+interface DeleteEntry extends BaseEntry {
+    kind: 'delete';
+    logId: string;
+    changeType: 'delete';
+    deletedDate: string | null;
+    deletedForemanName: string | null;
+    restored: boolean;
+    restoredAt: string | null;
+    restoredBy: string | null;
+}
+
+type HistoryEntry = MoveEntry | DeleteEntry;
 
 interface ScheduleHistoryPanelProps {
     isOpen: boolean;
@@ -53,7 +74,7 @@ function dayDiff(prevIso: string, newIso: string): number {
     return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-function projectDisplayName(p: HistoryEntry['project']): string {
+function projectDisplayName(p: ProjectInfo | null): string {
     if (!p) return '(案件不明)';
     if (p.name) return `${p.name}${p.honorific || ''}`;
     return p.title;
@@ -65,6 +86,8 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
     const [error, setError] = useState<string | null>(null);
     const [searchInput, setSearchInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+    // 元に戻す/復元の処理中エントリ（id）。多重押下と他行操作を抑止する。
+    const [pendingId, setPendingId] = useState<string | null>(null);
 
     const fetchHistories = useCallback(async (q: string) => {
         setLoading(true);
@@ -98,6 +121,50 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
         const t = setTimeout(() => setSearchQuery(searchInput.trim()), 300);
         return () => clearTimeout(t);
     }, [searchInput, isOpen]);
+
+    // 移動（日付/職長）を元に戻す
+    const handleRevertMove = useCallback(async (historyId: string) => {
+        if (pendingId) return;
+        setPendingId(historyId);
+        try {
+            const res = await fetch(`/api/schedule-history/${historyId}/revert`, { method: 'POST' });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data?.error || '元に戻せませんでした');
+                return;
+            }
+            toast.success('移動を元に戻しました');
+            await fetchHistories(searchQuery);
+        } catch {
+            toast.error('元に戻せませんでした');
+        } finally {
+            setPendingId(null);
+        }
+    }, [pendingId, fetchHistories, searchQuery]);
+
+    // 削除した配置を復元する
+    const handleRestoreDelete = useCallback(async (logId: string) => {
+        if (pendingId) return;
+        setPendingId(logId);
+        try {
+            const res = await fetch('/api/assignments/restore', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ logId }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                toast.error(data?.error || '復元できませんでした');
+                return;
+            }
+            toast.success('削除した配置を復元しました');
+            await fetchHistories(searchQuery);
+        } catch {
+            toast.error('復元できませんでした');
+        } finally {
+            setPendingId(null);
+        }
+    }, [pendingId, fetchHistories, searchQuery]);
 
     if (!isOpen) return null;
 
@@ -162,6 +229,9 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
                             </button>
                         )}
                     </div>
+                    <p className="mt-1.5 text-[11px] text-slate-400">
+                        移動は［元に戻す］、削除は［復元］で取り消せます。
+                    </p>
                 </div>
 
                 {/* 本文 */}
@@ -184,74 +254,135 @@ export default function ScheduleHistoryPanel({ isOpen, onClose }: ScheduleHistor
 
                     <ul className="divide-y divide-slate-100">
                         {histories.map((h) => {
+                            if (h.kind === 'delete') {
+                                const busy = pendingId === h.logId;
+                                return (
+                                    <li key={h.id} className="px-5 py-3">
+                                        <div className="flex items-start gap-3">
+                                            <div className="min-w-0 flex-1">
+                                                {/* 1段目: 日時 + 変更者 + 種別 */}
+                                                <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5 flex-wrap">
+                                                    <span className="font-medium text-slate-600">{formatDateTime(h.changedAt)}</span>
+                                                    <span className="text-slate-300">|</span>
+                                                    <span className="text-slate-700 font-medium">{h.changedBy.displayName}</span>
+                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-700">
+                                                        <Trash2 className="w-2.5 h-2.5" />
+                                                        削除
+                                                    </span>
+                                                </div>
+                                                {/* 2段目: 案件名 */}
+                                                <div className="text-sm font-semibold text-slate-800 mb-1 truncate">
+                                                    {h.project?.customerName && (
+                                                        <span className="text-slate-500 font-normal mr-1.5">{h.project.customerName}</span>
+                                                    )}
+                                                    {projectDisplayName(h.project)}
+                                                </div>
+                                                {/* 3段目: 削除された配置の内容 */}
+                                                <div className="text-xs text-slate-500">
+                                                    {h.deletedDate ? formatDateOnly(h.deletedDate) : '日付不明'}
+                                                    {h.deletedForemanName ? ` ・ ${h.deletedForemanName}` : ''}
+                                                </div>
+                                            </div>
+                                            {/* 復元ボタン or 復元済みラベル */}
+                                            <div className="flex-shrink-0 pt-0.5">
+                                                {h.restored ? (
+                                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-[11px] font-medium bg-slate-100 text-slate-400">
+                                                        復元済み
+                                                    </span>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => handleRestoreDelete(h.logId)}
+                                                        disabled={busy || !!pendingId}
+                                                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-teal-300 text-teal-700 text-xs font-medium hover:bg-teal-50 active:bg-teal-100 transition-colors disabled:opacity-40 whitespace-nowrap"
+                                                    >
+                                                        <Undo2 className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+                                                        復元
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </li>
+                                );
+                            }
+
+                            // move エントリ
                             const isDate = h.changeType === 'date';
                             const isForeman = h.changeType === 'foreman';
                             const diff = isDate ? dayDiff(h.previousValue, h.newValue) : 0;
+                            const busy = pendingId === h.historyId;
                             return (
                                 <li key={h.id} className="px-5 py-3">
-                                    {/* 1段目: 日時 + 変更者 + 種別 */}
-                                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5 flex-wrap">
-                                        <span className="font-medium text-slate-600">
-                                            {formatDateTime(h.changedAt)}
-                                        </span>
-                                        <span className="text-slate-300">|</span>
-                                        <span className="text-slate-700 font-medium">{h.changedBy.displayName}</span>
-                                        <span
-                                            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                                isDate
-                                                    ? 'bg-sky-100 text-sky-700'
-                                                    : isForeman
-                                                      ? 'bg-violet-100 text-violet-700'
-                                                      : 'bg-slate-100 text-slate-600'
-                                            }`}
-                                        >
-                                            {isDate && <Calendar className="w-2.5 h-2.5" />}
-                                            {isForeman && <Users className="w-2.5 h-2.5" />}
-                                            {isDate ? '日付' : isForeman ? '職長' : h.changeType}
-                                        </span>
-                                    </div>
-
-                                    {/* 2段目: 案件名 */}
-                                    <div className="text-sm font-semibold text-slate-800 mb-1 truncate">
-                                        {h.project?.customerName && (
-                                            <span className="text-slate-500 font-normal mr-1.5">
-                                                {h.project.customerName}
-                                            </span>
-                                        )}
-                                        {projectDisplayName(h.project)}
-                                    </div>
-
-                                    {/* 3段目: 変更内容(from → to) */}
-                                    <div className="flex items-center gap-2 text-sm text-slate-700 flex-wrap">
-                                        {isDate ? (
-                                            <>
-                                                <span className="line-through text-slate-400">
-                                                    {formatDateOnly(h.previousValue)}
+                                    <div className="flex items-start gap-3">
+                                        <div className="min-w-0 flex-1">
+                                            {/* 1段目: 日時 + 変更者 + 種別 */}
+                                            <div className="flex items-center gap-2 text-xs text-slate-500 mb-1.5 flex-wrap">
+                                                <span className="font-medium text-slate-600">{formatDateTime(h.changedAt)}</span>
+                                                <span className="text-slate-300">|</span>
+                                                <span className="text-slate-700 font-medium">{h.changedBy.displayName}</span>
+                                                <span
+                                                    className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                                        isDate
+                                                            ? 'bg-sky-100 text-sky-700'
+                                                            : isForeman
+                                                              ? 'bg-violet-100 text-violet-700'
+                                                              : 'bg-slate-100 text-slate-600'
+                                                    }`}
+                                                >
+                                                    {isDate && <Calendar className="w-2.5 h-2.5" />}
+                                                    {isForeman && <Users className="w-2.5 h-2.5" />}
+                                                    {isDate ? '日付' : isForeman ? '職長' : h.changeType}
                                                 </span>
-                                                <span className="text-slate-400">→</span>
-                                                <span className="font-bold">{formatDateOnly(h.newValue)}</span>
-                                                {diff !== 0 && (
-                                                    <span
-                                                        className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
-                                                            diff > 0
-                                                                ? 'bg-rose-100 text-rose-700'
-                                                                : 'bg-emerald-100 text-emerald-700'
-                                                        }`}
-                                                    >
-                                                        {diff > 0 ? `+${diff}日` : `${diff}日`}
-                                                    </span>
+                                            </div>
+
+                                            {/* 2段目: 案件名 */}
+                                            <div className="text-sm font-semibold text-slate-800 mb-1 truncate">
+                                                {h.project?.customerName && (
+                                                    <span className="text-slate-500 font-normal mr-1.5">{h.project.customerName}</span>
                                                 )}
-                                            </>
-                                        ) : isForeman ? (
-                                            <>
-                                                <span className="line-through text-slate-400">
-                                                    {h.previousLabel || '(不明)'}
-                                                </span>
-                                                <span className="text-slate-400">→</span>
-                                                <span className="font-bold">{h.newLabel || '(不明)'}</span>
-                                            </>
-                                        ) : (
-                                            <span className="text-slate-500">{h.previousValue} → {h.newValue}</span>
+                                                {projectDisplayName(h.project)}
+                                            </div>
+
+                                            {/* 3段目: 変更内容(from → to) */}
+                                            <div className="flex items-center gap-2 text-sm text-slate-700 flex-wrap">
+                                                {isDate ? (
+                                                    <>
+                                                        <span className="line-through text-slate-400">{formatDateOnly(h.previousValue)}</span>
+                                                        <span className="text-slate-400">→</span>
+                                                        <span className="font-bold">{formatDateOnly(h.newValue)}</span>
+                                                        {diff !== 0 && (
+                                                            <span
+                                                                className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
+                                                                    diff > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                                                                }`}
+                                                            >
+                                                                {diff > 0 ? `+${diff}日` : `${diff}日`}
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                ) : isForeman ? (
+                                                    <>
+                                                        <span className="line-through text-slate-400">{h.previousLabel || '(不明)'}</span>
+                                                        <span className="text-slate-400">→</span>
+                                                        <span className="font-bold">{h.newLabel || '(不明)'}</span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-slate-500">{h.previousValue} → {h.newValue}</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* 元に戻すボタン（日付/職長のみ） */}
+                                        {(isDate || isForeman) && (
+                                            <div className="flex-shrink-0 pt-0.5">
+                                                <button
+                                                    onClick={() => handleRevertMove(h.historyId)}
+                                                    disabled={busy || !!pendingId}
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full border border-slate-300 text-slate-700 text-xs font-medium hover:bg-slate-50 active:bg-slate-100 transition-colors disabled:opacity-40 whitespace-nowrap"
+                                                >
+                                                    <Undo2 className={`w-3.5 h-3.5 ${busy ? 'animate-spin' : ''}`} />
+                                                    元に戻す
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </li>

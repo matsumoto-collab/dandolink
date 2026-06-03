@@ -181,7 +181,13 @@ export interface CalendarActions {
     addProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
     updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
     updateProjects: (updates: Array<{ id: string; data: Partial<Project> }>) => Promise<void>;
-    deleteProject: (id: string) => Promise<void>;
+    // 削除に成功すると、復元用の控え（DeletedAssignmentLog）の logId を返す（控えに失敗した場合は null）。
+    deleteProject: (id: string) => Promise<string | null>;
+    // 誤削除のUndo。いずれも物理削除→再作成のため新しいIDで作られる。
+    // restoreAssignment: クライアント保持のスナップショットから再作成（控えが使えないとき用のフォールバック）。
+    restoreAssignment: (snapshot: ProjectAssignment & { projectMaster?: ProjectMaster }) => Promise<ProjectAssignment & { projectMaster?: ProjectMaster }>;
+    // restoreDeletedAssignment: サーバーの削除控え（logId）から復元し、控えを復元済みにする。
+    restoreDeletedAssignment: (logId: string) => Promise<ProjectAssignment & { projectMaster?: ProjectMaster }>;
     getProjectById: (id: string) => Project | undefined;
     getCalendarEvents: () => CalendarEvent[];
     getProjects: () => Project[];

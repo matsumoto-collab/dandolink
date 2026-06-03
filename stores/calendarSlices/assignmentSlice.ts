@@ -11,8 +11,31 @@ const DEFAULT_RETRY_DELAY_MS = 2000;
 // 連打時に前回の in-flight リクエストをキャンセルするためのコントローラ
 let currentAbortController: AbortController | null = null;
 
+// 復元API（POST /api/assignments もしくは /restore）が返す formatAssignment 形を
+// ストア用に Date 化する。parse の流儀は fetchAssignments と揃える。
+function parseRestoredAssignment(
+    created: ProjectAssignment & { date: string; createdAt: string; updatedAt: string; projectMaster?: ProjectMaster & { createdAt: string; updatedAt: string } },
+    fallbackPm?: ProjectMaster
+): ProjectAssignment & { projectMaster?: ProjectMaster } {
+    return {
+        ...created,
+        date: new Date(created.date),
+        createdAt: new Date(created.createdAt),
+        updatedAt: new Date(created.updatedAt),
+        workStartedAt: created.workStartedAt ? new Date(created.workStartedAt) : null,
+        workEndedAt: created.workEndedAt ? new Date(created.workEndedAt) : null,
+        workStartedComment: created.workStartedComment ?? null,
+        workEndedComment: created.workEndedComment ?? null,
+        projectMaster: created.projectMaster ? {
+            ...created.projectMaster,
+            createdAt: new Date(created.projectMaster.createdAt),
+            updatedAt: new Date(created.projectMaster.updatedAt),
+        } : fallbackPm,
+    };
+}
+
 type AssignmentSlice = Pick<CalendarState, 'assignments' | 'projectsLoading' | 'projectsInitialized'> &
-    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
+    Pick<CalendarActions, 'fetchAssignments' | 'addProject' | 'updateProject' | 'updateProjects' | 'deleteProject' | 'restoreAssignment' | 'restoreDeletedAssignment' | 'getProjectById' | 'getCalendarEvents' | 'getProjects' | 'upsertAssignment' | 'removeAssignmentById' | 'updateProjectMasterInAssignments'>;
 
 export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) => ({
     assignments: [],
@@ -501,9 +524,90 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
         if (!response.ok) {
             throw new Error('Failed to delete assignment');
         }
+        // 復元用の控え logId を取り出す（応答 body が無い/壊れていても削除自体は成功扱い）
+        let logId: string | null = null;
+        try {
+            const data = await response.json();
+            logId = (data && typeof data.logId === 'string') ? data.logId : null;
+        } catch {
+            logId = null;
+        }
         set((state) => ({
             assignments: state.assignments.filter((a) => a.id !== id),
         }));
+        return logId;
+    },
+
+    restoreAssignment: async (snapshot) => {
+        // 誤削除のUndo: スナップショット（削除直前の配置）を /api/assignments で再作成する。
+        // 案件マスタ（projectMaster）は削除されていないので、配置だけを作り直せばよい。
+        // ※物理削除→再作成のため新しいIDになる。職方・車両・確認状態はスナップショットから復元する。
+        const response = await fetch('/api/assignments', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                projectMasterId: snapshot.projectMasterId,
+                assignedEmployeeId: snapshot.assignedEmployeeId,
+                date: snapshot.date instanceof Date ? snapshot.date.toISOString() : snapshot.date,
+                memberCount: snapshot.memberCount,
+                workers: snapshot.workers,
+                vehicles: snapshot.vehicles,
+                meetingTime: snapshot.meetingTime,
+                sortOrder: snapshot.sortOrder,
+                remarks: snapshot.remarks,
+                constructionType: snapshot.constructionType,
+                estimatedHours: snapshot.estimatedHours,
+                isDispatchConfirmed: snapshot.isDispatchConfirmed,
+                confirmedWorkerIds: snapshot.confirmedWorkerIds,
+                confirmedVehicleIds: snapshot.confirmedVehicleIds,
+            }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to restore assignment');
+        }
+
+        const created = await response.json();
+        const parsed = parseRestoredAssignment(created, snapshot.projectMaster);
+
+        set((state) => ({
+            assignments: [...state.assignments.filter((a) => a.id !== parsed.id), parsed],
+            projectMasters: state.projectMasters.map((pm) =>
+                pm.id === parsed.projectMasterId
+                    ? { ...pm, assignmentCount: (pm.assignmentCount ?? 0) + 1 }
+                    : pm
+            ),
+        }));
+
+        return parsed;
+    },
+
+    restoreDeletedAssignment: async (logId) => {
+        // サーバーの削除控え（DeletedAssignmentLog）から復元する。
+        // 控えが「復元済み」になるため、変更履歴パネルとトーストUndoで二重復元が起きない。
+        const response = await fetch('/api/assignments/restore', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ logId }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to restore deleted assignment');
+        }
+
+        const created = await response.json();
+        const parsed = parseRestoredAssignment(created);
+
+        set((state) => ({
+            assignments: [...state.assignments.filter((a) => a.id !== parsed.id), parsed],
+            projectMasters: state.projectMasters.map((pm) =>
+                pm.id === parsed.projectMasterId
+                    ? { ...pm, assignmentCount: (pm.assignmentCount ?? 0) + 1 }
+                    : pm
+            ),
+        }));
+
+        return parsed;
     },
 
     getProjectById: (id) => {
