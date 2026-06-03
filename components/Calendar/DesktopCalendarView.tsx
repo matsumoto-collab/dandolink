@@ -10,6 +10,11 @@ import EmployeeRowComponent from './EmployeeRowComponent';
 import DraggableEventCard from './DraggableEventCard';
 import RemarksRow from './RemarksRow';
 import ForemanSelector from './ForemanSelector';
+import { useFitZoom } from '@/hooks/useFitZoom';
+
+// 画面幅オートフィットの基準幅。これ以上広ければ縮小せず従来どおり横いっぱいに伸ばし、
+// これより狭いノートPC等ではこの幅相当のレイアウトを描画して縮小表示する（≒19インチの見た目）。
+const FIT_DESIGN_WIDTH = 1600;
 
 interface DesktopCalendarViewProps {
     weekDays: WeekDay[];
@@ -116,6 +121,14 @@ export default function DesktopCalendarView({
         setMovingEvent(null);
     }, [movingEvent, handleMoveToCell]);
 
+    // 画面幅オートフィット（ノートPCでも19インチと同じレイアウトを縮小表示）
+    const { ref: fitRef, zoom } = useFitZoom(FIT_DESIGN_WIDTH);
+    const isZoomed = zoom < 0.999;
+    // zoom と合わせて幅・高さを 1/zoom 倍にすることで、縮小後に実画面の縦横いっぱいへ収める
+    const fitStyle: React.CSSProperties | undefined = isZoomed
+        ? ({ zoom, width: `${(100 / zoom).toFixed(3)}%`, height: `${(100 / zoom).toFixed(3)}%` } as React.CSSProperties)
+        : undefined;
+
     return (
         <DndContext
             sensors={sensors}
@@ -184,7 +197,10 @@ export default function DesktopCalendarView({
                 </div>
             )}
 
-            <div className="calendar-container h-full flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden">
+            {/* 利用可能な横幅の計測用プローブ（ズーム非対象・0高さで配置に影響なし） */}
+            <div ref={fitRef} aria-hidden className="w-full h-0 pointer-events-none" />
+
+            <div className="calendar-container h-full flex flex-col bg-white rounded-lg shadow-md border border-slate-200 overflow-hidden" style={fitStyle}>
                 <div className="flex-1 overflow-auto bg-slate-50">
                     <div className="flex flex-col min-w-full">
                         {/* ヘッダー行: 日付と曜日 + 残り人数行 を1つのstickyコンテナにまとめる */}
@@ -320,7 +336,7 @@ export default function DesktopCalendarView({
             </div>
 
             <DragOverlay>
-                {activeEvent ? <div className="opacity-90"><DraggableEventCard event={activeEvent} /></div> : null}
+                {activeEvent ? <div className="opacity-90" style={isZoomed ? ({ zoom } as React.CSSProperties) : undefined}><DraggableEventCard event={activeEvent} /></div> : null}
             </DragOverlay>
 
             {/* 保存中オーバーレイ */}
