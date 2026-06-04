@@ -61,7 +61,6 @@ const navigationSections: NavSection[] = [
     {
         title: 'マスター・設定',
         items: [
-            { name: '協力会社', page: 'partners' },
             { name: '顧客管理', page: 'customers' },
             { name: '振込先マスター', page: 'payees', requiredRoles: ['admin'] },
             { name: '自社情報', page: 'company' },
