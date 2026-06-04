@@ -41,7 +41,22 @@ export interface PartnerWorkVolumeRow {
     amountOverridden: boolean;
 }
 
-function parseYearMonth(year: string | null, month: string | null): { start: Date; end: Date } | null {
+interface MonthRange {
+    /** PartnerWorkVolume(@db.Date) 用。DATE は時刻を持たないため UTC 00:00 基準で比較する。 */
+    start: Date;
+    end: Date;
+    /**
+     * ProjectAssignment(DateTime) 用の JST 日境界。
+     * 配置の date は実時刻入り（作成時刻が混入し 00:00 とは限らない）で、表示は jstDateKey（JST 日付）で行う。
+     * そのため月内判定も JST 日境界（= UTC では前日 15:00）で行わないと、表示日と取得範囲がズレて
+     * 隣月の日付が混入する（例: 2026-05-31T23:59Z は JST 6/1 → 5月表示で 6/1 が出る／
+     * 2026-04-30T21:00Z は JST 5/1 → 5月から漏れて 4/30 側に出る）。
+     */
+    jstStart: Date;
+    jstEnd: Date;
+}
+
+function parseYearMonth(year: string | null, month: string | null): MonthRange | null {
     if (!year || !month) return null;
     const y = Number(year);
     const m = Number(month);
@@ -49,7 +64,11 @@ function parseYearMonth(year: string | null, month: string | null): { start: Dat
     // @db.Date 列の比較は UTC 00:00 基準で行う（DATE は時刻を持たないため）
     const start = new Date(Date.UTC(y, m - 1, 1));
     const end = new Date(Date.UTC(y, m, 1));
-    return { start, end };
+    // JST 0時 = UTC 前日 15時。JST 月初/翌月初を UTC 瞬間で表したもの。
+    const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+    const jstStart = new Date(start.getTime() - JST_OFFSET_MS);
+    const jstEnd = new Date(end.getTime() - JST_OFFSET_MS);
+    return { start, end, jstStart, jstEnd };
 }
 
 function jstDateKey(d: Date): string {
@@ -146,9 +165,9 @@ export async function GET(req: NextRequest) {
         const nameById = new Map<string, string>(members.map((m) => [m.id, m.displayName]));
         nameById.set(partnerCompanyId, partnerCompany.displayName);
 
-        // 月内の配置を取得
+        // 月内の配置を取得（配置は実時刻入り DateTime で表示は JST 日付 → JST 日境界で絞る）
         const assignments = await prisma.projectAssignment.findMany({
-            where: { date: { gte: range.start, lt: range.end } },
+            where: { date: { gte: range.jstStart, lt: range.jstEnd } },
             select: {
                 id: true,
                 date: true,
