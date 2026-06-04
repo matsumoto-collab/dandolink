@@ -64,6 +64,8 @@ interface BillingBoardRowProps {
     /** ボード上の請求対象（クライアント保持・null=未選択）。請求書発行までの選択を表す。 */
     staged?: { amount: number; note?: string } | null;
     onRequest: (row: Row) => void;
+    /** 手動で「請求済み」にする（実請求の有無に依らず請求済みタブへ送る）。 */
+    onMarkBilled: (row: Row) => void;
     onUnstage?: (row: Row) => void;
     /** 見積が複数で見積金額が未設定のとき「見積を選択」を押した。 */
     onPickEstimate?: (row: Row) => void;
@@ -83,6 +85,7 @@ export default function BillingBoardRow({
     tab,
     staged,
     onRequest,
+    onMarkBilled,
     onUnstage,
     onPickEstimate,
     onHold,
@@ -150,13 +153,25 @@ export default function BillingBoardRow({
                     </div>
                 </div>
 
-                {/* 右：請求済み=請求額／請求対象=金額+取消／旧請求予定=表示のみ／それ以外=判断ボタン */}
-                <div className="flex flex-shrink-0 items-center gap-2">
+                {/* 右：請求済み=請求額(full)/手動マーク／請求対象=金額+取消／それ以外=判断ボタン */}
+                <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
                     {tab === 'billed' ? (
-                        <div className="text-right">
-                            <div className="text-[10px] text-slate-500">請求済み(税抜)</div>
-                            <div className="text-lg font-bold text-emerald-700">{yen(row.invoicedAmount)}</div>
-                        </div>
+                        row.billingStatus === 'full' ? (
+                            <div className="text-right">
+                                <div className="text-[10px] text-slate-500">請求済み(税抜)</div>
+                                <div className="text-lg font-bold text-emerald-700">{yen(row.invoicedAmount)}</div>
+                            </div>
+                        ) : (
+                            // 手動で「請求済み」にした案件（実際の請求書とは無関係）。判断に戻せるようにする。
+                            <>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                                    <CheckCircle2 className="h-3 w-3" /> 手動で請求済み
+                                </span>
+                                <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
+                                    判断に戻す
+                                </Button>
+                            </>
+                        )
                     ) : staged ? (
                         <>
                             <div className="text-right">
@@ -172,9 +187,22 @@ export default function BillingBoardRow({
                     ) : (
                         <>
                             {(tab === 'pending' || tab === 'hold') && (
-                                <Button type="button" variant="primary" onClick={() => onRequest(row)} disabled={busy}>
-                                    請求する
-                                </Button>
+                                <>
+                                    <Button type="button" variant="primary" onClick={() => onRequest(row)} disabled={busy}>
+                                        請求する
+                                    </Button>
+                                    {/* 手動で「請求済み」に（社外請求済み等）。請求済みタブへ送る。色は請求済バッジに合わせ緑系 */}
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => onMarkBilled(row)}
+                                        disabled={busy}
+                                        leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                                        className="!border-emerald-300 !text-emerald-700 hover:!border-emerald-400 hover:!bg-emerald-50 focus:!ring-emerald-400"
+                                    >
+                                        請求済み
+                                    </Button>
+                                </>
                             )}
                             {tab === 'pending' && (
                                 <>

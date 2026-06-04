@@ -6,8 +6,16 @@
  */
 import type { BillingStatus } from '@/lib/billing/billingStatus';
 
-/** 案件ごとの請求判断（'請求する' は BillingDraft 作成で表現するため列には持たない）。 */
-export type BillingDecision = 'pending' | 'hold' | 'excluded';
+/**
+ * 案件ごとの請求判断。
+ * - 'pending'  … 判断待ち
+ * - 'hold'     … まだ（保留）
+ * - 'excluded' … 対象外
+ * - 'billed'   … 請求済み（手動で「請求済み」にした案件。実請求の有無に依らずボードの「請求済み」タブへ送る）
+ *
+ * 「請求する」は決定値ではなく、ボード上で請求対象に追加（クライアント保持）→請求書発行で表現する。
+ */
+export type BillingDecision = 'pending' | 'hold' | 'excluded' | 'billed';
 
 /** 期間内の配置1件分の作業履歴。工事種別/職長は ID で返し、表示名は呼び出し側で解決する。 */
 export interface BillingBoardWorkItem {

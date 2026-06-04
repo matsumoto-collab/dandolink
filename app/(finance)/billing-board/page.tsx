@@ -68,10 +68,14 @@ function ymLabel(ym: string): string {
     return `${y}年${m}月`;
 }
 
-/** その行が現在のタブに属するか（請求済み=full はそのタブのみ、他タブは full を除外）。 */
+/**
+ * その行が現在のタブに属するか。
+ * 「請求済み」タブ＝全額請求済み(full) または 手動で「請求済み」にした案件(billingDecision='billed')。
+ * 他タブはそのいずれも除外する（請求済みは「請求済み」タブだけに出す）。
+ */
 function inTab(r: Row, tab: TabKey): boolean {
-    if (tab === 'billed') return r.billingStatus === 'full';
-    if (r.billingStatus === 'full') return false; // 全額請求済みは「請求済み」タブだけに出す
+    if (tab === 'billed') return r.billingStatus === 'full' || r.billingDecision === 'billed';
+    if (r.billingStatus === 'full' || r.billingDecision === 'billed') return false;
     if (tab === 'pending') return r.billingDecision === 'pending';
     if (tab === 'hold') return r.billingDecision === 'hold';
     return r.billingDecision === 'excluded';
@@ -610,6 +614,8 @@ export default function BillingBoardPage() {
         [setDecision],
     );
     const handleRestore = useCallback((row: Row) => setDecision(row, 'pending', '判断待ちに戻しました'), [setDecision]);
+    // 手動で「請求済み」に（社外請求済み等、実請求を介さず請求済みタブへ送る）。判断に戻すで取り消せる。
+    const handleMarkBilled = useCallback((row: Row) => setDecision(row, 'billed', '請求済みにしました'), [setDecision]);
 
     // ── 顧客ごとに請求書を作成（請求予定を介さず /api/invoices に直接発行）──────
     const handleCreateInvoiceForCustomer = useCallback(
@@ -1019,6 +1025,7 @@ export default function BillingBoardPage() {
                                                     : null
                                             }
                                             onRequest={handleRequest}
+                                            onMarkBilled={handleMarkBilled}
                                             onUnstage={unstageProject}
                                             onPickEstimate={handlePickEstimate}
                                             onHold={handleHold}
