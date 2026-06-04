@@ -11,8 +11,8 @@ import {
 const ADMIN_ROLES = ['admin', 'manager'];
 
 export type PartnerWorkVolumeRowStatus = 'draft' | 'completed';
-/** 行の費目区分。'work' = 作業費、'transport' = 運搬費。 */
-export type PartnerWorkVolumeRowType = 'work' | 'transport';
+/** 行の費目区分。'work' = 作業費、'transport' = 運搬費、'joyo' = 常用（自社メンバーが他職長班に応援で入った分）。 */
+export type PartnerWorkVolumeRowType = 'work' | 'transport' | 'joyo';
 
 export interface PartnerWorkVolumeRow {
     /** DB id（保存済み行のみ）。未保存の自動生成行は null */
@@ -138,10 +138,13 @@ export async function GET(req: NextRequest) {
         // 会社所属メンバー
         const members = await prisma.user.findMany({
             where: { companyId: partnerCompanyId },
-            select: { id: true },
+            select: { id: true, displayName: true },
         });
         const memberIds = new Set<string>(members.map((m) => m.id));
         memberIds.add(partnerCompanyId);
+        // メンバー id → 表示名（常用行の「（北野）」表記に使う）。会社本体 id も自分の表示名で引けるようにする。
+        const nameById = new Map<string, string>(members.map((m) => [m.id, m.displayName]));
+        nameById.set(partnerCompanyId, partnerCompany.displayName);
 
         // 月内の配置を取得
         const assignments = await prisma.projectAssignment.findMany({
@@ -196,17 +199,32 @@ export async function GET(req: NextRequest) {
         });
         const constructionTypeMap = new Map(constructionTypes.map((c) => [c.id, c.name]));
 
-        // 協力会社が関与する配置のみフィルタ
-        const relevantAssignments = assignments.filter((a) => {
-            if (a.assignedEmployeeId === partnerCompanyId) return true;
+        // 協力会社が関与する配置を「自社班」と「常用（他職長班への応援）」に分ける。
+        // - 自社班: assignedEmployeeId が協力会社自身 → 従来どおり案件単位で作業費/運搬費の行を生成。
+        // - 常用  : 別の職長班の配置に自社メンバー (confirmedWorkerIds) が含まれる
+        //           → (日付 × 職長) でまとめて 1 行の常用行を生成。
+        const ownTeamAssignments = assignments.filter(
+            (a) => a.assignedEmployeeId === partnerCompanyId,
+        );
+        const joyoAssignments = assignments.filter((a) => {
+            if (a.assignedEmployeeId === partnerCompanyId) return false;
             const confirmed = parseJsonField<string[]>(a.confirmedWorkerIds, []);
             return confirmed.some((id) => memberIds.has(id));
         });
+        const joyoAssignmentIdSet = new Set(joyoAssignments.map((a) => a.id));
+
+        // 常用行の現場名「{職長名}班（…）」用に、職長 (assignedEmployeeId) の表示名を引く。
+        const joyoForemanIds = Array.from(new Set(joyoAssignments.map((a) => a.assignedEmployeeId)));
+        const foremen = await prisma.user.findMany({
+            where: { id: { in: joyoForemanIds } },
+            select: { id: true, displayName: true },
+        });
+        const foremanNameById = new Map(foremen.map((f) => [f.id, f.displayName]));
 
         // 案件マスタ単位で「工事種別ID → 金額」と「工事種別名 → 金額」の両方のマップを
         // 「作業費」と「運搬費」それぞれ作る。フォールバック照合用に名前マップも持つ。
-        // relevantAssignments だけでなく、当月の全配置の案件マスタを対象にしておく
-        // （保存済み行の再算出時、その配置が relevantAssignments から外れていても引けるように）。
+        // 自社班の配置だけでなく、当月の全配置の案件マスタを対象にしておく
+        // （保存済み行の再算出時、その配置が対象配置から外れていても引けるように）。
         type AmountMaps = {
             workById: Map<string, number>;
             workByName: Map<string, number>;
@@ -267,7 +285,7 @@ export async function GET(req: NextRequest) {
             `${assignmentId}:${rowType}`;
 
         const autoRows = new Map<string, PartnerWorkVolumeRow>();
-        for (const a of relevantAssignments) {
+        for (const a of ownTeamAssignments) {
             const pm = a.projectMaster;
             const projectTitle = pm.name ? `${pm.name}${pm.honorific ?? ''}` : pm.title;
             const customerName = pm.customerShortName || pm.customerName || null;
@@ -336,6 +354,53 @@ export async function GET(req: NextRequest) {
             }
         }
 
+        // 常用 (joyo) 行: 自社メンバーが他職長班に入った配置を (日付 × 職長) でまとめて 1 行にする。
+        // 同じ職長班が同日に複数現場へ行っても 1 行。現場名 = 「{職長名}班（{メンバー名…}）」。
+        // 元請会社・担当者・案件は持たず、作業内容 = 「常用」、金額は初期 0（手入力で編集可）。
+        const joyoGroups = new Map<
+            string,
+            { date: string; foremanId: string; members: Set<string> }
+        >();
+        for (const a of joyoAssignments) {
+            const dateKey = jstDateKey(a.date);
+            const groupKey = `${dateKey}__${a.assignedEmployeeId}`;
+            let g = joyoGroups.get(groupKey);
+            if (!g) {
+                g = { date: dateKey, foremanId: a.assignedEmployeeId, members: new Set<string>() };
+                joyoGroups.set(groupKey, g);
+            }
+            const confirmed = parseJsonField<string[]>(a.confirmedWorkerIds, []);
+            for (const id of confirmed) {
+                if (memberIds.has(id)) g.members.add(id);
+            }
+        }
+        for (const g of joyoGroups.values()) {
+            const foremanName = foremanNameById.get(g.foremanId) ?? '不明';
+            const memberNames = Array.from(g.members).map((id) => nameById.get(id) ?? '不明');
+            // 会社を含めグローバル一意な合成キー（@@unique([sourceAssignmentId, rowType]) は全社横断のため）。
+            const syntheticId = `joyo:${partnerCompanyId}:${g.foremanId}:${g.date}`;
+            autoRows.set(autoRowKey(syntheticId, 'joyo'), {
+                id: null,
+                partnerCompanyId,
+                date: g.date,
+                customerName: null,
+                projectMasterId: null,
+                projectTitle: `${foremanName}班（${memberNames.join('、')}）`,
+                managerName: null,
+                constructionContent: '常用',
+                amount: 0,
+                sourceAssignmentId: syntheticId,
+                rowType: 'joyo',
+                isManual: false,
+                sortOrder: 0,
+                notes: null,
+                status: 'draft',
+                isAuto: true,
+                deletedAt: null,
+                amountOverridden: false,
+            });
+        }
+
         // 保存済み行
         const saved = await prisma.partnerWorkVolume.findMany({
             where: {
@@ -354,13 +419,26 @@ export async function GET(req: NextRequest) {
         let latestCompletedAt: Date | null = null;
         for (const row of saved) {
             const savedRowType: PartnerWorkVolumeRowType =
-                row.rowType === 'transport' ? 'transport' : 'work';
+                row.rowType === 'transport'
+                    ? 'transport'
+                    : row.rowType === 'joyo'
+                        ? 'joyo'
+                        : 'work';
             if (row.sourceAssignmentId) {
                 // 削除済みでも auto 再生成抑止のため記録
                 usedAutoKeys.add(autoRowKey(row.sourceAssignmentId, savedRowType));
             }
             // 削除済み行は通常モードでは rows に含めない（partner viewer も含めない）
             if (row.deletedAt && !includeDeleted) continue;
+            // 本改修前に「他班配置（常用）」が通常 work/transport 行として保存された残骸は表示しない
+            // （現在はグループ化した joyo 行で表すため）。usedAutoKeys へは上で登録済みなので再生成もされない。
+            if (
+                savedRowType !== 'joyo' &&
+                row.sourceAssignmentId &&
+                joyoAssignmentIdSet.has(row.sourceAssignmentId)
+            ) {
+                continue;
+            }
             if (row.completedAt && (!latestCompletedAt || row.completedAt > latestCompletedAt)) {
                 latestCompletedAt = row.completedAt;
             }
@@ -371,8 +449,15 @@ export async function GET(req: NextRequest) {
             // 金額（>0）は上書きしない。
             // ユーザーが意図的に 0 を入力したケース（amountOverridden=true）も再算出しない。
             // subcontractorCostOverride は『作業費の行』だけに適用する（運搬費は別建て）。
+            // 常用 (joyo) 行は協力業者費からの再算出対象外（金額は手入力値を保持）。
+            // savedRowType !== 'joyo' で型も 'work' | 'transport' に絞られる。
             let effectiveAmount = row.amount;
-            if (effectiveAmount === 0 && row.sourceAssignmentId && !row.amountOverridden) {
+            if (
+                effectiveAmount === 0 &&
+                row.sourceAssignmentId &&
+                !row.amountOverridden &&
+                savedRowType !== 'joyo'
+            ) {
                 const sourceAssignment = assignments.find((x) => x.id === row.sourceAssignmentId);
                 if (sourceAssignment) {
                     if (
@@ -574,7 +659,11 @@ export async function POST(req: NextRequest) {
             : {};
 
         const rowType: PartnerWorkVolumeRowType =
-            body.rowType === 'transport' ? 'transport' : 'work';
+            body.rowType === 'transport'
+                ? 'transport'
+                : body.rowType === 'joyo'
+                    ? 'joyo'
+                    : 'work';
 
         const data = {
             partnerCompanyId: body.partnerCompanyId,

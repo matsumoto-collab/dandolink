@@ -1,7 +1,7 @@
 export type PartnerWorkVolumeRowStatus = 'draft' | 'completed';
 export type PartnerWorkVolumeMonthStatus = 'draft' | 'completed';
-/** 行の費目区分。'work' = 作業費、'transport' = 運搬費。 */
-export type PartnerWorkVolumeRowType = 'work' | 'transport';
+/** 行の費目区分。'work' = 作業費、'transport' = 運搬費、'joyo' = 常用（自社メンバーが他職長班に応援で入った分）。 */
+export type PartnerWorkVolumeRowType = 'work' | 'transport' | 'joyo';
 /** 協力会社の請求税区分。'exclusive' = 税別請求、'inclusive' = 税込請求。 */
 export type PartnerTaxMode = 'exclusive' | 'inclusive';
 /** 消費税率（固定 10%）。税区分が inclusive のときフッターと PDF で消費税額の算出に使う。 */

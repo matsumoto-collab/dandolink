@@ -101,6 +101,7 @@ export default function PartnerWorkVolumeTable({
                         // セル編集可否: ページ全体 readOnly でなく、行が completed でも削除済みでもないとき
                         const cellReadOnly = readOnly || isCompleted || isDeleted;
                         const isTransport = row.rowType === 'transport';
+                        const isJoyo = row.rowType === 'joyo';
                         const rowTone = isDeleted
                             ? 'bg-rose-50/30 text-slate-400 line-through'
                             : isCompleted
@@ -109,9 +110,11 @@ export default function PartnerWorkVolumeTable({
                                     ? 'bg-amber-50/30'
                                     : isTransport
                                         ? 'bg-sky-50/40'
-                                        : row.id == null
-                                            ? 'bg-slate-50/40'
-                                            : '';
+                                        : isJoyo
+                                            ? 'bg-violet-50/40'
+                                            : row.id == null
+                                                ? 'bg-slate-50/40'
+                                                : '';
                         // 上端: 最初の行 or 前行と日付が変わるとき
                         const showAbove = !readOnly && (idx === 0 || rows[idx - 1].date !== row.date);
                         // 下端: 最後の行 or 次行と日付が変わるとき
