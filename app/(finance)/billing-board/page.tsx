@@ -967,12 +967,12 @@ export default function BillingBoardPage() {
                         const stagedCount = sc?.projectIds.length ?? 0;
                         const canInvoice = tab !== 'billed' && !!g.customerId && stagedCount > 0;
                         return (
-                            <div key={g.key} className="space-y-2">
-                                {/* 顧客ヘッダー */}
-                                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm">
+                            <div key={g.key} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                                {/* 顧客ヘッダー帯（この顧客の囲みの見出し） */}
+                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
                                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                                        <span className="text-sm font-bold text-slate-900">{g.customerName}</span>
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                        <span className="text-base font-bold text-slate-900">{g.customerName}</span>
+                                        <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] font-medium text-slate-600">
                                             {closingDayLabel(g.closingDay)}
                                         </span>
                                         {mode === 'closing' && (
@@ -1008,8 +1008,8 @@ export default function BillingBoardPage() {
                                         </div>
                                     )}
                                 </div>
-                                {/* 案件行 */}
-                                <div className="space-y-2">
+                                {/* 案件行（顧客カード内で罫線区切り） */}
+                                <div className="divide-y divide-slate-100">
                                     {g.rows.map((row) => (
                                         <BillingBoardRow
                                             key={row.id}

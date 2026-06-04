@@ -97,7 +97,7 @@ export default function BillingBoardRow({
     const shown = expanded ? row.workHistory : row.workHistory.slice(0, COLLAPSED_COUNT);
 
     return (
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+        <div className={`p-4 transition-colors ${staged ? 'bg-teal-50/50' : 'hover:bg-slate-50/60'}`}>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 {/* 左：案件情報 */}
                 <div className="min-w-0 flex-1">
