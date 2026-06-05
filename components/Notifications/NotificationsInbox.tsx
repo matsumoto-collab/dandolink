@@ -2,12 +2,13 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Bell, Check, ChevronDown, Settings, X } from 'lucide-react';
+import { Bell, Check, ChevronDown, MessageSquare, Settings, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import NotificationSettings from '@/components/Settings/NotificationSettings';
+import CustomerNotifyDialog from '@/components/Notifications/CustomerNotifyDialog';
 import { usePageVisible } from '@/hooks/useRealtimeSubscription';
 import { setAppBadge } from '@/lib/appBadge';
 import { useNavigation, PageType } from '@/contexts/NavigationContext';
@@ -71,10 +72,12 @@ const VALID_PAGES: ReadonlyArray<PageType> = [
 export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const { data: session } = useSession();
     const userId = session?.user?.id;
+    const role = session?.user?.role;
     const router = useRouter();
     const { setActivePage } = useNavigation();
 
     const [open, setOpen] = useState(false);
+    const [notifyTarget, setNotifyTarget] = useState<string | null>(null);
     const [view, setView] = useState<'list' | 'settings'>('list');
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -387,6 +390,14 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                             <ul className="divide-y divide-slate-100">
                                 {items.map((n) => {
                                     const unread = !n.readAt;
+                                    const d = (n.data ?? {}) as { milestone?: string; assigneeIds?: string[]; assignmentId?: string };
+                                    const isAdminOrManager = role === 'admin' || role === 'manager';
+                                    // 「顧客へ完了連絡」ボタンは 組立/解体の完了通知 かつ admin/manager または案件担当者 のみ表示
+                                    const canNotifyCustomer =
+                                        n.type === 'work-ended' &&
+                                        !!d.milestone &&
+                                        !!d.assignmentId &&
+                                        (isAdminOrManager || (Array.isArray(d.assigneeIds) && !!userId && d.assigneeIds.includes(userId)));
                                     return (
                                         <li key={n.id}>
                                             <button
@@ -403,6 +414,21 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                                                     <div className="mt-0.5 text-xs text-slate-600 line-clamp-2">{n.body}</div>
                                                 </span>
                                             </button>
+                                            {canNotifyCustomer && (
+                                                <div className="px-4 pb-3 -mt-1">
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setNotifyTarget(d.assignmentId!);
+                                                        }}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
+                                                    >
+                                                        <MessageSquare className="w-3.5 h-3.5" />
+                                                        顧客へ完了連絡
+                                                    </button>
+                                                </div>
+                                            )}
                                         </li>
                                     );
                                 })}
@@ -431,6 +457,12 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
         <>
             {trigger}
             {mounted && panel ? createPortal(panel, document.body) : null}
+            {mounted && notifyTarget
+                ? createPortal(
+                    <CustomerNotifyDialog assignmentId={notifyTarget} onClose={() => setNotifyTarget(null)} />,
+                    document.body
+                )
+                : null}
         </>
     );
 }
