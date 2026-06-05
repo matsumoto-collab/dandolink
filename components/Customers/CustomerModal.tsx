@@ -44,6 +44,7 @@ export default function CustomerModal({
                 <div className="flex-1 overflow-y-auto overscroll-contain px-6 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom,0px))]">
                     <CustomerForm
                         initialData={initialData}
+                        customerId={initialData?.id}
                         onSubmit={onSubmit}
                         onCancel={onClose}
                     />

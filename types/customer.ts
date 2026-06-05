@@ -4,6 +4,10 @@ export interface ContactPerson {
     name: string;
     email?: string;
     phone?: string;
+    // LINE連携: 友だち追加＋連携コード送信で確定した相手の userId（チャネル固有）。
+    // 完了連絡の送信先になる。Customer.contactPersons の JSON 内に保持。
+    lineUserId?: string;
+    lineLinkedAt?: string; // ISO 文字列
 }
 
 // 顧客の型定義

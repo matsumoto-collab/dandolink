@@ -237,6 +237,46 @@ model Customer {
   @@schema("public")
 }
 
+// LINE公式アカウントと顧客担当者(Customer.contactPersons[].id)をひも付けるための一時連携コード。
+// 担当者ごとに発行 → 顧客が友だち追加後にトークでコードを送信 → Webhookが照合し lineUserId を確定する。
+model LineLinkToken {
+  id         String    @id @default(uuid())
+  code       String    @unique
+  customerId String
+  contactId  String
+  status     String    @default("pending") // pending | linked | expired
+  lineUserId String?
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  linkedAt   DateTime?
+
+  @@index([customerId])
+  @@index([status])
+  @@schema("public")
+}
+
+// 顧客への完了連絡（LINE等）の送信履歴。二重送信防止・「送信済み」表示・監査に使う（Phase2で書き込み）。
+model CustomerNotificationLog {
+  id              String   @id @default(uuid())
+  assignmentId    String
+  projectMasterId String?
+  customerId      String?
+  contactId       String?
+  channel         String   @default("line") // line | email | sms
+  milestone       String? // assembly | demolition
+  lineUserId      String?
+  messageText     String?
+  imageCount      Int      @default(0)
+  status          String   @default("sent") // sent | failed
+  errorText       String?
+  sentBy          String?
+  sentAt          DateTime @default(now())
+
+  @@index([assignmentId])
+  @@index([projectMasterId])
+  @@schema("public")
+}
+
 model Estimate {
   id                 String   @id @default(uuid())
   estimateNumber     String   @unique

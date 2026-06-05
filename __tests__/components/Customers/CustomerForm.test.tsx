@@ -3,10 +3,18 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import CustomerForm from '@/components/Customers/CustomerForm';
 
-// lucide-react のモック
+// lucide-react のモック（CustomerForm が使用するアイコンを網羅）
 jest.mock('lucide-react', () => ({
     Plus: () => <svg data-testid="plus-icon" />,
     Trash2: () => <svg data-testid="trash-icon" />,
+    Search: () => <svg data-testid="search-icon" />,
+    MessageSquare: () => <svg data-testid="message-square-icon" />,
+}));
+
+// LINE連携モーダル（customerId 未指定の本テストでは描画されないが、import 解決のためモック）
+jest.mock('@/components/Customers/LineLinkModal', () => ({
+    __esModule: true,
+    default: () => null,
 }));
 
 // react-hot-toast のモック

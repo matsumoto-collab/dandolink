@@ -2,10 +2,15 @@ import { z } from 'zod';
 import { phoneSchema } from './common';
 
 export const contactPersonSchema = z.object({
+    id: z.string().optional(),
     name: z.string().min(1, '担当者名は必須です'),
     position: z.string().optional(),
     phone: phoneSchema,
     email: z.string().email('有効なメールアドレスを入力してください').or(z.literal('')).optional().nullable(),
+    // LINE連携情報（Webhookで確定）。zodは未知キーを除去するため、
+    // 顧客の更新で lineUserId が消えないよう明示的に許可しておく必要がある。
+    lineUserId: z.string().optional().nullable(),
+    lineLinkedAt: z.string().optional().nullable(),
 });
 
 export const createCustomerSchema = z.object({
