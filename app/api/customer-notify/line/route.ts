@@ -10,7 +10,6 @@ import {
     parseJsonField,
 } from '@/lib/api/utils';
 import { logger } from '@/lib/logger';
-import { toJstDateOnly } from '@/lib/dateUtils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { pushLineMessage, type LineMessage } from '@/lib/line';
@@ -28,6 +27,10 @@ export const runtime = 'nodejs';
 const NO_STORE = { 'Cache-Control': 'no-store' } as const;
 const SIGNED_TTL = 3600;
 const LINE_MAX_MESSAGES_PER_PUSH = 5;
+// 既定で選ぶ「この完了の写真」= 直近この時間内にアップされたもの
+const RECENT_PHOTO_MS = 24 * 60 * 60 * 1000;
+// 顧客へ送れる写真カテゴリ（survey/instruction/document など内部用は除外）
+const PHOTO_CATEGORIES = ['assembly', 'demolition', 'other'];
 
 type AssignmentWithPm = NonNullable<Awaited<ReturnType<typeof loadAssignment>>>;
 
@@ -73,11 +76,16 @@ function getLinkedContacts(customerContactPersons: string | null): ContactPerson
     return contacts.filter((c) => !!c.lineUserId);
 }
 
-/** 節目カテゴリの画像候補を取得 */
-function getCandidatePhotos(projectMasterId: string, milestone: string) {
+/**
+ * 顧客へ送れる写真候補（新しい順）。
+ * 完了に添付された写真の category は工事種別と一致しないことがある（完了UIの選択次第）ため、
+ * 節目カテゴリには限定せず、内部用カテゴリを除いた画像を候補にする。既定選択は「直近アップ分」。
+ */
+function getCandidatePhotos(projectMasterId: string) {
     return prisma.projectMasterFile.findMany({
-        where: { projectMasterId, fileType: 'image', category: milestone },
+        where: { projectMasterId, fileType: 'image', category: { in: PHOTO_CATEGORIES } },
         orderBy: { createdAt: 'desc' },
+        take: 30,
         select: { id: true, fileName: true, storagePath: true, thumbnailPath: true, createdAt: true },
     });
 }
@@ -118,8 +126,8 @@ export async function GET(req: NextRequest) {
         const allContacts = parseJsonField<ContactPerson[]>(customer?.contactPersons ?? null, []);
         const contacts = allContacts.map((c) => ({ id: c.id, name: c.name, linked: !!c.lineUserId }));
 
-        const workDay = toJstDateOnly(assignment.date).getTime();
-        const files = await getCandidatePhotos(pm.id, ms.milestone);
+        const nowMs = Date.now();
+        const files = await getCandidatePhotos(pm.id);
         const photos = await Promise.all(
             files.map(async (f) => {
                 const p = f.thumbnailPath || f.storagePath;
@@ -129,7 +137,7 @@ export async function GET(req: NextRequest) {
                     fileName: f.fileName,
                     thumbnailUrl: signed.data?.signedUrl ?? null,
                     createdAt: f.createdAt.toISOString(),
-                    isDefault: toJstDateOnly(f.createdAt).getTime() === workDay,
+                    isDefault: nowMs - f.createdAt.getTime() < RECENT_PHOTO_MS,
                 };
             })
         );
@@ -205,12 +213,12 @@ export async function POST(req: NextRequest) {
         // 文面
         const [companyName, siteTitle] = await Promise.all([getCompanyName(), buildSiteTitle(pm)]);
 
-        // 写真（既定=作業日にアップされた節目カテゴリ画像）
-        const workDay = toJstDateOnly(assignment.date).getTime();
-        const candidates = await getCandidatePhotos(pm.id, ms.milestone);
+        // 写真（既定=直近24h以内にアップされた画像＝完了時に添付したものを拾う）
+        const nowMs = Date.now();
+        const candidates = await getCandidatePhotos(pm.id);
         const selectedFiles = imageIdFilter
             ? candidates.filter((f) => imageIdFilter.includes(f.id))
-            : candidates.filter((f) => toJstDateOnly(f.createdAt).getTime() === workDay);
+            : candidates.filter((f) => nowMs - f.createdAt.getTime() < RECENT_PHOTO_MS);
 
         const imageMessages = await buildImageMessages(selectedFiles);
 
