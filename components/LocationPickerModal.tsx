@@ -149,7 +149,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
     const [parsedAddress, setParsedAddress] = useState<{ prefecture: string; city: string; location: string }>({ prefecture: '', city: '', location: '' });
     const [isReverseGeocoding, setIsReverseGeocoding] = useState(false);
     const [isGettingGps, setIsGettingGps] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
+    const searchInputRef = useRef<HTMLInputElement>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('hybrid');
     const reverseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -162,7 +162,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         setPanTarget(pos);
         setAddressLabel('');
         setParsedAddress({ prefecture: '', city: '', location: '' });
-        setSearchQuery('');
+        if (searchInputRef.current) searchInputRef.current.value = '';
         setMapType('hybrid');
     }, [isOpen, initialPosition]);
 
@@ -230,7 +230,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
 
     const handleSearch = useCallback(async (e: React.FormEvent) => {
         e.preventDefault();
-        const q = searchQuery.trim();
+        const q = (searchInputRef.current?.value ?? '').trim();
         if (!q) return;
         if (!window.google?.maps?.Geocoder) return;
         setIsSearching(true);
@@ -250,7 +250,7 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
         } finally {
             setIsSearching(false);
         }
-    }, [searchQuery]);
+    }, []);
 
     const handleConfirm = () => {
         onConfirm({
@@ -339,16 +339,16 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
                     <div className="flex-1 min-w-0 flex items-center gap-2 px-3 h-10 bg-slate-100 rounded-full">
                         <Search className="w-4 h-4 text-slate-400 shrink-0" />
                         <input
+                            ref={searchInputRef}
                             type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            enterKeyHint="search"
                             placeholder="住所・場所名で検索"
                             className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-slate-400"
                         />
                     </div>
                     <button
                         type="submit"
-                        disabled={isSearching || !searchQuery.trim()}
+                        disabled={isSearching}
                         className="shrink-0 px-4 h-10 text-sm font-medium text-white bg-slate-700 disabled:bg-slate-300 rounded-full"
                     >
                         {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : '検索'}
