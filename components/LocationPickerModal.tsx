@@ -71,7 +71,7 @@ function MapPanner({ target }: { target?: { lat: number; lng: number } }) {
     return null;
 }
 
-function MapContent({
+const MapContent = React.memo(function MapContent({
     selected,
     setSelected,
     gpsPosition,
@@ -139,7 +139,7 @@ function MapContent({
             )}
         </Map>
     );
-}
+});
 
 export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClose }: LocationPickerModalProps) {
     const [selected, setSelected] = useState<{ lat: number; lng: number }>(initialPosition ?? FALLBACK);
@@ -336,20 +336,20 @@ export function LocationPickerModal({ isOpen, initialPosition, onConfirm, onClos
             {/* 下部: 検索 */}
             <div className="border-t border-slate-200 bg-white px-4 py-3 pb-[calc(env(safe-area-inset-bottom)+12px)]">
                 <form onSubmit={handleSearch} className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center gap-2 px-3 h-10 bg-slate-100 rounded-full">
-                        <Search className="w-4 h-4 text-slate-400" />
+                    <div className="flex-1 min-w-0 flex items-center gap-2 px-3 h-10 bg-slate-100 rounded-full">
+                        <Search className="w-4 h-4 text-slate-400 shrink-0" />
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="住所・場所名で検索"
-                            className="flex-1 bg-transparent outline-none text-sm placeholder:text-slate-400"
+                            className="flex-1 min-w-0 bg-transparent outline-none text-sm placeholder:text-slate-400"
                         />
                     </div>
                     <button
                         type="submit"
                         disabled={isSearching || !searchQuery.trim()}
-                        className="px-4 h-10 text-sm font-medium text-white bg-slate-700 disabled:bg-slate-300 rounded-full"
+                        className="shrink-0 px-4 h-10 text-sm font-medium text-white bg-slate-700 disabled:bg-slate-300 rounded-full"
                     >
                         {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : '検索'}
                     </button>
