@@ -13,14 +13,14 @@ import { logger } from '@/lib/logger';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { pushLineMessage, type LineMessage } from '@/lib/line';
-import { buildCompletionMessage, milestoneFromConstructionTypeName, type MilestoneInfo } from '@/lib/customerNotice';
+import { buildCustomerMessage, workLabelFromConstructionTypeName } from '@/lib/customerNotice';
 import type { ContactPerson } from '@/types/customer';
 
 /**
- * 完了（工程の節目）を顧客担当者のLINEへ送る（ワンタップ送信）。
+ * 作業の開始/完了を顧客担当者のLINEへ送る（ワンタップ送信）。
  * - GET: ダイアログ表示用のコンテキスト（送信先・写真候補・文面・送信済み状況）
- * - POST: 実送信（テキスト＋写真。写真はWebP→JPEG変換して署名URLで渡す）
- * 認可: admin/manager または案件担当者(createdBy)。
+ * - POST: 実送信（完了はテキスト＋写真、開始はテキストのみ。写真はWebP→JPEG変換して署名URLで渡す）
+ * kind=start|complete（既定 complete）。認可: admin/manager または案件担当者(createdBy)。
  */
 export const runtime = 'nodejs';
 
@@ -47,12 +47,17 @@ function canNotify(role: string | undefined, userId: string | undefined, created
     return extractAssigneeIds(createdBy ?? undefined).includes(userId);
 }
 
-/** assignment/pm の工事種別から節目を判定（ConstructionType id→name 解決込み） */
-async function resolveMilestone(assignment: AssignmentWithPm): Promise<MilestoneInfo | null> {
+/** assignment/pm の工事種別から顧客向けの作業ラベルを解決（組立作業/解体作業/作業） */
+async function resolveWorkLabel(assignment: AssignmentWithPm): Promise<string> {
     const ctId = assignment.constructionType || assignment.projectMaster.constructionType || null;
-    if (!ctId) return null;
+    if (!ctId) return '作業';
     const ct = await prisma.constructionType.findUnique({ where: { id: ctId } }).catch(() => null);
-    return milestoneFromConstructionTypeName(ct?.name ?? ctId);
+    return workLabelFromConstructionTypeName(ct?.name ?? ctId);
+}
+
+/** クエリ/ボディの kind を 'start'|'complete' に正規化（既定は complete） */
+function parseKind(v: unknown): 'start' | 'complete' {
+    return v === 'start' ? 'start' : 'complete';
 }
 
 /** 通知本文に使う現場名（work-status と同じ組み立て） */
@@ -102,8 +107,10 @@ export async function GET(req: NextRequest) {
         const { session, error } = await requireAuth();
         if (error) return error;
 
-        const assignmentId = new URL(req.url).searchParams.get('assignmentId') || '';
+        const sp = new URL(req.url).searchParams;
+        const assignmentId = sp.get('assignmentId') || '';
         if (!assignmentId) return validationErrorResponse('assignmentId は必須です');
+        const kind = parseKind(sp.get('kind'));
 
         const assignment = await loadAssignment(assignmentId);
         if (!assignment) return notFoundResponse('配置');
@@ -113,11 +120,7 @@ export async function GET(req: NextRequest) {
             return errorResponse('この案件の顧客へ連絡する権限がありません', 403);
         }
 
-        const ms = await resolveMilestone(assignment);
-        if (!ms) {
-            // 節目以外（常用・その他）は対象外
-            return NextResponse.json({ milestone: null }, { headers: NO_STORE });
-        }
+        const workLabel = await resolveWorkLabel(assignment);
 
         const customer = pm.customerId
             ? await prisma.customer.findUnique({ where: { id: pm.customerId }, select: { id: true, name: true, contactPersons: true } })
@@ -126,40 +129,44 @@ export async function GET(req: NextRequest) {
         const allContacts = parseJsonField<ContactPerson[]>(customer?.contactPersons ?? null, []);
         const contacts = allContacts.map((c) => ({ id: c.id, name: c.name, linked: !!c.lineUserId }));
 
+        // 写真は完了連絡のみ（開始連絡はテキストのみ）
         const nowMs = Date.now();
-        const files = await getCandidatePhotos(pm.id);
-        const photos = await Promise.all(
-            files.map(async (f) => {
-                const p = f.thumbnailPath || f.storagePath;
-                const signed = await supabaseAdmin.storage.from(STORAGE_BUCKET).createSignedUrl(p, 600);
-                return {
-                    id: f.id,
-                    fileName: f.fileName,
-                    thumbnailUrl: signed.data?.signedUrl ?? null,
-                    createdAt: f.createdAt.toISOString(),
-                    isDefault: nowMs - f.createdAt.getTime() < RECENT_PHOTO_MS,
-                };
-            })
-        );
+        const photos = kind === 'complete'
+            ? await Promise.all(
+                (await getCandidatePhotos(pm.id)).map(async (f) => {
+                    const p = f.thumbnailPath || f.storagePath;
+                    const signed = await supabaseAdmin.storage.from(STORAGE_BUCKET).createSignedUrl(p, 600);
+                    return {
+                        id: f.id,
+                        fileName: f.fileName,
+                        thumbnailUrl: signed.data?.signedUrl ?? null,
+                        createdAt: f.createdAt.toISOString(),
+                        isDefault: nowMs - f.createdAt.getTime() < RECENT_PHOTO_MS,
+                    };
+                })
+            )
+            : [];
 
         const [companyName, siteTitle] = await Promise.all([getCompanyName(), buildSiteTitle(pm)]);
-        const defaultMessage = buildCompletionMessage({
+        const defaultMessage = buildCustomerMessage({
+            phase: kind,
             companyName,
             siteTitle,
-            milestoneLabel: ms.label,
+            workLabel,
             withPhotos: photos.some((p) => p.isDefault),
         });
 
         const lastSent = await prisma.customerNotificationLog.findFirst({
-            where: { assignmentId, milestone: ms.milestone, status: 'sent' },
+            where: { assignmentId, milestone: kind, status: 'sent' },
             orderBy: { sentAt: 'desc' },
             select: { sentAt: true, imageCount: true },
         });
 
         return NextResponse.json(
             {
-                milestone: ms.milestone,
-                milestoneLabel: ms.label,
+                kind,
+                workLabel,
+                phaseLabel: kind === 'start' ? '開始' : '完了',
                 project: { id: pm.id, title: pm.name || pm.title || '案件' },
                 customer: customer ? { id: customer.id, name: customer.name } : null,
                 contacts,
@@ -187,6 +194,7 @@ export async function POST(req: NextRequest) {
         const force = body?.force === true;
         const contactIdFilter: string[] | null = Array.isArray(body?.contactIds) ? body.contactIds.filter((x: unknown) => typeof x === 'string') : null;
         const imageIdFilter: string[] | null = Array.isArray(body?.imageFileIds) ? body.imageFileIds.filter((x: unknown) => typeof x === 'string') : null;
+        const kind = parseKind(body?.kind);
 
         const assignment = await loadAssignment(assignmentId);
         if (!assignment) return notFoundResponse('配置');
@@ -196,8 +204,7 @@ export async function POST(req: NextRequest) {
             return errorResponse('この案件の顧客へ連絡する権限がありません', 403);
         }
 
-        const ms = await resolveMilestone(assignment);
-        if (!ms) return validationErrorResponse('この作業は顧客通知の対象（組立/解体の完了）ではありません');
+        const workLabel = await resolveWorkLabel(assignment);
 
         const customer = pm.customerId
             ? await prisma.customer.findUnique({ where: { id: pm.customerId }, select: { id: true, name: true, contactPersons: true } })
@@ -213,17 +220,17 @@ export async function POST(req: NextRequest) {
         // 文面
         const [companyName, siteTitle] = await Promise.all([getCompanyName(), buildSiteTitle(pm)]);
 
-        // 写真（既定=直近24h以内にアップされた画像＝完了時に添付したものを拾う）
+        // 写真は完了連絡のみ（開始連絡はテキストのみ）。既定=直近24h以内のアップ＝完了時に添付したもの。
         const nowMs = Date.now();
-        const candidates = await getCandidatePhotos(pm.id);
-        const selectedFiles = imageIdFilter
-            ? candidates.filter((f) => imageIdFilter.includes(f.id))
-            : candidates.filter((f) => nowMs - f.createdAt.getTime() < RECENT_PHOTO_MS);
+        const selectedFiles = kind === 'complete'
+            ? (await getCandidatePhotos(pm.id)).filter((f) =>
+                imageIdFilter ? imageIdFilter.includes(f.id) : nowMs - f.createdAt.getTime() < RECENT_PHOTO_MS)
+            : [];
 
         const imageMessages = await buildImageMessages(selectedFiles);
 
         const text = (messageOverride && messageOverride.trim())
-            || buildCompletionMessage({ companyName, siteTitle, milestoneLabel: ms.label, withPhotos: imageMessages.length > 0 });
+            || buildCustomerMessage({ phase: kind, companyName, siteTitle, workLabel, withPhotos: imageMessages.length > 0 });
 
         const messages: LineMessage[] = [{ type: 'text', text }, ...imageMessages];
         const groups = chunk(messages, LINE_MAX_MESSAGES_PER_PUSH);
@@ -234,7 +241,7 @@ export async function POST(req: NextRequest) {
             // 二重送信防止（force=再送 のときは無視）
             if (!force) {
                 const already = await prisma.customerNotificationLog.findFirst({
-                    where: { assignmentId, milestone: ms.milestone, contactId: contact.id, status: 'sent' },
+                    where: { assignmentId, milestone: kind, contactId: contact.id, status: 'sent' },
                     select: { id: true },
                 });
                 if (already) {
@@ -261,7 +268,7 @@ export async function POST(req: NextRequest) {
                     customerId: customer?.id ?? null,
                     contactId: contact.id,
                     channel: 'line',
-                    milestone: ms.milestone,
+                    milestone: kind,
                     lineUserId: contact.lineUserId,
                     messageText: text,
                     imageCount: imageMessages.length,
@@ -280,7 +287,7 @@ export async function POST(req: NextRequest) {
             { headers: NO_STORE }
         );
     } catch (error) {
-        return serverErrorResponse('顧客への完了連絡', error);
+        return serverErrorResponse('顧客への連絡', error);
     }
 }
 

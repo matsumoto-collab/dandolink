@@ -18,8 +18,9 @@ interface PhotoOpt {
     isDefault: boolean;
 }
 interface Ctx {
-    milestone: 'assembly' | 'demolition' | null;
-    milestoneLabel?: string;
+    kind: 'start' | 'complete';
+    workLabel?: string;
+    phaseLabel?: string; // 開始 / 完了
     project?: { id: string; title: string };
     customer?: { id: string; name: string } | null;
     contacts?: ContactOpt[];
@@ -30,6 +31,7 @@ interface Ctx {
 
 interface Props {
     assignmentId: string;
+    kind: 'start' | 'complete';
     onClose: () => void;
 }
 
@@ -44,7 +46,7 @@ function toggleSet(set: Set<string>, id: string): Set<string> {
  * 完了→顧客へワンタップ送信ダイアログ。
  * GET でコンテキスト（送信先・写真候補・文面・送信済み状況）を取得し、確認のうえ POST で送信。
  */
-export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
+export default function CustomerNotifyDialog({ assignmentId, kind, onClose }: Props) {
     const [loading, setLoading] = useState(true);
     const [ctx, setCtx] = useState<Ctx | null>(null);
     const [error, setError] = useState('');
@@ -60,7 +62,7 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
             setLoading(true);
             setError('');
             try {
-                const res = await fetch(`/api/customer-notify/line?assignmentId=${encodeURIComponent(assignmentId)}`, { cache: 'no-store' });
+                const res = await fetch(`/api/customer-notify/line?assignmentId=${encodeURIComponent(assignmentId)}&kind=${kind}`, { cache: 'no-store' });
                 if (!res.ok) {
                     const j = await res.json().catch(() => ({}));
                     throw new Error(j?.error || '読み込みに失敗しました');
@@ -80,7 +82,7 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
         return () => {
             cancelled = true;
         };
-    }, [assignmentId]);
+    }, [assignmentId, kind]);
 
     const linkedContacts = (ctx?.contacts || []).filter((c) => c.linked);
     const unlinkedContacts = (ctx?.contacts || []).filter((c) => !c.linked);
@@ -99,6 +101,7 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     assignmentId,
+                    kind,
                     contactIds: [...selContacts],
                     imageFileIds: [...selPhotos],
                     messageOverride: message,
@@ -116,7 +119,7 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
         } finally {
             setSending(false);
         }
-    }, [assignmentId, selContacts, selPhotos, message, isResend]);
+    }, [assignmentId, kind, selContacts, selPhotos, message, isResend]);
 
     return (
         <div className="fixed inset-0 z-[80] flex items-end lg:items-center justify-center bg-black/50 lg:p-4" onClick={onClose}>
@@ -129,10 +132,10 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
                 {/* ヘッダー */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 flex-shrink-0">
                     <div>
-                        <h3 className="font-semibold text-slate-800">顧客へ完了連絡（LINE）</h3>
+                        <h3 className="font-semibold text-slate-800">顧客へ{kind === 'start' ? '開始' : '完了'}連絡（LINE）</h3>
                         {ctx?.project && (
                             <p className="text-xs text-slate-500 mt-0.5">
-                                {ctx.project.title}　{ctx.milestoneLabel}完了
+                                {ctx.project.title}　{ctx.workLabel}{ctx.phaseLabel}
                                 {ctx.customer ? `　/　${ctx.customer.name}` : ''}
                             </p>
                         )}
@@ -160,7 +163,7 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
                                 {done.sentCount}名へ送信{done.imageCount > 0 ? `（写真${done.imageCount}枚）` : ''}
                             </p>
                         </div>
-                    ) : !ctx || ctx.milestone === null ? (
+                    ) : !ctx ? (
                         <div className="py-8 text-center text-sm text-slate-500">この作業は顧客通知の対象ではありません。</div>
                     ) : !hasLinked ? (
                         <div className="py-6 space-y-3">
@@ -218,10 +221,10 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
                             </div>
 
                             {/* 添付写真 */}
-                            {(ctx.photos?.length ?? 0) > 0 && (
+                            {kind === 'complete' && (ctx.photos?.length ?? 0) > 0 && (
                                 <div>
                                     <div className="text-xs font-bold text-slate-700 mb-2">
-                                        添付写真（{ctx.milestoneLabel}）　{selPhotos.size}枚を選択中
+                                        添付写真　{selPhotos.size}枚を選択中
                                     </div>
                                     <div className="grid grid-cols-4 gap-2">
                                         {ctx.photos!.map((p) => {
@@ -256,7 +259,7 @@ export default function CustomerNotifyDialog({ assignmentId, onClose }: Props) {
                 </div>
 
                 {/* フッター */}
-                {!loading && !error && !done && ctx?.milestone && hasLinked && (
+                {!loading && !error && !done && ctx && hasLinked && (
                     <div className="flex items-center justify-end gap-3 px-5 py-3 border-t border-slate-200 flex-shrink-0">
                         <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">
                             送信せず閉じる

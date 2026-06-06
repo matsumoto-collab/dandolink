@@ -77,7 +77,7 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
     const { setActivePage } = useNavigation();
 
     const [open, setOpen] = useState(false);
-    const [notifyTarget, setNotifyTarget] = useState<string | null>(null);
+    const [notifyTarget, setNotifyTarget] = useState<{ assignmentId: string; kind: 'start' | 'complete' } | null>(null);
     const [view, setView] = useState<'list' | 'settings'>('list');
     const [items, setItems] = useState<NotificationItem[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
@@ -390,12 +390,13 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                             <ul className="divide-y divide-slate-100">
                                 {items.map((n) => {
                                     const unread = !n.readAt;
-                                    const d = (n.data ?? {}) as { milestone?: string; assigneeIds?: string[]; assignmentId?: string };
+                                    const d = (n.data ?? {}) as { assigneeIds?: string[]; assignmentId?: string };
                                     const isAdminOrManager = role === 'admin' || role === 'manager';
-                                    // 「顧客へ完了連絡」ボタンは 組立/解体の完了通知 かつ admin/manager または案件担当者 のみ表示
+                                    // 作業開始/完了通知に「顧客へ連絡」ボタン。admin/manager または案件担当者 のみ表示。
+                                    const notifyKind: 'start' | 'complete' | null =
+                                        n.type === 'work-started' ? 'start' : n.type === 'work-ended' ? 'complete' : null;
                                     const canNotifyCustomer =
-                                        n.type === 'work-ended' &&
-                                        !!d.milestone &&
+                                        !!notifyKind &&
                                         !!d.assignmentId &&
                                         (isAdminOrManager || (Array.isArray(d.assigneeIds) && !!userId && d.assigneeIds.includes(userId)));
                                     return (
@@ -414,18 +415,18 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
                                                     <div className="mt-0.5 text-xs text-slate-600 line-clamp-2">{n.body}</div>
                                                 </span>
                                             </button>
-                                            {canNotifyCustomer && (
+                                            {canNotifyCustomer && notifyKind && (
                                                 <div className="px-4 pb-3 -mt-1">
                                                     <button
                                                         type="button"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            setNotifyTarget(d.assignmentId!);
+                                                            setNotifyTarget({ assignmentId: d.assignmentId!, kind: notifyKind });
                                                         }}
                                                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
                                                     >
                                                         <MessageSquare className="w-3.5 h-3.5" />
-                                                        顧客へ完了連絡
+                                                        {notifyKind === 'start' ? '顧客へ開始連絡' : '顧客へ完了連絡'}
                                                     </button>
                                                 </div>
                                             )}
@@ -459,7 +460,7 @@ export default function NotificationsInbox({ variant = 'icon' }: Props) {
             {mounted && panel ? createPortal(panel, document.body) : null}
             {mounted && notifyTarget
                 ? createPortal(
-                    <CustomerNotifyDialog assignmentId={notifyTarget} onClose={() => setNotifyTarget(null)} />,
+                    <CustomerNotifyDialog assignmentId={notifyTarget.assignmentId} kind={notifyTarget.kind} onClose={() => setNotifyTarget(null)} />,
                     document.body
                 )
                 : null}

@@ -13,7 +13,6 @@ import { notifyUsers } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
 import { toJstDateOnly } from '@/lib/dateUtils';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
-import { milestoneFromConstructionTypeName } from '@/lib/customerNotice';
 
 type ImageCategory = 'assembly' | 'demolition' | 'other';
 const IMAGE_CATEGORIES: ImageCategory[] = ['assembly', 'demolition', 'other'];
@@ -225,22 +224,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
 
             const pm = assignment.projectMaster;
 
-            // 顧客への完了連絡（ワンタップ）用メタ:
-            // 組立/解体の「完了」だけ milestone を付与し、案件担当者ID(createdBy)を同梱する。
-            // 受信側(NotificationsInbox)は milestone があり、かつ admin/manager か assigneeIds に自分が含まれる場合のみボタンを出す。
-            let milestone: 'assembly' | 'demolition' | undefined;
-            let assigneeIds: string[] | undefined;
-            if (type === 'end') {
-                const ctId = assignment.constructionType || pm.constructionType || null;
-                const ctName = ctId
-                    ? (await prisma.constructionType.findUnique({ where: { id: ctId } }).catch(() => null))?.name ?? ctId
-                    : null;
-                const ms = milestoneFromConstructionTypeName(ctName);
-                if (ms) {
-                    milestone = ms.milestone;
-                    assigneeIds = extractAssigneeIds(pm.createdBy ?? undefined);
-                }
-            }
+            // 顧客への連絡（開始/完了のワンタップ）用メタ:
+            // すべての作業の開始/完了で案件担当者ID(createdBy)を同梱する。
+            // 受信側(NotificationsInbox)は assignmentId+assigneeIds があり、かつ
+            // admin/manager か assigneeIds に自分が含まれる場合のみ「顧客へ連絡」ボタンを出す。
+            const assigneeIds = extractAssigneeIds(pm.createdBy ?? undefined);
 
             const baseName = pm.name || pm.title || '案件';
             const honorific = pm.honorific || '';
@@ -279,7 +267,6 @@ export async function POST(req: NextRequest, context: RouteContext) {
                     comment: comment ?? undefined,
                     imageCategory: imageCategory ?? undefined,
                     imageCount: uploadedImageCount || undefined,
-                    milestone,
                     assigneeIds,
                 },
             });
