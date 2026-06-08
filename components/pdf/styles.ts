@@ -171,6 +171,54 @@ export function fitCellFontSize(
     return Math.max(minFontSize, Math.floor(needed * 10) / 10);
 }
 
+/**
+ * 固定幅セル内で長い文字列を概算実寸で折り返す（ハイフン無し）。
+ *
+ * react-pdf はスペースの無い連続CJK（口座名義のカタカナ等）に折り返し位置を
+ * 見つけられずセルからはみ出すため、fitCellFontSize と同じ換算
+ * （全角=1em / 半角・半角ｶﾅ=0.6em）で各文字幅を見積もり、1行の累積幅が
+ * contentWidth を超える直前に改行(\n)を挿入して返す。<Text> は \n を改行として
+ * 描画するので、セル幅は固定のまま値を複数行表示できる（フォント縮小はしない）。
+ * 既存の \n は行区切りとして尊重し、極小幅でも各行に最低1文字は残す。
+ *
+ * @param text         描画文字列（概算のため sanitize 前でも可）
+ * @param contentWidth セル内寸（cell width − 左右padding − 罫線）
+ * @param fontSize     描画フォントサイズ
+ */
+export function wrapTextToWidth(
+    text: string,
+    contentWidth: number,
+    fontSize: number,
+): string {
+    if (!text || fontSize <= 0) return text;
+    // 0.95: 概算誤差の安全マージン。縮小しないぶん fitCellFontSize より厳しめに取り、
+    //        1行が実寸でわずかに溢れて再折り返しできず（CJK）はみ出すのを防ぐ。
+    const maxUnits = (contentWidth * 0.95) / fontSize;
+    if (maxUnits <= 0) return text;
+
+    const lines: string[] = [];
+    let line = '';
+    let units = 0;
+    for (const ch of text) {
+        if (ch === '\n') {
+            lines.push(line);
+            line = '';
+            units = 0;
+            continue;
+        }
+        const w = /[\x00-\xff｡-ﾟ]/.test(ch) ? 0.6 : 1;
+        if (line !== '' && units + w > maxUnits) {
+            lines.push(line);
+            line = '';
+            units = 0;
+        }
+        line += ch;
+        units += w;
+    }
+    lines.push(line);
+    return lines.join('\n');
+}
+
 // Helper function to format currency
 export function formatCurrency(value: number): string {
     return `¥${value.toLocaleString()}`;

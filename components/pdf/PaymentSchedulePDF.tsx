@@ -3,6 +3,7 @@
 import React from 'react';
 import { Document, Page, View, StyleSheet } from '@react-pdf/renderer';
 import { Text } from './SafeText';
+import { wrapTextToWidth } from '@/components/pdf/styles';
 import type { PaymentSchedule } from '@/types/paymentSchedule';
 
 interface PaymentSchedulePDFProps {
@@ -159,11 +160,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         lineHeight: 1,
     },
-    redDot: {
-        fontSize: 13,
-        color: '#dc2626',
-        textAlign: 'center',
-        lineHeight: 1,
+    // 手数料負担マーク（フォントのグリフに依存せず View で実体の赤丸を描画）
+    feeCircle: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        backgroundColor: '#dc2626',
     },
 });
 
@@ -172,7 +174,7 @@ const COL = {
     po: 24,
     payee: 165,
     check1: 22,
-    fee: 28,
+    fee: 38, // ヘッダー「手数料」(3文字)が収まる幅
     amount: 75,
     check2: 22,
     bank: 75,
@@ -184,6 +186,10 @@ const COL = {
 };
 
 const ROWS_PER_PAGE = 22;
+
+// 口座名義セルの内寸（width − 左右padding 4+4 − 右罫線 0.5）。長い名義はこの幅で折り返す
+const HOLDER_CONTENT_WIDTH = COL.holder - 4 - 4 - 0.5;
+const HOLDER_FONT_SIZE = 8.5; // = styles.cellTextLeft.fontSize
 
 interface PageContentProps {
     rows: PaymentSchedule[];
@@ -260,7 +266,7 @@ function TableContent({ rows, startIndex }: PageContentProps) {
                             </View>
                         </View>
                         <View style={[styles.cell, { width: COL.fee }]}>
-                            {item.feeFlag && <Text style={styles.redDot}>●</Text>}
+                            {item.feeFlag && <View style={styles.feeCircle} />}
                         </View>
                         <View
                             style={[
@@ -308,7 +314,13 @@ function TableContent({ rows, startIndex }: PageContentProps) {
                                 { width: COL.holder, paddingLeft: 4, justifyContent: 'flex-start' },
                             ]}
                         >
-                            <Text style={styles.cellTextLeft}>{item.accountHolder ?? ''}</Text>
+                            <Text style={styles.cellTextLeft}>
+                                {wrapTextToWidth(
+                                    item.accountHolder ?? '',
+                                    HOLDER_CONTENT_WIDTH,
+                                    HOLDER_FONT_SIZE,
+                                )}
+                            </Text>
                         </View>
                         <View style={[styles.cell, { width: COL.check3, borderRightWidth: 0 }]}>
                             <View style={styles.checkbox}>
