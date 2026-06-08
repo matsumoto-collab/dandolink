@@ -85,7 +85,7 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
     return (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">
             <div className="flex items-center justify-between mb-4 gap-2">
-                <h2 className="text-sm font-semibold text-slate-700">月次売上（送付済み以降・作成日ベース・税込）</h2>
+                <h2 className="text-sm font-semibold text-slate-700">月次売上（送付済み以降・作成日ベース・税抜）</h2>
                 <span className="text-xs text-slate-400 text-right">フィルタの影響を受けない実績値</span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">

@@ -74,7 +74,7 @@ export interface FilterOptions {
 export interface MonthlySalesPoint {
     year: number;          // JST 年
     month: number;         // JST 月 (1-12)
-    sales: number;         // その JST 月に発行された Invoice.total(税込) 合計、cancelled 除外
+    sales: number;         // その JST 月に発行された Invoice.subtotal(税抜) 合計、cancelled 除外
     invoiceCount: number;
 }
 
@@ -284,16 +284,16 @@ export async function fetchProfitDashboardData(
 
     // 全クエリを並列実行（原価は共通エンジン computeProjectCosts に一本化）
     const [estimates, invoices, allUsers, foremanShares, constructionTypes, costMap] = await Promise.all([
-        // 見積書(最新の作成日順)
+        // 見積書(最新の作成日順)。売上は税抜(subtotal)で扱う
         prisma.estimate.findMany({
             where: { projectMasterId: { in: projectIds } },
-            select: { projectMasterId: true, total: true, costTotal: true, createdAt: true },
+            select: { projectMasterId: true, subtotal: true, costTotal: true, createdAt: true },
             orderBy: { createdAt: 'desc' },
         }),
-        // 請求書
+        // 請求書。売上は税抜(subtotal)で扱う
         prisma.invoice.findMany({
             where: { projectMasterId: { in: projectIds } },
-            select: { projectMasterId: true, total: true },
+            select: { projectMasterId: true, subtotal: true },
         }),
         // 職長名の解決（byForeman 集計用）
         prisma.user.findMany({
@@ -313,14 +313,14 @@ export async function fetchProfitDashboardData(
         computeProjectCosts(projectIds),
     ]);
 
-    // 見積書: 各案件で全件合算(追加見積書を含む。見積額の表示・売上フォールバック用)
+    // 見積書: 各案件で全件合算(追加見積書を含む。見積額の表示・売上フォールバック用)。税抜(subtotal)
     const estimateByProject = new Map<string, number>();
     const estimateCostByProject = new Map<string, number | null>();
     for (const e of estimates) {
         if (!e.projectMasterId) continue;
         estimateByProject.set(
             e.projectMasterId,
-            (estimateByProject.get(e.projectMasterId) || 0) + Number(e.total)
+            (estimateByProject.get(e.projectMasterId) || 0) + Number(e.subtotal)
         );
         if (e.costTotal != null) {
             const cur = estimateCostByProject.get(e.projectMasterId);
@@ -328,13 +328,13 @@ export async function fetchProfitDashboardData(
         }
     }
 
-    // 請求書をグループ化
+    // 請求書をグループ化。税抜(subtotal)
     const revenueByProject = new Map<string, number>();
     for (const i of invoices) {
         if (i.projectMasterId) {
             revenueByProject.set(
                 i.projectMasterId,
-                (revenueByProject.get(i.projectMasterId) || 0) + Number(i.total)
+                (revenueByProject.get(i.projectMasterId) || 0) + Number(i.subtotal)
             );
         }
     }
@@ -346,18 +346,18 @@ export async function fetchProfitDashboardData(
         const invoiceAmount = revenueByProject.get(pm.id) || 0;
         const contractAmount = Number(pm.contractAmount || 0);
 
-        // 売上フォールバック: 請求書 → 足場工事金額 → 見積金額
+        // 売上フォールバック: 請求書 → 見積金額 → 足場工事金額（案件詳細の利益タブと同順）
         let revenue = 0;
         let revenueSource: RevenueSource = 'none';
         if (invoiceAmount > 0) {
             revenue = invoiceAmount;
             revenueSource = 'invoice';
-        } else if (contractAmount > 0) {
-            revenue = contractAmount;
-            revenueSource = 'contract';
         } else if (estimateAmount > 0) {
             revenue = estimateAmount;
             revenueSource = 'estimate';
+        } else if (contractAmount > 0) {
+            revenue = contractAmount;
+            revenueSource = 'contract';
         }
 
         // 原価は共通エンジン（人件費＋車両費＋材料費＋外注費＋その他、配置ごと上書き込み）
@@ -530,7 +530,7 @@ export async function fetchProfitDashboardData(
 /**
  * 「今月の売上」とその月次推移を集計する（請求日ベース）。
  *
- * - 売上＝当該 JST 月に作成された請求書（Invoice）の total(税込) 合計。
+ * - 売上＝当該 JST 月に作成された請求書（Invoice）の subtotal(税抜) 合計。
  *   `Invoice.createdAt` が請求日（作成日）として保存されている（InvoiceForm の請求日入力 → createdAt、
  *   BillingDraft 確定経由は確定時刻）。
  * - 計上対象は **送付済み以降**（status: sent/paid/overdue）。下書き・担当確認済み・取消は除外（kei 決定 2026-06-02）。
@@ -563,7 +563,7 @@ export async function fetchMonthlySales(
             createdAt: { gte: rangeStart, lt: rangeEnd },
             status: { in: [...SALES_INVOICE_STATUSES] },
         },
-        select: { total: true, createdAt: true },
+        select: { subtotal: true, createdAt: true },
     });
 
     // 月バケットを古い順に生成（Date.UTC は月のアンダーフローを正規化＝年跨ぎ対応）
@@ -581,7 +581,7 @@ export async function fetchMonthlySales(
         const jst = new Date(inv.createdAt.getTime() + 9 * 60 * 60 * 1000);
         const idx = indexByKey.get(`${jst.getUTCFullYear()}-${jst.getUTCMonth()}`);
         if (idx == null) continue;
-        trend[idx].sales += Number(inv.total);
+        trend[idx].sales += Number(inv.subtotal);
         trend[idx].invoiceCount += 1;
     }
 
@@ -609,7 +609,7 @@ export interface MonthlyAssigneeProjectRow {
     projectId: string;          // ProjectMaster.id。'' = 案件なし請求
     projectName: string;        // 正式名称（title＝敬称・工事名称込み）
     customerName: string;       // 顧客名（無ければ ''）
-    sales: number;              // 期間内の請求書(税込)のうちこの案件ぶん
+    sales: number;              // 期間内の請求書(税抜)のうちこの案件ぶん
     cost: number;               // 案件の確定原価（computeProjectCosts。配置上書き・材料費等込み）
     grossProfit: number;
 }
@@ -639,7 +639,7 @@ const NO_CUSTOMER_KEY = '__nocustomer__';
  * 指定期間（当月 or 暦年）に **請求のあった案件** の「担当者別 / 顧客別」売上・原価・粗利を集計する。
  *
  * - 対象: 期間内に発行(createdAt)した請求書がある案件のみ（未請求の案件は一覧に出さない）。
- * - 売上: 期間内の請求書(送付済み以降, 税込 total)。複数案件まとめ請求は明細額で案件按分。
+ * - 売上: 期間内の請求書(送付済み以降, 税抜 subtotal)。複数案件まとめ請求は明細額で案件按分。
  * - 原価＝請求した案件の**確定原価**＝`computeProjectCosts`（人件費＋車両費＋材料費＋外注費＋その他、配置ごとの上書き込み）。
  *   原価の手修正は案件詳細（利益タブの配置別上書き＋案件マスタの材料費等）に一本化。ここは表示のみ。
  * - axis='assignee' は主担当（`extractAssigneeIds(createdBy)[0]`）、'customer' は案件の顧客名でグルーピング。明細は顧客名→案件名順。
@@ -668,7 +668,7 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     const [invoices, allUsers] = await Promise.all([
         prisma.invoice.findMany({
             where: { createdAt: { gte: rangeStart, lt: rangeEnd }, status: { in: [...SALES_INVOICE_STATUSES] } },
-            select: { total: true, items: true, projectMasterId: true },
+            select: { subtotal: true, items: true, projectMasterId: true },
         }),
         prisma.user.findMany({ select: { id: true, displayName: true } }),
     ]);
@@ -680,8 +680,8 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
     let projectlessSales = 0;
     const addProjectSales = (pid: string, amt: number) => salesByProject.set(pid, (salesByProject.get(pid) || 0) + amt);
     for (const inv of invoices) {
-        const total = Number(inv.total);
-        if (!total) continue;
+        const subtotal = Number(inv.subtotal); // 税抜
+        if (!subtotal) continue;
         const items = parseJsonField<Array<{ projectMasterId?: string | null; amount?: number | string | null }>>(inv.items, []);
         const projAmount = new Map<string, number>();
         for (const it of items) {
@@ -691,11 +691,11 @@ export async function fetchMonthlyAssigneeBreakdown(params: {
         }
         const totalTagged = [...projAmount.values()].reduce((s, v) => s + v, 0);
         if (projAmount.size > 0 && totalTagged > 0) {
-            for (const [pid, amt] of projAmount) addProjectSales(pid, total * (amt / totalTagged));
+            for (const [pid, amt] of projAmount) addProjectSales(pid, subtotal * (amt / totalTagged));
         } else if (inv.projectMasterId) {
-            addProjectSales(inv.projectMasterId, total);
+            addProjectSales(inv.projectMasterId, subtotal);
         } else {
-            projectlessSales += total;
+            projectlessSales += subtotal;
         }
     }
 
