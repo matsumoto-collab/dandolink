@@ -98,7 +98,7 @@ describe('SettingsPage', () => {
         fireEvent.change(input, { target: { value: 'New Vehicle' } });
         fireEvent.click(screen.getByText('追加'));
 
-        expect(mockAddVehicle).toHaveBeenCalledWith('New Vehicle');
+        expect(mockAddVehicle).toHaveBeenCalledWith('New Vehicle', null);
     });
 
     it('should update total members', () => {

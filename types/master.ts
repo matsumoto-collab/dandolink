@@ -3,6 +3,7 @@ import { ConstructionTypeMaster } from '@/types/calendar';
 export interface Vehicle {
     id: string;
     name: string;
+    dailyRate?: number | null; // 1日あたりの車両費（円）。未設定は null
 }
 
 export interface Manager {

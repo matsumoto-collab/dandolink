@@ -122,7 +122,7 @@ describe('masterStore', () => {
             expect(mockFetch).toHaveBeenCalledWith('/api/master-data/vehicles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: '新しいトラック' }),
+                body: JSON.stringify({ name: '新しいトラック', dailyRate: null }),
             });
 
             expect(useMasterStore.getState().vehicles).toContainEqual(newVehicle);
@@ -137,16 +137,17 @@ describe('masterStore', () => {
             mockFetch.mockResolvedValueOnce({ ok: true });
 
             await act(async () => {
-                await useMasterStore.getState().updateVehicle('v1', '新しい名前');
+                await useMasterStore.getState().updateVehicle('v1', '新しい名前', 2500);
             });
 
             expect(mockFetch).toHaveBeenCalledWith('/api/master-data/vehicles/v1', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: '新しい名前' }),
+                body: JSON.stringify({ name: '新しい名前', dailyRate: 2500 }),
             });
 
             expect(useMasterStore.getState().vehicles[0].name).toBe('新しい名前');
+            expect(useMasterStore.getState().vehicles[0].dailyRate).toBe(2500);
         });
 
         it('should delete vehicle', async () => {

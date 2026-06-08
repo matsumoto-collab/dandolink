@@ -29,8 +29,8 @@ interface MasterActions {
     refreshMasterData: () => Promise<void>;
 
     // Vehicle operations
-    addVehicle: (name: string) => Promise<void>;
-    updateVehicle: (id: string, name: string) => Promise<void>;
+    addVehicle: (name: string, dailyRate?: number | null) => Promise<void>;
+    updateVehicle: (id: string, name: string, dailyRate?: number | null) => Promise<void>;
     deleteVehicle: (id: string) => Promise<void>;
 
     // Member count history
@@ -139,11 +139,12 @@ export const useMasterStore = create<MasterStore>()(
         },
 
         // Vehicle operations
-        addVehicle: async (name: string) => {
+        // dailyRate は常に送信する（編集UIが名前と日額を同時に保存するため）。
+        addVehicle: async (name: string, dailyRate: number | null = null) => {
             const response = await fetch('/api/master-data/vehicles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, dailyRate }),
             });
             if (response.ok) {
                 const newVehicle = await response.json();
@@ -151,15 +152,15 @@ export const useMasterStore = create<MasterStore>()(
             }
         },
 
-        updateVehicle: async (id: string, name: string) => {
+        updateVehicle: async (id: string, name: string, dailyRate: number | null = null) => {
             const response = await fetch(`/api/master-data/vehicles/${id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name }),
+                body: JSON.stringify({ name, dailyRate }),
             });
             if (response.ok) {
                 set((state) => ({
-                    vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, name } : v)),
+                    vehicles: state.vehicles.map((v) => (v.id === id ? { ...v, name, dailyRate } : v)),
                 }));
             }
         },

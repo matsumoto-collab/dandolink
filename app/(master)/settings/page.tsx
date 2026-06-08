@@ -35,7 +35,9 @@ export default function SettingsPage() {
     const [activeTab, setActiveTab] = useState<'vehicles' | 'members' | 'constructionTypes' | 'constructionSuffixes' | 'constructionContents' | 'scaffoldingSpec' | 'billingTitles' | 'unitprices' | 'materials' | 'costmasters' | 'system' | 'notifications' | 'users' | 'partners' | 'dispatchOrder'>('vehicles');
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editingValue, setEditingValue] = useState('');
+    const [editingRate, setEditingRate] = useState(''); // 車両の日額（編集中）
     const [newItemName, setNewItemName] = useState('');
+    const [newItemRate, setNewItemRate] = useState(''); // 車両の日額（新規追加）
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     // Member count history form state
@@ -75,37 +77,59 @@ export default function SettingsPage() {
         return baseTabs;
     }, [isUserAdmin]);
 
+    // 日額入力(円)を number|null に変換。空→null。負数/非数値は null を返す（呼び出し側で弾く）。
+    const parseRate = (raw: string): number | null => {
+        const s = raw.trim();
+        if (s === '') return null;
+        const n = Number(s);
+        return Number.isFinite(n) && n >= 0 ? Math.round(n) : null;
+    };
+
     const handleAdd = () => {
         if (!newItemName.trim()) return;
 
         switch (activeTab) {
-            case 'vehicles':
-                addVehicle(newItemName.trim());
+            case 'vehicles': {
+                if (newItemRate.trim() !== '' && parseRate(newItemRate) === null) {
+                    toast.error('日額は0以上の数値で入力してください');
+                    return;
+                }
+                addVehicle(newItemName.trim(), parseRate(newItemRate));
                 break;
+            }
         }
         setNewItemName('');
+        setNewItemRate('');
     };
 
-    const handleEdit = (id: string, currentName: string) => {
+    const handleEdit = (id: string, currentName: string, currentRate?: number | null) => {
         setEditingId(id);
         setEditingValue(currentName);
+        setEditingRate(currentRate != null ? String(currentRate) : '');
     };
 
     const handleSaveEdit = () => {
         if (!editingValue.trim() || !editingId) return;
 
         switch (activeTab) {
-            case 'vehicles':
-                updateVehicle(editingId, editingValue.trim());
+            case 'vehicles': {
+                if (editingRate.trim() !== '' && parseRate(editingRate) === null) {
+                    toast.error('日額は0以上の数値で入力してください');
+                    return;
+                }
+                updateVehicle(editingId, editingValue.trim(), parseRate(editingRate));
                 break;
+            }
         }
         setEditingId(null);
         setEditingValue('');
+        setEditingRate('');
     };
 
     const handleCancelEdit = () => {
         setEditingId(null);
         setEditingValue('');
+        setEditingRate('');
     };
 
     const handleDelete = (id: string) => {
@@ -367,7 +391,7 @@ export default function SettingsPage() {
                                 </div>
 
                                 {/* Add New Item */}
-                                <div className="mb-6 flex flex-col md:flex-row gap-2">
+                                <div className="mb-2 flex flex-col md:flex-row gap-2">
                                     <input
                                         type="text"
                                         value={newItemName}
@@ -376,6 +400,22 @@ export default function SettingsPage() {
                                         className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                                         placeholder={`新しい${getTabLabel()}を追加`}
                                     />
+                                    {activeTab === 'vehicles' && (
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-slate-500">¥</span>
+                                            <input
+                                                type="number"
+                                                inputMode="numeric"
+                                                min="0"
+                                                value={newItemRate}
+                                                onChange={(e) => setNewItemRate(e.target.value)}
+                                                onKeyPress={(e) => e.key === 'Enter' && handleAdd()}
+                                                className="w-32 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 tabular-nums text-right"
+                                                placeholder="日額"
+                                            />
+                                            <span className="text-slate-500 text-sm whitespace-nowrap">/日</span>
+                                        </div>
+                                    )}
                                     <button
                                         onClick={handleAdd}
                                         className="px-4 py-2.5 bg-slate-800 text-white rounded-xl hover:bg-slate-700 transition-all duration-200 font-medium flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
@@ -384,6 +424,11 @@ export default function SettingsPage() {
                                         追加
                                     </button>
                                 </div>
+                                {activeTab === 'vehicles' && (
+                                    <p className="mb-6 text-xs text-slate-500">
+                                        日額は原価計算の車両費に使われます（1台1日あたり）。未設定の車両は車両費0円で計算されます。
+                                    </p>
+                                )}
 
                                 {/* Items List */}
                                 <div className="space-y-2">
@@ -399,9 +444,25 @@ export default function SettingsPage() {
                                                         value={editingValue}
                                                         onChange={(e) => setEditingValue(e.target.value)}
                                                         onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
-                                                        className="flex-1 px-3 py-1 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                        className="flex-1 min-w-0 px-3 py-1 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
                                                         autoFocus
                                                     />
+                                                    {activeTab === 'vehicles' && (
+                                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                                            <span className="text-slate-500 text-sm">¥</span>
+                                                            <input
+                                                                type="number"
+                                                                inputMode="numeric"
+                                                                min="0"
+                                                                value={editingRate}
+                                                                onChange={(e) => setEditingRate(e.target.value)}
+                                                                onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                                                className="w-24 px-2 py-1 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 tabular-nums text-right"
+                                                                placeholder="日額"
+                                                            />
+                                                            <span className="text-slate-500 text-xs whitespace-nowrap">/日</span>
+                                                        </div>
+                                                    )}
                                                     <button
                                                         onClick={handleSaveEdit}
                                                         className="p-2.5 text-slate-600 hover:bg-slate-50 rounded-xl transition-colors"
@@ -419,11 +480,20 @@ export default function SettingsPage() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <span className="flex-1 text-slate-900">
+                                                    <span className="flex-1 min-w-0 truncate text-slate-900">
                                                         {item.name}
                                                     </span>
+                                                    {activeTab === 'vehicles' && (
+                                                        <span className="flex-shrink-0 text-sm tabular-nums">
+                                                            {item.dailyRate != null ? (
+                                                                <span className="text-slate-700">¥{item.dailyRate.toLocaleString()}<span className="text-slate-400 text-xs">/日</span></span>
+                                                            ) : (
+                                                                <span className="text-slate-400">日額未設定</span>
+                                                            )}
+                                                        </span>
+                                                    )}
                                                     <button
-                                                        onClick={() => handleEdit(item.id, item.name)}
+                                                        onClick={() => handleEdit(item.id, item.name, item.dailyRate)}
                                                         className="p-2.5 text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
                                                         title="編集"
                                                     >

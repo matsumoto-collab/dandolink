@@ -12,8 +12,14 @@ export async function GET() {
             prisma.systemSettings.findFirst({ where: { id: 'default' } }),
         ]);
 
+        // Decimal の dailyRate は number|null に正規化して返す（クライアントは number で扱う）
+        const vehiclesOut = vehicles.map((v) => ({
+            ...v,
+            dailyRate: v.dailyRate != null ? Number(v.dailyRate) : null,
+        }));
+
         return NextResponse.json(
-            { vehicles, totalMembers: settings?.totalMembers || 20 },
+            { vehicles: vehiclesOut, totalMembers: settings?.totalMembers || 20 },
             { headers: { 'Cache-Control': 'private, max-age=10, stale-while-revalidate=60, must-revalidate' } }
         );
     } catch (error) {
