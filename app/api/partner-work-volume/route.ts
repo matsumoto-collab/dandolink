@@ -174,6 +174,7 @@ export async function GET(req: NextRequest) {
                 assignedEmployeeId: true,
                 confirmedWorkerIds: true,
                 constructionType: true,
+                isDispatchConfirmed: true,
                 subcontractorCostOverride: true,
                 projectMaster: {
                     select: {
@@ -297,6 +298,30 @@ export async function GET(req: NextRequest) {
             return 0;
         };
 
+        // 原価(computeProjectCosts)と出来高の合計を一致させるための重複排除。
+        // 原価は「案件×工事種別ごと1回・手配確定済みのみ」で外注費を計上する。出来高の自動単価も
+        // (案件×工事種別) ごとに最初の手配確定済み配置 1 件だけが持ち、残りの配置は 0 にする
+        // （行自体は日々の worklog として残す）。
+        const claimKey = (pmId: string, type: string | null) => `${pmId}::${type ?? ''}`;
+        const claimAssignmentByType = new Map<string, string>();
+        for (const a of ownTeamAssignments) {
+            if (!a.isDispatchConfirmed || !a.constructionType) continue;
+            const work = autoSubcontractorAmount(a.projectMaster.id, a.constructionType, 'work');
+            const transport = autoSubcontractorAmount(a.projectMaster.id, a.constructionType, 'transport');
+            if (work <= 0 && transport <= 0) continue; // 単価未設定の種別は代表を立てない
+            const k = claimKey(a.projectMaster.id, a.constructionType);
+            if (!claimAssignmentByType.has(k)) claimAssignmentByType.set(k, a.id);
+        }
+        // 手配確定済み & その (案件×種別) の代表配置のときだけ自動単価を返す（それ以外は 0）。上書きは含めない。
+        const dedupedAutoAmount = (
+            a: { id: string; isDispatchConfirmed: boolean; constructionType: string | null; projectMaster: { id: string } },
+            kind: 'work' | 'transport',
+        ): number => {
+            if (!a.isDispatchConfirmed || !a.constructionType) return 0;
+            if (claimAssignmentByType.get(claimKey(a.projectMaster.id, a.constructionType)) !== a.id) return 0;
+            return autoSubcontractorAmount(a.projectMaster.id, a.constructionType, kind);
+        };
+
         // 自動生成 auto row 候補
         // 1 配置に対して「作業費の行」と「運搬費の行（運搬費 > 0 のときのみ）」を生成する。
         // キーは `${assignmentId}:${rowType}` の形式。
@@ -318,37 +343,35 @@ export async function GET(req: NextRequest) {
                 ? constructionTypeMap.get(a.constructionType) ?? null
                 : null;
 
-            // 作業費の行
-            let workAmount = 0;
-            if (a.subcontractorCostOverride != null) {
-                // 配置単位の上書きは「作業費の行」側に適用する（運搬費は別建てで管理）
-                workAmount = a.subcontractorCostOverride;
-            } else {
-                workAmount = autoSubcontractorAmount(pm.id, a.constructionType, 'work');
+            // 作業費の行。上書き=外注費の総額（運搬費込み）。自動単価は (案件×種別) の代表配置のみ。
+            const override = a.subcontractorCostOverride;
+            const workAmount = override != null ? override : dedupedAutoAmount(a, 'work');
+            // 手配確定済み、または上書きのある配置だけ作業費の行を出す（未確定は原価0なので出さない）。
+            if (a.isDispatchConfirmed || override != null) {
+                autoRows.set(autoRowKey(a.id, 'work'), {
+                    id: null,
+                    partnerCompanyId,
+                    date: jstDateKey(a.date),
+                    customerName,
+                    projectMasterId: pm.id,
+                    projectTitle,
+                    managerName,
+                    constructionContent: baseContent,
+                    amount: workAmount,
+                    sourceAssignmentId: a.id,
+                    rowType: 'work',
+                    isManual: false,
+                    sortOrder: 0,
+                    notes: null,
+                    status: 'draft',
+                    isAuto: true,
+                    deletedAt: null,
+                    amountOverridden: false,
+                });
             }
-            autoRows.set(autoRowKey(a.id, 'work'), {
-                id: null,
-                partnerCompanyId,
-                date: jstDateKey(a.date),
-                customerName,
-                projectMasterId: pm.id,
-                projectTitle,
-                managerName,
-                constructionContent: baseContent,
-                amount: workAmount,
-                sourceAssignmentId: a.id,
-                rowType: 'work',
-                isManual: false,
-                sortOrder: 0,
-                notes: null,
-                status: 'draft',
-                isAuto: true,
-                deletedAt: null,
-                amountOverridden: false,
-            });
 
-            // 運搬費の行（運搬費が設定されている場合のみ生成）
-            const transportAmount = autoSubcontractorAmount(pm.id, a.constructionType, 'transport');
+            // 運搬費の行（上書き時は総額に含むため別出ししない。代表配置 & 運搬費>0 のときのみ）
+            const transportAmount = override != null ? 0 : dedupedAutoAmount(a, 'transport');
             if (transportAmount > 0) {
                 autoRows.set(autoRowKey(a.id, 'transport'), {
                     id: null,
@@ -479,17 +502,15 @@ export async function GET(req: NextRequest) {
             ) {
                 const sourceAssignment = assignments.find((x) => x.id === row.sourceAssignmentId);
                 if (sourceAssignment) {
-                    if (
-                        savedRowType === 'work' &&
-                        sourceAssignment.subcontractorCostOverride != null
-                    ) {
-                        effectiveAmount = sourceAssignment.subcontractorCostOverride;
+                    const srcOverride = sourceAssignment.subcontractorCostOverride;
+                    if (savedRowType === 'work' && srcOverride != null) {
+                        effectiveAmount = srcOverride;
+                    } else if (srcOverride != null) {
+                        // 上書きは外注費の総額を作業費側に集約するため、運搬費の行は 0
+                        effectiveAmount = 0;
                     } else {
-                        effectiveAmount = autoSubcontractorAmount(
-                            sourceAssignment.projectMaster.id,
-                            sourceAssignment.constructionType,
-                            savedRowType,
-                        );
+                        // 原価と一致させるため重複排除（手配確定済み & 案件×種別の代表配置のみ単価）
+                        effectiveAmount = dedupedAutoAmount(sourceAssignment, savedRowType);
                     }
                 }
             }
