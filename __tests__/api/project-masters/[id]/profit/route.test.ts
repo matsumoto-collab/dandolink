@@ -65,6 +65,35 @@ describe('/api/project-masters/[id]/profit', () => {
         expect(computeProjectCosts).toHaveBeenCalledWith(['proj-1'], { withDetail: true });
     });
 
+    it('見込み(見積基準)・確定(請求基準)・見積残・消化率を返す', async () => {
+        // 見積 税抜10万 / 請求 税抜9.5万 / 原価5.9万
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
+        (prisma.estimate.findMany as jest.Mock).mockResolvedValue([{ total: 110000, subtotal: 100000, costTotal: null }]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([{ total: 104500, subtotal: 95000 }]);
+        (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ totalCost: 59000 })));
+
+        const json = await (await GET(createReq(), context)).json();
+
+        expect(json.estimatedRevenue).toBe(100000);   // 見込み売上 = 見積(税抜)
+        expect(json.confirmedRevenue).toBe(95000);    // 確定売上 = 請求(税抜)
+        expect(json.isBilled).toBe(true);
+        expect(json.estimatedProfit).toBe(41000);     // 見積残 = 100000 - 59000
+        expect(json.confirmedProfit).toBe(36000);     // 確定利益 = 95000 - 59000
+        expect(json.costConsumptionRate).toBe(59);    // 消化率 = 59000/100000
+    });
+
+    it('未請求なら確定売上0・isBilled=false（見込みのみ）', async () => {
+        (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
+        (prisma.estimate.findMany as jest.Mock).mockResolvedValue([{ total: 110000, subtotal: 100000, costTotal: null }]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
+        (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ totalCost: 59000 })));
+
+        const json = await (await GET(createReq(), context)).json();
+        expect(json.isBilled).toBe(false);
+        expect(json.confirmedRevenue).toBe(0);
+        expect(json.estimatedProfit).toBe(41000);
+    });
+
     it('costBreakdown は computeProjectCosts の結果をそのまま反映する', async () => {
         (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: mockId, title: 'A', contractAmount: 0, revenueOverride: null });
         (computeProjectCosts as jest.Mock).mockResolvedValue(costResult(breakdown({ laborCost: 14400, vehicleCost: 5000, totalCost: 19400 })));

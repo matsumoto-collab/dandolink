@@ -68,8 +68,9 @@ describe('ProjectProfitDisplay', () => {
         expect(screen.getByText('¥300,000')).toBeInTheDocument();
         expect(screen.getByText('売上')).toBeInTheDocument();
         expect(screen.getByText('¥1,000,000')).toBeInTheDocument();
-        expect(screen.getByText('原価')).toBeInTheDocument();
-        expect(screen.getByText('¥700,000')).toBeInTheDocument();
+        // 「原価」「¥700,000(総原価)」は見込み/確定カードと原価行で複数箇所に出るため getAllByText
+        expect(screen.getAllByText('原価').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('¥700,000').length).toBeGreaterThan(0);
     });
 
     it('should show estimate badge when revenue source is estimate', async () => {

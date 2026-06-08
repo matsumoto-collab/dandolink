@@ -79,6 +79,19 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         const grossProfit = revenue - totalCost;
         const profitMargin = revenue > 0 ? Math.round((grossProfit / revenue) * 1000) / 10 : 0;
 
+        // 見込み(見積基準) と 確定(請求基準) を明示的に算出（すべて税抜）
+        // 見込み売上 = 手動上書き ?? 見積(税抜小計) ?? 足場工事金額
+        const estimatedRevenue = projectMaster.revenueOverride != null
+            ? projectMaster.revenueOverride
+            : (estimateSubtotal > 0 ? estimateSubtotal : contractAmount);
+        const confirmedRevenue = invoiceSubtotal;                 // 請求(税抜)。未請求は0
+        const isBilled = invoiceSubtotal > 0;
+        const estimatedProfit = estimatedRevenue - totalCost;     // 見積残（見込み利益）
+        const confirmedProfit = confirmedRevenue - totalCost;     // 確定利益（請求後）
+        const costConsumptionRate = estimatedRevenue > 0          // 原価消化率%（見積に対する原価の割合）
+            ? Math.round((totalCost / estimatedRevenue) * 1000) / 10
+            : null;
+
         return NextResponse.json({
             projectMasterId: id, projectTitle: projectMaster.title,
             revenue, revenueSource, autoRevenue, revenueOverride: projectMaster.revenueOverride,
@@ -95,6 +108,9 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 loadingCost: detail.loadingCost,
             },
             grossProfit, profitMargin,
+            // Phase4: 見込み／確定／見積残／消化率
+            estimatedRevenue, confirmedRevenue, isBilled,
+            estimatedProfit, confirmedProfit, costConsumptionRate,
         });
     } catch (error) {
         return serverErrorResponse('利益計算', error);

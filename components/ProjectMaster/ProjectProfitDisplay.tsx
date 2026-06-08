@@ -80,6 +80,13 @@ interface ProfitData {
     };
     grossProfit: number;
     profitMargin: number;
+    // Phase4: 見込み(見積基準)／確定(請求基準)／見積残／消化率
+    estimatedRevenue?: number;
+    confirmedRevenue?: number;
+    isBilled?: boolean;
+    estimatedProfit?: number;
+    confirmedProfit?: number;
+    costConsumptionRate?: number | null;
 }
 
 interface ProjectProfitDisplayProps {
@@ -105,6 +112,13 @@ const formatDateMd = (iso: string) => {
     const [, m, d] = iso.split('-');
     return `${parseInt(m, 10)}/${parseInt(d, 10)}`;
 };
+
+// 原価消化率(%)に応じたバー/文字の色。原価が見積に近づくほど危険（緑→黄→赤）。
+function consumptionColor(rate: number): { bar: string; text: string } {
+    if (rate >= 90) return { bar: 'bg-red-500', text: 'text-red-600' };
+    if (rate >= 70) return { bar: 'bg-amber-500', text: 'text-amber-600' };
+    return { bar: 'bg-emerald-500', text: 'text-emerald-600' };
+}
 
 // 編集中のドラフト値: undefined=未編集 / null=自動値に戻す / number=明示上書き
 type Draft = number | null | undefined;
@@ -310,6 +324,14 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     const revenueSource: RevenueSource = profitData.revenueSource ?? (revenue > 0 ? 'invoice' : 'none');
     const isProfit = grossProfit >= 0;
 
+    // Phase4: 見込み(見積基準)／確定(請求基準)／見積残／消化率
+    const estimatedRevenue = profitData.estimatedRevenue ?? 0;
+    const confirmedRevenue = profitData.confirmedRevenue ?? 0;
+    const isBilled = profitData.isBilled ?? false;
+    const estimatedProfit = profitData.estimatedProfit ?? (estimatedRevenue - costBreakdown.totalCost);
+    const confirmedProfit = profitData.confirmedProfit ?? (confirmedRevenue - costBreakdown.totalCost);
+    const costConsumptionRate = profitData.costConsumptionRate ?? null;
+
     type Section =
         | { key: 'labor'; label: '人件費'; amount: number; expandable: true }
         | { key: 'vehicle'; label: '車両費'; amount: number; expandable: true }
@@ -381,6 +403,72 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                         <span className={`text-sm font-medium ${getProfitMarginColor(profitMargin)}`}>利益率 {profitMargin}%</span>
                     </div>
                 </div>
+
+                {!editMode && (
+                    <div className="border-t border-slate-100 pt-4 space-y-4">
+                        {/* 見込み（見積基準） vs 確定（請求基準） */}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="rounded-xl border border-slate-200 p-3">
+                                <div className="text-xs font-medium text-slate-500 mb-2">見込み（見積基準）</div>
+                                <div className="space-y-1 text-sm">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-500">見積</span>
+                                        <span className="tabular-nums text-slate-700">{formatCurrency(estimatedRevenue)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-slate-500">原価</span>
+                                        <span className="tabular-nums text-slate-500">{formatCurrency(costBreakdown.totalCost)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                                        <span className="font-medium text-slate-600">見積残</span>
+                                        <span className={`tabular-nums font-semibold ${estimatedProfit >= 0 ? 'text-slate-900' : 'text-red-600'}`}>{formatCurrency(estimatedProfit)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="rounded-xl border border-slate-200 p-3">
+                                <div className="text-xs font-medium text-slate-500 mb-2">確定（請求基準）</div>
+                                {isBilled ? (
+                                    <div className="space-y-1 text-sm">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-slate-500">請求</span>
+                                            <span className="tabular-nums text-slate-700">{formatCurrency(confirmedRevenue)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-slate-500">原価</span>
+                                            <span className="tabular-nums text-slate-500">{formatCurrency(costBreakdown.totalCost)}</span>
+                                        </div>
+                                        <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                                            <span className="font-medium text-slate-600">利益</span>
+                                            <span className={`tabular-nums font-semibold ${confirmedProfit >= 0 ? 'text-slate-900' : 'text-red-600'}`}>{formatCurrency(confirmedProfit)}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-center h-[72px] text-sm text-slate-400">未請求</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* 原価消化率バー（緑→黄→赤） */}
+                        {costConsumptionRate != null && (() => {
+                            const c = consumptionColor(costConsumptionRate);
+                            return (
+                                <div>
+                                    <div className="flex items-center justify-between text-xs mb-1.5">
+                                        <span className="text-slate-500">原価消化率（見積に対する原価）</span>
+                                        <span className={`font-semibold tabular-nums ${c.text}`}>{costConsumptionRate}%</span>
+                                    </div>
+                                    <div className="h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                                        <div className={`h-full rounded-full ${c.bar}`} style={{ width: `${Math.min(100, Math.max(0, costConsumptionRate))}%` }} />
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                                        <span>見積 {formatCurrency(estimatedRevenue)}</span>
+                                        <span>残 {formatCurrency(estimatedProfit)}</span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
+                    </div>
+                )}
 
                 <div className="border-t border-slate-100 pt-4 space-y-2">
                     <div className="flex items-center justify-between">
