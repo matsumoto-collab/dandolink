@@ -19,15 +19,17 @@ function sanitizeFileName(name: string): string {
  * モバイル（Web Share API 対応かつファイル共有可）の場合は共有シートを使い、
  * それ以外は <a download> でダウンロードする
  */
-async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
+async function savePdfBlob(blob: Blob, fileName: string, shareTitle?: string): Promise<void> {
     const file = new File([blob], fileName, { type: 'application/pdf' });
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile && typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
         try {
-            // title/text は付けない: iOS の LINE 等がファイルとは別に「本文テキスト」として
-            // ファイル名を1通送ってしまうため。ファイル名は File.name で保持される。
-            await nav.share({ files: [file] });
+            // iOS では title/text が無いと LINE 等が共有シートの候補に出ない。
+            // そこで短いあいさつ文（例:「見積書をお送りします」）を title に渡す。
+            // この文面が LINE では本文(1通目)として送られる（ファイル名 File.name とは別物）。
+            // ファイル名そのものを送ると重複・冗長になるため、文面は意味のある定型文にする。
+            await nav.share(shareTitle ? { files: [file], title: shareTitle } : { files: [file] });
             return;
         } catch (err) {
             // ユーザーがキャンセルした場合は何もしない
@@ -75,7 +77,7 @@ export async function exportEstimatePDFReact(
         ).toBlob();
 
         const titlePart = sanitizeFileName(estimate.title || estimate.estimateNumber);
-        await savePdfBlob(blob, `${titlePart}.pdf`);
+        await savePdfBlob(blob, `${titlePart}.pdf`, '見積書をお送りします');
     } catch (error) {
         logger.error('PDF生成エラー:', error);
         throw error;
@@ -153,7 +155,7 @@ export async function exportInvoicePDFReact(
 
         const customerPart = project.customer ? `_${project.customer}${project.customerHonorific || ''}` : '';
         const titlePart = sanitizeFileName((invoice.title || invoice.invoiceNumber) + customerPart);
-        await savePdfBlob(blob, `請求書_${titlePart}.pdf`);
+        await savePdfBlob(blob, `請求書_${titlePart}.pdf`, '請求書をお送りします');
     } catch (error) {
         logger.error('PDF生成エラー:', error);
         throw error;

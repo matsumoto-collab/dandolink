@@ -16,7 +16,7 @@ function sanitizeFileName(name: string): string {
 /**
  * PDF Blob を保存する（モバイルではWeb Share対応）
  */
-async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
+async function savePdfBlob(blob: Blob, fileName: string, shareTitle?: string): Promise<void> {
     const file = new File([blob], fileName, { type: 'application/pdf' });
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -27,8 +27,9 @@ async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
         nav.canShare({ files: [file] })
     ) {
         try {
-            // title は付けない（iOSのLINE等がファイル名を本文テキストとして別送するため）
-            await nav.share({ files: [file] });
+            // iOS では title/text が無いと LINE 等が共有シートに出ないため、短い定型文を title に渡す。
+            // この文面が LINE では本文(1通目)として送られる（ファイル名そのものは送らない）。
+            await nav.share(shareTitle ? { files: [file], title: shareTitle } : { files: [file] });
             return;
         } catch (err) {
             if ((err as Error)?.name === 'AbortError') return;
@@ -75,7 +76,7 @@ export async function exportPaymentSchedulePDF(
             `支払予定表_令和${reiwaY}年${month}月${dayLabel}.pdf`
         );
 
-        await savePdfBlob(blob, fileName);
+        await savePdfBlob(blob, fileName, '支払予定表をお送りします');
     } catch (error) {
         logger.error('支払予定PDF生成エラー:', error);
         throw error;
