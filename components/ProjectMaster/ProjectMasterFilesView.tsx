@@ -99,7 +99,8 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             if (isMobile && nav.canShare && nav.share && nav.canShare({ files: [fileObj] })) {
                 try {
-                    await nav.share({ files: [fileObj], title: downloadName });
+                    // title は付けない（iOSのLINE等がファイル名を本文テキストとして別送するため）
+                    await nav.share({ files: [fileObj] });
                     return;
                 } catch (e) {
                     if ((e as Error)?.name === 'AbortError') return;

@@ -27,7 +27,8 @@ async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
         nav.canShare({ files: [file] })
     ) {
         try {
-            await nav.share({ files: [file], title: fileName });
+            // title は付けない（iOSのLINE等がファイル名を本文テキストとして別送するため）
+            await nav.share({ files: [file] });
             return;
         } catch (err) {
             if ((err as Error)?.name === 'AbortError') return;

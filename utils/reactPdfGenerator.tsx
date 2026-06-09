@@ -25,7 +25,9 @@ async function savePdfBlob(blob: Blob, fileName: string): Promise<void> {
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobile && typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
         try {
-            await nav.share({ files: [file], title: fileName });
+            // title/text は付けない: iOS の LINE 等がファイルとは別に「本文テキスト」として
+            // ファイル名を1通送ってしまうため。ファイル名は File.name で保持される。
+            await nav.share({ files: [file] });
             return;
         } catch (err) {
             // ユーザーがキャンセルした場合は何もしない
