@@ -91,7 +91,8 @@ describe('lib/projectCost / computeProjectCosts', () => {
                 },
             ],
         }]);
-        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'partner1', displayName: '協力P', role: 'partner' }]);
+        // 本番DBは role が大文字(PARTNER)で入るため、大文字でも partner と判定できることを保証
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'partner1', displayName: '協力P', role: 'PARTNER' }]);
         (prisma.worker.findMany as jest.Mock).mockResolvedValue([{ id: 'w1', dailyRate: 18000 }]);
         (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([{ id: 'ct1', name: '組立' }]);
 
@@ -175,6 +176,33 @@ describe('lib/projectCost / computeProjectCosts', () => {
         const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
         expect(r.breakdown.laborCost).toBe(90000); // 空明細(5/14)を除外し、5名×18000のみ
         expect(r.detail?.labor[0].hours).toBe(8.5); // 17hにならない
+    });
+
+    it('日報に作業者が無いときは手配確定メンバー＋職長で人件費を算出（按分・正確人数）', async () => {
+        // memberCount=0 でも 確定メンバー[m1,m2]＋職長f1 の3名で計上（=従来の1名合成より正確）
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
+            assignments: [{
+                id: 'a1', date: D, assignedEmployeeId: 'f1', isDispatchConfirmed: true, constructionType: null,
+                workers: '[]', memberCount: 0, vehicles: '[]', confirmedVehicleIds: null, confirmedWorkerIds: '["m1","m2"]',
+                laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                dailyReportWorkItems: [
+                    { id: 'wi1', startTime: '08:00', endTime: '17:00', breakMinutes: 0, workerIds: [], dailyReport: { id: 'dr1', date: D } },
+                ],
+            }],
+        }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([
+            { id: 'f1', displayName: 'F', role: 'manager', dailyRate: 18000 },
+            { id: 'm1', displayName: 'M1', role: 'worker', dailyRate: 18000 },
+            { id: 'm2', displayName: 'M2', role: 'worker', dailyRate: 18000 },
+        ]);
+        // 分母: m1,m2,f1 はこの日 540分だけ稼働（満額×3＝54,000）
+        (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
+            { startTime: '08:00', endTime: '17:00', breakMinutes: 0, workerIds: [], assignment: { workers: '[]', confirmedWorkerIds: '["m1","m2"]', assignedEmployeeId: 'f1' }, dailyReport: { date: D } },
+        ]);
+
+        const r = (await computeProjectCosts(['p1'])).get('p1')!;
+        expect(r.breakdown.laborCost).toBe(54000); // 3名×18000。memberCount=0でも1名にならない
     });
 
     it('該当しない projectId も空原価でキーを返す', async () => {

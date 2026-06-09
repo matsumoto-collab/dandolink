@@ -70,6 +70,14 @@ const calcMins = (s: string | null, e: string | null, brk: number) =>
 const jstDateStr = (d: Date) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 
+// 日報に作業者が記録されていない配置の「働いた人」フォールバック: 手配確定メンバー＋職長（重複除去）。
+// 確定メンバーが無ければ [] を返し、呼び出し側の memberCount 合成フォールバックに委ねる。
+function fallbackWorkers(confirmedJson: string | null | undefined, foremanId: string | null | undefined): string[] {
+    const conf = parseJsonField<string[]>(confirmedJson ?? null, []);
+    if (conf.length === 0) return [];
+    return foremanId && !conf.includes(foremanId) ? [...conf, foremanId] : conf;
+}
+
 /**
  * 指定案件群の原価を一括計算する。返り値は projectId → ProjectCostResult（指定 ID は必ずキーに存在）。
  */
@@ -91,7 +99,7 @@ export async function computeProjectCosts(
             assignments: {
                 select: {
                     id: true, date: true, assignedEmployeeId: true, isDispatchConfirmed: true,
-                    constructionType: true, workers: true, memberCount: true, vehicles: true, confirmedVehicleIds: true,
+                    constructionType: true, workers: true, memberCount: true, vehicles: true, confirmedVehicleIds: true, confirmedWorkerIds: true,
                     laborCostOverride: true, vehicleCostOverride: true, subcontractorCostOverride: true,
                     dailyReportWorkItems: {
                         select: {
@@ -110,8 +118,9 @@ export async function computeProjectCosts(
     const dateStrSet = new Set<string>();
     for (const pm of projectMasters) {
         for (const a of pm.assignments) {
-            if (a.assignedEmployeeId) foremanIdSet.add(a.assignedEmployeeId);
+            if (a.assignedEmployeeId) { foremanIdSet.add(a.assignedEmployeeId); workerIdSet.add(a.assignedEmployeeId); }
             for (const wid of parseJsonField<string[]>(a.workers, [])) workerIdSet.add(wid);
+            for (const wid of parseJsonField<string[]>(a.confirmedWorkerIds, [])) workerIdSet.add(wid);
             for (const wi of a.dailyReportWorkItems) {
                 for (const wid of wi.workerIds) workerIdSet.add(wid);
                 if (wi.dailyReport) dateStrSet.add(new Date(wi.dailyReport.date).toISOString().slice(0, 10));
@@ -138,11 +147,11 @@ export async function computeProjectCosts(
                 where: { dailyReport: { date: { in: [...dateStrSet].map(d => new Date(`${d}T00:00:00.000Z`)) } } },
                 select: {
                     startTime: true, endTime: true, breakMinutes: true, workerIds: true,
-                    assignment: { select: { workers: true } },
+                    assignment: { select: { workers: true, confirmedWorkerIds: true, assignedEmployeeId: true } },
                     dailyReport: { select: { date: true } },
                 },
             })
-            : Promise.resolve([] as Array<{ startTime: string | null; endTime: string | null; breakMinutes: number | null; workerIds: string[]; assignment: { workers: string | null }; dailyReport: { date: Date } | null }>),
+            : Promise.resolve([] as Array<{ startTime: string | null; endTime: string | null; breakMinutes: number | null; workerIds: string[]; assignment: { workers: string | null; confirmedWorkerIds: string | null; assignedEmployeeId: string | null }; dailyReport: { date: Date } | null }>),
     ]);
 
     const defaultDailyRate = Number(settings?.laborDailyRate ?? 18000);
@@ -155,7 +164,8 @@ export async function computeProjectCosts(
     const vehicleNameById = new Map(allVehicles.map(v => [v.id, v.name]));
     const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
     const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
-    const partnerForemanIds = new Set(foremanUsers.filter(u => u.role === 'partner').map(u => u.id));
+    // 役割はDBに大文字(PARTNER等)で入る個体があるため小文字化して判定する（他箇所と同様）。
+    const partnerForemanIds = new Set(foremanUsers.filter(u => (u.role ?? '').toLowerCase() === 'partner').map(u => u.id));
 
     // 分母: (worker|date) → その日の総作業分（全案件）
     const workerDayTotalMinutes = new Map<string, number>();
@@ -164,7 +174,10 @@ export async function computeProjectCosts(
         const mins = calcMins(it.startTime, it.endTime, it.breakMinutes || 0);
         if (mins <= 0) continue;
         const d = new Date(it.dailyReport.date).toISOString().slice(0, 10);
-        const ids = it.workerIds.length > 0 ? it.workerIds : parseJsonField<string[]>(it.assignment.workers, []);
+        const itWorkers = parseJsonField<string[]>(it.assignment.workers, []);
+        const ids = it.workerIds.length > 0
+            ? it.workerIds
+            : (itWorkers.length > 0 ? itWorkers : fallbackWorkers(it.assignment.confirmedWorkerIds, it.assignment.assignedEmployeeId));
         for (const wid of ids) {
             const key = `${wid}|${d}`;
             workerDayTotalMinutes.set(key, (workerDayTotalMinutes.get(key) || 0) + mins);
@@ -189,11 +202,11 @@ export async function computeProjectCosts(
 
             // 配置の移動(リスケ)で別日に取り残された「作業者0名の空明細」を原価から除外（二重計上防止）。
             // 配置日と同じ日(JST)の明細、または作業者のいる明細だけを採用する（別日の実作業は誤って落とさない）。
-            const aWorkersForFilter = parseJsonField<string[]>(a.workers, []);
+            const aWorkers = parseJsonField<string[]>(a.workers, []);
             const workItems = a.dailyReportWorkItems.filter(wi => {
                 if (!wi.dailyReport) return true;
                 if (jstDateStr(wi.dailyReport.date) === dateStr) return true; // 配置日と同日はそのまま
-                return !(wi.workerIds.length === 0 && aWorkersForFilter.length === 0); // 別日かつ空＝移動残骸は除外
+                return !(wi.workerIds.length === 0 && aWorkers.length === 0); // 別日かつ空＝移動残骸は除外
             });
 
             // ---- 労務費（配置単位・正確按分・上書き） ----
@@ -204,7 +217,10 @@ export async function computeProjectCosts(
                 if (mins <= 0) continue;
                 assignmentMinutes += mins;
                 const wDate = new Date(wi.dailyReport.date).toISOString().slice(0, 10);
-                let ids = wi.workerIds.length > 0 ? wi.workerIds : parseJsonField<string[]>(a.workers, []);
+                // 作業者: 日報明細 → 配置のworkers → 手配確定メンバー(＋職長) → 最後にmemberCount合成
+                let ids = wi.workerIds.length > 0
+                    ? wi.workerIds
+                    : (aWorkers.length > 0 ? aWorkers : fallbackWorkers(a.confirmedWorkerIds, a.assignedEmployeeId));
                 if (ids.length === 0) {
                     const count = a.memberCount || 1;
                     ids = Array.from({ length: count }, (_, i) => `__fb__:${wi.id}:${i}`);
