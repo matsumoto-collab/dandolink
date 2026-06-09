@@ -11,7 +11,7 @@ import type { CostBreakdown } from '@/utils/costCalculation';
  *
  * - 人件費: 日報の作業時間 × 日当を、**同日(worker,date)の全案件作業時間で正確に按分**（掛け持ち日の過大計上を防ぐ）。
  *   配置ごとに `laborCostOverride` があれば採用（`override ?? auto`）。協力業者(role=partner)職長の配置は労務に計上しない。
- * - 車両費: 配置の車両 × 車両マスタ日額。確定済みは confirmedVehicleIds(ID)、未確定は vehicles(名前)で引き当て。`vehicleCostOverride` 採用可。
+ * - 車両費: **手配確定後のみ**計上。確定済みは confirmedVehicleIds(ID) × 車両マスタ日額、未確定は0。`vehicleCostOverride` は常に採用可。
  * - 外注費: 手配確定 × partner 職長 × 工事種別単価(作業費+運搬費) を**種別ごと初回計上**。`subcontractorCostOverride` 採用可。
  * - 材料費 / その他 / 積込: `ProjectMaster.materialCost / otherExpenses / loadingCost`。
  *
@@ -24,7 +24,7 @@ export interface LaborCostRow {
     constructionTypeName: string | null;
     hours: number;
     foremanName: string | null;
-    memberCount: number;
+    workerCount: number; // 実際に原価計上した人数（日報の作業者ベース。配置のmemberCountではない）
     autoCost: number;
     override: number | null;
     effectiveCost: number;
@@ -158,9 +158,8 @@ export async function computeProjectCosts(
     const dailyRateMap = new Map<string, number>();
     for (const u of users) dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
     for (const w of workers) if (!dailyRateMap.has(w.id)) dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
-    // 配置の vehicles は「車両名」、confirmedVehicleIds は「車両ID」で保存されるため両方の引き当てを用意する
+    // 車両費は手配確定後のみ計上＝confirmedVehicleIds(ID)で日額を引き当てる
     const vehicleRateById = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
-    const vehicleRateByName = new Map(allVehicles.map(v => [v.name, Number(v.dailyRate || 0)]));
     const vehicleNameById = new Map(allVehicles.map(v => [v.id, v.name]));
     const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
     const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
@@ -211,6 +210,7 @@ export async function computeProjectCosts(
 
             // ---- 労務費（配置単位・正確按分・上書き） ----
             let raw = 0, assignmentMinutes = 0;
+            const workerIdsCosted = new Set<string>(); // 実際に計上した作業者（人数表示用）
             for (const wi of workItems) {
                 if (!wi.dailyReport) continue;
                 const mins = calcMins(wi.startTime, wi.endTime, wi.breakMinutes || 0);
@@ -227,6 +227,7 @@ export async function computeProjectCosts(
                     for (const wid of ids) workerDayTotalMinutes.set(`${wid}|${wDate}`, mins);
                 }
                 for (const wid of ids) {
+                    workerIdsCosted.add(wid);
                     const total = workerDayTotalMinutes.get(`${wid}|${wDate}`) || mins;
                     const rate = dailyRateMap.get(wid) ?? defaultDailyRate;
                     raw += rate * (mins / total);
@@ -240,21 +241,21 @@ export async function computeProjectCosts(
                     laborRows.push({
                         assignmentId: a.id, date: dateStr, constructionTypeName: ctName,
                         hours: Math.round((assignmentMinutes / 60) * 10) / 10,
-                        foremanName, memberCount: a.memberCount || 0,
+                        foremanName, workerCount: workerIdsCosted.size,
                         autoCost: autoLabor, override: a.laborCostOverride, effectiveCost: effLabor,
                     });
                 }
             }
 
-            // ---- 車両費（手配表カードと同じ解決: 確定済みは confirmedVehicleIds[ID]優先、未確定は vehicles[名前]） ----
+            // ---- 車両費（手配確定後のみ計上。確定済み=confirmedVehicleIds(ID)で計上、未確定は0。手動上書きは常に有効） ----
+            // 予定段階の車両(当日その車両で行けるかは前日頃に決まる)は原価に載せない（kei方針2026-06-09）。
             const confirmedVehIds = parseJsonField<string[]>(a.confirmedVehicleIds, []);
-            const useConfirmedVeh = a.isDispatchConfirmed && confirmedVehIds.length > 0;
-            const vehNames = useConfirmedVeh
+            const vehNames = a.isDispatchConfirmed
                 ? confirmedVehIds.map(vid => vehicleNameById.get(vid) ?? '不明')
-                : parseJsonField<string[]>(a.vehicles, []);
-            const autoVeh = useConfirmedVeh
+                : [];
+            const autoVeh = a.isDispatchConfirmed
                 ? confirmedVehIds.reduce((s, vid) => s + (vehicleRateById.get(vid) || 0), 0)
-                : vehNames.reduce((s, name) => s + (vehicleRateByName.get(name) || 0), 0);
+                : 0;
             const effVeh = a.vehicleCostOverride != null ? a.vehicleCostOverride : autoVeh;
             vehicleCost += effVeh;
             if (opts.withDetail && (vehNames.length > 0 || a.vehicleCostOverride != null)) {

@@ -105,7 +105,7 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect((r.detail?.subcontractor ?? []).reduce((s, x) => s + x.effectiveCost, 0)).toBe(85000);
     });
 
-    it('車両費: 未確定は vehicles(名前)・確定済みは confirmedVehicleIds(ID)で車両マスタ日額を引き当てる', async () => {
+    it('車両費: 手配確定後のみ計上（未確定は0、確定済みはconfirmedVehicleIds、上書きはゲートを貫通）', async () => {
         (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([
             { id: 'v1', name: '軽トラ', dailyRate: 3000 },
             { id: 'v2', name: '2tダンプ', dailyRate: 5000 },
@@ -113,18 +113,25 @@ describe('lib/projectCost / computeProjectCosts', () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
             id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
             assignments: [
-                // 未確定: 名前で引き当て（3000 + 5000 = 8000）
+                // 未確定: 計画車両があっても車両費は0
                 {
                     id: 'a1', date: D, assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
                     workers: '[]', memberCount: 0, vehicles: '["軽トラ","2tダンプ"]', confirmedVehicleIds: null,
                     laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
                     dailyReportWorkItems: [],
                 },
-                // 確定済み: ID で引き当て（v1=3000）。vehicles(名前)が残っていても confirmedVehicleIds を優先
+                // 確定済み: confirmedVehicleIds(v1=3000)で計上
                 {
                     id: 'a2', date: D, assignedEmployeeId: 'f1', isDispatchConfirmed: true, constructionType: null,
                     workers: '[]', memberCount: 0, vehicles: '["2tダンプ"]', confirmedVehicleIds: '["v1"]',
                     laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                    dailyReportWorkItems: [],
+                },
+                // 未確定でも手動上書きは有効（5000計上）
+                {
+                    id: 'a3', date: D, assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
+                    workers: '[]', memberCount: 0, vehicles: '[]', confirmedVehicleIds: null,
+                    laborCostOverride: null, vehicleCostOverride: 5000, subcontractorCostOverride: null,
                     dailyReportWorkItems: [],
                 },
             ],
@@ -132,10 +139,10 @@ describe('lib/projectCost / computeProjectCosts', () => {
         (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'f1', displayName: 'F', role: 'manager' }]);
 
         const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
-        expect(r.breakdown.vehicleCost).toBe(8000 + 3000); // 未確定8000 + 確定3000
-        // 明細の車両名は実際の名前で出る（確定済みは ID→名前 解決）
+        expect(r.breakdown.vehicleCost).toBe(0 + 3000 + 5000); // 未確定0 + 確定3000 + 上書き5000
+        // 明細の車両名は確定済みa2のみ（軽トラ）。未確定a1は行なし
         const allNames = (r.detail?.vehicle ?? []).flatMap(v => v.vehicleNames);
-        expect(allNames).toEqual(expect.arrayContaining(['軽トラ', '2tダンプ']));
+        expect(allNames).toEqual(['軽トラ']);
     });
 
     it('明細の日付は配置日をJSTで表示する（UTC夜間タイムスタンプでも前日にズレない）', async () => {
@@ -201,8 +208,9 @@ describe('lib/projectCost / computeProjectCosts', () => {
             { startTime: '08:00', endTime: '17:00', breakMinutes: 0, workerIds: [], assignment: { workers: '[]', confirmedWorkerIds: '["m1","m2"]', assignedEmployeeId: 'f1' }, dailyReport: { date: D } },
         ]);
 
-        const r = (await computeProjectCosts(['p1'])).get('p1')!;
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
         expect(r.breakdown.laborCost).toBe(54000); // 3名×18000。memberCount=0でも1名にならない
+        expect(r.detail?.labor[0].workerCount).toBe(3); // 表示人数=実計上人数(確定メンバー2＋職長1)。a.memberCount(0)ではない
     });
 
     it('該当しない projectId も空原価でキーを返す', async () => {

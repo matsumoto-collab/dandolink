@@ -24,7 +24,7 @@ interface LaborRow {
     constructionTypeName: string | null;
     hours: number;
     foremanName: string | null;
-    memberCount: number;
+    workerCount: number;
     autoCost: number;
     override: number | null;
     effectiveCost: number;
@@ -599,7 +599,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                                 breakdown?.labor.length ? breakdown.labor.map(r => (
                                                     <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
                                                         <span className="flex-1 min-w-0 truncate">
-                                                            {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.hours}h　{r.foremanName ?? '未割当'}　{r.memberCount}名
+                                                            {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.hours}h　{r.foremanName ?? '未割当'}　{r.workerCount}名
                                                         </span>
                                                         <AmountCell
                                                             editMode={editMode}
