@@ -4,6 +4,8 @@ import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, va
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
 import { batchUpdateAssignmentsSchema, validateRequest } from '@/lib/validations';
+import { logger } from '@/lib/logger';
+import { relocateAssignmentWorkItems } from '@/lib/relocateWorkItems';
 
 /**
  * POST /api/assignments/batch - 配置の一括更新
@@ -54,6 +56,17 @@ export async function POST(req: NextRequest) {
             }
         }
 
+        // 日付変更を含む更新の旧日付を控える（リスケ後に作業明細を新日付へ移送するため）
+        const dateChanges = updates.filter(u => u.data.date !== undefined);
+        const oldDateMap = new Map<string, Date>();
+        if (dateChanges.length > 0) {
+            const recs = await prisma.projectAssignment.findMany({
+                where: { id: { in: dateChanges.map(u => u.id) } },
+                select: { id: true, date: true },
+            });
+            for (const r of recs) oldDateMap.set(r.id, r.date);
+        }
+
         const results = await prisma.$transaction(
             updates.map(update => {
                 const updateData: Record<string, unknown> = {};
@@ -77,6 +90,17 @@ export async function POST(req: NextRequest) {
                 });
             })
         );
+
+        // 別日へ動かした配置は、旧日付に残る作業明細を新日付へ移送（孤児化＝原価二重計上を防止）
+        for (const u of dateChanges) {
+            const oldDate = oldDateMap.get(u.id);
+            if (!oldDate) continue;
+            try {
+                await relocateAssignmentWorkItems(u.id, oldDate, new Date(u.data.date!), session!.user.id);
+            } catch (e) {
+                logger.error('[assignments batch] 作業明細の移送に失敗', e);
+            }
+        }
 
         return NextResponse.json({ success: true, count: results.length, results: results.map(r => ({ id: r.id, updatedAt: r.updatedAt, updatedBy: r.updatedBy })) });
     } catch (error) {

@@ -11,6 +11,7 @@ import {
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
 import { logger } from '@/lib/logger';
+import { relocateAssignmentWorkItems } from '@/lib/relocateWorkItems';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -135,6 +136,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             data: updateData,
             include: { projectMaster: true, assignmentWorkers: true, assignmentVehicles: true },
         });
+
+        // 配置を別日へ動かしたら、旧日付に残る作業明細を新日付の日報へ移送（孤児化＝原価二重計上を防止）
+        if (current && body.date !== undefined) {
+            try {
+                await relocateAssignmentWorkItems(id, current.date, assignment.date, session!.user.id);
+            } catch (e) {
+                logger.error('[assignments PATCH] 作業明細の移送に失敗', e);
+            }
+        }
 
         // 変更履歴記録: date / assignedEmployeeId の変更があったら記録
         if (current && willRecordHistory) {
