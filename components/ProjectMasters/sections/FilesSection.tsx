@@ -300,7 +300,10 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                 canShare?: (data: { files: File[] }) => boolean;
                 share?: (data: { files: File[]; title?: string }) => Promise<void>;
             };
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            // iPadOS 13+ の Safari は UA を Mac と名乗るため iPad 文字列で判定不可。
+            // タッチ可能(maxTouchPoints>1)な Mac を iPad とみなす（本物の Mac は 0）。
+            const isIpadOS = /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || isIpadOS;
             if (isMobile && nav.canShare && nav.share && nav.canShare({ files: [fileObj] })) {
                 try {
                     // title は付けない（iOSのLINE等がファイル名を本文テキストとして別送するため）

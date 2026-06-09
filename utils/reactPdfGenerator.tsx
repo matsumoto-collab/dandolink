@@ -22,7 +22,10 @@ function sanitizeFileName(name: string): string {
 async function savePdfBlob(blob: Blob, fileName: string, shareTitle?: string): Promise<void> {
     const file = new File([blob], fileName, { type: 'application/pdf' });
     const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    // iPadOS 13+ の Safari は UA を Mac と名乗るため iPad 文字列で判定不可。
+    // タッチ可能(maxTouchPoints>1)な Mac を iPad とみなす（本物の Mac は 0）。
+    const isIpadOS = /Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || isIpadOS;
     if (isMobile && typeof nav.share === 'function' && typeof nav.canShare === 'function' && nav.canShare({ files: [file] })) {
         try {
             // iOS では title/text が無いと LINE 等が共有シートの候補に出ない。
