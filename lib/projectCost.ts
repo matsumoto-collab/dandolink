@@ -66,6 +66,10 @@ function emptyBreakdown(): CostBreakdown {
 const calcMins = (s: string | null, e: string | null, brk: number) =>
     (!s || !e) ? 0 : Math.max(0, calcTimeDiffMinutes(s, e) - brk);
 
+// 配置日の表示用キー。JST基準（UTCスライスだと夜間タイムスタンプが前日にズレるため）。
+const jstDateStr = (d: Date) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+
 /**
  * 指定案件群の原価を一括計算する。返り値は projectId → ProjectCostResult（指定 ID は必ずキーに存在）。
  */
@@ -178,14 +182,23 @@ export async function computeProjectCosts(
         const subRows: SubcontractorCostRow[] = [];
 
         for (const a of pm.assignments) {
-            const dateStr = new Date(a.date).toISOString().slice(0, 10);
+            const dateStr = jstDateStr(a.date);
             const ctName = a.constructionType ? (ctNameMap.get(a.constructionType) ?? null) : null;
             const foremanName = foremanNameMap.get(a.assignedEmployeeId) ?? null;
             const isPartnerForeman = partnerForemanIds.has(a.assignedEmployeeId);
 
+            // 配置の移動(リスケ)で別日に取り残された「作業者0名の空明細」を原価から除外（二重計上防止）。
+            // 配置日と同じ日(JST)の明細、または作業者のいる明細だけを採用する（別日の実作業は誤って落とさない）。
+            const aWorkersForFilter = parseJsonField<string[]>(a.workers, []);
+            const workItems = a.dailyReportWorkItems.filter(wi => {
+                if (!wi.dailyReport) return true;
+                if (jstDateStr(wi.dailyReport.date) === dateStr) return true; // 配置日と同日はそのまま
+                return !(wi.workerIds.length === 0 && aWorkersForFilter.length === 0); // 別日かつ空＝移動残骸は除外
+            });
+
             // ---- 労務費（配置単位・正確按分・上書き） ----
             let raw = 0, assignmentMinutes = 0;
-            for (const wi of a.dailyReportWorkItems) {
+            for (const wi of workItems) {
                 if (!wi.dailyReport) continue;
                 const mins = calcMins(wi.startTime, wi.endTime, wi.breakMinutes || 0);
                 if (mins <= 0) continue;

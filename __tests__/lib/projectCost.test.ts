@@ -137,6 +137,46 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect(allNames).toEqual(expect.arrayContaining(['軽トラ', '2tダンプ']));
     });
 
+    it('明細の日付は配置日をJSTで表示する（UTC夜間タイムスタンプでも前日にズレない）', async () => {
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
+            assignments: [{
+                id: 'a1', date: new Date('2026-05-14T23:32:35.268Z'), assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
+                workers: '[]', memberCount: 0, vehicles: '[]', confirmedVehicleIds: null,
+                laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                dailyReportWorkItems: [],
+            }],
+        }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'f1', displayName: 'F', role: 'manager' }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.detail?.labor[0].date).toBe('2026-05-15'); // JST。UTCスライスだと 2026-05-14 になってしまう
+    });
+
+    it('配置移動(リスケ)で別日に残った空明細(0名)は原価に二重計上しない', async () => {
+        const real = { id: 'wi-real', startTime: '08:00', endTime: '16:30', breakMinutes: 0, workerIds: ['w1', 'w2', 'w3', 'w4', 'w5'], dailyReport: { id: 'dr15', date: new Date('2026-05-15T00:00:00.000Z') } };
+        const orphan = { id: 'wi-orphan', startTime: '08:00', endTime: '16:30', breakMinutes: 0, workerIds: [], dailyReport: { id: 'dr14', date: new Date('2026-05-14T00:00:00.000Z') } };
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
+            assignments: [{
+                id: 'a1', date: new Date('2026-05-14T23:32:35.268Z'), assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
+                workers: '[]', memberCount: 5, vehicles: '[]', confirmedVehicleIds: null,
+                laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                dailyReportWorkItems: [real, orphan],
+            }],
+        }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'f1', displayName: 'F', role: 'manager' }]);
+        (prisma.worker.findMany as jest.Mock).mockResolvedValue(['w1', 'w2', 'w3', 'w4', 'w5'].map(id => ({ id, dailyRate: 18000 })));
+        // 分母: 5名はいずれも 5/15 に 510分だけ稼働（満額×5＝90,000になる想定）
+        (prisma.dailyReportWorkItem.findMany as jest.Mock).mockResolvedValue([
+            { startTime: '08:00', endTime: '16:30', breakMinutes: 0, workerIds: ['w1', 'w2', 'w3', 'w4', 'w5'], assignment: { workers: '[]' }, dailyReport: { date: new Date('2026-05-15T00:00:00.000Z') } },
+        ]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.breakdown.laborCost).toBe(90000); // 空明細(5/14)を除外し、5名×18000のみ
+        expect(r.detail?.labor[0].hours).toBe(8.5); // 17hにならない
+    });
+
     it('該当しない projectId も空原価でキーを返す', async () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
         const map = await computeProjectCosts(['none']);
