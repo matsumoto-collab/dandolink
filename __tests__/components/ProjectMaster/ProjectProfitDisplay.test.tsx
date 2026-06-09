@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import ProjectProfitDisplay from '@/components/ProjectMaster/ProjectProfitDisplay';
 
 jest.mock('@/components/ui/Loading', () => ({
@@ -205,5 +205,39 @@ describe('ProjectProfitDisplay', () => {
         global.fetch = jest.fn(() => new Promise(() => { })) as jest.Mock;
         render(<ProjectProfitDisplay projectMasterId="pm123" />);
         expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/pm123/profit', { cache: 'no-store' });
+    });
+
+    it('編集モードで車両費・外注費の明細が自動展開され、行ごとに編集できる', async () => {
+        const dataWithDetail = {
+            ...mockProfitData,
+            breakdown: {
+                labor: [],
+                vehicle: [
+                    { assignmentId: 'asg-veh', date: '2026-06-10', vehicleNames: ['軽トラ'], autoCost: 3000, override: null, effectiveCost: 3000 },
+                ],
+                subcontractor: [
+                    { assignmentId: 'asg-sub', date: '2026-06-10', constructionTypeName: '組立', foremanName: '協力P', autoCost: 80000, override: null, effectiveCost: 80000 },
+                ],
+                materialCost: 100000,
+                otherExpenses: 20000,
+                loadingCost: 50000,
+            },
+        };
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, json: () => Promise.resolve(dataWithDetail) })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+        await waitFor(() => expect(screen.getByText('利益サマリー')).toBeInTheDocument());
+
+        // 編集前は明細が折りたたまれ、入力欄は出ていない
+        expect(screen.queryByDisplayValue('3000')).not.toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('編集'));
+
+        // 編集に入ると車両費(3000)・外注費(80000)の明細が自動展開され、行ごとの入力欄が出る
+        await waitFor(() => expect(screen.getByDisplayValue('3000')).toBeInTheDocument());
+        expect(screen.getByDisplayValue('80000')).toBeInTheDocument();
+        expect(screen.getByText(/軽トラ/)).toBeInTheDocument();
     });
 });

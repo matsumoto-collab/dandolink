@@ -245,6 +245,12 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
         return n;
     }, [drafts]);
 
+    const enterEditMode = () => {
+        setEditMode(true);
+        // 編集時は配置（日付）ごとの明細を自動展開し、人件費・車両費・外注費をその場で直接編集できるようにする
+        setOpenSections(prev => ({ ...prev, labor: true, vehicle: true, subcontractor: true }));
+    };
+
     const cancelEdit = () => {
         setDrafts(emptyDrafts);
         setEditMode(false);
@@ -356,7 +362,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                 {!editMode ? (
                     <button
                         type="button"
-                        onClick={() => setEditMode(true)}
+                        onClick={enterEditMode}
                         className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white"
                     >
                         <Pencil className="w-3.5 h-3.5" />
@@ -527,6 +533,11 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
 
                 <div className="border-t border-slate-100 pt-4">
                     <h4 className="text-sm font-semibold text-slate-700 mb-3">原価内訳</h4>
+                    {editMode && (
+                        <p className="text-xs text-slate-500 -mt-2 mb-3">
+                            人件費・車両費・外注費は明細の<span className="font-medium text-slate-600">行ごと</span>に、材料費・積込費・その他は<span className="font-medium text-slate-600">合計</span>を入力できます。
+                        </p>
+                    )}
                     <div className="divide-y divide-slate-100">
                         {sections.map(section => {
                             const opened = !!openSections[section.key];
