@@ -104,6 +104,39 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect((r.detail?.subcontractor ?? []).reduce((s, x) => s + x.effectiveCost, 0)).toBe(85000);
     });
 
+    it('車両費: 未確定は vehicles(名前)・確定済みは confirmedVehicleIds(ID)で車両マスタ日額を引き当てる', async () => {
+        (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([
+            { id: 'v1', name: '軽トラ', dailyRate: 3000 },
+            { id: 'v2', name: '2tダンプ', dailyRate: 5000 },
+        ]);
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
+            assignments: [
+                // 未確定: 名前で引き当て（3000 + 5000 = 8000）
+                {
+                    id: 'a1', date: D, assignedEmployeeId: 'f1', isDispatchConfirmed: false, constructionType: null,
+                    workers: '[]', memberCount: 0, vehicles: '["軽トラ","2tダンプ"]', confirmedVehicleIds: null,
+                    laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                    dailyReportWorkItems: [],
+                },
+                // 確定済み: ID で引き当て（v1=3000）。vehicles(名前)が残っていても confirmedVehicleIds を優先
+                {
+                    id: 'a2', date: D, assignedEmployeeId: 'f1', isDispatchConfirmed: true, constructionType: null,
+                    workers: '[]', memberCount: 0, vehicles: '["2tダンプ"]', confirmedVehicleIds: '["v1"]',
+                    laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                    dailyReportWorkItems: [],
+                },
+            ],
+        }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'f1', displayName: 'F', role: 'manager' }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.breakdown.vehicleCost).toBe(8000 + 3000); // 未確定8000 + 確定3000
+        // 明細の車両名は実際の名前で出る（確定済みは ID→名前 解決）
+        const allNames = (r.detail?.vehicle ?? []).flatMap(v => v.vehicleNames);
+        expect(allNames).toEqual(expect.arrayContaining(['軽トラ', '2tダンプ']));
+    });
+
     it('該当しない projectId も空原価でキーを返す', async () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
         const map = await computeProjectCosts(['none']);

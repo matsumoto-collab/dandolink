@@ -11,7 +11,7 @@ import type { CostBreakdown } from '@/utils/costCalculation';
  *
  * - 人件費: 日報の作業時間 × 日当を、**同日(worker,date)の全案件作業時間で正確に按分**（掛け持ち日の過大計上を防ぐ）。
  *   配置ごとに `laborCostOverride` があれば採用（`override ?? auto`）。協力業者(role=partner)職長の配置は労務に計上しない。
- * - 車両費: 配置の車両 × 車両マスタ日額。`vehicleCostOverride` 採用可。
+ * - 車両費: 配置の車両 × 車両マスタ日額。確定済みは confirmedVehicleIds(ID)、未確定は vehicles(名前)で引き当て。`vehicleCostOverride` 採用可。
  * - 外注費: 手配確定 × partner 職長 × 工事種別単価(作業費+運搬費) を**種別ごと初回計上**。`subcontractorCostOverride` 採用可。
  * - 材料費 / その他 / 積込: `ProjectMaster.materialCost / otherExpenses / loadingCost`。
  *
@@ -87,7 +87,7 @@ export async function computeProjectCosts(
             assignments: {
                 select: {
                     id: true, date: true, assignedEmployeeId: true, isDispatchConfirmed: true,
-                    constructionType: true, workers: true, memberCount: true, vehicles: true,
+                    constructionType: true, workers: true, memberCount: true, vehicles: true, confirmedVehicleIds: true,
                     laborCostOverride: true, vehicleCostOverride: true, subcontractorCostOverride: true,
                     dailyReportWorkItems: {
                         select: {
@@ -145,8 +145,10 @@ export async function computeProjectCosts(
     const dailyRateMap = new Map<string, number>();
     for (const u of users) dailyRateMap.set(u.id, u.dailyRate ? Number(u.dailyRate) : defaultDailyRate);
     for (const w of workers) if (!dailyRateMap.has(w.id)) dailyRateMap.set(w.id, w.dailyRate ? Number(w.dailyRate) : defaultDailyRate);
-    const vehicleRateMap = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
-    const vehicleNameMap = new Map(allVehicles.map(v => [v.id, v.name]));
+    // 配置の vehicles は「車両名」、confirmedVehicleIds は「車両ID」で保存されるため両方の引き当てを用意する
+    const vehicleRateById = new Map(allVehicles.map(v => [v.id, Number(v.dailyRate || 0)]));
+    const vehicleRateByName = new Map(allVehicles.map(v => [v.name, Number(v.dailyRate || 0)]));
+    const vehicleNameById = new Map(allVehicles.map(v => [v.id, v.name]));
     const foremanNameMap = new Map(foremanUsers.map(u => [u.id, u.displayName]));
     const ctNameMap = new Map(constructionTypes.map(c => [c.id, c.name]));
     const partnerForemanIds = new Set(foremanUsers.filter(u => u.role === 'partner').map(u => u.id));
@@ -215,15 +217,21 @@ export async function computeProjectCosts(
                 }
             }
 
-            // ---- 車両費 ----
-            const vehIds = parseJsonField<string[]>(a.vehicles, []);
-            const autoVeh = vehIds.reduce((s, vid) => s + (vehicleRateMap.get(vid) || 0), 0);
+            // ---- 車両費（手配表カードと同じ解決: 確定済みは confirmedVehicleIds[ID]優先、未確定は vehicles[名前]） ----
+            const confirmedVehIds = parseJsonField<string[]>(a.confirmedVehicleIds, []);
+            const useConfirmedVeh = a.isDispatchConfirmed && confirmedVehIds.length > 0;
+            const vehNames = useConfirmedVeh
+                ? confirmedVehIds.map(vid => vehicleNameById.get(vid) ?? '不明')
+                : parseJsonField<string[]>(a.vehicles, []);
+            const autoVeh = useConfirmedVeh
+                ? confirmedVehIds.reduce((s, vid) => s + (vehicleRateById.get(vid) || 0), 0)
+                : vehNames.reduce((s, name) => s + (vehicleRateByName.get(name) || 0), 0);
             const effVeh = a.vehicleCostOverride != null ? a.vehicleCostOverride : autoVeh;
             vehicleCost += effVeh;
-            if (opts.withDetail && (vehIds.length > 0 || a.vehicleCostOverride != null)) {
+            if (opts.withDetail && (vehNames.length > 0 || a.vehicleCostOverride != null)) {
                 vehicleRows.push({
                     assignmentId: a.id, date: dateStr,
-                    vehicleNames: vehIds.map(vid => vehicleNameMap.get(vid) ?? '不明').filter(Boolean),
+                    vehicleNames: vehNames.filter(Boolean),
                     autoCost: autoVeh, override: a.vehicleCostOverride, effectiveCost: effVeh,
                 });
             }
