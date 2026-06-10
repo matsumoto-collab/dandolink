@@ -219,17 +219,28 @@ function DailyReportPageContent() {
 
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
-            {/* ヘッダー */}
-            <div className="mb-6 flex-shrink-0">
-                <h1 className="text-2xl font-bold text-slate-800">
-                    報告一覧
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">登録されている報告を管理できます</p>
+            {/* ヘッダー（モバイルは新規追加をタイトル行へ統合・説明文非表示） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+                        報告一覧
+                    </h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">登録されている報告を管理できます</p>
+                </div>
+                <div className="sm:hidden flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={handleAddNew}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規追加
+                    </Button>
+                </div>
             </div>
 
-            {/* ツールバー */}
-            <div className="mb-6 flex-shrink-0 flex flex-col gap-3 sm:gap-4">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* ツールバー（モバイルは「検索+職長」「期間+直近30日」の2段。sm+ は従来レイアウト） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex flex-col gap-2 sm:gap-4">
+                <div className="flex flex-row items-center gap-2 sm:gap-3">
                     <div className="flex-1 sm:max-w-md relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
                         <input
@@ -240,21 +251,11 @@ function DailyReportPageContent() {
                             className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                         />
                     </div>
-                    <Button
-                        variant="primary"
-                        onClick={handleAddNew}
-                        leftIcon={<Plus className="w-5 h-5" />}
-                    >
-                        <span className="hidden sm:inline">新規報告追加</span>
-                        <span className="sm:hidden">新規追加</span>
-                    </Button>
-                </div>
-
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    {/* モバイル: 職長フィルタを検索と同じ行に */}
                     <select
                         value={foremanFilter}
                         onChange={(e) => setForemanFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="sm:hidden flex-shrink-0 max-w-[45%] px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全ての職長</option>
                         {allForemen.map(foreman => (
@@ -263,32 +264,52 @@ function DailyReportPageContent() {
                             </option>
                         ))}
                     </select>
-                    {/* モバイルでは「期間ラベル + 日付2つ」を1行・「直近30日」を全幅の別行へ。
-                        md: 以上は従来の1行レイアウトを維持（flex-wrap で安全） */}
-                    <div className="flex flex-col md:flex-row md:items-center md:gap-2 md:flex-wrap">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-slate-600 whitespace-nowrap">期間</span>
-                            <input
-                                type="date"
-                                value={rangeStart}
-                                max={rangeEnd || undefined}
-                                onChange={(e) => setRangeStart(e.target.value)}
-                                // モバイルで input が縮まずボタンを押し出さないよう flex-1 min-w-0
-                                className="flex-1 md:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                            />
-                            <span className="text-slate-400">〜</span>
-                            <input
-                                type="date"
-                                value={rangeEnd}
-                                min={rangeStart || undefined}
-                                onChange={(e) => setRangeEnd(e.target.value)}
-                                className="flex-1 md:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                            />
-                        </div>
+                    <div className="hidden sm:block flex-shrink-0">
+                        <Button
+                            variant="primary"
+                            onClick={handleAddNew}
+                            leftIcon={<Plus className="w-5 h-5" />}
+                        >
+                            新規報告追加
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+                    <select
+                        value={foremanFilter}
+                        onChange={(e) => setForemanFilter(e.target.value)}
+                        className="hidden sm:block px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                    >
+                        <option value="all">全ての職長</option>
+                        {allForemen.map(foreman => (
+                            <option key={foreman.id} value={foreman.id}>
+                                {foreman.displayName}
+                            </option>
+                        ))}
+                    </select>
+                    {/* 期間2つ+直近30日を1行に（「期間」ラベルは sm+ のみ表示） */}
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="hidden sm:inline text-sm text-slate-600 whitespace-nowrap">期間</span>
+                        <input
+                            type="date"
+                            value={rangeStart}
+                            max={rangeEnd || undefined}
+                            onChange={(e) => setRangeStart(e.target.value)}
+                            // モバイルで input が縮まず横並びを押し出さないよう flex-1 min-w-0
+                            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
+                        <span className="text-slate-400 flex-shrink-0">〜</span>
+                        <input
+                            type="date"
+                            value={rangeEnd}
+                            min={rangeStart || undefined}
+                            onChange={(e) => setRangeEnd(e.target.value)}
+                            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
                         <button
                             onClick={resetRange}
-                            // モバイルでは別行・全幅。md: 以上は元通りインライン
-                            className="mt-2 w-full md:mt-0 md:w-auto px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
+                            className="flex-shrink-0 px-2 sm:px-3 py-2.5 text-sm font-medium text-teal-700 hover:text-teal-800 sm:font-normal sm:text-slate-600 sm:hover:text-slate-800 transition-colors whitespace-nowrap"
                         >
                             直近30日
                         </button>
@@ -414,9 +435,9 @@ function DailyReportPageContent() {
             </div>
             </div>
 
-            {/* ページネーション */}
+            {/* ページネーション（モバイルは件数も同じ行に統合） */}
             {totalPages > 1 && (
-                <div className="flex-shrink-0 flex justify-center items-center gap-2 py-3">
+                <div className="flex-shrink-0 flex justify-center items-center gap-2 py-2 sm:py-3">
                     <button
                         onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                         disabled={currentPage === 1}
@@ -424,8 +445,9 @@ function DailyReportPageContent() {
                     >
                         前へ
                     </button>
-                    <span className="text-sm font-medium text-slate-600 px-4">
+                    <span className="text-sm font-medium text-slate-600 px-2 sm:px-4 tabular-nums">
                         {currentPage} / {totalPages}
+                        <span className="sm:hidden font-normal text-slate-400"> ・ 全{filteredReports.length}件</span>
                     </span>
                     <button
                         onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
@@ -437,8 +459,8 @@ function DailyReportPageContent() {
                 </div>
             )}
 
-            {/* 統計情報 */}
-            <div className="mt-2 flex-shrink-0 text-sm text-slate-600">
+            {/* 統計情報（ページネーションがある場合、モバイルでは上の行に統合済み） */}
+            <div className={`mt-2 flex-shrink-0 text-sm text-slate-600 ${totalPages > 1 ? 'hidden sm:block' : ''}`}>
                 全 {filteredReports.length} 件の報告
                 {(searchTerm || foremanFilter !== 'all') && ` (${dailyReports.length}件中)`}
             </div>
