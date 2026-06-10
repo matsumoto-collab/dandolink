@@ -5,6 +5,8 @@ import { NavigationProvider } from "@/contexts/NavigationContext";
 import AuthProvider from '@/components/AuthProvider';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
+import ToastWatchdog from '@/components/ui/ToastWatchdog';
+import { TOAST_DURATIONS } from '@/lib/toastConfig';
 import { CalendarProviders } from './providers/CalendarProviders';
 import { FinanceProviders } from './providers/FinanceProviders';
 
@@ -65,25 +67,27 @@ export default function RootLayout({
                     position="top-center"
                     containerClassName="dl-toast-container"
                     toastOptions={{
-                        duration: 4000,
+                        duration: TOAST_DURATIONS.default,
                         style: {
                             background: '#363636',
                             color: '#fff',
                         },
                         success: {
-                            duration: 3000,
+                            duration: TOAST_DURATIONS.success,
                             style: {
                                 background: '#22c55e',
                             },
                         },
                         error: {
-                            duration: 5000,
+                            duration: TOAST_DURATIONS.error,
                             style: {
                                 background: '#ef4444',
                             },
                         },
                     }}
                 />
+                {/* hover一時停止の固着で消えなくなったトーストを表示時間+1秒で強制クローズする保険 */}
+                <ToastWatchdog />
                 <ErrorBoundary>
                     <AuthProvider>
                         <NavigationProvider>
