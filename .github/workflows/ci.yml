@@ -12,10 +12,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # v5系は Node 24 ランナー対応（2026-06-16 の Node 20 アクション廃止に伴う更新）
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
           cache: 'npm'
@@ -32,8 +33,10 @@ jobs:
       - name: Run TypeScript type check
         run: npx tsc --noEmit
 
+      # --coverage は全ソースのインストルメントで実行時間を大幅に押し上げるため
+      # push毎のCIでは外す（必要時にローカルで npm run test:coverage）
       - name: Run tests
-        run: npm test -- --ci --coverage --coverageReporters=text-summary
+        run: npm test -- --ci --silent
 
       - name: Build application
         run: npm run build
