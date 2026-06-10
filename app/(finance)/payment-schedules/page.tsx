@@ -448,16 +448,30 @@ export default function PaymentSchedulesPage() {
     // ============= 支払日カード一覧（メイン画面） =============
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
-            {/* ヘッダー */}
-            <div className="mb-6 flex-shrink-0">
-                <h1 className="text-2xl font-bold text-slate-800">支払予定</h1>
-                <p className="text-sm text-slate-500 mt-1">
-                    支払日ごとにリストを管理し、担当者間で進捗を共有できます
-                </p>
+            {/* ヘッダー（モバイルは新規追加をタイトル行へ統合・説明文非表示） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">支払予定</h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">
+                        支払日ごとにリストを管理し、担当者間で進捗を共有できます
+                    </p>
+                </div>
+                <div className="sm:hidden flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={() => {
+                            setEditing(null);
+                            setIsModalOpen(true);
+                        }}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規追加
+                    </Button>
+                </div>
             </div>
 
-            {/* ツールバー（月切替 + 新規ボタン） */}
-            <div className="mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+            {/* ツールバー（月切替 + ボタン群。モバイルの新規はタイトル行に表示） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={goPrev}
@@ -466,7 +480,7 @@ export default function PaymentSchedulesPage() {
                     >
                         <ChevronLeft className="w-5 h-5 text-slate-600" />
                     </button>
-                    <div className="min-w-[140px] text-center text-lg font-semibold text-slate-800">
+                    <div className="min-w-0 sm:min-w-[140px] px-1 text-center text-base sm:text-lg font-semibold text-slate-800 whitespace-nowrap">
                         {year}年{month}月
                     </div>
                     <button
@@ -489,24 +503,27 @@ export default function PaymentSchedulesPage() {
                         variant="secondary"
                         onClick={() => setIsCopyModalOpen(true)}
                         leftIcon={<Copy className="w-5 h-5" />}
+                        className="flex-1 sm:flex-none"
                     >
                         前月からコピー
                     </Button>
-                    <Button
-                        variant="primary"
-                        onClick={() => {
-                            setEditing(null);
-                            setIsModalOpen(true);
-                        }}
-                        leftIcon={<Plus className="w-5 h-5" />}
-                    >
-                        新規追加
-                    </Button>
+                    <div className="hidden sm:block">
+                        <Button
+                            variant="primary"
+                            onClick={() => {
+                                setEditing(null);
+                                setIsModalOpen(true);
+                            }}
+                            leftIcon={<Plus className="w-5 h-5" />}
+                        >
+                            新規追加
+                        </Button>
+                    </div>
                 </div>
             </div>
 
             {/* 月全体サマリー */}
-            <div className="mb-6 flex-shrink-0 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="mb-3 sm:mb-6 flex-shrink-0 grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
                 <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <div className="text-xs text-slate-500">件数</div>
                     <div className="text-xl font-bold text-slate-800 mt-1">{monthlyTotals.count}件</div>
