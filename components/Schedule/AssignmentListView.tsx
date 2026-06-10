@@ -8,7 +8,7 @@ import { useMasterData } from '@/hooks/useMasterData';
 import { Project } from '@/types/calendar';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { formatDateKey } from '@/utils/employeeUtils';
-import { isPartnerEntity, getPartnerCompanyName } from '@/lib/partnerHelpers';
+import { buildAssignmentSheetRows, type AssignmentSheetRow } from '@/lib/assignmentSheet';
 
 type ProjectListItem = ReturnType<typeof useProjects>['projects'][0];
 
@@ -20,11 +20,11 @@ interface AssignmentListViewProps {
     userRole?: string;
 }
 
-interface ManagerInfo { id: string; displayName: string }
-
 /**
  * 一覧表示モード - 紙の作業日報に近いテーブル風レイアウト
- * 1案件1行のコンパクト表示で全体を俯瞰
+ * 1案件1行のコンパクト表示で全体を俯瞰。
+ * 行データの組み立ては lib/assignmentSheet の buildAssignmentSheetRows に一元化し、
+ * PDF出力（作業日報PDF）と表示内容が常に一致するようにしている。
  */
 export default function AssignmentListView({
     selectedDate,
@@ -47,7 +47,7 @@ export default function AssignmentListView({
             try {
                 const res = await fetch('/api/users');
                 if (!res.ok) return;
-                const data: ManagerInfo[] = await res.json();
+                const data: { id: string; displayName: string }[] = await res.json();
                 const map = new Map<string, string>();
                 data.forEach(u => map.set(u.id, u.displayName));
                 setManagerMap(map);
@@ -63,46 +63,29 @@ export default function AssignmentListView({
         return m;
     }, [constructionTypes]);
 
-    // 職長の表示順マップ
-    const foremanOrderMap = useMemo(() => {
-        const m = new Map<string, number>();
-        displayedForemanIds.forEach((id, idx) => m.set(id, idx));
-        return m;
-    }, [displayedForemanIds]);
-
-    // 当日の案件をカレンダー順にソート
+    // 当日の手配表行(画面・PDF共通のビルダーで組み立て)
     const dateKey = formatDateKey(selectedDate);
-    const sortedProjects = useMemo(() => {
-        const dayProjects = projects.filter(p => {
-            if (formatDateKey(new Date(p.startDate)) !== dateKey) return false;
-            // 職長2 視点では「協力業者が班長になっている班」の案件を非表示にする（班ごと非表示）。
-            // メンバー名の協力業者隠しは廃止し、班に入った協力業者の名前は表示する（2026-05-25）。
-            if (hidePartnerLedTeams && p.assignedEmployeeId) {
-                const info = workerNameMap.get(p.assignedEmployeeId);
-                if (isPartnerEntity(info)) return false;
-            }
-            return true;
-        });
-        return [...dayProjects].sort((a, b) => {
-            const aFOrder = a.assignedEmployeeId ? (foremanOrderMap.get(a.assignedEmployeeId) ?? 9999) : 99999;
-            const bFOrder = b.assignedEmployeeId ? (foremanOrderMap.get(b.assignedEmployeeId) ?? 9999) : 99999;
-            if (aFOrder !== bFOrder) return aFOrder - bFOrder;
-            return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
-        });
-    }, [projects, dateKey, foremanOrderMap, hidePartnerLedTeams, workerNameMap]);
-
-    // 担当者表示名(姓のみ)
-    const getShortManagerName = (id: string): string => {
-        const full = managerMap.get(id) || '';
-        if (!full) return '';
-        const parts = full.split(/[\s　]+/);
-        return parts[0] || full;
-    };
+    const rows = useMemo(
+        () =>
+            buildAssignmentSheetRows<ProjectListItem>({
+                projects,
+                dateKey,
+                displayedForemanIds,
+                allForemen,
+                workerNameMap,
+                vehicleNameMap,
+                managerMap,
+                ctMap,
+                isNamesLoaded,
+                hidePartnerLedTeams,
+            }),
+        [projects, dateKey, displayedForemanIds, allForemen, workerNameMap, vehicleNameMap, managerMap, ctMap, isNamesLoaded, hidePartnerLedTeams],
+    );
 
     return (
         <div className="flex flex-col h-full">
             <div className="flex-1 overflow-auto">
-                {sortedProjects.length === 0 ? (
+                {rows.length === 0 ? (
                     <div className="bg-white rounded-xl border border-slate-200 py-12 text-center text-slate-400 text-sm">
                         該当する案件はありません
                     </div>
@@ -117,30 +100,18 @@ export default function AssignmentListView({
 
                         {/* 案件行 */}
                         <div>
-                            {sortedProjects.map((p, idx) => {
-                                const prev = idx > 0 ? sortedProjects[idx - 1] : null;
-                                const sameForemanAsAbove = !!(prev && prev.assignedEmployeeId && prev.assignedEmployeeId === p.assignedEmployeeId);
-                                const foremanChanged = !!(prev && prev.assignedEmployeeId !== p.assignedEmployeeId);
-                                return (
-                                    <React.Fragment key={p.id}>
-                                        {/* 職長が変わったら余白行 */}
-                                        {foremanChanged && (
-                                            <div className="h-2 bg-slate-50 border-y border-slate-100" aria-hidden="true" />
-                                        )}
-                                        <AssignmentRow
-                                            project={p}
-                                            ctMap={ctMap}
-                                            allForemen={allForemen}
-                                            workerNameMap={workerNameMap}
-                                            vehicleNameMap={vehicleNameMap}
-                                            isNamesLoaded={isNamesLoaded}
-                                            getShortManagerName={getShortManagerName}
-                                            onClick={() => setSelectedProject(p as Project)}
-                                            sameForemanAsAbove={sameForemanAsAbove}
-                                        />
-                                    </React.Fragment>
-                                );
-                            })}
+                            {rows.map((row) => (
+                                <React.Fragment key={row.projectId}>
+                                    {/* 職長が変わったら余白行 */}
+                                    {row.foremanChanged && (
+                                        <div className="h-2 bg-slate-50 border-y border-slate-100" aria-hidden="true" />
+                                    )}
+                                    <AssignmentRow
+                                        row={row}
+                                        onClick={() => setSelectedProject(row.project as Project)}
+                                    />
+                                </React.Fragment>
+                            ))}
                         </div>
                     </div>
                 )}
@@ -160,70 +131,24 @@ export default function AssignmentListView({
 
 // ── 案件1行(コンパクト) ───────────────────────────────────
 interface AssignmentRowProps {
-    project: ProjectListItem;
-    ctMap: Map<string, { name: string; color: string }>;
-    allForemen: { id: string; displayName: string }[];
-    workerNameMap: Map<string, { displayName: string; isPartner: boolean; companyDisplayName: string | null; role: string | null }>;
-    vehicleNameMap: Map<string, string>;
-    isNamesLoaded: boolean;
-    getShortManagerName: (id: string) => string;
+    row: AssignmentSheetRow<ProjectListItem>;
     onClick: () => void;
-    sameForemanAsAbove: boolean;
 }
 
-function AssignmentRow({
-    project: p,
-    ctMap,
-    allForemen,
-    workerNameMap,
-    vehicleNameMap,
-    isNamesLoaded,
-    getShortManagerName,
-    onClick,
-    sameForemanAsAbove,
-}: AssignmentRowProps) {
-    const foremanName = allForemen.find(f => f.id === p.assignedEmployeeId)?.displayName || '';
-    const ctInfo = p.constructionType ? ctMap.get(p.constructionType) : null;
-    const color = ctInfo?.color || p.color || '#475569';
-
-    // 案件担当者
-    const managerIds = Array.isArray(p.createdBy) ? p.createdBy : (p.createdBy ? [p.createdBy] : []);
-    const managerLabel = managerIds.length === 0
-        ? null
-        : managerIds.length === 1
-            ? getShortManagerName(managerIds[0])
-            : managerIds.map(id => getShortManagerName(id)).join('・');
-
-    // 車両名(短い表記)
-    const vehicleNames = isNamesLoaded
-        ? (p.confirmedVehicleIds && p.confirmedVehicleIds.length > 0
-            ? p.confirmedVehicleIds.map(id => vehicleNameMap.get(id) || id)
-            : (p.vehicles || []).map(id => vehicleNameMap.get(id) || id))
-        : [];
-
-    // メンバー名(職長を除く・もしあれば)
-    const isVisibleMember = (id: string) => {
-        if (id === p.assignedEmployeeId) return false;
-        const info = workerNameMap.get(id);
-        if (!info) return false;
-        // 協力業者も手配表に表示する（会社名＋個人名）。メンバー名は隠さない。
-        return true;
-    };
-    const formatMemberName = (id: string): string => {
-        const info = workerNameMap.get(id)!;
-        const company = getPartnerCompanyName(info);
-        return company && company !== info.displayName
-            ? `${company} ${info.displayName}`
-            : info.displayName;
-    };
-    const memberNames = isNamesLoaded
-        ? (p.confirmedWorkerIds && p.confirmedWorkerIds.length > 0
-            ? p.confirmedWorkerIds.filter(isVisibleMember).map(formatMemberName)
-            : (p.workers || []).filter(isVisibleMember).map(formatMemberName))
-        : [];
-
-    const isUnassigned = !managerLabel;
-    const isConfirmed = p.isDispatchConfirmed;
+function AssignmentRow({ row, onClick }: AssignmentRowProps) {
+    const {
+        color,
+        managerLabel,
+        isUnassigned,
+        isConfirmed,
+        customer,
+        title,
+        foremanName,
+        sameForemanAsAbove,
+        memberNames,
+        vehicleNames,
+        memberCount,
+    } = row;
 
     return (
         <button
@@ -257,19 +182,19 @@ function AssignmentRow({
             <div className="min-w-0">
                 {/* 1段: 元請名 / 現場名 (色付き) */}
                 <div className="flex items-baseline gap-1.5 flex-wrap">
-                    {p.customer && (
+                    {customer && (
                         <span
                             className="text-[12px] sm:text-[13px] font-semibold leading-tight"
                             style={{ color }}
                         >
-                            {p.customer}
+                            {customer}
                         </span>
                     )}
                     <span
                         className="text-[14px] sm:text-[15px] font-bold leading-tight"
                         style={{ color }}
                     >
-                        {p.title}
+                        {title}
                     </span>
                     {isConfirmed && (
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
@@ -297,9 +222,9 @@ function AssignmentRow({
 
             {/* 人数・車両 列 */}
             <div className="text-right text-[11px] sm:text-[12px] leading-tight">
-                {(p.memberCount ?? 0) > 0 && (
+                {memberCount > 0 && (
                     <div>
-                        <span className="font-bold text-slate-800 text-[13px] sm:text-[14px]">{p.memberCount}</span>
+                        <span className="font-bold text-slate-800 text-[13px] sm:text-[14px]">{memberCount}</span>
                         <span className="text-slate-400 text-[10px] ml-0.5">名</span>
                     </div>
                 )}

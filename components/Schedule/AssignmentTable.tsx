@@ -7,13 +7,15 @@ import { useCalendarDisplay } from '@/hooks/useCalendarDisplay';
 import { addDays } from '@/utils/dateUtils';
 
 import { formatDateKey } from '@/utils/employeeUtils';
-import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Check, X, MessageSquare, LayoutGrid, List } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MapPin, Users, Truck, CheckCircle, CalendarDays, Check, X, MessageSquare, LayoutGrid, List, FileDown } from 'lucide-react';
 import { useMasterData } from '@/hooks/useMasterData';
 import ProjectModal from '@/components/Projects/ProjectModal';
 import { Project } from '@/types/calendar';
 import { useCalendarStore, selectCellRemarks } from '@/stores/calendarStore';
 import AssignmentListView from './AssignmentListView';
 import { isPartnerEntity, getPartnerCompanyName } from '@/lib/partnerHelpers';
+import { buildAssignmentSheetRows, getSheetManagers } from '@/lib/assignmentSheet';
+import { exportAssignmentSheetPDF } from '@/utils/assignmentSheetPdf';
 
 type ViewMode = 'card' | 'list';
 const VIEW_MODE_KEY = 'assignmentTable.viewMode';
@@ -37,6 +39,11 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
     const [namesLoadError, setNamesLoadError] = useState<string | null>(null);
     const [selectedProject, setSelectedProject] = useState<Project | null>(null);
     const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+    // 案件担当者(担当)の名前マップ — PDF出力の「担当」「確認」欄に使う
+    const [managerMap, setManagerMap] = useState<Map<string, string>>(new Map());
+    const [isExporting, setIsExporting] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     // 表示モード(カード/一覧) - localStorageで保持
     const [viewMode, setViewMode] = useState<ViewMode>('card');
@@ -86,6 +93,21 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             }
         };
         fetchNames();
+    }, []);
+
+    // 案件担当者の名前を取得(PDFの担当・確認欄用)
+    useEffect(() => {
+        const fetchManagers = async () => {
+            try {
+                const res = await fetch('/api/users');
+                if (!res.ok) return;
+                const data: { id: string; displayName: string }[] = await res.json();
+                const map = new Map<string, string>();
+                data.forEach(u => map.set(u.id, u.displayName));
+                setManagerMap(map);
+            } catch { /* ignore */ }
+        };
+        fetchManagers();
     }, []);
 
     const [selectedDate, setSelectedDate] = useState(() => {
@@ -209,6 +231,33 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
         return Array.from(pairs.values()).sort((a, b) => a.vehicleName.localeCompare(b.vehicleName, 'ja'));
     }, [projects, selectedDateKey, userRole, workerNameMap, vehicleNameMap]);
 
+    // 手配表(作業日報)PDF出力 — 画面の一覧と同じ並び・内容で生成する
+    const handleExportPdf = async () => {
+        if (isExporting) return;
+        setExportError(null);
+        setIsExporting(true);
+        try {
+            const rows = buildAssignmentSheetRows({
+                projects,
+                dateKey: selectedDateKey,
+                displayedForemanIds,
+                allForemen,
+                workerNameMap,
+                vehicleNameMap,
+                managerMap,
+                ctMap: constructionTypeMap,
+                isNamesLoaded,
+                hidePartnerLedTeams: userRole === 'foreman2',
+            });
+            const managers = getSheetManagers(rows, managerMap);
+            await exportAssignmentSheetPDF({ date: selectedDate, rows, managers });
+        } catch {
+            setExportError('PDFの作成に失敗しました。通信状況をご確認のうえ、もう一度お試しください。');
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
     const dateInfo = formatDisplayDate(selectedDate);
 
     return (
@@ -216,6 +265,11 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
             {namesLoadError && (
                 <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-700 text-sm">
                     {namesLoadError}（名前の表示に影響がある可能性があります）
+                </div>
+            )}
+            {exportError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm">
+                    {exportError}
                 </div>
             )}
 
@@ -272,35 +326,53 @@ export default function AssignmentTable({ userRole = 'manager', userTeamId }: As
                         <span />
                     )}
 
-                    {/* 表示モード切替(workerロール以外) */}
+                    {/* PDF出力 + 表示モード切替(workerロール以外) */}
                     {userRole !== 'worker' && (
-                        <div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                        <div className="flex items-center gap-2">
                             <button
                                 type="button"
-                                onClick={() => changeViewMode('card')}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                                    viewMode === 'card'
-                                        ? 'bg-white text-slate-800 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                }`}
-                                aria-label="班別カード表示"
+                                onClick={handleExportPdf}
+                                disabled={isExporting || !isNamesLoaded}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-[11px] font-medium shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                aria-label="作業日報をPDF出力"
+                                title="この日の手配表を作業日報としてPDF出力します"
                             >
-                                <LayoutGrid className="w-3 h-3" />
-                                <span className="hidden sm:inline">班別</span>
+                                {isExporting ? (
+                                    <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <FileDown className="w-3.5 h-3.5" />
+                                )}
+                                <span>PDF出力</span>
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => changeViewMode('list')}
-                                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
-                                    viewMode === 'list'
-                                        ? 'bg-white text-slate-800 shadow-sm'
-                                        : 'text-slate-500 hover:text-slate-700'
-                                }`}
-                                aria-label="一覧表示"
-                            >
-                                <List className="w-3 h-3" />
-                                <span className="hidden sm:inline">一覧</span>
-                            </button>
+
+                            <div className="inline-flex bg-slate-100 rounded-lg p-0.5 gap-0.5">
+                                <button
+                                    type="button"
+                                    onClick={() => changeViewMode('card')}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                        viewMode === 'card'
+                                            ? 'bg-white text-slate-800 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                    aria-label="班別カード表示"
+                                >
+                                    <LayoutGrid className="w-3 h-3" />
+                                    <span className="hidden sm:inline">班別</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => changeViewMode('list')}
+                                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium transition-all ${
+                                        viewMode === 'list'
+                                            ? 'bg-white text-slate-800 shadow-sm'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                    aria-label="一覧表示"
+                                >
+                                    <List className="w-3 h-3" />
+                                    <span className="hidden sm:inline">一覧</span>
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
