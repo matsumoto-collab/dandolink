@@ -587,6 +587,11 @@ model PartnerWorkVolume {
   @@schema("public")
 }
 
+/// 協力業者出来高の月単位の「協力業者への公開」状態（2026-06-10 公開ボタン化で利用開始）。
+/// status: 'published' = 公開済み / 'draft' = 未公開。
+/// completedAt / completedBy は公開日時 / 公開操作者として転用（列名は完了由来だが
+/// マイグレーション回避のため列追加せず流用）。
+/// 協力業者の閲覧は「全行完了 && status='published'」の AND（GET /api/partner-work-volume）。
 model PartnerWorkVolumeMonth {
   id               String    @id @default(uuid())
   partnerCompanyId String

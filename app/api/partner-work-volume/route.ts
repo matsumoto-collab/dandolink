@@ -42,6 +42,9 @@ export interface PartnerWorkVolumeRow {
 }
 
 interface MonthRange {
+    /** 公開状態 (PartnerWorkVolumeMonth) の照合に使う年月 */
+    year: number;
+    month: number;
     /** PartnerWorkVolume(@db.Date) 用。DATE は時刻を持たないため UTC 00:00 基準で比較する。 */
     start: Date;
     end: Date;
@@ -68,7 +71,7 @@ function parseYearMonth(year: string | null, month: string | null): MonthRange |
     const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
     const jstStart = new Date(start.getTime() - JST_OFFSET_MS);
     const jstEnd = new Date(end.getTime() - JST_OFFSET_MS);
-    return { start, end, jstStart, jstEnd };
+    return { year: y, month: m, start, end, jstStart, jstEnd };
 }
 
 function jstDateKey(d: Date): string {
@@ -108,7 +111,9 @@ function normalizeStatus(value: unknown): PartnerWorkVolumeRowStatus {
  * GET /api/partner-work-volume?companyId=&year=YYYY&month=MM&includeDeleted=0|1
  * 配置から自動生成された候補行と DB 保存済み行をマージして返す。
  * 月の monthStatus は「全行 completed && 行数 > 0」のときだけ 'completed'、それ以外は 'draft'。
- * partner は monthStatus === 'completed' のときのみ rows を取得できる。
+ * partner は「monthStatus === 'completed' かつ 管理者が公開済み
+ * (PartnerWorkVolumeMonth.status === 'published')」のときのみ rows を取得できる。
+ * 全行完了だけでは公開されない（公開は POST /api/partner-work-volume/publish、kei 決定 2026-06-10）。
  *
  * includeDeleted=1 を渡すと、論理削除済みの行も rows に含めて返す（admin/manager 限定）。
  * 通常モードでは deletedAt != null の行は rows から除外されるが、usedAutoKeys には登録される
@@ -541,7 +546,7 @@ export async function GET(req: NextRequest) {
             merged.push(row);
         }
 
-        // 月の自動公開判定: 削除済み行を除外した「有効行」が 1 件以上あり、全て completed のときだけ 'completed'
+        // 月の完了判定: 削除済み行を除外した「有効行」が 1 件以上あり、全て completed のときだけ 'completed'
         // includeDeleted=1 のときも monthStatus は有効行ベースで計算する。
         const activeRows = merged.filter((r) => !r.deletedAt);
         const totalRows = activeRows.length;
@@ -549,14 +554,33 @@ export async function GET(req: NextRequest) {
         const monthStatus: PartnerWorkVolumeRowStatus =
             totalRows > 0 && completedCount === totalRows ? 'completed' : 'draft';
 
-        // partner / partner_member は monthStatus === 'completed' のときのみ閲覧可
-        if (isPartnerViewer && monthStatus !== 'completed') {
+        // 月の公開状態。PartnerWorkVolumeMonth を公開フラグの置き場として利用する
+        // （status='published' = 公開済み、completedAt/completedBy = 公開日時/公開者に転用）。
+        const monthRecord = await prisma.partnerWorkVolumeMonth.findUnique({
+            where: {
+                partnerCompanyId_year_month: {
+                    partnerCompanyId,
+                    year: range.year,
+                    month: range.month,
+                },
+            },
+        });
+        const published = monthRecord?.status === 'published';
+        const publishedAt =
+            published && monthRecord?.completedAt ? monthRecord.completedAt.toISOString() : null;
+
+        // partner は「全行完了 && 管理者が公開済み」の AND を満たすときのみ閲覧可。
+        // 公開後に行追加・完了解除で全行完了が崩れた場合もここで自動的に非表示へ戻る
+        // （公開フラグは保持され、再び全行完了になれば再公開される）。
+        if (isPartnerViewer && !(monthStatus === 'completed' && published)) {
             return NextResponse.json(
                 {
                     partnerCompany: { id: partnerCompany.id, displayName: partnerCompany.displayName, taxMode },
                     rows: [],
                     monthStatus,
                     completedAt: null,
+                    published,
+                    publishedAt: null,
                     totalRows,
                     completedCount,
                 },
@@ -608,6 +632,8 @@ export async function GET(req: NextRequest) {
                     monthStatus === 'completed' && latestCompletedAt
                         ? latestCompletedAt.toISOString()
                         : null,
+                published,
+                publishedAt,
                 totalRows,
                 completedCount,
             },

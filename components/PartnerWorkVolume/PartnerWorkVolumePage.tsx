@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
-import { ChevronLeft, ChevronRight, Plus, FileDown, Loader2, Check, Lock, Users, Eye, EyeOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, FileDown, Loader2, Check, Lock, Users, Eye, EyeOff, Send } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import Loading from '@/components/ui/Loading';
@@ -76,6 +76,9 @@ export default function PartnerWorkVolumePage() {
     const [exporting, setExporting] = useState(false);
     const [monthStatus, setMonthStatus] = useState<PartnerWorkVolumeMonthStatus>('draft');
     const [completedAt, setCompletedAt] = useState<string | null>(null);
+    const [published, setPublished] = useState(false);
+    const [publishedAt, setPublishedAt] = useState<string | null>(null);
+    const [publishing, setPublishing] = useState(false);
     const [totalRows, setTotalRows] = useState(0);
     const [completedCount, setCompletedCount] = useState(0);
     const [managerFilter, setManagerFilter] = useState<string>(MANAGER_FILTER_ALL);
@@ -127,6 +130,8 @@ export default function PartnerWorkVolumePage() {
             setTaxMode(data.partnerCompany.taxMode ?? 'exclusive');
             setMonthStatus(data.monthStatus ?? 'draft');
             setCompletedAt(data.completedAt ?? null);
+            setPublished(data.published ?? false);
+            setPublishedAt(data.publishedAt ?? null);
             setTotalRows(data.totalRows ?? data.rows.length);
             setCompletedCount(data.completedCount ?? 0);
         } catch (e) {
@@ -438,6 +443,38 @@ export default function PartnerWorkVolumePage() {
         [companyId, fetchRows]
     );
 
+    // 月単位の協力業者への公開 / 公開解除。
+    // 全行完了だけでは公開されず、このボタン操作で初めて協力業者から見えるようになる。
+    const handlePublishToggle = useCallback(
+        async (next: boolean) => {
+            if (!companyId) return;
+            const confirmMsg = next
+                ? `${ymLabel(year, month)}分の出来高を協力業者（${companyName || 'この会社'}）に公開します。よろしいですか？`
+                : `${ymLabel(year, month)}分の公開を解除します。協力業者からこの月の出来高が見えなくなります。よろしいですか？`;
+            if (!window.confirm(confirmMsg)) return;
+            setPublishing(true);
+            try {
+                const res = await fetch('/api/partner-work-volume/publish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ companyId, year, month, published: next }),
+                });
+                if (!res.ok) {
+                    const data = (await res.json().catch(() => ({}))) as { error?: string };
+                    throw new Error(data.error || `status ${res.status}`);
+                }
+                toast.success(next ? '協力業者に公開しました' : '公開を解除しました');
+                fetchRows();
+            } catch (e) {
+                logger.error('出来高公開状態の更新失敗:', e);
+                toast.error(e instanceof Error && e.message ? e.message : '公開状態の更新に失敗しました');
+            } finally {
+                setPublishing(false);
+            }
+        },
+        [companyId, year, month, companyName, fetchRows]
+    );
+
     const handleExportPdf = useCallback(async () => {
         // PDF 出力からは削除済み行を除外
         const exportRows = rows.filter((r) => !r.deletedAt);
@@ -468,7 +505,7 @@ export default function PartnerWorkVolumePage() {
         } finally {
             setExporting(false);
         }
-    }, [rows, companyName, year, month]);
+    }, [rows, companyName, year, month, taxMode]);
 
     const monthLabel = useMemo(() => ymLabel(year, month), [year, month]);
 
@@ -635,22 +672,60 @@ export default function PartnerWorkVolumePage() {
                     )}
                 </div>
                 {isAdminOrManager && companyId && (
-                    <div className="flex items-center gap-2 text-xs">
-                        {monthStatus === 'completed' ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">
-                                <Check className="w-3 h-3" />
-                                全行完了・協力業者に公開中
-                                {completedAt && (
-                                    <span className="text-emerald-600/70">
-                                        {new Date(completedAt).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}
+                    <div className="flex items-center gap-2 text-xs flex-wrap">
+                        {monthStatus === 'completed' && published ? (
+                            <>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-700 font-medium">
+                                    <Check className="w-3 h-3" />
+                                    協力業者に公開中
+                                    {publishedAt && (
+                                        <span className="text-emerald-600/70">
+                                            {new Date(publishedAt).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}
+                                        </span>
+                                    )}
+                                </span>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handlePublishToggle(false)}
+                                    disabled={publishing}
+                                >
+                                    公開解除
+                                </Button>
+                            </>
+                        ) : monthStatus === 'completed' ? (
+                            <>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-100 text-sky-700 font-medium">
+                                    <Check className="w-3 h-3" />
+                                    全行完了・未公開
+                                    {completedAt && (
+                                        <span className="text-sky-600/70">
+                                            {new Date(completedAt).toLocaleString('ja-JP', { dateStyle: 'short', timeStyle: 'short' })}
+                                        </span>
+                                    )}
+                                </span>
+                                <Button
+                                    variant="primary"
+                                    size="sm"
+                                    leftIcon={<Send className="w-3.5 h-3.5" />}
+                                    onClick={() => handlePublishToggle(true)}
+                                    isLoading={publishing}
+                                >
+                                    協力業者へ公開
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">
+                                    <Lock className="w-3 h-3" />
+                                    未完了 {totalRows > 0 && `(${completedCount}/${totalRows})`} ・ 協力業者には非表示
+                                </span>
+                                {published && (
+                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 font-medium">
+                                        公開設定済み・全行完了で再公開されます
                                     </span>
                                 )}
-                            </span>
-                        ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">
-                                <Lock className="w-3 h-3" />
-                                未完了 {totalRows > 0 && `(${completedCount}/${totalRows})`} ・ 協力業者には非表示
-                            </span>
+                            </>
                         )}
                     </div>
                 )}
@@ -661,7 +736,7 @@ export default function PartnerWorkVolumePage() {
                     <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
                         <p className="text-slate-500">協力会社を選択してください</p>
                     </div>
-                ) : isPartner && monthStatus !== 'completed' ? (
+                ) : isPartner && !(monthStatus === 'completed' && published) ? (
                     loading && rows.length === 0 ? (
                         <div className="flex items-center justify-center h-full">
                             <Loading text="出来高を読み込み中..." />
@@ -669,8 +744,8 @@ export default function PartnerWorkVolumePage() {
                     ) : (
                         <div className="text-center py-16 bg-white rounded-xl border border-slate-200">
                             <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                            <p className="text-slate-500 font-medium">この月の出来高はまだ確定されていません</p>
-                            <p className="text-slate-400 text-sm mt-1">管理者が全行を完了すると閲覧できます</p>
+                            <p className="text-slate-500 font-medium">この月の出来高はまだ公開されていません</p>
+                            <p className="text-slate-400 text-sm mt-1">管理者が公開すると閲覧できます</p>
                         </div>
                     )
                 ) : loading && rows.length === 0 ? (

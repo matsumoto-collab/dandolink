@@ -44,6 +44,14 @@ export interface PartnerWorkVolumeResponse {
     rows: PartnerWorkVolumeRow[];
     monthStatus: PartnerWorkVolumeMonthStatus;
     completedAt: string | null;
+    /**
+     * 管理者が「協力業者へ公開」済みか。
+     * 協力業者の閲覧条件は monthStatus === 'completed' && published の AND
+     * （全行完了だけでは公開されない）。
+     */
+    published: boolean;
+    /** 公開日時（published = true のときのみ） */
+    publishedAt: string | null;
     totalRows: number;
     completedCount: number;
 }
