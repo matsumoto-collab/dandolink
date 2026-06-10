@@ -240,19 +240,30 @@ export default function EstimateListPage() {
 
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
-            {/* ヘッダー */}
-            <div className="mb-6 flex-shrink-0">
-                <h1 className="text-2xl font-bold text-slate-800">
-                    見積書一覧
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">登録されている全ての見積書を管理できます</p>
+            {/* ヘッダー（モバイルは新規作成をタイトル行へ統合・説明文非表示） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+                        見積書一覧
+                    </h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">登録されている全ての見積書を管理できます</p>
+                </div>
+                <div className="sm:hidden flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={handleAddNew}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規作成
+                    </Button>
+                </div>
             </div>
 
 
-            {/* ツールバー */}
-            <div className="mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+            {/* ツールバー（モバイルは検索+ステータスを1行に圧縮） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4">
                 {/* 検索バーとフィルター */}
-                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 flex-1">
+                <div className="flex flex-row gap-2 sm:gap-4 flex-1">
                     {/* 検索バー */}
                     <div className="flex-1 sm:max-w-md relative">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
@@ -269,7 +280,7 @@ export default function EstimateListPage() {
                     <select
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="flex-shrink-0 max-w-[45%] px-3 sm:px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全てのステータス</option>
                         <option value="draft">下書き</option>
@@ -279,15 +290,16 @@ export default function EstimateListPage() {
                     </select>
                 </div>
 
-                {/* 新規追加ボタン */}
-                <Button
-                    variant="primary"
-                    onClick={handleAddNew}
-                    leftIcon={<Plus className="w-5 h-5" />}
-                >
-                    <span className="hidden sm:inline">新規見積書作成</span>
-                    <span className="sm:hidden">新規作成</span>
-                </Button>
+                {/* 新規追加ボタン（sm+ のみ。モバイルはタイトル行に表示） */}
+                <div className="hidden sm:block flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={handleAddNew}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規見積書作成
+                    </Button>
+                </div>
             </div>
 
             {/* モバイルカードビュー */}
