@@ -238,6 +238,7 @@ jest.mock('@/utils/permissions', () => ({
 // Mock @/lib/formatters
 jest.mock('@/lib/formatters', () => ({
     formatProjectMaster: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
+    stripProjectMasterFinancials: (item: any) => item,
     formatAssignment: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
     formatEstimate: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
     formatInvoice: (item: any) => ({ ...item, createdAt: item.createdAt?.toISOString?.() || item.createdAt, updatedAt: item.updatedAt?.toISOString?.() || item.updatedAt }),
@@ -268,9 +269,4 @@ jest.mock('uuid', () => ({
     v1: () => 'mock-uuid-v1',
     NIL: '00000000-0000-0000-0000-000000000000',
     validate: (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s),
-}));
-
-// Mock NotoSansJP font (large base64 file - not needed in tests)
-jest.mock('@/utils/fonts/NotoSansJP-font', () => ({
-    NotoSansJPFont: 'mock-font-data',
 }));
