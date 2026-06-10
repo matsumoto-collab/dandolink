@@ -102,18 +102,28 @@ export default function CustomersPage() {
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
-            {/* ヘッダー */}
-            <div className="flex-shrink-0 flex items-center justify-between mb-6">
+            {/* ヘッダー（モバイルは新規登録をタイトル行へ統合・件数はタイトル横に） */}
+            <div className="flex-shrink-0 flex items-center justify-between gap-3 mb-3 sm:mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-800">
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
                         顧客一覧
+                        <span className="sm:hidden ml-2 text-sm font-normal text-slate-500">{filteredCustomers.length}件</span>
                     </h1>
-                    <p className="text-sm text-slate-500 mt-1">{filteredCustomers.length}件の顧客データ</p>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">{filteredCustomers.length}件の顧客データ</p>
+                </div>
+                <div className="sm:hidden flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={() => setIsModalOpen(true)}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規登録
+                    </Button>
                 </div>
             </div>
 
-            {/* 検索バー + 新規登録ボタン */}
-            <div className="flex-shrink-0 flex flex-col md:flex-row md:items-center gap-3 md:gap-4 mb-4 md:mb-6">
+            {/* 検索バー + 新規登録ボタン（ボタンは sm+ のみ。モバイルはタイトル行に表示） */}
+            <div className="flex-shrink-0 flex flex-col md:flex-row md:items-center gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
                 <div className="relative w-full md:flex-1 md:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                     <input
@@ -124,13 +134,16 @@ export default function CustomersPage() {
                         className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
                     />
                 </div>
-                <Button
-                    variant="primary"
-                    onClick={() => setIsModalOpen(true)}
-                    leftIcon={<Plus className="w-5 h-5" />}
-                >
-                    新規登録
-                </Button>
+                <div className="hidden sm:block">
+                    <Button
+                        variant="primary"
+                        onClick={() => setIsModalOpen(true)}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                        className="w-full md:w-auto"
+                    >
+                        新規登録
+                    </Button>
+                </div>
             </div>
 
             {/* モバイルカードビュー */}
