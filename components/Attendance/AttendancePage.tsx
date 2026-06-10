@@ -489,7 +489,7 @@ export default function AttendancePage() {
                         <thead className="select-none">
                             <tr className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 <th
-                                    className="sticky top-0 left-0 z-30 bg-slate-100 border-b border-slate-200 px-3 md:px-4 py-3 text-left w-[116px] min-w-[116px] md:w-[150px] cursor-pointer hover:text-slate-600"
+                                    className="sticky top-0 left-0 z-30 bg-slate-100 border-b border-slate-200 px-2 md:px-4 py-3 text-left w-[88px] min-w-[88px] md:w-[150px] cursor-pointer hover:text-slate-600"
                                     onClick={() => toggleSort('date')}
                                 >
                                     <span className="flex items-center gap-1">
@@ -499,7 +499,7 @@ export default function AttendancePage() {
                                     </span>
                                 </th>
                                 <th
-                                    className="sticky top-0 left-[116px] z-30 bg-slate-100 border-b border-r border-slate-200 px-2 md:px-3 py-3 text-left w-[80px] min-w-[80px] md:w-[120px] cursor-pointer hover:text-slate-600"
+                                    className="sticky top-0 left-[88px] z-30 bg-slate-100 border-b border-r border-slate-200 px-1.5 md:px-3 py-3 text-left w-[64px] min-w-[64px] md:w-[120px] cursor-pointer hover:text-slate-600"
                                     onClick={() => toggleSort('foreman')}
                                 >
                                     <span className="flex items-center gap-1">
@@ -559,11 +559,11 @@ export default function AttendancePage() {
                                         onClick={() => handleEdit(g)}
                                         className="group cursor-pointer hover:bg-slate-50 transition-colors"
                                     >
-                                        <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-3 md:px-4 py-3 font-semibold text-slate-900 whitespace-nowrap transition-colors">
+                                        <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-2 md:px-4 py-3 font-semibold text-slate-900 whitespace-nowrap transition-colors">
                                             <span className="md:hidden">{formatShortJaDate(g.date)}</span>
                                             <span className="hidden md:inline">{formatJaDate(g.date)}</span>
                                         </td>
-                                        <td className="sticky left-[116px] z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 px-2 md:px-3 py-3 text-slate-700 whitespace-nowrap max-w-[80px] md:max-w-none truncate transition-colors">
+                                        <td className="sticky left-[88px] z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 px-1.5 md:px-3 py-3 text-slate-700 whitespace-nowrap max-w-[64px] md:max-w-none truncate transition-colors">
                                             {getForemanName(g.foremanId)}
                                         </td>
                                         <td className="px-2 md:px-3 py-3 text-right tabular-nums text-slate-700 whitespace-nowrap">
