@@ -67,7 +67,8 @@ export default function PartnerWorkVolumeTable({
 
     return (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-auto">
-            <table className="w-full text-sm">
+            {/* 10列の編集テーブル。min-w を与えてモバイル/狭幅では列を潰さず横スクロールさせる */}
+            <table className="w-full min-w-[960px] text-sm">
                 <thead>
                     <tr>
                         {!readOnly && <th className={`${thBase} text-center w-12`}>挿入</th>}
