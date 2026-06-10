@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatCurrency } from '@/utils/costCalculation';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { MonthlySalesData } from '@/lib/profitDashboard';
 import MonthlyAssigneeTable from './MonthlyAssigneeTable';
 
@@ -13,10 +14,15 @@ import MonthlyAssigneeTable from './MonthlyAssigneeTable';
 const SLATE_300 = '#cbd5e1';
 const TEAL_600 = '#0d9488';
 
+// 「千万」丸めだと 1,500万 が「2千万」になり 2,000万 と重複表示されるため、
+// 億未満は万単位カンマ区切りで一意に表示する（600万 / 1,000万 / 1,500万 / 2,000万）
 function formatYAxis(value: number): string {
-    if (value >= 100000000) return `${(value / 100000000).toFixed(1)}億`;
-    if (value >= 10000000) return `${Math.round(value / 10000000)}千万`;
-    if (value >= 10000) return `${Math.round(value / 10000)}万`;
+    if (value === 0) return '0';
+    if (value >= 100000000) {
+        const v = value / 100000000;
+        return `${Number.isInteger(v) ? v : v.toFixed(1)}億`;
+    }
+    if (value >= 10000) return `${Math.round(value / 10000).toLocaleString()}万`;
     return `${value}`;
 }
 
@@ -47,6 +53,8 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
     const lastIndex = trend.length - 1;
     // 既定は当月（末尾）。月送りで過去月も確認できる。
     const [selectedIndex, setSelectedIndex] = useState(lastIndex);
+    // モバイルは13ヶ月分のX軸ラベルが重なるため隔月に間引く
+    const isNarrow = useMediaQuery('(max-width: 639px)') === true;
 
     // 再フェッチ等で trend 長が変わったら当月へ寄せ直す
     useEffect(() => {
@@ -84,9 +92,9 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
 
     return (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">
-            <div className="flex items-center justify-between mb-4 gap-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-3 sm:mb-4 gap-0.5 sm:gap-2">
                 <h2 className="text-sm font-semibold text-slate-700">月次売上（送付済み以降・作成日ベース・税抜）</h2>
-                <span className="text-xs text-slate-400 text-right">フィルタの影響を受けない実績値</span>
+                <span className="text-xs text-slate-400 sm:text-right">フィルタの影響を受けない実績値</span>
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                 {/* ヘッドライン（月ナビ付き） */}
@@ -157,8 +165,8 @@ export default function MonthlySalesPanel({ data }: { data: MonthlySalesData }) 
                             }}
                         >
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-                            <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748b' }} interval={0} />
-                            <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11, fill: '#64748b' }} width={48} />
+                            <XAxis dataKey="label" tick={{ fontSize: isNarrow ? 10 : 11, fill: '#64748b' }} interval={isNarrow ? 1 : 0} />
+                            <YAxis tickFormatter={formatYAxis} tick={{ fontSize: isNarrow ? 10 : 11, fill: '#64748b' }} width={isNarrow ? 44 : 48} />
                             <Tooltip content={<MonthlyTooltip />} cursor={{ fill: 'rgba(148,163,184,0.12)' }} />
                             <Bar dataKey="sales" radius={[4, 4, 0, 0]} maxBarSize={48}>
                                 {chartData.map((d) => (

@@ -6,6 +6,7 @@ import {
     PieChart, Pie, Cell,
 } from 'recharts';
 import { formatCurrency } from '@/utils/costCalculation';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { SerializedProjectProfit } from './ProfitDashboardClient';
 
 interface ProfitChartsProps {
@@ -27,9 +28,14 @@ const MARGIN_COLORS = [
     { range: '30%+', color: '#334155', min: 30, max: Infinity },
 ];
 
+// 「千万」丸めだと 1,500万 が「2千万」になり目盛が重複するため、万単位カンマ区切りで一意に表示
 function formatYAxis(value: number): string {
-    if (value >= 10000000) return `${(value / 10000000).toFixed(0)}千万`;
-    if (value >= 10000) return `${(value / 10000).toFixed(0)}万`;
+    if (value === 0) return '0';
+    if (value >= 100000000) {
+        const v = value / 100000000;
+        return `${Number.isInteger(v) ? v : v.toFixed(1)}億`;
+    }
+    if (value >= 10000) return `${Math.round(value / 10000).toLocaleString()}万`;
     return `${value}`;
 }
 
@@ -49,6 +55,9 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
 }
 
 export default function ProfitCharts({ projects }: ProfitChartsProps) {
+    // モバイルは案件名ラベルが重なるため、短縮+角度を強めて回避する
+    const isNarrow = useMediaQuery('(max-width: 639px)') === true;
+
     // 売上TOP10の棒グラフデータ
     const topProjectsData = useMemo(() => {
         return projects
@@ -103,7 +112,15 @@ export default function ProfitCharts({ projects }: ProfitChartsProps) {
                     <ResponsiveContainer width="100%" height={320}>
                         <BarChart data={topProjectsData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#64748b' }} interval={0} angle={-20} textAnchor="end" height={60} />
+                            <XAxis
+                                dataKey="name"
+                                tick={{ fontSize: isNarrow ? 10 : 11, fill: '#64748b' }}
+                                interval={0}
+                                angle={isNarrow ? -35 : -20}
+                                textAnchor="end"
+                                height={isNarrow ? 74 : 60}
+                                tickFormatter={(v: string) => (isNarrow && v.length > 6 ? `${v.slice(0, 6)}…` : v)}
+                            />
                             <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11, fill: '#64748b' }} />
                             <Tooltip content={<CustomTooltip />} />
                             <Legend wrapperStyle={{ fontSize: 12 }} />

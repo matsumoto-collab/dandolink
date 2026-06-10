@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { logger } from '@/lib/logger';
 import { useDebounce } from '@/hooks/useDebounce';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
@@ -178,16 +178,27 @@ export default function ProfitDashboardClient({
         || (filters.status && filters.status !== 'active')
     );
 
+    // モバイルの「絞り込み」折りたたみ（sm+ は常時展開）
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const activeFilterCount =
+        (filters.dateFrom ? 1 : 0)
+        + (filters.dateTo ? 1 : 0)
+        + (filters.status && filters.status !== 'active' ? 1 : 0)
+        + (filters.customerNames?.length ? 1 : 0)
+        + (filters.foremanIds?.length ? 1 : 0)
+        + (filters.constructionTypeIds?.length ? 1 : 0)
+        + (searchQuery.trim() ? 1 : 0);
+
     return (
-        <div className="min-h-screen bg-slate-50 p-6">
+        <div className="min-h-screen bg-slate-50 p-4 sm:p-6">
             <div className="max-w-[1800px] mx-auto">
-                {/* ヘッダー */}
-                <div className="flex items-center justify-between mb-6">
+                {/* ヘッダー（モバイルは説明文非表示） */}
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800">
+                        <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
                             利益ダッシュボード
                         </h1>
-                        <p className="text-sm text-slate-500 mt-1">
+                        <p className="hidden sm:block text-sm text-slate-500 mt-1">
                             期間・顧客・職長・工事種別を自由に組み合わせて閲覧できます
                         </p>
                     </div>
@@ -197,8 +208,24 @@ export default function ProfitDashboardClient({
                 {/* 月次売上（送付済み以降・作成日ベース・税抜）— フィルタ非依存。月送りで過去月も確認可 */}
                 <MonthlySalesPanel data={monthlySales} />
 
-                {/* フィルタパネル */}
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-6">
+                {/* フィルタパネル（モバイルは「絞り込み」で折りたたみ。sm+ は常時表示） */}
+                <button
+                    type="button"
+                    onClick={() => setFiltersOpen(o => !o)}
+                    className="sm:hidden w-full flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm text-sm font-medium text-slate-700 mb-4"
+                >
+                    <span className="flex items-center gap-2">
+                        <SlidersHorizontal className="w-4 h-4 text-slate-500" />
+                        絞り込み
+                        {activeFilterCount > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-teal-600 text-white text-[11px] font-bold">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <div className={`${filtersOpen ? '-mt-2' : 'hidden'} sm:mt-0 sm:block bg-white rounded-xl border border-slate-200 shadow-sm p-4 sm:p-5 mb-4 sm:mb-6`}>
                     <div className="mb-4">
                         <label className="block text-xs font-medium text-slate-600 mb-1.5">案件名で検索</label>
                         <input
@@ -325,13 +352,13 @@ export default function ProfitDashboardClient({
 
                 {/* タブ */}
                 <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    {/* モバイルでタブが多い時の折返し対応 + 件数表示が縦書き化しないよう whitespace-nowrap */}
-                    <div className="flex items-center border-b border-slate-200 overflow-x-auto flex-wrap">
+                    {/* モバイルは折返しではなく横スクロール（折返しと併用すると崩れるため） */}
+                    <div className="flex items-center border-b border-slate-200 overflow-x-auto">
                         {TABS.map(tab => (
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
-                                className={`px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === tab.key
+                                className={`flex-shrink-0 px-4 sm:px-5 py-3 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${activeTab === tab.key
                                     ? 'border-slate-700 text-slate-800'
                                     : 'border-transparent text-slate-500 hover:text-slate-700'
                                     }`}
@@ -339,7 +366,7 @@ export default function ProfitDashboardClient({
                                 {tab.label}
                             </button>
                         ))}
-                        <div className="ml-auto px-4 py-2 text-xs text-slate-500 whitespace-nowrap">
+                        <div className="ml-auto hidden sm:block px-4 py-2 text-xs text-slate-500 whitespace-nowrap">
                             {activeTab === 'project' && searchQuery.trim()
                                 ? `${filteredProjects.length} / ${summary.totalProjects}件の案件`
                                 : `${summary.totalProjects}件の案件`}

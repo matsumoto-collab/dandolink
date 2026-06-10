@@ -53,11 +53,20 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
     const periodLabel = period === 'year' ? `${year}年（年間）` : `${year}年${month}月`;
     const groupColLabel = axis === 'assignee' ? '案件担当者' : '顧客';
 
+    // 説明文（PC=常時表示 / モバイル=折りたたみ）で共用
+    const explainer = (
+        <>
+            {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額、原価=案件の確定原価＝人件費＋車両費＋材料費＋外注費＋その他、主担当に全額計上）。
+            <strong className="text-slate-500">原価の修正は案件詳細の利益タブ</strong>（配置ごとの上書き・材料費等）で行います。
+        </>
+    );
+
     return (
         <div className="mt-6 border-t border-slate-200 pt-5">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                 <h3 className="text-sm font-semibold text-slate-700">{axisLabel}（{periodLabel}）</h3>
-                <div className="flex items-center gap-2">
+                {/* 幅が足りないときはボタンを潰さずグループ単位で折り返す（文字の縦書き化防止） */}
+                <div className="flex flex-wrap items-center gap-2">
                     <Segmented
                         value={axis}
                         onChange={(v) => setAxis(v as BreakdownAxis)}
@@ -73,17 +82,18 @@ export default function MonthlyAssigneeTable({ year, month }: Props) {
                         onClick={() => data && downloadBreakdownCsv(data)}
                         disabled={!data || rows.length === 0}
                         title="表示中の集計をCSVで出力"
-                        className="inline-flex items-center gap-1 px-3 py-1 text-xs rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="inline-flex flex-shrink-0 items-center gap-1 px-3 py-1 text-xs whitespace-nowrap rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                         <Download className="w-3.5 h-3.5" />CSV出力
                     </button>
                     {isLoading && <span className="text-xs text-slate-400">読み込み中…</span>}
                 </div>
             </div>
-            <p className="text-xs text-slate-400 mb-3">
-                {groupColLabel}の行をクリックすると案件ごとの内訳が開きます。<strong className="text-slate-500">その期間に請求した案件のみ</strong>表示（売上=請求額、原価=案件の確定原価＝人件費＋車両費＋材料費＋外注費＋その他、主担当に全額計上）。
-                <strong className="text-slate-500">原価の修正は案件詳細の利益タブ</strong>（配置ごとの上書き・材料費等）で行います。
-            </p>
+            <p className="hidden sm:block text-xs text-slate-400 mb-3">{explainer}</p>
+            <details className="sm:hidden mb-3">
+                <summary className="cursor-pointer select-none text-xs text-slate-500">この表の見方</summary>
+                <p className="mt-1.5 text-xs text-slate-400">{explainer}</p>
+            </details>
 
             {/* PC: テーブル */}
             <div className="hidden md:block overflow-auto">
@@ -192,13 +202,14 @@ function Segmented({ value, onChange, options }: {
     options: { value: string; label: string }[];
 }) {
     return (
-        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+        // flex-shrink-0 + whitespace-nowrap: 幅不足時にボタン内の文字が縦書き化するのを防ぐ
+        <div className="inline-flex flex-shrink-0 rounded-lg border border-slate-200 bg-white p-0.5">
             {options.map(o => (
                 <button
                     key={o.value}
                     type="button"
                     onClick={() => onChange(o.value)}
-                    className={`px-3 py-1 text-xs rounded-md transition-colors ${value === o.value ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                    className={`px-3 py-1 text-xs whitespace-nowrap rounded-md transition-colors ${value === o.value ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                 >
                     {o.label}
                 </button>
