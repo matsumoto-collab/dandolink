@@ -70,13 +70,19 @@ function formatJaDate(s: string): string {
     return `${y}/${m}/${dd}（${w}）`;
 }
 
-function formatMinutes(min: number): string {
-    if (min === 0) return '-';
+// モバイルの固定列用の短い日付（例: 6/10（火））
+function formatShortJaDate(s: string): string {
+    const d = new Date(s);
+    const w = ['日', '月', '火', '水', '木', '金', '土'][d.getDay()];
+    return `${d.getMonth() + 1}/${d.getDate()}（${w}）`;
+}
+
+// テーブルセル用の時間表示（0 は「−」、それ以外は H:MM）
+function formatHM(min: number): string {
+    if (min <= 0) return '−';
     const h = Math.floor(min / 60);
     const m = min % 60;
-    if (h === 0) return `${m}分`;
-    if (m === 0) return `${h}時間`;
-    return `${h}時間${m}分`;
+    return `${h}:${m.toString().padStart(2, '0')}`;
 }
 
 const getInitialRange = () => {
@@ -115,7 +121,7 @@ export default function AttendancePage() {
     const [activeTab, setActiveTab] = useState<AttendanceTab>('daily');
     const [monthlyRefreshKey, setMonthlyRefreshKey] = useState(0);
 
-    type SortKey = 'date' | 'foreman' | 'count';
+    type SortKey = 'date' | 'foreman' | 'count' | 'early' | 'morning' | 'overtime' | 'evening' | 'earlyEnd';
     type SortDir = 'asc' | 'desc';
     const [sortKey, setSortKey] = useState<SortKey>('date');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
@@ -125,7 +131,8 @@ export default function AttendancePage() {
             setSortDir(d => d === 'asc' ? 'desc' : 'asc');
         } else {
             setSortKey(key);
-            setSortDir(key === 'date' ? 'desc' : 'asc');
+            // 日付・時間系は新しい/多い順が見たいので desc 始まり
+            setSortDir(key === 'foreman' || key === 'count' ? 'asc' : 'desc');
         }
     };
 
@@ -227,6 +234,21 @@ export default function AttendancePage() {
                 case 'count':
                     cmp = a.memberCount - b.memberCount;
                     break;
+                case 'early':
+                    cmp = a.totalEarly - b.totalEarly;
+                    break;
+                case 'morning':
+                    cmp = a.totalMorning - b.totalMorning;
+                    break;
+                case 'overtime':
+                    cmp = a.totalOvertime - b.totalOvertime;
+                    break;
+                case 'evening':
+                    cmp = a.totalEvening - b.totalEvening;
+                    break;
+                case 'earlyEnd':
+                    cmp = a.earlyEndCount - b.earlyEndCount;
+                    break;
             }
             return sortDir === 'asc' ? cmp : -cmp;
         });
@@ -309,14 +331,27 @@ export default function AttendancePage() {
 
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
-            {/* ヘッダー */}
-            <div className="mb-4 flex-shrink-0">
-                <h1 className="text-2xl font-bold text-slate-800">出勤簿一覧</h1>
-                <p className="text-sm text-slate-500 mt-1">
-                    {activeTab === 'daily'
-                        ? '職長が登録した出勤簿を管理できます'
-                        : '個人ごとの累計と月次明細を確認できます（閲覧専用）'}
-                </p>
+            {/* ヘッダー（モバイルは新規追加をタイトル行へ統合・説明文非表示） */}
+            <div className="mb-3 sm:mb-4 flex-shrink-0 flex items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">出勤簿一覧</h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">
+                        {activeTab === 'daily'
+                            ? '職長が登録した出勤簿を管理できます'
+                            : '個人ごとの累計と月次明細を確認できます（閲覧専用）'}
+                    </p>
+                </div>
+                {canInput && activeTab === 'daily' && (
+                    <div className="sm:hidden flex-shrink-0">
+                        <Button
+                            variant="primary"
+                            onClick={handleAddNew}
+                            leftIcon={<Plus className="w-5 h-5" />}
+                        >
+                            新規追加
+                        </Button>
+                    </div>
+                )}
             </div>
 
             {/* タブ */}
@@ -351,9 +386,9 @@ export default function AttendancePage() {
                 </div>
             ) : (
             <>
-            {/* ツールバー */}
-            <div className="mb-6 flex-shrink-0 flex flex-col gap-3 sm:gap-4">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {/* ツールバー（モバイルは 職長 / 期間+直近30日 / 月次CSV の3段に圧縮。新規はタイトル行へ） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex flex-col gap-2 sm:gap-4">
+                <div className="hidden sm:flex items-center gap-3">
                     <div className="flex-1" />
                     {canInput && (
                         <Button
@@ -361,49 +396,44 @@ export default function AttendancePage() {
                             onClick={handleAddNew}
                             leftIcon={<Plus className="w-5 h-5" />}
                         >
-                            <span className="hidden sm:inline">新規出勤簿入力</span>
-                            <span className="sm:hidden">新規追加</span>
+                            新規出勤簿入力
                         </Button>
                     )}
                 </div>
 
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-wrap">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
                     <select
                         value={foremanFilter}
                         onChange={(e) => setForemanFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="px-3 sm:px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="all">全ての職長</option>
                         {foremen.map(f => (
                             <option key={f.id} value={f.id}>{f.displayName}</option>
                         ))}
                     </select>
-                    {/* モバイルでは「期間ラベル + 日付2つ」を1行・「直近30日」を全幅の別行へ。
-                        md: 以上は従来の1行レイアウトを維持 */}
-                    <div className="flex flex-col md:flex-row md:items-center md:gap-2 md:flex-wrap">
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm text-slate-600 whitespace-nowrap">期間</span>
-                            <input
-                                type="date"
-                                value={rangeStart}
-                                max={rangeEnd || undefined}
-                                onChange={(e) => setRangeStart(e.target.value)}
-                                // モバイルで input が縮まずボタンを押し出さないよう flex-1 min-w-0
-                                className="flex-1 md:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                            />
-                            <span className="text-slate-400">〜</span>
-                            <input
-                                type="date"
-                                value={rangeEnd}
-                                min={rangeStart || undefined}
-                                onChange={(e) => setRangeEnd(e.target.value)}
-                                className="flex-1 md:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                            />
-                        </div>
+                    {/* 期間2つ+直近30日を1行に（「期間」ラベルは sm+ のみ表示） */}
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="hidden sm:inline text-sm text-slate-600 whitespace-nowrap">期間</span>
+                        <input
+                            type="date"
+                            value={rangeStart}
+                            max={rangeEnd || undefined}
+                            onChange={(e) => setRangeStart(e.target.value)}
+                            // モバイルで input が縮まず横並びを押し出さないよう flex-1 min-w-0
+                            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
+                        <span className="text-slate-400 flex-shrink-0">〜</span>
+                        <input
+                            type="date"
+                            value={rangeEnd}
+                            min={rangeStart || undefined}
+                            onChange={(e) => setRangeEnd(e.target.value)}
+                            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        />
                         <button
                             onClick={resetRange}
-                            // モバイルでは別行・全幅。md: 以上は元通りインライン
-                            className="mt-2 w-full md:mt-0 md:w-auto px-3 py-2.5 text-sm text-slate-600 hover:text-slate-800 transition-colors whitespace-nowrap"
+                            className="flex-shrink-0 px-2 sm:px-3 py-2.5 text-sm font-medium text-teal-700 hover:text-teal-800 sm:font-normal sm:text-slate-600 sm:hover:text-slate-800 transition-colors whitespace-nowrap"
                         >
                             直近30日
                         </button>
@@ -415,7 +445,7 @@ export default function AttendancePage() {
                                 type="month"
                                 value={csvMonth}
                                 onChange={(e) => setCsvMonth(e.target.value)}
-                                className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                                className="flex-1 sm:flex-none min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                             />
                             <Button
                                 variant="outline"
@@ -430,120 +460,139 @@ export default function AttendancePage() {
                 </div>
             </div>
 
-            {/* リスト */}
-            <div className="flex-1 min-h-0 overflow-y-auto md:border md:border-slate-200 md:rounded-xl md:bg-white">
-                {/* デスクトップ: ヘッダー */}
-                <div className="hidden md:block bg-slate-100 border-b border-slate-200 select-none sticky top-0 z-10 md:rounded-t-xl">
-                    <div className="grid grid-cols-[140px_140px_90px_1fr_70px] gap-2 px-4 py-3 text-xs font-bold text-slate-800 uppercase tracking-wider">
-                        <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('date')}>
-                            <Calendar className="w-3.5 h-3.5" />
-                            日付
-                            <SortIcon column="date" />
-                        </div>
-                        <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('foreman')}>
-                            職長
-                            <SortIcon column="foreman" />
-                        </div>
-                        <div className="flex items-center gap-1 cursor-pointer hover:text-slate-600" onClick={() => toggleSort('count')}>
-                            <Users className="w-3.5 h-3.5" />
-                            人数
-                            <SortIcon column="count" />
-                        </div>
-                        <div>合計</div>
-                        <div></div>
+            {/* リスト（PC・モバイル共通のテーブル。内訳は独立列・モバイルは横スクロールで日付/職長を左固定） */}
+            <div className="flex-1 min-h-0 overflow-auto border border-slate-200 rounded-xl bg-white">
+                {loading ? (
+                    <div className="flex items-center justify-center h-48">
+                        <Loading text="読み込み中..." />
                     </div>
-                </div>
-
-                <div>
-                    {loading ? (
-                        <div className="flex items-center justify-center h-48">
-                            <Loading text="読み込み中..." />
-                        </div>
-                    ) : groups.length === 0 ? (
-                        <div className="text-center py-12 bg-white rounded-xl border border-slate-200">
-                            <p className="text-slate-500">指定期間に出勤簿が登録されていません</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3 md:space-y-0 md:divide-y md:divide-slate-100">
+                ) : groups.length === 0 ? (
+                    <div className="text-center py-12">
+                        <p className="text-slate-500">指定期間に出勤簿が登録されていません</p>
+                    </div>
+                ) : (
+                    <table className="w-full min-w-[640px] border-collapse text-[12px]">
+                        <thead className="select-none">
+                            <tr className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                <th
+                                    className="sticky top-0 left-0 z-30 bg-slate-100 border-b border-slate-200 px-3 md:px-4 py-3 text-left w-[116px] min-w-[116px] md:w-[150px] cursor-pointer hover:text-slate-600"
+                                    onClick={() => toggleSort('date')}
+                                >
+                                    <span className="flex items-center gap-1">
+                                        <Calendar className="w-3.5 h-3.5" />
+                                        日付
+                                        <SortIcon column="date" />
+                                    </span>
+                                </th>
+                                <th
+                                    className="sticky top-0 left-[116px] z-30 bg-slate-100 border-b border-r border-slate-200 px-2 md:px-3 py-3 text-left w-[80px] min-w-[80px] md:w-[120px] cursor-pointer hover:text-slate-600"
+                                    onClick={() => toggleSort('foreman')}
+                                >
+                                    <span className="flex items-center gap-1">
+                                        職長
+                                        <SortIcon column="foreman" />
+                                    </span>
+                                </th>
+                                <th
+                                    className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 px-2 md:px-3 py-3 cursor-pointer hover:text-slate-600 whitespace-nowrap"
+                                    onClick={() => toggleSort('count')}
+                                >
+                                    <span className="flex items-center justify-end gap-1">
+                                        <Users className="w-3.5 h-3.5" />
+                                        人数
+                                        <SortIcon column="count" />
+                                    </span>
+                                </th>
+                                <th
+                                    className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 px-2 md:px-3 py-3 cursor-pointer hover:text-slate-600 whitespace-nowrap"
+                                    onClick={() => toggleSort('early')}
+                                >
+                                    <span className="flex items-center justify-end gap-1">早出<SortIcon column="early" /></span>
+                                </th>
+                                <th
+                                    className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 px-2 md:px-3 py-3 cursor-pointer hover:text-slate-600 whitespace-nowrap"
+                                    onClick={() => toggleSort('morning')}
+                                >
+                                    <span className="flex items-center justify-end gap-1">朝積<SortIcon column="morning" /></span>
+                                </th>
+                                <th
+                                    className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 px-2 md:px-3 py-3 cursor-pointer hover:text-slate-600 whitespace-nowrap"
+                                    onClick={() => toggleSort('overtime')}
+                                >
+                                    <span className="flex items-center justify-end gap-1">残業<SortIcon column="overtime" /></span>
+                                </th>
+                                <th
+                                    className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 px-2 md:px-3 py-3 cursor-pointer hover:text-slate-600 whitespace-nowrap"
+                                    onClick={() => toggleSort('evening')}
+                                >
+                                    <span className="flex items-center justify-end gap-1">夕積<SortIcon column="evening" /></span>
+                                </th>
+                                <th
+                                    className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 px-2 md:px-3 py-3 cursor-pointer hover:text-slate-600 whitespace-nowrap"
+                                    onClick={() => toggleSort('earlyEnd')}
+                                >
+                                    <span className="flex items-center justify-end gap-1">早終<SortIcon column="earlyEnd" /></span>
+                                </th>
+                                <th className="sticky top-0 z-20 bg-slate-100 border-b border-slate-200 w-[56px] px-2 py-3"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
                             {groups.map(g => {
                                 const canDelete = isAdminOrManager || (isForeman && g.foremanId === userId);
                                 return (
-                                    <div
+                                    <tr
                                         key={g.key}
-                                        className="bg-white rounded-xl md:rounded-none border border-slate-200 md:border-0 hover:bg-slate-50 transition-colors cursor-pointer"
                                         onClick={() => handleEdit(g)}
+                                        className="group cursor-pointer hover:bg-slate-50 transition-colors"
                                     >
-                                        {/* モバイル */}
-                                        <div className="md:hidden p-4">
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div>
-                                                    <div className="text-base font-semibold text-slate-900">
-                                                        {formatJaDate(g.date)}
-                                                    </div>
-                                                    <div className="text-sm text-slate-600 mt-0.5">
-                                                        {getForemanName(g.foremanId)} / {g.memberCount}名
-                                                    </div>
-                                                </div>
-                                                {canDelete && (
-                                                    <button
-                                                        onClick={(e) => handleDelete(e, g)}
-                                                        className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
-                                                        aria-label="削除"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="text-xs text-slate-600 flex flex-wrap gap-x-3 gap-y-0.5">
-                                                {g.totalEarly > 0 && <span>早出 {formatMinutes(g.totalEarly)}</span>}
-                                                {g.totalMorning > 0 && <span>朝積 {formatMinutes(g.totalMorning)}</span>}
-                                                {g.totalOvertime > 0 && <span>残業 {formatMinutes(g.totalOvertime)}</span>}
-                                                {g.totalEvening > 0 && <span>夕積 {formatMinutes(g.totalEvening)}</span>}
-                                                {g.earlyEndCount > 0 && <span>早終 {g.earlyEndCount}名</span>}
-                                                {g.totalEarly === 0 && g.totalMorning === 0 && g.totalOvertime === 0 && g.totalEvening === 0 && g.earlyEndCount === 0 && (
-                                                    <span className="text-slate-400">全員定時</span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* デスクトップ */}
-                                        <div className="hidden md:grid grid-cols-[140px_140px_90px_1fr_70px] gap-2 px-4 py-3 items-center">
-                                            <div className="text-[12px] font-semibold text-slate-900">
-                                                {formatJaDate(g.date)}
-                                            </div>
-                                            <div className="text-[12px] text-slate-700 truncate">
-                                                {getForemanName(g.foremanId)}
-                                            </div>
-                                            <div className="text-[12px] text-slate-700">
-                                                {g.memberCount}名
-                                            </div>
-                                            <div className="text-[12px] text-slate-700 flex flex-wrap gap-x-3 gap-y-0.5 min-w-0">
-                                                {g.totalEarly > 0 && <span>早出 {formatMinutes(g.totalEarly)}</span>}
-                                                {g.totalMorning > 0 && <span>朝積 {formatMinutes(g.totalMorning)}</span>}
-                                                {g.totalOvertime > 0 && <span>残業 {formatMinutes(g.totalOvertime)}</span>}
-                                                {g.totalEvening > 0 && <span>夕積 {formatMinutes(g.totalEvening)}</span>}
-                                                {g.earlyEndCount > 0 && <span>早終 {g.earlyEndCount}名</span>}
-                                                {g.totalEarly === 0 && g.totalMorning === 0 && g.totalOvertime === 0 && g.totalEvening === 0 && g.earlyEndCount === 0 && (
-                                                    <span className="text-slate-400">全員定時</span>
-                                                )}
-                                            </div>
-                                            <div className="flex justify-end">
-                                                {canDelete && (
-                                                    <button
-                                                        onClick={(e) => handleDelete(e, g)}
-                                                        className="px-3 py-1.5 text-[12px] font-medium rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                                                    >
-                                                        削除
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
+                                        <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50 px-3 md:px-4 py-3 font-semibold text-slate-900 whitespace-nowrap transition-colors">
+                                            <span className="md:hidden">{formatShortJaDate(g.date)}</span>
+                                            <span className="hidden md:inline">{formatJaDate(g.date)}</span>
+                                        </td>
+                                        <td className="sticky left-[116px] z-10 bg-white group-hover:bg-slate-50 border-r border-slate-200 px-2 md:px-3 py-3 text-slate-700 whitespace-nowrap max-w-[80px] md:max-w-none truncate transition-colors">
+                                            {getForemanName(g.foremanId)}
+                                        </td>
+                                        <td className="px-2 md:px-3 py-3 text-right tabular-nums text-slate-700 whitespace-nowrap">
+                                            {g.memberCount}名
+                                        </td>
+                                        <td className={`px-2 md:px-3 py-3 text-right tabular-nums whitespace-nowrap ${g.totalEarly > 0 ? 'font-medium text-slate-800' : 'text-slate-300'}`}>
+                                            {formatHM(g.totalEarly)}
+                                        </td>
+                                        <td className={`px-2 md:px-3 py-3 text-right tabular-nums whitespace-nowrap ${g.totalMorning > 0 ? 'font-medium text-slate-800' : 'text-slate-300'}`}>
+                                            {formatHM(g.totalMorning)}
+                                        </td>
+                                        <td className={`px-2 md:px-3 py-3 text-right tabular-nums whitespace-nowrap ${g.totalOvertime > 0 ? 'font-medium text-slate-800' : 'text-slate-300'}`}>
+                                            {formatHM(g.totalOvertime)}
+                                        </td>
+                                        <td className={`px-2 md:px-3 py-3 text-right tabular-nums whitespace-nowrap ${g.totalEvening > 0 ? 'font-medium text-slate-800' : 'text-slate-300'}`}>
+                                            {formatHM(g.totalEvening)}
+                                        </td>
+                                        <td className={`px-2 md:px-3 py-3 text-right tabular-nums whitespace-nowrap ${g.earlyEndCount > 0 ? 'font-medium text-slate-800' : 'text-slate-300'}`}>
+                                            {g.earlyEndCount > 0 ? `${g.earlyEndCount}名` : '−'}
+                                        </td>
+                                        <td className="px-2 py-2 text-right whitespace-nowrap">
+                                            {canDelete && (
+                                                <button
+                                                    onClick={(e) => handleDelete(e, g)}
+                                                    className="p-2 text-slate-400 hover:text-red-600 rounded-lg transition-colors"
+                                                    aria-label="削除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
                                 );
                             })}
-                        </div>
-                    )}
-                </div>
+                        </tbody>
+                    </table>
+                )}
+                {/* モバイル: 横スクロールのヒント */}
+                {!loading && groups.length > 0 && (
+                    <div className="md:hidden sticky left-0 px-3 py-1.5 text-[10px] text-slate-400 border-t border-slate-100">
+                        ← 横にスクロールできます（日付・職長は固定）
+                    </div>
+                )}
             </div>
 
             <div className="mt-2 flex-shrink-0 text-sm text-slate-600">
