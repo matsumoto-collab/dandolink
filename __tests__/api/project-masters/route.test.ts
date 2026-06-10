@@ -19,6 +19,9 @@ describe('/api/project-masters', () => {
         // We do need to ensure requireAuth returns what we expect for each test
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (canDispatch as jest.Mock).mockReturnValue(true);
+        // GET の見積/請求フラグ集計(buildDocFlags)が findMany を呼ぶため空配列を既定に
+        (prisma.estimate.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.invoice.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     describe('GET', () => {

@@ -34,14 +34,15 @@ describe('vacationSlice', () => {
       expect(state.vacationsLoading).toBe(false);
     });
 
-    it('fetchのresponse.okがfalseの場合、状態は更新されない', async () => {
+    it('fetchのresponse.okがfalseの場合、データは更新せずinitializedを立ててUIをアンブロックする', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
 
       const { fetchVacations } = useCalendarStore.getState();
       await fetchVacations();
 
       const state = useCalendarStore.getState();
-      expect(state.vacationsInitialized).toBe(false);
+      expect(state.vacations).toEqual({});
+      expect(state.vacationsInitialized).toBe(true);
     });
 
     it('fetchで例外が発生したときにエラーログを出力する', async () => {

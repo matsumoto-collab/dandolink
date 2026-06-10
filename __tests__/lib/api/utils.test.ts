@@ -67,7 +67,7 @@ describe('API Utils', () => {
             expect(result.error).not.toBeNull();
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: '認証が必要です' },
-                { status: 401 }
+                { status: 401, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -93,7 +93,7 @@ describe('API Utils', () => {
             expect(result.error).not.toBeNull();
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: '管理者権限が必要です' },
-                { status: 403 }
+                { status: 403, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -114,7 +114,7 @@ describe('API Utils', () => {
 
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: 'エラーメッセージ' },
-                { status: 500 }
+                { status: 500, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -123,7 +123,7 @@ describe('API Utils', () => {
 
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: 'バリデーションエラー' },
-                { status: 400 }
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
             );
         });
     });
@@ -134,7 +134,7 @@ describe('API Utils', () => {
 
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: 'ユーザーが見つかりません' },
-                { status: 404 }
+                { status: 404, headers: { 'Cache-Control': 'no-store' } }
             );
         });
     });
@@ -145,7 +145,7 @@ describe('API Utils', () => {
 
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: '入力エラー', details: undefined },
-                { status: 400 }
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -155,7 +155,7 @@ describe('API Utils', () => {
 
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: '入力エラー', details },
-                { status: 400 }
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
             );
         });
     });
@@ -177,7 +177,7 @@ describe('API Utils', () => {
             expect(console.error).toHaveBeenCalled();
             expect(NextResponse.json).toHaveBeenCalledWith(
                 { error: 'データ取得に失敗しました' },
-                { status: 500 }
+                { status: 500, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -193,7 +193,7 @@ describe('API Utils', () => {
                     error: expect.stringContaining('同じデータが既に存在します'),
                     code: 'P2002',
                 }),
-                { status: 400 }
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -209,7 +209,7 @@ describe('API Utils', () => {
                     error: expect.stringContaining('関連するデータが存在しないか'),
                     code: 'P2003',
                 }),
-                { status: 400 }
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -225,7 +225,7 @@ describe('API Utils', () => {
                     error: expect.stringContaining('対象のデータが見つかりません'),
                     code: 'P2025',
                 }),
-                { status: 404 }
+                { status: 404, headers: { 'Cache-Control': 'no-store' } }
             );
         });
 
@@ -240,7 +240,7 @@ describe('API Utils', () => {
                 expect.objectContaining({
                     error: expect.stringContaining('入力データが不正です'),
                 }),
-                { status: 400 }
+                { status: 400, headers: { 'Cache-Control': 'no-store' } }
             );
         });
     });
@@ -372,11 +372,11 @@ describe('API Utils', () => {
             });
             it('should return error if empty', () => {
                 validateStringField('', 'field');
-                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'fieldは必須です' }, { status: 400 });
+                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'fieldは必須です' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
             });
             it('should return error if too long', () => {
                 validateStringField('a'.repeat(201), 'field', 200);
-                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'fieldは200文字以内で入力してください' }, { status: 400 });
+                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'fieldは200文字以内で入力してください' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
             });
         });
 
@@ -387,7 +387,7 @@ describe('API Utils', () => {
             });
             it('should return error if invalid date', () => {
                 validateDateString('invalid-date', 'date');
-                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'dateの日付形式が不正です' }, { status: 400 });
+                expect(NextResponse.json).toHaveBeenCalledWith({ error: 'dateの日付形式が不正です' }, { status: 400, headers: { 'Cache-Control': 'no-store' } });
             });
         });
 

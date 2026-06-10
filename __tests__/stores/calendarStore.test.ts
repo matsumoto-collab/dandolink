@@ -460,7 +460,7 @@ describe('calendarStore', () => {
                 } as any);
             });
 
-            expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/pm1', expect.objectContaining({ method: 'PATCH' }));
+            expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/pm1?syncOnly=true', expect.objectContaining({ method: 'PATCH' }));
         });
 
         it('addProject: should create new project master if not found', async () => {

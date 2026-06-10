@@ -25,6 +25,8 @@ jest.mock('bcryptjs', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     parseJsonField: (val: any) => val,
     stringifyJsonField: (val: any) => JSON.stringify(val),
     errorResponse: jest.fn().mockImplementation((msg, status) => NextResponse.json({ error: msg }, { status })),
@@ -126,6 +128,8 @@ describe('/api/users/[id]', () => {
         const context = { params: Promise.resolve({ id: mockId }) };
 
         it('should delete user successfully', async () => {
+            // 削除前に対象ユーザーのroleを取得する（親協力会社ガード用）
+            (prisma.user.findUnique as jest.Mock).mockResolvedValue({ role: 'WORKER' });
             const res = await DELETE(createReq(), context);
             expect(res.status).toBe(200);
             expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: mockId } });

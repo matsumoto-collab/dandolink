@@ -79,7 +79,8 @@ describe('/api/estimates', () => {
         });
 
         it('should return 400 validation error for missing fields', async () => {
-            const invalidBody = { ...validBody, estimateNumber: undefined };
+            // estimateNumber は自動採番対応で省略可になったため、必須の title 欠落で検証する
+            const invalidBody = { ...validBody, title: undefined };
 
             const req = new NextRequest('http://localhost:3000/api/estimates', {
                 method: 'POST',

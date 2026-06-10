@@ -195,7 +195,7 @@ describe('assignmentSlice', () => {
         createdBy: 'user1',
       } as any);
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/exist_pm', expect.objectContaining({
+      expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/exist_pm?syncOnly=true', expect.objectContaining({
         method: 'PATCH',
       }));
     });

@@ -4,7 +4,7 @@
 import { GET, POST } from '@/app/api/master-data/construction-types/route';
 import { PATCH, DELETE } from '@/app/api/master-data/construction-types/[id]/route';
 import { prisma } from '@/lib/prisma';
-import { requireAuth } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove } from '@/lib/api/utils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -23,6 +23,7 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn(),
     validationErrorResponse: jest.fn().mockImplementation((msg) => NextResponse.json({ error: msg }, { status: 400 })),
     errorResponse: jest.fn().mockImplementation((msg, status) => NextResponse.json({ error: msg }, { status })),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
@@ -41,6 +42,7 @@ describe('/api/master-data/construction-types', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (isManagerOrAbove as jest.Mock).mockReturnValue(true);
     });
 
@@ -95,6 +97,7 @@ describe('/api/master-data/construction-types/[id]', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         (requireAuth as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
+        (requireManagerOrAbove as jest.Mock).mockResolvedValue({ session: mockSession, error: null });
         (isManagerOrAbove as jest.Mock).mockReturnValue(true);
     });
 

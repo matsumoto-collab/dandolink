@@ -19,6 +19,7 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    parseDateKeyRangeParams: jest.fn().mockReturnValue({ range: null, error: null }),
     parseJsonField: (val: any) => typeof val === 'string' ? JSON.parse(val) : val,
     validationErrorResponse: jest.fn().mockImplementation((msg) => NextResponse.json({ error: msg }, { status: 400 })),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
@@ -41,7 +42,7 @@ describe('/api/calendar/vacations', () => {
         it('should fetch vacations and map to object', async () => {
             (prisma.vacationRecord.findMany as jest.Mock).mockResolvedValue([mockVacation]);
 
-            const res = await GET();
+            const res = await GET(new NextRequest('http://localhost:3000/api/calendar/vacations'));
             const json = await res.json();
 
             expect(res.status).toBe(200);

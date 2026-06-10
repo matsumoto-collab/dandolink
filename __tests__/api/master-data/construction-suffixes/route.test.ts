@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GET, POST } from '@/app/api/master-data/construction-suffixes/route';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validateStringField } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, validateStringField } from '@/lib/api/utils';
 
 // Define globals for Request and Response
 global.Request = global.Request || class Request {} as any;
@@ -73,6 +73,8 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     serverErrorResponse: jest.fn().mockImplementation((_msg, _err) => {
         return new Response(JSON.stringify({ error: 'Server Error' }), { status: 500 });
     }),
@@ -124,7 +126,7 @@ describe('/api/master-data/construction-suffixes', () => {
     describe('POST', () => {
         it('認証エラーの場合はエラーレスポンスを返す', async () => {
             const errorResponse = new Response('Unauthorized', { status: 401 });
-            (requireAuth as jest.Mock).mockResolvedValue({ error: errorResponse });
+            (requireManagerOrAbove as jest.Mock).mockResolvedValueOnce({ error: errorResponse });
 
             const req = new NextRequest('http://localhost:3000', {
                 method: 'POST',

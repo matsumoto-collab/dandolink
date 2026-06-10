@@ -18,6 +18,8 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
     errorResponse: jest.fn().mockImplementation((msg, status) => NextResponse.json({ error: msg }, { status })),
     validateStringField: jest.fn(),
@@ -51,7 +53,7 @@ describe('/api/master-data/vehicles/[id]', () => {
             const res = await PATCH(req({ name: 'Updated' }), context);
 
             expect(res.status).toBe(200);
-            expect(prisma.vehicle.update).toHaveBeenCalledWith({ where: { id: mockId }, data: { name: 'Updated' } });
+            expect(prisma.vehicle.update).toHaveBeenCalledWith({ where: { id: mockId }, data: { name: 'Updated', dailyRate: null } });
         });
 
         it('should return 400 on validation error', async () => {

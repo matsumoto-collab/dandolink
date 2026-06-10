@@ -14,6 +14,8 @@ jest.mock('@/lib/prisma', () => ({
             update: jest.fn(),
             delete: jest.fn(),
         },
+        // PATCH はバージョン記録のため $transaction でラップする
+        $transaction: jest.fn(async (callback: any) => callback(require('@/lib/prisma').prisma)),
     },
 }));
 

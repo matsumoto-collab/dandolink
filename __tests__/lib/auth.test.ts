@@ -10,6 +10,7 @@ jest.mock('@/lib/prisma', () => ({
     prisma: {
         user: {
             findUnique: jest.fn(),
+            update: jest.fn(), // ログイン失敗カウント/ロック解除の更新で使用
         },
     },
 }));
@@ -36,6 +37,10 @@ describe('lib/auth', () => {
         displayName: 'Test User',
         role: 'ADMIN',
         isActive: true,
+        isLoginEnabled: true,
+        failedLoginCount: 0,
+        lockedUntil: null,
+        companyId: null,
         assignedProjects: '["proj-1"]',
     };
 
@@ -57,6 +62,7 @@ describe('lib/auth', () => {
             role: 'admin',
             assignedProjects: ['proj-1'],
             isActive: true,
+            companyId: null,
         });
     });
 
@@ -122,6 +128,7 @@ describe('lib/auth', () => {
             it('DBチェックの時間が経過していない場合はそのまま返す', async () => {
                 const token = {
                     id: '1',
+                    name: 'Test User', // name未設定だと即時DB更新が走る仕様のためセット
                     lastDbCheck: Date.now() - 1000,
                 };
 
@@ -143,7 +150,7 @@ describe('lib/auth', () => {
 
                 expect(prisma.user.findUnique).toHaveBeenCalledWith({
                     where: { id: '1' },
-                    select: { isActive: true, role: true },
+                    select: { isActive: true, isLoginEnabled: true, role: true, displayName: true, companyId: true },
                 });
                 expect(result.isActive).toBe(false);
             });
@@ -156,7 +163,9 @@ describe('lib/auth', () => {
                     role: 'user',
                 };
                 const oldCheck = token.lastDbCheck;
-                (prisma.user.findUnique as jest.Mock).mockResolvedValue({ isActive: true, role: 'ADMIN' });
+                (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+                    isActive: true, isLoginEnabled: true, role: 'ADMIN', displayName: 'Test User', companyId: null,
+                });
 
                 const result = await jwt({ token });
 

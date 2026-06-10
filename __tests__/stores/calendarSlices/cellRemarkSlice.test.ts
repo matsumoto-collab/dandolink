@@ -34,14 +34,15 @@ describe('cellRemarkSlice', () => {
       expect(state.cellRemarksLoading).toBe(false);
     });
 
-    it('fetchのresponse.okがfalseの場合、状態は更新されない', async () => {
+    it('fetchのresponse.okがfalseの場合、データは更新せずinitializedを立ててUIをアンブロックする', async () => {
       (global.fetch as jest.Mock).mockResolvedValueOnce({ ok: false });
 
       const { fetchCellRemarks } = useCalendarStore.getState();
       await fetchCellRemarks();
 
       const state = useCalendarStore.getState();
-      expect(state.cellRemarksInitialized).toBe(false);
+      expect(state.cellRemarks).toEqual({});
+      expect(state.cellRemarksInitialized).toBe(true);
     });
 
     it('fetchで例外が発生したときにエラーログを出力する', async () => {

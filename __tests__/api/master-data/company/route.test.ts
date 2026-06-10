@@ -20,6 +20,7 @@ jest.mock('@/lib/prisma', () => ({
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
     requireManagerOrAbove: jest.fn(),
+    validationErrorResponse: jest.fn().mockImplementation((msg, details) => NextResponse.json({ error: msg, details }, { status: 400 })),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
 }));
 
@@ -75,7 +76,14 @@ describe('/api/master-data/company', () => {
         it('should update company info successfully', async () => {
             (prisma.companyInfo.upsert as jest.Mock).mockResolvedValue({ ...mockCompany, name: 'Updated' });
 
-            const res = await PATCH(createReq({ name: 'Updated' }));
+            // companyInfoSchema の必須項目 (name/postalCode/address/tel/representative) を満たすボディ
+            const res = await PATCH(createReq({
+                name: 'Updated',
+                postalCode: '100-0001',
+                address: '東京都千代田区1-1',
+                tel: '03-0000-0000',
+                representative: '代表 太郎',
+            }));
             const json = await res.json();
 
             expect(res.status).toBe(200);

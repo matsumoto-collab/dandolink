@@ -61,6 +61,10 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    parseDateKeyRangeParams: jest.fn().mockReturnValue({ range: null, error: null }),
+    validationErrorResponse: jest.fn().mockImplementation((msg) => {
+        return new Response(JSON.stringify({ error: msg }), { status: 400 });
+    }),
     serverErrorResponse: jest.fn().mockImplementation((_msg, _err) => {
         return new Response(JSON.stringify({ error: 'Server Error' }), { status: 500 });
     }),
@@ -135,7 +139,8 @@ describe('/api/calendar/cell-remarks', () => {
             const data = await res.json();
 
             expect(res.status).toBe(400);
-            expect(data.error).toBe('Missing required fields');
+            // zodバリデーション(validateRequest)由来のメッセージは文言を固定しない
+            expect(data.error).toBeTruthy();
         });
 
         it('テキストが空の場合は削除処理を行いsuccessを返す', async () => {

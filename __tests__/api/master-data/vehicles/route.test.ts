@@ -3,7 +3,7 @@
  */
 import { GET, POST } from '@/app/api/master-data/vehicles/route';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, validateStringField } from '@/lib/api/utils';
+import { requireAuth, requireManagerOrAbove, validateStringField } from '@/lib/api/utils';
 import { NextRequest, NextResponse } from 'next/server';
 
 // Mock dependencies
@@ -18,6 +18,8 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
     validateStringField: jest.fn(),
 }));
@@ -38,7 +40,7 @@ describe('/api/master-data/vehicles', () => {
             const res = await GET();
 
             expect(res.status).toBe(200);
-            expect(await res.json()).toEqual([{ id: 'v1', name: 'Vehicle 1' }]);
+            expect(await res.json()).toEqual([{ id: 'v1', name: 'Vehicle 1', dailyRate: null }]);
             expect(prisma.vehicle.findMany).toHaveBeenCalledWith({ where: { isActive: true }, orderBy: { name: 'asc' } });
         });
 
@@ -67,7 +69,7 @@ describe('/api/master-data/vehicles', () => {
             const res = await POST(postReq({ name: 'New Vehicle' }));
 
             expect(res.status).toBe(201);
-            expect(await res.json()).toEqual({ id: 'v1', name: 'New Vehicle' });
+            expect(await res.json()).toEqual({ id: 'v1', name: 'New Vehicle', dailyRate: null });
         });
 
         it('should return 400 on validation error', async () => {
@@ -80,7 +82,7 @@ describe('/api/master-data/vehicles', () => {
         });
 
         it('should return 401 if unauthorized', async () => {
-            (requireAuth as jest.Mock).mockResolvedValue({ session: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
+            (requireManagerOrAbove as jest.Mock).mockResolvedValueOnce({ session: null, error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) });
             const res = await POST(postReq({ name: 'New Vehicle' }));
             expect(res.status).toBe(401);
         });

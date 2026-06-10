@@ -7,6 +7,8 @@ jest.mock('@/lib/prisma', () => ({
     prisma: {
         projectMaster: { findUnique: jest.fn() },
         projectMasterFile: { findMany: jest.fn(), update: jest.fn(), create: jest.fn() },
+        // canDispatch=false 時の配置メンバー許可チェックで使用
+        projectAssignment: { findMany: jest.fn().mockResolvedValue([]) },
     },
 }));
 
@@ -28,12 +30,18 @@ jest.mock('@/lib/supabase-admin', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     serverErrorResponse: jest.fn().mockImplementation((_msg, _err) => {
         return new Response(JSON.stringify({ error: 'Server Error' }), { status: 500 });
     }),
-    validationErrorResponse: jest.fn(),
-    errorResponse: jest.fn(),
-    notFoundResponse: jest.fn(),
+    validationErrorResponse: jest.fn().mockImplementation((msg) => new Response(JSON.stringify({ error: msg }), { status: 400 })),
+    errorResponse: jest.fn().mockImplementation((msg, status) => new Response(JSON.stringify({ error: msg }), { status: status || 500 })),
+    notFoundResponse: jest.fn().mockImplementation((msg) => new Response(JSON.stringify({ error: `${msg}が見つかりません` }), { status: 404 })),
+    parseJsonField: (val: any, fallback: any) => {
+        if (!val) return fallback;
+        try { return JSON.parse(val); } catch { return fallback; }
+    },
 }));
 
 jest.mock('@/utils/permissions', () => ({
@@ -201,6 +209,8 @@ describe('/api/project-masters/[id]/files', () => {
 
     describe('POST', () => {
         it('権限がない場合は403を返す', async () => {
+            // 案件は存在するが、canDispatch でなく配置メンバーにも含まれないユーザー
+            (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: 'pm-1' });
             (canDispatch as jest.Mock).mockReturnValue(false);
 
             const req = new NextRequest('http://localhost:3000/api', { method: 'POST' });
@@ -225,7 +235,8 @@ describe('/api/project-masters/[id]/files', () => {
              (prisma.projectMaster.findUnique as jest.Mock).mockResolvedValue({ id: 'pm-1' });
 
              const fd = new Map();
-             fd.set('file', { type: 'text/plain', size: 100 });
+             // route は拡張子(jww許可)判定のため file.name を参照する
+             fd.set('file', { type: 'text/plain', size: 100, name: 'test.txt' });
 
              const req = new NextRequest('http://localhost:3000/api', {
                 method: 'POST',
@@ -263,7 +274,7 @@ describe('/api/project-masters/[id]/files', () => {
             const res = await POST(req, mockContext) as any;
             const data = await res.json();
 
-            expect(mockUpload).toHaveBeenCalledTimes(3); // original, display, and thumbnail
+            expect(mockUpload).toHaveBeenCalledTimes(2); // display + thumbnail（元PDF添付時のみ3回）
             expect(prisma.projectMasterFile.create).toHaveBeenCalled();
             expect(res.status).toBe(201);
             expect(data.fileName).toBe('test.jpg');

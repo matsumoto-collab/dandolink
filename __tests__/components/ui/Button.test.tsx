@@ -15,7 +15,8 @@ describe('Button', () => {
         it('デフォルトでprimaryバリアントが適用される', () => {
             render(<Button>保存</Button>);
             const button = screen.getByRole('button');
-            expect(button).toHaveClass('bg-slate-800');
+            // セマンティック配色 (2026-06-01): 保存系 primary = teal
+            expect(button).toHaveClass('bg-teal-600');
             expect(button).toHaveClass('text-white');
         });
 
@@ -36,14 +37,15 @@ describe('Button', () => {
         it('dangerバリアントが正しく適用される', () => {
             render(<Button variant="danger">削除</Button>);
             const button = screen.getByRole('button');
-            expect(button).toHaveClass('bg-slate-700');
+            // セマンティック配色 (2026-06-01): 削除確定 = red-600
+            expect(button).toHaveClass('bg-red-600');
         });
 
         it('outlineバリアントが正しく適用される', () => {
             render(<Button variant="outline">詳細</Button>);
             const button = screen.getByRole('button');
             expect(button).toHaveClass('bg-transparent');
-            expect(button).toHaveClass('border-slate-200');
+            expect(button).toHaveClass('border-slate-300');
         });
 
         it('ghostバリアントが正しく適用される', () => {

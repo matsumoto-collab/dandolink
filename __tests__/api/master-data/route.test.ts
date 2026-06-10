@@ -16,6 +16,8 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     serverErrorResponse: jest.fn().mockImplementation((msg, error) => NextResponse.json({ error: msg, details: error }, { status: 500 })),
 }));
 
@@ -36,7 +38,7 @@ describe('/api/master-data', () => {
         expect(res.status).toBe(200);
         const json = await res.json();
         expect(json).toEqual({
-            vehicles: [{ id: 'v1', name: 'Vehicle 1' }],
+            vehicles: [{ id: 'v1', name: 'Vehicle 1', dailyRate: null }],
             totalMembers: 5
         });
     });

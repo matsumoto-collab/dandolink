@@ -12,6 +12,8 @@ jest.mock('@/lib/prisma', () => ({
 
 jest.mock('@/lib/api/utils', () => ({
     requireAuth: jest.fn(),
+    requireManagerOrAbove: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
+    requireAdmin: jest.fn().mockResolvedValue({ session: { user: { id: "test-user", role: "admin" } }, error: null }),
     serverErrorResponse: jest.fn().mockImplementation((_msg, _err) => {
         return new Response(JSON.stringify({ error: 'Server Error' }), { status: 500 });
     }),
@@ -66,35 +68,47 @@ describe('/api/estimates/next-number', () => {
             expect(res).toBe(errorResponse);
         });
 
-        it('既存の見積がない場合は ${year}-0001 を返す', async () => {
+        // 現行フォーマットは E{year}{NNNN}（旧 {year}-{NNNN} からの移行フォールバック付き）
+        it('既存の見積がない場合は E${year}0001 を返す', async () => {
             (prisma.estimate.findFirst as jest.Mock).mockResolvedValue(null);
 
             const res = await GET();
             const data = await res.json();
 
-            expect(data.nextNumber).toBe(`${currentYear}-0001`);
+            expect(data.nextNumber).toBe(`E${currentYear}0001`);
         });
 
         it('既存の見積がある場合はインクリメントした番号を返す', async () => {
             (prisma.estimate.findFirst as jest.Mock).mockResolvedValue({
-                estimateNumber: `${currentYear}-0042`,
+                estimateNumber: `E${currentYear}0042`,
             });
 
             const res = await GET();
             const data = await res.json();
 
-            expect(data.nextNumber).toBe(`${currentYear}-0043`);
+            expect(data.nextNumber).toBe(`E${currentYear}0043`);
         });
 
-        it('パースできない見積番号の場合は ${year}-0001 を返す(NaN fallback)', async () => {
+        it('旧形式 {year}-NNNN しかない場合は旧形式の最大値から続番する', async () => {
+            (prisma.estimate.findFirst as jest.Mock)
+                .mockResolvedValueOnce(null) // 新形式は未存在
+                .mockResolvedValueOnce({ estimateNumber: `${currentYear}-0042` }); // 旧形式の最大
+
+            const res = await GET();
+            const data = await res.json();
+
+            expect(data.nextNumber).toBe(`E${currentYear}0043`);
+        });
+
+        it('パースできない見積番号の場合は E${year}0001 を返す(NaN fallback)', async () => {
             (prisma.estimate.findFirst as jest.Mock).mockResolvedValue({
-                estimateNumber: `${currentYear}-invalid`,
+                estimateNumber: `E${currentYear}invalid`,
             });
 
             const res = await GET();
             const data = await res.json();
 
-            expect(data.nextNumber).toBe(`${currentYear}-0001`);
+            expect(data.nextNumber).toBe(`E${currentYear}0001`);
         });
 
         it('DBエラー発生時は500を返す', async () => {
