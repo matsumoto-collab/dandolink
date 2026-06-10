@@ -357,10 +357,13 @@ export default function DispatchConfirmModal({
 
         setIsSubmitting(true);
         try {
-            // 押した案件本体を解除（作業完了済みでも明示操作なので解除する）
+            // 押した案件本体を解除（作業完了済みでも明示操作なので解除する）。
+            // 確定メンバー/車両は必ず空配列で送る。undefined だと JSON.stringify でキーが
+            // 落ち、API 側（confirmedWorkerIds !== undefined のときだけ更新）が「変更なし」と
+            // 解釈して確定値が残ってしまう（＝解除後もモーダルに選択が残る不具合）。
             await updateProject(project.id, {
-                confirmedWorkerIds: undefined,
-                confirmedVehicleIds: undefined,
+                confirmedWorkerIds: [],
+                confirmedVehicleIds: [],
                 isDispatchConfirmed: false,
             });
 
@@ -368,8 +371,8 @@ export default function DispatchConfirmModal({
             for (const p of cancelableSiblings) {
                 try {
                     await updateProject(p.id, {
-                        confirmedWorkerIds: undefined,
-                        confirmedVehicleIds: undefined,
+                        confirmedWorkerIds: [],
+                        confirmedVehicleIds: [],
                         isDispatchConfirmed: false,
                     });
                 } catch {

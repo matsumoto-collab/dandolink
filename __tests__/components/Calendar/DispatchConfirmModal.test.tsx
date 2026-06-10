@@ -216,8 +216,8 @@ describe('DispatchConfirmModal', () => {
         await waitFor(() => {
             expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({
                 isDispatchConfirmed: false,
-                confirmedWorkerIds: undefined,
-                confirmedVehicleIds: undefined,
+                confirmedWorkerIds: [],
+                confirmedVehicleIds: [],
             }));
         });
         expect(mockUpdateProject).toHaveBeenCalledTimes(1);
@@ -279,7 +279,7 @@ describe('DispatchConfirmModal', () => {
         expect((window.confirm as jest.Mock).mock.calls[0][0]).toContain('他の案件（2件）も同時に解除されます');
 
         await waitFor(() => {
-            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: false }));
+            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: false, confirmedWorkerIds: [], confirmedVehicleIds: [] }));
         });
         expect(mockUpdateProject).toHaveBeenCalledWith('p2', expect.objectContaining({ isDispatchConfirmed: false }));
         expect(mockUpdateProject).toHaveBeenCalledWith('p3', expect.objectContaining({ isDispatchConfirmed: false }));
@@ -317,7 +317,7 @@ describe('DispatchConfirmModal', () => {
         expect(message).toContain('1件は作業完了済みのため解除対象外です');
 
         await waitFor(() => {
-            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: false }));
+            expect(mockUpdateProject).toHaveBeenCalledWith('p1', expect.objectContaining({ isDispatchConfirmed: false, confirmedWorkerIds: [], confirmedVehicleIds: [] }));
         });
         expect(mockUpdateProject).toHaveBeenCalledWith('p2', expect.objectContaining({ isDispatchConfirmed: false }));
         // 作業完了済みの p3 は連動解除しない
