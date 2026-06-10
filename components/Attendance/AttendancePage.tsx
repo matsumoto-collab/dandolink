@@ -108,6 +108,9 @@ export default function AttendancePage() {
     const [rangeStart, setRangeStart] = useState(initialRange.start);
     const [rangeEnd, setRangeEnd] = useState(initialRange.end);
     const [foremanFilter, setForemanFilter] = useState<string>('all');
+    // 報告一覧と同じ 20件/ページ のページネーション
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
 
     const [csvMonth, setCsvMonth] = useState<string>(() => {
         const d = new Date();
@@ -254,6 +257,17 @@ export default function AttendancePage() {
         });
         return arr;
     }, [records, foremanFilter, sortKey, sortDir, foremanNameMap]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // フィルタ・期間変更時はページをリセット（報告一覧と同じ挙動）
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [foremanFilter, rangeStart, rangeEnd]);
+
+    const totalPages = Math.ceil(groups.length / ITEMS_PER_PAGE);
+    const paginatedGroups = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return groups.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [groups, currentPage]);
 
     const handleAddNew = () => {
         setEditTarget({ date: new Date(), foremanId: isForeman ? userId : '' });
@@ -537,7 +551,7 @@ export default function AttendancePage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {groups.map(g => {
+                            {paginatedGroups.map(g => {
                                 const canDelete = isAdminOrManager || (isForeman && g.foremanId === userId);
                                 return (
                                     <tr
@@ -595,7 +609,32 @@ export default function AttendancePage() {
                 )}
             </div>
 
-            <div className="mt-2 flex-shrink-0 text-sm text-slate-600">
+            {/* ページネーション（報告一覧と同じ20件/ページ。モバイルは件数も同じ行に統合） */}
+            {totalPages > 1 && (
+                <div className="flex-shrink-0 flex justify-center items-center gap-2 py-2 sm:py-3">
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                    >
+                        前へ
+                    </button>
+                    <span className="text-sm font-medium text-slate-600 px-2 sm:px-4 tabular-nums">
+                        {currentPage} / {totalPages}
+                        <span className="sm:hidden font-normal text-slate-400"> ・ 全{groups.length}件</span>
+                    </span>
+                    <button
+                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-colors"
+                    >
+                        次へ
+                    </button>
+                </div>
+            )}
+
+            {/* 件数表示（ページネーションがある場合、モバイルでは上の行に統合済み） */}
+            <div className={`mt-2 flex-shrink-0 text-sm text-slate-600 ${totalPages > 1 ? 'hidden sm:block' : ''}`}>
                 全 {groups.length} 件
             </div>
             </>
