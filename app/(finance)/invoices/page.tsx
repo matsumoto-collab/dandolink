@@ -343,50 +343,64 @@ export default function InvoiceListPage() {
 
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
-            {/* ヘッダー */}
-            <div className="mb-6 flex-shrink-0">
-                <h1 className="text-2xl font-bold text-slate-800">
-                    請求書一覧
-                </h1>
-                <p className="text-sm text-slate-500 mt-1">登録されている全ての請求書を管理できます</p>
+            {/* ヘッダー（モバイルは新規作成をタイトル行へ統合・説明文非表示） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex items-center justify-between gap-3">
+                <div>
+                    <h1 className="text-xl sm:text-2xl font-bold text-slate-800">
+                        請求書一覧
+                    </h1>
+                    <p className="hidden sm:block text-sm text-slate-500 mt-1">登録されている全ての請求書を管理できます</p>
+                </div>
+                <div className="sm:hidden flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={handleAddNew}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規作成
+                    </Button>
+                </div>
             </div>
 
 
-            {/* ツールバー */}
-            <div className="mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+            {/* ツールバー（モバイルは 検索+ステータス / 担当者 / 作成日 の3段に圧縮） */}
+            <div className="mb-3 sm:mb-6 flex-shrink-0 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-4">
                 {/* 検索バーとフィルター */}
-                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-3 sm:gap-4 flex-1">
-                    {/* 検索バー */}
-                    <div className="flex-1 sm:max-w-md relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-                        <input
-                            type="text"
-                            placeholder="請求番号、タイトル、担当者で検索..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
-                        />
-                    </div>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4 flex-1">
+                    {/* モバイル行1: 検索+ステータス（sm+ では従来どおりフラットに並ぶ） */}
+                    <div className="flex flex-row gap-2 sm:contents">
+                        {/* 検索バー */}
+                        <div className="flex-1 sm:max-w-md relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
+                            <input
+                                type="text"
+                                placeholder="請求番号、タイトル、担当者で検索..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 focus:border-transparent shadow-sm"
+                            />
+                        </div>
 
-                    {/* ステータスフィルター */}
-                    <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
-                    >
-                        <option value="all">全てのステータス</option>
-                        <option value="draft">下書き</option>
-                        <option value="confirmed">担当確認済み</option>
-                        <option value="sent">送付済み</option>
-                        <option value="paid">支払済み</option>
-                        <option value="overdue">期限超過</option>
-                    </select>
+                        {/* ステータスフィルター */}
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="flex-shrink-0 max-w-[45%] sm:max-w-none px-3 sm:px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        >
+                            <option value="all">全てのステータス</option>
+                            <option value="draft">下書き</option>
+                            <option value="confirmed">担当確認済み</option>
+                            <option value="sent">送付済み</option>
+                            <option value="paid">支払済み</option>
+                            <option value="overdue">期限超過</option>
+                        </select>
+                    </div>
 
                     {/* 案件担当者フィルター */}
                     <select
                         value={assigneeIdFilter}
                         onChange={(e) => setAssigneeIdFilter(e.target.value)}
-                        className="px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
+                        className="px-3 sm:px-4 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm"
                     >
                         <option value="">全ての担当者</option>
                         {assigneeOptions.map((o) => (
@@ -394,31 +408,31 @@ export default function InvoiceListPage() {
                         ))}
                     </select>
 
-                    {/* 作成日フィルター（範囲） */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-500 whitespace-nowrap">作成日</span>
+                    {/* 作成日フィルター（範囲。「作成日」ラベルは sm+ のみ） */}
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        <span className="hidden sm:inline text-sm text-slate-500 whitespace-nowrap">作成日</span>
                         <input
                             type="date"
                             value={createdFrom}
                             max={createdTo || undefined}
                             onChange={(e) => setCreatedFrom(e.target.value)}
                             aria-label="作成日（開始）"
-                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
+                            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
                         />
-                        <span className="text-slate-400">〜</span>
+                        <span className="text-slate-400 flex-shrink-0">〜</span>
                         <input
                             type="date"
                             value={createdTo}
                             min={createdFrom || undefined}
                             onChange={(e) => setCreatedTo(e.target.value)}
                             aria-label="作成日（終了）"
-                            className="px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
+                            className="flex-1 sm:flex-none min-w-0 px-2 sm:px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 bg-white shadow-sm text-sm"
                         />
                         {(createdFrom || createdTo) && (
                             <button
                                 type="button"
                                 onClick={() => { setCreatedFrom(''); setCreatedTo(''); }}
-                                className="text-xs text-slate-500 hover:text-slate-700 underline whitespace-nowrap"
+                                className="flex-shrink-0 text-xs text-slate-500 hover:text-slate-700 underline whitespace-nowrap"
                             >
                                 クリア
                             </button>
@@ -426,15 +440,16 @@ export default function InvoiceListPage() {
                     </div>
                 </div>
 
-                {/* 新規追加ボタン */}
-                <Button
-                    variant="primary"
-                    onClick={handleAddNew}
-                    leftIcon={<Plus className="w-5 h-5" />}
-                >
-                    <span className="hidden sm:inline">新規請求書作成</span>
-                    <span className="sm:hidden">新規作成</span>
-                </Button>
+                {/* 新規追加ボタン（sm+ のみ。モバイルはタイトル行に表示） */}
+                <div className="hidden sm:block flex-shrink-0">
+                    <Button
+                        variant="primary"
+                        onClick={handleAddNew}
+                        leftIcon={<Plus className="w-5 h-5" />}
+                    >
+                        新規請求書作成
+                    </Button>
+                </div>
             </div>
 
             {/* モバイルカードビュー */}
