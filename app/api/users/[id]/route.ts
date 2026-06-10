@@ -95,7 +95,8 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         // 親協力会社削除ガード: メンバーが残っている場合は削除拒否
         const target = await prisma.user.findUnique({ where: { id }, select: { role: true } });
         if (!target) return notFoundResponse('ユーザー');
-        if (target.role === 'PARTNER') {
+        // DBのrole生値は大小文字が経路依存のため必ず正規化して比較する（教訓: PARTNER取りこぼし事故）
+        if (target.role.toUpperCase() === 'PARTNER') {
             const memberCount = await prisma.user.count({ where: { companyId: id } });
             if (memberCount > 0) {
                 return errorResponse(`所属メンバーが${memberCount}名残っているため削除できません。先にメンバーを削除してください。`, 400);
