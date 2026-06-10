@@ -766,13 +766,13 @@ export default function BillingBoardPage() {
 
     return (
         <div className="mx-auto flex h-full w-full max-w-[1800px] flex-col bg-slate-50">
-            {/* ヘッダー */}
-            <div className="mb-4 flex flex-shrink-0 items-start justify-between gap-3">
+            {/* ヘッダー（モバイルは説明文非表示） */}
+            <div className="mb-3 sm:mb-4 flex flex-shrink-0 items-start justify-between gap-3">
                 <div>
-                    <h1 className="flex items-center gap-2 text-2xl font-bold text-slate-800">
-                        <ClipboardList className="h-6 w-6 text-slate-500" /> 請求待ち
+                    <h1 className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-slate-800">
+                        <ClipboardList className="h-5 w-5 sm:h-6 sm:w-6 text-slate-500" /> 請求待ち
                     </h1>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-1 hidden sm:block text-sm text-slate-500">
                         顧客ごと（締め日単位）に「請求する／まだ／対象外」で判断し、顧客ごとにまとめて請求書を作成します。
                     </p>
                 </div>
@@ -786,9 +786,9 @@ export default function BillingBoardPage() {
                 </Button>
             </div>
 
-            {/* 期間コントロール */}
-            <div className="mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-slate-600">表示期間</span>
+            {/* 期間コントロール（モバイルはラベル・注記を省いて1〜2行に） */}
+            <div className="mb-3 sm:mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
+                <span className="hidden sm:inline text-sm font-medium text-slate-600">表示期間</span>
                 {/* モード切替 */}
                 <div className="flex rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
                     {(
@@ -818,7 +818,7 @@ export default function BillingBoardPage() {
                         >
                             <ChevronLeft className="h-4 w-4 text-slate-600" />
                         </button>
-                        <span className="min-w-[8.5rem] text-center text-sm font-semibold text-slate-800">
+                        <span className="min-w-0 sm:min-w-[8.5rem] px-1 text-center text-sm font-semibold text-slate-800 whitespace-nowrap">
                             {ymLabel(month)} 締め分
                         </span>
                         <button
@@ -834,7 +834,7 @@ export default function BillingBoardPage() {
                         >
                             今月
                         </button>
-                        <span className="text-xs text-slate-500">各顧客の締め日で集計します</span>
+                        <span className="hidden sm:inline text-xs text-slate-500">各顧客の締め日で集計します</span>
                     </>
                 ) : (
                     <>
@@ -873,7 +873,7 @@ export default function BillingBoardPage() {
                         >
                             今月
                         </button>
-                        <span className="text-xs text-slate-500">全顧客同一期間</span>
+                        <span className="hidden sm:inline text-xs text-slate-500">全顧客同一期間</span>
                     </>
                 )}
             </div>
@@ -896,16 +896,16 @@ export default function BillingBoardPage() {
                 ))}
             </div>
 
-            {/* フィルタ */}
-            <div className="mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
-                <div className="relative">
+            {/* フィルタ（モバイルは検索を伸縮させて折返しを2行以内に） */}
+            <div className="mb-3 sm:mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
+                <div className="relative flex-1 min-w-[160px] sm:flex-none sm:min-w-0">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         placeholder="案件・顧客で検索..."
-                        className="w-56 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                        className="w-full sm:w-56 rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
                     />
                 </div>
                 <select
