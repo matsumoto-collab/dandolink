@@ -1,16 +1,21 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, validationErrorResponse, parseDateKeyRangeParams } from '@/lib/api/utils';
 import { cellRemarkSchema, validateRequest } from '@/lib/validations';
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
         const { error } = await requireAuth();
         if (error) return error;
 
-        // 全件取得 (必要に応じて期間指定などを追加)
-        const remarks = await prisma.cellRemark.findMany();
+        // from/to (YYYY-MM-DD) 指定時は範囲のみ返す。未指定は全件（従来挙動）
+        const { range, error: rangeError } = parseDateKeyRangeParams(req);
+        if (rangeError) return rangeError;
+
+        const remarks = await prisma.cellRemark.findMany(
+            range ? { where: { dateKey: range } } : undefined
+        );
 
         // { "foremanId-dateKey": text } の形式に変換
         const remarksMap = remarks.reduce((acc, remark) => {

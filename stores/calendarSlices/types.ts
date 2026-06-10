@@ -15,6 +15,33 @@ export class ConflictUpdateError extends Error {
     }
 }
 
+// dateKey (YYYY-MM-DD) の取得範囲。固定長文字列なので辞書順比較=日付順比較
+export interface DateKeyRange {
+    from: string;
+    to: string;
+}
+
+/**
+ * 範囲フェッチ結果をマップへ反映する共通ロジック。
+ * 既存マップから範囲内のキーを除去してからフェッチ結果を上書きする
+ * （範囲内で削除されたエントリを確実に消し、範囲外のキャッシュは保持）。
+ * cellRemarks のような複合キーは extractDateKey で dateKey 部分を取り出す。
+ */
+export function mergeRangeFetchedMap<V>(
+    current: Record<string, V>,
+    fetched: Record<string, V>,
+    range: DateKeyRange,
+    extractDateKey: (key: string) => string = (key) => key,
+): Record<string, V> {
+    const next: Record<string, V> = {};
+    for (const [key, value] of Object.entries(current)) {
+        const dateKey = extractDateKey(key);
+        if (dateKey >= range.from && dateKey <= range.to) continue; // 範囲内は破棄して差し替え
+        next[key] = value;
+    }
+    return Object.assign(next, fetched);
+}
+
 // Types
 export interface ForemanUser {
     id: string;
@@ -197,7 +224,9 @@ export interface CalendarActions {
     updateProjectMasterInAssignments: (projectMaster: ProjectMaster) => void;
 
     // Vacations
-    fetchVacations: () => Promise<void>;
+    // range 指定時はその期間のみ再取得し、ストアは期間内キーだけ差し替える（期間外は保持）。
+    // 省略時は全件取得（従来挙動）。
+    fetchVacations: (range?: DateKeyRange) => Promise<void>;
     getVacationEmployees: (dateKey: string) => string[];
     setVacationEmployees: (dateKey: string, employeeIds: string[]) => Promise<void>;
     addVacationEmployee: (dateKey: string, employeeId: string) => Promise<void>;
@@ -211,12 +240,12 @@ export interface CalendarActions {
     setRemark: (dateKey: string, text: string) => Promise<void>;
 
     // Cell Remarks (Foreman x Date remarks)
-    fetchCellRemarks: () => Promise<void>;
+    fetchCellRemarks: (range?: DateKeyRange) => Promise<void>;
     getCellRemark: (foremanId: string, dateKey: string) => string;
     setCellRemark: (foremanId: string, dateKey: string, text: string) => Promise<void>;
 
     // Member Adjustments (per-day)
-    fetchMemberAdjustments: () => Promise<void>;
+    fetchMemberAdjustments: (range?: DateKeyRange) => Promise<void>;
     getMemberAdjustment: (dateKey: string) => number;
     setMemberAdjustment: (dateKey: string, adjustment: number) => Promise<void>;
 

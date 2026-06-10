@@ -420,8 +420,16 @@ export function useProjects() {
     }, [getCalendarEventsStore]);
 
     const refreshProjects = useCallback(async () => {
+        // 表示中の範囲が分かっていればその範囲のみ再取得（全件フェッチ回避）。
+        // 範囲未確定（カレンダー未マウント等）の場合のみ従来どおり全件。
+        const range = currentDateRangeRef.current;
         currentDateRangeRef.current = null;
-        await fetchAssignmentsStore();
+        if (range) {
+            await fetchAssignmentsStore(range.start, range.end);
+            currentDateRangeRef.current = range;
+        } else {
+            await fetchAssignmentsStore();
+        }
     }, [fetchAssignmentsStore]);
 
     // ポーリング用: 指定範囲を強制再フェッチ（Realtime補完）
@@ -433,11 +441,14 @@ export function useProjects() {
         const startStr = formatDateKey(startDate);
         const endStr = formatDateKey(endDate);
         currentDateRangeRef.current = null; // キャッシュをクリアして強制再フェッチ
+        // 副次データもポーリングでは表示範囲のみ再取得（全件フェッチはテーブル成長とともに肥大するため）。
+        // ストア側は範囲内キーだけ差し替えるので、範囲外の既存キャッシュは消えない。
+        const sideRange = { from: startStr, to: endStr };
         await Promise.all([
             fetchAssignmentsStore(startStr, endStr),
-            fetchMemberAdjustmentsStore(),
-            fetchVacationsStore(),
-            fetchCellRemarksStore(),
+            fetchMemberAdjustmentsStore(sideRange),
+            fetchVacationsStore(sideRange),
+            fetchCellRemarksStore(sideRange),
         ]);
         currentDateRangeRef.current = { start: startStr, end: endStr };
     }, [fetchAssignmentsStore, fetchMemberAdjustmentsStore, fetchVacationsStore, fetchCellRemarksStore]);

@@ -246,6 +246,34 @@ export function validateDateString(value: unknown, fieldName: string): Date | Ne
 }
 
 /**
+ * dateKey (YYYY-MM-DD) の範囲クエリパラメータ from/to を解析
+ * - 両方指定: { gte, lte } を返す（dateKey は固定長文字列なので辞書順=日付順）
+ * - 両方省略: null（呼び出し側は全件取得 = 従来挙動）
+ * - 片方のみ・形式不正: 400 エラー
+ */
+const DATE_KEY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+export function parseDateKeyRangeParams(req: NextRequest): {
+    range: { gte: string; lte: string } | null;
+    error: NextResponse | null;
+} {
+    const { searchParams } = new URL(req.url);
+    const from = searchParams.get('from');
+    const to = searchParams.get('to');
+
+    if (!from && !to) return { range: null, error: null };
+    if (!from || !to) {
+        return { range: null, error: validationErrorResponse('from と to は両方指定してください') };
+    }
+    if (!DATE_KEY_PATTERN.test(from) || !DATE_KEY_PATTERN.test(to)) {
+        return { range: null, error: validationErrorResponse('from/to は YYYY-MM-DD 形式で指定してください') };
+    }
+    if (from > to) {
+        return { range: null, error: validationErrorResponse('from は to 以前の日付を指定してください') };
+    }
+    return { range: { gte: from, lte: to }, error: null };
+}
+
+/**
  * 16進カラーコードのバリデーション
  */
 export function validateHexColor(value: unknown): string {

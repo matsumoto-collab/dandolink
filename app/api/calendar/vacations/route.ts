@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse } from '@/lib/api/utils';
+import { requireAuth, parseJsonField, validationErrorResponse, serverErrorResponse, parseDateKeyRangeParams } from '@/lib/api/utils';
 import { vacationSchema, validateRequest } from '@/lib/validations';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const vacations = await prisma.vacationRecord.findMany();
+        // from/to (YYYY-MM-DD) 指定時は範囲のみ返す。未指定は全件（従来挙動）
+        const { range, error: rangeError } = parseDateKeyRangeParams(req);
+        if (rangeError) return rangeError;
+
+        const vacations = await prisma.vacationRecord.findMany(
+            range ? { where: { dateKey: range } } : undefined
+        );
         const vacationsMap: Record<string, { employeeIds: string[]; remarks: string }> = {};
         vacations.forEach(v => {
             vacationsMap[v.dateKey] = { employeeIds: parseJsonField<string[]>(v.employeeIds, []), remarks: v.remarks || '' };

@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireAuth, serverErrorResponse, validationErrorResponse } from '@/lib/api/utils';
+import { requireAuth, serverErrorResponse, validationErrorResponse, parseDateKeyRangeParams } from '@/lib/api/utils';
 import { memberAdjustmentSchema, validateRequest } from '@/lib/validations';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
     try {
         const { error } = await requireAuth();
         if (error) return error;
 
-        const adjustments = await prisma.memberAdjustment.findMany();
+        // from/to (YYYY-MM-DD) 指定時は範囲のみ返す。未指定は全件（従来挙動）
+        const { range, error: rangeError } = parseDateKeyRangeParams(req);
+        if (rangeError) return rangeError;
+
+        const adjustments = await prisma.memberAdjustment.findMany(
+            range ? { where: { dateKey: range } } : undefined
+        );
         const adjustmentsMap = adjustments.reduce((acc, a) => {
             acc[a.dateKey] = a.adjustment;
             return acc;

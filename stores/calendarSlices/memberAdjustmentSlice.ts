@@ -1,4 +1,4 @@
-import { CalendarSlice, CalendarActions, CalendarState } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
@@ -10,12 +10,23 @@ export const createMemberAdjustmentSlice: CalendarSlice<MemberAdjustmentSlice> =
     memberAdjustments: {},
     memberAdjustmentsInitialized: false,
 
-    fetchMemberAdjustments: async () => {
+    fetchMemberAdjustments: async (range?: DateKeyRange) => {
         try {
-            const response = await fetch('/api/calendar/member-adjustments', { cache: 'no-store' });
+            const url = range
+                ? `/api/calendar/member-adjustments?from=${range.from}&to=${range.to}`
+                : '/api/calendar/member-adjustments';
+            const response = await fetch(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
-                set({ memberAdjustments: data, memberAdjustmentsInitialized: true });
+                if (range) {
+                    // 範囲内キーのみ差し替え（範囲外のキャッシュは保持）
+                    set((state) => ({
+                        memberAdjustments: mergeRangeFetchedMap(state.memberAdjustments, data, range),
+                        memberAdjustmentsInitialized: true,
+                    }));
+                } else {
+                    set({ memberAdjustments: data, memberAdjustmentsInitialized: true });
+                }
             } else {
                 // 失敗時もinitializedを立ててUIをアンブロック（調整0として扱う）
                 set({ memberAdjustmentsInitialized: true });

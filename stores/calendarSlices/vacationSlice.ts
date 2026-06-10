@@ -1,4 +1,4 @@
-import { CalendarSlice, CalendarActions, CalendarState } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
 
@@ -13,17 +13,28 @@ export const createVacationSlice: CalendarSlice<VacationSlice> = (set, get) => (
     vacationsLoading: false,
     vacationsInitialized: false,
 
-    fetchVacations: async () => {
+    fetchVacations: async (range?: DateKeyRange) => {
         // 自身の保存操作中は再fetchをスキップ（楽観的更新を上書きしない）
         if (savingVacation) return;
         set({ vacationsLoading: true });
         try {
-            const response = await fetch('/api/calendar/vacations', { cache: 'no-store' });
+            const url = range
+                ? `/api/calendar/vacations?from=${range.from}&to=${range.to}`
+                : '/api/calendar/vacations';
+            const response = await fetch(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
                 // 保存中にfetchが走った場合は無視
                 if (!savingVacation) {
-                    set({ vacations: data, vacationsInitialized: true });
+                    if (range) {
+                        // 範囲内キーのみ差し替え（範囲外のキャッシュは保持）
+                        set((state) => ({
+                            vacations: mergeRangeFetchedMap(state.vacations, data, range),
+                            vacationsInitialized: true,
+                        }));
+                    } else {
+                        set({ vacations: data, vacationsInitialized: true });
+                    }
                 }
             } else {
                 // 失敗時もinitializedを立ててUIをアンブロック（休暇なしとして扱う）

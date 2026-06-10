@@ -1,6 +1,10 @@
-import { CalendarSlice, CalendarActions, CalendarState } from './types';
+import { CalendarSlice, CalendarActions, CalendarState, DateKeyRange, mergeRangeFetchedMap } from './types';
 import { sendBroadcast } from '@/lib/broadcastChannel';
 import { logger } from '@/lib/logger';
+
+// "{foremanId}-{dateKey}" 複合キーから dateKey 部分を取り出す
+// (foremanId は UUID でハイフンを含むため、末尾10文字 = YYYY-MM-DD を採用)
+const dateKeyOfCellKey = (key: string) => key.slice(-10);
 
 interface CellRemarkSlice extends
     Pick<CalendarState, 'cellRemarks' | 'cellRemarksLoading' | 'cellRemarksInitialized'>,
@@ -11,13 +15,24 @@ export const createCellRemarkSlice: CalendarSlice<CellRemarkSlice> = (set, get) 
     cellRemarksLoading: false,
     cellRemarksInitialized: false,
 
-    fetchCellRemarks: async () => {
+    fetchCellRemarks: async (range?: DateKeyRange) => {
         set({ cellRemarksLoading: true });
         try {
-            const response = await fetch('/api/calendar/cell-remarks', { cache: 'no-store' });
+            const url = range
+                ? `/api/calendar/cell-remarks?from=${range.from}&to=${range.to}`
+                : '/api/calendar/cell-remarks';
+            const response = await fetch(url, { cache: 'no-store' });
             if (response.ok) {
                 const data = await response.json();
-                set({ cellRemarks: data, cellRemarksInitialized: true });
+                if (range) {
+                    // 範囲内キーのみ差し替え（範囲外のキャッシュは保持）
+                    set((state) => ({
+                        cellRemarks: mergeRangeFetchedMap(state.cellRemarks, data, range, dateKeyOfCellKey),
+                        cellRemarksInitialized: true,
+                    }));
+                } else {
+                    set({ cellRemarks: data, cellRemarksInitialized: true });
+                }
             } else {
                 // 失敗時もinitializedを立ててUIをアンブロック（空メモとして扱う）
                 set({ cellRemarksInitialized: true });
