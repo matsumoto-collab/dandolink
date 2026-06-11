@@ -1,12 +1,19 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { Calendar, MapPin, Clock, Users, AlertCircle } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import { Calendar, MapPin, Clock, Users, AlertCircle, ChevronRight } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import toast from 'react-hot-toast';
 import Loading from '@/components/ui/Loading';
 import { logger } from '@/lib/logger';
 import { useMasterData } from '@/hooks/useMasterData';
 import WorkStatusReportSection from '@/components/Projects/WorkStatusReportSection';
+import { assignmentToProject } from '@/stores/calendarSlices/types';
+import { Project } from '@/types/calendar';
+
+// 案件詳細（週間タブのカードを押したときと同じ閲覧専用モーダル）
+const ProjectModal = dynamic(() => import('@/components/Projects/ProjectModal'), { ssr: false });
 
 interface PartnerScheduleAssignment {
     id: string;
@@ -69,6 +76,9 @@ export default function PartnerScheduleView() {
     const [assignments, setAssignments] = useState<PartnerScheduleAssignment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // 案件詳細モーダル（カードタップで開く。週間タブと同じ閲覧専用表示）
+    const [detailProject, setDetailProject] = useState<Project | null>(null);
+    const [loadingDetailId, setLoadingDetailId] = useState<string | null>(null);
     const dateOptions = useMemo(() => buildDateOptions(), []);
     const [selectedKey, setSelectedKey] = useState<string>(() => {
         const todayOpt = dateOptions.find((d) => d.offset === 0);
@@ -127,6 +137,24 @@ export default function PartnerScheduleView() {
         []
     );
 
+    // カードタップ → 配置の完全データを取得して詳細モーダルを開く（週間タブのカードと同じ表示）
+    const handleOpenDetail = useCallback(async (assignmentId: string) => {
+        setLoadingDetailId(assignmentId);
+        try {
+            const res = await fetch(`/api/assignments/${assignmentId}`, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`status ${res.status}`);
+            const data = await res.json();
+            // ストアの parseAssignmentResponse と同様、date を Date 化してから変換する
+            const project = assignmentToProject({ ...data, date: new Date(data.date) });
+            setDetailProject(project);
+        } catch (e) {
+            logger.error('Failed to fetch assignment detail:', e);
+            toast.error('案件詳細の取得に失敗しました');
+        } finally {
+            setLoadingDetailId(null);
+        }
+    }, []);
+
     const dayAssignments = assignments.filter((a) => a.date === selectedKey);
     const ownTeamAssignments = dayAssignments.filter((a) => a.isOwnTeam);
     const otherTeamAssignments = dayAssignments.filter((a) => !a.isOwnTeam);
@@ -167,48 +195,60 @@ export default function PartnerScheduleView() {
                 key={a.id}
                 className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 space-y-2"
             >
-                <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                        {ct && (
-                            <span
-                                className="px-2 py-0.5 rounded-md text-xs font-semibold text-white shrink-0"
-                                style={{ backgroundColor: ct.color || '#64748b' }}
-                            >
-                                {ct.name}
+                {/* 上部（案件情報）はタップで詳細表示（週間タブのカードと同じ）。報告ボタンとは領域を分ける */}
+                <button
+                    type="button"
+                    onClick={() => handleOpenDetail(a.id)}
+                    disabled={loadingDetailId === a.id}
+                    className="w-full text-left space-y-2 rounded-lg transition-opacity active:opacity-60 disabled:opacity-60"
+                    aria-label={`${projectLabel} の詳細を表示`}
+                >
+                    <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                            {ct && (
+                                <span
+                                    className="px-2 py-0.5 rounded-md text-xs font-semibold text-white shrink-0"
+                                    style={{ backgroundColor: ct.color || '#64748b' }}
+                                >
+                                    {ct.name}
+                                </span>
+                            )}
+                            <span className="font-semibold text-slate-900 truncate">{projectLabel}</span>
+                        </div>
+                        <span className="flex items-center gap-1 shrink-0">
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                                {a.foremanName}班
                             </span>
-                        )}
-                        <span className="font-semibold text-slate-900 truncate">{projectLabel}</span>
+                            <ChevronRight className="w-4 h-4 text-slate-300" />
+                        </span>
                     </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 shrink-0">
-                        {a.foremanName}班
-                    </span>
-                </div>
-                {a.customerShortName && (
-                    <div className="text-sm text-slate-500">{a.customerShortName}</div>
-                )}
-                {place && (
-                    <div className="flex items-start gap-1.5 text-sm text-slate-700">
-                        <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
-                        <span>{place}</span>
-                    </div>
-                )}
-                {a.meetingTime && (
-                    <div className="flex items-center gap-1.5 text-sm text-slate-700">
-                        <Clock className="w-4 h-4 shrink-0 text-slate-400" />
-                        <span>集合 {a.meetingTime}</span>
-                    </div>
-                )}
-                {a.workers.length > 0 && (
-                    <div className="flex items-start gap-1.5 text-sm text-slate-700">
-                        <Users className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
-                        <span>{a.workers.map((w) => w.displayName).join('、')}</span>
-                    </div>
-                )}
-                {a.dispatchRemark && (
-                    <div className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
-                        {a.dispatchRemark}
-                    </div>
-                )}
+                    {a.customerShortName && (
+                        <div className="text-sm text-slate-500">{a.customerShortName}</div>
+                    )}
+                    {place && (
+                        <div className="flex items-start gap-1.5 text-sm text-slate-700">
+                            <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+                            <span>{place}</span>
+                        </div>
+                    )}
+                    {a.meetingTime && (
+                        <div className="flex items-center gap-1.5 text-sm text-slate-700">
+                            <Clock className="w-4 h-4 shrink-0 text-slate-400" />
+                            <span>集合 {a.meetingTime}</span>
+                        </div>
+                    )}
+                    {a.workers.length > 0 && (
+                        <div className="flex items-start gap-1.5 text-sm text-slate-700">
+                            <Users className="w-4 h-4 shrink-0 mt-0.5 text-slate-400" />
+                            <span>{a.workers.map((w) => w.displayName).join('、')}</span>
+                        </div>
+                    )}
+                    {a.dispatchRemark && (
+                        <div className="text-sm text-slate-600 bg-slate-50 rounded-lg px-3 py-2">
+                            {a.dispatchRemark}
+                        </div>
+                    )}
+                </button>
                 {canPressWorkStatus(a) && (
                     <div className="pt-2">
                         <WorkStatusReportSection
@@ -284,6 +324,17 @@ export default function PartnerScheduleView() {
                     </section>
                 )}
             </div>
+
+            {/* 案件詳細モーダル（閲覧専用。週間タブのカードタップと同じ表示） */}
+            {detailProject && (
+                <ProjectModal
+                    isOpen={!!detailProject}
+                    onClose={() => setDetailProject(null)}
+                    onSubmit={async () => undefined}
+                    initialData={detailProject}
+                    readOnly
+                />
+            )}
         </div>
     );
 }
