@@ -704,10 +704,12 @@ function formatTime(d: string | Date): string {
     const date = typeof d === 'string' ? new Date(d) : d;
     const now = new Date();
     const sameDay = date.toDateString() === now.toDateString();
+    // 日付が変わっても時刻は常に表示する（当日は時刻のみ、過去日は「6/8 16:53」形式）
+    const time = date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
     if (sameDay) {
-        return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+        return time;
     }
-    return `${date.getMonth() + 1}/${date.getDate()}`;
+    return `${date.getMonth() + 1}/${date.getDate()} ${time}`;
 }
 
 interface MessageBubbleProps {
@@ -758,9 +760,29 @@ function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: Mes
     const [showReaders, setShowReaders] = useState(false);
     const [showMenu, setShowMenu] = useState(false);
     const [showReactionPicker, setShowReactionPicker] = useState(false);
+    // ピッカーは fixed 配置で画面内にクランプする（absolute だと長文メッセージで
+    // ボタンが画面端に寄ったとき左右にはみ出して絵文字が切れるため）
+    const [pickerPos, setPickerPos] = useState<{ left: number; bottom: number } | null>(null);
+    const reactionButtonRef = useRef<HTMLButtonElement>(null);
     const deleteMessage = useChatStore((s) => s.deleteMessage);
     const toggleReaction = useChatStore((s) => s.toggleReaction);
     const canUnsend = isMine && !isDeleted;
+
+    const openReactionPicker = () => {
+        if (showReactionPicker) {
+            setShowReactionPicker(false);
+            return;
+        }
+        const btn = reactionButtonRef.current;
+        if (!btn) return;
+        const rect = btn.getBoundingClientRect();
+        // ピッカー実幅: 絵文字ボタン w-9(36px)×n + gap-0.5(2px)×(n-1) + px-1.5(12px) + border(2px)
+        const pickerWidth = REACTION_EMOJIS.length * 36 + (REACTION_EMOJIS.length - 1) * 2 + 14;
+        const margin = 8;
+        const left = Math.max(margin, Math.min(rect.left, window.innerWidth - pickerWidth - margin));
+        setPickerPos({ left, bottom: window.innerHeight - rect.top + 4 });
+        setShowReactionPicker(true);
+    };
 
     const handleUnsend = async () => {
         setShowMenu(false);
@@ -798,17 +820,21 @@ function MessageBubble({ message, isMine, myUserId, senderName, memberMap }: Mes
         <div className="flex items-center gap-0.5 flex-shrink-0">
             <div className="relative">
                 <button
+                    ref={reactionButtonRef}
                     type="button"
-                    onClick={() => setShowReactionPicker((v) => !v)}
+                    onClick={openReactionPicker}
                     className="inline-flex items-center justify-center w-7 h-7 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100"
                     aria-label="リアクション"
                 >
                     <SmilePlus className="w-4 h-4" />
                 </button>
-                {showReactionPicker && (
+                {showReactionPicker && pickerPos && (
                     <>
                         <div className="fixed inset-0 z-20" onClick={() => setShowReactionPicker(false)} />
-                        <div className={`absolute z-30 bottom-full mb-1 ${isMine ? 'right-0' : 'left-0'} bg-white rounded-full shadow-lg border border-slate-200 px-1.5 py-1 flex items-center gap-0.5`}>
+                        <div
+                            className="fixed z-30 bg-white rounded-full shadow-lg border border-slate-200 px-1.5 py-1 flex items-center gap-0.5"
+                            style={{ left: pickerPos.left, bottom: pickerPos.bottom }}
+                        >
                             {REACTION_EMOJIS.map((e) => (
                                 <button
                                     key={e}
