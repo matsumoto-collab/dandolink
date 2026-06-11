@@ -11,10 +11,17 @@ export interface SafetyQualificationDto {
     profileId: string;
     category: string;
     name: string;
+    licenseNumber: string | null;
     acquiredAt: string | null;
     expiresAt: string | null;
+    /** 資格証画像の Storage パス（有無判定用。閲覧は署名URLを使う） */
+    imagePath: string | null;
+    imageThumbPath: string | null;
     createdAt: string;
     updatedAt: string;
+    /** GET /api/safety-profiles/[profileId]/qualifications でのみ付与される署名URL（1時間有効） */
+    imageUrl?: string | null;
+    imageThumbUrl?: string | null;
 }
 
 export interface SafetyProfileDto {

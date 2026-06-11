@@ -30,6 +30,8 @@ export type QualificationCategory = (typeof QUALIFICATION_CATEGORIES)[number]['v
 export interface QualificationSnapshot {
     category: string;
     name: string;
+    /** 修了証・免許証の番号（任意。PDFでは名称に併記する） */
+    licenseNumber: string | null;
     acquiredAt: string | null; // YYYY-MM-DD
     expiresAt: string | null;  // YYYY-MM-DD
 }

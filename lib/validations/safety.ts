@@ -78,11 +78,12 @@ export const safetyProfileUpsertSchema = z
 
 export type SafetyProfileUpsertInput = z.infer<typeof safetyProfileUpsertSchema>;
 
-/** 資格・教育の追加ボディ */
+/** 資格・教育の追加ボディ（番号は修了証・免許証番号 — §7.4 の禁止対象ではない） */
 export const qualificationCreateSchema = z
     .object({
         category: z.enum(['special_education', 'skill_training', 'license']),
         name: z.string().min(1, '資格・教育名は必須です').max(200),
+        licenseNumber: optionalString(100),
         acquiredAt: optionalDate,
         expiresAt: optionalDate,
     })

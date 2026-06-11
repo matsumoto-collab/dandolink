@@ -50,6 +50,7 @@ export function profileToSnapshot(profile: ProfileWithQualifications): SafetyPro
         qualifications: profile.qualifications.map((q) => ({
             category: q.category,
             name: q.name,
+            licenseNumber: q.licenseNumber,
             acquiredAt: toIsoDateString(q.acquiredAt),
             expiresAt: toIsoDateString(q.expiresAt),
         })),

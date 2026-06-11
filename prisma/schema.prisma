@@ -513,15 +513,20 @@ model WorkerSafetyProfile {
 }
 
 /// 安全プロフィールに紐づく資格・教育（1:N）。
+/// 資格証画像は Supabase Storage（project-master-files バケット）の
+/// qualifications/{profileId}/ 配下に WebP＋サムネで保存し、署名URLは取得時に都度生成する。
 model WorkerQualification {
-  id         String    @id @default(uuid())
-  profileId  String
-  category   String    // special_education / skill_training / license
-  name       String
-  acquiredAt DateTime?
-  expiresAt  DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  id             String    @id @default(uuid())
+  profileId      String
+  category       String    // special_education / skill_training / license
+  name           String
+  licenseNumber  String?   // 修了証・免許証の番号（健康保険番号等と異なり記載可の情報）
+  acquiredAt     DateTime?
+  expiresAt      DateTime?
+  imagePath      String?   // 資格証画像の Storage パス
+  imageThumbPath String?   // サムネイルの Storage パス
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   profile WorkerSafetyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 

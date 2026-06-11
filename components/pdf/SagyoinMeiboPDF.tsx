@@ -256,7 +256,10 @@ function WorkerRow({ worker, index, submitDate }: {
     ]
         .filter(Boolean)
         .join(' ');
-    const qualNames = (p?.qualifications ?? []).map((q) => q.name).join('、');
+    // 番号の前置記号は No. を使う（№ U+2116 はフォントサブセットにグリフが無く空白化するため）
+    const qualNames = (p?.qualifications ?? [])
+        .map((q) => (q.licenseNumber ? `${q.name}（No.${q.licenseNumber}）` : q.name))
+        .join('、');
     const qualText = [qualNames, p?.ccusId ? `CCUS ${p.ccusId}` : ''].filter(Boolean).join('\n');
 
     return (

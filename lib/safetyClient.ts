@@ -43,6 +43,7 @@ export function profileDtoToSnapshot(profile: SafetyProfileDto): SafetyProfileSn
         qualifications: (profile.qualifications ?? []).map((q) => ({
             category: q.category,
             name: q.name,
+            licenseNumber: q.licenseNumber ?? null,
             acquiredAt: toIsoDateString(q.acquiredAt),
             expiresAt: toIsoDateString(q.expiresAt),
         })),

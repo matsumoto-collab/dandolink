@@ -69,7 +69,17 @@ const dbWorker = (id: string, name: string, furigana: string | null = null) => (
               employmentInsurance: null, employmentInsuranceLast4: null,
               rosaiSpecialInsurance: null, kentaikyo: null, chutaikyo: null,
               kentaikyoTechou: null, ccusId: null, notes: null,
-              qualifications: [],
+              qualifications: [
+                  {
+                      category: 'skill_training',
+                      name: '玉掛け技能講習',
+                      licenseNumber: 'A-12345',
+                      acquiredAt: new Date('2015-04-01T00:00:00.000Z'),
+                      expiresAt: null,
+                      imagePath: 'qualifications/p1/x.webp',
+                      imageThumbPath: 'qualifications/p1/x_thumb.webp',
+                  },
+              ],
           }
         : null,
 });
@@ -134,6 +144,15 @@ describe('/api/safety-documents', () => {
                 key: 'worker:w1',
                 name: '山田太郎',
                 profile: expect.objectContaining({ furigana: 'やまだ', birthDate: '1980-05-01' }),
+            });
+            // 資格スナップショットに番号が引き継がれる（画像パスはスナップショットに含めない）
+            const qualification = createArgs.data.data.workers[0].profile.qualifications[0];
+            expect(qualification).toEqual({
+                category: 'skill_training',
+                name: '玉掛け技能講習',
+                licenseNumber: 'A-12345',
+                acquiredAt: '2015-04-01',
+                expiresAt: null,
             });
         });
 

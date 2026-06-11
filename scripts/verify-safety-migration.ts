@@ -68,7 +68,18 @@ async function main() {
         pass('CHECK 制約が機能（workerId/userId 両方NULLのINSERTを拒否）');
     }
 
-    // 5) Prisma クライアント整合（生成済みクライアントで count が通る）
+    // 5) 資格の番号・画像列（2026-06-11_add_qualification_number_image.sql）
+    const qualColumns = await prisma.$queryRaw<{ column_name: string }[]>`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'WorkerQualification'
+          AND column_name IN ('licenseNumber', 'imagePath', 'imageThumbPath')`;
+    const colNames = qualColumns.map((c) => c.column_name);
+    for (const name of ['licenseNumber', 'imagePath', 'imageThumbPath']) {
+        if (colNames.includes(name)) pass(`列 WorkerQualification.${name} 存在`);
+        else fail(`列 WorkerQualification.${name} が見つからない`);
+    }
+
+    // 6) Prisma クライアント整合（生成済みクライアントで count が通る）
     const [profiles, quals, docs] = await Promise.all([
         prisma.workerSafetyProfile.count(),
         prisma.workerQualification.count(),

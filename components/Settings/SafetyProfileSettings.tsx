@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { AlertTriangle, Check, FileUp, Plus, Search, Trash2 } from 'lucide-react';
+import { AlertTriangle, Check, FileUp, ImagePlus, Loader2, Plus, Search, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import SafetyProfileImportModal from './SafetyProfileImportModal';
 import {
@@ -20,7 +20,7 @@ import {
     getSafetyTargetGroup,
     type SafetyTargetGroup,
 } from '@/lib/safetyDocuments';
-import type { SafetyProfileDto, SafetyTargetDto } from '@/types/safety';
+import type { SafetyProfileDto, SafetyQualificationDto, SafetyTargetDto } from '@/types/safety';
 import { logger } from '@/lib/logger';
 
 /**
@@ -184,9 +184,17 @@ export default function SafetyProfileSettings() {
     // 資格追加フォーム
     const [qualCategory, setQualCategory] = useState<string>('skill_training');
     const [qualName, setQualName] = useState('');
+    const [qualLicenseNumber, setQualLicenseNumber] = useState('');
     const [qualAcquiredAt, setQualAcquiredAt] = useState('');
     const [qualExpiresAt, setQualExpiresAt] = useState('');
+    const [qualImageFile, setQualImageFile] = useState<File | null>(null);
     const [isAddingQual, setIsAddingQual] = useState(false);
+
+    // 選択対象の資格一覧（署名URL付き。統合一覧の qualifications には URL が無いため別取得）
+    const [selectedQuals, setSelectedQuals] = useState<SafetyQualificationDto[] | null>(null);
+    const [uploadingImageQid, setUploadingImageQid] = useState<string | null>(null);
+    const rowImageInputRef = useRef<HTMLInputElement>(null);
+    const rowImageTargetQidRef = useRef<string | null>(null);
 
     const fetchTargets = useCallback(async () => {
         try {
@@ -208,6 +216,29 @@ export default function SafetyProfileSettings() {
         () => targets.find((t) => t.key === selectedKey) ?? null,
         [targets, selectedKey]
     );
+    const selectedProfileId = selected?.profile?.id;
+
+    // 対象（のプロフィール）が変わったら署名URL付きの資格一覧を取得
+    useEffect(() => {
+        if (!selectedProfileId) {
+            setSelectedQuals(null);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch(`/api/safety-profiles/${selectedProfileId}/qualifications`, { cache: 'no-store' });
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+                if (!cancelled) setSelectedQuals(data);
+            } catch {
+                if (!cancelled) setSelectedQuals(null);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [selectedProfileId]);
 
     const groupedTargets = useMemo(() => {
         const q = search.trim();
@@ -284,6 +315,40 @@ export default function SafetyProfileSettings() {
         }
     };
 
+    /** 資格証画像をアップロード（差し替え）して更新後の資格を返す */
+    const uploadQualificationImage = async (
+        profileId: string,
+        qualificationId: string,
+        file: File
+    ): Promise<SafetyQualificationDto> => {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`/api/safety-profiles/${profileId}/qualifications/${qualificationId}/image`, {
+            method: 'POST',
+            body: formData,
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => null);
+            throw new Error(data?.error || '画像のアップロードに失敗しました');
+        }
+        return res.json();
+    };
+
+    /** selectedQuals と targets の両方へ資格の変更を反映する */
+    const applyQualificationChange = (
+        targetKey: string,
+        updater: (prev: SafetyQualificationDto[]) => SafetyQualificationDto[]
+    ) => {
+        setSelectedQuals((prev) => (prev ? updater(prev) : prev));
+        setTargets((prev) =>
+            prev.map((t) =>
+                t.key === targetKey && t.profile
+                    ? { ...t, profile: { ...t.profile, qualifications: updater(t.profile.qualifications) } }
+                    : t
+            )
+        );
+    };
+
     /** 資格追加。プロフィール未作成なら先に現在のフォーム内容で upsert してから登録する */
     const handleAddQualification = async () => {
         if (!selected) return;
@@ -307,6 +372,7 @@ export default function SafetyProfileSettings() {
                 body: JSON.stringify({
                     category: qualCategory,
                     name: qualName.trim(),
+                    licenseNumber: qualLicenseNumber.trim() || null,
                     acquiredAt: qualAcquiredAt || null,
                     expiresAt: qualExpiresAt || null,
                 }),
@@ -315,17 +381,24 @@ export default function SafetyProfileSettings() {
                 const data = await res.json().catch(() => null);
                 throw new Error(data?.error || '資格の登録に失敗しました');
             }
-            const qualification = await res.json();
-            setTargets((prev) =>
-                prev.map((t) =>
-                    t.key === selected.key && t.profile
-                        ? { ...t, profile: { ...t.profile, qualifications: [...t.profile.qualifications, qualification] } }
-                        : t
-                )
-            );
+            let qualification: SafetyQualificationDto = await res.json();
+
+            // 画像が選ばれていれば続けてアップロード（失敗しても資格自体は登録済みなので警告に留める）
+            if (qualImageFile) {
+                try {
+                    qualification = await uploadQualificationImage(profileId, qualification.id, qualImageFile);
+                } catch (imageError) {
+                    logger.error('資格証画像アップロードエラー:', imageError);
+                    toast.error('資格は登録しましたが、画像のアップロードに失敗しました');
+                }
+            }
+
+            applyQualificationChange(selected.key, (prev) => [...prev, qualification]);
             setQualName('');
+            setQualLicenseNumber('');
             setQualAcquiredAt('');
             setQualExpiresAt('');
+            setQualImageFile(null);
             toast.success('資格を登録しました');
         } catch (error) {
             logger.error('資格登録エラー:', error);
@@ -337,7 +410,7 @@ export default function SafetyProfileSettings() {
 
     const handleDeleteQualification = async (qualificationId: string) => {
         if (!selected?.profile) return;
-        if (!confirm('この資格を削除しますか？')) return;
+        if (!confirm('この資格を削除しますか？（資格証画像も削除されます）')) return;
         try {
             const res = await fetch(
                 `/api/safety-profiles/${selected.profile.id}/qualifications/${qualificationId}`,
@@ -347,23 +420,60 @@ export default function SafetyProfileSettings() {
                 const data = await res.json().catch(() => null);
                 throw new Error(data?.error || '削除に失敗しました');
             }
-            setTargets((prev) =>
-                prev.map((t) =>
-                    t.key === selected.key && t.profile
-                        ? {
-                              ...t,
-                              profile: {
-                                  ...t.profile,
-                                  qualifications: t.profile.qualifications.filter((q) => q.id !== qualificationId),
-                              },
-                          }
-                        : t
-                )
-            );
+            applyQualificationChange(selected.key, (prev) => prev.filter((q) => q.id !== qualificationId));
             toast.success('資格を削除しました');
         } catch (error) {
             logger.error('資格削除エラー:', error);
             toast.error(error instanceof Error ? error.message : '削除に失敗しました');
+        }
+    };
+
+    /** 一覧行の「画像」ボタン → hidden input を開く */
+    const openRowImagePicker = (qualificationId: string) => {
+        rowImageTargetQidRef.current = qualificationId;
+        rowImageInputRef.current?.click();
+    };
+
+    const handleRowImageSelected = async (file: File) => {
+        const qid = rowImageTargetQidRef.current;
+        if (!selected?.profile || !qid) return;
+        setUploadingImageQid(qid);
+        try {
+            const updated = await uploadQualificationImage(selected.profile.id, qid, file);
+            applyQualificationChange(selected.key, (prev) => prev.map((q) => (q.id === qid ? updated : q)));
+            toast.success('資格証画像を保存しました');
+        } catch (error) {
+            logger.error('資格証画像アップロードエラー:', error);
+            toast.error(error instanceof Error ? error.message : '画像のアップロードに失敗しました');
+        } finally {
+            setUploadingImageQid(null);
+            rowImageTargetQidRef.current = null;
+        }
+    };
+
+    const handleDeleteQualificationImage = async (qualificationId: string) => {
+        if (!selected?.profile) return;
+        if (!confirm('資格証画像を削除しますか？')) return;
+        try {
+            const res = await fetch(
+                `/api/safety-profiles/${selected.profile.id}/qualifications/${qualificationId}/image`,
+                { method: 'DELETE' }
+            );
+            if (!res.ok) {
+                const data = await res.json().catch(() => null);
+                throw new Error(data?.error || '画像の削除に失敗しました');
+            }
+            applyQualificationChange(selected.key, (prev) =>
+                prev.map((q) =>
+                    q.id === qualificationId
+                        ? { ...q, imagePath: null, imageThumbPath: null, imageUrl: null, imageThumbUrl: null }
+                        : q
+                )
+            );
+            toast.success('資格証画像を削除しました');
+        } catch (error) {
+            logger.error('資格証画像削除エラー:', error);
+            toast.error(error instanceof Error ? error.message : '画像の削除に失敗しました');
         }
     };
 
@@ -662,77 +772,176 @@ export default function SafetyProfileSettings() {
                                     </div>
                                 )}
 
-                                {activeTab === 'qualifications' && (
-                                    <div className="space-y-4">
-                                        {/* 登録済み一覧 */}
-                                        {selected.profile && selected.profile.qualifications.length > 0 ? (
-                                            <ul className="space-y-1.5">
-                                                {selected.profile.qualifications.map((q) => (
-                                                    <li key={q.id} className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
-                                                        <span className="text-[10px] px-2 py-0.5 bg-white border border-slate-200 rounded-full text-slate-600 shrink-0">
-                                                            {getQualificationCategoryLabel(q.category)}
+                                {activeTab === 'qualifications' && (() => {
+                                    // 署名URL付きの一覧を優先（フォールバックは統合一覧由来 = 画像URLなし）
+                                    const quals = selectedQuals ?? selected.profile?.qualifications ?? [];
+                                    return (
+                                        <div className="space-y-4">
+                                            {/* 行画像アップロード用の hidden input（1つを使い回す） */}
+                                            <input
+                                                ref={rowImageInputRef}
+                                                type="file"
+                                                accept="image/*"
+                                                className="hidden"
+                                                onChange={(e) => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) handleRowImageSelected(file);
+                                                    e.target.value = '';
+                                                }}
+                                            />
+
+                                            {/* 登録済み一覧 */}
+                                            {quals.length > 0 ? (
+                                                <ul className="space-y-1.5">
+                                                    {quals.map((q) => (
+                                                        <li key={q.id} className="flex items-center gap-3 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl">
+                                                            {/* 資格証画像: サムネ（クリックで原寸を新規タブ表示）/ 未登録は追加ボタン */}
+                                                            {q.imageThumbUrl ? (
+                                                                <div className="relative shrink-0">
+                                                                    <a
+                                                                        href={q.imageUrl ?? undefined}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        title="資格証画像を表示"
+                                                                    >
+                                                                        {/* eslint-disable-next-line @next/next/no-img-element -- 署名URL(毎回変化)のため next/image 不適 */}
+                                                                        <img
+                                                                            src={q.imageThumbUrl}
+                                                                            alt={`${q.name} 資格証`}
+                                                                            className="w-10 h-10 object-cover rounded-lg border border-slate-200"
+                                                                        />
+                                                                    </a>
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDeleteQualificationImage(q.id)}
+                                                                        className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-slate-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center"
+                                                                        aria-label="資格証画像を削除"
+                                                                        title="画像を削除"
+                                                                    >
+                                                                        <X className="w-2.5 h-2.5" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => openRowImagePicker(q.id)}
+                                                                    disabled={uploadingImageQid === q.id}
+                                                                    className="w-10 h-10 shrink-0 flex items-center justify-center border border-dashed border-slate-300 rounded-lg text-slate-400 hover:text-teal-600 hover:border-teal-400 transition-colors"
+                                                                    title="資格証画像を追加"
+                                                                    aria-label="資格証画像を追加"
+                                                                >
+                                                                    {uploadingImageQid === q.id ? (
+                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                    ) : (
+                                                                        <ImagePlus className="w-4 h-4" />
+                                                                    )}
+                                                                </button>
+                                                            )}
+                                                            <span className="text-[10px] px-2 py-0.5 bg-white border border-slate-200 rounded-full text-slate-600 shrink-0">
+                                                                {getQualificationCategoryLabel(q.category)}
+                                                            </span>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm text-slate-800 truncate">{q.name}</div>
+                                                                {q.licenseNumber && (
+                                                                    <div className="text-xs text-slate-500">No.{q.licenseNumber}</div>
+                                                                )}
+                                                            </div>
+                                                            {q.acquiredAt && (
+                                                                <span className="text-xs text-slate-500 shrink-0">取得 {q.acquiredAt.slice(0, 10)}</span>
+                                                            )}
+                                                            {q.expiresAt && (
+                                                                <span className="text-xs text-slate-500 shrink-0">期限 {q.expiresAt.slice(0, 10)}</span>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleDeleteQualification(q.id)}
+                                                                className="p-1 text-slate-400 hover:text-red-600 shrink-0"
+                                                                aria-label="資格を削除"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </button>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            ) : (
+                                                <p className="text-sm text-slate-400">登録済みの資格・教育はありません</p>
+                                            )}
+
+                                            {/* 追加フォーム */}
+                                            <div className="border-t border-slate-200 pt-4">
+                                                <div className="text-xs font-semibold text-slate-600 mb-2">資格・教育を追加</div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                                                    <select value={qualCategory} onChange={(e) => setQualCategory(e.target.value)} className={INPUT_CLASS}>
+                                                        {QUALIFICATION_CATEGORIES.map((c) => (
+                                                            <option key={c.value} value={c.value}>{c.label}</option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        type="text"
+                                                        list="safety-qual-suggestions"
+                                                        value={qualName}
+                                                        onChange={(e) => {
+                                                            setQualName(e.target.value);
+                                                            // サジェスト選択時は種別も自動で合わせる（FR-1-5）
+                                                            const hit = COMMON_QUALIFICATIONS.find((c) => c.name === e.target.value);
+                                                            if (hit) setQualCategory(hit.category);
+                                                        }}
+                                                        placeholder="資格・教育名"
+                                                        className={`${INPUT_CLASS} lg:col-span-2`}
+                                                    />
+                                                    <datalist id="safety-qual-suggestions">
+                                                        {COMMON_QUALIFICATIONS.map((c) => (
+                                                            <option key={c.name} value={c.name} />
+                                                        ))}
+                                                    </datalist>
+                                                    <input
+                                                        type="text"
+                                                        value={qualLicenseNumber}
+                                                        onChange={(e) => setQualLicenseNumber(e.target.value)}
+                                                        placeholder="修了証・免許証の番号（任意）"
+                                                        className={INPUT_CLASS}
+                                                    />
+                                                    <input type="date" value={qualAcquiredAt} onChange={(e) => setQualAcquiredAt(e.target.value)} title="取得日" className={INPUT_CLASS} />
+                                                    <input type="date" value={qualExpiresAt} onChange={(e) => setQualExpiresAt(e.target.value)} title="有効期限" className={INPUT_CLASS} />
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <label className="flex items-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 cursor-pointer hover:bg-slate-50 min-w-0">
+                                                        <ImagePlus className="w-4 h-4 shrink-0 text-slate-400" />
+                                                        <span className="truncate max-w-[260px]">
+                                                            {qualImageFile ? qualImageFile.name : '資格証画像を添付（任意）'}
                                                         </span>
-                                                        <span className="text-sm text-slate-800 flex-1 min-w-0 truncate">{q.name}</span>
-                                                        {q.acquiredAt && (
-                                                            <span className="text-xs text-slate-500 shrink-0">取得 {q.acquiredAt.slice(0, 10)}</span>
-                                                        )}
-                                                        {q.expiresAt && (
-                                                            <span className="text-xs text-slate-500 shrink-0">期限 {q.expiresAt.slice(0, 10)}</span>
-                                                        )}
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={(e) => {
+                                                                setQualImageFile(e.target.files?.[0] ?? null);
+                                                                e.target.value = '';
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    {qualImageFile && (
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleDeleteQualification(q.id)}
-                                                            className="p-1 text-slate-400 hover:text-red-600 shrink-0"
-                                                            aria-label="資格を削除"
+                                                            onClick={() => setQualImageFile(null)}
+                                                            className="p-1.5 text-slate-400 hover:text-red-600"
+                                                            aria-label="添付を取り消す"
                                                         >
-                                                            <Trash2 className="w-4 h-4" />
+                                                            <X className="w-4 h-4" />
                                                         </button>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        ) : (
-                                            <p className="text-sm text-slate-400">登録済みの資格・教育はありません</p>
-                                        )}
-
-                                        {/* 追加フォーム */}
-                                        <div className="border-t border-slate-200 pt-4">
-                                            <div className="text-xs font-semibold text-slate-600 mb-2">資格・教育を追加</div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                                                <select value={qualCategory} onChange={(e) => setQualCategory(e.target.value)} className={INPUT_CLASS}>
-                                                    {QUALIFICATION_CATEGORIES.map((c) => (
-                                                        <option key={c.value} value={c.value}>{c.label}</option>
-                                                    ))}
-                                                </select>
-                                                <input
-                                                    type="text"
-                                                    list="safety-qual-suggestions"
-                                                    value={qualName}
-                                                    onChange={(e) => {
-                                                        setQualName(e.target.value);
-                                                        // サジェスト選択時は種別も自動で合わせる（FR-1-5）
-                                                        const hit = COMMON_QUALIFICATIONS.find((c) => c.name === e.target.value);
-                                                        if (hit) setQualCategory(hit.category);
-                                                    }}
-                                                    placeholder="資格・教育名"
-                                                    className={INPUT_CLASS}
-                                                />
-                                                <datalist id="safety-qual-suggestions">
-                                                    {COMMON_QUALIFICATIONS.map((c) => (
-                                                        <option key={c.name} value={c.name} />
-                                                    ))}
-                                                </datalist>
-                                                <input type="date" value={qualAcquiredAt} onChange={(e) => setQualAcquiredAt(e.target.value)} title="取得日" className={INPUT_CLASS} />
-                                                <div className="flex gap-2">
-                                                    <input type="date" value={qualExpiresAt} onChange={(e) => setQualExpiresAt(e.target.value)} title="有効期限" className={`${INPUT_CLASS} flex-1`} />
+                                                    )}
+                                                    <div className="flex-1" />
                                                     <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={handleAddQualification} isLoading={isAddingQual}>
                                                         追加
                                                     </Button>
                                                 </div>
+                                                <p className="text-[11px] text-slate-400 mt-1.5">
+                                                    種別 / 名称（入力候補あり）/ 番号 / 取得日 / 有効期限。画像は1資格につき1枚（後から行の画像ボタンでも追加・差し替えできます）
+                                                </p>
                                             </div>
-                                            <p className="text-[11px] text-slate-400 mt-1.5">左から: 種別 / 名称（入力候補あり）/ 取得日 / 有効期限</p>
                                         </div>
-                                    </div>
-                                )}
+                                    );
+                                })()}
 
                                 {activeTab === 'health' && (
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
