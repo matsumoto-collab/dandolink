@@ -14,6 +14,7 @@ import { Invoice, InvoiceInput } from '@/types/invoice';
 import { Plus, Edit, Trash2, Search, Calendar, MapPin, Building, Loader2, User, Check } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
+import { buildProjectMasterCreatePayload, createAssignmentsFromWorkDates } from '@/lib/projectMasterCreate';
 import ProjectMasterDetailModal from '@/components/ProjectMaster/ProjectMasterDetailModal';
 import ProjectMasterCreateModal from '@/components/ProjectMaster/ProjectMasterCreateModal';
 import { useBillingDrafts } from '@/hooks/useBillingDrafts';
@@ -262,68 +263,10 @@ function ProjectMasterListPageContent() {
     }, [filteredMasters, currentPage]);
 
     const handleCreate = async (data: ProjectMasterFormData) => {
-        const subcontractorCosts = data.subcontractorCosts
-            .filter(r => r.constructionTypeId && r.amount !== '')
-            .map(r => {
-                const amount = Number(r.amount);
-                const tc = r.transportCost === '' ? null : Number(r.transportCost);
-                return {
-                    constructionTypeId: r.constructionTypeId,
-                    amount,
-                    transportCost: tc != null && Number.isFinite(tc) && tc >= 0 ? tc : null,
-                };
-            })
-            .filter(r => Number.isFinite(r.amount) && r.amount >= 0);
+        const pm = await createProjectMaster(buildProjectMasterCreatePayload(data));
 
-        const pm = await createProjectMaster({
-            title: data.title,
-            name: data.name || undefined,
-            honorific: data.honorific ?? undefined,
-            constructionSuffixId: data.constructionSuffixId || undefined,
-            siteShortName: data.siteShortName || undefined,
-            customerId: data.customerId || undefined,
-            customerName: data.customerName || undefined,
-            constructionType: 'other',
-            constructionContent: data.constructionContent as string,
-            status: 'active',
-            postalCode: data.postalCode || undefined,
-            prefecture: data.prefecture || undefined,
-            city: data.city || undefined,
-            location: data.location || undefined,
-            plusCode: data.plusCode || undefined,
-            latitude: data.latitude ?? undefined,
-            longitude: data.longitude ?? undefined,
-            area: data.area ? parseFloat(data.area) : undefined,
-            areaRemarks: data.areaRemarks || undefined,
-            estimatedAssemblyWorkers: data.estimatedAssemblyWorkers ? parseInt(data.estimatedAssemblyWorkers) : undefined,
-            estimatedDemolitionWorkers: data.estimatedDemolitionWorkers ? parseInt(data.estimatedDemolitionWorkers) : undefined,
-            contractAmount: data.contractAmount ? parseInt(data.contractAmount) : undefined,
-            scaffoldingSpec: data.scaffoldingSpec,
-            remarks: data.remarks || undefined,
-            createdBy: data.createdBy.length > 0 ? data.createdBy : undefined,
-            subcontractorCosts,
-        });
-
-        // 各作業日のアサインを自動生成
-        const assignmentPromises = data.workDates.flatMap((w, _rowIdx) => {
-            if (!w.date || w.foremen.length === 0) return [];
-            return w.foremen.map((f, i) =>
-                fetch('/api/assignments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectMasterId: pm.id,
-                        assignedEmployeeId: f.foremanId,
-                        date: new Date(`${w.date}T00:00:00Z`).toISOString(),
-                        memberCount: f.memberCount,
-                        sortOrder: i,
-                        estimatedHours: 8.0,
-                        constructionType: w.constructionType || undefined,
-                    }),
-                })
-            );
-        });
-        await Promise.all(assignmentPromises);
+        // 各作業日のアサインを自動生成（職長未選択の行はスキップ）
+        await createAssignmentsFromWorkDates(pm.id, data.workDates);
 
         toast.success('案件マスターを作成しました');
     };
@@ -370,26 +313,8 @@ function ProjectMasterListPageContent() {
             subcontractorCosts,
         };
         await updateProjectMaster(id, updatePayload as Partial<ProjectMaster>);
-        // 作業日程から新規アサインを自動生成
-        const assignmentPromises = data.workDates.flatMap((w) => {
-            if (!w.date || w.foremen.length === 0) return [];
-            return w.foremen.map((f, i) =>
-                fetch('/api/assignments', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        projectMasterId: id,
-                        assignedEmployeeId: f.foremanId,
-                        date: new Date(`${w.date}T00:00:00Z`).toISOString(),
-                        memberCount: f.memberCount,
-                        sortOrder: i,
-                        estimatedHours: 8.0,
-                        constructionType: w.constructionType || undefined,
-                    }),
-                })
-            );
-        });
-        await Promise.all(assignmentPromises);
+        // 作業日程から新規アサインを自動生成（職長未選択の行はスキップ）
+        await createAssignmentsFromWorkDates(id, data.workDates);
 
         // 保存後、detailPmをストアの最新データで更新（再編集時にpm.latitudeが古い値にならないよう）
         const updated = getProjectMasterById(id);

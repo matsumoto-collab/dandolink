@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
@@ -11,27 +11,29 @@ interface ProjectMasterCreateModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCreate: (data: ProjectMasterFormData) => Promise<void>;
+    /** フォーム初期値の上書き（見積書から作成時の名前・顧客の引き継ぎ等）。参照は親側で安定させること */
+    initialData?: Partial<ProjectMasterFormData>;
 }
 
-export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: ProjectMasterCreateModalProps) {
+export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate, initialData }: ProjectMasterCreateModalProps) {
     const { data: session } = useSession();
     const currentUserId = session?.user?.id;
-    const initialFormData: ProjectMasterFormData = currentUserId
-        ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
-        : DEFAULT_FORM_DATA;
-    const [formData, setFormData] = useState<ProjectMasterFormData>(initialFormData);
+    const buildInitialFormData = useCallback((): ProjectMasterFormData => ({
+        ...DEFAULT_FORM_DATA,
+        ...(currentUserId ? { createdBy: [currentUserId] } : {}),
+        ...initialData,
+    }), [currentUserId, initialData]);
+    const [formData, setFormData] = useState<ProjectMasterFormData>(buildInitialFormData);
     const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (isOpen) {
-            setFormData(currentUserId
-                ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
-                : DEFAULT_FORM_DATA);
+            setFormData(buildInitialFormData());
             setShowUnsavedConfirm(false);
             setErrors({});
         }
-    }, [isOpen, currentUserId]);
+    }, [isOpen, buildInitialFormData]);
 
     // 入力が修正されたら該当エラーを自動クリア
     useEffect(() => {
@@ -47,10 +49,7 @@ export default function ProjectMasterCreateModal({ isOpen, onClose, onCreate }: 
     }, [formData.name, formData.constructionContent, formData.createdBy, formData.customerName]);
 
     const isFormDirty = () => {
-        const baseline = currentUserId
-            ? { ...DEFAULT_FORM_DATA, createdBy: [currentUserId] }
-            : DEFAULT_FORM_DATA;
-        return JSON.stringify(formData) !== JSON.stringify(baseline);
+        return JSON.stringify(formData) !== JSON.stringify(buildInitialFormData());
     };
 
     const handleClose = () => {

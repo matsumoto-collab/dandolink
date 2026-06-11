@@ -53,6 +53,10 @@ export async function POST(req: NextRequest) {
                     `配置[${i}]: projectMasterId, assignedEmployeeId, date は必須です`
                 );
             }
+            // 'unassigned' は職長行が無くカレンダーに描画されない孤児配置になるため拒否（単発POSTのzodと同じガード）
+            if (a.assignedEmployeeId === 'unassigned') {
+                return validationErrorResponse(`配置[${i}]: 職長が選択されていません`);
+            }
         }
 
         // トランザクションで一括作成（includeなし - IDのみ取得）

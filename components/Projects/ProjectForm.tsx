@@ -20,6 +20,7 @@ import { ButtonLoading } from '@/components/ui/Loading';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '@/lib/logger';
+import toast from 'react-hot-toast';
 
 const HONORIFIC_OPTIONS = [
     { value: '様邸', label: '様邸' },
@@ -496,6 +497,15 @@ export default function ProjectForm({
             return;
         }
 
+        // 職長の特定（このフォームに職長選択欄は無く、開いた職長行で決まる）。
+        // 文脈なしで 'unassigned' のまま保存すると、カレンダーに描画されず
+        // 作業履歴で「不明」と表示される消せない孤児配置になるため保存させない。
+        const assignedEmployeeId = initialData?.assignedEmployeeId || defaultEmployeeId;
+        if (!assignedEmployeeId || assignedEmployeeId === 'unassigned') {
+            toast.error('職長が特定できないため登録できません。カレンダーの職長行のセルから登録してください。');
+            return;
+        }
+
         // メンバー数分のダミー配列を作成
         const workers = formData.memberCount > 0
             ? Array.from({ length: formData.memberCount }, (_, i) => `メンバー${i + 1}`)
@@ -529,7 +539,7 @@ export default function ProjectForm({
             customer: formData.customer || null,
             createdBy: formData.selectedManagers.length > 0 ? formData.selectedManagers : [],
             startDate: startDate,
-            assignedEmployeeId: initialData?.assignedEmployeeId || defaultEmployeeId || 'unassigned',
+            assignedEmployeeId,
             memberCount: formData.memberCount,
             workers: workers,
             trucks: formData.selectedVehicles.length > 0 ? formData.selectedVehicles : [],

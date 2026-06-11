@@ -1,8 +1,18 @@
 import { z } from 'zod';
 
+/**
+ * 職長ID。'unassigned'（旧・職長未割当のセンチネル値）は登録不可。
+ * 許すと職長行が無いためカレンダーに描画されず、作業履歴で「不明」と表示される
+ * 消せない孤児配置になる（2026-06-11 kei報告の再発防止）。
+ */
+const foremanIdSchema = z
+    .string()
+    .min(1, '職長IDは必須です')
+    .refine((v) => v !== 'unassigned', '職長が選択されていません');
+
 export const createAssignmentSchema = z.object({
     projectMasterId: z.string().min(1, '案件IDは必須です'),
-    assignedEmployeeId: z.string().min(1, '職長IDは必須です'),
+    assignedEmployeeId: foremanIdSchema,
     date: z.string().min(1, '日付は必須です'),
     memberCount: z.number().int().min(0).optional(),
     workers: z.array(z.string()).optional(),
@@ -22,7 +32,7 @@ const batchUpdateItemSchema = z.object({
     id: z.string().min(1),
     expectedUpdatedAt: z.string().optional(),
     data: z.object({
-        assignedEmployeeId: z.string().optional(),
+        assignedEmployeeId: foremanIdSchema.optional(),
         date: z.string().optional(),
         sortOrder: z.number().int().optional(),
         memberCount: z.number().int().min(0).optional(),
