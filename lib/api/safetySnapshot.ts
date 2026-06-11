@@ -2,10 +2,23 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import {
     toIsoDateString,
+    type MachineSnapshot,
     type MeiboWorkerSnapshot,
     type SafetyProfileSnapshot,
+    type TodokeVehicleSnapshot,
+    type VehicleSafetySnapshot,
 } from '@/lib/safetyDocuments';
 import type { MeiboMemberRef } from '@/lib/validations/safety';
+
+interface TodokeVehicleRef {
+    vehicleId: string;
+    driverName: string;
+}
+
+interface TodokeMachineRef {
+    machineId: string;
+    operatorName: string;
+}
 
 /**
  * 安全書類スナップショット生成（サーバー専用）。
@@ -164,5 +177,184 @@ export async function refreshMeiboWorkerSnapshots(
     const freshMap = new Map(freshSnapshots.map((w) => [w.key, w]));
 
     const refreshed = existing.map((w) => freshMap.get(w.key) ?? w);
+    return { snapshots: refreshed, notFoundKeys };
+}
+
+// ============================================
+// Phase 2: 車両届
+// ============================================
+
+type VehicleProfileRow = Prisma.VehicleSafetyProfileGetPayload<Record<string, never>>;
+
+export function vehicleProfileToSnapshot(profile: VehicleProfileRow): VehicleSafetySnapshot {
+    return {
+        vehicleType: profile.vehicleType,
+        registrationNumber: profile.registrationNumber,
+        usage: profile.usage,
+        inspectionExpiry: toIsoDateString(profile.inspectionExpiry),
+        jibaisekiCompany: profile.jibaisekiCompany,
+        jibaisekiExpiry: toIsoDateString(profile.jibaisekiExpiry),
+        insuranceCompany: profile.insuranceCompany,
+        insuranceExpiry: toIsoDateString(profile.insuranceExpiry),
+        insurancePersonal: profile.insurancePersonal,
+        insuranceObjective: profile.insuranceObjective,
+        insurancePassenger: profile.insurancePassenger,
+        notes: profile.notes,
+    };
+}
+
+export interface BuildVehicleSnapshotsResult {
+    snapshots: TodokeVehicleSnapshot[];
+    notFoundKeys: string[];
+}
+
+/** 車両参照リストから現在のマスター値でスナップショットを組み立てる（並び順維持） */
+export async function buildTodokeVehicleSnapshots(refs: TodokeVehicleRef[]): Promise<BuildVehicleSnapshotsResult> {
+    const ids = refs.map((r) => r.vehicleId);
+    const vehicles = ids.length
+        ? await prisma.vehicle.findMany({
+              where: { id: { in: ids } },
+              include: { safetyProfile: true },
+          })
+        : [];
+    const vehicleMap = new Map(vehicles.map((v) => [v.id, v]));
+
+    const snapshots: TodokeVehicleSnapshot[] = [];
+    const notFoundKeys: string[] = [];
+    for (const ref of refs) {
+        const vehicle = vehicleMap.get(ref.vehicleId);
+        if (!vehicle) {
+            notFoundKeys.push(`vehicle:${ref.vehicleId}`);
+            continue;
+        }
+        snapshots.push({
+            vehicleId: vehicle.id,
+            name: vehicle.name,
+            // 運転者は書類固有入力。未指定ならプロフィールの既定運転者を初期採用
+            driverName: ref.driverName || vehicle.safetyProfile?.defaultDriverName || '',
+            profile: vehicle.safetyProfile ? vehicleProfileToSnapshot(vehicle.safetyProfile) : null,
+        });
+    }
+    return { snapshots, notFoundKeys };
+}
+
+/** 車両届の更新: 既存車両のプロフィールスナップショットは据え置き・driverName は送信値を採用 */
+export async function mergeTodokeVehicleSnapshots(
+    existing: TodokeVehicleSnapshot[],
+    refs: TodokeVehicleRef[]
+): Promise<BuildVehicleSnapshotsResult> {
+    const existingMap = new Map(existing.map((v) => [v.vehicleId, v]));
+    const newRefs = refs.filter((r) => !existingMap.has(r.vehicleId));
+    const { snapshots: newSnapshots, notFoundKeys } = await buildTodokeVehicleSnapshots(newRefs);
+    const newMap = new Map(newSnapshots.map((v) => [v.vehicleId, v]));
+
+    const merged: TodokeVehicleSnapshot[] = [];
+    for (const ref of refs) {
+        const kept = existingMap.get(ref.vehicleId);
+        if (kept) {
+            merged.push({ ...kept, driverName: ref.driverName });
+        } else {
+            const created = newMap.get(ref.vehicleId);
+            if (created) merged.push(created);
+        }
+    }
+    return { snapshots: merged, notFoundKeys };
+}
+
+/** 車両届の最新化: プロフィール・車両名を最新化し、driverName（書類固有）は維持 */
+export async function refreshTodokeVehicleSnapshots(
+    existing: TodokeVehicleSnapshot[]
+): Promise<BuildVehicleSnapshotsResult> {
+    const refs: TodokeVehicleRef[] = existing.map((v) => ({ vehicleId: v.vehicleId, driverName: v.driverName }));
+    const { snapshots: fresh, notFoundKeys } = await buildTodokeVehicleSnapshots(refs);
+    const freshMap = new Map(fresh.map((v) => [v.vehicleId, v]));
+    const refreshed = existing.map((v) => {
+        const f = freshMap.get(v.vehicleId);
+        return f ? { ...f, driverName: v.driverName } : v;
+    });
+    return { snapshots: refreshed, notFoundKeys };
+}
+
+// ============================================
+// Phase 2: 持込機械届・クレーン等使用届
+// ============================================
+
+type MachineRow = Prisma.MachineGetPayload<Record<string, never>>;
+
+export function machineToSnapshot(machine: MachineRow, operatorName: string): MachineSnapshot {
+    return {
+        machineId: machine.id,
+        name: machine.name,
+        category: machine.category,
+        operatorName: operatorName || machine.defaultOperatorName || '',
+        model: machine.model,
+        serialNumber: machine.serialNumber,
+        maker: machine.maker,
+        capacity: machine.capacity,
+        ownerName: machine.ownerName,
+        inspectionDate: toIsoDateString(machine.inspectionDate),
+        inspectionExpiry: toIsoDateString(machine.inspectionExpiry),
+        certificateNumber: machine.certificateNumber,
+        notes: machine.notes,
+    };
+}
+
+export interface BuildMachineSnapshotsResult {
+    snapshots: MachineSnapshot[];
+    notFoundKeys: string[];
+}
+
+export async function buildMachineSnapshots(refs: TodokeMachineRef[]): Promise<BuildMachineSnapshotsResult> {
+    const ids = refs.map((r) => r.machineId);
+    const machines = ids.length
+        ? await prisma.machine.findMany({ where: { id: { in: ids } } })
+        : [];
+    const machineMap = new Map(machines.map((m) => [m.id, m]));
+
+    const snapshots: MachineSnapshot[] = [];
+    const notFoundKeys: string[] = [];
+    for (const ref of refs) {
+        const machine = machineMap.get(ref.machineId);
+        if (!machine) {
+            notFoundKeys.push(`machine:${ref.machineId}`);
+            continue;
+        }
+        snapshots.push(machineToSnapshot(machine, ref.operatorName));
+    }
+    return { snapshots, notFoundKeys };
+}
+
+/** 機械届の更新: 既存機械のマスター値スナップショットは据え置き・operatorName は送信値を採用 */
+export async function mergeMachineSnapshots(
+    existing: MachineSnapshot[],
+    refs: TodokeMachineRef[]
+): Promise<BuildMachineSnapshotsResult> {
+    const existingMap = new Map(existing.map((m) => [m.machineId, m]));
+    const newRefs = refs.filter((r) => !existingMap.has(r.machineId));
+    const { snapshots: newSnapshots, notFoundKeys } = await buildMachineSnapshots(newRefs);
+    const newMap = new Map(newSnapshots.map((m) => [m.machineId, m]));
+
+    const merged: MachineSnapshot[] = [];
+    for (const ref of refs) {
+        const kept = existingMap.get(ref.machineId);
+        if (kept) {
+            merged.push({ ...kept, operatorName: ref.operatorName });
+        } else {
+            const created = newMap.get(ref.machineId);
+            if (created) merged.push(created);
+        }
+    }
+    return { snapshots: merged, notFoundKeys };
+}
+
+/** 機械届の最新化: マスター値を最新化し、operatorName（書類固有）は維持 */
+export async function refreshMachineSnapshots(existing: MachineSnapshot[]): Promise<BuildMachineSnapshotsResult> {
+    const refs: TodokeMachineRef[] = existing.map((m) => ({ machineId: m.machineId, operatorName: m.operatorName }));
+    const { snapshots: fresh, notFoundKeys } = await buildMachineSnapshots(refs);
+    const freshMap = new Map(fresh.map((m) => [m.machineId, m]));
+    const refreshed = existing.map((m) => {
+        const f = freshMap.get(m.machineId);
+        return f ? { ...f, operatorName: m.operatorName } : m;
+    });
     return { snapshots: refreshed, notFoundKeys };
 }

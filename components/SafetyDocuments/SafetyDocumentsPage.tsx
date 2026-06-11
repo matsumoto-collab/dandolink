@@ -1,14 +1,28 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Copy, Download, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ChevronDown, Copy, Download, FileText, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { Button, IconButton } from '@/components/ui/Button';
 import SagyoinMeiboWizard from './SagyoinMeiboWizard';
-import { SAFETY_DOCUMENT_TYPE_LABELS } from '@/lib/safetyDocuments';
-import { exportSagyoinMeiboPDF } from '@/utils/sagyoinMeiboPdf';
+import TodokeWizard from './TodokeWizard';
+import {
+    SAFETY_DOCUMENT_TYPES,
+    SAFETY_DOCUMENT_TYPE_LABELS,
+    getSafetyDocumentTargetCount,
+} from '@/lib/safetyDocuments';
+import { exportSafetyDocumentPDF } from '@/utils/safetyDocumentPdf';
 import type { SafetyDocumentDto } from '@/types/safety';
 import { logger } from '@/lib/logger';
+
+type TodokeType = 'vehicle_todoke' | 'kikai_todoke' | 'crane_todoke';
+
+const CREATE_MENU: { type: string; label: string; description: string }[] = [
+    { type: SAFETY_DOCUMENT_TYPES.sagyoinMeibo, label: '作業員名簿', description: '全建統一様式第5号 準拠' },
+    { type: SAFETY_DOCUMENT_TYPES.vehicleTodoke, label: '工事・通勤用車両届', description: '車両・保険・運転者の一覧' },
+    { type: SAFETY_DOCUMENT_TYPES.kikaiTodoke, label: '持込機械等使用届', description: '持込機械の一覧' },
+    { type: SAFETY_DOCUMENT_TYPES.craneTodoke, label: '移動式クレーン等使用届', description: 'クレーン・車両系建設機械（1台1葉）' },
+];
 
 /**
  * 安全書類（グリーンファイル）一覧 + 作成ウィザード（S-2 / S-3）。
@@ -19,8 +33,23 @@ export default function SafetyDocumentsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [view, setView] = useState<'list' | 'wizard'>('list');
+    const [wizardType, setWizardType] = useState<string>(SAFETY_DOCUMENT_TYPES.sagyoinMeibo);
     const [editingDoc, setEditingDoc] = useState<SafetyDocumentDto | null>(null);
     const [duplicateSource, setDuplicateSource] = useState<SafetyDocumentDto | null>(null);
+    const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
+    const createMenuRef = useRef<HTMLDivElement>(null);
+
+    // 作成メニューの外側クリックで閉じる
+    useEffect(() => {
+        if (!isCreateMenuOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
+                setIsCreateMenuOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [isCreateMenuOpen]);
 
     const fetchDocuments = useCallback(async () => {
         try {
@@ -50,19 +79,23 @@ export default function SafetyDocumentsPage() {
         );
     }, [documents, search]);
 
-    const openCreate = () => {
+    const openCreate = (type: string) => {
+        setWizardType(type);
         setEditingDoc(null);
         setDuplicateSource(null);
+        setIsCreateMenuOpen(false);
         setView('wizard');
     };
 
     const openEdit = (doc: SafetyDocumentDto) => {
+        setWizardType(doc.type);
         setEditingDoc(doc);
         setDuplicateSource(null);
         setView('wizard');
     };
 
     const openDuplicate = (doc: SafetyDocumentDto) => {
+        setWizardType(doc.type);
         setEditingDoc(null);
         setDuplicateSource(doc);
         setView('wizard');
@@ -87,7 +120,7 @@ export default function SafetyDocumentsPage() {
     /** 一覧から直接PDF出力（保存済みスナップショットから生成 = FR-4-2） */
     const handleExportPdf = async (doc: SafetyDocumentDto) => {
         try {
-            await exportSagyoinMeiboPDF(doc.data, doc.title);
+            await exportSafetyDocumentPDF(doc.type, doc.data, doc.title);
         } catch {
             toast.error('PDFの出力に失敗しました');
         }
@@ -104,8 +137,19 @@ export default function SafetyDocumentsPage() {
         new Date(iso).toLocaleDateString('ja-JP', { timeZone: 'Asia/Tokyo' });
 
     if (view === 'wizard') {
+        if (wizardType === SAFETY_DOCUMENT_TYPES.sagyoinMeibo) {
+            return (
+                <SagyoinMeiboWizard
+                    editingDoc={editingDoc}
+                    duplicateSource={duplicateSource}
+                    onSaved={handleWizardSaved}
+                    onCancel={() => setView('list')}
+                />
+            );
+        }
         return (
-            <SagyoinMeiboWizard
+            <TodokeWizard
+                docType={wizardType as TodokeType}
                 editingDoc={editingDoc}
                 duplicateSource={duplicateSource}
                 onSaved={handleWizardSaved}
@@ -123,11 +167,33 @@ export default function SafetyDocumentsPage() {
                     安全書類
                 </h2>
                 <p className="hidden sm:block text-xs text-slate-500 flex-1 min-w-0">
-                    作業員名簿などのグリーンファイルを作成・管理します
+                    作業員名簿・車両届・持込機械届などのグリーンファイルを作成・管理します
                 </p>
-                <Button size="sm" leftIcon={<Plus className="w-4 h-4" />} onClick={openCreate}>
-                    新規作成
-                </Button>
+                <div className="relative" ref={createMenuRef}>
+                    <Button
+                        size="sm"
+                        leftIcon={<Plus className="w-4 h-4" />}
+                        rightIcon={<ChevronDown className="w-4 h-4" />}
+                        onClick={() => setIsCreateMenuOpen((v) => !v)}
+                    >
+                        新規作成
+                    </Button>
+                    {isCreateMenuOpen && (
+                        <div className="absolute right-0 top-full mt-1 z-20 w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5">
+                            {CREATE_MENU.map((item) => (
+                                <button
+                                    key={item.type}
+                                    type="button"
+                                    onClick={() => openCreate(item.type)}
+                                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-teal-50 transition-colors"
+                                >
+                                    <div className="text-sm font-medium text-slate-800">{item.label}</div>
+                                    <div className="text-[11px] text-slate-500">{item.description}</div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* 検索 */}
@@ -151,7 +217,7 @@ export default function SafetyDocumentsPage() {
                         <FileText className="w-8 h-8" />
                         <p className="text-sm">
                             {documents.length === 0
-                                ? '安全書類はまだありません。「新規作成」から作成してください。'
+                                ? '安全書類はまだありません。「新規作成」から書類の種類を選んで作成してください。'
                                 : '検索条件に一致する書類がありません'}
                         </p>
                     </div>
@@ -162,7 +228,7 @@ export default function SafetyDocumentsPage() {
                                 <th className="px-4 py-3 font-medium">タイトル</th>
                                 <th className="px-4 py-3 font-medium hidden md:table-cell">種別</th>
                                 <th className="px-4 py-3 font-medium hidden lg:table-cell">案件</th>
-                                <th className="px-4 py-3 font-medium text-center">人数</th>
+                                <th className="px-4 py-3 font-medium text-center">対象</th>
                                 <th className="px-4 py-3 font-medium hidden sm:table-cell">提出日</th>
                                 <th className="px-4 py-3 font-medium hidden xl:table-cell">更新日</th>
                                 <th className="px-4 py-3 font-medium text-right">操作</th>
@@ -187,7 +253,8 @@ export default function SafetyDocumentsPage() {
                                         {doc.projectMaster?.title ?? '—'}
                                     </td>
                                     <td className="px-4 py-2.5 text-center text-slate-600 tabular-nums">
-                                        {doc.data.workers.length}名
+                                        {getSafetyDocumentTargetCount(doc.type, doc.data)}
+                                        {doc.type === SAFETY_DOCUMENT_TYPES.sagyoinMeibo ? '名' : '台'}
                                     </td>
                                     <td className="px-4 py-2.5 hidden sm:table-cell text-slate-600 tabular-nums">
                                         {doc.data.header.submitDate || '—'}

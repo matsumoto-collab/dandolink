@@ -14,6 +14,9 @@ export type SafetySource = 'worker' | 'user';
 
 export const SAFETY_DOCUMENT_TYPES = {
     sagyoinMeibo: 'sagyoin_meibo',
+    vehicleTodoke: 'vehicle_todoke',
+    kikaiTodoke: 'kikai_todoke',
+    craneTodoke: 'crane_todoke',
 } as const;
 
 export type SafetyDocumentType = (typeof SAFETY_DOCUMENT_TYPES)[keyof typeof SAFETY_DOCUMENT_TYPES];
@@ -109,6 +112,79 @@ export interface SagyoinMeiboData {
 }
 
 // ============================================
+// Phase 2: 車両届・持込機械届
+// ============================================
+
+/** 車両安全プロフィールのスナップショット（書類保存時点の値・日付は YYYY-MM-DD） */
+export interface VehicleSafetySnapshot {
+    vehicleType: string | null;
+    registrationNumber: string | null;
+    usage: string | null;
+    inspectionExpiry: string | null;
+    jibaisekiCompany: string | null;
+    jibaisekiExpiry: string | null;
+    insuranceCompany: string | null;
+    insuranceExpiry: string | null;
+    insurancePersonal: string | null;
+    insuranceObjective: string | null;
+    insurancePassenger: string | null;
+    notes: string | null;
+}
+
+/** 車両届に載る1台分のスナップショット */
+export interface TodokeVehicleSnapshot {
+    vehicleId: string;
+    name: string;
+    /** 運転者名（書類固有の入力。既定値はプロフィールの defaultDriverName） */
+    driverName: string;
+    profile: VehicleSafetySnapshot | null;
+}
+
+/** 機械1台分のスナップショット（機械はマスター自体が安全情報なのでフラット） */
+export interface MachineSnapshot {
+    machineId: string;
+    name: string;
+    category: string; // general / crane
+    /** 取扱者・オペレーター名（書類固有の入力。既定値はマスターの defaultOperatorName） */
+    operatorName: string;
+    model: string | null;
+    serialNumber: string | null;
+    maker: string | null;
+    capacity: string | null;
+    ownerName: string | null;
+    inspectionDate: string | null;
+    inspectionExpiry: string | null;
+    certificateNumber: string | null;
+    notes: string | null;
+}
+
+/** 工事・通勤用車両届の data */
+export interface VehicleTodokeData {
+    header: MeiboHeader;
+    /** 使用期間 YYYY-MM-DD */
+    periodFrom: string | null;
+    periodTo: string | null;
+    vehicles: TodokeVehicleSnapshot[];
+}
+
+/** 持込機械等使用届 / 移動式クレーン等使用届の data（クレーン届は machines が category='crane' 想定） */
+export interface KikaiTodokeData {
+    header: MeiboHeader;
+    periodFrom: string | null;
+    periodTo: string | null;
+    machines: MachineSnapshot[];
+}
+
+export type SafetyDocumentData = SagyoinMeiboData | VehicleTodokeData | KikaiTodokeData;
+
+/** 一覧表示用: 書類種別ごとの対象（作業員/車両/機械）件数 */
+export function getSafetyDocumentTargetCount(type: string, data: SafetyDocumentData): number {
+    if (type === SAFETY_DOCUMENT_TYPES.sagyoinMeibo) return (data as SagyoinMeiboData).workers?.length ?? 0;
+    if (type === SAFETY_DOCUMENT_TYPES.vehicleTodoke) return (data as VehicleTodokeData).vehicles?.length ?? 0;
+    return (data as KikaiTodokeData).machines?.length ?? 0;
+}
+
+// ============================================
 // 日付・年齢
 // ============================================
 
@@ -158,6 +234,9 @@ export function isoDateToReiwa(iso: string | null | undefined): string {
 /** 作業員名簿の1ページあたり人数（全建統一様式第5号の通例に合わせる） */
 export const MEIBO_WORKERS_PER_PAGE = 10;
 
+/** 車両届・持込機械届の1ページあたり行数 */
+export const TODOKE_ROWS_PER_PAGE = 12;
+
 /**
  * 作業員を1ページぶんずつに分割する。0名でも1ページ（空の名簿）を返す。
  * 11名以上で2ページ目が生まれる（受け入れ基準3）。
@@ -190,13 +269,65 @@ export function getMeiboMissingFields(worker: MeiboWorkerSnapshot): string[] {
     return missing;
 }
 
+/** 車両届の欠落チェック（FR-2-4 と同方針: 警告のみ・ブロックしない） */
+export function getVehicleTodokeMissingFields(vehicle: TodokeVehicleSnapshot): string[] {
+    if (!vehicle.profile) return ['車両安全情報が未登録'];
+    const p = vehicle.profile;
+    const missing: string[] = [];
+    if (!p.registrationNumber) missing.push('登録番号');
+    if (!p.inspectionExpiry) missing.push('車検満了日');
+    if (!p.jibaisekiExpiry) missing.push('自賠責期限');
+    if (!p.insuranceCompany) missing.push('任意保険');
+    if (!vehicle.driverName) missing.push('運転者');
+    return missing;
+}
+
+/** 機械届の欠落チェック */
+export function getMachineMissingFields(machine: MachineSnapshot): string[] {
+    const missing: string[] = [];
+    if (!machine.model) missing.push('型式');
+    if (!machine.serialNumber) missing.push('製造番号');
+    if (!machine.inspectionDate) missing.push('定期自主検査日');
+    if (!machine.operatorName) missing.push('取扱者');
+    if (machine.category === 'crane') {
+        if (!machine.certificateNumber) missing.push('検査証番号');
+        if (!machine.inspectionExpiry) missing.push('検査証有効期限');
+    }
+    return missing;
+}
+
+/** 期限切れ判定（YYYY-MM-DD 比較。baseDate 省略時は今日 JST）。期限なしは false */
+export function isExpiredOn(expiryIso: string | null | undefined, baseDateIso: string): boolean {
+    if (!expiryIso) return false;
+    return expiryIso < baseDateIso;
+}
+
 // ============================================
 // 表示ラベル
 // ============================================
 
 export const SAFETY_DOCUMENT_TYPE_LABELS: Record<string, string> = {
     [SAFETY_DOCUMENT_TYPES.sagyoinMeibo]: '作業員名簿',
+    [SAFETY_DOCUMENT_TYPES.vehicleTodoke]: '工事・通勤用車両届',
+    [SAFETY_DOCUMENT_TYPES.kikaiTodoke]: '持込機械等使用届',
+    [SAFETY_DOCUMENT_TYPES.craneTodoke]: '移動式クレーン等使用届',
 };
+
+/** 機械カテゴリ */
+export const MACHINE_CATEGORIES = [
+    { value: 'general', label: '一般（持込機械）' },
+    { value: 'crane', label: '移動式クレーン・車両系建設機械' },
+] as const;
+
+export function getMachineCategoryLabel(category: string): string {
+    return MACHINE_CATEGORIES.find((c) => c.value === category)?.label ?? category;
+}
+
+/** 車両の用途選択肢 */
+export const VEHICLE_USAGE_OPTIONS = ['工事用', '通勤用', '兼用'] as const;
+
+/** クレーン系とみなす資格名のキーワード（オペレーター資格チェックの警告用） */
+export const CRANE_QUALIFICATION_KEYWORDS = ['クレーン', '玉掛'];
 
 export function getQualificationCategoryLabel(category: string): string {
     return QUALIFICATION_CATEGORIES.find((c) => c.value === category)?.label ?? category;

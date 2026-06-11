@@ -9,8 +9,12 @@ import {
     deleteSuccessResponse,
 } from '@/lib/api/utils';
 import { safetyDocumentUpdateSchema } from '@/lib/validations/safety';
-import { mergeMeiboWorkerSnapshots } from '@/lib/api/safetySnapshot';
-import type { SagyoinMeiboData } from '@/lib/safetyDocuments';
+import {
+    mergeMachineSnapshots,
+    mergeMeiboWorkerSnapshots,
+    mergeTodokeVehicleSnapshots,
+} from '@/lib/api/safetySnapshot';
+import type { KikaiTodokeData, SafetyDocumentData, SagyoinMeiboData, VehicleTodokeData } from '@/lib/safetyDocuments';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -48,7 +52,11 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         if (!parsed.success) {
             return validationErrorResponse('入力値が不正です', parsed.error.flatten());
         }
-        const { projectId, title, header, members } = parsed.data;
+        const input = parsed.data;
+        if (input.type !== existing.type) {
+            return validationErrorResponse('書類種別は変更できません');
+        }
+        const { projectId, title, header } = input;
 
         if (projectId) {
             const project = await prisma.projectMaster.findUnique({
@@ -58,22 +66,53 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             if (!project) return validationErrorResponse('指定された案件が見つかりません');
         }
 
-        const currentData = existing.data as unknown as SagyoinMeiboData;
-
-        // メンバー変更: 既存メンバーのスナップショットは据え置き、新規のみ現在値で取得（FR-4-2）
-        let workers = currentData.workers;
-        if (members) {
-            const { snapshots, notFoundKeys } = await mergeMeiboWorkerSnapshots(currentData.workers, members);
-            if (notFoundKeys.length > 0) {
-                return validationErrorResponse(`選択した作業員が見つかりません: ${notFoundKeys.join(', ')}`);
+        // 種別ごとに data を再構築。対象リストは既存スナップショット据え置き・新規のみ現在値（FR-4-2）。
+        // 車両の運転者 / 機械の取扱者は書類固有入力のため常に送信値を採用する。
+        let data: SafetyDocumentData;
+        if (input.type === 'sagyoin_meibo') {
+            const currentData = existing.data as unknown as SagyoinMeiboData;
+            let workers = currentData.workers;
+            if (input.members) {
+                const { snapshots, notFoundKeys } = await mergeMeiboWorkerSnapshots(currentData.workers, input.members);
+                if (notFoundKeys.length > 0) {
+                    return validationErrorResponse(`選択した作業員が見つかりません: ${notFoundKeys.join(', ')}`);
+                }
+                workers = snapshots;
             }
-            workers = snapshots;
+            data = { header: header ?? currentData.header, workers };
+        } else if (input.type === 'vehicle_todoke') {
+            const currentData = existing.data as unknown as VehicleTodokeData;
+            let vehicles = currentData.vehicles;
+            if (input.vehicles) {
+                const { snapshots, notFoundKeys } = await mergeTodokeVehicleSnapshots(currentData.vehicles, input.vehicles);
+                if (notFoundKeys.length > 0) {
+                    return validationErrorResponse(`選択した車両が見つかりません: ${notFoundKeys.join(', ')}`);
+                }
+                vehicles = snapshots;
+            }
+            data = {
+                header: header ?? currentData.header,
+                periodFrom: input.periodFrom !== undefined ? input.periodFrom : currentData.periodFrom,
+                periodTo: input.periodTo !== undefined ? input.periodTo : currentData.periodTo,
+                vehicles,
+            };
+        } else {
+            const currentData = existing.data as unknown as KikaiTodokeData;
+            let machines = currentData.machines;
+            if (input.machines) {
+                const { snapshots, notFoundKeys } = await mergeMachineSnapshots(currentData.machines, input.machines);
+                if (notFoundKeys.length > 0) {
+                    return validationErrorResponse(`選択した機械が見つかりません: ${notFoundKeys.join(', ')}`);
+                }
+                machines = snapshots;
+            }
+            data = {
+                header: header ?? currentData.header,
+                periodFrom: input.periodFrom !== undefined ? input.periodFrom : currentData.periodFrom,
+                periodTo: input.periodTo !== undefined ? input.periodTo : currentData.periodTo,
+                machines,
+            };
         }
-
-        const data: SagyoinMeiboData = {
-            header: header ?? currentData.header,
-            workers,
-        };
 
         const document = await prisma.safetyDocument.update({
             where: { id },

@@ -6,8 +6,12 @@ import {
     serverErrorResponse,
     notFoundResponse,
 } from '@/lib/api/utils';
-import { refreshMeiboWorkerSnapshots } from '@/lib/api/safetySnapshot';
-import type { SagyoinMeiboData } from '@/lib/safetyDocuments';
+import {
+    refreshMachineSnapshots,
+    refreshMeiboWorkerSnapshots,
+    refreshTodokeVehicleSnapshots,
+} from '@/lib/api/safetySnapshot';
+import type { KikaiTodokeData, SafetyDocumentData, SagyoinMeiboData, VehicleTodokeData } from '@/lib/safetyDocuments';
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
@@ -27,10 +31,25 @@ export async function POST(_request: NextRequest, context: RouteContext) {
         });
         if (!existing) return notFoundResponse('安全書類');
 
-        const currentData = existing.data as unknown as SagyoinMeiboData;
-        const { snapshots, notFoundKeys } = await refreshMeiboWorkerSnapshots(currentData.workers);
-
-        const data: SagyoinMeiboData = { header: currentData.header, workers: snapshots };
+        // 種別ごとに最新化。書類固有入力（運転者・取扱者）は維持される
+        let data: SafetyDocumentData;
+        let notFoundKeys: string[];
+        if (existing.type === 'vehicle_todoke') {
+            const currentData = existing.data as unknown as VehicleTodokeData;
+            const result = await refreshTodokeVehicleSnapshots(currentData.vehicles);
+            notFoundKeys = result.notFoundKeys;
+            data = { ...currentData, vehicles: result.snapshots };
+        } else if (existing.type === 'kikai_todoke' || existing.type === 'crane_todoke') {
+            const currentData = existing.data as unknown as KikaiTodokeData;
+            const result = await refreshMachineSnapshots(currentData.machines);
+            notFoundKeys = result.notFoundKeys;
+            data = { ...currentData, machines: result.snapshots };
+        } else {
+            const currentData = existing.data as unknown as SagyoinMeiboData;
+            const result = await refreshMeiboWorkerSnapshots(currentData.workers);
+            notFoundKeys = result.notFoundKeys;
+            data = { header: currentData.header, workers: result.snapshots };
+        }
 
         const document = await prisma.safetyDocument.update({
             where: { id },

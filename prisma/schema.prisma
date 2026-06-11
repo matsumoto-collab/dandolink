@@ -442,7 +442,65 @@ model Vehicle {
   updatedAt DateTime @updatedAt
   dailyRate Decimal? @db.Decimal(10, 2)
 
+  safetyProfile VehicleSafetyProfile?
+
   @@index([name])
+  @@schema("public")
+}
+
+/// 安全書類（工事・通勤用車両届）用の車両安全プロフィール。Vehicle と1:1。
+/// 既存の車両管理（名前・日額）に影響を与えないため別モデルに分離（WorkerSafetyProfile と同方針）。
+model VehicleSafetyProfile {
+  id                 String    @id @default(uuid())
+  vehicleId          String    @unique
+  // ── 車両情報 ──
+  vehicleType        String?   // 車種・型式（例: 2tダンプ / TRG-XZU605）
+  registrationNumber String?   // 登録番号（車番。例: 名古屋 100 あ 12-34）
+  usage              String?   // 用途: 工事用 / 通勤用 / 兼用
+  inspectionExpiry   DateTime? // 車検満了日
+  // ── 自賠責保険 ──
+  jibaisekiCompany   String?
+  jibaisekiExpiry    DateTime?
+  // ── 任意保険 ──
+  insuranceCompany   String?
+  insuranceExpiry    DateTime?
+  insurancePersonal  String?   // 対人賠償（例: 無制限）
+  insuranceObjective String?   // 対物賠償（例: 無制限 / 1,000万円）
+  insurancePassenger String?   // 搭乗者傷害
+  // ── その他 ──
+  defaultDriverName  String?   // 既定の運転者名（書類作成時に行ごとへ初期値として展開・上書き可）
+  notes              String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@schema("public")
+}
+
+/// 持込機械マスター（安全書類 Phase 2）。
+/// category='crane' は移動式クレーン・車両系建設機械等使用届（第9号系・1台1葉）、
+/// それ以外は持込機械等使用届（参考様式系・一覧）に出力する。
+model Machine {
+  id                String    @id @default(uuid())
+  name              String    // 機械名（例: 高所作業車 / 電動ハンマ）
+  category          String    @default("general") // general / crane
+  model             String?   // 型式
+  serialNumber      String?   // 製造番号
+  maker             String?   // メーカー
+  capacity          String?   // 能力（吊上荷重・出力等）
+  ownerName         String?   // 所有会社（リース元等）
+  defaultOperatorName String? // 既定の取扱者・オペレーター名
+  inspectionDate    DateTime? // 定期自主検査（特定自主検査）実施日
+  inspectionExpiry  DateTime? // 検査証有効期限（クレーン等）
+  certificateNumber String?   // 検査証番号（クレーン等）
+  notes             String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([name])
+  @@index([category])
   @@schema("public")
 }
 

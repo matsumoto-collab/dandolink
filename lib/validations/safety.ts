@@ -117,34 +117,173 @@ export const meiboHeaderSchema = z
     })
     .strict();
 
-/** 安全書類の新規作成ボディ。data（スナップショット）はサーバーが生成する */
-export const safetyDocumentCreateSchema = z
+/** YYYY-MM-DD（空文字は null 扱い）の任意日付文字列 */
+const optionalIsoDateString = z.preprocess(
+    (v) => (v === '' || v === undefined ? null : v),
+    z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, '日付は YYYY-MM-DD 形式で指定してください')
+        .nullable()
+);
+
+/** 車両届の車両参照（運転者名は書類固有の入力） */
+export const todokeVehicleRefSchema = z
     .object({
-        type: z.literal('sagyoin_meibo'),
-        projectId: z.string().nullable().optional(),
-        title: z.string().min(1, 'タイトルは必須です').max(200),
-        header: meiboHeaderSchema,
-        members: z.array(meiboMemberRefSchema).max(200),
+        vehicleId: z.string().min(1),
+        driverName: z.string().max(100).default(''),
     })
     .strict();
+
+/** 機械届の機械参照（取扱者名は書類固有の入力） */
+export const todokeMachineRefSchema = z
+    .object({
+        machineId: z.string().min(1),
+        operatorName: z.string().max(100).default(''),
+    })
+    .strict();
+
+const documentBaseShape = {
+    projectId: z.string().nullable().optional(),
+    title: z.string().min(1, 'タイトルは必須です').max(200),
+    header: meiboHeaderSchema,
+} as const;
+
+/** 安全書類の新規作成ボディ。data（スナップショット）はサーバーが生成する */
+export const safetyDocumentCreateSchema = z.discriminatedUnion('type', [
+    z
+        .object({
+            type: z.literal('sagyoin_meibo'),
+            ...documentBaseShape,
+            members: z.array(meiboMemberRefSchema).max(200),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('vehicle_todoke'),
+            ...documentBaseShape,
+            periodFrom: optionalIsoDateString,
+            periodTo: optionalIsoDateString,
+            vehicles: z.array(todokeVehicleRefSchema).max(100),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('kikai_todoke'),
+            ...documentBaseShape,
+            periodFrom: optionalIsoDateString,
+            periodTo: optionalIsoDateString,
+            machines: z.array(todokeMachineRefSchema).max(100),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('crane_todoke'),
+            ...documentBaseShape,
+            periodFrom: optionalIsoDateString,
+            periodTo: optionalIsoDateString,
+            machines: z.array(todokeMachineRefSchema).max(100),
+        })
+        .strict(),
+]);
 
 export type SafetyDocumentCreateInput = z.infer<typeof safetyDocumentCreateSchema>;
 
+const documentUpdateBaseShape = {
+    projectId: z.string().nullable().optional(),
+    title: z.string().min(1).max(200).optional(),
+    header: meiboHeaderSchema.optional(),
+} as const;
+
 /**
- * 安全書類の更新ボディ。
- * members を与えると既存スナップショットと突き合わせ、既存メンバーは据え置き・
- * 新規メンバーのみ現在のマスター値でスナップショット化する（FR-4-2 の決定性維持）。
+ * 安全書類の更新ボディ（type は既存書類と一致必須）。
+ * 対象リストを与えると既存スナップショットと突き合わせ、既存対象は据え置き・
+ * 新規対象のみ現在のマスター値でスナップショット化する（FR-4-2 の決定性維持）。
+ * 車両届の driverName / 機械届の operatorName は書類固有入力のため常に送信値を採用する。
  */
-export const safetyDocumentUpdateSchema = z
+export const safetyDocumentUpdateSchema = z.discriminatedUnion('type', [
+    z
+        .object({
+            type: z.literal('sagyoin_meibo'),
+            ...documentUpdateBaseShape,
+            members: z.array(meiboMemberRefSchema).max(200).optional(),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('vehicle_todoke'),
+            ...documentUpdateBaseShape,
+            periodFrom: optionalIsoDateString.optional(),
+            periodTo: optionalIsoDateString.optional(),
+            vehicles: z.array(todokeVehicleRefSchema).max(100).optional(),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('kikai_todoke'),
+            ...documentUpdateBaseShape,
+            periodFrom: optionalIsoDateString.optional(),
+            periodTo: optionalIsoDateString.optional(),
+            machines: z.array(todokeMachineRefSchema).max(100).optional(),
+        })
+        .strict(),
+    z
+        .object({
+            type: z.literal('crane_todoke'),
+            ...documentUpdateBaseShape,
+            periodFrom: optionalIsoDateString.optional(),
+            periodTo: optionalIsoDateString.optional(),
+            machines: z.array(todokeMachineRefSchema).max(100).optional(),
+        })
+        .strict(),
+]);
+
+export type SafetyDocumentUpdateInput = z.infer<typeof safetyDocumentUpdateSchema>;
+
+// ============================================
+// Phase 2: 車両安全プロフィール・機械マスター
+// ============================================
+
+export const vehicleSafetyProfileUpsertSchema = z
     .object({
-        projectId: z.string().nullable().optional(),
-        title: z.string().min(1).max(200).optional(),
-        header: meiboHeaderSchema.optional(),
-        members: z.array(meiboMemberRefSchema).max(200).optional(),
+        vehicleType: optionalString(100),
+        registrationNumber: optionalString(50),
+        usage: optionalString(20),
+        inspectionExpiry: optionalDate,
+        jibaisekiCompany: optionalString(100),
+        jibaisekiExpiry: optionalDate,
+        insuranceCompany: optionalString(100),
+        insuranceExpiry: optionalDate,
+        insurancePersonal: optionalString(50),
+        insuranceObjective: optionalString(50),
+        insurancePassenger: optionalString(50),
+        defaultDriverName: optionalString(100),
+        notes: optionalString(1000),
     })
     .strict();
 
-export type SafetyDocumentUpdateInput = z.infer<typeof safetyDocumentUpdateSchema>;
+export type VehicleSafetyProfileUpsertInput = z.infer<typeof vehicleSafetyProfileUpsertSchema>;
+
+export const machineSchema = z
+    .object({
+        name: z.string().min(1, '機械名は必須です').max(100),
+        category: z.enum(['general', 'crane']),
+        model: optionalString(100),
+        serialNumber: optionalString(100),
+        maker: optionalString(100),
+        capacity: optionalString(100),
+        ownerName: optionalString(100),
+        defaultOperatorName: optionalString(100),
+        inspectionDate: optionalDate,
+        inspectionExpiry: optionalDate,
+        certificateNumber: optionalString(100),
+        notes: optionalString(1000),
+        isActive: z.boolean().optional(),
+    })
+    .strict();
+
+export const machineUpdateSchema = machineSchema.partial();
+
+export type MachineInput = z.infer<typeof machineSchema>;
 
 /** Excelインポート行（クライアントで列マッピング済みの構造化データ。ファイルは受けない） */
 export const safetyImportRowSchema = z

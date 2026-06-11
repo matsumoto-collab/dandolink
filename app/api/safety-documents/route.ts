@@ -7,8 +7,12 @@ import {
     validationErrorResponse,
 } from '@/lib/api/utils';
 import { safetyDocumentCreateSchema } from '@/lib/validations/safety';
-import { buildMeiboWorkerSnapshots } from '@/lib/api/safetySnapshot';
-import type { SagyoinMeiboData } from '@/lib/safetyDocuments';
+import {
+    buildMachineSnapshots,
+    buildMeiboWorkerSnapshots,
+    buildTodokeVehicleSnapshots,
+} from '@/lib/api/safetySnapshot';
+import type { SafetyDocumentData } from '@/lib/safetyDocuments';
 
 /**
  * 安全書類 API（安全書類 Phase 1）。admin / manager のみ。
@@ -57,28 +61,53 @@ export async function POST(request: NextRequest) {
             return validationErrorResponse('入力値が不正です', parsed.error.flatten());
         }
 
-        const { type, projectId, title, header, members } = parsed.data;
+        const input = parsed.data;
 
-        if (projectId) {
+        if (input.projectId) {
             const project = await prisma.projectMaster.findUnique({
-                where: { id: projectId },
+                where: { id: input.projectId },
                 select: { id: true },
             });
             if (!project) return validationErrorResponse('指定された案件が見つかりません');
         }
 
-        const { snapshots, notFoundKeys } = await buildMeiboWorkerSnapshots(members);
-        if (notFoundKeys.length > 0) {
-            return validationErrorResponse(`選択した作業員が見つかりません: ${notFoundKeys.join(', ')}`);
+        // 書類種別ごとに現在のマスター値からスナップショットを生成（FR-4-1）
+        let data: SafetyDocumentData;
+        if (input.type === 'sagyoin_meibo') {
+            const { snapshots, notFoundKeys } = await buildMeiboWorkerSnapshots(input.members);
+            if (notFoundKeys.length > 0) {
+                return validationErrorResponse(`選択した作業員が見つかりません: ${notFoundKeys.join(', ')}`);
+            }
+            data = { header: input.header, workers: snapshots };
+        } else if (input.type === 'vehicle_todoke') {
+            const { snapshots, notFoundKeys } = await buildTodokeVehicleSnapshots(input.vehicles);
+            if (notFoundKeys.length > 0) {
+                return validationErrorResponse(`選択した車両が見つかりません: ${notFoundKeys.join(', ')}`);
+            }
+            data = {
+                header: input.header,
+                periodFrom: input.periodFrom ?? null,
+                periodTo: input.periodTo ?? null,
+                vehicles: snapshots,
+            };
+        } else {
+            const { snapshots, notFoundKeys } = await buildMachineSnapshots(input.machines);
+            if (notFoundKeys.length > 0) {
+                return validationErrorResponse(`選択した機械が見つかりません: ${notFoundKeys.join(', ')}`);
+            }
+            data = {
+                header: input.header,
+                periodFrom: input.periodFrom ?? null,
+                periodTo: input.periodTo ?? null,
+                machines: snapshots,
+            };
         }
-
-        const data: SagyoinMeiboData = { header, workers: snapshots };
 
         const document = await prisma.safetyDocument.create({
             data: {
-                type,
-                projectId: projectId ?? null,
-                title,
+                type: input.type,
+                projectId: input.projectId ?? null,
+                title: input.title,
                 data: data as unknown as Prisma.InputJsonValue,
                 createdBy: session!.user.id,
             },

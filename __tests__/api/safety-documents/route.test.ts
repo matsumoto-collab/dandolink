@@ -26,6 +26,12 @@ jest.mock('@/lib/prisma', () => ({
         user: {
             findMany: jest.fn(),
         },
+        vehicle: {
+            findMany: jest.fn(),
+        },
+        machine: {
+            findMany: jest.fn(),
+        },
     },
 }));
 
@@ -98,6 +104,8 @@ describe('/api/safety-documents', () => {
         (requireManagerOrAbove as jest.Mock).mockResolvedValue(managerSession);
         (prisma.worker.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([]);
+        (prisma.machine.findMany as jest.Mock).mockResolvedValue([]);
     });
 
     describe('GET（一覧）', () => {
@@ -181,6 +189,68 @@ describe('/api/safety-documents', () => {
             );
             expect(res.status).toBe(400);
         });
+
+        it('Phase2: 車両届を作成できる（運転者は送信値、未指定なら既定運転者）', async () => {
+            (prisma.vehicle.findMany as jest.Mock).mockResolvedValue([
+                {
+                    id: 'v1',
+                    name: '2tダンプ',
+                    safetyProfile: {
+                        vehicleType: '2tダンプ', registrationNumber: '名古屋 100 あ 12-34', usage: '工事用',
+                        inspectionExpiry: new Date('2027-01-31T00:00:00.000Z'),
+                        jibaisekiCompany: null, jibaisekiExpiry: null,
+                        insuranceCompany: null, insuranceExpiry: null,
+                        insurancePersonal: null, insuranceObjective: null, insurancePassenger: null,
+                        defaultDriverName: '既定運転者', notes: null,
+                    },
+                },
+                { id: 'v2', name: '軽トラ', safetyProfile: null },
+            ]);
+            (prisma.safetyDocument.create as jest.Mock).mockImplementation(async (args) => ({
+                id: 'd2',
+                ...args.data,
+                projectMaster: null,
+            }));
+
+            const res = await POST(
+                jsonReq('POST', {
+                    type: 'vehicle_todoke',
+                    title: '車両届',
+                    header,
+                    periodFrom: '2026-06-11',
+                    periodTo: '2026-07-31',
+                    vehicles: [
+                        { vehicleId: 'v1', driverName: '' },
+                        { vehicleId: 'v2', driverName: '臨時運転手' },
+                    ],
+                })
+            );
+            expect(res.status).toBe(201);
+
+            const created = (prisma.safetyDocument.create as jest.Mock).mock.calls[0][0].data;
+            expect(created.type).toBe('vehicle_todoke');
+            expect(created.data.periodFrom).toBe('2026-06-11');
+            expect(created.data.vehicles).toHaveLength(2);
+            // 未指定 → 既定運転者にフォールバック / 指定 → 送信値
+            expect(created.data.vehicles[0].driverName).toBe('既定運転者');
+            expect(created.data.vehicles[0].profile.inspectionExpiry).toBe('2027-01-31');
+            expect(created.data.vehicles[1]).toMatchObject({ driverName: '臨時運転手', profile: null });
+        });
+
+        it('Phase2: 存在しない車両参照は 400', async () => {
+            const res = await POST(
+                jsonReq('POST', {
+                    type: 'vehicle_todoke',
+                    title: 't',
+                    header,
+                    periodFrom: null,
+                    periodTo: null,
+                    vehicles: [{ vehicleId: 'missing', driverName: '' }],
+                })
+            );
+            expect(res.status).toBe(400);
+            expect(prisma.safetyDocument.create).not.toHaveBeenCalled();
+        });
     });
 
     describe('PUT [id]（FR-4-2: 既存メンバーのスナップショット据え置き）', () => {
@@ -210,6 +280,7 @@ describe('/api/safety-documents', () => {
 
             const res = await PUT(
                 jsonReq('PUT', {
+                    type: 'sagyoin_meibo',
                     members: [
                         { source: 'worker', sourceId: 'w1' },
                         { source: 'worker', sourceId: 'w2' },
@@ -232,8 +303,19 @@ describe('/api/safety-documents', () => {
 
         it('削除済み書類は 404', async () => {
             (prisma.safetyDocument.findFirst as jest.Mock).mockResolvedValue(null);
-            const res = await PUT(jsonReq('PUT', { title: 'x' }), ctx('d1'));
+            const res = await PUT(jsonReq('PUT', { type: 'sagyoin_meibo', title: 'x' }), ctx('d1'));
             expect(res.status).toBe(404);
+        });
+
+        it('Phase2: 書類種別と異なる type の更新は 400', async () => {
+            (prisma.safetyDocument.findFirst as jest.Mock).mockResolvedValue({
+                id: 'd1',
+                type: 'vehicle_todoke',
+                data: { header, periodFrom: null, periodTo: null, vehicles: [] },
+                deletedAt: null,
+            });
+            const res = await PUT(jsonReq('PUT', { type: 'sagyoin_meibo', title: 'x' }), ctx('d1'));
+            expect(res.status).toBe(400);
         });
     });
 

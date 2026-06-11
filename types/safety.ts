@@ -1,5 +1,4 @@
-import type { SafetySource } from '@/lib/safetyDocuments';
-import type { SagyoinMeiboData } from '@/lib/safetyDocuments';
+import type { SafetySource, SafetyDocumentData } from '@/lib/safetyDocuments';
 
 /**
  * 安全書類（グリーンファイル）フロント用 DTO。
@@ -80,10 +79,58 @@ export interface SafetyDocumentDto {
     type: string;
     projectId: string | null;
     title: string;
-    data: SagyoinMeiboData;
+    data: SafetyDocumentData;
     createdBy: string | null;
     createdAt: string;
     updatedAt: string;
     deletedAt: string | null;
     projectMaster: { id: string; title: string } | null;
+}
+
+/** 車両安全プロフィール（API レスポンス。日付は ISO 文字列） */
+export interface VehicleSafetyProfileDto {
+    id: string;
+    vehicleId: string;
+    vehicleType: string | null;
+    registrationNumber: string | null;
+    usage: string | null;
+    inspectionExpiry: string | null;
+    jibaisekiCompany: string | null;
+    jibaisekiExpiry: string | null;
+    insuranceCompany: string | null;
+    insuranceExpiry: string | null;
+    insurancePersonal: string | null;
+    insuranceObjective: string | null;
+    insurancePassenger: string | null;
+    defaultDriverName: string | null;
+    notes: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+
+/** GET /api/vehicle-safety-profiles 統合一覧の1行 */
+export interface VehicleSafetyTargetDto {
+    vehicleId: string;
+    name: string;
+    profile: VehicleSafetyProfileDto | null;
+}
+
+/** 機械マスター（API レスポンス） */
+export interface MachineDto {
+    id: string;
+    name: string;
+    category: string;
+    model: string | null;
+    serialNumber: string | null;
+    maker: string | null;
+    capacity: string | null;
+    ownerName: string | null;
+    defaultOperatorName: string | null;
+    inspectionDate: string | null;
+    inspectionExpiry: string | null;
+    certificateNumber: string | null;
+    notes: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt: string;
 }

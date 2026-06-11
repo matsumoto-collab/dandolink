@@ -79,13 +79,46 @@ async function main() {
         else fail(`列 WorkerQualification.${name} が見つからない`);
     }
 
-    // 6) Prisma クライアント整合（生成済みクライアントで count が通る）
-    const [profiles, quals, docs] = await Promise.all([
+    // 6) Phase 2: 車両安全プロフィール・機械マスター（2026-06-11_add_safety_phase2_vehicle_machine.sql）
+    const phase2Tables = await prisma.$queryRaw<{ table_name: string }[]>`
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public' AND table_name IN ('VehicleSafetyProfile', 'Machine')
+        ORDER BY table_name`;
+    const phase2Names = phase2Tables.map((t) => t.table_name);
+    for (const name of ['Machine', 'VehicleSafetyProfile']) {
+        if (phase2Names.includes(name)) pass(`テーブル ${name} 存在`);
+        else fail(`テーブル ${name} が見つからない`);
+    }
+
+    const phase2Indexes = await prisma.$queryRaw<{ indexname: string }[]>`
+        SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'public' AND tablename IN ('VehicleSafetyProfile', 'Machine')`;
+    const phase2IdxNames = phase2Indexes.map((i) => i.indexname);
+    for (const name of ['VehicleSafetyProfile_vehicleId_key', 'Machine_category_idx']) {
+        if (phase2IdxNames.includes(name)) pass(`インデックス ${name} 存在`);
+        else fail(`インデックス ${name} が見つからない`);
+    }
+
+    const phase2Fks = await prisma.$queryRaw<{ conname: string }[]>`
+        SELECT conname FROM pg_constraint
+        WHERE contype = 'f' AND conrelid::regclass::text = '"VehicleSafetyProfile"'`;
+    if (phase2Fks.some((f) => f.conname === 'VehicleSafetyProfile_vehicleId_fkey')) {
+        pass('FK VehicleSafetyProfile_vehicleId_fkey 存在');
+    } else {
+        fail('FK VehicleSafetyProfile_vehicleId_fkey が見つからない');
+    }
+
+    // 7) Prisma クライアント整合（生成済みクライアントで count が通る）
+    const [profiles, quals, docs, vehicleProfiles, machines] = await Promise.all([
         prisma.workerSafetyProfile.count(),
         prisma.workerQualification.count(),
         prisma.safetyDocument.count(),
+        prisma.vehicleSafetyProfile.count(),
+        prisma.machine.count(),
     ]);
-    pass(`Prismaクライアント整合 OK（profiles=${profiles}, qualifications=${quals}, documents=${docs}）`);
+    pass(
+        `Prismaクライアント整合 OK（profiles=${profiles}, qualifications=${quals}, documents=${docs}, vehicleProfiles=${vehicleProfiles}, machines=${machines}）`
+    );
 
     console.log(ok ? '\n🎉 マイグレーション検証 すべてOK' : '\n⚠️ 検証に失敗があります');
     if (!ok) process.exitCode = 1;

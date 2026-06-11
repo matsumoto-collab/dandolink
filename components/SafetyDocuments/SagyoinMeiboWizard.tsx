@@ -21,6 +21,7 @@ import {
     getMeiboMissingFields,
     getSafetyTargetGroup,
     SAFETY_TARGET_GROUP_LABELS,
+    SAFETY_DOCUMENT_TYPES,
     type MeiboHeader,
     type MeiboWorkerSnapshot,
     type SafetySource,
@@ -29,10 +30,10 @@ import {
 } from '@/lib/safetyDocuments';
 import { targetToWorkerSnapshot, todayJstIsoDate } from '@/lib/safetyClient';
 import {
-    exportSagyoinMeiboPDF,
-    printSagyoinMeiboPDF,
-    renderSagyoinMeiboBlob,
-} from '@/utils/sagyoinMeiboPdf';
+    exportSafetyDocumentPDF,
+    printSafetyDocumentPDF,
+    renderSafetyDocumentBlob,
+} from '@/utils/safetyDocumentPdf';
 import type { SafetyDocumentDto, SafetyTargetDto } from '@/types/safety';
 import { logger } from '@/lib/logger';
 
@@ -77,6 +78,7 @@ export default function SagyoinMeiboWizard({
     onCancel,
 }: SagyoinMeiboWizardProps) {
     const initialDoc = editingDoc ?? duplicateSource;
+    const initialMeiboData = initialDoc?.data as SagyoinMeiboData | undefined;
 
     const [currentDoc, setCurrentDoc] = useState<SafetyDocumentDto | null>(editingDoc);
     const [targets, setTargets] = useState<SafetyTargetDto[]>([]);
@@ -90,10 +92,10 @@ export default function SagyoinMeiboWizard({
     );
     const [projectId, setProjectId] = useState<string | null>(initialDoc?.projectId ?? null);
     const [header, setHeader] = useState<MeiboHeader>(
-        initialDoc ? { ...EMPTY_HEADER, ...initialDoc.data.header } : { ...EMPTY_HEADER, submitDate: todayJstIsoDate() }
+        initialMeiboData ? { ...EMPTY_HEADER, ...initialMeiboData.header } : { ...EMPTY_HEADER, submitDate: todayJstIsoDate() }
     );
     const [selectedRefs, setSelectedRefs] = useState<MemberRef[]>(
-        initialDoc ? initialDoc.data.workers.map((w) => ({ source: w.source, sourceId: w.sourceId })) : []
+        initialMeiboData ? initialMeiboData.workers.map((w) => ({ source: w.source, sourceId: w.sourceId })) : []
     );
 
     const [memberSearch, setMemberSearch] = useState('');
@@ -107,7 +109,7 @@ export default function SagyoinMeiboWizard({
     const existingWorkerMap = useMemo(() => {
         const map = new Map<string, MeiboWorkerSnapshot>();
         if (currentDoc) {
-            for (const w of currentDoc.data.workers) map.set(w.key, w);
+            for (const w of (currentDoc.data as SagyoinMeiboData).workers) map.set(w.key, w);
         }
         return map;
     }, [currentDoc]);
@@ -244,9 +246,13 @@ export default function SagyoinMeiboWizard({
         setIsSaving(true);
         try {
             const isUpdate = !!currentDoc;
-            const body = isUpdate
-                ? { projectId, title: effectiveTitle(), header, members: selectedRefs }
-                : { type: 'sagyoin_meibo', projectId, title: effectiveTitle(), header, members: selectedRefs };
+            const body = {
+                type: SAFETY_DOCUMENT_TYPES.sagyoinMeibo,
+                projectId,
+                title: effectiveTitle(),
+                header,
+                members: selectedRefs,
+            };
             const res = await fetch(
                 isUpdate ? `/api/safety-documents/${currentDoc!.id}` : '/api/safety-documents',
                 {
@@ -296,7 +302,7 @@ export default function SagyoinMeiboWizard({
 
     const handleExportPdf = async () => {
         try {
-            await exportSagyoinMeiboPDF(previewData, effectiveTitle());
+            await exportSafetyDocumentPDF(SAFETY_DOCUMENT_TYPES.sagyoinMeibo, previewData, effectiveTitle());
         } catch {
             toast.error('PDFの出力に失敗しました');
         }
@@ -304,7 +310,7 @@ export default function SagyoinMeiboWizard({
 
     const handlePrint = async () => {
         try {
-            await printSagyoinMeiboPDF(previewData);
+            await printSafetyDocumentPDF(SAFETY_DOCUMENT_TYPES.sagyoinMeibo, previewData);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : '印刷用PDFを開けませんでした');
         }
@@ -628,7 +634,10 @@ export default function SagyoinMeiboWizard({
                 {/* ── 右: ライブプレビュー（lg+） ── */}
                 {previewVisible && (
                     <div className="hidden lg:block lg:w-1/2 min-h-0 border border-slate-200 rounded-xl overflow-hidden">
-                        <LivePdfPreview seed={previewSeed} renderPdf={() => renderSagyoinMeiboBlob(previewData)} />
+                        <LivePdfPreview
+                            seed={previewSeed}
+                            renderPdf={() => renderSafetyDocumentBlob(SAFETY_DOCUMENT_TYPES.sagyoinMeibo, previewData)}
+                        />
                     </div>
                 )}
             </div>

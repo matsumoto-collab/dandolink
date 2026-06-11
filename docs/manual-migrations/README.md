@@ -13,3 +13,4 @@ prisma migrate dev / migrate deploy を経由せず、
 | 2026-05-06 | 2026-05-06_add_site_survey.sql | SiteSurvey テーブル新規作成 + INDEX 2件 + ProjectMaster への FK |
 | 2026-06-11 | 2026-06-11_add_safety_documents.sql | 安全書類 Phase1: WorkerSafetyProfile（CHECK排他制約付き）/ WorkerQualification / SafetyDocument 新規作成 + INDEX + FK |
 | 2026-06-11 | 2026-06-11_add_qualification_number_image.sql | WorkerQualification に licenseNumber / imagePath / imageThumbPath を追加（資格証の番号・画像） |
+| 2026-06-11 | 2026-06-11_add_safety_phase2_vehicle_machine.sql | 安全書類 Phase2: VehicleSafetyProfile（Vehicle 1:1）/ Machine マスター 新規作成 + INDEX + FK |

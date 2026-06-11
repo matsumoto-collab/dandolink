@@ -1,13 +1,19 @@
 import {
     calcAgeAt,
     chunkMeiboWorkers,
+    getMachineMissingFields,
     getMeiboMissingFields,
+    getSafetyDocumentTargetCount,
     getSafetyTargetGroup,
+    getVehicleTodokeMissingFields,
+    isExpiredOn,
     isoDateToReiwa,
     toIsoDateString,
     MEIBO_WORKERS_PER_PAGE,
+    type MachineSnapshot,
     type MeiboWorkerSnapshot,
     type SafetyProfileSnapshot,
+    type TodokeVehicleSnapshot,
 } from '@/lib/safetyDocuments';
 
 const baseProfile: SafetyProfileSnapshot = {
@@ -142,6 +148,94 @@ describe('getMeiboMissingFields（FR-2-4: 警告のみ・ブロックしない�
         );
         expect(missing).toEqual(expect.arrayContaining(['生年月日', '健康診断日', '健康保険']));
         expect(missing).not.toContain('現住所');
+    });
+});
+
+describe('Phase2: 車両届・機械届', () => {
+    const baseVehicle: TodokeVehicleSnapshot = {
+        vehicleId: 'v1',
+        name: '2tダンプ',
+        driverName: '山田太郎',
+        profile: {
+            vehicleType: '2tダンプ',
+            registrationNumber: '名古屋 100 あ 12-34',
+            usage: '工事用',
+            inspectionExpiry: '2027-01-31',
+            jibaisekiCompany: '○○損保',
+            jibaisekiExpiry: '2027-01-31',
+            insuranceCompany: '○○損保',
+            insuranceExpiry: '2027-01-31',
+            insurancePersonal: '無制限',
+            insuranceObjective: '無制限',
+            insurancePassenger: null,
+            notes: null,
+        },
+    };
+
+    const baseMachine: MachineSnapshot = {
+        machineId: 'm1',
+        name: 'ユニック',
+        category: 'crane',
+        operatorName: '佐藤次郎',
+        model: 'UR-290',
+        serialNumber: 'SN-001',
+        maker: '古河ユニック',
+        capacity: '2.93t吊',
+        ownerName: '自社',
+        inspectionDate: '2026-01-15',
+        inspectionExpiry: '2027-01-31',
+        certificateNumber: 'K-123',
+        notes: null,
+    };
+
+    it('getVehicleTodokeMissingFields: 全部入りは警告なし・欠落を列挙', () => {
+        expect(getVehicleTodokeMissingFields(baseVehicle)).toEqual([]);
+        expect(getVehicleTodokeMissingFields({ ...baseVehicle, profile: null })).toEqual(['車両安全情報が未登録']);
+        const missing = getVehicleTodokeMissingFields({
+            ...baseVehicle,
+            driverName: '',
+            profile: { ...baseVehicle.profile!, registrationNumber: null, inspectionExpiry: null },
+        });
+        expect(missing).toEqual(expect.arrayContaining(['登録番号', '車検満了日', '運転者']));
+    });
+
+    it('getMachineMissingFields: crane は検査証も必須扱い', () => {
+        expect(getMachineMissingFields(baseMachine)).toEqual([]);
+        const generalMissing = getMachineMissingFields({
+            ...baseMachine,
+            category: 'general',
+            certificateNumber: null,
+            inspectionExpiry: null,
+        });
+        expect(generalMissing).toEqual([]); // 一般区分は検査証不要
+        const craneMissing = getMachineMissingFields({
+            ...baseMachine,
+            certificateNumber: null,
+            inspectionExpiry: null,
+        });
+        expect(craneMissing).toEqual(expect.arrayContaining(['検査証番号', '検査証有効期限']));
+    });
+
+    it('isExpiredOn: 基準日より前の期限を期限切れと判定', () => {
+        expect(isExpiredOn('2026-06-10', '2026-06-11')).toBe(true);
+        expect(isExpiredOn('2026-06-11', '2026-06-11')).toBe(false);
+        expect(isExpiredOn(null, '2026-06-11')).toBe(false);
+    });
+
+    it('getSafetyDocumentTargetCount: 種別ごとに対象数を返す', () => {
+        const header = {
+            primeContractor: '', primeSiteManager: '', siteName: '', tier: '',
+            submitDate: '2026-06-11', companyName: '', companyRepresentative: '', companyAddress: '',
+        };
+        expect(
+            getSafetyDocumentTargetCount('sagyoin_meibo', { header, workers: [{ key: 'w', source: 'worker', sourceId: 'w', name: 'x', profile: null }] })
+        ).toBe(1);
+        expect(
+            getSafetyDocumentTargetCount('vehicle_todoke', { header, periodFrom: null, periodTo: null, vehicles: [baseVehicle, baseVehicle] })
+        ).toBe(2);
+        expect(
+            getSafetyDocumentTargetCount('crane_todoke', { header, periodFrom: null, periodTo: null, machines: [baseMachine] })
+        ).toBe(1);
     });
 });
 
