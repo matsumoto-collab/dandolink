@@ -1,0 +1,88 @@
+/**
+ * 安全書類マイグレーション（2026-06-11_add_safety_documents.sql）の適用検証。
+ * ほぼ読み取り専用 — 唯一の書き込みは「失敗するはずの INSERT」で、
+ * CHECK 制約（workerId/userId 排他）が機能していれば何も残らない。
+ *
+ *   npx tsx scripts/verify-safety-migration.ts
+ */
+import { PrismaClient } from '@prisma/client';
+const prisma = new PrismaClient();
+
+async function main() {
+    let ok = true;
+    const fail = (msg: string) => { ok = false; console.log(`❌ ${msg}`); };
+    const pass = (msg: string) => console.log(`✅ ${msg}`);
+
+    // 1) テーブル存在
+    const tables = await prisma.$queryRaw<{ table_name: string }[]>`
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public'
+          AND table_name IN ('WorkerSafetyProfile', 'WorkerQualification', 'SafetyDocument')
+        ORDER BY table_name`;
+    const tableNames = tables.map((t) => t.table_name);
+    for (const name of ['SafetyDocument', 'WorkerQualification', 'WorkerSafetyProfile']) {
+        if (tableNames.includes(name)) pass(`テーブル ${name} 存在`);
+        else fail(`テーブル ${name} が見つからない`);
+    }
+
+    // 2) CHECK 制約
+    const checks = await prisma.$queryRaw<{ conname: string }[]>`
+        SELECT conname FROM pg_constraint
+        WHERE conrelid = '"public"."WorkerSafetyProfile"'::regclass AND contype = 'c'`;
+    if (checks.some((c) => c.conname === 'WorkerSafetyProfile_target_xor')) {
+        pass('CHECK 制約 WorkerSafetyProfile_target_xor 存在');
+    } else {
+        fail(`CHECK 制約が見つからない（検出: ${checks.map((c) => c.conname).join(', ') || 'なし'}）`);
+    }
+
+    // 3) UNIQUE インデックス・FK
+    const indexes = await prisma.$queryRaw<{ indexname: string }[]>`
+        SELECT indexname FROM pg_indexes
+        WHERE schemaname = 'public'
+          AND tablename IN ('WorkerSafetyProfile', 'WorkerQualification', 'SafetyDocument')`;
+    const idxNames = indexes.map((i) => i.indexname);
+    for (const name of [
+        'WorkerSafetyProfile_workerId_key',
+        'WorkerSafetyProfile_userId_key',
+        'WorkerQualification_profileId_idx',
+        'SafetyDocument_deletedAt_idx',
+    ]) {
+        if (idxNames.includes(name)) pass(`インデックス ${name} 存在`);
+        else fail(`インデックス ${name} が見つからない`);
+    }
+
+    const fks = await prisma.$queryRaw<{ conname: string }[]>`
+        SELECT conname FROM pg_constraint
+        WHERE contype = 'f' AND conrelid::regclass::text IN
+          ('"WorkerSafetyProfile"', '"WorkerQualification"', '"SafetyDocument"')`;
+    if (fks.length >= 4) pass(`FK ${fks.length}本 存在（workerId/userId/profileId/projectId）`);
+    else fail(`FK が不足（検出 ${fks.length}本: ${fks.map((f) => f.conname).join(', ')}）`);
+
+    // 4) CHECK 制約の動作: 両方 NULL の INSERT は拒否される（成功してしまったら即削除して報告）
+    try {
+        await prisma.$executeRaw`
+            INSERT INTO "public"."WorkerSafetyProfile" ("id", "updatedAt") VALUES ('___check_test___', NOW())`;
+        await prisma.$executeRaw`DELETE FROM "public"."WorkerSafetyProfile" WHERE "id" = '___check_test___'`;
+        fail('両方NULLのINSERTが通ってしまった（CHECK制約が効いていない・テスト行は削除済み）');
+    } catch {
+        pass('CHECK 制約が機能（workerId/userId 両方NULLのINSERTを拒否）');
+    }
+
+    // 5) Prisma クライアント整合（生成済みクライアントで count が通る）
+    const [profiles, quals, docs] = await Promise.all([
+        prisma.workerSafetyProfile.count(),
+        prisma.workerQualification.count(),
+        prisma.safetyDocument.count(),
+    ]);
+    pass(`Prismaクライアント整合 OK（profiles=${profiles}, qualifications=${quals}, documents=${docs}）`);
+
+    console.log(ok ? '\n🎉 マイグレーション検証 すべてOK' : '\n⚠️ 検証に失敗があります');
+    if (!ok) process.exitCode = 1;
+}
+
+main()
+    .catch((e) => {
+        console.error(e);
+        process.exitCode = 1;
+    })
+    .finally(() => prisma.$disconnect());

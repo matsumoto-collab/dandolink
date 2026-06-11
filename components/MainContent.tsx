@@ -15,7 +15,7 @@ const VALID_PAGES: PageType[] = [
     'profit-dashboard', 'estimates', 'site-surveys', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
     'materials', 'inventory', 'loading-list', 'settings', 'chat',
-    'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar',
+    'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar', 'safety-documents',
 ];
 
 // 簡易ローディングコンポーネント
@@ -101,6 +101,9 @@ const PartnerWorkVolumePage = dynamic(() => import('./PartnerWorkVolume/PartnerW
     loading: () => <LoadingSpinner />,
 });
 const CompanyCalendarPage = dynamic(() => import('./CompanyCalendar/CompanyCalendarPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const SafetyDocumentsPage = dynamic(() => import('./SafetyDocuments/SafetyDocumentsPage'), {
     loading: () => <LoadingSpinner />,
 });
 const ScheduleHistoryPanel = dynamic(() => import('./Calendar/ScheduleHistoryPanel'), {
@@ -202,6 +205,7 @@ export default function MainContent() {
         'payees': '支払先',
         'partner-work-volume': '協力業者出来高表',
         'company-calendar': 'マイカレンダー',
+        'safety-documents': '安全書類',
     };
     const pageTitle = pageTitleMap[activePage] ?? 'DandoLink';
 
@@ -370,6 +374,12 @@ export default function MainContent() {
                 }
                 return <CompanyCalendarPage />;
 
+            case 'safety-documents':
+                if (userRole !== 'admin' && userRole !== 'manager') {
+                    return <PlaceholderPage title="アクセス権限がありません" />;
+                }
+                return <SafetyDocumentsPage />;
+
             default:
                 return <PlaceholderPage title="ページが見つかりません" />;
         }
@@ -388,7 +398,7 @@ export default function MainContent() {
 
                 pwa-main-safe
             ">
-                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'site-surveys', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar', 'materials'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
+                <div key={activePage} className={`${activePage === 'schedule' ? 'px-4 sm:px-6 pt-1 pb-2 h-full flex flex-col' : ['estimates', 'site-surveys', 'project-masters', 'reports', 'attendance', 'invoices', 'billing-drafts', 'billing-board', 'customers', 'chat', 'payment-schedules', 'payees', 'partner-work-volume', 'company-calendar', 'materials', 'safety-documents'].includes(activePage) ? 'p-4 sm:p-6 h-full flex flex-col' : 'p-4 sm:p-6'} w-full min-w-0`}>
                     {/* 画面読み上げソフト・SEO 向け h1（視覚的には隠す） */}
                     <h1 className="sr-only">{pageTitle} - DandoLink</h1>
                     {renderContent()}

@@ -25,6 +25,7 @@ export type PageType =
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
     | 'company-calendar'    // マイカレンダー（admin / manager）
+    | 'safety-documents' // 安全書類（admin / manager）
     | 'settings';        // 設定
 
 interface NavigationContextType {

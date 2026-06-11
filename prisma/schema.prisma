@@ -35,6 +35,7 @@ model User {
   company                 User?    @relation("CompanyMembers", fields: [companyId], references: [id], onDelete: SetNull)
   members                 User[]   @relation("CompanyMembers")
   billingDrafts           BillingDraft[]
+  safetyProfile           WorkerSafetyProfile?
 
   @@index([username])
   @@index([email])
@@ -96,6 +97,7 @@ model ProjectMaster {
   subcontractorCosts         ProjectMasterSubcontractorCost[]
   siteSurveys                SiteSurvey[]
   billingDrafts              BillingDraft[]
+  safetyDocuments            SafetyDocument[]
 
   @@index([title])
   @@index([customerId])
@@ -452,7 +454,101 @@ model Worker {
   updatedAt DateTime @updatedAt
   dailyRate Decimal?
 
+  safetyProfile WorkerSafetyProfile?
+
   @@index([name])
+  @@schema("public")
+}
+
+/// 安全書類（グリーンファイル）用の作業員安全プロフィール。
+/// Worker（職方）または User のどちらか一方と 1:1（排他）。
+/// DB側に CHECK (num_nonnulls("workerId","userId") = 1) を手動マイグレーションで付与済み
+/// （@unique 2本だけでは両方NULLの行が複数作れるため）。
+/// ⚠️ 法令上の禁止（健康保険法・国民年金法108条の4）: 健康保険の記号番号・基礎年金番号・
+///    マイナンバーの列は追加してはならない。雇用保険は下4桁のみ可。
+model WorkerSafetyProfile {
+  id                       String    @id @default(uuid())
+  workerId                 String?   @unique
+  userId                   String?   @unique
+  // ── 基本 ──
+  furigana                 String?
+  birthDate                DateTime?
+  gender                   String?
+  jobType                  String?
+  attributes               String[]  @default([])
+  hireDate                 DateTime?
+  experienceYears          Int?
+  workerCategory           String?
+  // ── 連絡先 ──
+  address                  String?
+  tel                      String?
+  familyContact            String?
+  familyTel                String?
+  // ── 健康 ──
+  healthCheckDate          DateTime?
+  bloodPressure            String?
+  bloodType                String?
+  specialHealthCheckDate   DateTime?
+  specialHealthCheckType   String?
+  // ── 保険・建退共 ──
+  healthInsurance          String?
+  pensionInsurance         String?
+  employmentInsurance      String?
+  employmentInsuranceLast4 String?
+  rosaiSpecialInsurance    Boolean?
+  kentaikyo                Boolean?
+  chutaikyo                Boolean?
+  kentaikyoTechou          Boolean?
+  // ── その他 ──
+  ccusId                   String?
+  notes                    String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  worker         Worker?               @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  user           User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  qualifications WorkerQualification[]
+
+  @@schema("public")
+}
+
+/// 安全プロフィールに紐づく資格・教育（1:N）。
+model WorkerQualification {
+  id         String    @id @default(uuid())
+  profileId  String
+  category   String    // special_education / skill_training / license
+  name       String
+  acquiredAt DateTime?
+  expiresAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  profile WorkerSafetyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@schema("public")
+}
+
+/// 安全書類本体。data に生成時点のスナップショット（ヘッダー＋作業員＋並び順）をJSON保存し、
+/// PDF再生成は常にスナップショットから行う（保存義務5年・再現性のため）。
+/// 削除は deletedAt の論理削除のみ（物理削除機能は設けない）。
+model SafetyDocument {
+  id        String    @id @default(uuid())
+  type      String    // Phase1: 'sagyoin_meibo'（作業員名簿）のみ
+  projectId String?
+  title     String
+  data      Json
+  createdBy String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  projectMaster ProjectMaster? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([projectId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([deletedAt])
   @@schema("public")
 }
 
