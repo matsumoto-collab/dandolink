@@ -7,6 +7,7 @@ import { Project } from '@/types/calendar';
 import toast from 'react-hot-toast';
 import { useMasterData } from '@/hooks/useMasterData';
 import { useProjects } from '@/hooks/useProjects';
+import { useVacation } from '@/hooks/useVacation';
 import { formatDateKey } from '@/utils/employeeUtils';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { useCalendarStore } from '@/stores/calendarStore';
@@ -48,7 +49,14 @@ export default function DispatchConfirmModal({
 }: DispatchConfirmModalProps) {
     const { vehicles } = useMasterData();
     const { projects, updateProject } = useProjects();
+    const { getVacationEmployees } = useVacation();
     const allForemen = useCalendarStore((state) => state.allForemen);
+
+    // この日に休暇のメンバー（チップに「休暇」表示。急遽の出勤もあるため選択は禁止しない）
+    const vacationIdSet = useMemo(() => {
+        const dateKey = formatDateKey(project.startDate);
+        return new Set(getVacationEmployees(dateKey));
+    }, [getVacationEmployees, project.startDate]);
 
     // ユーザーデータの状態
     const [workers, setWorkers] = useState<DispatchUser[]>([]);
@@ -218,18 +226,23 @@ export default function DispatchConfirmModal({
     const renderWorkerChip = (worker: DispatchUser) => {
         const teams = workerTeamMap.get(worker.id);
         const isSelected = selectedWorkerIds.includes(worker.id);
+        const isOnVacation = vacationIdSet.has(worker.id);
         const parentCompanyName =
             worker.role === 'partner_member' ? (worker.company?.displayName ?? null) : null;
+
+        // 未選択かつ休暇 → 淡い赤で休暇中を明示（選択は可能。選択中は通常の選択色＋休暇バッジ）
+        const chipClass = isSelected
+            ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
+            : isOnVacation
+                ? 'bg-rose-50 text-slate-400 border-2 border-rose-200 hover:border-rose-300'
+                : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50';
 
         return (
             <button
                 key={worker.id}
                 type="button"
                 onClick={() => handleWorkerToggle(worker.id)}
-                className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${isSelected
-                    ? 'bg-slate-800 text-white border-2 border-slate-800 shadow-sm'
-                    : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-slate-400 hover:bg-slate-50'
-                    }`}
+                className={`relative flex items-center justify-center gap-1.5 px-3 min-h-[52px] rounded-xl text-sm font-medium transition-all active:scale-[0.97] ${chipClass}`}
             >
                 {isSelected && <Check className="w-4 h-4 flex-shrink-0" />}
                 <div className="flex flex-col items-center min-w-0 leading-tight">
@@ -240,6 +253,11 @@ export default function DispatchConfirmModal({
                     )}
                     <span className="truncate max-w-full">{worker.displayName}</span>
                 </div>
+                {isOnVacation && (
+                    <span className="absolute -top-2 -left-1 px-1.5 py-0.5 text-[10px] bg-rose-500 text-white rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
+                        休暇
+                    </span>
+                )}
                 {teams && (
                     <span className="absolute -top-2 -right-1 px-1.5 py-0.5 text-[10px] bg-amber-400 text-amber-900 rounded-full font-semibold shadow-sm whitespace-nowrap leading-tight">
                         {teams.join('・')}
