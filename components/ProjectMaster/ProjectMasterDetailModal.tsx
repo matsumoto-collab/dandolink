@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { X, Edit, ArrowLeft, FileText, FileSearch, CreditCard } from 'lucide-react';
+import { X, Edit, ArrowLeft, FileText, FileSearch } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
 const MaterialsSection = lazy(() => import('@/components/ProjectMasters/sections/MaterialsSection'));
@@ -23,12 +23,6 @@ interface ProjectMasterDetailModalProps {
     initialEditMode?: boolean;
     onCreateEstimate?: () => void;
     onViewEstimate?: () => void;
-    /**
-     * Phase 2: 「請求予定を追加」ボタンのクリックハンドラ。
-     * 親側で admin/manager 判定の上で渡す（undefined ならボタン非表示）。
-     * このハンドラ内でモーダルを閉じた上で BillingDraftFormPanel を開く責務を持つ。
-     */
-    onAddBillingDraft?: () => void;
     readOnly?: boolean;
 }
 
@@ -93,7 +87,7 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
     };
 }
 
-export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, onViewEstimate, onAddBillingDraft, readOnly }: ProjectMasterDetailModalProps) {
+export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, onViewEstimate, readOnly }: ProjectMasterDetailModalProps) {
     const isOpen = pm !== null;
     const [mode, setMode] = useState<'view' | 'edit'>('view');
     const [activeTab, setActiveTab] = useState<'detail' | 'materials' | 'chat' | 'site-survey'>('detail');
@@ -268,16 +262,6 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             >
                                 <FileSearch className="w-4 h-4" />
                                 <span className="hidden md:inline">見積書を確認</span>
-                            </button>
-                        )}
-                        {!isEditMode && onAddBillingDraft && (
-                            <button
-                                onClick={onAddBillingDraft}
-                                title="請求予定を追加"
-                                className="flex items-center gap-1.5 p-1.5 md:px-3 md:py-1.5 text-sm font-medium border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
-                            >
-                                <CreditCard className="w-4 h-4" />
-                                <span className="hidden md:inline">請求予定を追加</span>
                             </button>
                         )}
                         <button
