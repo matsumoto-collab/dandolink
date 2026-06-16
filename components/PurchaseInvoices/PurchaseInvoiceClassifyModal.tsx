@@ -34,6 +34,15 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
     const [taxAmount, setTaxAmount] = useState(toAmountStr(invoice.taxAmount));
     const [expenseCategoryId, setExpenseCategoryId] = useState(invoice.expenseCategoryId ?? '');
     const [notes, setNotes] = useState(invoice.notes ?? '');
+    const [payeeKana, setPayeeKana] = useState(invoice.payeeKana ?? '');
+    const [bankName, setBankName] = useState(invoice.bankName ?? '');
+    const [branchName, setBranchName] = useState(invoice.branchName ?? '');
+    const [accountType, setAccountType] = useState(invoice.accountType ?? '');
+    const [accountNumber, setAccountNumber] = useState(invoice.accountNumber ?? '');
+    const [accountHolder, setAccountHolder] = useState(invoice.accountHolder ?? '');
+    const [showBankFields, setShowBankFields] = useState(
+        !!(invoice.bankName || invoice.accountNumber || invoice.accountHolder)
+    );
 
     const [projectMasterId, setProjectMasterId] = useState(invoice.projectMasterId ?? '');
     const [selectedProjectLabel, setSelectedProjectLabel] = useState(
@@ -110,7 +119,17 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
     const onSelectPayee = (id: string) => {
         setPayeeId(id);
         const p = payees.find((x) => x.id === id);
-        if (p) setPayeeName(p.name);
+        if (p) {
+            setPayeeName(p.name);
+            // 既存マスターの口座情報を補完
+            if (p.nameKana != null) setPayeeKana(p.nameKana);
+            if (p.bankName != null) setBankName(p.bankName);
+            if (p.branchName != null) setBranchName(p.branchName);
+            if (p.accountType != null) setAccountType(p.accountType);
+            if (p.accountNumber != null) setAccountNumber(p.accountNumber);
+            if (p.accountHolder != null) setAccountHolder(p.accountHolder);
+            setShowBankFields(true);
+        }
     };
 
     const save = async (nextStatus?: string) => {
@@ -126,6 +145,12 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                 expenseCategoryId: expenseCategoryId || null,
                 projectMasterId: projectMasterId || null,
                 notes,
+                payeeKana: payeeKana || null,
+                bankName: bankName || null,
+                branchName: branchName || null,
+                accountType: accountType || null,
+                accountNumber: accountNumber || null,
+                accountHolder: accountHolder || null,
             };
             if (nextStatus) body.status = nextStatus;
             const res = await fetch(`/api/purchase-invoices/${invoice.id}`, {
@@ -176,6 +201,13 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                 setTotalAmount(toAmountStr(data.totalAmount));
                 setTaxAmount(toAmountStr(data.taxAmount));
                 if (data.expenseCategoryId) setExpenseCategoryId(data.expenseCategoryId);
+                setPayeeKana(data.payeeKana ?? '');
+                setBankName(data.bankName ?? '');
+                setBranchName(data.branchName ?? '');
+                setAccountType(data.accountType ?? '');
+                setAccountNumber(data.accountNumber ?? '');
+                setAccountHolder(data.accountHolder ?? '');
+                if (data.bankName || data.accountNumber) setShowBankFields(true);
                 toast.success('AIで再読み取りしました');
             } else {
                 const e = await res.json().catch(() => ({}));
@@ -204,6 +236,12 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                 expenseCategoryId: expenseCategoryId || null,
                 projectMasterId: projectMasterId || null,
                 notes,
+                payeeKana: payeeKana || null,
+                bankName: bankName || null,
+                branchName: branchName || null,
+                accountType: accountType || null,
+                accountNumber: accountNumber || null,
+                accountHolder: accountHolder || null,
             };
             const sres = await fetch(`/api/purchase-invoices/${invoice.id}`, {
                 method: 'PATCH',
@@ -339,6 +377,30 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                         <div>
                             <label className="block text-xs font-semibold text-slate-600 mb-1">メモ</label>
                             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 resize-none" />
+                        </div>
+
+                        <div>
+                            <button type="button" onClick={() => setShowBankFields((v) => !v)} className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600 mb-1">
+                                振込先口座（任意）<span className="text-slate-400">{showBankFields ? '▲' : '▼'}</span>
+                            </button>
+                            {showBankFields && (
+                                <div className="space-y-2 p-2.5 border border-slate-200 rounded-xl bg-slate-50">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input value={bankName} onChange={(e) => setBankName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm" placeholder="銀行名" />
+                                        <input value={branchName} onChange={(e) => setBranchName(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm" placeholder="支店名" />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <select value={accountType} onChange={(e) => setAccountType(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm">
+                                            <option value="">口座種別</option>
+                                            <option value="普通">普通</option>
+                                            <option value="当座">当座</option>
+                                        </select>
+                                        <input inputMode="numeric" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm" placeholder="口座番号" />
+                                    </div>
+                                    <input value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm" placeholder="口座名義（カナ）" />
+                                    <input value={payeeKana} onChange={(e) => setPayeeKana(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm" placeholder="支払先フリガナ（カタカナ）" />
+                                </div>
+                            )}
                         </div>
 
                         {invoice.items.length > 0 && (

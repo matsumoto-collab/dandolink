@@ -52,6 +52,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         if ('taxAmount' in body) data.taxAmount = amt(body.taxAmount);
         if ('projectMasterId' in body) data.projectMasterId = body.projectMasterId || null;
         if ('expenseCategoryId' in body) data.expenseCategoryId = body.expenseCategoryId || null;
+        if ('payeeKana' in body) data.payeeKana = body.payeeKana?.toString().trim() || null;
+        if ('bankName' in body) data.bankName = body.bankName?.toString().trim() || null;
+        if ('branchName' in body) data.branchName = body.branchName?.toString().trim() || null;
+        if ('accountType' in body) data.accountType = body.accountType?.toString().trim() || null;
+        if ('accountNumber' in body) data.accountNumber = body.accountNumber?.toString().trim() || null;
+        if ('accountHolder' in body) data.accountHolder = body.accountHolder?.toString().trim() || null;
         if ('notes' in body) data.notes = body.notes?.toString().trim() || null;
         if ('status' in body) {
             if (!EDITABLE_STATUS.includes(body.status)) return errorResponse('このステータスへは変更できません', 400);

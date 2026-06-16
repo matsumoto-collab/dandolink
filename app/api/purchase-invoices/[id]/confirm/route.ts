@@ -27,41 +27,49 @@ export async function POST(_req: NextRequest, context: RouteContext) {
 
         // 振込日: 支払期日 → 発行日 → 今日 の順で採用
         const paymentDate = inv.dueDate ?? inv.issueDate ?? new Date();
-
-        // 振込先マスターから口座情報を補完
-        let bankName: string | null = null;
-        let branchName: string | null = null;
-        let accountType: string | null = null;
-        let accountNumber: string | null = null;
-        let accountHolder: string | null = null;
-        let feeFlag = false;
-        if (inv.payeeId) {
-            const payee = await prisma.payee.findUnique({ where: { id: inv.payeeId } });
-            if (payee) {
-                bankName = payee.bankName;
-                branchName = payee.branchName;
-                accountType = payee.accountType;
-                accountNumber = payee.accountNumber;
-                accountHolder = payee.accountHolder;
-                feeFlag = payee.feeBearer === 'us';
-            }
-        }
+        // 口座種別は Payee の制約に合わせる（'普通'|'当座' 以外は null）
+        const accountType = inv.accountType === '普通' || inv.accountType === '当座' ? inv.accountType : null;
 
         const result = await prisma.$transaction(async (tx) => {
+            // 振込先マスター(Payee)を解決：①既存紐付け ②口座番号/支払先名で照合 ③無ければ新規作成
+            let payee = inv.payeeId ? await tx.payee.findUnique({ where: { id: inv.payeeId } }) : null;
+            if (!payee && inv.accountNumber) {
+                payee = await tx.payee.findFirst({ where: { isActive: true, accountNumber: inv.accountNumber } });
+            }
+            if (!payee) {
+                payee = await tx.payee.findFirst({ where: { isActive: true, name: inv.payeeName! } });
+            }
+            if (!payee) {
+                payee = await tx.payee.create({
+                    data: {
+                        name: inv.payeeName!,
+                        nameKana: inv.payeeKana,
+                        bankName: inv.bankName,
+                        branchName: inv.branchName,
+                        accountType,
+                        accountNumber: inv.accountNumber,
+                        accountHolder: inv.accountHolder,
+                        feeBearer: 'them',
+                        updatedBy: session!.user.id,
+                    },
+                });
+            }
+
+            // 支払予定の口座情報は採用Payeeを優先し、無ければ請求書の抽出値で補完
             const ps = await tx.paymentSchedule.create({
                 data: {
                     paymentDate,
                     paymentType: 'transfer',
-                    payeeId: inv.payeeId,
+                    payeeId: payee.id,
                     payeeName: inv.payeeName!,
                     amount: inv.totalAmount!,
-                    feeFlag,
+                    feeFlag: payee.feeBearer === 'us',
                     dueDate: inv.dueDate,
-                    bankName,
-                    branchName,
-                    accountType,
-                    accountNumber,
-                    accountHolder,
+                    bankName: payee.bankName ?? inv.bankName,
+                    branchName: payee.branchName ?? inv.branchName,
+                    accountType: payee.accountType ?? accountType,
+                    accountNumber: payee.accountNumber ?? inv.accountNumber,
+                    accountHolder: payee.accountHolder ?? inv.accountHolder,
                     notes: '仕入請求書より自動作成',
                     updatedBy: session!.user.id,
                 },
@@ -73,6 +81,7 @@ export async function POST(_req: NextRequest, context: RouteContext) {
                     confirmedAt: new Date(),
                     confirmedBy: session!.user.id,
                     paymentScheduleId: ps.id,
+                    payeeId: payee.id,
                 },
                 include: INVOICE_INCLUDE,
             });

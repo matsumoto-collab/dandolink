@@ -2223,6 +2223,13 @@ model PurchaseInvoice {
   // 仕分け確定値
   payeeName         String?
   payeeId           String?
+  // AI抽出した支払先口座（確定時に振込先マスター(Payee)へ登録/再利用）
+  payeeKana         String?
+  bankName          String?
+  branchName        String?
+  accountType       String?
+  accountNumber     String?
+  accountHolder     String?
   issueDate         DateTime?
   dueDate           DateTime?
   totalAmount       Decimal?  @db.Decimal(12, 2)

@@ -26,6 +26,12 @@ export interface ProjectMasterRef {
 export interface PayeeRef {
     id: string;
     name: string;
+    nameKana?: string | null;
+    bankName?: string | null;
+    branchName?: string | null;
+    accountType?: string | null;
+    accountNumber?: string | null;
+    accountHolder?: string | null;
 }
 
 export interface PurchaseInvoice {
@@ -39,6 +45,12 @@ export interface PurchaseInvoice {
     extractedData: unknown;
     payeeName: string | null;
     payeeId: string | null;
+    payeeKana: string | null;
+    bankName: string | null;
+    branchName: string | null;
+    accountType: string | null;
+    accountNumber: string | null;
+    accountHolder: string | null;
     issueDate: string | null;
     dueDate: string | null;
     totalAmount: number | string | null;

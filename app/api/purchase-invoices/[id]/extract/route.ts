@@ -41,6 +41,12 @@ export async function POST(_req: NextRequest, context: RouteContext) {
             data: {
                 extractedData: extracted as unknown as Prisma.InputJsonValue,
                 payeeName: extracted.payeeName ?? inv.payeeName,
+                payeeKana: extracted.payeeKana ?? inv.payeeKana,
+                bankName: extracted.bankName ?? inv.bankName,
+                branchName: extracted.branchName ?? inv.branchName,
+                accountType: extracted.accountType ?? inv.accountType,
+                accountNumber: extracted.accountNumber ?? inv.accountNumber,
+                accountHolder: extracted.accountHolder ?? inv.accountHolder,
                 issueDate: parseInvoiceDate(extracted.issueDate) ?? inv.issueDate,
                 dueDate: parseInvoiceDate(extracted.dueDate) ?? inv.dueDate,
                 totalAmount: extracted.totalAmount ?? inv.totalAmount,
