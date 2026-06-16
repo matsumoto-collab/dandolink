@@ -10,6 +10,10 @@ import { logger } from '@/lib/logger';
 import { extractPurchaseInvoice } from '@/lib/purchaseInvoiceExtract';
 import { parseInvoiceDate, INVOICE_INCLUDE, SIGNED_URL_TTL, withFreshSignedUrls } from '@/lib/purchaseInvoice';
 
+// Claude による請求書抽出に時間がかかるため、関数の最大実行時間を延長する（Vercel Pro: 最大300s）。
+// 未設定だとデフォルト(約15s)で打ち切られ、アップロードのローディングが返らなくなる。
+export const maxDuration = 60;
+
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'application/pdf'];
 
