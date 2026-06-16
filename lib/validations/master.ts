@@ -7,6 +7,13 @@ export const costMasterSchema = z.object({
     unitPrice: z.number().nullable().optional(),
 });
 
+// 仕入請求書の費目マスタ。costBucket で原価エンジンの集計先を指定する。
+export const expenseCategorySchema = z.object({
+    name: z.string().min(1, '費目名は必須です').max(100),
+    costBucket: z.enum(['material', 'other', 'loading']).optional().default('other'),
+    sortOrder: z.number().int().optional().default(0),
+});
+
 export const nameOnlySchema = z.object({
     name: z.string().min(1, '名前は必須です').max(100),
 });

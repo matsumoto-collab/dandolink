@@ -77,6 +77,7 @@ interface ProfitData {
         materialCost: number;
         otherExpenses: number;
         loadingCost: number;
+        purchaseInvoices?: { invoiceId: string; payeeName: string | null; categoryName: string | null; bucket: string; date: string; amount: number }[];
     };
     grossProfit: number;
     profitMargin: number;
@@ -248,7 +249,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     const enterEditMode = () => {
         setEditMode(true);
         // 編集時は配置（日付）ごとの明細を自動展開し、人件費・車両費・外注費をその場で直接編集できるようにする
-        setOpenSections(prev => ({ ...prev, labor: true, vehicle: true, subcontractor: true }));
+        setOpenSections(prev => ({ ...prev, labor: true, vehicle: true, subcontractor: true, material: true, loading: true, other: true }));
     };
 
     const cancelEdit = () => {
@@ -338,21 +339,19 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     const confirmedProfit = profitData.confirmedProfit ?? (confirmedRevenue - costBreakdown.totalCost);
     const costConsumptionRate = profitData.costConsumptionRate ?? null;
 
-    type Section =
-        | { key: 'labor'; label: '人件費'; amount: number; expandable: true }
-        | { key: 'vehicle'; label: '車両費'; amount: number; expandable: true }
-        | { key: 'subcontractor'; label: '外注費'; amount: number; expandable: true }
-        | { key: 'material'; label: '材料費'; amount: number; expandable: false }
-        | { key: 'loading'; label: '積込費'; amount: number; expandable: false }
-        | { key: 'other'; label: 'その他'; amount: number; expandable: false };
+    type Section = { key: 'labor' | 'vehicle' | 'subcontractor' | 'material' | 'loading' | 'other'; label: string; amount: number; expandable: boolean };
 
+    const piRows = breakdown?.purchaseInvoices ?? [];
+    const piByBucket = (bucket: string) => piRows.filter(p => p.bucket === bucket);
+
+    // 材料費・積込費・その他は「手入力分の編集」と「仕入請求書の明細」を展開内に置くため常に展開可能
     const sections: Section[] = [
         { key: 'labor', label: '人件費', amount: costBreakdown.laborCost, expandable: true },
         { key: 'vehicle', label: '車両費', amount: costBreakdown.vehicleCost, expandable: true },
-        { key: 'material', label: '材料費', amount: costBreakdown.materialCost, expandable: false },
+        { key: 'material', label: '材料費', amount: costBreakdown.materialCost, expandable: true },
         { key: 'subcontractor', label: '外注費', amount: costBreakdown.subcontractorCost, expandable: true },
-        { key: 'loading', label: '積込費', amount: costBreakdown.loadingCost, expandable: false },
-        { key: 'other', label: 'その他', amount: costBreakdown.otherExpenses, expandable: false },
+        { key: 'loading', label: '積込費', amount: costBreakdown.loadingCost, expandable: true },
+        { key: 'other', label: 'その他', amount: costBreakdown.otherExpenses, expandable: true },
     ];
 
     return (
@@ -559,38 +558,9 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                             )}
                                             <span>{section.label}</span>
                                         </button>
-                                        {section.key === 'material' ? (
-                                            <AmountCell
-                                                editMode={editMode}
-                                                value={section.amount}
-                                                auto={0}
-                                                override={breakdown?.materialCost && breakdown.materialCost > 0 ? breakdown.materialCost : null}
-                                                draft={drafts.project.materialCost}
-                                                onChange={(v) => setProjectDraft('materialCost', v)}
-                                            />
-                                        ) : section.key === 'loading' ? (
-                                            <AmountCell
-                                                editMode={editMode}
-                                                value={section.amount}
-                                                auto={0}
-                                                override={breakdown?.loadingCost && breakdown.loadingCost > 0 ? breakdown.loadingCost : null}
-                                                draft={drafts.project.loadingCost}
-                                                onChange={(v) => setProjectDraft('loadingCost', v)}
-                                            />
-                                        ) : section.key === 'other' ? (
-                                            <AmountCell
-                                                editMode={editMode}
-                                                value={section.amount}
-                                                auto={0}
-                                                override={breakdown?.otherExpenses && breakdown.otherExpenses > 0 ? breakdown.otherExpenses : null}
-                                                draft={drafts.project.otherExpenses}
-                                                onChange={(v) => setProjectDraft('otherExpenses', v)}
-                                            />
-                                        ) : (
-                                            <span className="text-sm font-medium tabular-nums text-slate-700">
-                                                {formatCurrency(section.amount)}
-                                            </span>
-                                        )}
+                                        <span className="text-sm font-medium tabular-nums text-slate-700">
+                                            {formatCurrency(section.amount)}
+                                        </span>
                                     </div>
 
                                     {section.expandable && opened && (
@@ -646,6 +616,33 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                                     </div>
                                                 )) : <div className="text-xs text-slate-400 py-1">明細なし</div>
                                             )}
+                                            {(section.key === 'material' || section.key === 'loading' || section.key === 'other') && (() => {
+                                                const field: 'materialCost' | 'loadingCost' | 'otherExpenses' = section.key === 'material' ? 'materialCost' : section.key === 'loading' ? 'loadingCost' : 'otherExpenses';
+                                                const manual = section.key === 'material' ? (breakdown?.materialCost ?? 0) : section.key === 'loading' ? (breakdown?.loadingCost ?? 0) : (breakdown?.otherExpenses ?? 0);
+                                                const rows = piByBucket(section.key);
+                                                return (
+                                                    <>
+                                                        <div className="flex items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100">
+                                                            <span className="flex-1 min-w-0 truncate">手入力分</span>
+                                                            <AmountCell
+                                                                editMode={editMode}
+                                                                value={manual}
+                                                                auto={0}
+                                                                override={manual > 0 ? manual : null}
+                                                                draft={drafts.project[field]}
+                                                                onChange={(v) => setProjectDraft(field, v)}
+                                                            />
+                                                        </div>
+                                                        {rows.map(r => (
+                                                            <div key={r.invoiceId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
+                                                                <span className="flex-1 min-w-0 truncate">{r.date ? formatDateMd(r.date) + '　' : ''}{r.payeeName ?? '—'}{r.categoryName ? `　${r.categoryName}` : ''}</span>
+                                                                <span className="text-sm font-medium tabular-nums text-slate-700">{formatCurrency(r.amount)}</span>
+                                                            </div>
+                                                        ))}
+                                                        {rows.length === 0 && manual === 0 && <div className="text-xs text-slate-400 py-1">明細なし</div>}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     )}
                                 </div>

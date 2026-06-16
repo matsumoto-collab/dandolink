@@ -98,6 +98,7 @@ model ProjectMaster {
   siteSurveys                SiteSurvey[]
   billingDrafts              BillingDraft[]
   safetyDocuments            SafetyDocument[]
+  purchaseInvoices           PurchaseInvoice[]
 
   @@index([title])
   @@index([customerId])
@@ -1987,6 +1988,7 @@ model Payee {
   updatedBy     String?
 
   paymentSchedules PaymentSchedule[]
+  purchaseInvoices PurchaseInvoice[]
 
   @@index([name])
   @@index([isActive])
@@ -2175,5 +2177,94 @@ model MonthlyProjectCostOverride {
 
   @@unique([year, month, projectId])
   @@index([year, month])
+  @@schema("public")
+}
+
+/// 仕入請求書の費目マスタ。請求書由来の原価を、原価エンジンのどのバケットに集計するかを costBucket で決める。
+/// 例: 材料費=material / リース費・燃料費・重機リース=other / 積込費=loading
+model ExpenseCategory {
+  id         String   @id @default(uuid())
+  name       String // 材料費 / リース費 / 燃料費 / 重機リース 等
+  costBucket String   @default("other") // 'material' | 'other' | 'loading'（原価エンジンの集計先）
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  purchaseInvoices PurchaseInvoice[]
+
+  @@index([sortOrder])
+  @@index([isActive])
+  @@schema("public")
+}
+
+/// 仕入先・リース会社・資材店などからの「支払側」請求書（買掛）。1枚=1レコード。
+/// アップロード→Claude API で抽出(extractedData)→人が案件・費目を仕分け→確定で
+/// ①案件原価に反映（confirmed を原価エンジンが集計）②振込予定表(PaymentSchedule)に自動登録。
+model PurchaseInvoice {
+  id     String @id @default(uuid())
+  status String @default("pending") // 'pending'(未仕分け) | 'classified'(仕分け下書き) | 'confirmed'(確定)
+
+  // ファイル（Supabase Storage。ProjectMasterFile と同じ持ち方）
+  fileName                    String
+  storagePath                 String
+  thumbnailPath               String?
+  mimeType                    String
+  fileSize                    Int
+  sourceType                  String? // 'pdf' など
+  signedUrl                   String?
+  signedUrlExpiresAt          DateTime?
+  thumbnailSignedUrl          String?
+  thumbnailSignedUrlExpiresAt DateTime?
+
+  // AI抽出の生データ（支払先・日付・金額・品目・推定費目/案件ヒント）
+  extractedData Json?
+
+  // 仕分け確定値
+  payeeName         String?
+  payeeId           String?
+  issueDate         DateTime?
+  dueDate           DateTime?
+  totalAmount       Decimal?  @db.Decimal(12, 2)
+  taxAmount         Decimal?  @db.Decimal(12, 2)
+  projectMasterId   String?
+  expenseCategoryId String?
+  notes             String?
+
+  // 連携・監査
+  paymentScheduleId String? // 確定時に作成した支払予定への参照
+  confirmedAt       DateTime?
+  confirmedBy       String?
+  uploadedBy        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  projectMaster   ProjectMaster?        @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+  expenseCategory ExpenseCategory?      @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+  payee           Payee?                @relation(fields: [payeeId], references: [id], onDelete: SetNull)
+  items           PurchaseInvoiceItem[]
+
+  @@index([status])
+  @@index([projectMasterId])
+  @@index([payeeId])
+  @@index([expenseCategoryId])
+  @@index([createdAt])
+  @@schema("public")
+}
+
+/// 仕入請求書の明細行（AI抽出の品目）。原価計算は PurchaseInvoice.totalAmount を使うため表示・確認用。
+model PurchaseInvoiceItem {
+  id                String   @id @default(uuid())
+  purchaseInvoiceId String
+  name              String
+  quantity          Float?
+  unit              String?
+  unitPrice         Decimal? @db.Decimal(12, 2)
+  amount            Decimal? @db.Decimal(12, 2)
+  sortOrder         Int      @default(0)
+
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseInvoiceId])
   @@schema("public")
 }

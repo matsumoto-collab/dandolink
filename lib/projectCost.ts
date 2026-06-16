@@ -46,6 +46,14 @@ export interface SubcontractorCostRow {
     override: number | null;
     effectiveCost: number;
 }
+export interface PurchaseInvoiceCostRow {
+    invoiceId: string;
+    payeeName: string | null;
+    categoryName: string | null;
+    bucket: string; // 'material' | 'other' | 'loading'
+    date: string;
+    amount: number;
+}
 export interface ProjectCostDetail {
     labor: LaborCostRow[];
     vehicle: VehicleCostRow[];
@@ -53,6 +61,7 @@ export interface ProjectCostDetail {
     materialCost: number;
     otherExpenses: number;
     loadingCost: number;
+    purchaseInvoices: PurchaseInvoiceCostRow[];
 }
 export interface ProjectCostResult {
     breakdown: CostBreakdown;
@@ -96,6 +105,16 @@ export async function computeProjectCosts(
             otherExpenses: true,
             loadingCost: true,
             subcontractorCosts: { select: { constructionTypeId: true, amount: true, transportCost: true } },
+            purchaseInvoices: {
+                where: { status: 'confirmed' },
+                select: {
+                    id: true,
+                    totalAmount: true,
+                    payeeName: true,
+                    issueDate: true,
+                    expenseCategory: { select: { name: true, costBucket: true } },
+                },
+            },
             assignments: {
                 select: {
                     id: true, date: true, assignedEmployeeId: true, isDispatchConfirmed: true,
@@ -286,9 +305,35 @@ export async function computeProjectCosts(
             }
         }
 
-        const materialCost = Number(pm.materialCost || 0);
-        const otherExpenses = Number(pm.otherExpenses || 0);
-        const loadingCost = Number(pm.loadingCost || 0);
+        // 確定済み仕入請求書を費目の集計先(costBucket)ごとに原価へ上乗せ
+        const invoiceRows: PurchaseInvoiceCostRow[] = [];
+        let invMaterial = 0, invOther = 0, invLoading = 0;
+        for (const pi of pm.purchaseInvoices) {
+            const amount = Number(pi.totalAmount || 0);
+            if (amount <= 0) continue;
+            const bucket = pi.expenseCategory?.costBucket ?? 'other';
+            if (bucket === 'material') invMaterial += amount;
+            else if (bucket === 'loading') invLoading += amount;
+            else invOther += amount;
+            if (opts.withDetail) {
+                invoiceRows.push({
+                    invoiceId: pi.id,
+                    payeeName: pi.payeeName,
+                    categoryName: pi.expenseCategory?.name ?? null,
+                    bucket,
+                    date: pi.issueDate ? jstDateStr(pi.issueDate) : '',
+                    amount,
+                });
+            }
+        }
+        // 手入力分（案件マスタの数値）と請求書由来分を分けて保持。
+        // breakdown(原価合計)は両方の和、detail は手入力分のみを返し、請求書分は purchaseInvoices 明細で見せる。
+        const manualMaterial = Number(pm.materialCost || 0);
+        const manualOther = Number(pm.otherExpenses || 0);
+        const manualLoading = Number(pm.loadingCost || 0);
+        const materialCost = manualMaterial + invMaterial;
+        const otherExpenses = manualOther + invOther;
+        const loadingCost = manualLoading + invLoading;
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
 
         result.set(pm.id, {
@@ -298,7 +343,8 @@ export async function computeProjectCosts(
                     labor: laborRows.sort((x, y) => x.date.localeCompare(y.date)),
                     vehicle: vehicleRows.sort((x, y) => x.date.localeCompare(y.date)),
                     subcontractor: subRows.sort((x, y) => x.date.localeCompare(y.date)),
-                    materialCost, otherExpenses, loadingCost,
+                    materialCost: manualMaterial, otherExpenses: manualOther, loadingCost: manualLoading,
+                    purchaseInvoices: invoiceRows,
                 }
                 : undefined,
         });

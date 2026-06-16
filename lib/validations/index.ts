@@ -19,7 +19,7 @@ export { createBillingDraftSchema, updateBillingDraftSchema, billingDraftListQue
 export type { CreateBillingDraftInput, UpdateBillingDraftInput, BillingDraftListQueryInput, IssueInvoiceFromDraftsInput } from './billingDraft';
 export { cellRemarkSchema, calendarRemarkSchema, vacationSchema, memberAdjustmentSchema, displayedForemanIdsSchema } from './calendar';
 export {
-    costMasterSchema, nameOnlySchema, unitPriceCategorySchema, unitPriceSpecificationSchema,
+    costMasterSchema, expenseCategorySchema, nameOnlySchema, unitPriceCategorySchema, unitPriceSpecificationSchema,
     unitPriceTemplateSchema, unitPriceMasterSchema, companyInfoSchema, systemSettingsSchema,
     scaffoldingSpecItemSchema, memberCountHistoryCreateSchema, memberCountHistoryUpdateSchema,
     memberCountHistoryDeleteSchema, loadingListConfirmSchema, loadingCheckSchema,

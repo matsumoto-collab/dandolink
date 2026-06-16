@@ -22,6 +22,7 @@ export type PageType =
     | 'attendance'       // 出勤簿
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定
+    | 'purchase-invoices'// 仕入請求書（支払側の請求書をAIで取り込み）
     | 'payees'           // 振込先マスター
     | 'partner-work-volume' // 協力業者出来高
     | 'company-calendar'    // マイカレンダー（admin / manager）
