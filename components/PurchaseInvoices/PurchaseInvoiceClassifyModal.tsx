@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Trash2, Search, RefreshCw, Save } from 'lucide-react';
+import { X, Loader2, Trash2, Search, RefreshCw, Save, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { PurchaseInvoice, ExpenseCategoryRef, PayeeRef, ProjectMasterRef } from '@/types/purchaseInvoice';
@@ -243,14 +243,27 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
 
                 <div className="flex-1 overflow-auto grid grid-cols-1 lg:grid-cols-2">
                     {/* 左: プレビュー */}
-                    <div className="bg-slate-100 p-3 lg:border-r border-slate-200 min-h-[240px] flex items-center justify-center">
-                        {isImage && invoice.signedUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={invoice.signedUrl} alt="請求書" className="max-w-full max-h-[70vh] object-contain rounded" />
-                        ) : invoice.signedUrl ? (
-                            <iframe src={invoice.signedUrl} className="w-full h-[70vh] rounded" title="請求書PDF" />
-                        ) : (
-                            <p className="text-slate-400 text-sm">プレビューを表示できません</p>
+                    <div className="bg-slate-100 p-3 lg:border-r border-slate-200 min-h-[240px] flex flex-col">
+                        <div className="flex-1 flex items-center justify-center overflow-hidden">
+                            {isImage && invoice.signedUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={invoice.signedUrl} alt="請求書" className="max-w-full max-h-[70vh] object-contain rounded" />
+                            ) : invoice.signedUrl ? (
+                                <iframe src={invoice.signedUrl} className="w-full h-[70vh] rounded" title="請求書PDF" />
+                            ) : (
+                                <p className="text-slate-400 text-sm">プレビューを表示できません</p>
+                            )}
+                        </div>
+                        {invoice.signedUrl && (
+                            <a
+                                href={invoice.signedUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="mt-2 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                別タブで開く
+                            </a>
                         )}
                     </div>
 
