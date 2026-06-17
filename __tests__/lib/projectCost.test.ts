@@ -213,6 +213,27 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect(r.detail?.labor[0].workerCount).toBe(3); // 表示人数=実計上人数(確定メンバー2＋職長1)。a.memberCount(0)ではない
     });
 
+    it('確定済み仕入請求書の案件配分を費目バケットごとに原価へ加算する（手入力分と合算）', async () => {
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 1000, otherExpenses: 0, loadingCost: 0, subcontractorCosts: [],
+            assignments: [],
+            // 1枚を複数案件へ按分した配分のうち p1 ぶん（material/loading/other の3行）
+            purchaseInvoiceAllocations: [
+                { amount: 5000, expenseCategory: { name: '材料費', costBucket: 'material' }, purchaseInvoice: { id: 'pi1', payeeName: '資材店', issueDate: D } },
+                { amount: 3000, expenseCategory: { name: 'リース', costBucket: 'loading' }, purchaseInvoice: { id: 'pi1', payeeName: '資材店', issueDate: D } },
+                { amount: 2000, expenseCategory: { name: '雑費', costBucket: 'other' }, purchaseInvoice: { id: 'pi2', payeeName: 'その他社', issueDate: D } },
+            ],
+        }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        // material=手入力1000+請求書5000、loading=請求書3000、other=請求書2000
+        expect(r.breakdown).toMatchObject({ materialCost: 6000, loadingCost: 3000, otherExpenses: 2000, totalCost: 11000 });
+        // detail.materialCost は手入力分のみ（請求書分は purchaseInvoices 明細で見せる）
+        expect(r.detail?.materialCost).toBe(1000);
+        expect(r.detail?.purchaseInvoices).toHaveLength(3);
+        expect((r.detail?.purchaseInvoices ?? []).reduce((s, x) => s + x.amount, 0)).toBe(10000);
+    });
+
     it('該当しない projectId も空原価でキーを返す', async () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
         const map = await computeProjectCosts(['none']);

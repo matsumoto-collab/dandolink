@@ -105,14 +105,12 @@ export async function computeProjectCosts(
             otherExpenses: true,
             loadingCost: true,
             subcontractorCosts: { select: { constructionTypeId: true, amount: true, transportCost: true } },
-            purchaseInvoices: {
-                where: { status: 'confirmed' },
+            purchaseInvoiceAllocations: {
+                where: { purchaseInvoice: { status: 'confirmed' } },
                 select: {
-                    id: true,
-                    totalAmount: true,
-                    payeeName: true,
-                    issueDate: true,
+                    amount: true,
                     expenseCategory: { select: { name: true, costBucket: true } },
+                    purchaseInvoice: { select: { id: true, payeeName: true, issueDate: true } },
                 },
             },
             assignments: {
@@ -305,23 +303,23 @@ export async function computeProjectCosts(
             }
         }
 
-        // 確定済み仕入請求書を費目の集計先(costBucket)ごとに原価へ上乗せ
+        // 確定済み仕入請求書の案件配分を費目の集計先(costBucket)ごとに原価へ上乗せ（配分なし＝請求書原価0）
         const invoiceRows: PurchaseInvoiceCostRow[] = [];
         let invMaterial = 0, invOther = 0, invLoading = 0;
-        for (const pi of pm.purchaseInvoices) {
-            const amount = Number(pi.totalAmount || 0);
+        for (const al of pm.purchaseInvoiceAllocations ?? []) {
+            const amount = Number(al.amount || 0);
             if (amount <= 0) continue;
-            const bucket = pi.expenseCategory?.costBucket ?? 'other';
+            const bucket = al.expenseCategory?.costBucket ?? 'other';
             if (bucket === 'material') invMaterial += amount;
             else if (bucket === 'loading') invLoading += amount;
             else invOther += amount;
             if (opts.withDetail) {
                 invoiceRows.push({
-                    invoiceId: pi.id,
-                    payeeName: pi.payeeName,
-                    categoryName: pi.expenseCategory?.name ?? null,
+                    invoiceId: al.purchaseInvoice.id,
+                    payeeName: al.purchaseInvoice.payeeName,
+                    categoryName: al.expenseCategory?.name ?? null,
                     bucket,
-                    date: pi.issueDate ? jstDateStr(pi.issueDate) : '',
+                    date: al.purchaseInvoice.issueDate ? jstDateStr(al.purchaseInvoice.issueDate) : '',
                     amount,
                 });
             }

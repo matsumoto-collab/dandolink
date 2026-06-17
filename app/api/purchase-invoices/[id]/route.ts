@@ -63,12 +63,33 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
             if (!EDITABLE_STATUS.includes(body.status)) return errorResponse('このステータスへは変更できません', 400);
             data.status = body.status;
         }
-        if (Object.keys(data).length === 0) return errorResponse('更新対象が指定されていません', 400);
+
+        // 案件配分（全置換）。下書き保存なので緩く許容＝完全な空行は捨て、合計一致などの厳密チェックは確定時に行う。
+        const hasAllocations = Array.isArray(body.allocations);
+        if (Object.keys(data).length === 0 && !hasAllocations) return errorResponse('更新対象が指定されていません', 400);
 
         const exists = await prisma.purchaseInvoice.findUnique({ where: { id }, select: { id: true } });
         if (!exists) return notFoundResponse('仕入請求書');
 
-        const updated = await prisma.purchaseInvoice.update({ where: { id }, data, include: INVOICE_INCLUDE });
+        const updated = await prisma.$transaction(async (tx) => {
+            if (Object.keys(data).length > 0) {
+                await tx.purchaseInvoice.update({ where: { id }, data });
+            }
+            if (hasAllocations) {
+                await tx.purchaseInvoiceAllocation.deleteMany({ where: { purchaseInvoiceId: id } });
+                const rows = (body.allocations as Array<{ projectMasterId?: string | null; expenseCategoryId?: string | null; amount?: unknown }>)
+                    .map((a, i) => ({
+                        purchaseInvoiceId: id,
+                        projectMasterId: a.projectMasterId || null,
+                        expenseCategoryId: a.expenseCategoryId || null,
+                        amount: amt(a.amount) ?? 0,
+                        sortOrder: i,
+                    }))
+                    .filter((r) => r.projectMasterId || r.amount > 0); // 完全に空の行は捨てる
+                if (rows.length > 0) await tx.purchaseInvoiceAllocation.createMany({ data: rows });
+            }
+            return tx.purchaseInvoice.findUnique({ where: { id }, include: INVOICE_INCLUDE });
+        });
         return NextResponse.json(updated);
     } catch (error) {
         return serverErrorResponse('仕入請求書の更新', error);

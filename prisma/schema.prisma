@@ -99,6 +99,7 @@ model ProjectMaster {
   billingDrafts              BillingDraft[]
   safetyDocuments            SafetyDocument[]
   purchaseInvoices           PurchaseInvoice[]
+  purchaseInvoiceAllocations PurchaseInvoiceAllocation[]
 
   @@index([title])
   @@index([customerId])
@@ -2192,6 +2193,7 @@ model ExpenseCategory {
   updatedAt  DateTime @updatedAt
 
   purchaseInvoices PurchaseInvoice[]
+  allocations      PurchaseInvoiceAllocation[]
 
   @@index([sortOrder])
   @@index([isActive])
@@ -2250,6 +2252,7 @@ model PurchaseInvoice {
   expenseCategory ExpenseCategory?      @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
   payee           Payee?                @relation(fields: [payeeId], references: [id], onDelete: SetNull)
   items           PurchaseInvoiceItem[]
+  allocations     PurchaseInvoiceAllocation[]
 
   @@index([status])
   @@index([projectMasterId])
@@ -2273,5 +2276,26 @@ model PurchaseInvoiceItem {
   purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
 
   @@index([purchaseInvoiceId])
+  @@schema("public")
+}
+
+/// 仕入請求書の案件配分行（1枚を複数案件へ按分計上するための行：案件×費目×金額）。
+/// 原価エンジンは確定済み請求書のこの配分行を案件ごとに集計する。支払い自体は請求書1枚=1本のまま。
+model PurchaseInvoiceAllocation {
+  id                String   @id @default(uuid())
+  purchaseInvoiceId String
+  projectMasterId   String? // 案件削除時は SetNull（その案件分の原価計上は外れる）
+  expenseCategoryId String? // 費目（原価バケット決定用）。配分行ごとに指定可
+  amount            Decimal  @db.Decimal(12, 2) // この案件に配分する税込金額
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  purchaseInvoice PurchaseInvoice  @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  projectMaster   ProjectMaster?   @relation(fields: [projectMasterId], references: [id], onDelete: SetNull)
+  expenseCategory ExpenseCategory? @relation(fields: [expenseCategoryId], references: [id], onDelete: SetNull)
+
+  @@index([purchaseInvoiceId])
+  @@index([projectMasterId])
   @@schema("public")
 }

@@ -23,6 +23,17 @@ export interface ProjectMasterRef {
     name: string | null;
 }
 
+// 仕入請求書の案件配分行（1枚を複数案件へ按分計上する1行＝案件×費目×金額）。
+export interface PurchaseInvoiceAllocation {
+    id: string;
+    projectMasterId: string | null;
+    expenseCategoryId: string | null;
+    amount: number | string | null;
+    sortOrder: number;
+    projectMaster: ProjectMasterRef | null;
+    expenseCategory: ExpenseCategoryRef | null;
+}
+
 export interface PayeeRef {
     id: string;
     name: string;
@@ -61,6 +72,7 @@ export interface PurchaseInvoice {
     paymentScheduleId: string | null;
     createdAt: string;
     items: PurchaseInvoiceItem[];
+    allocations: PurchaseInvoiceAllocation[];
     expenseCategory: ExpenseCategoryRef | null;
     projectMaster: ProjectMasterRef | null;
     payee: PayeeRef | null;

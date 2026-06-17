@@ -15,15 +15,26 @@ export async function POST(_req: NextRequest, context: RouteContext) {
         if (error) return error;
 
         const { id } = await context.params;
-        const inv = await prisma.purchaseInvoice.findUnique({ where: { id } });
+        const inv = await prisma.purchaseInvoice.findUnique({ where: { id }, include: { allocations: true } });
         if (!inv) return notFoundResponse('仕入請求書');
         if (inv.status === 'confirmed') return errorResponse('既に確定済みです', 400);
 
-        // 原価・支払予定に必要な項目の検証
-        if (!inv.projectMasterId) return errorResponse('紐付け案件を選択してください', 400);
-        if (!inv.expenseCategoryId) return errorResponse('費目を選択してください', 400);
+        // 支払予定に必要な項目の検証
         if (inv.totalAmount == null || Number(inv.totalAmount) <= 0) return errorResponse('税込金額を入力してください', 400);
         if (!inv.payeeName) return errorResponse('支払先を入力してください', 400);
+
+        // 原価計上に必要な案件配分の検証
+        const allocations = inv.allocations;
+        if (allocations.length === 0) return errorResponse('案件への配分を1件以上入力してください', 400);
+        for (const al of allocations) {
+            if (!al.projectMasterId) return errorResponse('配分の案件をすべて選択してください', 400);
+            if (!al.expenseCategoryId) return errorResponse('配分の費目をすべて選択してください', 400);
+            if (al.amount == null || Number(al.amount) <= 0) return errorResponse('配分の金額をすべて入力してください', 400);
+        }
+        const allocTotal = allocations.reduce((s, al) => s + Number(al.amount || 0), 0);
+        if (allocTotal !== Number(inv.totalAmount)) {
+            return errorResponse(`配分の合計¥${allocTotal.toLocaleString()}が税込金額¥${Number(inv.totalAmount).toLocaleString()}と一致しません`, 400);
+        }
 
         // 振込日: 支払期日 → 発行日 → 今日 の順で採用
         const paymentDate = inv.dueDate ?? inv.issueDate ?? new Date();

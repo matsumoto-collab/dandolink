@@ -9,6 +9,10 @@ export const INVOICE_INCLUDE = {
     expenseCategory: true,
     projectMaster: true,
     payee: true,
+    allocations: {
+        include: { projectMaster: true, expenseCategory: true },
+        orderBy: { sortOrder: 'asc' as const },
+    },
 };
 
 // 'YYYY-MM-DD' を UTC 0時の Date に。不正・空は null。

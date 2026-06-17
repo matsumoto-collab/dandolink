@@ -21,6 +21,20 @@ const fmtDate = (s: string | null) => {
     return `${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`;
 };
 
+const uniq = (arr: string[]) => Array.from(new Set(arr));
+// カード表示用の案件名チップ。配分があれば配分の案件名（重複除去）、無ければ旧単一フィールドにフォールバック。
+const projectChips = (inv: PurchaseInvoice): string[] => {
+    const fromAlloc = uniq((inv.allocations ?? []).map((a) => (a.projectMaster ? a.projectMaster.name || a.projectMaster.title : '')).filter(Boolean));
+    if (fromAlloc.length > 0) return fromAlloc;
+    return inv.projectMaster ? [inv.projectMaster.name || inv.projectMaster.title] : [];
+};
+// カード表示用の費目名チップ。同上のフォールバック。
+const categoryChips = (inv: PurchaseInvoice): string[] => {
+    const fromAlloc = uniq((inv.allocations ?? []).map((a) => a.expenseCategory?.name ?? '').filter(Boolean));
+    if (fromAlloc.length > 0) return fromAlloc;
+    return inv.expenseCategory ? [inv.expenseCategory.name] : [];
+};
+
 export default function PurchaseInvoicesPage() {
     const [activeTab, setActiveTab] = useState<(typeof TABS)[number]['id']>('pending');
     const [invoices, setInvoices] = useState<PurchaseInvoice[]>([]);
@@ -162,18 +176,30 @@ export default function PurchaseInvoicesPage() {
                                 <div className="font-medium text-slate-900 truncate">{inv.payeeName || '（支払先 未取得）'}</div>
                                 <div className="text-lg font-bold text-slate-900 mt-0.5">{yen(inv.totalAmount)}</div>
                                 <div className="text-xs text-slate-500 mt-1">発行 {fmtDate(inv.issueDate)}</div>
-                                <div className="flex flex-wrap gap-1 mt-2">
-                                    {inv.expenseCategory && (
-                                        <span className="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200">{inv.expenseCategory.name}</span>
-                                    )}
-                                    {inv.projectMaster ? (
-                                        <span className="px-2 py-0.5 text-xs rounded-full bg-teal-50 text-teal-700 border border-teal-200 truncate max-w-full">
-                                            {inv.projectMaster.name || inv.projectMaster.title}
-                                        </span>
-                                    ) : (
-                                        <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-500 border border-slate-200">案件 未割当</span>
-                                    )}
-                                </div>
+                                {(() => {
+                                    const projs = projectChips(inv);
+                                    const cats = categoryChips(inv);
+                                    return (
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {cats.length > 0 && (
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200 truncate max-w-full">{cats[0]}</span>
+                                            )}
+                                            {cats.length > 1 && (
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200">ほか{cats.length - 1}件</span>
+                                            )}
+                                            {projs.length > 0 ? (
+                                                <>
+                                                    <span className="px-2 py-0.5 text-xs rounded-full bg-teal-50 text-teal-700 border border-teal-200 truncate max-w-full">{projs[0]}</span>
+                                                    {projs.length > 1 && (
+                                                        <span className="px-2 py-0.5 text-xs rounded-full bg-teal-50 text-teal-700 border border-teal-200">ほか{projs.length - 1}件</span>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-500 border border-slate-200">案件 未割当</span>
+                                            )}
+                                        </div>
+                                    );
+                                })()}
                             </div>
                         </button>
                     ))}

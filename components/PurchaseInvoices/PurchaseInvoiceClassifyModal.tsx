@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, Loader2, Trash2, Search, RefreshCw, Save, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Loader2, Trash2, Search, RefreshCw, Save, ExternalLink, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import type { PurchaseInvoice, ExpenseCategoryRef, PayeeRef, ProjectMasterRef } from '@/types/purchaseInvoice';
@@ -10,6 +10,15 @@ interface Props {
     invoice: PurchaseInvoice;
     onClose: () => void;
     onSaved: () => void;
+}
+
+// 画面上で編集する1配分行（案件×費目×金額）。amount は入力文字列で保持する。
+interface AllocationRow {
+    key: string;
+    projectMasterId: string;
+    projectLabel: string;
+    expenseCategoryId: string;
+    amount: string;
 }
 
 const toInputDate = (s: string | null) => {
@@ -25,6 +34,30 @@ function projectHintOf(inv: PurchaseInvoice): string | null {
     return d && typeof d.projectHint === 'string' && d.projectHint ? d.projectHint : null;
 }
 
+// 初期配分行を決める。①既存の配分があればそれを使う ②無ければ旧単一フィールドから1行を生成（移行期の互換）
+// ③どちらも無ければ費目だけAI推定を入れた空1行。
+function initialAllocations(inv: PurchaseInvoice): AllocationRow[] {
+    if (inv.allocations && inv.allocations.length > 0) {
+        return inv.allocations.map((a) => ({
+            key: a.id,
+            projectMasterId: a.projectMasterId ?? '',
+            projectLabel: a.projectMaster ? a.projectMaster.name || a.projectMaster.title : '',
+            expenseCategoryId: a.expenseCategoryId ?? '',
+            amount: toAmountStr(a.amount),
+        }));
+    }
+    if (inv.projectMasterId) {
+        return [{
+            key: 'init-0',
+            projectMasterId: inv.projectMasterId,
+            projectLabel: inv.projectMaster ? inv.projectMaster.name || inv.projectMaster.title : '',
+            expenseCategoryId: inv.expenseCategoryId ?? '',
+            amount: toAmountStr(inv.totalAmount),
+        }];
+    }
+    return [{ key: 'init-0', projectMasterId: '', projectLabel: '', expenseCategoryId: inv.expenseCategoryId ?? '', amount: '' }];
+}
+
 export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved }: Props) {
     const [payeeName, setPayeeName] = useState(invoice.payeeName ?? '');
     const [payeeId, setPayeeId] = useState(invoice.payeeId ?? '');
@@ -32,7 +65,8 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
     const [dueDate, setDueDate] = useState(toInputDate(invoice.dueDate));
     const [totalAmount, setTotalAmount] = useState(toAmountStr(invoice.totalAmount));
     const [taxAmount, setTaxAmount] = useState(toAmountStr(invoice.taxAmount));
-    const [expenseCategoryId, setExpenseCategoryId] = useState(invoice.expenseCategoryId ?? '');
+    // AIが推定した費目。新しい配分行の初期費目に使う（既存行の費目は上書きしない）。
+    const [aiCategoryId, setAiCategoryId] = useState(invoice.expenseCategoryId ?? '');
     const [notes, setNotes] = useState(invoice.notes ?? '');
     const [payeeKana, setPayeeKana] = useState(invoice.payeeKana ?? '');
     const [bankName, setBankName] = useState(invoice.bankName ?? '');
@@ -44,18 +78,12 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
         !!(invoice.bankName || invoice.accountNumber || invoice.accountHolder)
     );
 
-    const [projectMasterId, setProjectMasterId] = useState(invoice.projectMasterId ?? '');
-    const [selectedProjectLabel, setSelectedProjectLabel] = useState(
-        invoice.projectMaster ? invoice.projectMaster.name || invoice.projectMaster.title : ''
-    );
+    const [allocations, setAllocations] = useState<AllocationRow[]>(() => initialAllocations(invoice));
+    const keyCounter = useRef(0);
+    const newKey = () => `new-${keyCounter.current++}`;
 
     const [categories, setCategories] = useState<ExpenseCategoryRef[]>([]);
     const [payees, setPayees] = useState<PayeeRef[]>([]);
-
-    const [projectQuery, setProjectQuery] = useState('');
-    const [projectResults, setProjectResults] = useState<ProjectMasterRef[]>([]);
-    const [searchingProject, setSearchingProject] = useState(false);
-    const [showProjectSearch, setShowProjectSearch] = useState(!invoice.projectMasterId);
 
     const [saving, setSaving] = useState(false);
     const [deleting, setDeleting] = useState(false);
@@ -78,43 +106,25 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
         })();
     }, []);
 
-    useEffect(() => {
-        if (!showProjectSearch) return;
-        const q = projectQuery.trim();
-        const h = setTimeout(async () => {
-            setSearchingProject(true);
-            try {
-                const url = q
-                    ? `/api/project-masters?status=active&search=${encodeURIComponent(q)}`
-                    : '/api/project-masters?status=active';
-                const res = await fetch(url, { cache: 'no-store' });
-                if (res.ok) {
-                    const data = await res.json();
-                    const list: Array<{ id: string; title: string; name: string | null }> = Array.isArray(data)
-                        ? data
-                        : data.items ?? data.projectMasters ?? [];
-                    setProjectResults(list.slice(0, 30).map((p) => ({ id: p.id, title: p.title, name: p.name ?? null })));
-                }
-            } catch (e) {
-                logger.error('project search failed', e);
-            } finally {
-                setSearchingProject(false);
-            }
-        }, 300);
-        return () => clearTimeout(h);
-    }, [projectQuery, showProjectSearch]);
+    // 配分の集計（税込金額との差額をリアルタイム表示・確定可否に使う）
+    const totalNum = Number(totalAmount) || 0;
+    const allocTotal = allocations.reduce((s, a) => s + (Number(a.amount) || 0), 0);
+    const remainder = totalNum - allocTotal;
+    const allocationsValid = allocations.length > 0 && allocations.every((a) => a.projectMasterId && a.expenseCategoryId && Number(a.amount) > 0);
 
-    const selectProject = (p: ProjectMasterRef) => {
-        setProjectMasterId(p.id);
-        setSelectedProjectLabel(p.name || p.title);
-        setShowProjectSearch(false);
-        setProjectQuery('');
-    };
-    const clearProject = () => {
-        setProjectMasterId('');
-        setSelectedProjectLabel('');
-        setShowProjectSearch(true);
-    };
+    const updateRow = (key: string, patch: Partial<AllocationRow>) =>
+        setAllocations((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
+    const removeRow = (key: string) =>
+        setAllocations((prev) => (prev.length <= 1 ? prev : prev.filter((r) => r.key !== key)));
+    const addRow = () =>
+        setAllocations((prev) => [...prev, { key: newKey(), projectMasterId: '', projectLabel: '', expenseCategoryId: aiCategoryId, amount: '' }]);
+    // 残額（税込−配分合計）をこの行に足し込み、合計を税込金額にぴったり合わせる。
+    const applyRemainderTo = (key: string) =>
+        setAllocations((prev) => prev.map((r) => {
+            if (r.key !== key) return r;
+            const next = (Number(r.amount) || 0) + remainder;
+            return { ...r, amount: next > 0 ? String(next) : '0' };
+        }));
 
     const onSelectPayee = (id: string) => {
         setPayeeId(id);
@@ -132,31 +142,36 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
         }
     };
 
+    // 保存・確定で共通の本文。新UIは配分(allocations)を送り、旧 projectMasterId/expenseCategoryId 単一は送らない。
+    const buildBody = (nextStatus?: string): Record<string, unknown> => ({
+        payeeName,
+        payeeId: payeeId || null,
+        issueDate: issueDate || null,
+        dueDate: dueDate || null,
+        totalAmount: totalAmount || null,
+        taxAmount: taxAmount || null,
+        notes,
+        payeeKana: payeeKana || null,
+        bankName: bankName || null,
+        branchName: branchName || null,
+        accountType: accountType || null,
+        accountNumber: accountNumber || null,
+        accountHolder: accountHolder || null,
+        allocations: allocations.map((a) => ({
+            projectMasterId: a.projectMasterId || null,
+            expenseCategoryId: a.expenseCategoryId || null,
+            amount: a.amount || null,
+        })),
+        ...(nextStatus ? { status: nextStatus } : {}),
+    });
+
     const save = async (nextStatus?: string) => {
         setSaving(true);
         try {
-            const body: Record<string, unknown> = {
-                payeeName,
-                payeeId: payeeId || null,
-                issueDate: issueDate || null,
-                dueDate: dueDate || null,
-                totalAmount: totalAmount || null,
-                taxAmount: taxAmount || null,
-                expenseCategoryId: expenseCategoryId || null,
-                projectMasterId: projectMasterId || null,
-                notes,
-                payeeKana: payeeKana || null,
-                bankName: bankName || null,
-                branchName: branchName || null,
-                accountType: accountType || null,
-                accountNumber: accountNumber || null,
-                accountHolder: accountHolder || null,
-            };
-            if (nextStatus) body.status = nextStatus;
             const res = await fetch(`/api/purchase-invoices/${invoice.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body),
+                body: JSON.stringify(buildBody(nextStatus)),
             });
             if (res.ok) {
                 toast.success('保存しました');
@@ -200,7 +215,7 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                 setDueDate(toInputDate(data.dueDate));
                 setTotalAmount(toAmountStr(data.totalAmount));
                 setTaxAmount(toAmountStr(data.taxAmount));
-                if (data.expenseCategoryId) setExpenseCategoryId(data.expenseCategoryId);
+                if (data.expenseCategoryId) setAiCategoryId(data.expenseCategoryId);
                 setPayeeKana(data.payeeKana ?? '');
                 setBankName(data.bankName ?? '');
                 setBranchName(data.branchName ?? '');
@@ -221,32 +236,24 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
     };
 
     const isConfirmed = invoice.status === 'confirmed';
-    const canConfirm = !!projectMasterId && !!expenseCategoryId && !!totalAmount && !!payeeName.trim();
+    const canConfirm = !!payeeName.trim() && totalNum > 0 && allocationsValid && remainder === 0;
+    const confirmHint = !payeeName.trim()
+        ? '支払先を入力してください'
+        : totalNum <= 0
+            ? '税込金額を入力してください'
+            : !allocationsValid
+                ? '各配分に案件・費目・金額を入力してください'
+                : remainder !== 0
+                    ? '配分の合計を税込金額に一致させてください'
+                    : undefined;
 
     const handleConfirm = async () => {
         setConfirming(true);
         try {
-            const saveBody = {
-                payeeName,
-                payeeId: payeeId || null,
-                issueDate: issueDate || null,
-                dueDate: dueDate || null,
-                totalAmount: totalAmount || null,
-                taxAmount: taxAmount || null,
-                expenseCategoryId: expenseCategoryId || null,
-                projectMasterId: projectMasterId || null,
-                notes,
-                payeeKana: payeeKana || null,
-                bankName: bankName || null,
-                branchName: branchName || null,
-                accountType: accountType || null,
-                accountNumber: accountNumber || null,
-                accountHolder: accountHolder || null,
-            };
             const sres = await fetch(`/api/purchase-invoices/${invoice.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(saveBody),
+                body: JSON.stringify(buildBody()),
             });
             if (!sres.ok) {
                 const e = await sres.json().catch(() => ({}));
@@ -270,6 +277,7 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
 
     const isImage = invoice.mimeType.startsWith('image/');
     const hint = projectHintOf(invoice);
+    const hasUnassigned = allocations.some((r) => !r.projectMasterId);
 
     return (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2 sm:p-4" onClick={onClose}>
@@ -340,38 +348,36 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                             </div>
                         </div>
 
+                        {/* 案件への配分（1枚を複数案件へ按分） */}
                         <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">費目</label>
-                            <select value={expenseCategoryId} onChange={(e) => setExpenseCategoryId(e.target.value)} className="w-full px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-slate-500">
-                                <option value="">未選択</option>
-                                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">紐付け案件</label>
-                            {!showProjectSearch && projectMasterId ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="flex-1 px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl text-teal-800 text-sm truncate">{selectedProjectLabel}</span>
-                                    <button onClick={clearProject} className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">変更</button>
-                                </div>
-                            ) : (
-                                <div>
-                                    <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl">
-                                        <Search className="w-4 h-4 text-slate-400" />
-                                        <input value={projectQuery} onChange={(e) => setProjectQuery(e.target.value)} className="flex-1 outline-none text-sm" placeholder="案件名・現場名で検索" />
-                                        {searchingProject && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-                                    </div>
-                                    {projectResults.length > 0 && (
-                                        <div className="mt-1 max-h-44 overflow-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
-                                            {projectResults.map((p) => (
-                                                <button key={p.id} onClick={() => selectProject(p)} className="w-full text-left px-3 py-2 text-sm hover:bg-slate-50 truncate">{p.name || p.title}</button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            {hint && !projectMasterId && <p className="text-xs text-slate-400 mt-1">AIヒント: {hint}</p>}
+                            <div className="flex items-center justify-between mb-1">
+                                <label className="block text-xs font-semibold text-slate-600">案件への配分</label>
+                                <button type="button" onClick={addRow} className="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 hover:text-teal-800">
+                                    <Plus className="w-3.5 h-3.5" />案件を追加
+                                </button>
+                            </div>
+                            <div className="space-y-2">
+                                {allocations.map((row) => (
+                                    <AllocationRowEditor
+                                        key={row.key}
+                                        row={row}
+                                        categories={categories}
+                                        canRemove={allocations.length > 1}
+                                        remainder={remainder}
+                                        onChange={(patch) => updateRow(row.key, patch)}
+                                        onRemove={() => removeRow(row.key)}
+                                        onApplyRemainder={() => applyRemainderTo(row.key)}
+                                    />
+                                ))}
+                            </div>
+                            {/* 合計バー */}
+                            <div className={`mt-2 flex items-center justify-between px-3 py-2 rounded-xl border text-sm ${remainder === 0 && totalNum > 0 ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                                <span>配分 <strong>¥{allocTotal.toLocaleString()}</strong> / 税込 ¥{totalNum.toLocaleString()}</span>
+                                <span className="font-semibold">
+                                    {totalNum === 0 ? '税込金額を入力' : remainder === 0 ? '✓ 一致' : remainder > 0 ? `残り ¥${remainder.toLocaleString()}` : `超過 ¥${(-remainder).toLocaleString()}`}
+                                </span>
+                            </div>
+                            {hint && hasUnassigned && <p className="text-xs text-slate-400 mt-1">AIヒント: {hint}</p>}
                         </div>
 
                         <div>
@@ -449,7 +455,7 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                                 <button
                                     onClick={handleConfirm}
                                     disabled={!canConfirm || confirming || saving}
-                                    title={!canConfirm ? '支払先・税込金額・費目・案件を入力してください' : undefined}
+                                    title={confirmHint}
                                     className="px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium inline-flex items-center gap-2 disabled:opacity-50"
                                 >
                                     {confirming ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -460,6 +466,115 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+// 1配分行のエディタ。案件検索（デバウンス）を行ごとに自前で持つ。
+function AllocationRowEditor({
+    row,
+    categories,
+    canRemove,
+    remainder,
+    onChange,
+    onRemove,
+    onApplyRemainder,
+}: {
+    row: AllocationRow;
+    categories: ExpenseCategoryRef[];
+    canRemove: boolean;
+    remainder: number;
+    onChange: (patch: Partial<AllocationRow>) => void;
+    onRemove: () => void;
+    onApplyRemainder: () => void;
+}) {
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState<ProjectMasterRef[]>([]);
+    const [searching, setSearching] = useState(false);
+    const [editingProject, setEditingProject] = useState(!row.projectMasterId);
+
+    useEffect(() => {
+        if (!editingProject) return;
+        const q = query.trim();
+        const h = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const url = q
+                    ? `/api/project-masters?status=active&search=${encodeURIComponent(q)}`
+                    : '/api/project-masters?status=active';
+                const res = await fetch(url, { cache: 'no-store' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const list: Array<{ id: string; title: string; name: string | null }> = Array.isArray(data)
+                        ? data
+                        : data.items ?? data.projectMasters ?? [];
+                    setResults(list.slice(0, 30).map((p) => ({ id: p.id, title: p.title, name: p.name ?? null })));
+                }
+            } catch (e) {
+                logger.error('project search failed', e);
+            } finally {
+                setSearching(false);
+            }
+        }, 300);
+        return () => clearTimeout(h);
+    }, [query, editingProject]);
+
+    const pick = (p: ProjectMasterRef) => {
+        onChange({ projectMasterId: p.id, projectLabel: p.name || p.title });
+        setEditingProject(false);
+        setQuery('');
+        setResults([]);
+    };
+
+    return (
+        <div className="p-2.5 border border-slate-200 rounded-xl bg-slate-50 space-y-2">
+            {/* 案件 */}
+            {!editingProject && row.projectMasterId ? (
+                <div className="flex items-center gap-2">
+                    <span className="flex-1 px-2.5 py-1.5 bg-teal-50 border border-teal-200 rounded-lg text-teal-800 text-sm truncate">{row.projectLabel || '（案件名 未取得）'}</span>
+                    <button type="button" onClick={() => setEditingProject(true)} className="px-2.5 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-white">変更</button>
+                    {canRemove && (
+                        <button type="button" onClick={onRemove} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg" title="この配分を削除"><Trash2 className="w-4 h-4" /></button>
+                    )}
+                </div>
+            ) : (
+                <div className="flex items-start gap-2">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white">
+                            <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                            <input value={query} onChange={(e) => setQuery(e.target.value)} className="flex-1 min-w-0 outline-none text-sm bg-transparent" placeholder="案件名・現場名で検索" />
+                            {searching && <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />}
+                        </div>
+                        {results.length > 0 && (
+                            <div className="mt-1 max-h-40 overflow-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
+                                {results.map((p) => (
+                                    <button type="button" key={p.id} onClick={() => pick(p)} className="w-full text-left px-2.5 py-1.5 text-sm hover:bg-slate-50 truncate">{p.name || p.title}</button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    {canRemove && (
+                        <button type="button" onClick={onRemove} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg shrink-0" title="この配分を削除"><Trash2 className="w-4 h-4" /></button>
+                    )}
+                </div>
+            )}
+            {/* 費目 + 金額 */}
+            <div className="flex items-center gap-2">
+                <select value={row.expenseCategoryId} onChange={(e) => onChange({ expenseCategoryId: e.target.value })} className="flex-1 min-w-0 px-2.5 py-1.5 border border-slate-200 rounded-lg bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-500">
+                    <option value="">費目を選択</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className="text-slate-400 text-sm">¥</span>
+                    <input inputMode="numeric" value={row.amount} onChange={(e) => onChange({ amount: e.target.value.replace(/[^0-9]/g, '') })} className="w-28 px-2.5 py-1.5 border border-slate-200 rounded-lg text-sm text-right focus:outline-none focus:ring-2 focus:ring-slate-500" placeholder="0" />
+                </div>
+            </div>
+            {/* 残額充当 */}
+            {remainder !== 0 && (
+                <button type="button" onClick={onApplyRemainder} className="text-xs text-teal-700 hover:underline">
+                    残額 ¥{Math.abs(remainder).toLocaleString()} を{remainder > 0 ? 'この行に充当' : 'この行から差引'}
+                </button>
+            )}
         </div>
     );
 }
