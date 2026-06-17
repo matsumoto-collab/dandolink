@@ -5,6 +5,7 @@ import {
     errorResponse,
     serverErrorResponse,
     validationErrorResponse,
+    parseJsonField,
 } from '@/lib/api/utils';
 
 const ADMIN_ROLES = ['admin', 'manager'];
@@ -64,17 +65,59 @@ export async function POST(req: NextRequest) {
             // 公開前の軽量ガード: 保存済みの有効行が 1 件以上あり、全て完了していること。
             // 未保存の自動行までは見ない（取りこぼしても閲覧側は「全行完了 && 公開」の
             // AND 判定なので、未完了の月が協力業者に見えることはない）。
+            //
+            // ただし「常用(joyo)化した配置の残骸 work/transport 行」は GET の monthStatus が
+            // 有効行から除外している（その配置は今は別職長班の常用配置で、出来高は joyo 行で表すため）。
+            // ガードがこの残骸行を完了判定に含めると、UI が「全行完了」でも公開できなくなるので、
+            // GET と同じ有効行集合（残骸 joyo 行を除外）で判定する。
             const start = new Date(Date.UTC(year, month - 1, 1));
             const end = new Date(Date.UTC(year, month, 1));
+            // 配置(DateTime)は実時刻入り・表示は JST 日付なので、常用判定は JST 日境界で配置を絞る。
+            const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+            const jstStart = new Date(start.getTime() - JST_OFFSET_MS);
+            const jstEnd = new Date(end.getTime() - JST_OFFSET_MS);
+
+            // 会社メンバー（所属メンバー + 会社本体 id）
+            const members = await prisma.user.findMany({
+                where: { companyId: body.companyId },
+                select: { id: true },
+            });
+            const memberIds = new Set<string>(members.map((m) => m.id));
+            memberIds.add(body.companyId);
+
+            // 当月の配置から「常用(joyo)化した配置」を特定する。
+            // = 自社が職長(assignedEmployeeId)ではないが、自社メンバーが confirmedWorkerIds に含まれる配置。
+            const monthAssignments = await prisma.projectAssignment.findMany({
+                where: { date: { gte: jstStart, lt: jstEnd } },
+                select: { id: true, assignedEmployeeId: true, confirmedWorkerIds: true },
+            });
+            const joyoAssignmentIdSet = new Set<string>();
+            for (const a of monthAssignments) {
+                if (a.assignedEmployeeId === body.companyId) continue;
+                const confirmed = parseJsonField<string[]>(a.confirmedWorkerIds, []);
+                if (confirmed.some((id) => memberIds.has(id))) {
+                    joyoAssignmentIdSet.add(a.id);
+                }
+            }
+
             const rows = await prisma.partnerWorkVolume.findMany({
                 where: {
                     partnerCompanyId: body.companyId,
                     date: { gte: start, lt: end },
                     deletedAt: null,
                 },
-                select: { status: true },
+                select: { status: true, rowType: true, sourceAssignmentId: true },
             });
-            if (rows.length === 0 || rows.some((r) => r.status !== 'completed')) {
+            // GET monthStatus と同じ有効行集合（残骸 joyo 行を除外）で全行完了を判定する。
+            const effectiveRows = rows.filter(
+                (r) =>
+                    !(
+                        r.rowType !== 'joyo' &&
+                        r.sourceAssignmentId &&
+                        joyoAssignmentIdSet.has(r.sourceAssignmentId)
+                    ),
+            );
+            if (effectiveRows.length === 0 || effectiveRows.some((r) => r.status !== 'completed')) {
                 return errorResponse('全行が完了になっていないため公開できません', 400);
             }
         }
