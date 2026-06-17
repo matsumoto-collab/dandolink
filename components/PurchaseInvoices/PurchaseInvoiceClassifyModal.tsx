@@ -236,15 +236,16 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
     };
 
     const isConfirmed = invoice.status === 'confirmed';
-    const canConfirm = !!payeeName.trim() && totalNum > 0 && allocationsValid && remainder === 0;
+    // 不足（残額あり）は確定可。超過（配分が税込を超える）は不可。
+    const canConfirm = !!payeeName.trim() && totalNum > 0 && allocationsValid && remainder >= 0;
     const confirmHint = !payeeName.trim()
         ? '支払先を入力してください'
         : totalNum <= 0
             ? '税込金額を入力してください'
             : !allocationsValid
                 ? '各配分に案件・費目・金額を入力してください'
-                : remainder !== 0
-                    ? '配分の合計を税込金額に一致させてください'
+                : remainder < 0
+                    ? '配分の合計が税込金額を超えています'
                     : undefined;
 
     const handleConfirm = async () => {
@@ -370,11 +371,11 @@ export default function PurchaseInvoiceClassifyModal({ invoice, onClose, onSaved
                                     />
                                 ))}
                             </div>
-                            {/* 合計バー */}
-                            <div className={`mt-2 flex items-center justify-between px-3 py-2 rounded-xl border text-sm ${remainder === 0 && totalNum > 0 ? 'bg-teal-50 border-teal-200 text-teal-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                            {/* 合計バー（一致=ティール／不足=アンバー・確定可／超過=赤・確定不可） */}
+                            <div className={`mt-2 flex items-center justify-between px-3 py-2 rounded-xl border text-sm ${totalNum > 0 && remainder === 0 ? 'bg-teal-50 border-teal-200 text-teal-800' : remainder < 0 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
                                 <span>配分 <strong>¥{allocTotal.toLocaleString()}</strong> / 税込 ¥{totalNum.toLocaleString()}</span>
                                 <span className="font-semibold">
-                                    {totalNum === 0 ? '税込金額を入力' : remainder === 0 ? '✓ 一致' : remainder > 0 ? `残り ¥${remainder.toLocaleString()}` : `超過 ¥${(-remainder).toLocaleString()}`}
+                                    {totalNum === 0 ? '税込金額を入力' : remainder === 0 ? '✓ 一致' : remainder > 0 ? `残り ¥${remainder.toLocaleString()}（原価未計上）` : `超過 ¥${(-remainder).toLocaleString()}`}
                                 </span>
                             </div>
                             {hint && hasUnassigned && <p className="text-xs text-slate-400 mt-1">AIヒント: {hint}</p>}

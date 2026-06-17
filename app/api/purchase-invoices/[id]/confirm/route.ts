@@ -31,9 +31,10 @@ export async function POST(_req: NextRequest, context: RouteContext) {
             if (!al.expenseCategoryId) return errorResponse('配分の費目をすべて選択してください', 400);
             if (al.amount == null || Number(al.amount) <= 0) return errorResponse('配分の金額をすべて入力してください', 400);
         }
+        // 配分合計が税込金額を「超える」のは不可（原価が支払額を上回る＝入力ミス）。不足（残額）は許可し、残額は原価未計上。
         const allocTotal = allocations.reduce((s, al) => s + Number(al.amount || 0), 0);
-        if (allocTotal !== Number(inv.totalAmount)) {
-            return errorResponse(`配分の合計¥${allocTotal.toLocaleString()}が税込金額¥${Number(inv.totalAmount).toLocaleString()}と一致しません`, 400);
+        if (allocTotal > Number(inv.totalAmount)) {
+            return errorResponse(`配分の合計¥${allocTotal.toLocaleString()}が税込金額¥${Number(inv.totalAmount).toLocaleString()}を超えています`, 400);
         }
 
         // 振込日: 支払期日 → 発行日 → 今日 の順で採用
