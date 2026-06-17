@@ -324,11 +324,11 @@ describe('DispatchConfirmModal', () => {
         expect(mockUpdateProject).not.toHaveBeenCalledWith('p3', expect.anything());
     });
 
-    it('should propagate member/vehicle changes to same-team same-day siblings and skip completed ones', async () => {
+    it('should propagate member/vehicle changes to same-team same-day siblings including completed ones', async () => {
         (useProjects as jest.Mock).mockReturnValue({
             projects: [
                 { id: 'p2', title: 'P2', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true },                                              // 同班・同日 → 反映
-                { id: 'p3', title: 'P3', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true, workEndedAt: new Date('2024-01-01T08:00:00Z') }, // 作業完了済み → スキップ
+                { id: 'p3', title: 'P3', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f1', isDispatchConfirmed: true, workEndedAt: new Date('2024-01-01T08:00:00Z') }, // 作業完了済み → 反映（完了後の手配確定でも連動）
                 { id: 'p4', title: 'P4', startDate: new Date('2024-01-01'), assignedEmployeeId: 'f2', isDispatchConfirmed: true },                                              // 別班 → 対象外
             ],
             updateProject: mockUpdateProject,
@@ -356,7 +356,13 @@ describe('DispatchConfirmModal', () => {
             confirmedVehicleIds: ['v1'],
             isDispatchConfirmed: true,
         }));
-        expect(mockUpdateProject).not.toHaveBeenCalledWith('p3', expect.anything());
+        // 作業完了済みの p3 も同班・同日なので反映する（協力会社など完了後の手配確定に対応）
+        expect(mockUpdateProject).toHaveBeenCalledWith('p3', expect.objectContaining({
+            confirmedWorkerIds: ['w1'],
+            confirmedVehicleIds: ['v1'],
+            isDispatchConfirmed: true,
+        }));
+        // 別班の p4 は対象外
         expect(mockUpdateProject).not.toHaveBeenCalledWith('p4', expect.anything());
     });
 

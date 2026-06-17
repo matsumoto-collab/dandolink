@@ -178,15 +178,16 @@ export default function DispatchConfirmModal({
         };
     }, [projects, project.id, project.startDate, allForemen, vehicles]);
 
-    // 連動対象: 同じ班・同じ日・自分以外。作業完了済み（workEndedAt あり）はスキップ。
+    // 連動対象: 同じ班・同じ日・自分以外。作業完了済み（workEndedAt あり）も含める。
+    // ＝協力会社など「作業完了の連絡が入ってから手配確定する」運用でも、同じ班・同じ日の
+    //   全案件へ同じメンバーを反映できるようにするため（完了済みを弾くと別々に確定する羽目になる）。
     // 確定/変更の連動先であり、ラジオの表示判定にも使う。
     const eligibleSiblings = useMemo(() => {
         const dateKey = formatDateKey(project.startDate);
         return projects.filter(p =>
             p.id !== project.id &&
             formatDateKey(p.startDate) === dateKey &&
-            p.assignedEmployeeId === project.assignedEmployeeId &&
-            !p.workEndedAt
+            p.assignedEmployeeId === project.assignedEmployeeId
         );
     }, [projects, project.id, project.startDate, project.assignedEmployeeId]);
 
