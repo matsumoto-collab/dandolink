@@ -14,7 +14,7 @@ const VALID_PAGES: PageType[] = [
     'schedule', 'my-schedule', 'project-masters', 'reports', 'attendance',
     'profit-dashboard', 'estimates', 'site-surveys', 'invoices', 'billing-drafts', 'billing-board',
     'partners', 'customers', 'company',
-    'materials', 'inventory', 'loading-list', 'settings', 'chat',
+    'materials', 'inventory', 'loading-list', 'material-returns', 'settings', 'chat',
     'payment-schedules', 'purchase-invoices', 'payees', 'partner-work-volume', 'company-calendar', 'safety-documents',
 ];
 
@@ -77,6 +77,9 @@ const InventoryPage = dynamic(() => import('@/components/Materials/InventoryPage
     loading: () => <LoadingSpinner />,
 });
 const LoadingListPage = dynamic(() => import('@/components/Materials/LoadingListPage'), {
+    loading: () => <LoadingSpinner />,
+});
+const MaterialReturnPage = dynamic(() => import('@/components/Materials/MaterialReturnPage'), {
     loading: () => <LoadingSpinner />,
 });
 const MySchedulePage = dynamic(() => import('@/components/MySchedule/MySchedulePage'), {
@@ -202,6 +205,7 @@ export default function MainContent() {
         'materials': '資材発注',
         'inventory': '在庫',
         'loading-list': '積み込みリスト',
+        'material-returns': '材料返却',
         'settings': '設定',
         'chat': 'チャット',
         'payment-schedules': '支払予定',
@@ -343,6 +347,9 @@ export default function MainContent() {
 
             case 'loading-list':
                 return <LoadingListPage />;
+
+            case 'material-returns':
+                return <MaterialReturnPage />;
 
             case 'customers':
                 return <CustomersPage />;

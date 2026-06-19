@@ -15,7 +15,7 @@ import { useChatRoomsRealtime } from '@/hooks/useChatRealtime';
 
 interface NavItem {
     name: string;
-    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'purchase-invoices' | 'payees' | 'partner-work-volume' | 'company-calendar' | 'safety-documents' | 'settings';
+    page: 'schedule' | 'my-schedule' | 'project-masters' | 'reports' | 'attendance' | 'profit-dashboard' | 'estimates' | 'site-surveys' | 'invoices' | 'billing-drafts' | 'billing-board' | 'materials' | 'inventory' | 'loading-list' | 'material-returns' | 'partners' | 'customers' | 'company' | 'chat' | 'payment-schedules' | 'purchase-invoices' | 'payees' | 'partner-work-volume' | 'company-calendar' | 'safety-documents' | 'settings';
     /** このメニュー項目を表示できるロール。指定なし=全員 */
     requiredRoles?: string[];
 }
@@ -57,6 +57,7 @@ const navigationSections: NavSection[] = [
         items: [
             { name: '在庫管理', page: 'inventory' },
             { name: '出庫伝票', page: 'materials' },
+            { name: '返却', page: 'material-returns' },
             { name: '積込リスト', page: 'loading-list' },
         ],
     },
@@ -247,7 +248,7 @@ export default function Sidebar() {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'loading-list' || item.page === 'inventory') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'loading-list' || item.page === 'inventory' || item.page === 'material-returns') };
                                 }
                                 return null;
                             }

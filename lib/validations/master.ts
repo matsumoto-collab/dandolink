@@ -176,3 +176,29 @@ export const projectMaterialsUpdateSchema = z.object({
         notes: z.string().nullable().optional(),
     })),
 });
+
+// 返却（現場 → 倉庫の入庫）。専用エンドポイント POST /api/materials/returns 用。
+// type='返却' の MaterialRequisition を loaded で作成し在庫を加算する。
+// quantity はサーバ側で当該案件の貸出中（出庫−返却−紛失）を上限にクランプする。
+export const materialReturnSchema = z.object({
+    projectMasterId: z.string().min(1, '現場は必須です'),
+    date: z.string().min(1).optional(),
+    note: z.string().max(2000).nullable().optional(),
+    items: z.array(z.object({
+        materialItemId: z.string().min(1),
+        quantity: z.number().int().min(0),
+    })).min(1, '返却する材料がありません'),
+});
+
+// 未回収（紛失・破損）償却。専用エンドポイント POST /api/materials/write-off 用。
+// type='紛失' の MaterialRequisition を loaded で作成し貸出中から除外する
+// （倉庫在庫は出庫時に減算済みのため触らない）。admin / manager のみ。
+export const materialWriteOffSchema = z.object({
+    projectMasterId: z.string().min(1, '現場は必須です'),
+    date: z.string().min(1).optional(),
+    note: z.string().max(2000).nullable().optional(),
+    items: z.array(z.object({
+        materialItemId: z.string().min(1),
+        quantity: z.number().int().min(1),
+    })).min(1, '償却する材料がありません'),
+});

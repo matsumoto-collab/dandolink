@@ -24,4 +24,5 @@ export {
     scaffoldingSpecItemSchema, memberCountHistoryCreateSchema, memberCountHistoryUpdateSchema,
     memberCountHistoryDeleteSchema, loadingListConfirmSchema, loadingCheckSchema,
     materialRequisitionCreateSchema, materialRequisitionUpdateSchema, projectMaterialsUpdateSchema,
+    materialReturnSchema, materialWriteOffSchema,
 } from './master';

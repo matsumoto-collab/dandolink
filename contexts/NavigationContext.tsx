@@ -19,6 +19,7 @@ export type PageType =
     | 'materials'        // 材料出庫伝票
     | 'inventory'        // 在庫管理
     | 'loading-list'     // 積込リスト
+    | 'material-returns' // 材料返却
     | 'attendance'       // 出勤簿
     | 'chat'             // チャット
     | 'payment-schedules'// 支払予定
