@@ -24,7 +24,7 @@ interface MaterialActions {
     deleteItem: (id: string) => Promise<void>;
 
     // Requisitions
-    fetchRequisitions: (params?: { projectMasterId?: string; from?: string; to?: string; status?: string }) => Promise<void>;
+    fetchRequisitions: (params?: { projectMasterId?: string; from?: string; to?: string; status?: string; type?: string }) => Promise<void>;
     createRequisition: (data: Record<string, unknown>) => Promise<MaterialRequisition | null>;
     updateRequisition: (id: string, data: Record<string, unknown>) => Promise<void>;
     deleteRequisition: (id: string) => Promise<void>;
@@ -134,6 +134,7 @@ export const useMaterialStore = create<MaterialStore>()(
                 if (params?.from) query.set('from', params.from);
                 if (params?.to) query.set('to', params.to);
                 if (params?.status) query.set('status', params.status);
+                if (params?.type) query.set('type', params.type);
 
                 const res = await fetch(`/api/materials/requisitions?${query}`, { cache: 'no-store' });
                 if (res.ok) {

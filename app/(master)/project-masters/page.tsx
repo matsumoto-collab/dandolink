@@ -104,6 +104,8 @@ function ProjectMasterListPageContent() {
     const [managerMap, setManagerMap] = useState<Record<string, string>>({});
     const [suffixMap, setSuffixMap] = useState<Record<string, string>>({});
     const [currentPage, setCurrentPage] = useState(1);
+    // 完了連動: 貸出中が残る案件を完了にしようとしたときの警告
+    const [archiveWarn, setArchiveWarn] = useState<{ pm: ProjectMaster; count: number } | null>(null);
     const ITEMS_PER_PAGE = 20;
 
     // Filter and sort
@@ -326,7 +328,7 @@ function ProjectMasterListPageContent() {
         }
     };
 
-    const handleArchive = async (pm: ProjectMaster) => {
+    const proceedArchive = async (pm: ProjectMaster) => {
         try {
             await updateProjectMaster(pm.id, {
                 status: pm.status === 'active' ? 'completed' : 'active',
@@ -334,6 +336,25 @@ function ProjectMasterListPageContent() {
         } catch (error) {
             logger.error('Failed to update status:', error);
         }
+    };
+
+    const handleArchive = async (pm: ProjectMaster) => {
+        // active→completed の時のみ貸出中をチェックし、残っていれば警告
+        if (pm.status === 'active') {
+            try {
+                const res = await fetch(`/api/project-masters/${pm.id}/lent-out`, { cache: 'no-store' });
+                if (res.ok) {
+                    const items = await res.json();
+                    if (Array.isArray(items) && items.length > 0) {
+                        setArchiveWarn({ pm, count: items.length });
+                        return;
+                    }
+                }
+            } catch {
+                // 取得失敗時は警告なしで通常フローへ（完了をブロックしない）
+            }
+        }
+        await proceedArchive(pm);
     };
 
     const getConstructionContentLabel = (content: string | undefined) => {
@@ -598,6 +619,47 @@ function ProjectMasterListPageContent() {
                 onViewEstimate={isAdminOrManager && estimateForDetailPm ? handleViewEstimate : undefined}
                 readOnly={isForeman2}
             />
+            {/* 完了連動: 貸出中が残る案件の完了警告 */}
+            {archiveWarn && (
+                <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" onClick={() => setArchiveWarn(null)}>
+                    <div className="absolute inset-0 bg-black/50" />
+                    <div className="relative bg-white rounded-xl shadow-xl max-w-sm w-full p-5" onClick={(e) => e.stopPropagation()}>
+                        <h3 className="text-base font-semibold text-slate-800 mb-2">未返却の材料があります</h3>
+                        <p className="text-sm text-slate-600 mb-4">
+                            「{archiveWarn.pm.name || archiveWarn.pm.title}」には貸出中の材料が
+                            <span className="font-bold text-amber-600"> {archiveWarn.count} 品目</span> 残っています。返却しますか？
+                        </p>
+                        <div className="flex flex-col gap-2">
+                            <button
+                                onClick={() => {
+                                    const id = archiveWarn.pm.id;
+                                    setArchiveWarn(null);
+                                    router.push(`/?page=material-returns&projectId=${id}`);
+                                }}
+                                className="w-full px-4 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-xl hover:shadow-md"
+                            >
+                                返却画面へ
+                            </button>
+                            <button
+                                onClick={() => {
+                                    const pm = archiveWarn.pm;
+                                    setArchiveWarn(null);
+                                    proceedArchive(pm);
+                                }}
+                                className="w-full px-4 py-2.5 text-sm font-medium text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50"
+                            >
+                                このまま完了にする
+                            </button>
+                            <button
+                                onClick={() => setArchiveWarn(null)}
+                                className="w-full px-4 py-2 text-xs font-medium text-slate-400 hover:text-slate-600"
+                            >
+                                キャンセル
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             <EstimateModal
                 isOpen={isEstimateModalOpen}
                 onClose={() => { setIsEstimateModalOpen(false); setEditingEstimate(null); }}

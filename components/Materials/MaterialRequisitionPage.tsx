@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import StatusBadge from './ui/StatusBadge';
 import type { MaterialCategoryWithItems, MaterialItemWithStock, MaterialRequisition } from '@/types/material';
 import {
     SHEET_TYPES,
@@ -62,12 +63,6 @@ function formatVehicleInfo(raw: string | null | undefined): string {
     }
     return raw;
 }
-
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-    draft: { label: '下書き', color: 'bg-slate-200 text-slate-700' },
-    confirmed: { label: '確定', color: 'bg-blue-100 text-blue-800' },
-    loaded: { label: '積込完了', color: 'bg-green-100 text-green-800' },
-};
 
 export default function MaterialRequisitionPage() {
     const { categories, fetchCategories, isCategoriesInitialized, fetchRequisitions, requisitions, isRequisitionsLoading, createRequisition, updateRequisition, deleteRequisition } = useMaterialData();
@@ -127,7 +122,7 @@ export default function MaterialRequisitionPage() {
     // Load data
     useEffect(() => {
         if (!isCategoriesInitialized) fetchCategories();
-        fetchRequisitions();
+        fetchRequisitions({ type: '出庫' });
         // Fetch project masters and foremen
         fetch('/api/project-masters?status=active', { cache: 'no-store' })
             .then(r => r.ok ? r.json() : [])
@@ -469,7 +464,7 @@ export default function MaterialRequisitionPage() {
             toast.success(status === 'draft' ? '下書きを保存しました' : '伝票を確定しました');
             resetForm();
             setView('list');
-            fetchRequisitions();
+            fetchRequisitions({ type: '出庫' });
         } catch (e) {
             toast.error(e instanceof Error ? e.message : '保存に失敗しました');
             autoSaveDisabledRef.current = false;
@@ -550,7 +545,7 @@ export default function MaterialRequisitionPage() {
         try {
             await updateRequisition(id, { status: newStatus });
             toast.success('ステータスを更新しました');
-            fetchRequisitions();
+            fetchRequisitions({ type: '出庫' });
         } catch {
             toast.error('更新に失敗しました');
         }
@@ -824,7 +819,6 @@ export default function MaterialRequisitionPage() {
                             ) : (
                                 <div className="space-y-2">
                                     {requisitions.map((req) => {
-                                        const statusInfo = STATUS_LABELS[req.status] || STATUS_LABELS.draft;
                                         const totalItems = req.items?.reduce((sum, i) => sum + i.quantity, 0) || 0;
                                         return (
                                             <div key={req.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-colors">
@@ -838,9 +832,7 @@ export default function MaterialRequisitionPage() {
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <span className="font-medium text-slate-900 truncate">{req.projectTitle}</span>
-                                                        <span className={`px-2 py-0.5 text-xs rounded-full ${statusInfo.color}`}>
-                                                            {statusInfo.label}
-                                                        </span>
+                                                        <StatusBadge status={req.status} />
                                                     </div>
                                                     <div className="flex items-center gap-3 mt-1 text-sm text-slate-500">
                                                         <span>{formatDate(req.date)}</span>

@@ -29,7 +29,7 @@ export interface MaterialRequisition {
     date: string;
     foremanId: string;
     foremanName: string;
-    type: '出庫' | '返却';
+    type: '出庫' | '返却' | '紛失';
     status: 'draft' | 'confirmed' | 'loaded';
     vehicleInfo: string | null;
     notes: string | null;
@@ -59,7 +59,7 @@ export interface MaterialRequisitionInput {
     date: string;
     foremanId: string;
     foremanName: string;
-    type: '出庫' | '返却';
+    type: '出庫' | '返却' | '紛失';
     status: 'draft' | 'confirmed' | 'loaded';
     vehicleInfo?: string;
     notes?: string;

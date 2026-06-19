@@ -13,10 +13,13 @@ export async function GET(request: NextRequest) {
         const from = searchParams.get('from');
         const to = searchParams.get('to');
         const status = searchParams.get('status');
+        const type = searchParams.get('type');
 
         const where: Record<string, unknown> = {};
         if (projectMasterId) where.projectMasterId = projectMasterId;
         if (status) where.status = status;
+        // type フィルタ（'出庫' / '返却' / '紛失'）。出庫伝票一覧は '出庫' のみ表示する。
+        if (type) where.type = type;
         if (from || to) {
             where.date = {};
             if (from) (where.date as Record<string, unknown>).gte = new Date(from);
