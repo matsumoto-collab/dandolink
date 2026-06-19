@@ -128,7 +128,7 @@ export default function LoadingListPage() {
     const totalCount = loadingList?.items.length ?? 0;
 
     return (
-        <div className="max-w-[1800px] mx-auto">
+        <div className="max-w-3xl mx-auto">
             {/* Header */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-slate-800">

@@ -3,9 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Minus, Plus, Save, History, Package, ChevronRight } from 'lucide-react';
+import { Save, History, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { InventoryTransaction } from '@/types/material';
+import MaterialSearchBar from './ui/MaterialSearchBar';
+import CollapsibleCategory from './ui/CollapsibleCategory';
+import QtyStepper from './ui/QtyStepper';
 
 export default function InventoryPage() {
     const { categories, fetchCategories, isCategoriesInitialized } = useMaterialData();
@@ -18,12 +21,15 @@ export default function InventoryPage() {
     const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+    const [query, setQuery] = useState('');
 
     useEffect(() => {
         if (!isCategoriesInitialized) fetchCategories();
     }, [isCategoriesInitialized, fetchCategories]);
 
     const isManager = session?.user?.role === 'admin' || session?.user?.role === 'manager';
+    const isSearching = query.trim().length > 0;
+    const q = query.trim().toLowerCase();
 
     const toggleCategory = (catId: string) => {
         setExpandedCategories(prev => {
@@ -45,18 +51,8 @@ export default function InventoryPage() {
         setEditMode(true);
     };
 
-    const adjustQuantity = (itemId: string, delta: number) => {
-        setEditQuantities(prev => ({
-            ...prev,
-            [itemId]: Math.max(0, (prev[itemId] || 0) + delta),
-        }));
-    };
-
     const setQuantity = (itemId: string, value: number) => {
-        setEditQuantities(prev => ({
-            ...prev,
-            [itemId]: Math.max(0, value),
-        }));
+        setEditQuantities(prev => ({ ...prev, [itemId]: Math.max(0, value) }));
     };
 
     const saveAdjustments = async () => {
@@ -85,20 +81,11 @@ export default function InventoryPage() {
                 body: JSON.stringify({ adjustments }),
             });
             if (res.ok) {
-                // C12: サーバが実際に適用した件数 / 構造除外でスキップした件数を返す。
-                //   従来は送信件数で「N件更新しました」と成功偽装していた。
-                //   除外品目（ネット/リース = catalog 権威）が含まれていた場合は
-                //   「M件は構造除外品目のため変更不可」を明示する。
-                const data: {
-                    appliedCount?: number;
-                    excludedCount?: number;
-                } = await res.json().catch(() => ({}));
+                const data: { appliedCount?: number; excludedCount?: number } = await res.json().catch(() => ({}));
                 const applied = data.appliedCount ?? adjustments.length;
                 const excluded = data.excludedCount ?? 0;
                 if (excluded > 0) {
-                    toast.success(
-                        `${applied}件の在庫を更新しました（${excluded}件はネット/リース等の構造除外品目のため変更不可）`,
-                    );
+                    toast.success(`${applied}件の在庫を更新しました（${excluded}件はネット/リース等の構造除外品目のため変更不可）`);
                 } else {
                     toast.success(`${applied}件の在庫を更新しました`);
                 }
@@ -129,10 +116,8 @@ export default function InventoryPage() {
         }
     }, []);
 
-    const getTotalStock = () => {
-        return categories.reduce((sum, cat) =>
-            sum + cat.items.reduce((s, item) => s + (item.stockQuantity ?? 0), 0), 0);
-    };
+    const getTotalStock = () =>
+        categories.reduce((sum, cat) => sum + cat.items.reduce((s, item) => s + (item.stockQuantity ?? 0), 0), 0);
 
     const getTypeLabel = (type: string) => {
         switch (type) {
@@ -145,34 +130,32 @@ export default function InventoryPage() {
     };
 
     return (
-        <div className="max-w-[1800px] mx-auto">
+        <div className="max-w-3xl mx-auto">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-slate-800">
-                    在庫管理
-                </h1>
+            <div className="mb-5">
+                <h1 className="text-2xl font-bold text-slate-800">在庫管理</h1>
                 <p className="text-sm text-slate-500 mt-1">材料の現在庫数を確認・調整</p>
             </div>
 
             {/* Summary + Actions */}
-            <div className="flex flex-wrap items-center gap-3 mb-4">
+            <div className="flex flex-wrap items-center gap-3 mb-3">
                 <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
                     <Package className="w-4 h-4 text-slate-500" />
-                    <span className="text-sm text-slate-600">合計在庫:</span>
-                    <span className="text-sm font-bold text-slate-900">{getTotalStock().toLocaleString()}</span>
+                    <span className="text-sm text-slate-600">合計在庫</span>
+                    <span className="text-lg font-bold text-slate-900">{getTotalStock().toLocaleString()}</span>
                 </div>
 
                 {isManager && !editMode && (
                     <button
                         onClick={enterEditMode}
-                        className="px-4 py-2 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-xl hover:shadow-md transition-shadow"
+                        className="ml-auto px-4 py-2 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-xl hover:shadow-md transition-shadow"
                     >
                         在庫数を調整
                     </button>
                 )}
 
                 {editMode && (
-                    <div className="flex gap-2">
+                    <div className="ml-auto flex gap-2">
                         <button
                             onClick={saveAdjustments}
                             disabled={isSaving}
@@ -191,113 +174,71 @@ export default function InventoryPage() {
                 )}
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                        <thead>
-                            <tr className="bg-slate-50 border-b border-slate-200">
-                                <th className="text-left px-4 py-3 font-semibold text-slate-600">カテゴリ</th>
-                                <th className="text-left px-4 py-3 font-semibold text-slate-600">品名</th>
-                                <th className="text-left px-3 py-3 font-semibold text-slate-600 hidden sm:table-cell">規格</th>
-                                <th className="text-center px-3 py-3 font-semibold text-slate-600 w-16">単位</th>
-                                <th className="text-center px-3 py-3 font-semibold text-slate-600 w-20">在庫数</th>
-                                <th className="text-center px-3 py-3 font-semibold text-slate-600 w-44">{editMode ? '調整' : ''}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {categories.map(cat => (
-                                <React.Fragment key={cat.id}>
-                                    {/* Category header row */}
-                                    <tr
-                                        className="bg-slate-50/70 cursor-pointer hover:bg-slate-100/70 select-none"
-                                        onClick={() => toggleCategory(cat.id)}
-                                    >
-                                        <td colSpan={6} className="px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                                            <div className="flex items-center gap-1.5">
-                                                <ChevronRight className={`w-3.5 h-3.5 transition-transform ${expandedCategories.has(cat.id) ? 'rotate-90' : ''}`} />
-                                                {cat.name}
-                                                <span className="ml-1 font-normal text-slate-400">({cat.items.length}品目)</span>
-                                                {!expandedCategories.has(cat.id) && (
-                                                    <span className="ml-2 font-normal text-slate-400">
-                                                        — 在庫合計: {cat.items.reduce((s, i) => s + (i.stockQuantity ?? 0), 0)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                    {/* Items */}
-                                    {expandedCategories.has(cat.id) && cat.items.map(item => {
-                                        const qty = editMode ? (editQuantities[item.id] ?? 0) : (item.stockQuantity ?? 0);
-                                        const original = item.stockQuantity ?? 0;
-                                        const hasChanged = editMode && qty !== original;
+            {/* Search */}
+            <div className="mb-3">
+                <MaterialSearchBar value={query} onChange={setQuery} placeholder="品目を検索…" />
+            </div>
 
-                                        return (
-                                            <tr
-                                                key={item.id}
-                                                className={`border-t border-slate-50 ${hasChanged ? 'bg-amber-50' : 'hover:bg-slate-50/50'}`}
-                                            >
-                                                <td className="px-4 py-2.5 text-slate-400 text-xs"></td>
-                                                <td className="px-4 py-2.5 text-slate-800">{item.name}</td>
-                                                <td className="px-3 py-2.5 text-slate-500 text-xs hidden sm:table-cell">{item.spec || '-'}</td>
-                                                <td className="px-3 py-2.5 text-center text-slate-500 text-xs">{item.unit}</td>
-                                                <td className={`px-3 py-2.5 text-center font-medium ${qty === 0 ? 'text-slate-300' : 'text-slate-800'}`}>
-                                                    {qty}
-                                                </td>
-                                                <td className="px-3 py-2.5">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        {editMode ? (
-                                                            <>
-                                                                <button
-                                                                    onClick={() => adjustQuantity(item.id, -10)}
-                                                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs"
-                                                                >
-                                                                    -10
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => adjustQuantity(item.id, -1)}
-                                                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                                                >
-                                                                    <Minus className="w-3 h-3" />
-                                                                </button>
-                                                                <input
-                                                                    type="number"
-                                                                    value={qty}
-                                                                    onChange={(e) => setQuantity(item.id, parseInt(e.target.value) || 0)}
-                                                                    className="w-14 text-center text-sm border border-slate-200 rounded-xl py-1 focus:ring-2 focus:ring-slate-500 shadow-sm"
-                                                                />
-                                                                <button
-                                                                    onClick={() => adjustQuantity(item.id, 1)}
-                                                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200"
-                                                                >
-                                                                    <Plus className="w-3 h-3" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => adjustQuantity(item.id, 10)}
-                                                                    className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 text-xs"
-                                                                >
-                                                                    +10
-                                                                </button>
-                                                            </>
-                                                        ) : (
-                                                            <button
-                                                                onClick={() => fetchHistory(item.id)}
-                                                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
-                                                                title="履歴を表示"
-                                                            >
-                                                                <History className="w-3.5 h-3.5" />
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </React.Fragment>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Categories */}
+            <div className="space-y-2">
+                {categories.map(cat => {
+                    const items = isSearching
+                        ? cat.items.filter(i =>
+                            i.name.toLowerCase().includes(q) || (i.spec ?? '').toLowerCase().includes(q))
+                        : cat.items;
+                    if (items.length === 0) return null;
+                    const catTotal = cat.items.reduce((s, i) => s + (i.stockQuantity ?? 0), 0);
+                    const expanded = isSearching || expandedCategories.has(cat.id);
+
+                    return (
+                        <CollapsibleCategory
+                            key={cat.id}
+                            name={cat.name}
+                            itemCount={cat.items.length}
+                            totalLabel={`計 ${catTotal.toLocaleString()}`}
+                            isExpanded={expanded}
+                            onToggle={() => toggleCategory(cat.id)}
+                        >
+                            {items.map(item => {
+                                const original = item.stockQuantity ?? 0;
+                                const qty = editMode ? (editQuantities[item.id] ?? 0) : original;
+                                const hasChanged = editMode && qty !== original;
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        className={`flex items-center justify-between gap-3 px-4 py-3 ${hasChanged ? 'bg-amber-50' : ''}`}
+                                    >
+                                        <span className="text-sm text-slate-800 min-w-0 flex-1">
+                                            {item.name}
+                                            {item.spec && <span className="text-xs text-slate-400 ml-1">({item.spec})</span>}
+                                        </span>
+
+                                        {editMode ? (
+                                            <QtyStepper value={qty} onChange={(v) => setQuantity(item.id, v)} />
+                                        ) : (
+                                            <>
+                                                <span className="flex items-baseline gap-1">
+                                                    <span className={`text-lg font-bold ${original === 0 ? 'text-slate-300' : 'text-slate-900'}`}>
+                                                        {original.toLocaleString()}
+                                                    </span>
+                                                    <span className="text-xs text-slate-400">{item.unit}</span>
+                                                </span>
+                                                <button
+                                                    onClick={() => fetchHistory(item.id)}
+                                                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg"
+                                                    title="履歴を表示"
+                                                >
+                                                    <History className="w-3.5 h-3.5" />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </CollapsibleCategory>
+                    );
+                })}
             </div>
 
             {/* History Modal */}
