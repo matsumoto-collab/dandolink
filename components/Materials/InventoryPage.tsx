@@ -251,7 +251,7 @@ export default function InventoryPage() {
     }, [detailItem, overview]);
 
     return (
-        <div className="max-w-[1180px] mx-auto">
+        <div className="w-full max-w-[1800px] mx-auto">
             {/* Header */}
             <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
                 <div>
