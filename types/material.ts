@@ -81,6 +81,11 @@ export interface MaterialCategoryWithItems extends MaterialCategory {
 // 在庫数付き材料品目
 export interface MaterialItemWithStock extends MaterialItem {
     stockQuantity: number;
+    /**
+     * ネット / シート / リース品など、倉庫在庫の自動増減対象外の品目。
+     * 在庫一覧のバー・状態判定では対象外（数量の正は notes-JSON）。
+     */
+    excludeFromStockDecrement?: boolean;
 }
 
 // 在庫取引履歴

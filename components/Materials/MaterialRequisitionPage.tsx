@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Plus, FileText, ChevronDown, ChevronRight, Copy, Trash2, Printer, Search, X } from 'lucide-react';
+import { Plus, FileText, ChevronDown, ChevronRight, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
@@ -94,6 +94,8 @@ export default function MaterialRequisitionPage() {
     const [formQuantities, setFormQuantities] = useState<Record<string, [number, number, number]>>({});
     const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
     const [isSaving, setIsSaving] = useState(false);
+    // この現場の標準セット（ProjectMaterialItem）をワンタップ反映
+    const [isLoadingStandardSet, setIsLoadingStandardSet] = useState(false);
 
     // B2: 自分に割当てがある案件のみ
     const [myAssignedProjects, setMyAssignedProjects] = useState<Array<{ id: string; title: string; name: string | null }>>([]);
@@ -203,9 +205,9 @@ export default function MaterialRequisitionPage() {
         });
     };
 
-    const expandAll = () => {
+    const expandAll = useCallback(() => {
         setExpandedCategories(new Set(categories.map(c => c.id)));
-    };
+    }, [categories]);
 
     // 車両3列のいずれかに数量があるかの判定
     const hasAnyQty = (q?: [number, number, number]) => !!q && (q[0] > 0 || q[1] > 0 || q[2] > 0);
@@ -539,7 +541,7 @@ export default function MaterialRequisitionPage() {
         expandAll();
         setView('create');
         toast.success('前回の伝票をコピーしました');
-    }, [categories]);
+    }, [expandAll]);
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -649,6 +651,53 @@ export default function MaterialRequisitionPage() {
         return rows;
     }, [categories, formQuantities, filledCount]);
 
+    // この現場の標準セット（案件×品目の required 数量）を車両1へ加算反映
+    const applyStandardSet = useCallback(async () => {
+        if (!formProjectId) { toast.error('先に現場を選択してください'); return; }
+        setIsLoadingStandardSet(true);
+        try {
+            const res = await fetch(`/api/project-masters/${formProjectId}/materials`, { cache: 'no-store' });
+            if (!res.ok) throw new Error();
+            const items: Array<{ materialItemId: string; requiredQuantity: number }> = await res.json();
+            const valid = items.filter(i => i.requiredQuantity > 0);
+            if (valid.length === 0) {
+                toast('この現場の標準セットは未登録です');
+                return;
+            }
+            setFormQuantities(prev => {
+                const next = { ...prev };
+                for (const it of valid) {
+                    const cur = next[it.materialItemId] || [0, 0, 0];
+                    next[it.materialItemId] = [cur[0] + it.requiredQuantity, cur[1], cur[2]];
+                }
+                return next;
+            });
+            expandAll();
+            toast.success(`標準セット ${valid.length}品目を追加しました`);
+        } catch {
+            toast.error('標準セットの取得に失敗しました');
+        } finally {
+            setIsLoadingStandardSet(false);
+        }
+    }, [formProjectId, expandAll]);
+
+    // 出し過ぎ警告: 入力数量が倉庫在庫を超える非除外品目（出庫後残がマイナス）
+    const overIssueItems = useMemo(() => {
+        const list: Array<{ id: string; name: string; spec: string | null; over: number }> = [];
+        for (const cat of categories) {
+            for (const item of cat.items || []) {
+                if (item.excludeFromStockDecrement) continue;
+                const tuple = formQuantities[item.id];
+                if (!tuple) continue;
+                const used = tuple[0] + tuple[1] + tuple[2];
+                if (used <= 0) continue;
+                const residual = (item.stockQuantity ?? 0) - used;
+                if (residual < 0) list.push({ id: item.id, name: item.name, spec: item.spec, over: -residual });
+            }
+        }
+        return list;
+    }, [categories, formQuantities]);
+
     // lg+ 左右分割レイアウト
     const isLgScreen = useMediaQuery('(min-width: 1024px)');
 
@@ -717,26 +766,43 @@ export default function MaterialRequisitionPage() {
     }, [formProjectId, formForemanName, formVehicles, formQuantities, sheetEntries, formFreeForm, selectedProject]);
 
     // 数量入力UI: 車両3列ぶんを横並びで入力 (車1/車2/車3)
+    // ＋ 倉庫在庫と「出庫後の残」を表示（出し過ぎを防ぐ）。
     const renderQuantityControl = (item: MaterialItemWithStock) => {
         const tuple = formQuantities[item.id] || [0, 0, 0];
+        const excluded = item.excludeFromStockDecrement === true;
+        const stock = item.stockQuantity ?? 0;
+        const used = tuple[0] + tuple[1] + tuple[2];
+        const residual = stock - used;
         return (
-            <div className="flex items-center gap-1">
-                {[0, 1, 2].map((idx) => (
-                    <input
-                        key={idx}
-                        type="number"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        min="0"
-                        value={tuple[idx] || ''}
-                        onChange={(e) => setQuantity(item.id, idx as 0 | 1 | 2, parseInt(e.target.value) || 0)}
-                        onFocus={(e) => e.currentTarget.select()}
-                        className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                        placeholder={`車${idx + 1}`}
-                        aria-label={`車両${idx + 1}の数量`}
-                    />
-                ))}
-                <span className="text-xs text-slate-400 w-6">{item.unit}</span>
+            <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-1">
+                    {[0, 1, 2].map((idx) => (
+                        <input
+                            key={idx}
+                            type="number"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            min="0"
+                            value={tuple[idx] || ''}
+                            onChange={(e) => setQuantity(item.id, idx as 0 | 1 | 2, parseInt(e.target.value) || 0)}
+                            onFocus={(e) => e.currentTarget.select()}
+                            className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                            placeholder={`車${idx + 1}`}
+                            aria-label={`車両${idx + 1}の数量`}
+                        />
+                    ))}
+                    <span className="text-xs text-slate-400 w-6">{item.unit}</span>
+                </div>
+                {!excluded && (
+                    <div className="text-[11px] tabular-nums whitespace-nowrap pr-7">
+                        <span className="text-slate-400">在庫 {stock.toLocaleString()}</span>
+                        {used > 0 && (
+                            <span className={`ml-1.5 font-medium ${residual < 0 ? 'text-red-600' : 'text-teal-600'}`}>
+                                → 残 {residual.toLocaleString()}{residual < 0 ? '（出し過ぎ）' : ''}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
         );
     };
@@ -1155,12 +1221,39 @@ export default function MaterialRequisitionPage() {
 
                             {/* Material Categories (Accordion) */}
                             <div className="border-t border-slate-200 pt-4">
-                                <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
                                     <h3 className="text-lg font-semibold text-slate-900">材料リスト</h3>
-                                    <span className="text-sm text-slate-500">
-                                        {filledCount}品目入力済
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-slate-500">{filledCount}品目入力済</span>
+                                        <button
+                                            type="button"
+                                            onClick={applyStandardSet}
+                                            disabled={!formProjectId || isLoadingStandardSet}
+                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl border border-dashed border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            title="この現場に登録された標準材料を数量に反映します"
+                                        >
+                                            <Zap className="w-4 h-4" />
+                                            {isLoadingStandardSet ? '追加中...' : 'この現場の標準セットを追加'}
+                                        </button>
+                                    </div>
                                 </div>
+
+                                {/* 出し過ぎ警告: 倉庫在庫を超える入力がある場合 */}
+                                {overIssueItems.length > 0 && (
+                                    <div className="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                                        <span>
+                                            倉庫在庫を超える入力があります（出し過ぎ）：
+                                            {overIssueItems.map((it, i) => (
+                                                <span key={it.id}>
+                                                    {i > 0 && '、'}
+                                                    {it.name}{it.spec ? ` ${it.spec}` : ''}（{it.over}超過）
+                                                </span>
+                                            ))}
+                                            。在庫の確認・棚卸しをご検討ください。
+                                        </span>
+                                    </div>
+                                )}
 
                                 {/* A2: 横断検索バー */}
                                 <div className="relative mb-3">
