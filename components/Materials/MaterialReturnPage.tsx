@@ -156,7 +156,7 @@ export default function MaterialReturnPage() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto">
+        <div className="w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
             <div className="mb-6">
                 <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
