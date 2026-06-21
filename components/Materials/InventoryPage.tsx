@@ -16,6 +16,7 @@ import CollapsibleCategory from './ui/CollapsibleCategory';
 import QtyStepper from './ui/QtyStepper';
 import StockBar from './ui/StockBar';
 import StockStatusBadge from './ui/StockStatusBadge';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 
 type TabKey = 'list' | 'sites' | 'history';
 
@@ -413,13 +414,19 @@ function ListTab({
 }) {
     return (
         <>
-            {/* カテゴリチップ ＋ 検索 */}
-            <div className="flex flex-wrap items-center gap-2 mb-3">
-                <Chip active={selectedCat === 'all'} onClick={() => onSelectCat('all')}>すべて</Chip>
-                {categories.map(cat => (
-                    <Chip key={cat.id} active={selectedCat === cat.id} onClick={() => onSelectCat(cat.id)}>{cat.name}</Chip>
-                ))}
-                <div className="ml-auto w-full sm:w-56">
+            {/* カテゴリ選択（ドロップダウン）＋ 品目検索 */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-3">
+                <div className="w-full sm:w-64">
+                    <SearchableSelect
+                        options={categories.map(cat => ({ id: cat.id, label: cat.name }))}
+                        value={selectedCat === 'all' ? '' : selectedCat}
+                        onChange={(v) => onSelectCat(v === '' ? 'all' : v)}
+                        allowEmpty
+                        emptyLabel="すべてのカテゴリ"
+                        placeholder="カテゴリを選択"
+                    />
+                </div>
+                <div className="w-full sm:w-64 sm:ml-auto">
                     <MaterialSearchBar value={query} onChange={onQuery} placeholder="品目名で絞り込み" />
                 </div>
             </div>
@@ -527,19 +534,6 @@ function ListTab({
                 {isOverviewLoading && <span className="text-slate-400">（貸出中を集計中…）</span>}
             </p>
         </>
-    );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-    return (
-        <button
-            onClick={onClick}
-            className={`px-3.5 py-1.5 rounded-full text-sm border transition-colors ${
-                active ? 'bg-teal-50 border-teal-500 text-teal-700 font-medium' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
-            }`}
-        >
-            {children}
-        </button>
     );
 }
 
