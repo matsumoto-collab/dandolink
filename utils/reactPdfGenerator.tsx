@@ -4,6 +4,7 @@ import { pdf } from '@react-pdf/renderer';
 import { EstimatePDF } from '@/components/pdf/EstimatePDF';
 import { InvoicePDF } from '@/components/pdf/InvoicePDF';
 import { MaterialRequisitionSlipPDF, type MaterialRequisitionSlipPDFProps } from '@/components/pdf/MaterialRequisitionSlipPDF';
+import { MaterialRequisitionLoadingPDF, type MaterialRequisitionLoadingPDFProps } from '@/components/pdf/MaterialRequisitionLoadingPDF';
 import { Estimate } from '@/types/estimate';
 import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
@@ -223,4 +224,13 @@ export async function generateMaterialRequisitionSlipPDFBlob(
     props: MaterialRequisitionSlipPDFProps
 ): Promise<Blob> {
     return await pdf(<MaterialRequisitionSlipPDF {...props} />).toBlob();
+}
+
+/**
+ * Generate Material Requisition Loading List PDF (車両別版 / B案) as raw Blob
+ */
+export async function generateMaterialRequisitionLoadingPDFBlob(
+    props: MaterialRequisitionLoadingPDFProps
+): Promise<Blob> {
+    return await pdf(<MaterialRequisitionLoadingPDF {...props} />).toBlob();
 }

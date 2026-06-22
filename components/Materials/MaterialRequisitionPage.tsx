@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Plus, FileText, ChevronDown, ChevronRight, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle } from 'lucide-react';
+import { Plus, Minus, FileText, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle, Image as ImageIcon, RotateCcw, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
-import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
 import SearchableSelect from '@/components/ui/SearchableSelect';
-import { useMediaQuery } from '@/hooks/useMediaQuery';
+import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 import StatusBadge from './ui/StatusBadge';
-import type { MaterialCategoryWithItems, MaterialItemWithStock, MaterialRequisition } from '@/types/material';
+import type { MaterialItemWithStock, MaterialRequisition } from '@/types/material';
 import {
     SHEET_TYPES,
     SHEET_SIZES,
@@ -121,7 +120,12 @@ export default function MaterialRequisitionPage() {
     const [formFreeForm, setFormFreeForm] = useState<FreeFormEntry[]>([]);
     // 数量は materialItemId → [車両0, 車両1, 車両2] の3要素タプル
     const [formQuantities, setFormQuantities] = useState<Record<string, [number, number, number]>>({});
-    const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+    // 右リスト（拾い出し）に追加済みの materialItemId（追加順を保持）
+    const [pickedItemIds, setPickedItemIds] = useState<string[]>([]);
+    // 左ピッカーで選択中のカテゴリ
+    const [pickerCategoryId, setPickerCategoryId] = useState('');
+    // 図面・添付ファイルモーダル
+    const [showDrawingModal, setShowDrawingModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     // この現場の標準セット（ProjectMaterialItem）をワンタップ反映
     const [isLoadingStandardSet, setIsLoadingStandardSet] = useState(false);
@@ -256,20 +260,30 @@ export default function MaterialRequisitionPage() {
         }
     }, [projectsForSelect, formProjectId]);
 
-    const toggleCategory = (id: string) => {
-        setExpandedCategories(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
-            return next;
-        });
-    };
-
-    const expandAll = useCallback(() => {
-        setExpandedCategories(new Set(categories.map(c => c.id)));
-    }, [categories]);
+    // 左ピッカーの初期カテゴリ（カテゴリ読込後、未選択なら先頭を選ぶ）
+    useEffect(() => {
+        if (!pickerCategoryId && categories.length > 0) {
+            setPickerCategoryId(categories[0].id);
+        }
+    }, [categories, pickerCategoryId]);
 
     // 車両3列のいずれかに数量があるかの判定
     const hasAnyQty = (q?: [number, number, number]) => !!q && (q[0] > 0 || q[1] > 0 || q[2] > 0);
+
+    // 右リストへ品目を追加（既に追加済みなら何もしない・追加順を保持）
+    const addPickedItem = useCallback((itemId: string) => {
+        setPickedItemIds(prev => (prev.includes(itemId) ? prev : [...prev, itemId]));
+    }, []);
+
+    // 右リストから品目を削除（数量も破棄）
+    const removePickedItem = useCallback((itemId: string) => {
+        setPickedItemIds(prev => prev.filter(id => id !== itemId));
+        setFormQuantities(prev => {
+            if (!(itemId in prev)) return prev;
+            const { [itemId]: _drop, ...rest } = prev;
+            return rest;
+        });
+    }, []);
 
     const setQuantity = (itemId: string, vehicleIndex: 0 | 1 | 2, value: number) => {
         setFormQuantities(prev => {
@@ -295,6 +309,7 @@ export default function MaterialRequisitionPage() {
         setFormSheetQty({});
         setFormFreeForm([]);
         setFormQuantities({});
+        setPickedItemIds([]);
         setSearchQuery('');
         setAutoSavedId(null);
         setAutoSaveStatus('idle');
@@ -564,6 +579,7 @@ export default function MaterialRequisitionPage() {
             autoSaveTimerRef.current = null;
         }
         setFormQuantities(quantities);
+        setPickedItemIds(Object.keys(quantities));
         setFormProjectId(req.projectMasterId);
         const srcDate = req.date ? new Date(req.date) : null;
         const initialDate = srcDate && !Number.isNaN(srcDate.getTime())
@@ -605,10 +621,9 @@ export default function MaterialRequisitionPage() {
         setFormDemolitionDate(parsedNotes.demolitionDate || '');
         setFormMemo('');
         setSearchQuery('');
-        expandAll();
         setView('create');
         toast.success('前回の伝票をコピーしました');
-    }, [expandAll]);
+    }, []);
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -682,7 +697,6 @@ export default function MaterialRequisitionPage() {
         }
     };
 
-    const filledCount = Object.keys(formQuantities).length;
     const allSelected = requisitions.length > 0 && selectedIds.size === requisitions.length;
 
     // A2: 横断検索
@@ -703,20 +717,37 @@ export default function MaterialRequisitionPage() {
         return rows;
     }, [categories, trimmedQuery]);
 
-    // A3: 入力済みサマリ
-    const filledRows = useMemo(() => {
-        if (filledCount === 0) return [];
-        const rows: Array<{ categoryName: string; item: MaterialItemWithStock }> = [];
+    // materialItemId → { item, categoryName } の高速マップ（右リスト / 車両別集計で使用）
+    const itemById = useMemo(() => {
+        const map = new Map<string, { item: MaterialItemWithStock; categoryName: string }>();
         for (const cat of categories) {
-            if (!cat.items) continue;
-            for (const item of cat.items) {
-                if (hasAnyQty(formQuantities[item.id])) {
-                    rows.push({ categoryName: cat.name, item });
-                }
+            for (const item of cat.items || []) {
+                map.set(item.id, { item, categoryName: cat.name });
             }
         }
-        return rows;
-    }, [categories, formQuantities, filledCount]);
+        return map;
+    }, [categories]);
+
+    // 拾い出しリストの車両別合計（フッター表示用・カタログ品目のみ）
+    const listTotals = useMemo(() => {
+        let car1 = 0, car2 = 0, car3 = 0;
+        for (const id of pickedItemIds) {
+            const t = formQuantities[id];
+            if (!t) continue;
+            car1 += t[0]; car2 += t[1]; car3 += t[2];
+        }
+        return { car1, car2, car3, total: car1 + car2 + car3 };
+    }, [pickedItemIds, formQuantities]);
+
+    // 右リストに車両③列を出すか（3台目に名前があるか数量があるとき）
+    const showCar3 = !!(formVehicles[2] && formVehicles[2].trim()) || listTotals.car3 > 0;
+    // 左ピッカーで表示する品目（検索中は全カテゴリ横断 / 通常は選択カテゴリ）
+    const pickerRows: Array<{ categoryName: string; item: MaterialItemWithStock }> = trimmedQuery
+        ? searchResults
+        : (categories.find(c => c.id === pickerCategoryId)?.items || []).map(item => ({
+            categoryName: categories.find(c => c.id === pickerCategoryId)?.name || '',
+            item,
+        }));
 
     // この現場の標準セット（案件×品目の required 数量）を車両1へ加算反映
     const applyStandardSet = useCallback(async () => {
@@ -739,14 +770,18 @@ export default function MaterialRequisitionPage() {
                 }
                 return next;
             });
-            expandAll();
+            setPickedItemIds(prev => {
+                const seen = new Set(prev);
+                const add = valid.map(it => it.materialItemId).filter(id => !seen.has(id));
+                return add.length ? [...prev, ...add] : prev;
+            });
             toast.success(`標準セット ${valid.length}品目を追加しました`);
         } catch {
             toast.error('標準セットの取得に失敗しました');
         } finally {
             setIsLoadingStandardSet(false);
         }
-    }, [formProjectId, expandAll]);
+    }, [formProjectId]);
 
     // 出し過ぎ警告: 入力数量が倉庫在庫を超える非除外品目（出庫後残がマイナス）
     const overIssueItems = useMemo(() => {
@@ -764,9 +799,6 @@ export default function MaterialRequisitionPage() {
         }
         return list;
     }, [categories, formQuantities]);
-
-    // lg+ 左右分割レイアウト
-    const isLgScreen = useMediaQuery('(min-width: 1024px)');
 
     // categoryName + itemName → MaterialItem.id の高速マップ
     const itemByKey = useMemo(() => {
@@ -830,60 +862,157 @@ export default function MaterialRequisitionPage() {
         });
     }, [formProjectId, formQuantities, formForemanName, formWriterName, slipCustomerName, slipHonorific, slipWorkName, formAssemblyDate, formDemolitionDate, formVehicles, slipGetQty, sheetEntries, formFreeForm]);
 
-    // プレビュー再生成トリガー (seed)
-    const livePreviewSignature = useMemo(() => {
-        return JSON.stringify({
-            formProjectId, formForemanName, formWriterName, formVehicles,
-            assemblyDate: formAssemblyDate, demolitionDate: formDemolitionDate,
-            quantities: formQuantities,
-            sheets: sheetEntries,
-            freeForm: formFreeForm,
-            customer: slipCustomerName, honorific: slipHonorific,
-            site: slipWorkName,
-        });
-    }, [formProjectId, formForemanName, formWriterName, formVehicles, formAssemblyDate, formDemolitionDate, formQuantities, sheetEntries, formFreeForm, slipCustomerName, slipHonorific, slipWorkName]);
+    // 車両別 積込リスト（車両別版PDF用）。カタログ品目＋シート＋自由欄を車両ごとに集計
+    const loadingByVehicle = useMemo(() => {
+        const per: Array<{ items: Array<{ name: string; spec: string; qty: string }>; subtotal: number }> = [
+            { items: [], subtotal: 0 }, { items: [], subtotal: 0 }, { items: [], subtotal: 0 },
+        ];
+        // 1) カタログ品目（追加順）
+        for (const id of pickedItemIds) {
+            const meta = itemById.get(id);
+            const t = formQuantities[id];
+            if (!meta || !t) continue;
+            ([0, 1, 2] as const).forEach((vi) => {
+                if (t[vi] > 0) {
+                    per[vi].items.push({ name: meta.categoryName, spec: meta.item.spec || meta.item.name, qty: String(t[vi]) });
+                    per[vi].subtotal += t[vi];
+                }
+            });
+        }
+        // 2) シート（種類 × サイズ × 車両）
+        for (const s of sheetEntries) {
+            for (const size of SHEET_SIZES) {
+                const t = s.sizes[size];
+                if (!t) continue;
+                ([0, 1, 2] as const).forEach((vi) => {
+                    if (t[vi] > 0) {
+                        per[vi].items.push({ name: s.type, spec: size, qty: String(t[vi]) });
+                        per[vi].subtotal += t[vi];
+                    }
+                });
+            }
+        }
+        // 3) 自由欄（数量は文字列。数値化できる分のみ小計に算入）
+        for (const f of formFreeForm) {
+            if (!f.label.trim()) continue;
+            ([0, 1, 2] as const).forEach((vi) => {
+                const raw = (f.qty[vi] || '').trim();
+                if (!raw) return;
+                const n = parseFloat(raw);
+                per[vi].items.push({ name: f.label, spec: '', qty: raw });
+                per[vi].subtotal += Number.isFinite(n) ? n : 0;
+            });
+        }
+        return per;
+    }, [pickedItemIds, itemById, formQuantities, sheetEntries, formFreeForm]);
 
-    // 数量入力UI: 車両3列ぶんを横並びで入力 (車1/車2/車3)
-    // ＋ 倉庫在庫と「出庫後の残」を表示（出し過ぎを防ぐ）。
-    const renderQuantityControl = (item: MaterialItemWithStock) => {
-        const tuple = formQuantities[item.id] || [0, 0, 0];
-        const excluded = item.excludeFromStockDecrement === true;
-        const stock = item.stockQuantity ?? 0;
-        const used = tuple[0] + tuple[1] + tuple[2];
-        const residual = stock - used;
-        return (
-            <div className="flex flex-col items-end gap-1">
-                <div className="flex items-center gap-1">
-                    {[0, 1, 2].map((idx) => (
-                        <input
-                            key={idx}
-                            type="number"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            min="0"
-                            value={tuple[idx] || ''}
-                            onChange={(e) => setQuantity(item.id, idx as 0 | 1 | 2, parseInt(e.target.value) || 0)}
-                            onFocus={(e) => e.currentTarget.select()}
-                            className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                            placeholder={`車${idx + 1}`}
-                            aria-label={`車両${idx + 1}の数量`}
-                        />
-                    ))}
-                    <span className="text-xs text-slate-400 w-6">{item.unit}</span>
-                </div>
-                {!excluded && (
-                    <div className="text-[11px] tabular-nums whitespace-nowrap pr-7">
-                        <span className="text-slate-400">在庫 {stock.toLocaleString()}</span>
-                        {used > 0 && (
-                            <span className={`ml-1.5 font-medium ${residual < 0 ? 'text-red-600' : 'text-teal-600'}`}>
-                                → 残 {residual.toLocaleString()}{residual < 0 ? '（出し過ぎ）' : ''}
-                            </span>
-                        )}
-                    </div>
-                )}
-            </div>
-        );
-    };
+    // Blob を新規タブで開く（印刷プレビュー）
+    const openPdfBlob = useCallback((blob: Blob) => {
+        const url = URL.createObjectURL(blob);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    }, []);
+
+    const [isPrinting, setIsPrinting] = useState(false);
+
+    // 印刷：全項目版（既存の材料表PDF・決まった位置に全品目）
+    const handlePrintFull = useCallback(async () => {
+        setIsPrinting(true);
+        try {
+            const blob = await buildSlipPdfBlob();
+            if (!blob) { toast.error('印刷する内容がありません'); return; }
+            openPdfBlob(blob);
+        } catch {
+            toast.error('PDF生成に失敗しました');
+        } finally {
+            setIsPrinting(false);
+        }
+    }, [buildSlipPdfBlob, openPdfBlob]);
+
+    // 印刷：車両別版（B案・各トラックに積む物だけを一覧）
+    const handlePrintLoading = useCallback(async () => {
+        const vehicles = ([0, 1, 2] as const)
+            .map((vi) => ({
+                label: `車両${['①', '②', '③'][vi]}`,
+                name: formVehicles[vi] || '',
+                items: loadingByVehicle[vi].items,
+                subtotal: loadingByVehicle[vi].subtotal,
+            }))
+            .filter((v) => v.items.length > 0);
+        if (vehicles.length === 0) { toast.error('積み込む品目がありません'); return; }
+        setIsPrinting(true);
+        try {
+            const { generateMaterialRequisitionLoadingPDFBlob } = await import('@/utils/reactPdfGenerator');
+            const blob = await generateMaterialRequisitionLoadingPDFBlob({
+                foremanName: formForemanName,
+                writerName: formWriterName,
+                customerName: slipCustomerName,
+                honorific: slipHonorific,
+                siteName: slipWorkName,
+                assemblyDate: formAssemblyDate,
+                demolitionDate: formDemolitionDate,
+                vehicleNames: formVehicles,
+                vehicles,
+                grandTotal: vehicles.reduce((a, v) => a + v.subtotal, 0),
+            });
+            openPdfBlob(blob);
+        } catch {
+            toast.error('PDF生成に失敗しました');
+        } finally {
+            setIsPrinting(false);
+        }
+    }, [loadingByVehicle, formVehicles, formForemanName, formWriterName, slipCustomerName, slipHonorific, slipWorkName, formAssemblyDate, formDemolitionDate, openPdfBlob]);
+
+    // 前回と同じ：同現場の直近伝票（自動保存中の下書きを除く）から数量・シート・自由欄をコピー
+    const applyPreviousSame = useCallback(() => {
+        if (!formProjectId) { toast.error('先に現場を選択してください'); return; }
+        const prev = requisitions
+            .filter(r => r.projectMasterId === formProjectId && r.id !== autoSavedId)
+            .slice()
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+        if (!prev) { toast('この現場の過去伝票が見つかりません'); return; }
+        // 数量（車両別）をマージ加算
+        const addQ: Record<string, [number, number, number]> = {};
+        const addIds: string[] = [];
+        prev.items?.forEach(item => {
+            if (item.quantity > 0) {
+                let idx: 0 | 1 | 2 = 0;
+                if (item.vehicleLabel === '1') idx = 1;
+                else if (item.vehicleLabel === '2') idx = 2;
+                const t = addQ[item.materialItemId] || [0, 0, 0];
+                t[idx] += item.quantity;
+                addQ[item.materialItemId] = t;
+                if (!addIds.includes(item.materialItemId)) addIds.push(item.materialItemId);
+            }
+        });
+        if (addIds.length === 0) { toast('前回伝票に数量がありませんでした'); return; }
+        setFormQuantities(prevQ => {
+            const next = { ...prevQ };
+            for (const [id, t] of Object.entries(addQ)) {
+                const cur = next[id] || [0, 0, 0];
+                next[id] = [cur[0] + t[0], cur[1] + t[1], cur[2] + t[2]];
+            }
+            return next;
+        });
+        setPickedItemIds(prevIds => {
+            const seen = new Set(prevIds);
+            const add = addIds.filter(id => !seen.has(id));
+            return add.length ? [...prevIds, ...add] : prevIds;
+        });
+        // シート / 自由欄は現在が空のときのみ取り込む（既存入力を壊さない）
+        const notes = parseRequisitionNotes(prev.notes);
+        if (formSheetTypes.size === 0 && notes.sheets.length > 0) {
+            const types = new Set<SheetType>();
+            const qty: Record<string, Partial<Record<SheetSize, [number, number, number]>>> = {};
+            for (const s of notes.sheets) { types.add(s.type); qty[s.type] = { ...s.sizes }; }
+            setFormSheetTypes(types);
+            setFormSheetQty(qty);
+        }
+        if (formFreeForm.length === 0 && notes.freeForm.length > 0) {
+            setFormFreeForm(notes.freeForm.map(f => ({ label: f.label, qty: [...f.qty] as [string, string, string] })));
+        }
+        toast.success(`前回（${formatDate(prev.date)}）の内容をコピーしました`);
+    }, [formProjectId, requisitions, autoSavedId, formSheetTypes, formFreeForm]);
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
@@ -905,7 +1034,7 @@ export default function MaterialRequisitionPage() {
                         伝票一覧
                     </Button>
                     <Button
-                        onClick={() => { setView('create'); expandAll(); }}
+                        onClick={() => setView('create')}
                         variant={view === 'create' ? 'gradient' : 'secondary'}
                         size="md"
                         leftIcon={<Plus className="w-4 h-4" />}
@@ -954,7 +1083,7 @@ export default function MaterialRequisitionPage() {
                                     <FileText className="w-12 h-12 mx-auto mb-3 text-slate-300" />
                                     <p>出庫伝票がありません</p>
                                     <button
-                                        onClick={() => { setView('create'); expandAll(); }}
+                                        onClick={() => setView('create')}
                                         className="mt-4 px-4 py-2 bg-teal-600 text-white rounded-xl hover:bg-teal-700 text-sm"
                                     >
                                         新規作成
@@ -1040,9 +1169,9 @@ export default function MaterialRequisitionPage() {
                         </div>
                     </div>
                 ) : (
-                    /* =================== CREATE VIEW =================== */
-                    <div className="bg-white rounded-xl shadow-lg border border-slate-200 lg:flex lg:flex-row lg:items-stretch">
-                        <div className="p-3 md:p-6 space-y-4 lg:flex-1 lg:basis-3/5 lg:min-w-0">
+                    /* =================== CREATE VIEW（拾い出し2ペイン） =================== */
+                    <div className="bg-white rounded-xl shadow-lg border border-slate-200">
+                        <div className="p-3 md:p-6 space-y-4">
                             {/* A6: 自動保存インジケータ */}
                             {(autoSaveStatus !== 'idle') && (
                                 <div className="flex justify-end -mt-1">
@@ -1076,22 +1205,34 @@ export default function MaterialRequisitionPage() {
                                             </label>
                                         )}
                                     </div>
-                                    <SearchableSelect
-                                        options={projectsForSelect.map(pm => ({ id: pm.id, label: buildProjectLabel(pm) }))}
-                                        value={formProjectId}
-                                        onChange={handleSelectProject}
-                                        disabled={isLoadingMyAssignments && !showAllProjects}
-                                        allowEmpty
-                                        emptyLabel="未選択"
-                                        placeholder={
-                                            isLoadingMyAssignments && !showAllProjects
-                                                ? '読込中...'
-                                                : projectsForSelect.length === 0
-                                                    ? (showAllProjects ? '案件がありません' : 'この期間に割り当てられた案件がありません')
-                                                    : '得意先／工事名称で選択'
-                                        }
-                                        className="w-full"
-                                    />
+                                    <div className="flex items-stretch gap-2">
+                                        <SearchableSelect
+                                            options={projectsForSelect.map(pm => ({ id: pm.id, label: buildProjectLabel(pm) }))}
+                                            value={formProjectId}
+                                            onChange={handleSelectProject}
+                                            disabled={isLoadingMyAssignments && !showAllProjects}
+                                            allowEmpty
+                                            emptyLabel="未選択"
+                                            placeholder={
+                                                isLoadingMyAssignments && !showAllProjects
+                                                    ? '読込中...'
+                                                    : projectsForSelect.length === 0
+                                                        ? (showAllProjects ? '案件がありません' : 'この期間に割り当てられた案件がありません')
+                                                        : '得意先／工事名称で選択'
+                                            }
+                                            className="w-full flex-1 min-w-0"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDrawingModal(true)}
+                                            disabled={!formProjectId}
+                                            className="shrink-0 inline-flex items-center gap-1.5 px-3 min-h-[44px] rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                                            title="この現場の図面・添付ファイルを表示"
+                                        >
+                                            <ImageIcon className="w-4 h-4" />
+                                            <span className="hidden sm:inline">図面を見る</span>
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {/* 得意先名（現場選択で自動表示・手入力不可） */}
@@ -1227,6 +1368,202 @@ export default function MaterialRequisitionPage() {
                                 </div>
                             </div>
 
+                            {/* ===== 2ペイン：左ピッカー / 右拾い出しリスト ===== */}
+                            <div className="border-t border-slate-200 pt-4">
+                                {/* 出し過ぎ警告: 倉庫在庫を超える入力がある場合 */}
+                                {overIssueItems.length > 0 && (
+                                    <div className="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                                        <span>
+                                            倉庫在庫を超える入力があります（出し過ぎ）：
+                                            {overIssueItems.map((it, i) => (
+                                                <span key={it.id}>
+                                                    {i > 0 && '、'}
+                                                    {it.name}{it.spec ? ` ${it.spec}` : ''}（{it.over}超過）
+                                                </span>
+                                            ))}
+                                            。在庫の確認・棚卸しをご検討ください。
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="flex flex-col md:flex-row gap-3 items-stretch">
+                                    {/* 左：材料を選ぶ */}
+                                    <div className="md:flex-1 md:min-w-0 border border-slate-200 rounded-xl flex flex-col">
+                                        <div className="px-3 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                                            <span className="font-semibold text-slate-900">① 材料を選ぶ</span>
+                                            <span className="text-xs text-slate-400">タップで右へ追加</span>
+                                        </div>
+                                        <div className="p-3 space-y-2.5">
+                                            {/* 横断検索 */}
+                                            <div className="relative">
+                                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                                <input
+                                                    type="text"
+                                                    value={searchQuery}
+                                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                                    placeholder="品目名で検索（例：柱、手摺、単管）"
+                                                    className="w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                                />
+                                                {searchQuery && (
+                                                    <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-xl" aria-label="検索をクリア">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            {/* クイック操作 */}
+                                            <div className="flex flex-wrap gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={applyStandardSet}
+                                                    disabled={!formProjectId || isLoadingStandardSet}
+                                                    className="inline-flex items-center gap-1.5 px-3 min-h-[40px] text-sm rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="この現場に登録された標準材料を反映します"
+                                                >
+                                                    <Zap className="w-4 h-4" />
+                                                    {isLoadingStandardSet ? '追加中...' : 'この現場の標準セットを追加'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={applyPreviousSame}
+                                                    disabled={!formProjectId}
+                                                    className="inline-flex items-center gap-1.5 px-3 min-h-[40px] text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    title="この現場の直近伝票の内容をコピーします"
+                                                >
+                                                    <RotateCcw className="w-4 h-4" />
+                                                    前回と同じ
+                                                </button>
+                                            </div>
+                                            {/* カテゴリ（検索中は非表示） */}
+                                            {!trimmedQuery && (
+                                                <SearchableSelect
+                                                    options={categories.map(c => ({ id: c.id, label: c.name }))}
+                                                    value={pickerCategoryId}
+                                                    onChange={setPickerCategoryId}
+                                                    placeholder="カテゴリを選択"
+                                                    className="w-full"
+                                                />
+                                            )}
+                                            {/* 品目リスト */}
+                                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                                {categories.length === 0 ? (
+                                                    <div className="text-center py-8 text-sm text-slate-500">
+                                                        材料マスターが登録されていません
+                                                    </div>
+                                                ) : pickerRows.length === 0 ? (
+                                                    <div className="text-center py-8 text-sm text-slate-500">
+                                                        {trimmedQuery ? '該当する材料が見つかりません' : '品目がありません'}
+                                                    </div>
+                                                ) : (
+                                                    <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
+                                                        {pickerRows.map(({ categoryName, item }) => {
+                                                            const picked = pickedItemIds.includes(item.id);
+                                                            const excluded = item.excludeFromStockDecrement === true;
+                                                            return (
+                                                                <div key={item.id} className="flex items-center gap-2 px-3 py-2.5">
+                                                                    <span className="flex-1 min-w-0 text-sm text-slate-900">
+                                                                        {trimmedQuery && <span className="text-xs text-slate-500 mr-1">{categoryName}:</span>}
+                                                                        {item.name}
+                                                                        {item.spec && <span className="text-xs text-slate-400 ml-1">{item.spec}</span>}
+                                                                    </span>
+                                                                    {!excluded && (
+                                                                        <span className="text-xs text-slate-400 tabular-nums shrink-0">在庫 {(item.stockQuantity ?? 0).toLocaleString()}</span>
+                                                                    )}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => addPickedItem(item.id)}
+                                                                        disabled={picked}
+                                                                        className={`shrink-0 w-9 h-9 rounded-xl border inline-flex items-center justify-center ${picked ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-teal-50 border-teal-300 text-teal-700 hover:bg-teal-100'}`}
+                                                                        aria-label={picked ? '追加済み' : '追加'}
+                                                                    >
+                                                                        {picked ? <Check className="w-4 h-4" /> : <Plus className="w-5 h-5" />}
+                                                                    </button>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* 右：拾い出しリスト */}
+                                    <div className="md:flex-1 md:min-w-0 border border-slate-200 rounded-xl flex flex-col">
+                                        <div className="px-3 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                                            <span className="font-semibold text-slate-900">② 拾い出しリスト</span>
+                                            <span className="text-xs text-slate-400">このままPDF（全項目／車両別）になります</span>
+                                        </div>
+                                        <div className="p-3">
+                                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                                {/* ヘッダー行 */}
+                                                <div className="flex items-stretch bg-slate-50 border-b border-slate-200 text-[11px] text-slate-500 font-medium">
+                                                    <div className="flex-1 min-w-0 px-2 py-2">品目 / 規格</div>
+                                                    <div className="w-[88px] px-1 py-2 text-center">車①{formVehicles[0] && <span className="block text-[10px] text-slate-400 truncate">{formVehicles[0]}</span>}</div>
+                                                    <div className="w-[88px] px-1 py-2 text-center">車②{formVehicles[1] && <span className="block text-[10px] text-slate-400 truncate">{formVehicles[1]}</span>}</div>
+                                                    {showCar3 && <div className="w-[88px] px-1 py-2 text-center">車③{formVehicles[2] && <span className="block text-[10px] text-slate-400 truncate">{formVehicles[2]}</span>}</div>}
+                                                    <div className="w-9 px-1 py-2" />
+                                                </div>
+                                                {pickedItemIds.length === 0 ? (
+                                                    <div className="text-center py-10 px-4 text-sm text-slate-400">
+                                                        左の「材料を選ぶ」または「標準セットを追加」から品目を追加してください
+                                                    </div>
+                                                ) : (
+                                                    <div className="divide-y divide-slate-100">
+                                                        {pickedItemIds.map((id) => {
+                                                            const meta = itemById.get(id);
+                                                            if (!meta) return null;
+                                                            const { item, categoryName } = meta;
+                                                            const tuple = formQuantities[id] || [0, 0, 0];
+                                                            const cols: number[] = showCar3 ? [0, 1, 2] : [0, 1];
+                                                            return (
+                                                                <div key={id} className="flex items-stretch">
+                                                                    <div className="flex-1 min-w-0 px-2 py-2 text-sm text-slate-900 flex items-center">
+                                                                        <span className="truncate">
+                                                                            {categoryName}
+                                                                            {(item.spec || item.name) && <span className="text-xs text-slate-400 ml-1">{item.spec || item.name}</span>}
+                                                                        </span>
+                                                                    </div>
+                                                                    {cols.map((vi) => (
+                                                                        <div key={vi} className="w-[88px] px-1 py-1.5 flex items-center justify-center">
+                                                                            <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden">
+                                                                                <button type="button" onClick={() => setQuantity(id, vi as 0 | 1 | 2, (tuple[vi] || 0) - 1)} className="w-6 h-9 bg-slate-50 text-slate-600 hover:bg-slate-100" aria-label="減らす"><Minus className="w-3.5 h-3.5 mx-auto" /></button>
+                                                                                <input
+                                                                                    type="number"
+                                                                                    inputMode="numeric"
+                                                                                    min="0"
+                                                                                    value={tuple[vi] || ''}
+                                                                                    onChange={(e) => setQuantity(id, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)}
+                                                                                    onFocus={(e) => e.currentTarget.select()}
+                                                                                    className="w-9 h-9 text-center text-sm border-0 focus:outline-none focus:ring-1 focus:ring-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                                                    aria-label={`${categoryName} 車両${vi + 1}の数量`}
+                                                                                />
+                                                                                <button type="button" onClick={() => setQuantity(id, vi as 0 | 1 | 2, (tuple[vi] || 0) + 1)} className="w-6 h-9 bg-slate-50 text-slate-600 hover:bg-slate-100" aria-label="増やす"><Plus className="w-3.5 h-3.5 mx-auto" /></button>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                    <div className="w-9 px-1 py-1.5 flex items-center justify-center">
+                                                                        <button type="button" onClick={() => removePickedItem(id)} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 inline-flex items-center justify-center" aria-label="この品目を削除">
+                                                                            <X className="w-4 h-4" />
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                                {/* フッター合計 */}
+                                                <div className="flex items-center justify-end gap-4 px-3 py-2.5 bg-slate-50 border-t border-slate-200 text-sm">
+                                                    <span className="text-slate-500">車①：<b className="text-slate-900 tabular-nums">{listTotals.car1}</b>点</span>
+                                                    <span className="text-slate-500">車②：<b className="text-slate-900 tabular-nums">{listTotals.car2}</b>点</span>
+                                                    {showCar3 && <span className="text-slate-500">車③：<b className="text-slate-900 tabular-nums">{listTotals.car3}</b>点</span>}
+                                                    <span className="text-slate-500">合計：<b className="text-slate-900 tabular-nums">{listTotals.total}</b>点</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Memo */}
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">備考</label>
@@ -1356,209 +1693,65 @@ export default function MaterialRequisitionPage() {
                                 )}
                             </div>
 
-                            {/* Material Categories (Accordion) */}
-                            <div className="border-t border-slate-200 pt-4">
-                                <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
-                                    <h3 className="text-lg font-semibold text-slate-900">材料リスト</h3>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-sm text-slate-500">{filledCount}品目入力済</span>
-                                        <button
-                                            type="button"
-                                            onClick={applyStandardSet}
-                                            disabled={!formProjectId || isLoadingStandardSet}
-                                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-xl border border-dashed border-teal-400 bg-teal-50 text-teal-700 hover:bg-teal-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                            title="この現場に登録された標準材料を数量に反映します"
-                                        >
-                                            <Zap className="w-4 h-4" />
-                                            {isLoadingStandardSet ? '追加中...' : 'この現場の標準セットを追加'}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* 出し過ぎ警告: 倉庫在庫を超える入力がある場合 */}
-                                {overIssueItems.length > 0 && (
-                                    <div className="mb-3 flex items-start gap-2 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                                        <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-                                        <span>
-                                            倉庫在庫を超える入力があります（出し過ぎ）：
-                                            {overIssueItems.map((it, i) => (
-                                                <span key={it.id}>
-                                                    {i > 0 && '、'}
-                                                    {it.name}{it.spec ? ` ${it.spec}` : ''}（{it.over}超過）
-                                                </span>
-                                            ))}
-                                            。在庫の確認・棚卸しをご検討ください。
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* A2: 横断検索バー */}
-                                <div className="relative mb-3">
-                                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        placeholder="材料名検索..."
-                                        className="w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            onClick={() => setSearchQuery('')}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-xl"
-                                            aria-label="検索をクリア"
-                                        >
-                                            <X className="w-4 h-4" />
-                                        </button>
-                                    )}
-                                </div>
-
-                                {/* A3: 入力済みサマリ（検索中は非表示） */}
-                                {!trimmedQuery && filledRows.length > 0 && (
-                                    <div className="mb-3 border border-slate-200 rounded-xl overflow-hidden">
-                                        <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                                            <span className="text-sm font-medium text-slate-700">入力済み ({filledRows.length}品目)</span>
-                                        </div>
-                                        <div className="bg-white divide-y divide-slate-100">
-                                            {filledRows.map(({ categoryName, item }) => (
-                                                <div
-                                                    key={item.id}
-                                                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-50"
-                                                >
-                                                    <span className="flex-1 text-sm text-slate-900 font-medium">
-                                                        <span className="text-xs text-slate-500 mr-1">{categoryName}:</span>
-                                                        {item.name}
-                                                        {item.spec && <span className="text-xs text-slate-400 ml-1">{item.spec}</span>}
-                                                    </span>
-                                                    {renderQuantityControl(item)}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-
-                                {categories.length === 0 ? (
-                                    <div className="text-center py-8 text-slate-500">
-                                        材料マスターが登録されていません。設定画面で材料を追加してください。
-                                    </div>
-                                ) : trimmedQuery ? (
-                                    /* A2: 検索結果リスト */
-                                    <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                        {searchResults.length === 0 ? (
-                                            <div className="text-center py-8 text-slate-500 bg-white">
-                                                該当する材料が見つかりません
-                                            </div>
-                                        ) : (
-                                            <div className="bg-white divide-y divide-slate-100">
-                                                {searchResults.map(({ categoryName, item }) => {
-                                                    const filled = hasAnyQty(formQuantities[item.id]);
-                                                    return (
-                                                        <div
-                                                            key={item.id}
-                                                            className={`flex items-center gap-2 px-4 py-2.5 ${filled ? 'bg-blue-50' : ''}`}
-                                                        >
-                                                            <span className={`flex-1 text-sm ${filled ? 'text-slate-900 font-medium' : 'text-slate-700'}`}>
-                                                                <span className="text-xs text-slate-500 mr-1">{categoryName}:</span>
-                                                                {item.name}
-                                                                {item.spec && <span className="text-xs text-slate-400 ml-1">{item.spec}</span>}
-                                                            </span>
-                                                            {renderQuantityControl(item)}
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {categories.map((cat: MaterialCategoryWithItems) => {
-                                            const catFilled = cat.items?.filter(i => hasAnyQty(formQuantities[i.id])).length || 0;
-                                            const isExpanded = expandedCategories.has(cat.id);
-
-                                            return (
-                                                <div key={cat.id} className="border border-slate-200 rounded-xl overflow-hidden">
-                                                    <button
-                                                        onClick={() => toggleCategory(cat.id)}
-                                                        className="w-full flex items-center gap-2 p-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left"
-                                                    >
-                                                        {isExpanded ? (
-                                                            <ChevronDown className="w-4 h-4 text-slate-500 shrink-0" />
-                                                        ) : (
-                                                            <ChevronRight className="w-4 h-4 text-slate-500 shrink-0" />
-                                                        )}
-                                                        <span className="font-medium text-slate-900 flex-1">{cat.name}</span>
-                                                        {catFilled > 0 && (
-                                                            <span className="text-xs bg-slate-700 text-white px-2 py-0.5 rounded-full">
-                                                                {catFilled}
-                                                            </span>
-                                                        )}
-                                                    </button>
-
-                                                    {isExpanded && cat.items && (
-                                                        <div className="border-t border-slate-200 bg-white divide-y divide-slate-100">
-                                                            {cat.items.map(item => {
-                                                                const filled = hasAnyQty(formQuantities[item.id]);
-                                                                return (
-                                                                    <div
-                                                                        key={item.id}
-                                                                        className={`flex items-center gap-2 px-4 py-2.5 ${filled ? 'bg-blue-50' : ''}`}
-                                                                    >
-                                                                        <span className={`flex-1 text-sm ${filled ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
-                                                                            {item.name}
-                                                                        </span>
-                                                                        {renderQuantityControl(item)}
-                                                                    </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Submit Buttons */}
-                            <div className="flex gap-3 pt-4 border-t border-slate-200">
+                            {/* アクションバー（下書き保存 / 印刷 全項目・車両別 / 確定） */}
+                            <div className="sticky bottom-0 -mx-3 md:-mx-6 -mb-3 md:-mb-6 mt-2 px-3 md:px-6 py-3 bg-white/95 backdrop-blur border-t border-slate-200 flex flex-wrap items-center gap-2 justify-end rounded-b-xl">
+                                <span className="mr-auto text-xs text-slate-400 hidden sm:block">下書きは自動保存されます</span>
                                 <button
                                     onClick={() => { resetForm(); setView('list'); }}
-                                    className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium"
+                                    className="px-3 min-h-[44px] bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium text-sm"
                                 >
                                     キャンセル
                                 </button>
                                 <button
                                     onClick={() => handleSubmit('draft')}
                                     disabled={isSaving}
-                                    className="px-4 py-2.5 bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium disabled:opacity-50"
+                                    className="px-3 min-h-[44px] bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium text-sm disabled:opacity-50"
                                 >
                                     下書き保存
                                 </button>
                                 <button
+                                    onClick={handlePrintFull}
+                                    disabled={isPrinting}
+                                    className="inline-flex items-center gap-1.5 px-3 min-h-[44px] border border-slate-200 bg-white text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm disabled:opacity-50"
+                                >
+                                    <Printer className="w-4 h-4" />印刷：全項目版
+                                </button>
+                                <button
+                                    onClick={handlePrintLoading}
+                                    disabled={isPrinting}
+                                    className="inline-flex items-center gap-1.5 px-3 min-h-[44px] border border-slate-200 bg-white text-slate-700 rounded-xl hover:bg-slate-50 font-medium text-sm disabled:opacity-50"
+                                >
+                                    <Printer className="w-4 h-4" />印刷：車両別版
+                                </button>
+                                <button
                                     onClick={() => handleSubmit('confirmed')}
                                     disabled={isSaving}
-                                    className="flex-1 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+                                    className="inline-flex items-center gap-1.5 px-4 min-h-[44px] bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
                                 >
-                                    {isSaving ? '保存中...' : '確定して保存'}
+                                    <Check className="w-4 h-4" />{isSaving ? '保存中...' : '確定して在庫を減らす'}
                                 </button>
-                            </div>
-                        </div>
-
-                        {/* 右カラム: リアルタイム PDF プレビュー (lg+ のみ) */}
-                        <div className="hidden lg:flex lg:flex-col lg:basis-2/5 lg:min-w-0 lg:border-l lg:border-slate-200 lg:bg-slate-50">
-                            <div className="lg:sticky lg:top-0 lg:h-[calc(100vh-200px)]">
-                                {isLgScreen && (
-                                    <LivePdfPreview
-                                        seed={livePreviewSignature}
-                                        renderPdf={buildSlipPdfBlob}
-                                        debounceMs={700}
-                                    />
-                                )}
                             </div>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* 図面・添付ファイル モーダル（この現場の ProjectMasterFile を表示） */}
+            {showDrawingModal && formProjectId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowDrawingModal(false)}>
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 shrink-0">
+                            <h3 className="font-semibold text-slate-900">図面・添付ファイル</h3>
+                            <button onClick={() => setShowDrawingModal(false)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded-lg" aria-label="閉じる">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="overflow-y-auto p-4">
+                            <ProjectMasterFilesView projectMasterId={formProjectId} />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
