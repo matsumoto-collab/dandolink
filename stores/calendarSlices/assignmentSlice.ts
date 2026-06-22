@@ -136,63 +136,38 @@ export const createAssignmentSlice: CalendarSlice<AssignmentSlice> = (set, get) 
                 if (!patchRes.ok) throw new Error('Failed to update project master');
             }
         } else {
-            const mastersRes = await fetch(`/api/project-masters?search=${encodeURIComponent(project.title)}`, { cache: 'no-store' });
-            if (!mastersRes.ok) throw new Error('Failed to search project masters');
-            const masters = await mastersRes.json();
-            const existing = masters.find((m: ProjectMaster) => m.title === project.title);
-
-            if (existing) {
-                projectMasterId = existing.id;
-                const updateData: Record<string, unknown> = {};
-                if (project.constructionType && existing.constructionType !== project.constructionType) {
-                    updateData.constructionType = project.constructionType;
-                }
-                if (project.createdBy && JSON.stringify(existing.createdBy ?? null) !== JSON.stringify(project.createdBy)) {
-                    updateData.createdBy = project.createdBy;
-                }
-                if (project.constructionContent && existing.constructionContent !== project.constructionContent) {
-                    updateData.constructionContent = project.constructionContent;
-                }
-                if (Object.keys(updateData).length > 0) {
-                    // 配置の副作用としての同期更新では、ProjectMaster.updatedAt を進めない。
-                    // ユーザーが案件詳細を明示的に編集していないのに「最終更新日」が
-                    // 変わると混乱を招くため、syncOnly フラグで raw SQL 更新に切り替える。
-                    // ※この設計は意図的なので、通常の update に戻さないでください。
-                    const patchExistingRes = await fetch(`/api/project-masters/${existing.id}?syncOnly=true`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(updateData),
-                    });
-                    if (!patchExistingRes.ok) throw new Error('Failed to update existing project master');
-                }
-            } else {
-                const createMasterRes = await fetch('/api/project-masters', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        title: project.title,
-                        name: project.name,
-                        honorific: project.honorific,
-                        constructionSuffixId: project.constructionSuffixId,
-                        siteShortName: project.siteShortName,
-                        customerName: project.customer,
-                        constructionType: project.constructionType || 'other',
-                        constructionContent: project.constructionContent,
-                        location: project.location,
-                        description: project.description,
-                        createdBy: project.createdBy,
-                    }),
-                });
-                if (!createMasterRes.ok) throw new Error('Failed to create project master');
-                const newMaster = await createMasterRes.json();
-                projectMasterId = newMaster.id;
-                broadcastMasterId = newMaster.id; // 配置作成後にブロードキャストするためIDを保持
-                // projectMasters ストアに追加
-                const formatted = parseProjectMasterDates(newMaster);
-                set((state) => ({
-                    projectMasters: [formatted, ...state.projectMasters],
-                }));
-            }
+            // 「新規作成」での案件登録は、現場名（title）が同じでも常に新しい案件マスタを作成する。
+            // 以前は GET /api/project-masters?search で title 完全一致の既存マスタを探して再利用して
+            // いたが、同名の別案件（特に「○○様邸」など住宅で頻発）を誤って既存案件へ吸収してしまい、
+            // 「新規登録したのに既存の同名案件がカレンダーに出る」不具合の原因になっていたため廃止。
+            // 既存案件へ配置を追加したい場合は「既存案件から作成」経路（projectMasterId を指定＝上の
+            // if 分岐）が担うので、新規作成側で名寄せする必要はない。
+            const createMasterRes = await fetch('/api/project-masters', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: project.title,
+                    name: project.name,
+                    honorific: project.honorific,
+                    constructionSuffixId: project.constructionSuffixId,
+                    siteShortName: project.siteShortName,
+                    customerName: project.customer,
+                    constructionType: project.constructionType || 'other',
+                    constructionContent: project.constructionContent,
+                    location: project.location,
+                    description: project.description,
+                    createdBy: project.createdBy,
+                }),
+            });
+            if (!createMasterRes.ok) throw new Error('Failed to create project master');
+            const newMaster = await createMasterRes.json();
+            projectMasterId = newMaster.id;
+            broadcastMasterId = newMaster.id; // 配置作成後にブロードキャストするためIDを保持
+            // projectMasters ストアに追加
+            const formatted = parseProjectMasterDates(newMaster);
+            set((state) => ({
+                projectMasters: [formatted, ...state.projectMasters],
+            }));
         }
 
         type AssignmentApiResponse = Omit<ProjectAssignment, 'date' | 'createdAt' | 'updatedAt'> & {

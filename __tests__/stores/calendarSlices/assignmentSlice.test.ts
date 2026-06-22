@@ -170,18 +170,20 @@ describe('assignmentSlice', () => {
       expect(sendBroadcast).toHaveBeenCalledWith('project_master_updated', { id: 'new_pm' });
     });
 
-    it('projectMasterIdがなく、既存マスターが見つかり更新を行う', async () => {
+    it('projectMasterIdがなく、同名既存があっても名寄せせず常に新規マスターを作成する', async () => {
+      const searchSpy = jest.fn();
       (global.fetch as jest.Mock).mockImplementation(async (url) => {
         if (url.includes('/api/project-masters?search=')) {
+          searchSpy();
           return { ok: true, json: async () => [{ id: 'exist_pm', title: '既存案件', constructionType: 'survey' }] };
         }
-        if (url.includes('/api/project-masters/exist_pm')) {
-          return { ok: true };
+        if (url === '/api/project-masters') {
+          return { ok: true, json: async () => ({ id: 'new_pm', createdAt: '2026-03-12T00:00:00.000Z', updatedAt: '2026-03-12T00:00:00.000Z' }) };
         }
         if (url.includes('/api/assignments')) {
           return {
             ok: true,
-            json: async () => ({ id: 'a1', createdAt: '2026-03-12T00:00:00.000Z', updatedAt: '2026-03-12T00:00:00.000Z' }),
+            json: async () => ({ id: 'a1', projectMasterId: 'new_pm', createdAt: '2026-03-12T00:00:00.000Z', updatedAt: '2026-03-12T00:00:00.000Z' }),
           };
         }
         return { ok: true };
@@ -191,13 +193,18 @@ describe('assignmentSlice', () => {
       await addProject({
         id: 'temp',
         title: '既存案件',
-        constructionType: 'assembly', // differences trigger patch
+        constructionType: 'assembly',
         createdBy: 'user1',
       } as any);
 
-      expect(global.fetch).toHaveBeenCalledWith('/api/project-masters/exist_pm?syncOnly=true', expect.objectContaining({
-        method: 'PATCH',
-      }));
+      // 名寄せの検索を行わない（同名でも既存に吸収しない）
+      expect(searchSpy).not.toHaveBeenCalled();
+      // 常に新規マスターを POST で作成する
+      expect(global.fetch).toHaveBeenCalledWith('/api/project-masters', expect.objectContaining({ method: 'POST' }));
+      // 同名既存(exist_pm)へ PATCH しないこと
+      expect(global.fetch).not.toHaveBeenCalledWith('/api/project-masters/exist_pm?syncOnly=true', expect.anything());
+      // 新規マスターがストアに追加される
+      expect(useCalendarStore.getState().projectMasters.some((pm) => pm.id === 'new_pm')).toBe(true);
     });
 
     it('一括作成(batch-create)でエラー配列以外が返された場合Errorを投げる', async () => {

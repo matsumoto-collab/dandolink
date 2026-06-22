@@ -153,9 +153,9 @@ describe('calendarStore', () => {
                 }
             };
 
-            // Mock for project search and assignment creation
+            // 新規作成パス: 名寄せ検索はせず、案件マスタ作成 → 配置作成の順で呼ばれる
             (global.fetch as jest.Mock)
-                .mockResolvedValueOnce({ ok: true, json: async () => [{ id: 'pm1', title: 'Existing Project' }] }) // search
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'pm1', title: 'Existing Project', createdAt: '2023-01-01T00:00:00.000Z', updatedAt: '2023-01-01T00:00:00.000Z' }) }) // create master
                 .mockResolvedValueOnce({ ok: true, json: async () => mockNewAssignment }); // post assignment
 
             await act(async () => {
@@ -465,8 +465,7 @@ describe('calendarStore', () => {
 
         it('addProject: should create new project master if not found', async () => {
             (global.fetch as jest.Mock)
-                .mockResolvedValueOnce({ ok: true, json: async () => [] }) // Search returns empty
-                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'new-pm' }) }) // Create Master
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'new-pm' }) }) // Create Master（名寄せ検索は行わない）
                 .mockResolvedValueOnce({ ok: true, json: async () => ({ ...mockNewAssignment, projectMasterId: 'new-pm' }) }); // Create Assignment
 
             await act(async () => {
@@ -485,8 +484,7 @@ describe('calendarStore', () => {
             ];
 
             (global.fetch as jest.Mock)
-                .mockResolvedValueOnce({ ok: true, json: async () => [] }) // Search
-                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'pm1' }) }) // Create Master
+                .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'pm1' }) }) // Create Master（名寄せ検索は行わない）
                 .mockResolvedValueOnce({
                     ok: true, json: async () => [
                         { id: 'a1', date: '2023-01-01T00:00:00.000Z', projectMasterId: 'pm1', createdAt: '2023-01-01', updatedAt: '2023-01-01' },
