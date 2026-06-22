@@ -627,11 +627,20 @@ export interface RequisitionNotes {
     sheets: SheetEntry[];
     /** 汎用自由欄（種別に無い任意品目） */
     freeForm: FreeFormEntry[];
+    /**
+     * 記入者名（出庫伝票を記入した人。施工班=foremanName とは別軸）。
+     * スキーマ変更不要のため notes-JSON に持つ（v:1 のまま追加・後方互換）。
+     */
+    writerName?: string;
+    /** 組立日（YYYY-MM-DD / 空欄可）。PDF はこの値を ProjectAssignment より優先表示 */
+    assemblyDate?: string;
+    /** 解体日（YYYY-MM-DD / 空欄可）。PDF はこの値を ProjectAssignment より優先表示 */
+    demolitionDate?: string;
 }
 
 /** 空の RequisitionNotes */
 export function emptyRequisitionNotes(): RequisitionNotes {
-    return { v: 1, memo: '', sheets: [], freeForm: [] };
+    return { v: 1, memo: '', sheets: [], freeForm: [], writerName: '', assemblyDate: '', demolitionDate: '' };
 }
 
 /** 1 要素を有限数に矯正（NaN / Infinity / 非数 → 0、負値も 0 にクランプ） */
@@ -716,6 +725,9 @@ export function parseRequisitionNotes(raw: string | null | undefined): Requisiti
                               ] as [string, string, string],
                           }))
                     : [],
+                writerName: typeof obj.writerName === 'string' ? obj.writerName : '',
+                assemblyDate: typeof obj.assemblyDate === 'string' ? obj.assemblyDate : '',
+                demolitionDate: typeof obj.demolitionDate === 'string' ? obj.demolitionDate : '',
             };
         }
         // JSON だが想定外形式 → 文字列として memo に
@@ -737,10 +749,16 @@ export function serializeRequisitionNotes(n: RequisitionNotes): string | null {
     const sheets = n.sheets.filter((s) => !sheetEntryIsEmpty(s));
     const freeForm = n.freeForm.filter((f) => !freeFormIsEmpty(f));
     const memo = n.memo ?? '';
-    if (!memo.trim() && sheets.length === 0 && freeForm.length === 0) {
+    const writerName = (n.writerName ?? '').trim();
+    const assemblyDate = (n.assemblyDate ?? '').trim();
+    const demolitionDate = (n.demolitionDate ?? '').trim();
+    if (
+        !memo.trim() && sheets.length === 0 && freeForm.length === 0 &&
+        !writerName && !assemblyDate && !demolitionDate
+    ) {
         return null;
     }
-    return JSON.stringify({ v: 1, memo, sheets, freeForm });
+    return JSON.stringify({ v: 1, memo, sheets, freeForm, writerName, assemblyDate, demolitionDate });
 }
 
 /**

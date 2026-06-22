@@ -26,9 +26,13 @@ import {
 
 export interface MaterialRequisitionSlipPDFProps {
     /** ヘッダー情報 */
-    foremanName: string;        // 施工班名 / 記入者
+    foremanName: string;        // 施工班名
+    /** 記入者名（未指定なら施工班名を流用） */
+    writerName?: string;
     customerName: string;       // 得意先
-    siteName: string;           // 現場名
+    /** 得意先の敬称（例: 様）。指定時は得意先名の後ろに付与 */
+    honorific?: string;
+    siteName: string;           // 現場名（工事名称 title を想定）
     assemblyDate: string;       // 組立日 (YYYY/MM/DD 等)
     demolitionDate: string;     // 解体日
     /** 車両3欄 (車両1,車両2,車両3) */
@@ -322,7 +326,7 @@ const styles = StyleSheet.create({
     },
 });
 
-function Header({ foremanName }: { foremanName: string }) {
+function Header({ foremanName, writerName }: { foremanName: string; writerName: string }) {
     return (
         <View style={styles.topRow}>
             <View style={{ flexDirection: 'row' }}>
@@ -331,18 +335,21 @@ function Header({ foremanName }: { foremanName: string }) {
             </View>
             <View style={{ flexDirection: 'row' }}>
                 <Text style={styles.topLabel}>記入者</Text>
-                <Text style={styles.topValue}>{sanitizePdfText(foremanName)}</Text>
+                <Text style={styles.topValue}>{sanitizePdfText(writerName || foremanName)}</Text>
             </View>
         </View>
     );
 }
 
-function MetaBox({ customerName, siteName, assemblyDate, demolitionDate }: { customerName: string; siteName: string; assemblyDate: string; demolitionDate: string }) {
+function MetaBox({ customerName, honorific, siteName, assemblyDate, demolitionDate }: { customerName: string; honorific: string; siteName: string; assemblyDate: string; demolitionDate: string }) {
+    const customerDisplay = customerName
+        ? `${customerName}${honorific ? ` ${honorific}` : ''}`
+        : '';
     return (
         <View style={styles.metaRow}>
             <View style={styles.metaCell}>
                 <Text style={styles.metaLabel}>得意先</Text>
-                <Text style={styles.metaValue}>{sanitizePdfText(customerName)}</Text>
+                <Text style={styles.metaValue}>{sanitizePdfText(customerDisplay)}</Text>
             </View>
             <View style={styles.metaCell}>
                 <Text style={styles.metaLabel}>現場名</Text>
@@ -486,12 +493,12 @@ function FreeFormSection({ freeForm }: { freeForm: FreeFormEntry[] }) {
 
 /** 1ページ分の中身を描画 */
 function SlipPageContent({
-    foremanName, customerName, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
+    foremanName, writerName, customerName, honorific, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
 }: MaterialRequisitionSlipPDFProps) {
     return (
         <>
-            <Header foremanName={foremanName} />
-            <MetaBox customerName={customerName} siteName={siteName} assemblyDate={assemblyDate} demolitionDate={demolitionDate} />
+            <Header foremanName={foremanName} writerName={writerName ?? ''} />
+            <MetaBox customerName={customerName} honorific={honorific ?? ''} siteName={siteName} assemblyDate={assemblyDate} demolitionDate={demolitionDate} />
             <VehicleRow vehicles={vehicles} />
 
             <View style={styles.grid}>

@@ -21,13 +21,16 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
     });
     if (!r) return null;
 
-    // ProjectMaster (タイトル・顧客名)
+    // ProjectMaster (タイトル・顧客名・敬称)
     const project = await prisma.projectMaster.findUnique({
         where: { id: r.projectMasterId },
-        select: { id: true, title: true, name: true, customerName: true, customerShortName: true },
+        select: { id: true, title: true, name: true, customerName: true, customerShortName: true, honorific: true },
     });
 
-    // 組立日 / 解体日: 該当案件の ProjectAssignment.constructionType ('組立' / '解体') 最古日付を採用
+    // notes-JSON（記入者 / 組立解体日 / シート / 自由欄）。旧プレーン notes は memo として読まれる
+    const parsedNotes = parseRequisitionNotes(r.notes);
+
+    // 組立日 / 解体日: notes 優先 → 無ければ ProjectAssignment.constructionType ('組立'/'解体') 最古日付
     const dateAssignments = await prisma.projectAssignment.findMany({
         where: {
             projectMasterId: r.projectMasterId,
@@ -37,8 +40,17 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
         select: { date: true, constructionType: true },
     });
     const fmt = (d: Date | undefined) => d ? `${d.getMonth() + 1}/${d.getDate()}` : '';
-    const assemblyDate = fmt(dateAssignments.find(a => a.constructionType === '組立')?.date);
-    const demolitionDate = fmt(dateAssignments.find(a => a.constructionType === '解体')?.date);
+    // notes の日付は YYYY-MM-DD（date input 由来）。PDF 表記に合わせ M/D へ整形（解釈不能はそのまま）
+    const fmtYmdToMd = (s: string): string => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+        return m ? `${parseInt(m[2], 10)}/${parseInt(m[3], 10)}` : s;
+    };
+    const assemblyDate = parsedNotes.assemblyDate
+        ? fmtYmdToMd(parsedNotes.assemblyDate)
+        : fmt(dateAssignments.find(a => a.constructionType === '組立')?.date);
+    const demolitionDate = parsedNotes.demolitionDate
+        ? fmtYmdToMd(parsedNotes.demolitionDate)
+        : fmt(dateAssignments.find(a => a.constructionType === '解体')?.date);
 
     // 車両情報: JSON ({vehicles:["車両A","車両B","車両C"]}) 形式を試行、失敗時は単一テキストを 1列目に
     let vehicles: [string, string, string] = ['', '', ''];
@@ -73,13 +85,12 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
         qtyMap.set(key, (qtyMap.get(key) ?? 0) + item.quantity);
     }
 
-    // notes-JSON（シート / 自由欄）。旧プレーン notes は memo として読まれる（PDF 非表示）
-    const parsedNotes = parseRequisitionNotes(r.notes);
-
     return {
         foremanName: r.foremanName || '',
+        writerName: parsedNotes.writerName || r.foremanName || '',
         customerName: project?.customerShortName || project?.customerName || '',
-        siteName: project?.name || project?.title || '',
+        honorific: project?.honorific || '',
+        siteName: project?.title || project?.name || '',
         assemblyDate,
         demolitionDate,
         vehicles,

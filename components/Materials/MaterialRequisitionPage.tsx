@@ -7,6 +7,7 @@ import { Plus, FileText, ChevronDown, ChevronRight, Copy, Trash2, Printer, Searc
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import { LivePdfPreview } from '@/components/ui/LivePdfPreview';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import StatusBadge from './ui/StatusBadge';
 import type { MaterialCategoryWithItems, MaterialItemWithStock, MaterialRequisition } from '@/types/material';
@@ -64,13 +65,35 @@ function formatVehicleInfo(raw: string | null | undefined): string {
     return raw;
 }
 
+// 現場プルダウン用の案件オプション（my-assignments / project-masters 双方を吸収）
+interface ProjectOption {
+    id: string;
+    title: string;
+    name: string | null;
+    customerName?: string | null;
+    customerShortName?: string | null;
+    honorific?: string | null;
+    assemblyDate?: string;   // YYYY-MM-DD（my-assignments のみ算出）
+    demolitionDate?: string; // YYYY-MM-DD（my-assignments のみ算出）
+}
+
+// 現場プルダウンの表示ラベル：「得意先（敬称）／工事名称」
+function buildProjectLabel(p: ProjectOption): string {
+    const cust = p.customerShortName || p.customerName || '';
+    const custWithHon = cust ? `${cust}${p.honorific ? ` ${p.honorific}` : ''}` : '';
+    const work = p.title || p.name || '(名称未設定)';
+    return custWithHon ? `${custWithHon}／${work}` : work;
+}
+
 export default function MaterialRequisitionPage() {
     const { categories, fetchCategories, isCategoriesInitialized, fetchRequisitions, requisitions, isRequisitionsLoading, createRequisition, updateRequisition, deleteRequisition } = useMaterialData();
     const { data: session } = useSession();
 
     const [view, setView] = useState<'list' | 'create'>('list');
-    const [projectMasters, setProjectMasters] = useState<Array<{ id: string; title: string; name: string | null; customerName?: string | null; customerShortName?: string | null }>>([]);
+    const [projectMasters, setProjectMasters] = useState<ProjectOption[]>([]);
     const [foremen, setForemen] = useState<Array<{ id: string; displayName: string }>>([]);
+    // 車両コンボボックスの候補（選択＋自由入力）
+    const [vehicleOptions, setVehicleOptions] = useState<string[]>([]);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const [isBulkPrinting, setIsBulkPrinting] = useState(false);
@@ -80,6 +103,12 @@ export default function MaterialRequisitionPage() {
     const [formDate, setFormDate] = useState(defaultFormDate());
     const [formForemanId, setFormForemanId] = useState('');
     const [formForemanName, setFormForemanName] = useState('');
+    // 記入者（施工班とは別軸。初期値はログインユーザー / プルダウンで変更可）
+    const [formWriterId, setFormWriterId] = useState('');
+    const [formWriterName, setFormWriterName] = useState('');
+    // 組立日 / 解体日（手入力・空欄可。現場選択時に ProjectAssignment からプリフィル）
+    const [formAssemblyDate, setFormAssemblyDate] = useState('');
+    const [formDemolitionDate, setFormDemolitionDate] = useState('');
     // 車両3欄 (旧 formVehicleInfo (単一文字列) は廃止し、JSON 化して保存)
     const [formVehicles, setFormVehicles] = useState<[string, string, string]>(['', '', '']);
     // notes は構造化 JSON（memo / sheets / freeForm）で保存。旧プレーン notes は memo として読む
@@ -98,7 +127,7 @@ export default function MaterialRequisitionPage() {
     const [isLoadingStandardSet, setIsLoadingStandardSet] = useState(false);
 
     // B2: 自分に割当てがある案件のみ
-    const [myAssignedProjects, setMyAssignedProjects] = useState<Array<{ id: string; title: string; name: string | null }>>([]);
+    const [myAssignedProjects, setMyAssignedProjects] = useState<ProjectOption[]>([]);
     const [isLoadingMyAssignments, setIsLoadingMyAssignments] = useState(false);
     // B2 フォールバック: admin/manager 用に全案件モード
     const [showAllProjects, setShowAllProjects] = useState(false);
@@ -132,6 +161,16 @@ export default function MaterialRequisitionPage() {
         fetch('/api/dispatch/foremen', { cache: 'no-store' })
             .then(r => r.ok ? r.json() : [])
             .then(data => setForemen(Array.isArray(data) ? data : []));
+        // 車両コンボの候補（選択＋自由入力）
+        fetch('/api/master-data/vehicles', { cache: 'no-store' })
+            .then(r => r.ok ? r.json() : [])
+            .then((data: Array<{ name?: string | null }>) => {
+                const names = Array.isArray(data)
+                    ? data.map(v => (v?.name || '').trim()).filter((n): n is string => !!n)
+                    : [];
+                setVehicleOptions(Array.from(new Set(names)));
+            })
+            .catch(() => setVehicleOptions([]));
     }, []);
 
     // B1: ログインユーザーを foremen に強制追加し、自分を最上位に並べる
@@ -144,16 +183,20 @@ export default function MaterialRequisitionPage() {
         return [self, ...others];
     }, [foremen, sessionUserId, session?.user?.name]);
 
-    // B1: ログインユーザーを自動セット
+    // B1: ログインユーザーを施工班・記入者の初期値に自動セット
     useEffect(() => {
-        if (sessionUserId && !formForemanId) {
-            const self = orderedForemen.find(f => f.id === sessionUserId);
-            if (self) {
-                setFormForemanId(self.id);
-                setFormForemanName(self.displayName);
-            }
+        if (!sessionUserId) return;
+        const self = orderedForemen.find(f => f.id === sessionUserId);
+        if (self && !formForemanId) {
+            setFormForemanId(self.id);
+            setFormForemanName(self.displayName);
         }
-    }, [sessionUserId, orderedForemen, formForemanId]);
+        if (!formWriterId) {
+            const writerSelf = self || { id: sessionUserId, displayName: session?.user?.name || '自分' };
+            setFormWriterId(writerSelf.id);
+            setFormWriterName(writerSelf.displayName);
+        }
+    }, [sessionUserId, orderedForemen, formForemanId, formWriterId, session?.user?.name]);
 
     // B2/B4: 日付・職長変更時に「自分に割当てがある案件」を再フェッチ
     useEffect(() => {
@@ -166,11 +209,11 @@ export default function MaterialRequisitionPage() {
         const params = new URLSearchParams({
             foremanId: formForemanId,
             date: formDate,
-            rangeDays: '3',
+            rangeDays: '14',
         });
         fetch(`/api/materials/my-assignments?${params.toString()}`, { cache: 'no-store' })
             .then(r => (r.ok ? r.json() : []))
-            .then((data: Array<{ id: string; title: string; name: string | null }>) => {
+            .then((data: ProjectOption[]) => {
                 if (cancelled) return;
                 setMyAssignedProjects(Array.isArray(data) ? data : []);
             })
@@ -184,16 +227,32 @@ export default function MaterialRequisitionPage() {
     }, [formForemanId, formDate]);
 
     // 表示する案件リスト（B2のフィルタ + フォールバック）
-    const projectsForSelect = React.useMemo<Array<{ id: string; title: string; name: string | null }>>(() => {
+    const projectsForSelect = React.useMemo<ProjectOption[]>(() => {
         if (showAllProjects && isAdminOrManager) return projectMasters;
         return myAssignedProjects;
     }, [showAllProjects, isAdminOrManager, projectMasters, myAssignedProjects]);
 
-    // 案件リストが変わって現在選択中の案件が含まれなくなったらクリア
+    // 選択中案件のメタ（得意先・敬称・組立解体日）。プルダウン候補から解決
+    const selectedProjectMeta = React.useMemo<ProjectOption | null>(() => {
+        return projectsForSelect.find(p => p.id === formProjectId) || null;
+    }, [projectsForSelect, formProjectId]);
+
+    // 現場プルダウンの選択ハンドラ（選択時に組立/解体日をプリフィル）
+    const handleSelectProject = useCallback((id: string) => {
+        setFormProjectId(id);
+        const p = projectsForSelect.find(x => x.id === id);
+        // 案件由来の日付があればプリフィル（無ければ空欄のまま・手入力可）
+        setFormAssemblyDate(p?.assemblyDate || '');
+        setFormDemolitionDate(p?.demolitionDate || '');
+    }, [projectsForSelect]);
+
+    // 案件リストが変わって現在選択中の案件が含まれなくなったらクリア（組立/解体日も一緒に）
     useEffect(() => {
         if (!formProjectId) return;
         if (!projectsForSelect.some(p => p.id === formProjectId)) {
             setFormProjectId('');
+            setFormAssemblyDate('');
+            setFormDemolitionDate('');
         }
     }, [projectsForSelect, formProjectId]);
 
@@ -227,8 +286,10 @@ export default function MaterialRequisitionPage() {
 
     const resetForm = () => {
         setFormProjectId('');
-        setFormDate(defaultFormDate());
+        setFormAssemblyDate('');
+        setFormDemolitionDate('');
         setFormVehicles(['', '', '']);
+        setFormDate(defaultFormDate());
         setFormMemo('');
         setFormSheetTypes(new Set());
         setFormSheetQty({});
@@ -287,9 +348,12 @@ export default function MaterialRequisitionPage() {
             memo: formMemo,
             sheets,
             freeForm: formFreeForm,
+            writerName: formWriterName,
+            assemblyDate: formAssemblyDate,
+            demolitionDate: formDemolitionDate,
         };
         return serializeRequisitionNotes(payload);
-    }, [formMemo, formSheetTypes, formSheetQty, formFreeForm]);
+    }, [formMemo, formSheetTypes, formSheetQty, formFreeForm, formWriterName, formAssemblyDate, formDemolitionDate]);
 
     // シート種類のトグル（選択解除時はその種類の数量も破棄）
     const toggleSheetType = useCallback((type: SheetType) => {
@@ -422,11 +486,11 @@ export default function MaterialRequisitionPage() {
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [view, formProjectId, formDate, formForemanId, formVehicles, formMemo, formSheetTypes, formSheetQty, formFreeForm, formQuantities]);
+    }, [view, formProjectId, formDate, formForemanId, formVehicles, formMemo, formSheetTypes, formSheetQty, formFreeForm, formQuantities, formWriterName, formAssemblyDate, formDemolitionDate]);
 
     const handleSubmit = async (status: 'draft' | 'confirmed') => {
         if (!formProjectId) { toast.error('現場を選択してください'); return; }
-        if (!formForemanId) { toast.error('職長を選択してください'); return; }
+        if (!formForemanId) { toast.error('施工班名を選択してください'); return; }
 
         const items = flattenQuantitiesForApi();
         if (items.length === 0) { toast.error('材料を1つ以上入力してください'); return; }
@@ -536,6 +600,9 @@ export default function MaterialRequisitionPage() {
         setFormSheetTypes(copiedTypes);
         setFormSheetQty(copiedSheetQty);
         setFormFreeForm(parsedNotes.freeForm.map(f => ({ label: f.label, qty: [...f.qty] as [string, string, string] })));
+        // 組立/解体日はコピー元の値を引き継ぐ（記入者は現行ユーザーのまま）
+        setFormAssemblyDate(parsedNotes.assemblyDate || '');
+        setFormDemolitionDate(parsedNotes.demolitionDate || '');
         setFormMemo('');
         setSearchQuery('');
         expandAll();
@@ -726,6 +793,14 @@ export default function MaterialRequisitionPage() {
         return projectMasters.find(p => p.id === formProjectId) || null;
     }, [projectMasters, formProjectId]);
 
+    // 得意先名・敬称・工事名称（得意先欄 / ライブプレビュー / PDF 共通）。
+    // プルダウン候補(selectedProjectMeta) → project-masters(selectedProject) の順で解決
+    const slipCustomerName = selectedProjectMeta?.customerShortName || selectedProjectMeta?.customerName
+        || selectedProject?.customerShortName || selectedProject?.customerName || '';
+    const slipHonorific = selectedProjectMeta?.honorific ?? selectedProject?.honorific ?? '';
+    const slipWorkName = selectedProjectMeta?.title || selectedProject?.title
+        || selectedProjectMeta?.name || selectedProject?.name || '';
+
     // プレビュー / 保存用に formSheetTypes + formSheetQty を SheetEntry[] へ整形
     const sheetEntries = useMemo<SheetEntry[]>(() => {
         return Array.from(formSheetTypes).map((type) => ({
@@ -742,28 +817,31 @@ export default function MaterialRequisitionPage() {
         const { generateMaterialRequisitionSlipPDFBlob } = await import('@/utils/reactPdfGenerator');
         return await generateMaterialRequisitionSlipPDFBlob({
             foremanName: formForemanName,
-            customerName: selectedProject?.customerShortName || selectedProject?.customerName || '',
-            siteName: selectedProject?.name || selectedProject?.title || '',
-            assemblyDate: '',     // Phase 1: 案件マスタからの取得は省略
-            demolitionDate: '',
+            writerName: formWriterName,
+            customerName: slipCustomerName,
+            honorific: slipHonorific,
+            siteName: slipWorkName,
+            assemblyDate: formAssemblyDate,
+            demolitionDate: formDemolitionDate,
             vehicles: formVehicles,
             getQty: slipGetQty,
             sheets: sheetEntries,
             freeForm: formFreeForm,
         });
-    }, [formProjectId, formQuantities, formForemanName, selectedProject, formVehicles, slipGetQty, sheetEntries, formFreeForm]);
+    }, [formProjectId, formQuantities, formForemanName, formWriterName, slipCustomerName, slipHonorific, slipWorkName, formAssemblyDate, formDemolitionDate, formVehicles, slipGetQty, sheetEntries, formFreeForm]);
 
     // プレビュー再生成トリガー (seed)
     const livePreviewSignature = useMemo(() => {
         return JSON.stringify({
-            formProjectId, formForemanName, formVehicles,
+            formProjectId, formForemanName, formWriterName, formVehicles,
+            assemblyDate: formAssemblyDate, demolitionDate: formDemolitionDate,
             quantities: formQuantities,
             sheets: sheetEntries,
             freeForm: formFreeForm,
-            customer: selectedProject?.customerShortName || selectedProject?.customerName || '',
-            site: selectedProject?.name || selectedProject?.title || '',
+            customer: slipCustomerName, honorific: slipHonorific,
+            site: slipWorkName,
         });
-    }, [formProjectId, formForemanName, formVehicles, formQuantities, sheetEntries, formFreeForm, selectedProject]);
+    }, [formProjectId, formForemanName, formWriterName, formVehicles, formAssemblyDate, formDemolitionDate, formQuantities, sheetEntries, formFreeForm, slipCustomerName, slipHonorific, slipWorkName]);
 
     // 数量入力UI: 車両3列ぶんを横並びで入力 (車1/車2/車3)
     // ＋ 倉庫在庫と「出庫後の残」を表示（出し過ぎを防ぐ）。
@@ -982,7 +1060,8 @@ export default function MaterialRequisitionPage() {
 
                             {/* Header fields */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
+                                {/* 現場（検索式ドロップダウン・全幅）。得意先（敬称）／工事名称で表示 */}
+                                <div className="md:col-span-2">
                                     <div className="flex items-center justify-between mb-1">
                                         <label className="block text-sm font-medium text-slate-700">現場 *</label>
                                         {isAdminOrManager && (
@@ -997,23 +1076,32 @@ export default function MaterialRequisitionPage() {
                                             </label>
                                         )}
                                     </div>
-                                    <select
+                                    <SearchableSelect
+                                        options={projectsForSelect.map(pm => ({ id: pm.id, label: buildProjectLabel(pm) }))}
                                         value={formProjectId}
-                                        onChange={(e) => setFormProjectId(e.target.value)}
+                                        onChange={handleSelectProject}
                                         disabled={isLoadingMyAssignments && !showAllProjects}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm disabled:bg-slate-50 disabled:text-slate-400"
-                                    >
-                                        <option value="">
-                                            {isLoadingMyAssignments && !showAllProjects
+                                        allowEmpty
+                                        emptyLabel="未選択"
+                                        placeholder={
+                                            isLoadingMyAssignments && !showAllProjects
                                                 ? '読込中...'
                                                 : projectsForSelect.length === 0
-                                                    ? (showAllProjects ? '案件がありません' : 'この日付に割り当てられた案件がありません')
-                                                    : '選択してください'}
-                                        </option>
-                                        {projectsForSelect.map(pm => (
-                                            <option key={pm.id} value={pm.id}>{pm.name || pm.title}</option>
-                                        ))}
-                                    </select>
+                                                    ? (showAllProjects ? '案件がありません' : 'この期間に割り当てられた案件がありません')
+                                                    : '得意先／工事名称で選択'
+                                        }
+                                        className="w-full"
+                                    />
+                                </div>
+
+                                {/* 得意先名（現場選択で自動表示・手入力不可） */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">得意先名</label>
+                                    <div className="w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-sm text-slate-700 min-h-[42px] flex items-center">
+                                        {slipCustomerName
+                                            ? `${slipCustomerName}${slipHonorific ? ` ${slipHonorific}` : ''}`
+                                            : <span className="text-slate-400">現場を選択すると表示されます</span>}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">日付 *</label>
@@ -1049,8 +1137,9 @@ export default function MaterialRequisitionPage() {
                                         })}
                                     </div>
                                 </div>
+                                {/* 施工班名（出庫を行う施工班＝責任者。旧「職長」） */}
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">職長 *</label>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">施工班名 *</label>
                                     <select
                                         value={formForemanId}
                                         onChange={(e) => {
@@ -1069,6 +1158,48 @@ export default function MaterialRequisitionPage() {
                                         ))}
                                     </select>
                                 </div>
+
+                                {/* 記入者（この伝票を記入した人。初期値=ログインユーザー） */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">記入者</label>
+                                    <select
+                                        value={formWriterId}
+                                        onChange={(e) => {
+                                            setFormWriterId(e.target.value);
+                                            const f = orderedForemen.find(f => f.id === e.target.value);
+                                            setFormWriterName(f?.displayName || '');
+                                        }}
+                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                    >
+                                        <option value="">選択してください</option>
+                                        {orderedForemen.map(f => (
+                                            <option key={f.id} value={f.id}>
+                                                {f.id === sessionUserId ? `${f.displayName}（自分）` : f.displayName}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {/* 組立日 / 解体日（手入力・空欄可。現場選択でプリフィル） */}
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">組立日</label>
+                                    <input
+                                        type="date"
+                                        value={formAssemblyDate}
+                                        onChange={(e) => setFormAssemblyDate(e.target.value)}
+                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">解体日</label>
+                                    <input
+                                        type="date"
+                                        value={formDemolitionDate}
+                                        onChange={(e) => setFormDemolitionDate(e.target.value)}
+                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                    />
+                                </div>
+
+                                {/* 車両（選択＋自由入力 / 最大3台。候補=車両マスタ） */}
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-slate-700 mb-1">車両 (1〜3)</label>
                                     <div className="grid grid-cols-3 gap-2">
@@ -1076,6 +1207,7 @@ export default function MaterialRequisitionPage() {
                                             <input
                                                 key={idx}
                                                 type="text"
+                                                list="material-vehicle-options"
                                                 value={formVehicles[idx]}
                                                 onChange={(e) => {
                                                     const next: [string, string, string] = [formVehicles[0], formVehicles[1], formVehicles[2]];
@@ -1087,6 +1219,11 @@ export default function MaterialRequisitionPage() {
                                             />
                                         ))}
                                     </div>
+                                    <datalist id="material-vehicle-options">
+                                        {vehicleOptions.map(v => (
+                                            <option key={v} value={v} />
+                                        ))}
+                                    </datalist>
                                 </div>
                             </div>
 
