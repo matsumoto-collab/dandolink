@@ -78,6 +78,18 @@ export default function InvoiceDetailModal({
     useEffect(() => {
         let currentUrl = '';
         if (isOpen && invoice && companyInfo) {
+            // [一時デバッグ] 明細グループ見出し【案件名】が消える件の切り分け用。確認後に削除する。
+            console.log('[見出しデバッグ] 開いた請求書:', {
+                id: invoice.id,
+                title: invoice.title,
+                projectMasterIds: invoice.projectMasterIds,
+                projectMasters: invoice.projectMasters,
+                items: invoice.items?.map((i) => ({
+                    description: i.description,
+                    projectMasterId: i.projectMasterId,
+                    sectionTitle: i.sectionTitle,
+                })),
+            });
             const generatePDF = async () => {
                 try {
                     const { generateInvoicePDFBlobReact } = await loadPdfGenerator();

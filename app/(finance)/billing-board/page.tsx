@@ -718,6 +718,15 @@ export default function BillingBoardPage() {
                 const projectMasterIds = isUpdate
                     ? Array.from(new Set([...editingExistingProjectIds, ...issuingProjectIds]))
                     : issuingProjectIds;
+                // [一時デバッグ] まとめ請求で見出し（案件タグ）が落ちる件の切り分け用。確認後に削除する。
+                console.log('[発行デバッグ]', {
+                    isUpdate,
+                    editingInvoiceId,
+                    editingExistingProjectIds,
+                    issuingProjectIds,
+                    projectMasterIds,
+                    dataItems: data.items?.map((i) => ({ desc: i.description, pmId: i.projectMasterId, sectionTitle: i.sectionTitle })),
+                });
                 const res = await fetch(isUpdate ? `/api/invoices/${editingInvoiceId}` : '/api/invoices', {
                     method: isUpdate ? 'PATCH' : 'POST',
                     headers: { 'Content-Type': 'application/json' },
