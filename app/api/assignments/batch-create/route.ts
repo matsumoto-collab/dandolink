@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, validationErrorResponse, applyRateLimit, RATE_LIMITS } from '@/lib/api/utils';
 import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
+import { logger } from '@/lib/logger';
+import { notifyAssignmentsCreated } from '@/lib/scheduleChangeNotify';
 
 interface BatchCreateAssignment {
     projectMasterId: string;
@@ -101,6 +103,21 @@ export async function POST(req: NextRequest) {
                 assignmentVehicles: true,
             },
         });
+
+        // 担当職長へ新規予定を即時通知（向こう1週間以内のみ・職長単位で集約・自己除外・best-effort）
+        try {
+            await notifyAssignmentsCreated({
+                actorUserId: session!.user.id,
+                items: results.map((r) => ({
+                    assignmentId: r.id,
+                    foremanId: r.assignedEmployeeId,
+                    projectMasterId: r.projectMasterId,
+                    date: r.date,
+                })),
+            });
+        } catch (e) {
+            logger.error('[assignments batch-create] 新規予定通知に失敗', e);
+        }
 
         return NextResponse.json(results.map(formatAssignment));
     } catch (error) {

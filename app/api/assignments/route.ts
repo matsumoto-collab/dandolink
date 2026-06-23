@@ -4,6 +4,8 @@ import { requireAuth, stringifyJsonField, errorResponse, serverErrorResponse, va
 import { canDispatch } from '@/utils/permissions';
 import { createAssignmentSchema, validateRequest } from '@/lib/validations';
 import { formatAssignment } from '@/lib/formatters';
+import { logger } from '@/lib/logger';
+import { notifyAssignmentsCreated } from '@/lib/scheduleChangeNotify';
 
 /**
  * GET /api/assignments - 配置一覧取得
@@ -92,6 +94,23 @@ export async function POST(req: NextRequest) {
                 assignmentVehicles: true,
             },
         });
+
+        // 担当職長へ新規予定を即時通知（向こう1週間以内のみ・自己除外・best-effort）
+        try {
+            await notifyAssignmentsCreated({
+                actorUserId: session!.user.id,
+                items: [
+                    {
+                        assignmentId: assignment.id,
+                        foremanId: assignment.assignedEmployeeId,
+                        projectMasterId: assignment.projectMasterId,
+                        date: assignment.date,
+                    },
+                ],
+            });
+        } catch (e) {
+            logger.error('[assignments POST] 新規予定通知に失敗', e);
+        }
 
         return NextResponse.json(formatAssignment(assignment));
     } catch (error) {
