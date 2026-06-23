@@ -5,7 +5,7 @@ import {
     buildScheduleChangeMessage,
 } from '@/lib/scheduleChangeNotify';
 
-// 2026-06 のカレンダー: 22=月, 23=火, 24=水, 25=木, 26=金, 27=土, 28=日, 29=月, 30=火
+// 2026-06 のカレンダー: 22=月, 23=火, 24=水, 25=木, 26=金, 27=土, 28=日, 29=月, 30=火, 7/1=水, 7/2=木
 
 describe('dateKeyJst', () => {
     it('JST 0時保存(前日T15:00:00Z)は当日のJST日キー', () => {
@@ -20,39 +20,64 @@ describe('dateKeyJst', () => {
 });
 
 describe('notifyWindowKeys', () => {
-    it('平日起点(火)・日曜を挟まない3営業日', () => {
+    it('平日起点(火)・日曜を挟まない4営業日', () => {
         const now = new Date('2026-06-23T03:00:00.000Z'); // JST 6/23(火)
-        expect([...notifyWindowKeys(now)].sort()).toEqual(['2026-06-23', '2026-06-24', '2026-06-25']);
+        expect([...notifyWindowKeys(now)].sort()).toEqual([
+            '2026-06-23',
+            '2026-06-24',
+            '2026-06-25',
+            '2026-06-26',
+        ]);
     });
-    it('金曜起点・日曜を飛ばし暦日4日先(月)まで', () => {
+    it('金曜起点・日曜を飛ばし暦日5日先(火)まで', () => {
         const now = new Date('2026-06-26T03:00:00.000Z'); // JST 6/26(金)
-        expect([...notifyWindowKeys(now)].sort()).toEqual(['2026-06-26', '2026-06-27', '2026-06-29']);
+        expect([...notifyWindowKeys(now)].sort()).toEqual([
+            '2026-06-26',
+            '2026-06-27',
+            '2026-06-29',
+            '2026-06-30',
+        ]);
     });
     it('土曜起点・日曜を飛ばす', () => {
         const now = new Date('2026-06-27T03:00:00.000Z'); // JST 6/27(土)
-        expect([...notifyWindowKeys(now)].sort()).toEqual(['2026-06-27', '2026-06-29', '2026-06-30']);
+        expect([...notifyWindowKeys(now)].sort()).toEqual([
+            '2026-06-27',
+            '2026-06-29',
+            '2026-06-30',
+            '2026-07-01',
+        ]);
     });
     it('日曜起点・日曜は含めず翌日から', () => {
         const now = new Date('2026-06-28T03:00:00.000Z'); // JST 6/28(日)
-        expect([...notifyWindowKeys(now)].sort()).toEqual(['2026-06-29', '2026-06-30', '2026-07-01']);
+        expect([...notifyWindowKeys(now)].sort()).toEqual([
+            '2026-06-29',
+            '2026-06-30',
+            '2026-07-01',
+            '2026-07-02',
+        ]);
     });
     it('JST深夜0時境界でも起点日が正しい', () => {
         const now = new Date('2026-06-25T15:00:00.000Z'); // JST 6/26(金) 00:00
-        expect([...notifyWindowKeys(now)].sort()).toEqual(['2026-06-26', '2026-06-27', '2026-06-29']);
+        expect([...notifyWindowKeys(now)].sort()).toEqual([
+            '2026-06-26',
+            '2026-06-27',
+            '2026-06-29',
+            '2026-06-30',
+        ]);
     });
 });
 
 describe('isWithinNotifyWindow', () => {
-    const now = new Date('2026-06-23T03:00:00.000Z'); // JST 6/23(火)、窓={6/23,6/24,6/25}
+    const now = new Date('2026-06-23T03:00:00.000Z'); // JST 6/23(火)、窓={6/23,6/24,6/25,6/26}
 
     it('今日(火)は窓内', () => {
         expect(isWithinNotifyWindow(new Date('2026-06-23T00:00:00.000Z'), null, now)).toBe(true);
     });
-    it('3営業日目(木6/25)は窓内', () => {
-        expect(isWithinNotifyWindow(new Date('2026-06-25T00:00:00.000Z'), null, now)).toBe(true);
+    it('4営業日目(金6/26)は窓内', () => {
+        expect(isWithinNotifyWindow(new Date('2026-06-26T00:00:00.000Z'), null, now)).toBe(true);
     });
-    it('4日目(金6/26)は窓外', () => {
-        expect(isWithinNotifyWindow(new Date('2026-06-26T00:00:00.000Z'), null, now)).toBe(false);
+    it('5営業日目相当(土6/27)は窓外', () => {
+        expect(isWithinNotifyWindow(new Date('2026-06-27T00:00:00.000Z'), null, now)).toBe(false);
     });
     it('昨日は窓外', () => {
         expect(isWithinNotifyWindow(new Date('2026-06-22T00:00:00.000Z'), null, now)).toBe(false);
@@ -94,11 +119,12 @@ describe('isWithinNotifyWindow', () => {
         expect(isWithinNotifyWindow('2026-06-24T00:00:00.000Z' as unknown as Date, null, now)).toBe(true);
         expect(isWithinNotifyWindow('2026-08-01T00:00:00.000Z' as unknown as Date, null, now)).toBe(false);
     });
-    it('日曜は窓に含めない（金曜起点で日曜6/28は除外、土6/27と月6/29は窓内）', () => {
-        const fri = new Date('2026-06-26T03:00:00.000Z'); // JST 6/26(金)、窓={6/26,6/27,6/29}
+    it('日曜は窓に含めない（金曜起点で日曜6/28は除外、土/月/火は窓内）', () => {
+        const fri = new Date('2026-06-26T03:00:00.000Z'); // JST 6/26(金)、窓={6/26,6/27,6/29,6/30}
         expect(isWithinNotifyWindow(new Date('2026-06-28T00:00:00.000Z'), null, fri)).toBe(false); // 日
         expect(isWithinNotifyWindow(new Date('2026-06-27T00:00:00.000Z'), null, fri)).toBe(true); // 土
         expect(isWithinNotifyWindow(new Date('2026-06-29T00:00:00.000Z'), null, fri)).toBe(true); // 月
+        expect(isWithinNotifyWindow(new Date('2026-06-30T00:00:00.000Z'), null, fri)).toBe(true); // 火
     });
 });
 

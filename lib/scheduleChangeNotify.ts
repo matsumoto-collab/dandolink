@@ -16,8 +16,8 @@ import { logger } from '@/lib/logger';
  */
 
 export const SCHEDULE_CHANGED_TYPE = 'schedule-changed';
-/** 通知対象とする営業日数（日曜を除く）。今日を含め向こう3営業日（日曜を挟むと暦日では4日先まで）。 */
-const NOTIFY_BUSINESS_DAYS = 3;
+/** 通知対象とする営業日数（日曜を除く）。今日を含め向こう4営業日（日曜を挟むと暦日では5日先まで）。 */
+const NOTIFY_BUSINESS_DAYS = 4;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export type ScheduleChangeKind =
@@ -84,7 +84,7 @@ export function formatJpShortDate(date: Date): string {
 
 /**
  * now(JST起点)から、日曜を除いて NOTIFY_BUSINESS_DAYS 営業日分の JST日キー集合を返す。
- * 例) 金曜起点 → {金, 土, 月}（日曜を飛ばすので暦日では月曜=4日先まで）。
+ * 例) 金曜起点 → {金, 土, 月, 火}（日曜を飛ばすので暦日では火曜=5日先まで）。
  * 起点が日曜なら起点は含めず翌日以降から数える。
  */
 export function notifyWindowKeys(now: Date = new Date()): Set<string> {
@@ -105,7 +105,7 @@ export function notifyWindowKeys(now: Date = new Date()): Set<string> {
 }
 
 /**
- * 通知すべき日付窓（日曜を除く、今日を含む向こう3営業日・JST）に入っているか。
+ * 通知すべき日付窓（日曜を除く、今日を含む向こう4営業日・JST）に入っているか。
  * moved は from/to どちらかが窓内なら true。新規/削除は同一日を両方に渡す。
  * 日曜は窓に含まれないため、日曜の予定は通知対象外。
  */
