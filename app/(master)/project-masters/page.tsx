@@ -458,7 +458,7 @@ function ProjectMasterListPageContent() {
         const billMeta = BILLING_CELL_META[resolveBillingStatus(pm)];
         const isOverride = !!pm.billingStatusOverride;
         const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
-        const menuItem = 'w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition-colors';
+        const menuItem = 'block w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition-colors whitespace-nowrap';
         return (
             <div className="relative inline-block">
                 <button
@@ -470,7 +470,7 @@ function ProjectMasterListPageContent() {
                     <span>請求 {billMeta.text}{isOverride ? '*' : ''}</span>
                 </button>
                 {billingMenuPmId === pm.id && (
-                    <div onClick={(e) => e.stopPropagation()} className="absolute z-50 mt-1 right-0 w-44 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                    <div onClick={(e) => e.stopPropagation()} className="absolute z-50 mt-1 right-0 w-44 bg-white border border-slate-200 rounded-lg shadow-lg py-1 flex flex-col">
                         <button onClick={() => { setBillingMenuPmId(null); handleInvoiceCellClick(pm); }} className={menuItem}>請求書を作成 / 確認</button>
                         <div className="border-t border-slate-100 my-1" />
                         <div className="px-3 py-0.5 text-[10px] text-slate-400">手動で設定</div>
