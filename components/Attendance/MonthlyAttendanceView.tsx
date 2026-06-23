@@ -218,7 +218,7 @@ export default function MonthlyAttendanceView({ refreshKey }: MonthlyAttendanceV
                     cmp = a.earlyStart - b.earlyStart;
                     break;
                 case 'netOvertime':
-                    cmp = (a.overtime - a.earlyEnd) - (b.overtime - b.earlyEnd);
+                    cmp = (a.earlyStart + a.morningLoading + a.overtime + a.eveningLoading - a.earlyEnd) - (b.earlyStart + b.morningLoading + b.overtime + b.eveningLoading - b.earlyEnd);
                     break;
             }
             return sortDir === 'asc' ? cmp : -cmp;
@@ -455,7 +455,7 @@ function SummaryTable({ aggregates, getUserName, onSelectUser, SortHeader }: Sum
                 </div>
                 <div className="divide-y divide-slate-100">
                     {aggregates.map(a => {
-                        const net = a.overtime - a.earlyEnd;
+                        const net = a.earlyStart + a.morningLoading + a.overtime + a.eveningLoading - a.earlyEnd;
                         const netClass = net > 0 ? 'text-amber-700' : net < 0 ? 'text-blue-700' : 'text-slate-700';
                         return (
                             <button
@@ -484,7 +484,7 @@ function SummaryTable({ aggregates, getUserName, onSelectUser, SortHeader }: Sum
             {/* モバイル */}
             <div className="md:hidden space-y-2">
                 {aggregates.map(a => {
-                    const net = a.overtime - a.earlyEnd;
+                    const net = a.earlyStart + a.morningLoading + a.overtime + a.eveningLoading - a.earlyEnd;
                     const netClass = net > 0 ? 'text-amber-700' : net < 0 ? 'text-blue-700' : 'text-slate-700';
                     return (
                         <button
