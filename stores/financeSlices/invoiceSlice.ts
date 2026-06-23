@@ -21,10 +21,16 @@ function parseInvoiceDates(invoice: Record<string, unknown>): Invoice {
 function toInvoiceApiPayload(data: Partial<InvoiceInput>): Record<string, unknown> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { projectId, projectMasterIds, projectMasters, ...rest } = data;
-    return {
-        ...rest,
-        projectMasterIds: projectMasterIds && projectMasterIds.length > 0 ? projectMasterIds : (projectId ? [projectId] : []),
-    };
+    const payload: Record<string, unknown> = { ...rest };
+    // projectMasterIds は「案件の指定が含まれる更新」のときだけ送る。
+    // ステータスのみ等の部分更新（projectId も projectMasterIds も無い）で空配列を送ると、
+    // PATCH 側が中間テーブル（案件の紐付け）を全削除し、明細グループ見出し【案件名】が
+    // 消える不具合になるため、その場合は projectMasterIds をペイロードに含めない。
+    if (projectMasterIds !== undefined || projectId !== undefined) {
+        payload.projectMasterIds =
+            projectMasterIds && projectMasterIds.length > 0 ? projectMasterIds : projectId ? [projectId] : [];
+    }
+    return payload;
 }
 
 type InvoiceSlice = Pick<FinanceState, 'invoices' | 'invoicesLoading' | 'invoicesInitialized'> &
