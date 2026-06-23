@@ -16,7 +16,8 @@ import { logger } from '@/lib/logger';
  */
 
 export const SCHEDULE_CHANGED_TYPE = 'schedule-changed';
-const WINDOW_DAYS = 7;
+/** 通知対象とする営業日数（日曜を除く）。今日を含め向こう3営業日（日曜を挟むと暦日では4日先まで）。 */
+const NOTIFY_BUSINESS_DAYS = 3;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 export type ScheduleChangeKind =
@@ -81,28 +82,43 @@ export function formatJpShortDate(date: Date): string {
     }).format(d);
 }
 
-/** now 基準で JST「今日」〜「今日+7日」の日付キー範囲。 */
-export function jstWindowKeys(now: Date = new Date()): { fromKey: string; toKey: string } {
-    const fromKey = dateKeyJst(now);
-    const todayJst = toJstDateOnly(now);
-    const plus = new Date(todayJst.getTime() + WINDOW_DAYS * MS_PER_DAY);
-    return { fromKey, toKey: dateKeyJst(plus) };
+/**
+ * now(JST起点)から、日曜を除いて NOTIFY_BUSINESS_DAYS 営業日分の JST日キー集合を返す。
+ * 例) 金曜起点 → {金, 土, 月}（日曜を飛ばすので暦日では月曜=4日先まで）。
+ * 起点が日曜なら起点は含めず翌日以降から数える。
+ */
+export function notifyWindowKeys(now: Date = new Date()): Set<string> {
+    const keys = new Set<string>();
+    let cursor = toJstDateOnly(now);
+    let collected = 0;
+    let guard = 0;
+    while (collected < NOTIFY_BUSINESS_DAYS && guard < 14) {
+        guard += 1;
+        // toJstDateOnly は JST日の UTC 0時。getUTCDay() が JST の曜日（0=日曜）。
+        if (cursor.getUTCDay() !== 0) {
+            keys.add(dateKeyJst(cursor));
+            collected += 1;
+        }
+        cursor = new Date(cursor.getTime() + MS_PER_DAY);
+    }
+    return keys;
 }
 
 /**
- * 通知すべき日付窓（今日〜7日後JST）に入っているか。
+ * 通知すべき日付窓（日曜を除く、今日を含む向こう3営業日・JST）に入っているか。
  * moved は from/to どちらかが窓内なら true。新規/削除は同一日を両方に渡す。
+ * 日曜は窓に含まれないため、日曜の予定は通知対象外。
  */
 export function isWithinNotifyWindow(
     fromDate: Date | null | undefined,
     toDate: Date | null | undefined,
     now: Date = new Date(),
 ): boolean {
-    const { fromKey, toKey } = jstWindowKeys(now);
+    const keys = notifyWindowKeys(now);
     const inWindow = (d: Date | null | undefined): boolean => {
         if (!d) return false;
         const k = dateKeyJst(d);
-        return k !== '' && k >= fromKey && k <= toKey;
+        return k !== '' && keys.has(k);
     };
     return inWindow(fromDate) || inWindow(toDate);
 }
