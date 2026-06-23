@@ -15,6 +15,7 @@ const SCOPED_TYPES = [
 ] as const;
 const ONOFF_ONLY_TYPES = [
     { type: 'dispatch-confirmed', label: '手配確定' },
+    { type: 'schedule-changed', label: '予定変更' },
     { type: 'chat-message', label: 'チャット' },
     { type: 'vehicle-handover', label: '車両引き継ぎ' },
     { type: 'work-report-reply', label: '作業メモへの返信' },
