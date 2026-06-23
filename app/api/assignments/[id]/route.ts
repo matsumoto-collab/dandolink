@@ -12,6 +12,11 @@ import { canDispatch } from '@/utils/permissions';
 import { formatAssignment } from '@/lib/formatters';
 import { logger } from '@/lib/logger';
 import { relocateAssignmentWorkItems } from '@/lib/relocateWorkItems';
+import {
+    notifyAssignmentMoved,
+    notifyAssignmentReassigned,
+    notifyAssignmentDeleted,
+} from '@/lib/scheduleChangeNotify';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -183,6 +188,46 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
             if (historyEntries.length > 0) {
                 await prisma.scheduleChangeHistory.createMany({ data: historyEntries });
             }
+
+            // 担当職長へ予定変更を即時通知（向こう1週間以内のみ・自己除外・best-effort）
+            const pmLite = assignment.projectMaster
+                ? {
+                      name: assignment.projectMaster.name,
+                      title: assignment.projectMaster.title,
+                      constructionSuffixId: assignment.projectMaster.constructionSuffixId,
+                  }
+                : null;
+            const foremanChanged =
+                body.assignedEmployeeId !== undefined &&
+                body.assignedEmployeeId !== current.assignedEmployeeId;
+            const dateChanged =
+                body.date !== undefined &&
+                current.date.toISOString() !== new Date(body.date).toISOString();
+            try {
+                if (foremanChanged) {
+                    await notifyAssignmentReassigned({
+                        actorUserId: session!.user.id,
+                        assignmentId: id,
+                        fromForemanId: current.assignedEmployeeId,
+                        toForemanId: body.assignedEmployeeId,
+                        date: assignment.date,
+                        projectMasterId: assignment.projectMasterId,
+                        projectMaster: pmLite,
+                    });
+                } else if (dateChanged) {
+                    await notifyAssignmentMoved({
+                        actorUserId: session!.user.id,
+                        assignmentId: id,
+                        foremanId: assignment.assignedEmployeeId,
+                        fromDate: current.date,
+                        toDate: assignment.date,
+                        projectMasterId: assignment.projectMasterId,
+                        projectMaster: pmLite,
+                    });
+                }
+            } catch (e) {
+                logger.error('[assignments PATCH] 予定変更通知に失敗', e);
+            }
         }
 
         return NextResponse.json(formatAssignment(assignment));
@@ -207,7 +252,7 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         let logId: string | null = null;
         const full = await prisma.projectAssignment.findUnique({
             where: { id },
-            include: { assignmentWorkers: true, assignmentVehicles: true },
+            include: { assignmentWorkers: true, assignmentVehicles: true, projectMaster: true },
         });
         if (full) {
             // スカラーは Prisma 結果 full から、workers/vehicles 等の配列は formatAssignment から取る。
@@ -244,6 +289,29 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         }
 
         await prisma.projectAssignment.delete({ where: { id } });
+
+        // 担当職長へ削除を即時通知（向こう1週間以内のみ・自己除外・best-effort）
+        if (full) {
+            const pmLite = full.projectMaster
+                ? {
+                      name: full.projectMaster.name,
+                      title: full.projectMaster.title,
+                      constructionSuffixId: full.projectMaster.constructionSuffixId,
+                  }
+                : null;
+            try {
+                await notifyAssignmentDeleted({
+                    actorUserId: session!.user.id,
+                    assignmentId: id,
+                    foremanId: full.assignedEmployeeId,
+                    date: full.date,
+                    projectMasterId: full.projectMasterId,
+                    projectMaster: pmLite,
+                });
+            } catch (e) {
+                logger.error('[assignments DELETE] 削除通知に失敗', e);
+            }
+        }
 
         return NextResponse.json({ success: true, logId });
     } catch (error) {
