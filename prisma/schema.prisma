@@ -90,6 +90,7 @@ model ProjectMaster {
   billingDecision            String                           @default("pending")
   billingDecisionBy          String?
   billingDecisionAt          DateTime?
+  billingStatusOverride      String?
   assignments                ProjectAssignment[]
   calendarEvents             CalendarEvent[]
   files                      ProjectMasterFile[]

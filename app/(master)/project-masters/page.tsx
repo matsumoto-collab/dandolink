@@ -409,6 +409,35 @@ function ProjectMasterListPageContent() {
         }
     }, [getEstimatesByProject]);
 
+    // 請求列の手動上書き（未/一部/済）メニューの開閉対象
+    const [billingMenuPmId, setBillingMenuPmId] = useState<string | null>(null);
+    // override があれば優先、無ければ契約金額ベースの自動判定
+    const resolveBillingStatus = useCallback(
+        (pm: ProjectMaster): BillingStatus =>
+            (pm.billingStatusOverride as BillingStatus | undefined) ||
+            getBillingStatus(pm.contractAmount, invoicedByProject[pm.id] ?? 0),
+        [invoicedByProject],
+    );
+    const setBillingOverride = useCallback(
+        async (pm: ProjectMaster, value: 'unbilled' | 'partial' | 'full' | null) => {
+            setBillingMenuPmId(null);
+            try {
+                await updateProjectMaster(pm.id, { billingStatusOverride: value } as Partial<ProjectMaster>);
+                toast.success(value ? '請求ステータスを手動で設定しました' : '自動判定に戻しました');
+            } catch {
+                toast.error('請求ステータスの更新に失敗しました');
+            }
+        },
+        [updateProjectMaster],
+    );
+    // メニュー外クリックで閉じる
+    useEffect(() => {
+        if (!billingMenuPmId) return;
+        const close = () => setBillingMenuPmId(null);
+        document.addEventListener('click', close);
+        return () => document.removeEventListener('click', close);
+    }, [billingMenuPmId]);
+
     // 請求「済/未」セルのクリック
     const handleInvoiceCellClick = useCallback((pm: ProjectMaster) => {
         const list = getInvoicesByProject(pm.id);
@@ -423,6 +452,42 @@ function ProjectMasterListPageContent() {
             setPickerContext({ pm, kind: 'invoice' });
         }
     }, [getInvoicesByProject]);
+
+    // 請求セル（ボタン＋手動上書きメニュー）。モバイルカード／デスクトップ表の両方で使う。
+    const renderBillingButton = (pm: ProjectMaster) => {
+        const billMeta = BILLING_CELL_META[resolveBillingStatus(pm)];
+        const isOverride = !!pm.billingStatusOverride;
+        const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
+        const menuItem = 'w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition-colors';
+        return (
+            <div className="relative inline-block">
+                <button
+                    onClick={(e) => { e.stopPropagation(); setBillingMenuPmId(billingMenuPmId === pm.id ? null : pm.id); }}
+                    title={isOverride ? `${billMeta.title}（手動設定中）` : billMeta.title}
+                    className={`${base} ${billMeta.className}`}
+                >
+                    {billMeta.showCheck && <Check className="w-3 h-3" strokeWidth={3} />}
+                    <span>請求 {billMeta.text}{isOverride ? '*' : ''}</span>
+                </button>
+                {billingMenuPmId === pm.id && (
+                    <div onClick={(e) => e.stopPropagation()} className="absolute z-50 mt-1 right-0 w-44 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                        <button onClick={() => { setBillingMenuPmId(null); handleInvoiceCellClick(pm); }} className={menuItem}>請求書を作成 / 確認</button>
+                        <div className="border-t border-slate-100 my-1" />
+                        <div className="px-3 py-0.5 text-[10px] text-slate-400">手動で設定</div>
+                        <button onClick={() => setBillingOverride(pm, 'unbilled')} className={menuItem}>未請求</button>
+                        <button onClick={() => setBillingOverride(pm, 'partial')} className={menuItem}>一部請求済</button>
+                        <button onClick={() => setBillingOverride(pm, 'full')} className={menuItem}>請求済</button>
+                        {isOverride && (
+                            <>
+                                <div className="border-t border-slate-100 my-1" />
+                                <button onClick={() => setBillingOverride(pm, null)} className={`${menuItem} text-slate-500`}>自動判定に戻す</button>
+                            </>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     // 詳細モーダル表示中の案件に紐付く最初の見積書
     const estimateForDetailPm = useMemo(() => {
@@ -916,7 +981,6 @@ function ProjectMasterListPageContent() {
                                         <div className="flex items-center gap-1.5 mt-2" onClick={(e) => e.stopPropagation()}>
                                             {(() => {
                                                 const hasEst = hasEstimateFor(pm);
-                                                const billMeta = BILLING_CELL_META[getBillingStatus(pm.contractAmount, invoicedByProject[pm.id] ?? 0)];
                                                 const base = 'inline-flex items-center justify-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all disabled:opacity-40 disabled:cursor-not-allowed';
                                                 const done = 'bg-slate-800 text-white border border-slate-800 hover:bg-slate-900 shadow-sm';
                                                 const todo = 'bg-white text-slate-400 border border-slate-200 hover:border-slate-400 hover:text-slate-600';
@@ -929,14 +993,7 @@ function ProjectMasterListPageContent() {
                                                             {hasEst && <Check className="w-3 h-3" strokeWidth={3} />}
                                                             <span>見積 {hasEst ? '済' : '未'}</span>
                                                         </button>
-                                                        <button
-                                                            onClick={() => handleInvoiceCellClick(pm)}
-                                                            title={billMeta.title}
-                                                            className={`${base} ${billMeta.className}`}
-                                                        >
-                                                            {billMeta.showCheck && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                            <span>請求 {billMeta.text}</span>
-                                                        </button>
+                                                        {renderBillingButton(pm)}
                                                     </>
                                                 );
                                             })()}
@@ -1100,19 +1157,7 @@ function ProjectMasterListPageContent() {
                                                     })()}
                                                 </td>
                                                 <td className="px-4 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                                                    {(() => {
-                                                        const billMeta = BILLING_CELL_META[getBillingStatus(pm.contractAmount, invoicedByProject[pm.id] ?? 0)];
-                                                        return (
-                                                            <button
-                                                                onClick={() => handleInvoiceCellClick(pm)}
-                                                                title={billMeta.title}
-                                                                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-md transition-all ${billMeta.className}`}
-                                                            >
-                                                                {billMeta.showCheck && <Check className="w-3 h-3" strokeWidth={3} />}
-                                                                {billMeta.text}
-                                                            </button>
-                                                        );
-                                                    })()}
+                                                    {renderBillingButton(pm)}
                                                 </td>
                                             </>
                                         )}

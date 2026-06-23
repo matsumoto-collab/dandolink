@@ -231,6 +231,13 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
         if (body.description !== undefined) updateData.description = body.description;
         if (body.remarks !== undefined) updateData.remarks = body.remarks || null;
         if (body.createdBy !== undefined) updateData.createdBy = stringifyJsonField(body.createdBy);
+        if (body.billingStatusOverride !== undefined) {
+            const v = body.billingStatusOverride;
+            if (v !== null && !['unbilled', 'partial', 'full'].includes(v)) {
+                return validationErrorResponse('billingStatusOverride は unbilled / partial / full / null のいずれかを指定してください');
+            }
+            updateData.billingStatusOverride = v || null;
+        }
 
         // 既存値と実際に差分があるフィールドだけを残す（updatedAt/updatedBy を無駄に進めないため）
         const changedData: Record<string, unknown> = {};
