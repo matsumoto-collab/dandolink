@@ -1031,7 +1031,8 @@ export default function MaterialRequisitionPage() {
 
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
-            <div className="flex-1 overflow-y-auto">
+            {/* overflow-x-hidden: 横方向のはみ出しでページ全体がパンするのを防止（縦スクロール・sticky は維持） */}
+            <div className="flex-1 overflow-y-auto overflow-x-hidden">
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold text-slate-800">材料出庫伝票</h1>
@@ -1265,7 +1266,7 @@ export default function MaterialRequisitionPage() {
                                         type="date"
                                         value={formDate}
                                         onChange={(e) => setFormDate(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     />
                                     {/* B3: 日付ショートカット */}
                                     <div className="flex gap-1.5 mt-2">
@@ -1304,7 +1305,7 @@ export default function MaterialRequisitionPage() {
                                             setFormForemanName(f?.displayName || '');
                                         }}
                                         disabled={isForemanSelectLocked}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm disabled:bg-slate-50 disabled:text-slate-600"
+                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm disabled:bg-slate-50 disabled:text-slate-600"
                                     >
                                         <option value="">選択してください</option>
                                         {orderedForemen.map(f => (
@@ -1325,7 +1326,7 @@ export default function MaterialRequisitionPage() {
                                             const f = orderedForemen.find(f => f.id === e.target.value);
                                             setFormWriterName(f?.displayName || '');
                                         }}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     >
                                         <option value="">選択してください</option>
                                         {orderedForemen.map(f => (
@@ -1342,7 +1343,7 @@ export default function MaterialRequisitionPage() {
                                         type="date"
                                         value={formAssemblyDate}
                                         onChange={(e) => setFormAssemblyDate(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     />
                                 </div>
                                 <div>
@@ -1351,7 +1352,7 @@ export default function MaterialRequisitionPage() {
                                         type="date"
                                         value={formDemolitionDate}
                                         onChange={(e) => setFormDemolitionDate(e.target.value)}
-                                        className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     />
                                 </div>
 
@@ -1370,7 +1371,7 @@ export default function MaterialRequisitionPage() {
                                                     next[idx] = e.target.value;
                                                     setFormVehicles(next);
                                                 }}
-                                                className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                                className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                                 placeholder={`車両${idx + 1}`}
                                             />
                                         ))}
@@ -1601,7 +1602,7 @@ export default function MaterialRequisitionPage() {
                                     type="text"
                                     value={formMemo}
                                     onChange={(e) => setFormMemo(e.target.value)}
-                                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
+                                    className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     placeholder="メモ"
                                 />
                             </div>
