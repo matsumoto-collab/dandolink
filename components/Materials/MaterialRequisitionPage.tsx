@@ -16,11 +16,13 @@ import {
     SHEET_SIZES,
     parseRequisitionNotes,
     serializeRequisitionNotes,
+    cellTextToNumber,
     type SheetType,
     type SheetSize,
     type SheetEntry,
     type FreeFormEntry,
     type RequisitionNotes,
+    type CellTextMap,
 } from '@/lib/materials/catalog';
 
 // 日付フォーマット
@@ -162,12 +164,13 @@ export default function MaterialRequisitionPage() {
     const [formMemo, setFormMemo] = useState('');
     // 選択中のシート種類（複数選択）
     const [formSheetTypes, setFormSheetTypes] = useState<Set<SheetType>>(new Set());
-    // シート数量: type -> size -> [車両0,1,2]
-    const [formSheetQty, setFormSheetQty] = useState<Record<string, Partial<Record<SheetSize, [number, number, number]>>>>({});
+    // シート数量(表示文字): type -> size -> [車両0,1,2]（自由入力＝文字列）
+    const [formSheetQty, setFormSheetQty] = useState<Record<string, Partial<Record<SheetSize, [string, string, string]>>>>({});
     // 汎用「その他自由欄」
     const [formFreeForm, setFormFreeForm] = useState<FreeFormEntry[]>([]);
-    // 数量は materialItemId → [車両0, 車両1, 車両2] の3要素タプル
-    const [formQuantities, setFormQuantities] = useState<Record<string, [number, number, number]>>({});
+    // 数量(表示文字)は materialItemId → [車両0, 車両1, 車両2] の3要素タプル（自由入力＝文字列）
+    // 合計・在庫・API数量は cellTextToNumber で数値化。書いたとおりの文字は notes.cells に保存
+    const [formQuantities, setFormQuantities] = useState<Record<string, [string, string, string]>>({});
     // 図面・添付ファイルモーダル
     const [showDrawingModal, setShowDrawingModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -304,14 +307,14 @@ export default function MaterialRequisitionPage() {
         }
     }, [projectsForSelect, formProjectId]);
 
-    // 車両3列のいずれかに数量があるかの判定
-    const hasAnyQty = (q?: [number, number, number]) => !!q && (q[0] > 0 || q[1] > 0 || q[2] > 0);
+    // 車両3列のいずれかに入力があるかの判定（文字列）
+    const hasAnyQty = (q?: [string, string, string]) => !!q && q.some(s => (s ?? '').trim() !== '');
 
-    const setQuantity = (itemId: string, vehicleIndex: 0 | 1 | 2, value: number) => {
+    const setQuantity = (itemId: string, vehicleIndex: 0 | 1 | 2, value: string) => {
         setFormQuantities(prev => {
-            const current = prev[itemId] || [0, 0, 0];
-            const nextTuple: [number, number, number] = [current[0], current[1], current[2]];
-            nextTuple[vehicleIndex] = Math.max(0, value);
+            const current = prev[itemId] || ['', '', ''];
+            const nextTuple: [string, string, string] = [current[0], current[1], current[2]];
+            nextTuple[vehicleIndex] = value;
             if (!hasAnyQty(nextTuple)) {
                 const { [itemId]: _, ...rest } = prev;
                 return rest;
@@ -357,7 +360,8 @@ export default function MaterialRequisitionPage() {
     const flattenQuantitiesForApi = useCallback(() => {
         const result: Array<{ materialItemId: string; quantity: number; vehicleLabel: string }> = [];
         for (const [materialItemId, qtys] of Object.entries(formQuantities)) {
-            qtys.forEach((qty, idx) => {
+            qtys.forEach((raw, idx) => {
+                const qty = cellTextToNumber(raw);
                 if (qty > 0) {
                     result.push({ materialItemId, quantity: qty, vehicleLabel: String(idx) });
                 }
@@ -379,17 +383,30 @@ export default function MaterialRequisitionPage() {
             type,
             sizes: formSheetQty[type] || {},
         }));
+        // 数量セルの表示文字を notes.cells（key=`${categoryName}|${itemName}`）へ保存
+        const idToKey = new Map<string, string>();
+        for (const cat of categories) {
+            for (const item of cat.items || []) idToKey.set(item.id, `${cat.name}|${item.name}`);
+        }
+        const cells: CellTextMap = {};
+        for (const [id, tuple] of Object.entries(formQuantities)) {
+            const key = idToKey.get(id);
+            if (key && tuple.some(s => (s ?? '').trim() !== '')) {
+                cells[key] = [tuple[0] ?? '', tuple[1] ?? '', tuple[2] ?? ''];
+            }
+        }
         const payload: RequisitionNotes = {
             v: 1,
             memo: formMemo,
             sheets,
             freeForm: formFreeForm,
+            cells,
             writerName: formWriterName,
             assemblyDate: formAssemblyDate,
             demolitionDate: formDemolitionDate,
         };
         return serializeRequisitionNotes(payload);
-    }, [formMemo, formSheetTypes, formSheetQty, formFreeForm, formWriterName, formAssemblyDate, formDemolitionDate]);
+    }, [formMemo, formSheetTypes, formSheetQty, formFreeForm, formQuantities, categories, formWriterName, formAssemblyDate, formDemolitionDate]);
 
     // シート種類のトグル（選択解除時はその種類の数量も破棄）
     const toggleSheetType = useCallback((type: SheetType) => {
@@ -409,12 +426,12 @@ export default function MaterialRequisitionPage() {
     }, []);
 
     // シート数量セット（type × size × 車両）
-    const setSheetQty = useCallback((type: SheetType, size: SheetSize, vehicleIndex: 0 | 1 | 2, value: number) => {
+    const setSheetQty = useCallback((type: SheetType, size: SheetSize, vehicleIndex: 0 | 1 | 2, value: string) => {
         setFormSheetQty(prev => {
             const forType = { ...(prev[type] || {}) };
-            const tuple: [number, number, number] = [...(forType[size] || [0, 0, 0])] as [number, number, number];
-            tuple[vehicleIndex] = Math.max(0, value);
-            if (tuple[0] === 0 && tuple[1] === 0 && tuple[2] === 0) {
+            const tuple: [string, string, string] = [...(forType[size] || ['', '', ''])] as [string, string, string];
+            tuple[vehicleIndex] = value;
+            if (!tuple.some(s => (s ?? '').trim() !== '')) {
                 delete forType[size];
             } else {
                 forType[size] = tuple;
@@ -566,19 +583,30 @@ export default function MaterialRequisitionPage() {
     };
 
     const handleCopyRequisition = useCallback(async (req: MaterialRequisition) => {
-        // Copy quantities from existing requisition into tuple format
-        // 既存データの vehicleLabel が '0'/'1'/'2' なら該当列、それ以外(null/レガシー)は車両0列に入れる
-        const quantities: Record<string, [number, number, number]> = {};
+        // 既存伝票をコピー。表示文字は notes.cells（書いたとおり）を最優先、無ければ DB 数量を文字化
+        const parsedNotes = parseRequisitionNotes(req.notes);
+        // cat|item → materialItemId（notes.cells の key 解決用）
+        const keyToId = new Map<string, string>();
+        for (const cat of categories) {
+            for (const it of cat.items || []) keyToId.set(`${cat.name}|${it.name}`, it.id);
+        }
+        const quantities: Record<string, [string, string, string]> = {};
+        // 1) DB items（数値）→ 文字列の初期値（vehicleLabel '0'/'1'/'2'、その他は車両0列）
         req.items?.forEach(item => {
             if (item.quantity > 0) {
                 let idx: 0 | 1 | 2 = 0;
                 if (item.vehicleLabel === '1') idx = 1;
                 else if (item.vehicleLabel === '2') idx = 2;
-                const tuple = quantities[item.materialItemId] || [0, 0, 0];
-                tuple[idx] += item.quantity;
+                const tuple = quantities[item.materialItemId] || ['', '', ''];
+                tuple[idx] = String(cellTextToNumber(tuple[idx]) + item.quantity);
                 quantities[item.materialItemId] = tuple;
             }
         });
+        // 2) notes.cells（書いたとおりの表示文字）で上書き
+        for (const [key, tuple] of Object.entries(parsedNotes.cells ?? {})) {
+            const id = keyToId.get(key);
+            if (id) quantities[id] = [tuple[0] ?? '', tuple[1] ?? '', tuple[2] ?? ''];
+        }
         // 自動保存関連 state を新規作成扱いにリセット
         setAutoSavedId(null);
         setAutoSaveStatus('idle');
@@ -616,9 +644,8 @@ export default function MaterialRequisitionPage() {
         }
         setFormVehicles(parsedVehicles);
         // notes-JSON（シート / 自由欄）をコピー。memo はコピーしない（旧挙動踏襲）
-        const parsedNotes = parseRequisitionNotes(req.notes);
         const copiedTypes = new Set<SheetType>();
-        const copiedSheetQty: Record<string, Partial<Record<SheetSize, [number, number, number]>>> = {};
+        const copiedSheetQty: Record<string, Partial<Record<SheetSize, [string, string, string]>>> = {};
         for (const s of parsedNotes.sheets) {
             copiedTypes.add(s.type);
             copiedSheetQty[s.type] = { ...s.sizes };
@@ -633,7 +660,7 @@ export default function MaterialRequisitionPage() {
         setSearchQuery('');
         setView('create');
         toast.success('前回の伝票をコピーしました');
-    }, []);
+    }, [categories]);
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -724,16 +751,15 @@ export default function MaterialRequisitionPage() {
         return out;
     }, [trimmedQuery]);
 
-    // 車両別合計（フッター表示用）。カタログ＋シート＋自由欄（数値化できる分）を合算
+    // 車両別合計（フッター表示用）。カタログ＋シート＋自由欄を文字→数値（cellTextToNumber）で合算
     const gridTotals = useMemo(() => {
         const c: [number, number, number] = [0, 0, 0];
-        for (const t of Object.values(formQuantities)) { c[0] += t[0]; c[1] += t[1]; c[2] += t[2]; }
+        const add = (t: [string, string, string]) => ([0, 1, 2] as const).forEach(vi => { c[vi] += cellTextToNumber(t[vi]); });
+        for (const t of Object.values(formQuantities)) add(t);
         for (const sizes of Object.values(formSheetQty)) {
-            for (const t of Object.values(sizes)) { if (t) { c[0] += t[0]; c[1] += t[1]; c[2] += t[2]; } }
+            for (const t of Object.values(sizes)) { if (t) add(t); }
         }
-        for (const f of formFreeForm) {
-            ([0, 1, 2] as const).forEach(vi => { const n = parseFloat(f.qty[vi]); if (Number.isFinite(n)) c[vi] += n; });
-        }
+        for (const f of formFreeForm) add(f.qty);
         return { car1: c[0], car2: c[1], car3: c[2], total: c[0] + c[1] + c[2] };
     }, [formQuantities, formSheetQty, formFreeForm]);
 
@@ -758,8 +784,8 @@ export default function MaterialRequisitionPage() {
             setFormQuantities(prev => {
                 const next = { ...prev };
                 for (const it of valid) {
-                    const cur = next[it.materialItemId] || [0, 0, 0];
-                    next[it.materialItemId] = [cur[0] + it.requiredQuantity, cur[1], cur[2]];
+                    const cur = next[it.materialItemId] || ['', '', ''];
+                    next[it.materialItemId] = [String(cellTextToNumber(cur[0]) + it.requiredQuantity), cur[1], cur[2]];
                 }
                 return next;
             });
@@ -779,7 +805,7 @@ export default function MaterialRequisitionPage() {
                 if (item.excludeFromStockDecrement) continue;
                 const tuple = formQuantities[item.id];
                 if (!tuple) continue;
-                const used = tuple[0] + tuple[1] + tuple[2];
+                const used = cellTextToNumber(tuple[0]) + cellTextToNumber(tuple[1]) + cellTextToNumber(tuple[2]);
                 if (used <= 0) continue;
                 const residual = (item.stockQuantity ?? 0) - used;
                 if (residual < 0) list.push({ id: item.id, name: item.name, spec: item.spec, over: -residual });
@@ -799,13 +825,13 @@ export default function MaterialRequisitionPage() {
         return map;
     }, [categories]);
 
-    // PDF プレビュー用: セルキー → 数量を引く関数 (車両0/1/2 ぶん振り分け)
-    const slipGetQty = useCallback((categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2): number => {
+    // PDF プレビュー用: セルキー → 表示文字を引く関数 (車両0/1/2 ぶん振り分け)
+    const slipGetQty = useCallback((categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2): string => {
         const itemId = itemByKey.get(`${categoryName}|${itemName}`);
-        if (!itemId) return 0;
+        if (!itemId) return '';
         const tuple = formQuantities[itemId];
-        if (!tuple) return 0;
-        return tuple[vehicleIndex] || 0;
+        if (!tuple) return '';
+        return tuple[vehicleIndex] || '';
     }, [itemByKey, formQuantities]);
 
     // 選択中の案件情報（プレビュー用）
@@ -856,6 +882,7 @@ export default function MaterialRequisitionPage() {
             { items: [], subtotal: 0 }, { items: [], subtotal: 0 }, { items: [], subtotal: 0 },
         ];
         // 1) カタログ品目（Sheet1 / グリッド順）。シート（ネット）は (2) で別途集計
+        //    表示は書いたとおりの文字（例「20本」）、小計は cellTextToNumber で数値化
         for (const group of GRID_GROUPS) {
             if (group.categoryName === SHEET_GRID_CATEGORY) continue;
             for (const row of group.rows) {
@@ -864,10 +891,10 @@ export default function MaterialRequisitionPage() {
                 const t = formQuantities[id];
                 if (!t) continue;
                 ([0, 1, 2] as const).forEach((vi) => {
-                    if (t[vi] > 0) {
-                        per[vi].items.push({ name: group.categoryName, spec: gridSpecText(group.categoryName, row.spec), qty: String(t[vi]) });
-                        per[vi].subtotal += t[vi];
-                    }
+                    const raw = (t[vi] || '').trim();
+                    if (!raw) return;
+                    per[vi].items.push({ name: group.categoryName, spec: gridSpecText(group.categoryName, row.spec), qty: raw });
+                    per[vi].subtotal += cellTextToNumber(raw);
                 });
             }
         }
@@ -877,22 +904,21 @@ export default function MaterialRequisitionPage() {
                 const t = s.sizes[size];
                 if (!t) continue;
                 ([0, 1, 2] as const).forEach((vi) => {
-                    if (t[vi] > 0) {
-                        per[vi].items.push({ name: s.type, spec: size, qty: String(t[vi]) });
-                        per[vi].subtotal += t[vi];
-                    }
+                    const raw = (t[vi] || '').trim();
+                    if (!raw) return;
+                    per[vi].items.push({ name: s.type, spec: size, qty: raw });
+                    per[vi].subtotal += cellTextToNumber(raw);
                 });
             }
         }
-        // 3) 自由欄（数量は文字列。数値化できる分のみ小計に算入）
+        // 3) 自由欄（書いたとおりの文字を表示・小計は数値化できる分のみ）
         for (const f of formFreeForm) {
             if (!f.label.trim()) continue;
             ([0, 1, 2] as const).forEach((vi) => {
                 const raw = (f.qty[vi] || '').trim();
                 if (!raw) return;
-                const n = parseFloat(raw);
                 per[vi].items.push({ name: f.label, spec: '', qty: raw });
-                per[vi].subtotal += Number.isFinite(n) ? n : 0;
+                per[vi].subtotal += cellTextToNumber(raw);
             });
         }
         return per;
@@ -979,8 +1005,12 @@ export default function MaterialRequisitionPage() {
         setFormQuantities(prevQ => {
             const next = { ...prevQ };
             for (const [id, t] of Object.entries(addQ)) {
-                const cur = next[id] || [0, 0, 0];
-                next[id] = [cur[0] + t[0], cur[1] + t[1], cur[2] + t[2]];
+                const cur = next[id] || ['', '', ''];
+                const merged: [string, string, string] = [cur[0], cur[1], cur[2]];
+                ([0, 1, 2] as const).forEach(vi => {
+                    if (t[vi] > 0) merged[vi] = String(cellTextToNumber(cur[vi]) + t[vi]);
+                });
+                next[id] = merged;
             }
             return next;
         });
@@ -988,7 +1018,7 @@ export default function MaterialRequisitionPage() {
         const notes = parseRequisitionNotes(prev.notes);
         if (formSheetTypes.size === 0 && notes.sheets.length > 0) {
             const types = new Set<SheetType>();
-            const qty: Record<string, Partial<Record<SheetSize, [number, number, number]>>> = {};
+            const qty: Record<string, Partial<Record<SheetSize, [string, string, string]>>> = {};
             for (const s of notes.sheets) { types.add(s.type); qty[s.type] = { ...s.sizes }; }
             setFormSheetTypes(types);
             setFormSheetQty(qty);
@@ -1471,16 +1501,16 @@ export default function MaterialRequisitionPage() {
                                                                                 </button>
                                                                             </div>
                                                                             {SHEET_SIZES.map((size) => {
-                                                                                const tuple = formSheetQty[t]?.[size] || [0, 0, 0];
+                                                                                const tuple = formSheetQty[t]?.[size] || ['', '', ''];
                                                                                 return (
                                                                                     <div key={size} className={`${gridColsClass} border-t border-slate-100`}>
                                                                                         <div className="px-2 py-1.5 border-r border-slate-200" />
                                                                                         <div className="px-1.5 py-1.5 text-[13px] text-slate-600 flex items-center border-r border-slate-200">{size}</div>
                                                                                         {[0, 1, 2].map((vi) => {
-                                                                                            const val = tuple[vi] || 0;
+                                                                                            const val = tuple[vi] || '';
                                                                                             return (
-                                                                                                <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val > 0 ? 'bg-amber-100' : ''}`}>
-                                                                                                    <input type="number" inputMode="numeric" min="0" value={val || ''} onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`シート ${t} ${size} 車両${vi + 1}`} />
+                                                                                                <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val.trim() ? 'bg-amber-100' : ''}`}>
+                                                                                                    <input type="text" value={val} onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, e.target.value)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`シート ${t} ${size} 車両${vi + 1}`} />
                                                                                                 </div>
                                                                                             );
                                                                                         })}
@@ -1498,7 +1528,7 @@ export default function MaterialRequisitionPage() {
                                                         <div key={`g${gi}`} className="border-t-2 border-slate-700">
                                                             {group.rows.map((row, ri) => {
                                                                 const id = itemByKey.get(`${group.categoryName}|${row.itemName}`);
-                                                                const tuple = (id && formQuantities[id]) || [0, 0, 0];
+                                                                const tuple = (id && formQuantities[id]) || ['', '', ''];
                                                                 return (
                                                                     <div key={ri} className={`${gridColsClass} ${ri > 0 ? 'border-t border-slate-100' : ''}`}>
                                                                         <div className="px-2 py-1.5 flex items-center border-r border-slate-200 min-w-0">
@@ -1509,10 +1539,10 @@ export default function MaterialRequisitionPage() {
                                                                             {ri === 0 && GRID_HINTS[group.categoryName] && <span className="ml-1 text-[10px] text-slate-400 shrink-0">{GRID_HINTS[group.categoryName]}</span>}
                                                                         </div>
                                                                         {[0, 1, 2].map((vi) => {
-                                                                            const val = tuple[vi] || 0;
+                                                                            const val = tuple[vi] || '';
                                                                             return (
-                                                                                <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val > 0 ? 'bg-amber-100' : ''}`}>
-                                                                                    <input type="number" inputMode="numeric" min="0" disabled={!id} value={val || ''} onChange={(e) => id && setQuantity(id, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`${group.categoryName} ${row.spec} 車両${vi + 1}`} />
+                                                                                <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val.trim() ? 'bg-amber-100' : ''}`}>
+                                                                                    <input type="text" disabled={!id} value={val} onChange={(e) => id && setQuantity(id, vi as 0 | 1 | 2, e.target.value)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`${group.categoryName} ${row.spec} 車両${vi + 1}`} />
                                                                                 </div>
                                                                             );
                                                                         })}
@@ -1541,7 +1571,7 @@ export default function MaterialRequisitionPage() {
                                                                         const v = row.qty[vi] || '';
                                                                         return (
                                                                             <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${v.trim() ? 'bg-amber-100' : ''}`}>
-                                                                                <input type="text" inputMode="numeric" value={v} onChange={(e) => setFreeFormCellAt(i, vi as 0 | 1 | 2, e.target.value)} className="w-full h-10 text-center text-sm font-bold text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500" aria-label={`自由記入${i + 1} 車両${vi + 1}`} />
+                                                                                <input type="text" value={v} onChange={(e) => setFreeFormCellAt(i, vi as 0 | 1 | 2, e.target.value)} className="w-full h-10 text-center text-sm font-bold text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500" aria-label={`自由記入${i + 1} 車両${vi + 1}`} />
                                                                             </div>
                                                                         );
                                                                     })}

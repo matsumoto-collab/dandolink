@@ -633,11 +633,20 @@ export interface SheetEntry {
     /** SHEET_TYPES のいずれか（複数選択された種類のみ持つ） */
     type: SheetType;
     /**
-     * size -> [車両0, 車両1, 車両2] の数量。
-     * 0 は空欄扱い。未入力の size は省略可。
+     * size -> [車両0, 車両1, 車両2] の表示文字（自由入力＝文字列。例「20本」「残」）。
+     * 空文字 '' は空欄扱い。未入力の size は省略可。合計・在庫は cellTextToNumber で数値化。
+     * （旧データの数値タプルは parse 時に文字列へ後方互換変換）
      */
-    sizes: Partial<Record<SheetSize, [number, number, number]>>;
+    sizes: Partial<Record<SheetSize, [string, string, string]>>;
 }
+
+/**
+ * カタログ数量セルの表示文字（自由入力）。
+ * key = `${categoryName}|${itemName}` / value = [車両0, 車両1, 車両2] の文字列。
+ * DB の MaterialRequisitionItem.quantity（数値・在庫の正）とは別に、
+ * 「書いたとおりの表示」を notes-JSON に保持して PDF・再表示で復元する。
+ */
+export type CellTextMap = Record<string, [string, string, string]>;
 
 /** 汎用「その他自由欄」1 行 */
 export interface FreeFormEntry {
@@ -660,6 +669,12 @@ export interface RequisitionNotes {
     /** 汎用自由欄（種別に無い任意品目） */
     freeForm: FreeFormEntry[];
     /**
+     * カタログ数量セルの表示文字（自由入力）。key=`${categoryName}|${itemName}`。
+     * 在庫・合計は DB の quantity（数値）が正だが、ここに「書いたとおり」を保持して
+     * PDF・再表示で復元する（v:1 のまま追加・後方互換。無ければ数値からフォールバック表示）。
+     */
+    cells?: CellTextMap;
+    /**
      * 記入者名（出庫伝票を記入した人。施工班=foremanName とは別軸）。
      * スキーマ変更不要のため notes-JSON に持つ（v:1 のまま追加・後方互換）。
      */
@@ -672,41 +687,64 @@ export interface RequisitionNotes {
 
 /** 空の RequisitionNotes */
 export function emptyRequisitionNotes(): RequisitionNotes {
-    return { v: 1, memo: '', sheets: [], freeForm: [], writerName: '', assemblyDate: '', demolitionDate: '' };
-}
-
-/** 1 要素を有限数に矯正（NaN / Infinity / 非数 → 0、負値も 0 にクランプ） */
-function toFiniteQty(v: unknown): number {
-    const n = typeof v === 'number' ? v : Number(v);
-    return Number.isFinite(n) && n > 0 ? n : 0;
+    return { v: 1, memo: '', sheets: [], freeForm: [], cells: {}, writerName: '', assemblyDate: '', demolitionDate: '' };
 }
 
 /**
- * SheetEntry.sizes を形状正規化する。
- * 各 size のタプルを「長さ 3・各要素 finite number」に矯正し
- * （不正・欠損は 0 埋め）、SHEET_SIZES に無いキーは捨てる。
- * 破損データ / 旧形式（長さ不足・文字列数量）の混入耐性。
+ * セルの表示文字（数量セルは自由入力＝文字列）を 1 要素に正規化する。
+ * 旧データ（数値）との後方互換: number は表示文字へ（0 / 負 / NaN は空欄 ''）。
+ */
+function toCellText(v: unknown): string {
+    if (typeof v === 'number') return Number.isFinite(v) && v > 0 ? String(v) : '';
+    if (typeof v === 'string') return v;
+    return '';
+}
+
+/**
+ * 文字セルから合計・在庫計算用の数値を取り出す。
+ * 全角数字・全角ピリオドは半角化し、文字中の最初の数値を採用
+ *   （例「20本」→20 /「２０」→20 /「2〜3」→2 /「残」→0）。負値は 0 にクランプ。
+ */
+export function cellTextToNumber(v: string | number | null | undefined): number {
+    if (typeof v === 'number') return Number.isFinite(v) && v > 0 ? v : 0;
+    if (!v) return 0;
+    const half = v.replace(/[０-９．]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+    const m = half.match(/-?\d+(?:\.\d+)?/);
+    const n = m ? parseFloat(m[0]) : NaN;
+    return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** 任意値を「長さ 3・各要素 文字列」のセルタプルへ正規化（旧数値データも文字へ） */
+function normalizeCellTuple(raw: unknown): [string, string, string] {
+    const arr = Array.isArray(raw) ? raw : [];
+    return [toCellText(arr[0]), toCellText(arr[1]), toCellText(arr[2])];
+}
+
+/**
+ * SheetEntry.sizes を形状正規化する（各 size のタプルを長さ3の文字列に矯正）。
+ * SHEET_SIZES に無いキーは捨てる。旧形式（数値タプル）も文字へ後方互換。
  */
 function normalizeSheetSizes(
     raw: unknown,
-): Partial<Record<SheetSize, [number, number, number]>> {
-    const out: Partial<Record<SheetSize, [number, number, number]>> = {};
+): Partial<Record<SheetSize, [string, string, string]>> {
+    const out: Partial<Record<SheetSize, [string, string, string]>> = {};
     if (!raw || typeof raw !== 'object') return out;
     const rec = raw as Record<string, unknown>;
     for (const size of SHEET_SIZES) {
         if (!(size in rec)) continue;
-        const t = rec[size];
-        const arr = Array.isArray(t) ? t : [];
-        out[size] = [toFiniteQty(arr[0]), toFiniteQty(arr[1]), toFiniteQty(arr[2])];
+        out[size] = normalizeCellTuple(rec[size]);
     }
     return out;
 }
 
-/** SheetEntry の sizes が全て 0 か（保存時の間引き判定用） */
+/** セルタプルが全て空文字か（保存時の間引き判定用） */
+function cellTupleIsEmpty(t: [string, string, string] | undefined): boolean {
+    return !t || !t.some((s) => String(s ?? '').trim() !== '');
+}
+
+/** SheetEntry の sizes が全て空か（保存時の間引き判定用） */
 function sheetEntryIsEmpty(e: SheetEntry): boolean {
-    return !Object.values(e.sizes).some(
-        (t) => Array.isArray(t) && (t[0] > 0 || t[1] > 0 || t[2] > 0),
-    );
+    return !Object.values(e.sizes).some((t) => !cellTupleIsEmpty(t as [string, string, string]));
 }
 
 /** FreeFormEntry が空か */
@@ -715,6 +753,17 @@ function freeFormIsEmpty(e: FreeFormEntry): boolean {
         !e.label.trim() &&
         !(e.qty[0]?.trim() || e.qty[1]?.trim() || e.qty[2]?.trim())
     );
+}
+
+/** notes.cells（カタログ数量セルの表示文字）を正規化（全空エントリは捨てる） */
+function parseCells(raw: unknown): CellTextMap {
+    const out: CellTextMap = {};
+    if (!raw || typeof raw !== 'object') return out;
+    for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+        const tuple = normalizeCellTuple(v);
+        if (!cellTupleIsEmpty(tuple)) out[k] = tuple;
+    }
+    return out;
 }
 
 /**
@@ -757,6 +806,7 @@ export function parseRequisitionNotes(raw: string | null | undefined): Requisiti
                               ] as [string, string, string],
                           }))
                     : [],
+                cells: parseCells(obj.cells),
                 writerName: typeof obj.writerName === 'string' ? obj.writerName : '',
                 assemblyDate: typeof obj.assemblyDate === 'string' ? obj.assemblyDate : '',
                 demolitionDate: typeof obj.demolitionDate === 'string' ? obj.demolitionDate : '',
@@ -780,17 +830,24 @@ export function parseRequisitionNotes(raw: string | null | undefined): Requisiti
 export function serializeRequisitionNotes(n: RequisitionNotes): string | null {
     const sheets = n.sheets.filter((s) => !sheetEntryIsEmpty(s));
     const freeForm = n.freeForm.filter((f) => !freeFormIsEmpty(f));
+    // 数量セルの表示文字（全空エントリは捨てる）
+    const cells: CellTextMap = {};
+    for (const [k, t] of Object.entries(n.cells ?? {})) {
+        const tuple: [string, string, string] = [t?.[0] ?? '', t?.[1] ?? '', t?.[2] ?? ''];
+        if (!cellTupleIsEmpty(tuple)) cells[k] = tuple;
+    }
+    const hasCells = Object.keys(cells).length > 0;
     const memo = n.memo ?? '';
     const writerName = (n.writerName ?? '').trim();
     const assemblyDate = (n.assemblyDate ?? '').trim();
     const demolitionDate = (n.demolitionDate ?? '').trim();
     if (
-        !memo.trim() && sheets.length === 0 && freeForm.length === 0 &&
+        !memo.trim() && sheets.length === 0 && freeForm.length === 0 && !hasCells &&
         !writerName && !assemblyDate && !demolitionDate
     ) {
         return null;
     }
-    return JSON.stringify({ v: 1, memo, sheets, freeForm, writerName, assemblyDate, demolitionDate });
+    return JSON.stringify({ v: 1, memo, sheets, freeForm, cells, writerName, assemblyDate, demolitionDate });
 }
 
 /**

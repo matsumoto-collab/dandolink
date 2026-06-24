@@ -38,11 +38,11 @@ export interface MaterialRequisitionSlipPDFProps {
     /** 車両3欄 (車両1,車両2,車両3) */
     vehicles: [string, string, string];
     /**
-     * セル単位の数量取得関数。
-     * 例: getQty('柱', '3.6m', 0) -> 車両0(=列1) の数量
-     * 該当無しは 0 / 空欄として扱う
+     * セル単位の表示文字取得関数（自由入力＝文字列。例「20本」「残」）。
+     * 例: getQty('柱', '3.6m', 0) -> 車両0(=列1) の表示文字
+     * 該当無しは '' （空欄）として扱う
      */
-    getQty: (categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2) => number;
+    getQty: (categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2) => string;
     /** シート（種類 × サイズ × 車両）。notes-JSON 由来。空配列なら非表示 */
     sheets?: SheetEntry[];
     /** 汎用自由欄。notes-JSON 由来。空配列なら最低 3 行の空欄を表示 */
@@ -428,12 +428,12 @@ function VehicleRow({ vehicles }: { vehicles: [string, string, string] }) {
     );
 }
 
-function QtyCells({ qtys }: { qtys: [number, number, number] }) {
+function QtyCells({ qtys }: { qtys: [string, string, string] }) {
     return (
         <View style={styles.qtyCellsContainer}>
-            <Text style={styles.qtyCell}>{qtys[0] > 0 ? String(qtys[0]) : ''}</Text>
-            <Text style={styles.qtyCell}>{qtys[1] > 0 ? String(qtys[1]) : ''}</Text>
-            <Text style={styles.qtyCellLast}>{qtys[2] > 0 ? String(qtys[2]) : ''}</Text>
+            <Text style={styles.qtyCell}>{sanitizePdfText(qtys[0] || '')}</Text>
+            <Text style={styles.qtyCell}>{sanitizePdfText(qtys[1] || '')}</Text>
+            <Text style={styles.qtyCellLast}>{sanitizePdfText(qtys[2] || '')}</Text>
         </View>
     );
 }
@@ -447,7 +447,7 @@ function GroupBlock({ group, getQty, isLastGroup }: { group: Group; getQty: Mate
             <View style={styles.groupRows}>
                 {group.rows.map((row, idx) => {
                     const isLast = idx === group.rows.length - 1;
-                    const qtys: [number, number, number] = [
+                    const qtys: [string, string, string] = [
                         getQty(row.categoryName, row.itemName, 0),
                         getQty(row.categoryName, row.itemName, 1),
                         getQty(row.categoryName, row.itemName, 2),
@@ -509,13 +509,13 @@ function ColumnBlock({ column, getQty, isLast, freeForm }: { column: Column; get
 
 /** シート（種類 × サイズ × 車両）セクション。選択された種類のみ描画（1 ページ収め維持） */
 function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
-    // 何かしら数量のある (type,size) のみ行にする
-    const rows: Array<{ type: string; size: string; qtys: [number, number, number] }> = [];
+    // 何かしら入力のある (type,size) のみ行にする
+    const rows: Array<{ type: string; size: string; qtys: [string, string, string] }> = [];
     for (const s of sheets) {
         for (const size of SHEET_SIZES) {
             const t = s.sizes[size];
-            if (t && (t[0] > 0 || t[1] > 0 || t[2] > 0)) {
-                rows.push({ type: s.type, size, qtys: [t[0] || 0, t[1] || 0, t[2] || 0] });
+            if (t && (String(t[0] ?? '').trim() || String(t[1] ?? '').trim() || String(t[2] ?? '').trim())) {
+                rows.push({ type: s.type, size, qtys: [t[0] || '', t[1] || '', t[2] || ''] });
             }
         }
     }
@@ -529,9 +529,9 @@ function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
                     <View key={idx} style={isLast ? [styles.sheetRow, { borderBottomWidth: 0 }] : styles.sheetRow}>
                         <Text style={styles.sheetTypeCell}>{sanitizePdfText(r.type)}</Text>
                         <Text style={styles.sheetSizeCell}>{sanitizePdfText(r.size)}</Text>
-                        <Text style={styles.sheetQtyCell}>{r.qtys[0] > 0 ? String(r.qtys[0]) : ''}</Text>
-                        <Text style={styles.sheetQtyCell}>{r.qtys[1] > 0 ? String(r.qtys[1]) : ''}</Text>
-                        <Text style={styles.sheetQtyCellLast}>{r.qtys[2] > 0 ? String(r.qtys[2]) : ''}</Text>
+                        <Text style={styles.sheetQtyCell}>{sanitizePdfText(r.qtys[0] || '')}</Text>
+                        <Text style={styles.sheetQtyCell}>{sanitizePdfText(r.qtys[1] || '')}</Text>
+                        <Text style={styles.sheetQtyCellLast}>{sanitizePdfText(r.qtys[2] || '')}</Text>
                     </View>
                 );
             })}

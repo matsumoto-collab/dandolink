@@ -94,7 +94,13 @@ async function buildSlipDataForRequisition(id: string): Promise<MaterialRequisit
         assemblyDate,
         demolitionDate,
         vehicles,
-        getQty: (categoryName, itemName, vehicleIndex) => qtyMap.get(`${categoryName}|${itemName}|${vehicleIndex}`) ?? 0,
+        // 表示は notes.cells（書いたとおりの文字）を最優先、無ければ DB 数量を文字化
+        getQty: (categoryName, itemName, vehicleIndex) => {
+            const cellText = parsedNotes.cells?.[`${categoryName}|${itemName}`]?.[vehicleIndex];
+            if (cellText && cellText.trim() !== '') return cellText;
+            const n = qtyMap.get(`${categoryName}|${itemName}|${vehicleIndex}`) ?? 0;
+            return n > 0 ? String(n) : '';
+        },
         sheets: parsedNotes.sheets,
         freeForm: parsedNotes.freeForm,
     };
@@ -114,7 +120,7 @@ export async function renderMaterialRequisitionPrintPDF(
                 foremanName="" customerName="" siteName=""
                 assemblyDate="" demolitionDate=""
                 vehicles={['', '', '']}
-                getQty={() => 0}
+                getQty={() => ''}
             />
         ));
     }
@@ -133,7 +139,7 @@ export async function renderMaterialRequisitionPrintPDF(
                 foremanName="" customerName="" siteName=""
                 assemblyDate="" demolitionDate=""
                 vehicles={['', '', '']}
-                getQty={() => 0}
+                getQty={() => ''}
             />
         ));
     }

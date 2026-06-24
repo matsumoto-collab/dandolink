@@ -179,32 +179,46 @@ describe('catalog Phase 2: シート / 自由欄 notes-JSON ラウンドトリ�
         expect(back.freeForm).toEqual([]);
     });
 
-    it('シート（種類×サイズ×車両）と自由欄をラウンドトリップ', () => {
+    it('シート（種類×サイズ×車両）・自由欄・セル文字をラウンドトリップ', () => {
         const n: RequisitionNotes = {
             v: 1,
             memo: '備考テキスト',
             sheets: [
-                { type: SHEET_TYPES[0], sizes: { '1.8': [3, 0, 1], '0.6': [0, 2, 0] } },
-                { type: '黒', sizes: { '0.9': [5, 5, 5] } },
+                { type: SHEET_TYPES[0], sizes: { '1.8': ['3本', '', '1'], '0.6': ['', '残', ''] } },
+                { type: '黒', sizes: { '0.9': ['5', '5', '5'] } },
             ],
             freeForm: [{ label: '特注品', qty: ['2', '', '1'] }],
+            cells: { '柱|3.6m': ['20本', '', '残'], '手摺|1.8m': ['', '10', ''] },
         };
         const s = serializeRequisitionNotes(n);
         const back = parseRequisitionNotes(s);
         expect(back.memo).toBe('備考テキスト');
         expect(back.sheets).toHaveLength(2);
         expect(back.sheets[0].type).toBe(SHEET_TYPES[0]);
-        expect(back.sheets[0].sizes['1.8']).toEqual([3, 0, 1]);
+        expect(back.sheets[0].sizes['1.8']).toEqual(['3本', '', '1']);
+        expect(back.sheets[0].sizes['0.6']).toEqual(['', '残', '']);
         expect(back.sheets[1].type).toBe('黒');
-        expect(back.sheets[1].sizes['0.9']).toEqual([5, 5, 5]);
+        expect(back.sheets[1].sizes['0.9']).toEqual(['5', '5', '5']);
         expect(back.freeForm).toEqual([{ label: '特注品', qty: ['2', '', '1'] }]);
+        expect(back.cells).toEqual({ '柱|3.6m': ['20本', '', '残'], '手摺|1.8m': ['', '10', ''] });
+    });
+
+    it('旧データ（数値シート）は文字列へ後方互換変換（0 は空欄）', () => {
+        const raw = JSON.stringify({
+            v: 1, memo: '', writerName: '', assemblyDate: '', demolitionDate: '',
+            sheets: [{ type: SHEET_TYPES[0], sizes: { '1.8': [3, 0, 1] } }],
+            freeForm: [],
+        });
+        const back = parseRequisitionNotes(raw);
+        expect(back.sheets[0].sizes['1.8']).toEqual(['3', '', '1']);
+        expect(back.cells).toEqual({});
     });
 
     it('全 0 シート / 空自由欄は serialize で間引かれる', () => {
         const n: RequisitionNotes = {
             v: 1,
             memo: 'm',
-            sheets: [{ type: SHEET_TYPES[0], sizes: { '1.8': [0, 0, 0] } }],
+            sheets: [{ type: SHEET_TYPES[0], sizes: { '1.8': ['', '', ''] } }],
             freeForm: [{ label: '', qty: ['', '', ''] }],
         };
         const back = parseRequisitionNotes(serializeRequisitionNotes(n));
