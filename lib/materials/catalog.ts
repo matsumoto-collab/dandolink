@@ -105,6 +105,16 @@ export interface CatalogItem {
      *   - 未設定（undefined）は false 相当（= 通常どおり在庫減算対象）。
      */
     excludeFromStockDecrement?: boolean;
+    /**
+     * PDF グリッド（A案 / 全項目版）から除外するフラグ。
+     *
+     * true の品目は在庫対象 CatalogItem（seed / stock）には残るが、
+     * PDF_LAYOUT（buildPdfLayout）には含めない。
+     * Sheet1（紙の正式帳票）に無いが在庫として実在する品目に使う
+     *   （例: センターハーフ 0.4m）。出庫・選択は DB マスタ駆動なので影響しない。
+     * 未設定（undefined）は false 相当（= 通常どおり PDF にも描画）。
+     */
+    hideFromPdf?: boolean;
 }
 
 /** カタログカテゴリ（seed の MaterialCategory に対応） */
@@ -213,7 +223,19 @@ function unitFor(categoryName: string, itemName: string): string {
  * categoryName は各 RawGroup の意味的カテゴリだが、PDF の空ラベルグループには
  * 複数カテゴリが混在するため、行単位で categoryName を持たせる。
  */
-interface SpineRow { categoryName: string; itemName: string; spec: string }
+interface SpineRow {
+    categoryName: string;
+    itemName: string;
+    spec: string;
+    /**
+     * true の品目は CATALOG_ITEMS（在庫・seed 対象）には残すが、
+     * PDF グリッド（A案 / 全項目版）には描画しない。
+     * 用途: Sheet1（紙の正式帳票）に無いが在庫としては実在する品目
+     *       （例: センターハーフ 0.4m）。出庫・選択は引き続き可能だが、
+     *       A案 PDF は Sheet1 と寸分違わぬ見た目を保つ。
+     */
+    hideFromPdf?: boolean;
+}
 interface SpineGroup { groupLabel: string; rows: SpineRow[] }
 interface SpineColumn { column: PdfColumn; groups: SpineGroup[] }
 
@@ -259,22 +281,26 @@ const SPINE: SpineColumn[] = [
                 { categoryName: 'センターハーフ', itemName: '1.2m', spec: '1.2' },
                 { categoryName: 'センターハーフ', itemName: '0.9m', spec: '0.9' },
                 { categoryName: 'センターハーフ', itemName: '0.6m', spec: '0.6' },
-                // seed のみに存在する '0.4m' を在庫対象として末尾追加（KNOWN_DISCREPANCIES #4）
-                { categoryName: 'センターハーフ', itemName: '0.4m', spec: '0.4' },
+                // '0.4m' は seed（DB 在庫）のみに存在し Sheet1 には無い。
+                // 在庫・出庫は維持しつつ A案 PDF だけ Sheet1 と一致させるため hideFromPdf。
+                // （KNOWN_DISCREPANCIES #4）
+                { categoryName: 'センターハーフ', itemName: '0.4m', spec: '0.4', hideFromPdf: true },
             ]},
             { groupLabel: '筋交', rows: [
                 { categoryName: '筋交', itemName: '1.8m', spec: '1.8' },
                 { categoryName: '筋交', itemName: '1.2m', spec: '1.2' },
                 { categoryName: '筋交', itemName: '0.9m', spec: '0.9' },
             ]},
+            // Sheet1 のブラケットは 0.6 / 0.4 / 0.8 の 3 行（seed 順 0.4/0.8/0.6 を Sheet1 順に並べ替え）
+            // （KNOWN_DISCREPANCIES #2）
             { groupLabel: 'ブラケット', rows: [
                 { categoryName: 'ブラケット', itemName: '0.6m', spec: '0.6' },
                 { categoryName: 'ブラケット', itemName: '0.4m', spec: '0.4' },
-                // seed のみに存在する '0.8m' を在庫対象として末尾追加（KNOWN_DISCREPANCIES #2）
                 { categoryName: 'ブラケット', itemName: '0.8m', spec: '0.8' },
             ]},
+            // Sheet1 のピン付きは 0.6 / 0.4 / 0.2 の 3 行。旧 PDF にあった '0.8m' は
+            // Sheet1 にも DB seed にも無い死行のため削除（KNOWN_DISCREPANCIES #3）。
             { groupLabel: 'ピン付き', rows: [
-                { categoryName: 'ピン付き', itemName: '0.8m', spec: '0.8' },
                 { categoryName: 'ピン付き', itemName: '0.6m', spec: '0.6' },
                 { categoryName: 'ピン付き', itemName: '0.4m', spec: '0.4' },
                 { categoryName: 'ピン付き', itemName: '0.2m', spec: '0.2' },
@@ -324,12 +350,15 @@ const SPINE: SpineColumn[] = [
                 { categoryName: 'ジョイント', itemName: 'ジョイント', spec: 'ジョイント' },
                 { categoryName: '単管ベース', itemName: '単管ベース', spec: '単管ベース' },
             ]},
-            { groupLabel: '', rows: [
-                // ネット: PDF の結合表記を自然キーとして採用（KNOWN_DISCREPANCIES #5 / SHEET_TYPES と別物）
-                { categoryName: 'ネット', itemName: '新築用 青(紐付) 1.8', spec: '新築用 青(紐付) 1.8' },
-                { categoryName: 'ネット', itemName: 'グレー 5.4・6.3 1.2', spec: 'グレー 5.4・6.3 1.2' },
-                { categoryName: 'ネット', itemName: '青 黒 緑 0.9', spec: '青 黒 緑 0.9' },
-                { categoryName: 'ネット', itemName: '白 0.6', spec: '白 0.6' },
+            // Sheet1 中列の「※1」欄＝シート。種類はドロップダウン選択（notes-JSON が数量の正）で、
+            // グリッドにはサイズ行 1.8/1.2/0.9/0.6 のみ表示する（Sheet1 と同じ見た目）。
+            // ネット品目名は在庫除外フラグ（excludeFromStockDecrement）・自然キー・seed のため温存し、
+            // 表示 spec のみ Sheet1 のサイズに合わせる（KNOWN_DISCREPANCIES #5）。
+            { groupLabel: 'シート', rows: [
+                { categoryName: 'ネット', itemName: '新築用 青(紐付) 1.8', spec: '1.8' },
+                { categoryName: 'ネット', itemName: 'グレー 5.4・6.3 1.2', spec: '1.2' },
+                { categoryName: 'ネット', itemName: '青 黒 緑 0.9', spec: '0.9' },
+                { categoryName: 'ネット', itemName: '白 0.6', spec: '0.6' },
             ]},
             { groupLabel: 'カヤシート', rows: [
                 { categoryName: 'カヤシート', itemName: '1.8', spec: '1.8' },
@@ -487,6 +516,8 @@ function buildCatalog(): CatalogItem[] {
                     // 二重計上防止のため Phase 3 の在庫増減 helper（stock.ts）は
                     // この catalog フラグを権威として参照する（DB 列はミラー）。
                     excludeFromStockDecrement: isExcludedFromStockDecrement(row.categoryName),
+                    // Sheet1 に無い在庫専用品目は在庫には残しつつ PDF グリッドから除外
+                    hideFromPdf: row.hideFromPdf,
                 });
             });
         });
@@ -548,11 +579,12 @@ export interface PdfLayoutColumn {
  * - 列内グループは pdf.groupIndex 昇順（ラベル無しグループも別ブロックとして保持）。
  * - グループ内行は pdf.orderInGroup 昇順。
  * - spec は CatalogItem.specLabel を採用（旧 PDF の Row.spec と一致）。
+ * - hideFromPdf === true の品目は除外する（在庫には残るが Sheet1 帳票には出さない品目）。
  */
 export function buildPdfLayout(items: CatalogItem[] = CATALOG_ITEMS): PdfLayoutColumn[] {
     const columnOrder: PdfColumn[] = ['COL1', 'COL2', 'COL3'];
     return columnOrder.map((column) => {
-        const colItems = items.filter((it) => it.pdf.column === column);
+        const colItems = items.filter((it) => it.pdf.column === column && !it.hideFromPdf);
         // groupIndex でグルーピング
         const byGroup = new Map<number, CatalogItem[]>();
         for (const it of colItems) {
@@ -786,14 +818,19 @@ export function countByColumn(): Record<PdfColumn, number> {
  * --- KNOWN_DISCREPANCIES ---
  * seed-materials.ts と MaterialRequisitionSlipPDF.tsx の表記差異（catalog は PDF 表記を正に採用）:
  *   #1 ネット「新素用」 -> 「新築用」に修正（SHEET_TYPES / ネット品目とも）
- *   #2 ブラケット: seed=[0.4m,0.8m,0.6m] / PDF=[0.6m,0.4m]
- *      -> PDF 順を採用しつつ seed 専用 '0.8m' を在庫対象として末尾追加
- *   #3 ピン付き: seed=[0.4m,0.2m] / PDF=[0.8m,0.6m,0.4m,0.2m] -> PDF（superset）を採用
- *   #4 センターハーフ: seed=[0.4m,1.8m,1.2m,0.9m,0.6m] / PDF=[1.8m,1.2m,0.9m,0.6m]
- *      -> PDF 順を採用しつつ seed 専用 '0.4m' を在庫対象として末尾追加
+ *   #2 ブラケット: seed=[0.4m,0.8m,0.6m] / Sheet1=[0.6m,0.4m,0.8m]
+ *      -> Sheet1（正式帳票）順を正に採用。3 行とも Sheet1 に在る（'0.8m' も実帳票行）
+ *   #3 ピン付き: seed=[0.4m,0.2m] / Sheet1=[0.6m,0.4m,0.2m]
+ *      -> Sheet1（正式帳票）を正に採用。旧 PDF にあった '0.8m' は Sheet1 にも seed にも
+ *         無い死行のため削除。'0.6m' は Sheet1 にあるため帳票テンプレ行として残す。
+ *   #4 センターハーフ: seed=[0.4m,1.8m,1.2m,0.9m,0.6m] / Sheet1=[1.8m,1.2m,0.9m,0.6m]
+ *      -> Sheet1 順を採用。seed 専用 '0.4m' は在庫対象として catalog に残しつつ
+ *         hideFromPdf=true で A案 PDF からのみ除外（出庫・選択は引き続き可能）
  *   #5 ネット品目名: seed=[新築用 青(紐付),グレー5.4,グレー6.3,青,黒,緑,白]（7 個別品目）
- *      / PDF=[新築用 青(紐付) 1.8, グレー 5.4・6.3 1.2, 青 黒 緑 0.9, 白 0.6]（4 結合品目）
- *      -> 実行時ルックアップ契約 (PDF) を正とし PDF の 4 結合品目を採用。
+ *      / catalog=[新築用 青(紐付) 1.8, グレー 5.4・6.3 1.2, 青 黒 緑 0.9, 白 0.6]（4 結合品目）
+ *      -> 実行時ルックアップ契約を正とし 4 結合品目を自然キーとして採用。
+ *         ただし PDF グリッドは Sheet1 中列「※1」欄に合わせ、グループラベル='シート'・
+ *         spec はサイズ（1.8/1.2/0.9/0.6）で表示する（品目名・在庫除外フラグは温存）。
  *         「種類」軸の 7 値は SHEET_TYPES として別途 export（notes-JSON 用 / OPEN_DESIGN_TENSIONS 参照）
  *   #6 L型巾木（養用）(seed) ⇔ L型巾木(妻用)(PDF) -> PDF 表記を正に採用
  *   #7 リース品: PDF は固定行を持たず自由記述セクション。seed には品目あり

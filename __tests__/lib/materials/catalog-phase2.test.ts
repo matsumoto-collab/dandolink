@@ -13,7 +13,6 @@ import {
     CATALOG_ITEMS,
     PDF_LAYOUT,
     buildPdfLayout,
-    countByColumn,
     SHEET_TYPES,
     SHEET_SIZES,
     emptyRequisitionNotes,
@@ -28,25 +27,31 @@ describe('catalog Phase 2: PDF_LAYOUT 生成', () => {
         expect(PDF_LAYOUT.map((c) => c.column)).toEqual(['COL1', 'COL2', 'COL3']);
     });
 
-    it('列ごとの行総数が countByColumn と一致', () => {
-        const counts = countByColumn();
+    it('列ごとの行総数が可視品目数（hideFromPdf を除く）と一致', () => {
         for (const col of PDF_LAYOUT) {
             const rowCount = col.groups.reduce((s, g) => s + g.rows.length, 0);
-            expect(rowCount).toBe(counts[col.column]);
+            const visibleInCol = CATALOG_ITEMS.filter(
+                (it) => it.pdf.column === col.column && !it.hideFromPdf,
+            ).length;
+            expect(rowCount).toBe(visibleInCol);
         }
     });
 
-    it('PDF_LAYOUT 行総数が CATALOG_ITEMS 総数と一致（全品目網羅 / 欠落・重複なし）', () => {
+    it('PDF_LAYOUT 行総数が可視 CATALOG_ITEMS 数と一致（hideFromPdf を除く全品目網羅 / 欠落・重複なし）', () => {
         const total = PDF_LAYOUT.reduce(
             (s, c) => s + c.groups.reduce((g, grp) => g + grp.rows.length, 0),
             0,
         );
-        expect(total).toBe(CATALOG_ITEMS.length);
+        const visible = CATALOG_ITEMS.filter((it) => !it.hideFromPdf).length;
+        expect(total).toBe(visible);
     });
 
     it('各列の groups は groupIndex 昇順、行は orderInGroup 昇順で catalog と一致', () => {
         for (const col of PDF_LAYOUT) {
-            const colItems = CATALOG_ITEMS.filter((it) => it.pdf.column === col.column);
+            // PDF_LAYOUT は hideFromPdf を除外するため、突き合わせ側も可視品目のみで比較する
+            const colItems = CATALOG_ITEMS.filter(
+                (it) => it.pdf.column === col.column && !it.hideFromPdf,
+            );
             // 期待: (groupIndex, orderInGroup) でソートした (spec, cat, name) 列
             const expected = colItems
                 .slice()
@@ -85,12 +90,14 @@ describe('catalog Phase 2: PDF_LAYOUT 生成', () => {
     it('最長列の行数が 1 ページ収め予算（<=52行）以内（582b291 の約127pt余裕を維持）', () => {
         // 582b291: レイアウト約695pt / 使用可能約810pt → 約127pt 余裕。
         // グリッド行は minHeight 12pt。余裕 127pt ≒ 約10行ぶん。
-        // 最長列 COL1 は旧 PDF 47 行 ＋ KNOWN_DISCREPANCIES の seed 専用
-        // 追加 2 行（#2 ブラケット '0.8m' / #4 センターハーフ '0.4m'）＝ 49 行。
-        // 49 行 + 余裕 ≒ 52 行を 1 ページ収めの上限予算とする。
-        // これを超えたら catalog 追加で 2 ページ化する恐れ → 要レイアウト見直し。
-        const counts = countByColumn();
-        const tallest = Math.max(counts.COL1, counts.COL2, counts.COL3);
+        // Sheet1 準拠後の最長列 COL1 = 47 行（旧 49 行から ピン付き '0.8m' 削除・
+        // センターハーフ '0.4m' を hideFromPdf で非表示）。52 行を 1 ページ収め上限予算とする。
+        // 実際に描画される行（hideFromPdf を除く）で判定する。
+        const visibleByColumn = { COL1: 0, COL2: 0, COL3: 0 };
+        for (const it of CATALOG_ITEMS) {
+            if (!it.hideFromPdf) visibleByColumn[it.pdf.column] += 1;
+        }
+        const tallest = Math.max(visibleByColumn.COL1, visibleByColumn.COL2, visibleByColumn.COL3);
         expect(tallest).toBeLessThanOrEqual(52);
     });
 
@@ -103,6 +110,53 @@ describe('catalog Phase 2: PDF_LAYOUT 生成', () => {
                 }
             }
         }
+    });
+});
+
+describe('catalog Phase 2: Sheet1 帳票準拠（A案グリッド）', () => {
+    const pdfKeySet = new Set(
+        PDF_LAYOUT.flatMap((c) =>
+            c.groups.flatMap((g) => g.rows.map((r) => `${r.categoryName}|${r.itemName}`)),
+        ),
+    );
+
+    it('hideFromPdf 品目は CATALOG_ITEMS（在庫）に残るが PDF_LAYOUT から除外される', () => {
+        const hidden = CATALOG_ITEMS.filter((it) => it.hideFromPdf);
+        // 在庫専用品目は存在し（消失で静かに緩むのを防ぐ）、PDF には出ない
+        expect(hidden.length).toBeGreaterThan(0);
+        for (const it of hidden) {
+            expect(pdfKeySet.has(`${it.categoryName}|${it.itemName}`)).toBe(false);
+        }
+    });
+
+    it('センターハーフ 0.4m は在庫に在る（hideFromPdf）が Sheet1 に無いので A案グリッド非表示', () => {
+        const ch04 = CATALOG_ITEMS.find(
+            (it) => it.categoryName === 'センターハーフ' && it.itemName === '0.4m',
+        );
+        expect(ch04).toBeDefined();
+        expect(ch04!.hideFromPdf).toBe(true);
+        // センターハーフの可視行は Sheet1 と同じ 1.8/1.2/0.9/0.6
+        const visibleCh = PDF_LAYOUT.flatMap((c) => c.groups)
+            .flatMap((g) => g.rows)
+            .filter((r) => r.categoryName === 'センターハーフ')
+            .map((r) => r.spec);
+        expect(visibleCh).toEqual(['1.8', '1.2', '0.9', '0.6']);
+    });
+
+    it('ピン付きは Sheet1 の 0.6/0.4/0.2 のみ（死行 0.8m を持たない）', () => {
+        const pin = CATALOG_ITEMS
+            .filter((it) => it.categoryName === 'ピン付き')
+            .map((it) => it.itemName);
+        expect(pin).toEqual(['0.6m', '0.4m', '0.2m']);
+    });
+
+    it('Sheet1 中列「※1」＝シート箱: COL2 にラベル「シート」・サイズ行 1.8/1.2/0.9/0.6', () => {
+        const col2 = PDF_LAYOUT.find((c) => c.column === 'COL2');
+        const sheetGroup = col2?.groups.find((g) => g.label === 'シート');
+        expect(sheetGroup).toBeDefined();
+        expect(sheetGroup!.rows.map((r) => r.spec)).toEqual(['1.8', '1.2', '0.9', '0.6']);
+        // 品目名（自然キー）はネットを温存（在庫除外フラグ・seed のため）
+        expect(sheetGroup!.rows.every((r) => r.categoryName === 'ネット')).toBe(true);
     });
 });
 
