@@ -3,14 +3,15 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Plus, Minus, FileText, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle, Image as ImageIcon, RotateCcw, Check } from 'lucide-react';
+import { Plus, FileText, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle, Image as ImageIcon, RotateCcw, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
 import StatusBadge from './ui/StatusBadge';
-import type { MaterialItemWithStock, MaterialRequisition } from '@/types/material';
+import type { MaterialRequisition } from '@/types/material';
 import {
+    PDF_LAYOUT,
     SHEET_TYPES,
     SHEET_SIZES,
     parseRequisitionNotes,
@@ -84,6 +85,53 @@ function buildProjectLabel(p: ProjectOption): string {
     return custWithHon ? `${custWithHon}／${work}` : work;
 }
 
+/* ============================================================================
+ * PDF風グリッド（拾い出し）用のレイアウト。
+ * PDF_LAYOUT（COL1→COL2→COL3 / Sheet1 準拠）を 1 列に平坦化し、
+ * カテゴリ単位（連続する同 categoryName）でグループ化する。
+ * 紙の材料表（Sheet1）と同じ並びを縦 1 列で再現するための単一の正。
+ * ========================================================================== */
+interface GridRow {
+    categoryName: string;
+    itemName: string;
+    /** 規格表示（specLabel）。categoryName と同一の単独品目は規格を空表示にする */
+    spec: string;
+}
+interface GridGroup {
+    categoryName: string;
+    rows: GridRow[];
+}
+
+const GRID_GROUPS: GridGroup[] = (() => {
+    const flat: GridRow[] = [];
+    for (const col of PDF_LAYOUT) {
+        for (const g of col.groups) {
+            for (const r of g.rows) {
+                flat.push({ categoryName: r.categoryName, itemName: r.itemName, spec: r.spec });
+            }
+        }
+    }
+    // 連続する同 categoryName をまとめる（SPINE 由来で同カテゴリ行は必ず連続）
+    const groups: GridGroup[] = [];
+    for (const r of flat) {
+        const last = groups[groups.length - 1];
+        if (last && last.categoryName === r.categoryName) last.rows.push(r);
+        else groups.push({ categoryName: r.categoryName, rows: [r] });
+    }
+    return groups;
+})();
+
+/** シート（※1）はネット品目として表現される。グリッドでは種類選択ブロックに置換する */
+const SHEET_GRID_CATEGORY = 'ネット';
+/** 自由記入欄の行数（リース品の下・3 列の最下段を揃える） */
+const FREE_ROW_COUNT = 19;
+/** フリー入力ヒント（単独品目の規格欄に淡色で表示） */
+const GRID_HINTS: Record<string, string> = { '親綱': 'ｍ', 'イメージシート': '名称', 'リース品': '内容' };
+/** グリッドの規格欄に表示する文字列（単独品目＝カテゴリ名と同一なら空） */
+function gridSpecText(categoryName: string, spec: string): string {
+    return spec === categoryName ? '' : spec;
+}
+
 export default function MaterialRequisitionPage() {
     const { categories, fetchCategories, isCategoriesInitialized, fetchRequisitions, requisitions, isRequisitionsLoading, createRequisition, updateRequisition, deleteRequisition } = useMaterialData();
     const { data: session } = useSession();
@@ -120,10 +168,6 @@ export default function MaterialRequisitionPage() {
     const [formFreeForm, setFormFreeForm] = useState<FreeFormEntry[]>([]);
     // 数量は materialItemId → [車両0, 車両1, 車両2] の3要素タプル
     const [formQuantities, setFormQuantities] = useState<Record<string, [number, number, number]>>({});
-    // 右リスト（拾い出し）に追加済みの materialItemId（追加順を保持）
-    const [pickedItemIds, setPickedItemIds] = useState<string[]>([]);
-    // 左ピッカーで選択中のカテゴリ
-    const [pickerCategoryId, setPickerCategoryId] = useState('');
     // 図面・添付ファイルモーダル
     const [showDrawingModal, setShowDrawingModal] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -260,30 +304,8 @@ export default function MaterialRequisitionPage() {
         }
     }, [projectsForSelect, formProjectId]);
 
-    // 左ピッカーの初期カテゴリ（カテゴリ読込後、未選択なら先頭を選ぶ）
-    useEffect(() => {
-        if (!pickerCategoryId && categories.length > 0) {
-            setPickerCategoryId(categories[0].id);
-        }
-    }, [categories, pickerCategoryId]);
-
     // 車両3列のいずれかに数量があるかの判定
     const hasAnyQty = (q?: [number, number, number]) => !!q && (q[0] > 0 || q[1] > 0 || q[2] > 0);
-
-    // 右リストへ品目を追加（既に追加済みなら何もしない・追加順を保持）
-    const addPickedItem = useCallback((itemId: string) => {
-        setPickedItemIds(prev => (prev.includes(itemId) ? prev : [...prev, itemId]));
-    }, []);
-
-    // 右リストから品目を削除（数量も破棄）
-    const removePickedItem = useCallback((itemId: string) => {
-        setPickedItemIds(prev => prev.filter(id => id !== itemId));
-        setFormQuantities(prev => {
-            if (!(itemId in prev)) return prev;
-            const { [itemId]: _drop, ...rest } = prev;
-            return rest;
-        });
-    }, []);
 
     const setQuantity = (itemId: string, vehicleIndex: 0 | 1 | 2, value: number) => {
         setFormQuantities(prev => {
@@ -309,7 +331,6 @@ export default function MaterialRequisitionPage() {
         setFormSheetQty({});
         setFormFreeForm([]);
         setFormQuantities({});
-        setPickedItemIds([]);
         setSearchQuery('');
         setAutoSavedId(null);
         setAutoSaveStatus('idle');
@@ -402,26 +423,16 @@ export default function MaterialRequisitionPage() {
         });
     }, []);
 
-    // 自由欄行の更新
-    const setFreeFormCell = useCallback((idx: number, field: 'label' | 0 | 1 | 2, value: string) => {
+    // 自由欄セルの更新（19行固定グリッド用。idx まで配列を自動拡張する）。
+    // 末尾の空行は serializeRequisitionNotes / 各集計側で間引かれるため state に空行が残っても無害。
+    const setFreeFormCellAt = useCallback((idx: number, field: 'label' | 0 | 1 | 2, value: string) => {
         setFormFreeForm(prev => {
-            const next = prev.map((row, i) => {
-                if (i !== idx) return row;
-                if (field === 'label') return { ...row, label: value };
-                const qty: [string, string, string] = [row.qty[0], row.qty[1], row.qty[2]];
-                qty[field] = value;
-                return { ...row, qty };
-            });
+            const next = prev.map(row => ({ label: row.label, qty: [...row.qty] as [string, string, string] }));
+            while (next.length <= idx) next.push({ label: '', qty: ['', '', ''] });
+            if (field === 'label') next[idx].label = value;
+            else next[idx].qty[field] = value;
             return next;
         });
-    }, []);
-
-    const addFreeFormRow = useCallback(() => {
-        setFormFreeForm(prev => [...prev, { label: '', qty: ['', '', ''] }]);
-    }, []);
-
-    const removeFreeFormRow = useCallback((idx: number) => {
-        setFormFreeForm(prev => prev.filter((_, i) => i !== idx));
     }, []);
 
     // formQuantities をdepsに含めることで、数量変更ごとにタイマーがリセットされ debounce として機能する。
@@ -579,7 +590,6 @@ export default function MaterialRequisitionPage() {
             autoSaveTimerRef.current = null;
         }
         setFormQuantities(quantities);
-        setPickedItemIds(Object.keys(quantities));
         setFormProjectId(req.projectMasterId);
         const srcDate = req.date ? new Date(req.date) : null;
         const initialDate = srcDate && !Number.isNaN(srcDate.getTime())
@@ -699,55 +709,38 @@ export default function MaterialRequisitionPage() {
 
     const allSelected = requisitions.length > 0 && selectedIds.size === requisitions.length;
 
-    // A2: 横断検索
+    // 検索（任意）：グリッドの品目を絞り込む。空ならカタログ全行を常に表示（紙と同じ安心感）
     const trimmedQuery = searchQuery.trim().toLowerCase();
-    const searchResults = useMemo(() => {
-        if (!trimmedQuery) return [];
-        const rows: Array<{ categoryName: string; item: MaterialItemWithStock }> = [];
-        for (const cat of categories) {
-            if (!cat.items) continue;
-            for (const item of cat.items) {
-                const name = (item.name || '').toLowerCase();
-                const spec = (item.spec || '').toLowerCase();
-                if (name.includes(trimmedQuery) || spec.includes(trimmedQuery)) {
-                    rows.push({ categoryName: cat.name, item });
-                }
-            }
+    const visibleGroups = useMemo<GridGroup[]>(() => {
+        if (!trimmedQuery) return GRID_GROUPS;
+        const out: GridGroup[] = [];
+        for (const g of GRID_GROUPS) {
+            // シート（ネット）は「シート」でも引けるように検索対象語を補う
+            const catText = (g.categoryName === SHEET_GRID_CATEGORY ? `シート ${g.categoryName}` : g.categoryName).toLowerCase();
+            if (catText.includes(trimmedQuery)) { out.push(g); continue; }
+            const rows = g.rows.filter(r => r.spec.toLowerCase().includes(trimmedQuery) || r.itemName.toLowerCase().includes(trimmedQuery));
+            if (rows.length) out.push({ ...g, rows });
         }
-        return rows;
-    }, [categories, trimmedQuery]);
+        return out;
+    }, [trimmedQuery]);
 
-    // materialItemId → { item, categoryName } の高速マップ（右リスト / 車両別集計で使用）
-    const itemById = useMemo(() => {
-        const map = new Map<string, { item: MaterialItemWithStock; categoryName: string }>();
-        for (const cat of categories) {
-            for (const item of cat.items || []) {
-                map.set(item.id, { item, categoryName: cat.name });
-            }
+    // 車両別合計（フッター表示用）。カタログ＋シート＋自由欄（数値化できる分）を合算
+    const gridTotals = useMemo(() => {
+        const c: [number, number, number] = [0, 0, 0];
+        for (const t of Object.values(formQuantities)) { c[0] += t[0]; c[1] += t[1]; c[2] += t[2]; }
+        for (const sizes of Object.values(formSheetQty)) {
+            for (const t of Object.values(sizes)) { if (t) { c[0] += t[0]; c[1] += t[1]; c[2] += t[2]; } }
         }
-        return map;
-    }, [categories]);
-
-    // 拾い出しリストの車両別合計（フッター表示用・カタログ品目のみ）
-    const listTotals = useMemo(() => {
-        let car1 = 0, car2 = 0, car3 = 0;
-        for (const id of pickedItemIds) {
-            const t = formQuantities[id];
-            if (!t) continue;
-            car1 += t[0]; car2 += t[1]; car3 += t[2];
+        for (const f of formFreeForm) {
+            ([0, 1, 2] as const).forEach(vi => { const n = parseFloat(f.qty[vi]); if (Number.isFinite(n)) c[vi] += n; });
         }
-        return { car1, car2, car3, total: car1 + car2 + car3 };
-    }, [pickedItemIds, formQuantities]);
+        return { car1: c[0], car2: c[1], car3: c[2], total: c[0] + c[1] + c[2] };
+    }, [formQuantities, formSheetQty, formFreeForm]);
 
-    // 右リストに車両③列を出すか（3台目に名前があるか数量があるとき）
-    const showCar3 = !!(formVehicles[2] && formVehicles[2].trim()) || listTotals.car3 > 0;
-    // 左ピッカーで表示する品目（検索中は全カテゴリ横断 / 通常は選択カテゴリ）
-    const pickerRows: Array<{ categoryName: string; item: MaterialItemWithStock }> = trimmedQuery
-        ? searchResults
-        : (categories.find(c => c.id === pickerCategoryId)?.items || []).map(item => ({
-            categoryName: categories.find(c => c.id === pickerCategoryId)?.name || '',
-            item,
-        }));
+    // PDF 風グリッドの列テンプレート（品目 | 規格 | 車① | 車② | 車③）。ヘッダ・各行で共有
+    const gridColsClass = 'grid grid-cols-[minmax(0,1fr)_3.25rem_2.75rem_2.75rem_2.75rem] sm:grid-cols-[minmax(0,1fr)_4.5rem_3.5rem_3.5rem_3.5rem]';
+    // グリッドのセル（数量入力）共通クラス。タップ→ネイティブ数値キーパッド、入力済みは色付け
+    const gridCellInputClass = 'w-full h-10 text-center text-sm font-bold text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500 disabled:bg-slate-50 disabled:cursor-not-allowed [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none';
 
     // この現場の標準セット（案件×品目の required 数量）を車両1へ加算反映
     const applyStandardSet = useCallback(async () => {
@@ -769,11 +762,6 @@ export default function MaterialRequisitionPage() {
                     next[it.materialItemId] = [cur[0] + it.requiredQuantity, cur[1], cur[2]];
                 }
                 return next;
-            });
-            setPickedItemIds(prev => {
-                const seen = new Set(prev);
-                const add = valid.map(it => it.materialItemId).filter(id => !seen.has(id));
-                return add.length ? [...prev, ...add] : prev;
             });
             toast.success(`標準セット ${valid.length}品目を追加しました`);
         } catch {
@@ -867,17 +855,21 @@ export default function MaterialRequisitionPage() {
         const per: Array<{ items: Array<{ name: string; spec: string; qty: string }>; subtotal: number }> = [
             { items: [], subtotal: 0 }, { items: [], subtotal: 0 }, { items: [], subtotal: 0 },
         ];
-        // 1) カタログ品目（追加順）
-        for (const id of pickedItemIds) {
-            const meta = itemById.get(id);
-            const t = formQuantities[id];
-            if (!meta || !t) continue;
-            ([0, 1, 2] as const).forEach((vi) => {
-                if (t[vi] > 0) {
-                    per[vi].items.push({ name: meta.categoryName, spec: meta.item.spec || meta.item.name, qty: String(t[vi]) });
-                    per[vi].subtotal += t[vi];
-                }
-            });
+        // 1) カタログ品目（Sheet1 / グリッド順）。シート（ネット）は (2) で別途集計
+        for (const group of GRID_GROUPS) {
+            if (group.categoryName === SHEET_GRID_CATEGORY) continue;
+            for (const row of group.rows) {
+                const id = itemByKey.get(`${group.categoryName}|${row.itemName}`);
+                if (!id) continue;
+                const t = formQuantities[id];
+                if (!t) continue;
+                ([0, 1, 2] as const).forEach((vi) => {
+                    if (t[vi] > 0) {
+                        per[vi].items.push({ name: group.categoryName, spec: gridSpecText(group.categoryName, row.spec), qty: String(t[vi]) });
+                        per[vi].subtotal += t[vi];
+                    }
+                });
+            }
         }
         // 2) シート（種類 × サイズ × 車両）
         for (const s of sheetEntries) {
@@ -904,7 +896,7 @@ export default function MaterialRequisitionPage() {
             });
         }
         return per;
-    }, [pickedItemIds, itemById, formQuantities, sheetEntries, formFreeForm]);
+    }, [itemByKey, formQuantities, sheetEntries, formFreeForm]);
 
     // Blob を新規タブで開く（印刷プレビュー）
     const openPdfBlob = useCallback((blob: Blob) => {
@@ -973,7 +965,6 @@ export default function MaterialRequisitionPage() {
         if (!prev) { toast('この現場の過去伝票が見つかりません'); return; }
         // 数量（車両別）をマージ加算
         const addQ: Record<string, [number, number, number]> = {};
-        const addIds: string[] = [];
         prev.items?.forEach(item => {
             if (item.quantity > 0) {
                 let idx: 0 | 1 | 2 = 0;
@@ -982,10 +973,9 @@ export default function MaterialRequisitionPage() {
                 const t = addQ[item.materialItemId] || [0, 0, 0];
                 t[idx] += item.quantity;
                 addQ[item.materialItemId] = t;
-                if (!addIds.includes(item.materialItemId)) addIds.push(item.materialItemId);
             }
         });
-        if (addIds.length === 0) { toast('前回伝票に数量がありませんでした'); return; }
+        if (Object.keys(addQ).length === 0) { toast('前回伝票に数量がありませんでした'); return; }
         setFormQuantities(prevQ => {
             const next = { ...prevQ };
             for (const [id, t] of Object.entries(addQ)) {
@@ -993,11 +983,6 @@ export default function MaterialRequisitionPage() {
                 next[id] = [cur[0] + t[0], cur[1] + t[1], cur[2] + t[2]];
             }
             return next;
-        });
-        setPickedItemIds(prevIds => {
-            const seen = new Set(prevIds);
-            const add = addIds.filter(id => !seen.has(id));
-            return add.length ? [...prevIds, ...add] : prevIds;
         });
         // シート / 自由欄は現在が空のときのみ取り込む（既存入力を壊さない）
         const notes = parseRequisitionNotes(prev.notes);
@@ -1368,7 +1353,7 @@ export default function MaterialRequisitionPage() {
                                 </div>
                             </div>
 
-                            {/* ===== 2ペイン：左ピッカー / 右拾い出しリスト ===== */}
+                            {/* ===== 拾い出し：PDF風グリッド（Sheet1 の並びを縦1列・各行3セルをタップ入力） ===== */}
                             <div className="border-t border-slate-200 pt-4">
                                 {/* 出し過ぎ警告: 倉庫在庫を超える入力がある場合 */}
                                 {overIssueItems.length > 0 && (
@@ -1387,178 +1372,193 @@ export default function MaterialRequisitionPage() {
                                     </div>
                                 )}
 
-                                <div className="flex flex-col md:flex-row gap-3 items-stretch">
-                                    {/* 左：材料を選ぶ */}
-                                    <div className="md:flex-1 md:min-w-0 border border-slate-200 rounded-xl flex flex-col">
-                                        <div className="px-3 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                                            <span className="font-semibold text-slate-900">① 材料を選ぶ</span>
-                                            <span className="text-xs text-slate-400">タップで右へ追加</span>
-                                        </div>
-                                        <div className="p-3 space-y-2.5">
-                                            {/* 横断検索 */}
-                                            <div className="relative">
-                                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                                                <input
-                                                    type="text"
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    placeholder="品目名で検索（例：柱、手摺、単管）"
-                                                    className="w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                />
-                                                {searchQuery && (
-                                                    <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-xl" aria-label="検索をクリア">
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {/* クイック操作 */}
-                                            <div className="flex flex-wrap gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={applyStandardSet}
-                                                    disabled={!formProjectId || isLoadingStandardSet}
-                                                    className="inline-flex items-center gap-1.5 px-3 min-h-[40px] text-sm rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    title="この現場に登録された標準材料を反映します"
-                                                >
-                                                    <Zap className="w-4 h-4" />
-                                                    {isLoadingStandardSet ? '追加中...' : 'この現場の標準セットを追加'}
+                                <div className="space-y-3">
+                                    {/* ツールバー：検索（任意・グリッド絞り込み）／標準セット／前回と同じ */}
+                                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                                        <div className="relative flex-1 min-w-0">
+                                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                            <input
+                                                type="text"
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                placeholder="品目名で絞り込み（例：柱、手摺、単管）"
+                                                className="w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500"
+                                            />
+                                            {searchQuery && (
+                                                <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-xl" aria-label="検索をクリア">
+                                                    <X className="w-4 h-4" />
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={applyPreviousSame}
-                                                    disabled={!formProjectId}
-                                                    className="inline-flex items-center gap-1.5 px-3 min-h-[40px] text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                    title="この現場の直近伝票の内容をコピーします"
-                                                >
-                                                    <RotateCcw className="w-4 h-4" />
-                                                    前回と同じ
-                                                </button>
-                                            </div>
-                                            {/* カテゴリ（検索中は非表示） */}
-                                            {!trimmedQuery && (
-                                                <SearchableSelect
-                                                    options={categories.map(c => ({ id: c.id, label: c.name }))}
-                                                    value={pickerCategoryId}
-                                                    onChange={setPickerCategoryId}
-                                                    placeholder="カテゴリを選択"
-                                                    className="w-full"
-                                                />
                                             )}
-                                            {/* 品目リスト */}
-                                            <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                                {categories.length === 0 ? (
-                                                    <div className="text-center py-8 text-sm text-slate-500">
-                                                        材料マスターが登録されていません
-                                                    </div>
-                                                ) : pickerRows.length === 0 ? (
-                                                    <div className="text-center py-8 text-sm text-slate-500">
-                                                        {trimmedQuery ? '該当する材料が見つかりません' : '品目がありません'}
-                                                    </div>
-                                                ) : (
-                                                    <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
-                                                        {pickerRows.map(({ categoryName, item }) => {
-                                                            const picked = pickedItemIds.includes(item.id);
-                                                            const excluded = item.excludeFromStockDecrement === true;
-                                                            return (
-                                                                <div key={item.id} className="flex items-center gap-2 px-3 py-2.5">
-                                                                    <span className="flex-1 min-w-0 text-sm text-slate-900">
-                                                                        {trimmedQuery && <span className="text-xs text-slate-500 mr-1">{categoryName}:</span>}
-                                                                        {item.name}
-                                                                        {item.spec && <span className="text-xs text-slate-400 ml-1">{item.spec}</span>}
-                                                                    </span>
-                                                                    {!excluded && (
-                                                                        <span className="text-xs text-slate-400 tabular-nums shrink-0">在庫 {(item.stockQuantity ?? 0).toLocaleString()}</span>
-                                                                    )}
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => addPickedItem(item.id)}
-                                                                        disabled={picked}
-                                                                        className={`shrink-0 w-9 h-9 rounded-xl border inline-flex items-center justify-center ${picked ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-teal-50 border-teal-300 text-teal-700 hover:bg-teal-100'}`}
-                                                                        aria-label={picked ? '追加済み' : '追加'}
-                                                                    >
-                                                                        {picked ? <Check className="w-4 h-4" /> : <Plus className="w-5 h-5" />}
-                                                                    </button>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                )}
-                                            </div>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={applyStandardSet}
+                                                disabled={!formProjectId || isLoadingStandardSet}
+                                                className="inline-flex items-center gap-1.5 px-3 min-h-[44px] text-sm rounded-xl bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title="この現場に登録された標準材料を反映します"
+                                            >
+                                                <Zap className="w-4 h-4" />
+                                                {isLoadingStandardSet ? '追加中...' : '標準セットを追加'}
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={applyPreviousSame}
+                                                disabled={!formProjectId}
+                                                className="inline-flex items-center gap-1.5 px-3 min-h-[44px] text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                title="この現場の直近伝票の内容をコピーします"
+                                            >
+                                                <RotateCcw className="w-4 h-4" />
+                                                前回と同じ
+                                            </button>
                                         </div>
                                     </div>
 
-                                    {/* 右：拾い出しリスト */}
-                                    <div className="md:flex-1 md:min-w-0 border border-slate-200 rounded-xl flex flex-col">
-                                        <div className="px-3 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                                            <span className="font-semibold text-slate-900">② 拾い出しリスト</span>
-                                            <span className="text-xs text-slate-400">このままPDF（全項目／車両別）になります</span>
-                                        </div>
-                                        <div className="p-3">
-                                            <div className="border border-slate-200 rounded-xl overflow-hidden">
-                                                {/* ヘッダー行 */}
-                                                <div className="flex items-stretch bg-slate-50 border-b border-slate-200 text-[11px] text-slate-500 font-medium">
-                                                    <div className="flex-1 min-w-0 px-2 py-2">品目 / 規格</div>
-                                                    <div className="w-[88px] px-1 py-2 text-center">車①{formVehicles[0] && <span className="block text-[10px] text-slate-400 truncate">{formVehicles[0]}</span>}</div>
-                                                    <div className="w-[88px] px-1 py-2 text-center">車②{formVehicles[1] && <span className="block text-[10px] text-slate-400 truncate">{formVehicles[1]}</span>}</div>
-                                                    {showCar3 && <div className="w-[88px] px-1 py-2 text-center">車③{formVehicles[2] && <span className="block text-[10px] text-slate-400 truncate">{formVehicles[2]}</span>}</div>}
-                                                    <div className="w-9 px-1 py-2" />
+                                    {/* PDF風グリッド：Sheet1 の並びを縦1列。各行に車①②③の3セル＝タップで数量入力 */}
+                                    {/* overflow-hidden を付けると sticky ヘッダーが効かないため付けない（角丸は header/footer 側で） */}
+                                    <div className="border-[1.5px] border-slate-800 rounded-lg">
+                                        {/* ヘッダー（スクロール時に列見出しを上部固定） */}
+                                        <div className={`${gridColsClass} bg-slate-800 text-white text-[11px] font-bold rounded-t-md sticky top-0 z-10`}>
+                                            <div className="px-2 py-2">品目</div>
+                                            <div className="px-1 py-2 text-center border-l border-slate-600">規格</div>
+                                            {[0, 1, 2].map((vi) => (
+                                                <div key={vi} className="px-1 py-2 text-center border-l border-slate-600 leading-tight">
+                                                    車{['①', '②', '③'][vi]}
+                                                    <span className="block text-[9px] font-normal text-slate-300 truncate">{formVehicles[vi] || '—'}</span>
                                                 </div>
-                                                {pickedItemIds.length === 0 ? (
-                                                    <div className="text-center py-10 px-4 text-sm text-slate-400">
-                                                        左の「材料を選ぶ」または「標準セットを追加」から品目を追加してください
-                                                    </div>
-                                                ) : (
-                                                    <div className="divide-y divide-slate-100">
-                                                        {pickedItemIds.map((id) => {
-                                                            const meta = itemById.get(id);
-                                                            if (!meta) return null;
-                                                            const { item, categoryName } = meta;
-                                                            const tuple = formQuantities[id] || [0, 0, 0];
-                                                            const cols: number[] = showCar3 ? [0, 1, 2] : [0, 1];
-                                                            return (
-                                                                <div key={id} className="flex items-stretch">
-                                                                    <div className="flex-1 min-w-0 px-2 py-2 text-sm text-slate-900 flex items-center">
-                                                                        <span className="truncate">
-                                                                            {categoryName}
-                                                                            {(item.spec || item.name) && <span className="text-xs text-slate-400 ml-1">{item.spec || item.name}</span>}
-                                                                        </span>
+                                            ))}
+                                        </div>
+
+                                        {categories.length === 0 ? (
+                                            <div className="px-4 py-10 text-center text-sm text-slate-500">材料マスターが登録されていません</div>
+                                        ) : (
+                                            <>
+                                                {visibleGroups.map((group, gi) => {
+                                                    // シート（※1）＝ネット品目はグリッド上で「種類選択ブロック」に置換
+                                                    if (group.categoryName === SHEET_GRID_CATEGORY) {
+                                                        return (
+                                                            <div key={`g${gi}`} className="border-t-2 border-slate-700">
+                                                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-2 bg-slate-100">
+                                                                    <span className="text-[13px] font-bold text-slate-800">シート <span className="text-rose-600">※1</span></span>
+                                                                    <span className="text-[13px] text-slate-500">種類：</span>
+                                                                    <select
+                                                                        value=""
+                                                                        onChange={(e) => { if (e.target.value) toggleSheetType(e.target.value as SheetType); }}
+                                                                        className="h-9 px-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+                                                                        aria-label="シートの種類を追加"
+                                                                    >
+                                                                        <option value="">＋ シートの種類を追加</option>
+                                                                        {SHEET_TYPES.filter((t) => !formSheetTypes.has(t)).map((t) => (
+                                                                            <option key={t} value={t}>{t}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <span className="text-[11px] text-slate-400">種類が複数あるので選択式</span>
+                                                                </div>
+                                                                {Array.from(formSheetTypes).length === 0 ? (
+                                                                    <div className={`${gridColsClass} border-t border-slate-100`}>
+                                                                        <div className="col-span-2 px-2 py-2 text-xs text-slate-400 border-r border-slate-200">種類を選ぶとサイズ別に入力できます</div>
+                                                                        <div className="border-r border-slate-200" />
+                                                                        <div className="border-r border-slate-200" />
+                                                                        <div />
                                                                     </div>
-                                                                    {cols.map((vi) => (
-                                                                        <div key={vi} className="w-[88px] px-1 py-1.5 flex items-center justify-center">
-                                                                            <div className="inline-flex items-center border border-slate-200 rounded-lg overflow-hidden">
-                                                                                <button type="button" onClick={() => setQuantity(id, vi as 0 | 1 | 2, (tuple[vi] || 0) - 1)} className="w-6 h-9 bg-slate-50 text-slate-600 hover:bg-slate-100" aria-label="減らす"><Minus className="w-3.5 h-3.5 mx-auto" /></button>
-                                                                                <input
-                                                                                    type="number"
-                                                                                    inputMode="numeric"
-                                                                                    min="0"
-                                                                                    value={tuple[vi] || ''}
-                                                                                    onChange={(e) => setQuantity(id, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)}
-                                                                                    onFocus={(e) => e.currentTarget.select()}
-                                                                                    className="w-9 h-9 text-center text-sm border-0 focus:outline-none focus:ring-1 focus:ring-slate-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                                                    aria-label={`${categoryName} 車両${vi + 1}の数量`}
-                                                                                />
-                                                                                <button type="button" onClick={() => setQuantity(id, vi as 0 | 1 | 2, (tuple[vi] || 0) + 1)} className="w-6 h-9 bg-slate-50 text-slate-600 hover:bg-slate-100" aria-label="増やす"><Plus className="w-3.5 h-3.5 mx-auto" /></button>
+                                                                ) : (
+                                                                    SHEET_TYPES.filter((t) => formSheetTypes.has(t)).map((t) => (
+                                                                        <div key={t}>
+                                                                            <div className="flex items-center justify-between px-2 py-1 bg-slate-50 border-t border-slate-100">
+                                                                                <span className="text-xs font-medium text-slate-700">{t}</span>
+                                                                                <button type="button" onClick={() => toggleSheetType(t)} className="p-1 text-slate-400 hover:text-red-600" aria-label={`${t} を外す`}>
+                                                                                    <X className="w-3.5 h-3.5" />
+                                                                                </button>
                                                                             </div>
+                                                                            {SHEET_SIZES.map((size) => {
+                                                                                const tuple = formSheetQty[t]?.[size] || [0, 0, 0];
+                                                                                return (
+                                                                                    <div key={size} className={`${gridColsClass} border-t border-slate-100`}>
+                                                                                        <div className="px-2 py-1.5 border-r border-slate-200" />
+                                                                                        <div className="px-1.5 py-1.5 text-[13px] text-slate-600 flex items-center border-r border-slate-200">{size}</div>
+                                                                                        {[0, 1, 2].map((vi) => {
+                                                                                            const val = tuple[vi] || 0;
+                                                                                            return (
+                                                                                                <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val > 0 ? 'bg-amber-100' : ''}`}>
+                                                                                                    <input type="number" inputMode="numeric" min="0" value={val || ''} onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`シート ${t} ${size} 車両${vi + 1}`} />
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                );
+                                                                            })}
                                                                         </div>
-                                                                    ))}
-                                                                    <div className="w-9 px-1 py-1.5 flex items-center justify-center">
-                                                                        <button type="button" onClick={() => removePickedItem(id)} className="w-8 h-8 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 inline-flex items-center justify-center" aria-label="この品目を削除">
-                                                                            <X className="w-4 h-4" />
-                                                                        </button>
+                                                                    ))
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    }
+                                                    // 通常カテゴリ：見出し（先頭行）＋規格＋車①②③の3セル
+                                                    return (
+                                                        <div key={`g${gi}`} className="border-t-2 border-slate-700">
+                                                            {group.rows.map((row, ri) => {
+                                                                const id = itemByKey.get(`${group.categoryName}|${row.itemName}`);
+                                                                const tuple = (id && formQuantities[id]) || [0, 0, 0];
+                                                                return (
+                                                                    <div key={ri} className={`${gridColsClass} ${ri > 0 ? 'border-t border-slate-100' : ''}`}>
+                                                                        <div className="px-2 py-1.5 flex items-center border-r border-slate-200 min-w-0">
+                                                                            <span className="font-bold text-slate-800 text-[13px] truncate">{ri === 0 ? group.categoryName : ''}</span>
+                                                                        </div>
+                                                                        <div className="px-1.5 py-1.5 flex items-center border-r border-slate-200 min-w-0">
+                                                                            <span className="text-[13px] text-slate-600 truncate">{gridSpecText(group.categoryName, row.spec)}</span>
+                                                                            {ri === 0 && GRID_HINTS[group.categoryName] && <span className="ml-1 text-[10px] text-slate-400 shrink-0">{GRID_HINTS[group.categoryName]}</span>}
+                                                                        </div>
+                                                                        {[0, 1, 2].map((vi) => {
+                                                                            const val = tuple[vi] || 0;
+                                                                            return (
+                                                                                <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val > 0 ? 'bg-amber-100' : ''}`}>
+                                                                                    <input type="number" inputMode="numeric" min="0" disabled={!id} value={val || ''} onChange={(e) => id && setQuantity(id, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`${group.categoryName} ${row.spec} 車両${vi + 1}`} />
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {/* 自由記入欄（リース品の下・19行／3列の最下段を揃える）。検索中は非表示 */}
+                                                {!trimmedQuery && (
+                                                    <div className="border-t-2 border-slate-700">
+                                                        <div className="flex flex-wrap items-center gap-x-2 px-2 py-2 bg-white">
+                                                            <span className="text-[13px] font-bold text-slate-800">自由記入欄</span>
+                                                            <span className="text-[11px] text-slate-400">カタログに無い材料はここに記入（品目名も入力）</span>
+                                                        </div>
+                                                        {Array.from({ length: Math.max(FREE_ROW_COUNT, formFreeForm.length) }).map((_, i) => {
+                                                            const row = formFreeForm[i] || { label: '', qty: ['', '', ''] as [string, string, string] };
+                                                            return (
+                                                                <div key={i} className={`${gridColsClass} border-t border-slate-100`}>
+                                                                    <div className="col-span-2 border-r border-slate-200 min-w-0">
+                                                                        <input type="text" value={row.label} onChange={(e) => setFreeFormCellAt(i, 'label', e.target.value)} placeholder="（品目名）" className="w-full h-10 px-2 text-[13px] text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500 placeholder:text-slate-300" aria-label={`自由記入${i + 1} 品目名`} />
+                                                                    </div>
+                                                                    {[0, 1, 2].map((vi) => {
+                                                                        const v = row.qty[vi] || '';
+                                                                        return (
+                                                                            <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${v.trim() ? 'bg-amber-100' : ''}`}>
+                                                                                <input type="text" inputMode="numeric" value={v} onChange={(e) => setFreeFormCellAt(i, vi as 0 | 1 | 2, e.target.value)} className="w-full h-10 text-center text-sm font-bold text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500" aria-label={`自由記入${i + 1} 車両${vi + 1}`} />
+                                                                            </div>
+                                                                        );
+                                                                    })}
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
                                                 )}
-                                                {/* フッター合計 */}
-                                                <div className="flex items-center justify-end gap-4 px-3 py-2.5 bg-slate-50 border-t border-slate-200 text-sm">
-                                                    <span className="text-slate-500">車①：<b className="text-slate-900 tabular-nums">{listTotals.car1}</b>点</span>
-                                                    <span className="text-slate-500">車②：<b className="text-slate-900 tabular-nums">{listTotals.car2}</b>点</span>
-                                                    {showCar3 && <span className="text-slate-500">車③：<b className="text-slate-900 tabular-nums">{listTotals.car3}</b>点</span>}
-                                                    <span className="text-slate-500">合計：<b className="text-slate-900 tabular-nums">{listTotals.total}</b>点</span>
-                                                </div>
-                                            </div>
+                                            </>
+                                        )}
+
+                                        {/* フッター合計（車両別＋総計） */}
+                                        <div className="flex items-center justify-end gap-3 sm:gap-4 px-3 py-2.5 bg-slate-50 border-t-2 border-slate-700 rounded-b-md text-xs sm:text-sm">
+                                            <span className="text-slate-500">車①：<b className="text-slate-900 tabular-nums">{gridTotals.car1}</b></span>
+                                            <span className="text-slate-500">車②：<b className="text-slate-900 tabular-nums">{gridTotals.car2}</b></span>
+                                            <span className="text-slate-500">車③：<b className="text-slate-900 tabular-nums">{gridTotals.car3}</b></span>
+                                            <span className="text-slate-700 font-medium">合計：<b className="text-slate-900 tabular-nums">{gridTotals.total}</b>点</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1574,123 +1574,6 @@ export default function MaterialRequisitionPage() {
                                     className="w-full px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
                                     placeholder="メモ"
                                 />
-                            </div>
-
-                            {/* シート（複数選択 + サイズ×車両3列） */}
-                            <div className="border-t border-slate-200 pt-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-lg font-semibold text-slate-900">シート</h3>
-                                    <span className="text-sm text-slate-500">{formSheetTypes.size}種類選択中</span>
-                                </div>
-                                <div className="flex flex-wrap gap-2 mb-3">
-                                    {SHEET_TYPES.map((t) => {
-                                        const active = formSheetTypes.has(t);
-                                        return (
-                                            <button
-                                                key={t}
-                                                type="button"
-                                                onClick={() => toggleSheetType(t)}
-                                                className={`px-3 py-1.5 text-sm rounded-xl border transition-colors ${
-                                                    active
-                                                        ? 'bg-slate-800 text-white border-slate-800'
-                                                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
-                                                }`}
-                                            >
-                                                {t}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                                {Array.from(formSheetTypes).length > 0 && (
-                                    <div className="space-y-3">
-                                        {SHEET_TYPES.filter(t => formSheetTypes.has(t)).map((t) => (
-                                            <div key={t} className="border border-slate-200 rounded-xl overflow-hidden">
-                                                <div className="px-3 py-2 bg-slate-50 border-b border-slate-200 text-sm font-medium text-slate-700">
-                                                    {t}
-                                                </div>
-                                                <div className="divide-y divide-slate-100">
-                                                    {SHEET_SIZES.map((size) => {
-                                                        const tuple = formSheetQty[t]?.[size] || [0, 0, 0];
-                                                        return (
-                                                            <div key={size} className="flex items-center gap-2 px-3 py-2">
-                                                                <span className="w-10 text-sm text-slate-600">{size}</span>
-                                                                <div className="flex items-center gap-1">
-                                                                    {[0, 1, 2].map((vi) => (
-                                                                        <input
-                                                                            key={vi}
-                                                                            type="number"
-                                                                            inputMode="numeric"
-                                                                            pattern="[0-9]*"
-                                                                            min="0"
-                                                                            value={tuple[vi] || ''}
-                                                                            onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, parseInt(e.target.value) || 0)}
-                                                                            onFocus={(e) => e.currentTarget.select()}
-                                                                            className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                                            placeholder={`車${vi + 1}`}
-                                                                            aria-label={`${t} ${size} 車両${vi + 1}の数量`}
-                                                                        />
-                                                                    ))}
-                                                                </div>
-                                                                <span className="text-xs text-slate-400">枚</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* その他自由欄 */}
-                            <div className="border-t border-slate-200 pt-4">
-                                <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-lg font-semibold text-slate-900">その他自由欄</h3>
-                                    <button
-                                        type="button"
-                                        onClick={addFreeFormRow}
-                                        className="px-3 py-1.5 text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 inline-flex items-center gap-1"
-                                    >
-                                        <Plus className="w-4 h-4" />行を追加
-                                    </button>
-                                </div>
-                                {formFreeForm.length === 0 ? (
-                                    <p className="text-sm text-slate-400">種別に無い品目を自由に記入できます</p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {formFreeForm.map((row, idx) => (
-                                            <div key={idx} className="flex items-center gap-2">
-                                                <input
-                                                    type="text"
-                                                    value={row.label}
-                                                    onChange={(e) => setFreeFormCell(idx, 'label', e.target.value)}
-                                                    className="flex-1 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                    placeholder="品目名"
-                                                />
-                                                {[0, 1, 2].map((vi) => (
-                                                    <input
-                                                        key={vi}
-                                                        type="text"
-                                                        inputMode="numeric"
-                                                        value={row.qty[vi]}
-                                                        onChange={(e) => setFreeFormCell(idx, vi as 0 | 1 | 2, e.target.value)}
-                                                        className="w-12 text-center px-1 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
-                                                        placeholder={`車${vi + 1}`}
-                                                        aria-label={`自由欄${idx + 1} 車両${vi + 1}`}
-                                                    />
-                                                ))}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeFreeFormRow(idx)}
-                                                    className="p-2 text-slate-500 hover:bg-slate-100 rounded-xl"
-                                                    aria-label="この行を削除"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
 
                             {/* アクションバー（下書き保存 / 印刷 全項目・車両別 / 確定） */}

@@ -54,6 +54,13 @@ type Group = PdfLayoutGroup;
 type Column = PdfLayoutColumn;
 const [LAYOUT_COL1, LAYOUT_COL2, LAYOUT_COL3] = PDF_LAYOUT;
 
+/**
+ * 全項目版（A案）COL3 末尾の自由記入行数。
+ * リース品の下に空欄の記入行を並べ、3 列（COL1/COL2/COL3）の最下段を揃える。
+ * 入力済みの自由欄（品目名＋数量）が先頭に入り、残りは空欄の記入行になる。
+ */
+const FREE_ROWS_IN_PDF = 19;
+
 const styles = StyleSheet.create({
     page: {
         fontFamily: 'NotoSansJP',
@@ -248,6 +255,42 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontSize: 9,
     },
+    // COL3 末尾の自由記入行（リース品の下・3 列の最下段を揃える）
+    colFreeWrap: {
+        borderTopWidth: 0.5,
+        borderTopColor: '#000',
+    },
+    colFreeRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 0.5,
+        borderBottomColor: '#999',
+        minHeight: 12,
+    },
+    colFreeRowLast: {
+        flexDirection: 'row',
+        minHeight: 12,
+    },
+    colFreeLabel: {
+        width: 100,
+        padding: 1,
+        borderRightWidth: 0.5,
+        borderRightColor: '#000',
+        fontSize: 7,
+    },
+    colFreeQty: {
+        flex: 1,
+        padding: 1,
+        borderRightWidth: 0.5,
+        borderRightColor: '#999',
+        textAlign: 'center',
+        fontSize: 9,
+    },
+    colFreeQtyLast: {
+        flex: 1,
+        padding: 1,
+        textAlign: 'center',
+        fontSize: 9,
+    },
     // シート / 自由欄セクション（旧リース品セクション枠を流用しコンパクト化）
     extraSection: {
         marginTop: 4,
@@ -421,12 +464,45 @@ function GroupBlock({ group, getQty, isLastGroup }: { group: Group; getQty: Mate
     );
 }
 
-function ColumnBlock({ column, getQty, isLast }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean }) {
+/**
+ * COL3 末尾の自由記入行（リース品の下）。
+ * 入力済みの自由欄（品目名＋車両別数量）を先頭に並べ、残りを空欄で埋めて
+ * 計 FREE_ROWS_IN_PDF 行にし、3 列（COL1/COL2/COL3）の最下段を揃える。
+ */
+function FreeColumnRows({ freeForm }: { freeForm: FreeFormEntry[] }) {
+    const filled = freeForm.filter(
+        (f) => f.label.trim() || f.qty[0]?.trim() || f.qty[1]?.trim() || f.qty[2]?.trim(),
+    );
+    const blanks = Math.max(0, FREE_ROWS_IN_PDF - filled.length);
+    const rows: FreeFormEntry[] = [
+        ...filled,
+        ...Array.from({ length: blanks }, () => ({ label: '', qty: ['', '', ''] as [string, string, string] })),
+    ];
+    return (
+        <View style={styles.colFreeWrap}>
+            {rows.map((row, idx) => {
+                const isLast = idx === rows.length - 1;
+                return (
+                    <View key={idx} style={isLast ? styles.colFreeRowLast : styles.colFreeRow}>
+                        <Text style={styles.colFreeLabel}>{sanitizePdfText(row.label)}</Text>
+                        <Text style={styles.colFreeQty}>{sanitizePdfText(row.qty[0] || '')}</Text>
+                        <Text style={styles.colFreeQty}>{sanitizePdfText(row.qty[1] || '')}</Text>
+                        <Text style={styles.colFreeQtyLast}>{sanitizePdfText(row.qty[2] || '')}</Text>
+                    </View>
+                );
+            })}
+        </View>
+    );
+}
+
+function ColumnBlock({ column, getQty, isLast, freeForm }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean; freeForm?: FreeFormEntry[] }) {
     return (
         <View style={isLast ? styles.columnLast : styles.column}>
             {column.groups.map((group, idx) => (
                 <GroupBlock key={idx} group={group} getQty={getQty} isLastGroup={idx === column.groups.length - 1} />
             ))}
+            {/* COL3 末尾：リース品の下に自由記入 19 行（3 列の最下段を揃える） */}
+            {freeForm && <FreeColumnRows freeForm={freeForm} />}
         </View>
     );
 }
@@ -463,34 +539,6 @@ function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
     );
 }
 
-/** 汎用「その他自由欄」セクション。空でも最低 3 行の空欄（記入用） */
-function FreeFormSection({ freeForm }: { freeForm: FreeFormEntry[] }) {
-    const filled = freeForm.filter(
-        (f) => f.label.trim() || f.qty[0]?.trim() || f.qty[1]?.trim() || f.qty[2]?.trim(),
-    );
-    const blanks = Math.max(0, 3 - filled.length);
-    const rows: FreeFormEntry[] = [
-        ...filled,
-        ...Array.from({ length: blanks }, () => ({ label: '', qty: ['', '', ''] as [string, string, string] })),
-    ];
-    return (
-        <View style={styles.extraSection}>
-            <Text style={styles.extraHeader}>その他自由欄</Text>
-            {rows.map((row, idx) => {
-                const isLast = idx === rows.length - 1;
-                return (
-                    <View key={idx} style={isLast ? [styles.freeRow, { borderBottomWidth: 0 }] : styles.freeRow}>
-                        <Text style={styles.freeLabel}>{sanitizePdfText(row.label)}</Text>
-                        <Text style={styles.freeQty}>{sanitizePdfText(row.qty[0] || '')}</Text>
-                        <Text style={styles.freeQty}>{sanitizePdfText(row.qty[1] || '')}</Text>
-                        <Text style={styles.freeQtyLast}>{sanitizePdfText(row.qty[2] || '')}</Text>
-                    </View>
-                );
-            })}
-        </View>
-    );
-}
-
 /** 1ページ分の中身を描画 */
 function SlipPageContent({
     foremanName, writerName, customerName, honorific, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
@@ -504,11 +552,10 @@ function SlipPageContent({
             <View style={styles.grid}>
                 <ColumnBlock column={LAYOUT_COL1} getQty={getQty} isLast={false} />
                 <ColumnBlock column={LAYOUT_COL2} getQty={getQty} isLast={false} />
-                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} />
+                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} freeForm={freeForm ?? []} />
             </View>
 
             <SheetSection sheets={sheets ?? []} />
-            <FreeFormSection freeForm={freeForm ?? []} />
         </>
     );
 }
