@@ -17,6 +17,8 @@ import {
 // PDF生成は Node ランタイム必須
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// 最大20件を連結生成するため単票より重い。コールドスタート＋フォント初期化に余裕を持たせる
+export const maxDuration = 60;
 
 // 一度に処理する伝票数の上限（OOM対策）
 const MAX_BULK = 20;

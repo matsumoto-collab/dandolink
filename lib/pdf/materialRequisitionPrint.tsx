@@ -4,6 +4,9 @@ import { MaterialRequisitionSlipPDF, MaterialRequisitionSlipMultiPDF, type Mater
 import { parseRequisitionNotes } from '@/lib/materials/catalog';
 // フォント登録のため import（副作用）
 import '@/components/pdf/styles';
+// サーバー側は NotoSansJP を同梱TTFから登録し直し、CDN 取得への依存を排除する
+// （styles.ts の CDN 登録より後に読み込み、当該ファミリーを上書きする）。
+import '@/lib/pdf/registerServerFonts';
 
 /**
  * 1伝票分のヘッダー情報＋数量参照関数を組み立てる

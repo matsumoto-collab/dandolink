@@ -17,6 +17,8 @@ import {
 export const runtime = 'nodejs';
 // 動的ルート（毎リクエストで最新を返す）
 export const dynamic = 'force-dynamic';
+// react-pdf の初期化＋フォント読込でコールドスタート時に時間がかかり得るため余裕を持たせる
+export const maxDuration = 60;
 
 export async function GET(
     request: NextRequest,

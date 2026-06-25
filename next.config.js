@@ -25,6 +25,14 @@ const nextConfig = {
         esmExternals: 'loose',
         // pdfjs-dist はブラウザ専用 API (DOMMatrix 等) を使うため SSR バンドルから除外
         serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf'],
+        // 出庫伝票の印刷PDFはサーバーで日本語フォントをローカル読込するため、
+        // 同梱TTFをサーバーレス関数のファイルトレースに明示的に含める
+        // （CDN フォント取得への依存を排除し、Vercel での生成失敗を防ぐ）。
+        // 単票印刷とbulk一括印刷の両ルートが renderMaterialRequisitionPrintPDF を使う。
+        outputFileTracingIncludes: {
+            '/api/materials/requisitions/[id]/print': ['./public/fonts/NotoSansJP-Regular.ttf'],
+            '/api/materials/requisitions/print/bulk': ['./public/fonts/NotoSansJP-Regular.ttf'],
+        },
     },
     webpack: (config) => {
         config.resolve.alias.canvas = false;
