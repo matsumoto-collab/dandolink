@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import SearchableSelect from '@/components/ui/SearchableSelect';
 import ProjectMasterFilesView from '@/components/ProjectMaster/ProjectMasterFilesView';
+import MaterialRequisitionDetailModal from './MaterialRequisitionDetailModal';
 import StatusBadge from './ui/StatusBadge';
 import type { MaterialRequisition } from '@/types/material';
 import {
@@ -139,6 +140,11 @@ export default function MaterialRequisitionPage() {
     const { data: session } = useSession();
 
     const [view, setView] = useState<'list' | 'create'>('list');
+    // 一覧で案件をクリックして開くPDF詳細モーダル（見積書/請求書と同じ挙動）
+    const [detailReq, setDetailReq] = useState<MaterialRequisition | null>(null);
+    // 既存伝票の「編集モード」（その伝票を上書き更新・新規コピーとは区別）。
+    // null=新規作成、{id,status}=その伝票を編集中（保存はstatus維持で更新）。
+    const [editingExisting, setEditingExisting] = useState<{ id: string; status: string } | null>(null);
     const [projectMasters, setProjectMasters] = useState<ProjectOption[]>([]);
     const [foremen, setForemen] = useState<Array<{ id: string; displayName: string }>>([]);
     // 車両コンボボックスの候補（選択＋自由入力）
@@ -335,6 +341,7 @@ export default function MaterialRequisitionPage() {
         setFormFreeForm([]);
         setFormQuantities({});
         setSearchQuery('');
+        setEditingExisting(null);
         setAutoSavedId(null);
         setAutoSaveStatus('idle');
         setAutoSavedAt(null);
@@ -661,6 +668,114 @@ export default function MaterialRequisitionPage() {
         setView('create');
         toast.success('前回の伝票をコピーしました');
     }, [categories]);
+
+    // 既存伝票を「編集モード」でフォームへ読み込む（複製ではなくその伝票を上書き更新）。
+    // - autoSavedId = req.id（保存先＝この伝票）
+    // - 30秒自動保存は無効化（明示「保存（更新）」のみ・状態の意図せぬ下書き降格を防ぐ）
+    // - 記入者名・備考も元の値を読み込む（複製では引き継がない項目）
+    const loadRequisitionForEdit = useCallback((req: MaterialRequisition) => {
+        const parsedNotes = parseRequisitionNotes(req.notes);
+        const keyToId = new Map<string, string>();
+        for (const cat of categories) {
+            for (const it of cat.items || []) keyToId.set(`${cat.name}|${it.name}`, it.id);
+        }
+        const quantities: Record<string, [string, string, string]> = {};
+        req.items?.forEach(item => {
+            if (item.quantity > 0) {
+                let idx: 0 | 1 | 2 = 0;
+                if (item.vehicleLabel === '1') idx = 1;
+                else if (item.vehicleLabel === '2') idx = 2;
+                const tuple = quantities[item.materialItemId] || ['', '', ''];
+                tuple[idx] = String(cellTextToNumber(tuple[idx]) + item.quantity);
+                quantities[item.materialItemId] = tuple;
+            }
+        });
+        for (const [key, tuple] of Object.entries(parsedNotes.cells ?? {})) {
+            const id = keyToId.get(key);
+            if (id) quantities[id] = [tuple[0] ?? '', tuple[1] ?? '', tuple[2] ?? ''];
+        }
+        // 編集モード state（autoSavedId=この伝票・自動保存OFF）
+        setEditingExisting({ id: req.id, status: req.status });
+        setAutoSavedId(req.id);
+        setAutoSaveStatus('idle');
+        setAutoSavedAt(null);
+        setAutoSaveErrorReason('');
+        autoSaveDisabledRef.current = true;
+        if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+        setFormQuantities(quantities);
+        setFormProjectId(req.projectMasterId);
+        // 施工班は元伝票の値を表示（PATCH では foremanId は変更しないが、表示整合のため）
+        if (req.foremanId) {
+            setFormForemanId(req.foremanId);
+            setFormForemanName(req.foremanName || '');
+        }
+        const srcDate = req.date ? new Date(req.date) : null;
+        setFormDate(srcDate && !Number.isNaN(srcDate.getTime()) ? jstDateKey(srcDate) : defaultFormDate());
+        let parsedVehicles: [string, string, string] = ['', '', ''];
+        if (req.vehicleInfo) {
+            try {
+                const obj = JSON.parse(req.vehicleInfo);
+                if (obj && Array.isArray(obj.vehicles)) {
+                    parsedVehicles = [String(obj.vehicles[0] ?? ''), String(obj.vehicles[1] ?? ''), String(obj.vehicles[2] ?? '')];
+                } else {
+                    parsedVehicles = [req.vehicleInfo, '', ''];
+                }
+            } catch {
+                parsedVehicles = [req.vehicleInfo, '', ''];
+            }
+        }
+        setFormVehicles(parsedVehicles);
+        const types = new Set<SheetType>();
+        const sheetQty: Record<string, Partial<Record<SheetSize, [string, string, string]>>> = {};
+        for (const s of parsedNotes.sheets) { types.add(s.type); sheetQty[s.type] = { ...s.sizes }; }
+        setFormSheetTypes(types);
+        setFormSheetQty(sheetQty);
+        setFormFreeForm(parsedNotes.freeForm.map(f => ({ label: f.label, qty: [...f.qty] as [string, string, string] })));
+        setFormAssemblyDate(parsedNotes.assemblyDate || '');
+        setFormDemolitionDate(parsedNotes.demolitionDate || '');
+        if (parsedNotes.writerName) setFormWriterName(parsedNotes.writerName);
+        setFormMemo(parsedNotes.memo || '');
+        setSearchQuery('');
+        setDetailReq(null);
+        setView('create');
+        toast.success('編集モードで開きました');
+    }, [categories]);
+
+    // 編集モードの保存：その伝票を上書き更新（状態は維持。在庫整合はPATCH側が処理）。
+    const handleUpdateExisting = async () => {
+        if (!editingExisting) return;
+        if (!formProjectId) { toast.error('現場を選択してください'); return; }
+        if (!formForemanId) { toast.error('施工班名を選択してください'); return; }
+        const items = flattenQuantitiesForApi();
+        if (items.length === 0) { toast.error('材料を1つ以上入力してください'); return; }
+        const vehicleInfoStr = buildVehicleInfoJson();
+        const notesStr = buildNotesJson();
+        if (autoSaveTimerRef.current) {
+            clearTimeout(autoSaveTimerRef.current);
+            autoSaveTimerRef.current = null;
+        }
+        autoSaveDisabledRef.current = true;
+        setIsSaving(true);
+        try {
+            await updateRequisition(editingExisting.id, {
+                status: editingExisting.status,
+                vehicleInfo: vehicleInfoStr,
+                notes: notesStr,
+                items,
+            });
+            toast.success('伝票を更新しました');
+            resetForm();
+            setView('list');
+            fetchRequisitions({ type: '出庫' });
+        } catch (e) {
+            toast.error(e instanceof Error ? e.message : '更新に失敗しました');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleStatusChange = async (id: string, newStatus: string) => {
         try {
@@ -1050,7 +1165,7 @@ export default function MaterialRequisitionPage() {
                         伝票一覧
                     </Button>
                     <Button
-                        onClick={() => setView('create')}
+                        onClick={() => { if (editingExisting) resetForm(); setView('create'); }}
                         variant={view === 'create' ? 'gradient' : 'secondary'}
                         size="md"
                         leftIcon={<Plus className="w-4 h-4" />}
@@ -1118,7 +1233,12 @@ export default function MaterialRequisitionPage() {
                                                     aria-label="伝票を選択"
                                                     className="w-4 h-4 rounded border-slate-300 text-slate-700 focus:ring-slate-500 shrink-0"
                                                 />
-                                                <div className="flex-1 min-w-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setDetailReq(req)}
+                                                    className="flex-1 min-w-0 text-left cursor-pointer rounded-lg -m-1 p-1 hover:bg-white/70 transition-colors"
+                                                    title="クリックでPDFを表示"
+                                                >
                                                     <div className="flex items-center gap-2 flex-wrap">
                                                         <span className="font-medium text-slate-900 truncate">{req.projectTitle}</span>
                                                         <StatusBadge status={req.status} />
@@ -1129,7 +1249,7 @@ export default function MaterialRequisitionPage() {
                                                         <span>{totalItems}点</span>
                                                         {formatVehicleInfo(req.vehicleInfo) && <span>{formatVehicleInfo(req.vehicleInfo)}</span>}
                                                     </div>
-                                                </div>
+                                                </button>
                                                 <div className="flex items-center gap-1">
                                                     {/* Status change */}
                                                     {req.status === 'draft' && (
@@ -1607,22 +1727,26 @@ export default function MaterialRequisitionPage() {
                                 />
                             </div>
 
-                            {/* アクションバー（下書き保存 / 印刷 全項目・車両別 / 確定） */}
+                            {/* アクションバー（新規: 下書き保存/確定、編集: 保存（更新）） */}
                             <div className="sticky bottom-0 -mx-3 md:-mx-6 -mb-3 md:-mb-6 mt-2 px-3 md:px-6 py-3 bg-white/95 backdrop-blur border-t border-slate-200 flex flex-wrap items-center gap-2 justify-end rounded-b-xl">
-                                <span className="mr-auto text-xs text-slate-400 hidden sm:block">下書きは自動保存されます</span>
+                                <span className="mr-auto text-xs text-slate-400 hidden sm:block">
+                                    {editingExisting ? '編集中：保存で上書き更新します' : '下書きは自動保存されます'}
+                                </span>
                                 <button
                                     onClick={() => { resetForm(); setView('list'); }}
                                     className="px-3 min-h-[44px] bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium text-sm"
                                 >
                                     キャンセル
                                 </button>
-                                <button
-                                    onClick={() => handleSubmit('draft')}
-                                    disabled={isSaving}
-                                    className="px-3 min-h-[44px] bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium text-sm disabled:opacity-50"
-                                >
-                                    下書き保存
-                                </button>
+                                {!editingExisting && (
+                                    <button
+                                        onClick={() => handleSubmit('draft')}
+                                        disabled={isSaving}
+                                        className="px-3 min-h-[44px] bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200 font-medium text-sm disabled:opacity-50"
+                                    >
+                                        下書き保存
+                                    </button>
+                                )}
                                 <button
                                     onClick={handlePrintFull}
                                     disabled={isPrinting}
@@ -1637,13 +1761,23 @@ export default function MaterialRequisitionPage() {
                                 >
                                     <Printer className="w-4 h-4" />印刷：車両別版
                                 </button>
-                                <button
-                                    onClick={() => handleSubmit('confirmed')}
-                                    disabled={isSaving}
-                                    className="inline-flex items-center gap-1.5 px-4 min-h-[44px] bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
-                                >
-                                    <Check className="w-4 h-4" />{isSaving ? '保存中...' : '確定して在庫を減らす'}
-                                </button>
+                                {editingExisting ? (
+                                    <button
+                                        onClick={handleUpdateExisting}
+                                        disabled={isSaving}
+                                        className="inline-flex items-center gap-1.5 px-4 min-h-[44px] bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
+                                    >
+                                        <Check className="w-4 h-4" />{isSaving ? '保存中...' : '保存（更新）'}
+                                    </button>
+                                ) : (
+                                    <button
+                                        onClick={() => handleSubmit('confirmed')}
+                                        disabled={isSaving}
+                                        className="inline-flex items-center gap-1.5 px-4 min-h-[44px] bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
+                                    >
+                                        <Check className="w-4 h-4" />{isSaving ? '保存中...' : '確定して在庫を減らす'}
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -1665,6 +1799,16 @@ export default function MaterialRequisitionPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* 出庫伝票 詳細（PDF表示）モーダル＝一覧で案件クリックで開く */}
+            {detailReq && (
+                <MaterialRequisitionDetailModal
+                    req={detailReq}
+                    onClose={() => setDetailReq(null)}
+                    onEdit={loadRequisitionForEdit}
+                    onPrint={handlePrintOne}
+                />
             )}
         </div>
     );
