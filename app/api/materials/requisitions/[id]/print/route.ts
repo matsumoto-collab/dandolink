@@ -58,6 +58,31 @@ export async function GET(
             },
         });
     } catch (error) {
-        return serverErrorResponse('材料出庫伝票PDF生成', error);
+        // ===== 一時デバッグ（診断後に削除）: 本番の実例外＋フォントパス解決を可視化 =====
+        // ログ/Sentry へは通常どおり送出（戻り値は破棄）
+        void serverErrorResponse('材料出庫伝票PDF生成', error);
+        const e = error as Error;
+        let fontDiag: Record<string, unknown> = {};
+        try {
+            const fs = await import('fs');
+            const path = await import('path');
+            const p = path.join(process.cwd(), 'public', 'fonts', 'NotoSansJP-Regular.ttf');
+            fontDiag = { cwd: process.cwd(), fontPath: p, fontExists: fs.existsSync(p) };
+        } catch (fe) {
+            fontDiag = { fontDiagError: String(fe) };
+        }
+        return NextResponse.json(
+            {
+                error: '材料出庫伝票PDF生成に失敗しました',
+                debug: {
+                    name: e?.name,
+                    message: e?.message,
+                    stack: (e?.stack || '').split('\n').slice(0, 12),
+                    ...fontDiag,
+                },
+            },
+            { status: 500, headers: { 'Cache-Control': 'no-store' } },
+        );
+        // ===== 一時デバッグここまで =====
     }
 }
