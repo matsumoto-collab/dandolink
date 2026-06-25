@@ -154,8 +154,8 @@ const styles = StyleSheet.create({
     qtyCellsContainer: { flex: 1, flexDirection: 'row' },
     qtyCell: { flex: 1, borderRightWidth: THIN, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center' },
     qtyCellLast: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    // 入力済みセルの薄いグレー背景（紙でどのセルに記入したか分かりやすく）
-    qtyCellFilled: { backgroundColor: '#e5e7eb' },
+    // 入力済みセルのグレー背景（印刷でも視認できるよう少し濃いめ。黒文字の可読性は維持）
+    qtyCellFilled: { backgroundColor: '#cbd5e1' },
 
     // 「その他」見出し（COL3 末尾・全幅。高さは inline）
     otherHeader: { flexDirection: 'row', borderBottomWidth: THIN, borderBottomColor: '#000', alignItems: 'center', justifyContent: 'center' },
