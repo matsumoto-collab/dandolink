@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useMaterialData } from '@/hooks/useMaterialData';
 import { useSession } from 'next-auth/react';
-import { Plus, FileText, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle, Image as ImageIcon, RotateCcw, Check } from 'lucide-react';
+import { Plus, FileText, Copy, Trash2, Printer, Search, X, Zap, AlertTriangle, Image as ImageIcon, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/Button';
 import SearchableSelect from '@/components/ui/SearchableSelect';
@@ -1096,54 +1096,6 @@ export default function MaterialRequisitionPage() {
         }
     }, [loadingByVehicle, formVehicles, formForemanName, formWriterName, slipCustomerName, slipHonorific, slipWorkName, formAssemblyDate, formDemolitionDate, openPdfBlob]);
 
-    // 前回と同じ：同現場の直近伝票（自動保存中の下書きを除く）から数量・シート・自由欄をコピー
-    const applyPreviousSame = useCallback(() => {
-        if (!formProjectId) { toast.error('先に現場を選択してください'); return; }
-        const prev = requisitions
-            .filter(r => r.projectMasterId === formProjectId && r.id !== autoSavedId)
-            .slice()
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
-        if (!prev) { toast('この現場の過去伝票が見つかりません'); return; }
-        // 数量（車両別）をマージ加算
-        const addQ: Record<string, [number, number, number]> = {};
-        prev.items?.forEach(item => {
-            if (item.quantity > 0) {
-                let idx: 0 | 1 | 2 = 0;
-                if (item.vehicleLabel === '1') idx = 1;
-                else if (item.vehicleLabel === '2') idx = 2;
-                const t = addQ[item.materialItemId] || [0, 0, 0];
-                t[idx] += item.quantity;
-                addQ[item.materialItemId] = t;
-            }
-        });
-        if (Object.keys(addQ).length === 0) { toast('前回伝票に数量がありませんでした'); return; }
-        setFormQuantities(prevQ => {
-            const next = { ...prevQ };
-            for (const [id, t] of Object.entries(addQ)) {
-                const cur = next[id] || ['', '', ''];
-                const merged: [string, string, string] = [cur[0], cur[1], cur[2]];
-                ([0, 1, 2] as const).forEach(vi => {
-                    if (t[vi] > 0) merged[vi] = String(cellTextToNumber(cur[vi]) + t[vi]);
-                });
-                next[id] = merged;
-            }
-            return next;
-        });
-        // シート / 自由欄は現在が空のときのみ取り込む（既存入力を壊さない）
-        const notes = parseRequisitionNotes(prev.notes);
-        if (formSheetTypes.size === 0 && notes.sheets.length > 0) {
-            const types = new Set<SheetType>();
-            const qty: Record<string, Partial<Record<SheetSize, [string, string, string]>>> = {};
-            for (const s of notes.sheets) { types.add(s.type); qty[s.type] = { ...s.sizes }; }
-            setFormSheetTypes(types);
-            setFormSheetQty(qty);
-        }
-        if (formFreeForm.length === 0 && notes.freeForm.length > 0) {
-            setFormFreeForm(notes.freeForm.map(f => ({ label: f.label, qty: [...f.qty] as [string, string, string] })));
-        }
-        toast.success(`前回（${formatDate(prev.date)}）の内容をコピーしました`);
-    }, [formProjectId, requisitions, autoSavedId, formSheetTypes, formFreeForm]);
-
     return (
         <div className="h-full flex flex-col overflow-hidden bg-slate-50">
             {/* overflow-x-hidden: 横方向のはみ出しでページ全体がパンするのを防止（縦スクロール・sticky は維持） */}
@@ -1456,26 +1408,6 @@ export default function MaterialRequisitionPage() {
                                         ))}
                                     </select>
                                 </div>
-                                {/* 組立日 / 解体日（手入力・空欄可。現場選択でプリフィル） */}
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">組立日</label>
-                                    <input
-                                        type="date"
-                                        value={formAssemblyDate}
-                                        onChange={(e) => setFormAssemblyDate(e.target.value)}
-                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">解体日</label>
-                                    <input
-                                        type="date"
-                                        value={formDemolitionDate}
-                                        onChange={(e) => setFormDemolitionDate(e.target.value)}
-                                        className="w-full min-w-0 px-3 py-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-500 shadow-sm"
-                                    />
-                                </div>
-
                                 {/* 車両（選択＋自由入力 / 最大3台。候補=車両マスタ） */}
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-slate-700 mb-1">車両 (1〜3)</label>
@@ -1524,7 +1456,7 @@ export default function MaterialRequisitionPage() {
                                 )}
 
                                 <div className="space-y-3">
-                                    {/* ツールバー：検索（任意・グリッド絞り込み）／標準セット／前回と同じ */}
+                                    {/* ツールバー：検索（任意・グリッド絞り込み）／標準セット */}
                                     <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                                         <div className="relative flex-1 min-w-0">
                                             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -1551,16 +1483,6 @@ export default function MaterialRequisitionPage() {
                                             >
                                                 <Zap className="w-4 h-4" />
                                                 {isLoadingStandardSet ? '追加中...' : '標準セットを追加'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={applyPreviousSame}
-                                                disabled={!formProjectId}
-                                                className="inline-flex items-center gap-1.5 px-3 min-h-[44px] text-sm rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                title="この現場の直近伝票の内容をコピーします"
-                                            >
-                                                <RotateCcw className="w-4 h-4" />
-                                                前回と同じ
                                             </button>
                                         </div>
                                     </div>
@@ -1728,7 +1650,7 @@ export default function MaterialRequisitionPage() {
                             </div>
 
                             {/* アクションバー（新規: 下書き保存/確定、編集: 保存（更新）） */}
-                            <div className="sticky bottom-0 -mx-3 md:-mx-6 -mb-3 md:-mb-6 mt-2 px-3 md:px-6 py-3 bg-white/95 backdrop-blur border-t border-slate-200 flex flex-wrap items-center gap-2 justify-end rounded-b-xl">
+                            <div className="sticky bottom-0 z-20 -mx-3 md:-mx-6 -mb-3 md:-mb-6 mt-2 px-3 md:px-6 py-3 bg-white/95 backdrop-blur border-t border-slate-200 flex flex-wrap items-center gap-2 justify-end rounded-b-xl">
                                 <span className="mr-auto text-xs text-slate-400 hidden sm:block">
                                     {editingExisting ? '編集中：保存で上書き更新します' : '下書きは自動保存されます'}
                                 </span>

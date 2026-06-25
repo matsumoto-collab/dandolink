@@ -36,8 +36,9 @@ export interface MaterialRequisitionSlipPDFProps {
     customerName: string;       // 得意先
     honorific?: string;         // 得意先敬称
     siteName: string;           // 現場名
-    assemblyDate: string;       // 組立日
-    demolitionDate: string;     // 解体日
+    // 組立日 / 解体日は PDF 表示から廃止（kei 指示）。後方互換で受け取るのみ（描画しない）。
+    assemblyDate?: string;
+    demolitionDate?: string;
     vehicles: [string, string, string];
     /** セル単位の表示文字取得（自由入力＝文字列。例「20本」「残」）。該当無しは ''。 */
     getQty: (categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2) => string;
@@ -153,6 +154,8 @@ const styles = StyleSheet.create({
     qtyCellsContainer: { flex: 1, flexDirection: 'row' },
     qtyCell: { flex: 1, borderRightWidth: THIN, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center' },
     qtyCellLast: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    // 入力済みセルの薄いグレー背景（紙でどのセルに記入したか分かりやすく）
+    qtyCellFilled: { backgroundColor: '#e5e7eb' },
 
     // 「その他」見出し（COL3 末尾・全幅。高さは inline）
     otherHeader: { flexDirection: 'row', borderBottomWidth: THIN, borderBottomColor: '#000', alignItems: 'center', justifyContent: 'center' },
@@ -184,7 +187,7 @@ function Header({ foremanName, writerName }: { foremanName: string; writerName: 
     );
 }
 
-function MetaBox({ customerName, honorific, siteName, assemblyDate, demolitionDate }: { customerName: string; honorific: string; siteName: string; assemblyDate: string; demolitionDate: string }) {
+function MetaBox({ customerName, honorific, siteName }: { customerName: string; honorific: string; siteName: string }) {
     const customerDisplay = customerName ? `${customerName}${honorific ? ` ${honorific}` : ''}` : '';
     return (
         <View style={styles.metaRow}>
@@ -192,17 +195,9 @@ function MetaBox({ customerName, honorific, siteName, assemblyDate, demolitionDa
                 <Text style={styles.metaLabel}>得意先</Text>
                 <Text style={styles.metaValue}>{sanitizePdfText(customerDisplay)}</Text>
             </View>
-            <View style={styles.metaCell}>
+            <View style={styles.metaCellLast}>
                 <Text style={styles.metaLabel}>現場名</Text>
                 <Text style={styles.metaValue}>{sanitizePdfText(siteName)}</Text>
-            </View>
-            <View style={styles.metaCellLast}>
-                <View style={styles.metaDateRow}>
-                    <Text style={styles.metaDateLabel}>組立日</Text>
-                    <Text style={styles.metaDateValue}>{sanitizePdfText(assemblyDate)}</Text>
-                    <Text style={styles.metaDateLabel}>解体日</Text>
-                    <Text style={styles.metaDateValueLast}>{sanitizePdfText(demolitionDate)}</Text>
-                </View>
             </View>
         </View>
     );
@@ -226,13 +221,18 @@ function VehicleRow({ vehicles }: { vehicles: [string, string, string] }) {
     );
 }
 
-/** 数量セル（車①②③）。固定高の行内で等幅・縦中央。 */
+/** 値が入っているセルか（薄グレー背景の判定）。 */
+function cellHasValue(s: string): boolean {
+    return String(s ?? '').trim() !== '';
+}
+
+/** 数量セル（車①②③）。固定高の行内で等幅・縦中央。入力済みセルは薄いグレー背景。 */
 function QtyCells({ qtys }: { qtys: [string, string, string] }) {
     return (
         <View style={styles.qtyCellsContainer}>
-            <View style={styles.qtyCell}><FitText text={qtys[0]} width={QTY_W} base={9} /></View>
-            <View style={styles.qtyCell}><FitText text={qtys[1]} width={QTY_W} base={9} /></View>
-            <View style={styles.qtyCellLast}><FitText text={qtys[2]} width={QTY_W} base={9} /></View>
+            <View style={cellHasValue(qtys[0]) ? [styles.qtyCell, styles.qtyCellFilled] : styles.qtyCell}><FitText text={qtys[0]} width={QTY_W} base={9} /></View>
+            <View style={cellHasValue(qtys[1]) ? [styles.qtyCell, styles.qtyCellFilled] : styles.qtyCell}><FitText text={qtys[1]} width={QTY_W} base={9} /></View>
+            <View style={cellHasValue(qtys[2]) ? [styles.qtyCellLast, styles.qtyCellFilled] : styles.qtyCellLast}><FitText text={qtys[2]} width={QTY_W} base={9} /></View>
         </View>
     );
 }
@@ -351,7 +351,7 @@ function ColumnBlock({ column, getQty, isLast, rowH, freeForm, sheets, freeRows 
 }
 
 function SlipPageContent({
-    foremanName, writerName, customerName, honorific, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
+    foremanName, writerName, customerName, honorific, siteName, vehicles, getQty, sheets, freeForm,
 }: MaterialRequisitionSlipPDFProps) {
     const sheetList = sheets ?? [];
     const gridRows = gridRowsFor(sheetList);
@@ -360,7 +360,7 @@ function SlipPageContent({
     return (
         <>
             <Header foremanName={foremanName} writerName={writerName ?? ''} />
-            <MetaBox customerName={customerName} honorific={honorific ?? ''} siteName={siteName} assemblyDate={assemblyDate} demolitionDate={demolitionDate} />
+            <MetaBox customerName={customerName} honorific={honorific ?? ''} siteName={siteName} />
             <VehicleRow vehicles={vehicles} />
             <View style={styles.grid}>
                 <ColumnBlock column={LAYOUT_COL1} getQty={getQty} isLast={false} rowH={rowH} />
