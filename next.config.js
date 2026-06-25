@@ -19,12 +19,14 @@ const nextConfig = {
     // 本番ビルド時のソースマップを無効化してバンドルサイズを削減
     productionBrowserSourceMaps: false,
     // SWC minifyはNext.js 14ではデフォルトで有効
-    // ESMパッケージの対応
-    transpilePackages: ['@react-pdf/renderer'],
     experimental: {
         esmExternals: 'loose',
         // pdfjs-dist はブラウザ専用 API (DOMMatrix 等) を使うため SSR バンドルから除外
-        serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf'],
+        // @react-pdf/renderer はサーバーで bundle すると Reconciler の React 参照が
+        // webpack の interop で壊れ `Cy.Component is not a constructor` になるため
+        // サーバーバンドルから除外し node_modules から実体をロードさせる
+        // （client 側は transpilePackages で従来どおり transpile される）。
+        serverComponentsExternalPackages: ['pdfjs-dist', 'react-pdf', '@react-pdf/renderer'],
         // 出庫伝票の印刷PDFはサーバーで日本語フォントをローカル読込するため、
         // 同梱TTFをサーバーレス関数のファイルトレースに明示的に含める
         // （CDN フォント取得への依存を排除し、Vercel での生成失敗を防ぐ）。
