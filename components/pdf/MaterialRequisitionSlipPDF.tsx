@@ -49,7 +49,7 @@ const [LAYOUT_COL1, LAYOUT_COL2, LAYOUT_COL3] = PDF_LAYOUT;
 const NAME_W = 46;              // 名称列
 const SPEC_W = 30;              // 規格列
 const FULL_W = NAME_W + SPEC_W; // 単独品目／車両ラベルの全幅
-const QTY_W = 40;               // 数量セルのフォント縮小用の概算幅（実体は flex 等幅）
+const QTY_W = 33;               // 数量セルのフォント縮小用の概算幅（実体は flex 等幅・左右余白拡張後の実幅に合わせる）
 const THICK = 1.5;              // セクション（列）太枠
 const THIN = 0.5;               // セル内罫線
 
@@ -90,7 +90,9 @@ function computeRowHeight(sheetRowCount: number): number {
 }
 
 const styles = StyleSheet.create({
-    page: { fontFamily: 'NotoSansJP', fontSize: 8, padding: 10, backgroundColor: '#ffffff' },
+    // 左右余白を広めに取り、プリンタの非印刷領域で太枠が切れないようにする
+    // （上下は10のまま＝行高算出の PAGE_USABLE_H と整合）。
+    page: { fontFamily: 'NotoSansJP', fontSize: 8, paddingVertical: 10, paddingHorizontal: 24, backgroundColor: '#ffffff' },
 
     // ヘッダー（施工班名 / 記入者）
     topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, fontSize: 9 },
