@@ -139,7 +139,7 @@ export default function InventoryPage() {
         return rows.filter(r => {
             if (selectedCat !== 'all' && r.categoryId !== selectedCat) return false;
             if (q) {
-                return r.item.name.toLowerCase().includes(q) || (r.item.spec ?? '').toLowerCase().includes(q);
+                return r.categoryName.toLowerCase().includes(q) || r.item.name.toLowerCase().includes(q) || (r.item.spec ?? '').toLowerCase().includes(q);
             }
             return true;
         });
@@ -356,6 +356,7 @@ export default function InventoryPage() {
             {detailItem && (
                 <ItemDetailModal
                     item={detailItem}
+                    categoryName={categories.find(c => c.id === detailItem.categoryId)?.name ?? ''}
                     sites={detailSites}
                     onClose={() => setDetailItem(null)}
                 />
@@ -452,8 +453,9 @@ function ListTab({
                                 className={`cursor-pointer ${r.status === 'shortage' && !r.excluded ? 'bg-red-50/60 hover:bg-red-50' : 'hover:bg-slate-50'}`}
                             >
                                 <td className="px-4 py-3">
-                                    <span className="font-medium text-slate-800">{r.item.name}</span>
-                                    {r.item.spec && <span className="text-xs text-slate-400 ml-1.5">{r.item.spec}</span>}
+                                    <span className="font-medium text-slate-800">{r.categoryName}</span>
+                                    <span className="text-slate-600 ml-1.5">{r.item.name}</span>
+                                    {r.item.spec && <span className="text-xs text-slate-400 ml-1">{r.item.spec}</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     <span className={`text-base font-semibold tabular-nums ${
@@ -500,7 +502,7 @@ function ListTab({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="font-semibold text-slate-800">
-                                    {r.item.name}{r.item.spec && <span className="text-xs text-slate-400 ml-1.5">{r.item.spec}</span>}
+                                    {r.categoryName}<span className="font-normal text-slate-600 ml-1.5">{r.item.name}</span>{r.item.spec && <span className="text-xs text-slate-400 ml-1">{r.item.spec}</span>}
                                 </div>
                                 {!r.excluded && (
                                     <div className="text-xs text-slate-400 mt-0.5 tabular-nums">
@@ -691,9 +693,10 @@ function EditModeList({
 /* ====================== 品目詳細モーダル ====================== */
 
 function ItemDetailModal({
-    item, sites, onClose,
+    item, categoryName, sites, onClose,
 }: {
     item: MaterialItemWithStock;
+    categoryName: string;
     sites: { projectMasterId: string; projectName: string; foremanName: string | null; lentOut: number; lastDispatchDate: string | null }[];
     onClose: () => void;
 }) {
@@ -723,7 +726,9 @@ function ItemDetailModal({
             <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
                     <h3 className="text-sm font-semibold text-slate-800">
-                        {item.name}{item.spec && <span className="text-xs text-slate-400 ml-1.5">{item.spec}</span>}
+                        {categoryName && <span>{categoryName} </span>}
+                        <span className="font-normal text-slate-600">{item.name}</span>
+                        {item.spec && <span className="text-xs text-slate-400 ml-1.5">{item.spec}</span>}
                     </h3>
                     <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X className="w-4 h-4" /></button>
                 </div>

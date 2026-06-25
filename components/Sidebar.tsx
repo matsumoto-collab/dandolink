@@ -58,7 +58,6 @@ const navigationSections: NavSection[] = [
             { name: '在庫管理', page: 'inventory' },
             { name: '出庫伝票', page: 'materials' },
             { name: '返却', page: 'material-returns' },
-            { name: '積込リスト', page: 'loading-list' },
         ],
     },
     {
@@ -242,13 +241,13 @@ export default function Sidebar() {
                             );
                             const filteredSection = { ...section, items: allowedItems };
 
-                            // workerロール: スケジュール + 積込リスト + チャット
+                            // workerロール: スケジュール + チャット + 材料管理(在庫/返却)
                             if (role === 'worker') {
                                 if (filteredSection.title === '業務管理') {
                                     return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'schedule' || item.page === 'chat') };
                                 }
                                 if (filteredSection.title === '材料管理') {
-                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'loading-list' || item.page === 'inventory' || item.page === 'material-returns') };
+                                    return { ...filteredSection, items: filteredSection.items.filter(item => item.page === 'inventory' || item.page === 'material-returns') };
                                 }
                                 return null;
                             }

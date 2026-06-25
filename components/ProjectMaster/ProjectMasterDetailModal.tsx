@@ -4,7 +4,6 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { X, Edit, ArrowLeft, FileText, FileSearch } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 
-const MaterialsSection = lazy(() => import('@/components/ProjectMasters/sections/MaterialsSection'));
 const LentOutSection = lazy(() => import('@/components/ProjectMasters/sections/LentOutSection'));
 const ProjectChatTab = lazy(() => import('@/components/Chat/ProjectChatTab'));
 const SiteSurveyTab = lazy(() => import('./SiteSurveyTab'));
@@ -91,11 +90,11 @@ function initFormDataFromPm(pm: ProjectMaster, constructionTypes: ConstructionTy
 export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initialEditMode, onCreateEstimate, onViewEstimate, readOnly }: ProjectMasterDetailModalProps) {
     const isOpen = pm !== null;
     const [mode, setMode] = useState<'view' | 'edit'>('view');
-    const [activeTab, setActiveTab] = useState<'detail' | 'materials' | 'lent-out' | 'chat' | 'site-survey'>('detail');
+    const [activeTab, setActiveTab] = useState<'detail' | 'lent-out' | 'chat' | 'site-survey'>('detail');
     const { data: session } = useSession();
     const role = session?.user?.role;
     const isAdminOrManager = role === 'admin' || role === 'manager';
-    const tabList = (['detail', 'materials', 'lent-out', 'chat', 'site-survey'] as const).filter(
+    const tabList = (['detail', 'lent-out', 'chat', 'site-survey'] as const).filter(
         (t) => t !== 'site-survey' || isAdminOrManager,
     );
     const [formData, setFormData] = useState<ProjectMasterFormData>(DEFAULT_FORM_DATA);
@@ -287,7 +286,7 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                                         : 'border-transparent text-slate-500 hover:text-slate-700'
                                 }`}
                             >
-                                {tab === 'detail' ? '詳細' : tab === 'materials' ? '材料表' : tab === 'lent-out' ? '貸出中' : tab === 'chat' ? 'チャット' : '現場調査'}
+                                {tab === 'detail' ? '詳細' : tab === 'lent-out' ? '材料表' : tab === 'chat' ? 'チャット' : '現場調査'}
                             </button>
                         ))}
                     </div>
@@ -305,10 +304,6 @@ export default function ProjectMasterDetailModal({ pm, onClose, onUpdate, initia
                             projectMasterId={pm.id}
                             errors={errors}
                         />
-                    ) : activeTab === 'materials' ? (
-                        <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500"></div></div>}>
-                            <MaterialsSection projectMasterId={pm.id} />
-                        </Suspense>
                     ) : activeTab === 'lent-out' ? (
                         <Suspense fallback={<div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-500"></div></div>}>
                             <LentOutSection pm={pm} />
