@@ -23,7 +23,11 @@ import {
  *     コンテナ側には付けない（各列とも同じ行数＝行が列をまたいで一致）。
  *   - 全行を固定高にし、長い名前はセル幅に収まるようフォント自動縮小して 1 行に収める。
  *   - 左・中・右の各セクション（列）は太枠で囲む。
- *   - 行高は A4 縦下部まで使うよう動的に決める（シート欄がある時はその分だけ詰める）。
+ *   - シート（※1）箱は COL2 のラベル「シート」グループ。選択されたシート種類を
+ *     「名前（縦結合）＋サイズ別数量」でこの箱に描画する（複数種類は積み重ね）。
+ *     種類未選択なら従来の空「シート」箱。旧仕様の PDF 下部別セクションは廃止。
+ *   - 行高は A4 縦下部まで使うよう動的に決める（シート箱もグリッド内なので、選択
+ *     種類が増えると行数が増えて全体の行高が縮む＝別枠予約は不要）。
  */
 
 export interface MaterialRequisitionSlipPDFProps {
@@ -56,10 +60,15 @@ const THIN = 0.5;               // セル内罫線
 // 各列の行数（PDF_LAYOUT から算出）。3 列の最下段を揃えるため COL3 末尾に
 // 「その他」見出し＋自由記入行を足して GRID_ROWS（左右の多い方）に合わせる。
 const COL1_ROWS = LAYOUT_COL1.groups.reduce((n, g) => n + g.rows.length, 0);
-const COL2_ROWS = LAYOUT_COL2.groups.reduce((n, g) => n + g.rows.length, 0);
 const COL3_SPINE_ROWS = LAYOUT_COL3.groups.reduce((n, g) => n + g.rows.length, 0);
-const GRID_ROWS = Math.max(COL1_ROWS, COL2_ROWS);
-const FREE_ROWS_IN_PDF = Math.max(0, GRID_ROWS - COL3_SPINE_ROWS - 1); // -1 = 「その他」見出し行
+
+// シート箱（※1）= COL2 のラベル「シート」グループ。選択されたシート種類を
+// この箱に「名前＋サイズ別数量」で描画する（旧: PDF 下部の別セクションは廃止）。
+const SHEET_GROUP_LABEL = 'シート';
+// COL2 の非シート行数（静的）。シート箱の行数は選択種類に応じて動的に決まる。
+const COL2_NONSHEET_ROWS = LAYOUT_COL2.groups
+    .filter((g) => g.label !== SHEET_GROUP_LABEL)
+    .reduce((n, g) => n + g.rows.length, 0);
 
 // A4 縦のページ寸法（pt）。行高の動的算出に使う。
 const PAGE_USABLE_H = 822;  // 841.89 - padding(10*2)
@@ -68,25 +77,31 @@ const GRID_FRAME = 3;       // グリッド上下の太枠
 const ROW_H_MAX = 16.0;     // これ以上は広げない（シート無しでA4を満たし1ページに収まる値）
 const ROW_H_MIN = 12.5;     // これ以下には詰めない（可読性）
 
-/** シート欄に描画される行（種類×サイズ）を抽出する。 */
-function sheetRowsOf(sheets: SheetEntry[]): Array<{ type: string; size: string; qtys: [string, string, string] }> {
-    const rows: Array<{ type: string; size: string; qtys: [string, string, string] }> = [];
-    for (const s of sheets) {
-        for (const size of SHEET_SIZES) {
-            const t = s.sizes[size];
-            if (t && (String(t[0] ?? '').trim() || String(t[1] ?? '').trim() || String(t[2] ?? '').trim())) {
-                rows.push({ type: s.type, size, qtys: [t[0] || '', t[1] || '', t[2] || ''] });
-            }
-        }
-    }
-    return rows;
+/** シート箱に描画する種類（選択された種類のみ。空配列なら既定の空「シート」箱）。 */
+function activeSheets(sheets: SheetEntry[]): SheetEntry[] {
+    return sheets.filter((s) => s.type && String(s.type).trim() !== '');
 }
 
-/** A4 縦下部まで使うよう行高を決める。シート欄がある時はその分だけ詰める。 */
-function computeRowHeight(sheetRowCount: number): number {
-    const sheetH = sheetRowCount > 0 ? 28 + sheetRowCount * 14 : 0; // 見出し+行+枠+余白（保守的）
-    const avail = PAGE_USABLE_H - HEADER_H - GRID_FRAME - sheetH;
-    return Math.max(ROW_H_MIN, Math.min(ROW_H_MAX, avail / GRID_ROWS));
+/** シート箱の行数（種類数 × 4 サイズ。未選択は既定の 4 行＝空「シート」箱）。 */
+function sheetBoxRows(sheets: SheetEntry[]): number {
+    const n = activeSheets(sheets).length;
+    return (n === 0 ? 1 : n) * SHEET_SIZES.length;
+}
+
+/** シート箱を含めた COL2 行数から、3 列共通のグリッド行数（左右の多い方）を決める。 */
+function gridRowsFor(sheets: SheetEntry[]): number {
+    return Math.max(COL1_ROWS, COL2_NONSHEET_ROWS + sheetBoxRows(sheets));
+}
+
+/** COL3 末尾「その他」自由記入の行数（最下段を揃える。-1 = 「その他」見出し行）。 */
+function freeRowsFor(gridRows: number): number {
+    return Math.max(0, gridRows - COL3_SPINE_ROWS - 1);
+}
+
+/** A4 縦下部まで使うよう行高を決める（シートもグリッド内なので別枠予約は不要）。 */
+function computeRowHeight(gridRows: number): number {
+    const avail = PAGE_USABLE_H - HEADER_H - GRID_FRAME;
+    return Math.max(ROW_H_MIN, Math.min(ROW_H_MAX, avail / gridRows));
 }
 
 const styles = StyleSheet.create({
@@ -144,15 +159,6 @@ const styles = StyleSheet.create({
 
     cellText: { fontSize: 7.5, textAlign: 'center' },
     bold: { fontWeight: 'bold' },
-
-    // シートセクション（選択分のみ）
-    extraSection: { marginTop: 4, borderWidth: THICK, borderColor: '#000' },
-    extraHeader: { padding: 2, borderBottomWidth: THIN, borderBottomColor: '#000', fontSize: 8, fontWeight: 'bold', textAlign: 'center' },
-    sheetRow: { flexDirection: 'row', borderBottomWidth: THIN, borderBottomColor: '#000', minHeight: 12 },
-    sheetTypeCell: { width: 110, padding: 2, borderRightWidth: THIN, borderRightColor: '#000', fontSize: 7 },
-    sheetSizeCell: { width: 28, padding: 2, borderRightWidth: THIN, borderRightColor: '#000', textAlign: 'center', fontSize: 7 },
-    sheetQtyCell: { flex: 1, padding: 2, borderRightWidth: THIN, borderRightColor: '#000', textAlign: 'center', fontSize: 8 },
-    sheetQtyCellLast: { flex: 1, padding: 2, textAlign: 'center', fontSize: 8 },
 });
 
 /** セル幅に1行で収まるようフォント自動縮小して描画する（折り返し防止）。 */
@@ -271,9 +277,9 @@ function GroupBlock({ group, getQty, rowH }: { group: Group; getQty: MaterialReq
 }
 
 /** COL3 末尾「その他」自由記入。COL1/COL2 と最下段（行数）を揃える。 */
-function FreeColumnRows({ freeForm, rowH }: { freeForm: FreeFormEntry[]; rowH: number }) {
+function FreeColumnRows({ freeForm, rowH, freeRows }: { freeForm: FreeFormEntry[]; rowH: number; freeRows: number }) {
     const filled = freeForm.filter((f) => f.label.trim() || f.qty[0]?.trim() || f.qty[1]?.trim() || f.qty[2]?.trim());
-    const blanks = Math.max(0, FREE_ROWS_IN_PDF - filled.length);
+    const blanks = Math.max(0, freeRows - filled.length);
     const rows: FreeFormEntry[] = [
         ...filled,
         ...Array.from({ length: blanks }, () => ({ label: '', qty: ['', '', ''] as [string, string, string] })),
@@ -291,36 +297,55 @@ function FreeColumnRows({ freeForm, rowH }: { freeForm: FreeFormEntry[]; rowH: n
     );
 }
 
-function ColumnBlock({ column, getQty, isLast, rowH, freeForm }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean; rowH: number; freeForm?: FreeFormEntry[] }) {
+/**
+ * シート箱（※1）。選択されたシート種類を「名前（縦結合）＋サイズ別数量」で描画する。
+ * 種類未選択なら従来どおりラベル「シート」＋サイズ4行（空）の箱を出す。
+ * 旧仕様の「PDF 下部の別セクション」は廃止し、選択名がそのまま箱の名前になる。
+ */
+/** シート種類名をスペースで改行（例「新築用 グレー(紐付)」→「新築用」「グレー(紐付)」）。
+ *  長名を括弧の途中で割らず、各行をセル幅に収めて可読性を上げる。 */
+function sheetNameLines(name: string): string[] {
+    const parts = String(name).split(/\s+/).filter(Boolean);
+    return parts.length > 0 ? parts : [name];
+}
+
+function SheetGridGroup({ sheets, rowH }: { sheets: SheetEntry[]; rowH: number }) {
+    const active = activeSheets(sheets);
+    const blocks: Array<{ type: string; sizes: SheetEntry['sizes'] }> =
+        active.length === 0 ? [{ type: SHEET_GROUP_LABEL, sizes: {} }] : active;
     return (
-        <View style={isLast ? styles.columnLast : styles.column}>
-            {column.groups.map((group, idx) => (
-                <GroupBlock key={idx} group={group} getQty={getQty} rowH={rowH} />
+        <>
+            {blocks.map((s, bi) => (
+                <View key={bi} style={styles.group}>
+                    <View style={styles.nameLabelCell}>
+                        {sheetNameLines(s.type).map((p, i) => <FitText key={i} text={p} width={NAME_W} />)}
+                    </View>
+                    <View style={styles.groupRows}>
+                        {SHEET_SIZES.map((size, i) => {
+                            const t = s.sizes[size] || ['', '', ''];
+                            return (
+                                <View key={i} style={[styles.row, { height: rowH }]}>
+                                    <View style={styles.specCell}><FitText text={size} width={SPEC_W} /></View>
+                                    <QtyCells qtys={[t[0] || '', t[1] || '', t[2] || '']} />
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
             ))}
-            {freeForm && <FreeColumnRows freeForm={freeForm} rowH={rowH} />}
-        </View>
+        </>
     );
 }
 
-/** シート（種類 × サイズ × 車両）セクション。選択された種類のみ描画。 */
-function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
-    const rows = sheetRowsOf(sheets);
-    if (rows.length === 0) return null;
+function ColumnBlock({ column, getQty, isLast, rowH, freeForm, sheets, freeRows }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean; rowH: number; freeForm?: FreeFormEntry[]; sheets?: SheetEntry[]; freeRows?: number }) {
     return (
-        <View style={styles.extraSection}>
-            <Text style={styles.extraHeader}>シート</Text>
-            {rows.map((r, idx) => {
-                const isLast = idx === rows.length - 1;
-                return (
-                    <View key={idx} style={isLast ? [styles.sheetRow, { borderBottomWidth: 0 }] : styles.sheetRow}>
-                        <Text style={styles.sheetTypeCell}>{sanitizePdfText(r.type)}</Text>
-                        <Text style={styles.sheetSizeCell}>{sanitizePdfText(r.size)}</Text>
-                        <Text style={styles.sheetQtyCell}>{sanitizePdfText(r.qtys[0] || '')}</Text>
-                        <Text style={styles.sheetQtyCell}>{sanitizePdfText(r.qtys[1] || '')}</Text>
-                        <Text style={styles.sheetQtyCellLast}>{sanitizePdfText(r.qtys[2] || '')}</Text>
-                    </View>
-                );
-            })}
+        <View style={isLast ? styles.columnLast : styles.column}>
+            {column.groups.map((group, idx) => (
+                group.label === SHEET_GROUP_LABEL
+                    ? <SheetGridGroup key={idx} sheets={sheets ?? []} rowH={rowH} />
+                    : <GroupBlock key={idx} group={group} getQty={getQty} rowH={rowH} />
+            ))}
+            {freeForm && <FreeColumnRows freeForm={freeForm} rowH={rowH} freeRows={freeRows ?? 0} />}
         </View>
     );
 }
@@ -329,7 +354,9 @@ function SlipPageContent({
     foremanName, writerName, customerName, honorific, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
 }: MaterialRequisitionSlipPDFProps) {
     const sheetList = sheets ?? [];
-    const rowH = computeRowHeight(sheetRowsOf(sheetList).length);
+    const gridRows = gridRowsFor(sheetList);
+    const rowH = computeRowHeight(gridRows);
+    const freeRows = freeRowsFor(gridRows);
     return (
         <>
             <Header foremanName={foremanName} writerName={writerName ?? ''} />
@@ -337,10 +364,9 @@ function SlipPageContent({
             <VehicleRow vehicles={vehicles} />
             <View style={styles.grid}>
                 <ColumnBlock column={LAYOUT_COL1} getQty={getQty} isLast={false} rowH={rowH} />
-                <ColumnBlock column={LAYOUT_COL2} getQty={getQty} isLast={false} rowH={rowH} />
-                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} rowH={rowH} freeForm={freeForm ?? []} />
+                <ColumnBlock column={LAYOUT_COL2} getQty={getQty} isLast={false} rowH={rowH} sheets={sheetList} />
+                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} rowH={rowH} freeForm={freeForm ?? []} freeRows={freeRows} />
             </View>
-            <SheetSection sheets={sheetList} />
         </>
     );
 }
