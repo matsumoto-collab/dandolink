@@ -12,138 +12,144 @@ import {
 } from '@/lib/materials/catalog';
 
 /**
- * 出庫伝票（材料表）PDF。目標帳票「材料表 (新）R4.11」に準拠したきれいなグリッド。
+ * 出庫伝票（材料表）PDF。目標帳票「材料表 (新）R4.11」準拠のきれいなグリッド。
  *
- * 3 列固定レイアウトは lib/materials/catalog.ts の PDF_LAYOUT を単一の正として生成する。
- * 各セルは categoryName + itemName でマスタ品目に対応付け、getQty から数量を引く。
- *
- * レイアウト方針（R4.11 準拠）:
+ * レイアウト方針:
  *   - 各列のテーブルは [名称][規格][車①][車②][車③]。
- *   - 複数サイズ品目（柱 3.6/2.7/… 等）: 名称セルをサイズ行ぶん縦結合（左に1回・中央寄せ）、
- *     各行に規格（サイズ）＋車①②③の数量セル。
- *   - 単独品目（安全バー・金網・皿・ハッチ付きアンチ 等＝catalog で groupLabel==''）:
- *     名称＋規格を結合した「全幅セル」に名前を中央寄せ（空の名称セルを作らない）。
- *   - 全行を固定高にし、長い名前はセル幅に収まるようフォント自動縮小して 1 行に収める
- *     （折り返しによる行高バラつき・はみ出しを防止）。
- *
- * シート（SHEET_TYPES）/ 汎用自由欄は MaterialRequisition.notes の JSON 由来。
+ *   - 複数サイズ品目（柱 3.6/2.7/…）: 名称セルをサイズ行ぶん縦結合（中央寄せ）、各行に規格＋数量。
+ *   - 単独品目（安全バー・金網・皿 等＝catalog で groupLabel==''）: 名称＋規格を結合した
+ *     全幅セルに名前を中央寄せ。
+ *   - 横罫線を 3 列で揃えるため、罫線（borderBottom）は「全行」に均一に付け、グループ
+ *     コンテナ側には付けない（各列とも同じ行数＝行が列をまたいで一致）。
+ *   - 全行を固定高にし、長い名前はセル幅に収まるようフォント自動縮小して 1 行に収める。
+ *   - 左・中・右の各セクション（列）は太枠で囲む。
+ *   - 行高は A4 縦下部まで使うよう動的に決める（シート欄がある時はその分だけ詰める）。
  */
 
 export interface MaterialRequisitionSlipPDFProps {
-    /** ヘッダー情報 */
     foremanName: string;        // 施工班名
-    /** 記入者名（未指定なら施工班名を流用） */
-    writerName?: string;
+    writerName?: string;        // 記入者名（未指定なら施工班名）
     customerName: string;       // 得意先
-    /** 得意先の敬称（例: 様）。指定時は得意先名の後ろに付与 */
-    honorific?: string;
-    siteName: string;           // 現場名（工事名称 title を想定）
-    assemblyDate: string;       // 組立日 (YYYY/MM/DD 等)
+    honorific?: string;         // 得意先敬称
+    siteName: string;           // 現場名
+    assemblyDate: string;       // 組立日
     demolitionDate: string;     // 解体日
-    /** 車両3欄 (車両1,車両2,車両3) */
     vehicles: [string, string, string];
-    /**
-     * セル単位の表示文字取得関数（自由入力＝文字列。例「20本」「残」）。
-     * 例: getQty('柱', '3.6m', 0) -> 車両0(=列1) の表示文字。該当無しは ''（空欄）。
-     */
+    /** セル単位の表示文字取得（自由入力＝文字列。例「20本」「残」）。該当無しは ''。 */
     getQty: (categoryName: string, itemName: string, vehicleIndex: 0 | 1 | 2) => string;
-    /** シート（種類 × サイズ × 車両）。notes-JSON 由来。空配列なら非表示 */
     sheets?: SheetEntry[];
-    /** 汎用自由欄。notes-JSON 由来 */
     freeForm?: FreeFormEntry[];
 }
 
-// catalog 由来の PDF レイアウト（単一の正）
 type Group = PdfLayoutGroup;
 type Column = PdfLayoutColumn;
 const [LAYOUT_COL1, LAYOUT_COL2, LAYOUT_COL3] = PDF_LAYOUT;
 
-// --- グリッド寸法（pt）。全行・全列で固定し体裁を揃える ---
-const NAME_W = 46;   // 名称列
-const SPEC_W = 30;   // 規格列
-const FULL_W = NAME_W + SPEC_W; // 単独品目の全幅名称セル
-const ROW_H = 13;    // 全材料行の固定高（A4縦・約47行/列が収まる値）
-const QTY_W = 36;    // 数量セルのフォント縮小用の概算幅（実体は flex 等幅）
+// --- グリッド寸法（pt）---
+const NAME_W = 46;              // 名称列
+const SPEC_W = 30;              // 規格列
+const FULL_W = NAME_W + SPEC_W; // 単独品目／車両ラベルの全幅
+const QTY_W = 40;               // 数量セルのフォント縮小用の概算幅（実体は flex 等幅）
+const THICK = 1.5;              // セクション（列）太枠
+const THIN = 0.5;               // セル内罫線
 
-/**
- * COL3 末尾「その他」自由記入の空行数。
- * COL1/COL2（各約47行）と最下段を揃えるための行数。
- */
-const FREE_ROWS_IN_PDF = 19;
+// 各列の行数（PDF_LAYOUT から算出）。3 列の最下段を揃えるため COL3 末尾に
+// 「その他」見出し＋自由記入行を足して GRID_ROWS（左右の多い方）に合わせる。
+const COL1_ROWS = LAYOUT_COL1.groups.reduce((n, g) => n + g.rows.length, 0);
+const COL2_ROWS = LAYOUT_COL2.groups.reduce((n, g) => n + g.rows.length, 0);
+const COL3_SPINE_ROWS = LAYOUT_COL3.groups.reduce((n, g) => n + g.rows.length, 0);
+const GRID_ROWS = Math.max(COL1_ROWS, COL2_ROWS);
+const FREE_ROWS_IN_PDF = Math.max(0, GRID_ROWS - COL3_SPINE_ROWS - 1); // -1 = 「その他」見出し行
+
+// A4 縦のページ寸法（pt）。行高の動的算出に使う。
+const PAGE_USABLE_H = 822;  // 841.89 - padding(10*2)
+const HEADER_H = 62;        // 施工班名 + 得意先行 + 車両行 の概算高（やや保守的に）
+const GRID_FRAME = 3;       // グリッド上下の太枠
+const ROW_H_MAX = 16.0;     // これ以上は広げない（シート無しでA4を満たし1ページに収まる値）
+const ROW_H_MIN = 12.5;     // これ以下には詰めない（可読性）
+
+/** シート欄に描画される行（種類×サイズ）を抽出する。 */
+function sheetRowsOf(sheets: SheetEntry[]): Array<{ type: string; size: string; qtys: [string, string, string] }> {
+    const rows: Array<{ type: string; size: string; qtys: [string, string, string] }> = [];
+    for (const s of sheets) {
+        for (const size of SHEET_SIZES) {
+            const t = s.sizes[size];
+            if (t && (String(t[0] ?? '').trim() || String(t[1] ?? '').trim() || String(t[2] ?? '').trim())) {
+                rows.push({ type: s.type, size, qtys: [t[0] || '', t[1] || '', t[2] || ''] });
+            }
+        }
+    }
+    return rows;
+}
+
+/** A4 縦下部まで使うよう行高を決める。シート欄がある時はその分だけ詰める。 */
+function computeRowHeight(sheetRowCount: number): number {
+    const sheetH = sheetRowCount > 0 ? 28 + sheetRowCount * 14 : 0; // 見出し+行+枠+余白（保守的）
+    const avail = PAGE_USABLE_H - HEADER_H - GRID_FRAME - sheetH;
+    return Math.max(ROW_H_MIN, Math.min(ROW_H_MAX, avail / GRID_ROWS));
+}
 
 const styles = StyleSheet.create({
-    page: {
-        fontFamily: 'NotoSansJP',
-        fontSize: 8,
-        padding: 10,
-        backgroundColor: '#ffffff',
-    },
+    page: { fontFamily: 'NotoSansJP', fontSize: 8, padding: 10, backgroundColor: '#ffffff' },
+
     // ヘッダー（施工班名 / 記入者）
     topRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4, fontSize: 9 },
     topLabel: { marginRight: 4 },
     topValue: { borderBottomWidth: 0.5, borderBottomColor: '#000', minWidth: 80, paddingHorizontal: 4 },
-    // メタ情報行（得意先 / 現場名 / 組立日 解体日）
-    metaRow: { flexDirection: 'row', borderWidth: 0.5, borderColor: '#000', marginBottom: 0 },
-    metaCell: { flex: 1, flexDirection: 'row', borderRightWidth: 0.5, borderRightColor: '#000', padding: 0, minHeight: 14 },
-    metaCellLast: { flex: 1, flexDirection: 'row', padding: 0, minHeight: 14 },
-    metaLabel: { width: 44, padding: 3, borderRightWidth: 0.5, borderRightColor: '#000', textAlign: 'center', fontSize: 8 },
+
+    // メタ情報行（得意先 / 現場名 / 組立日 解体日）— 太枠
+    metaRow: { flexDirection: 'row', borderWidth: THICK, borderColor: '#000', marginBottom: 0 },
+    metaCell: { flex: 1, flexDirection: 'row', borderRightWidth: THICK, borderRightColor: '#000', minHeight: 16 },
+    metaCellLast: { flex: 1, flexDirection: 'row', minHeight: 16 },
+    metaLabel: { width: 44, padding: 3, borderRightWidth: THIN, borderRightColor: '#000', textAlign: 'center', fontSize: 8 },
     metaValue: { flex: 1, padding: 3, fontSize: 8 },
     metaDateRow: { flex: 1, flexDirection: 'row' },
-    metaDateLabel: { padding: 3, fontSize: 8, borderRightWidth: 0.5, borderRightColor: '#000' },
-    metaDateValue: { flex: 1, padding: 3, fontSize: 8, borderRightWidth: 0.5, borderRightColor: '#000' },
+    metaDateLabel: { padding: 3, fontSize: 8, borderRightWidth: THIN, borderRightColor: '#000' },
+    metaDateValue: { flex: 1, padding: 3, fontSize: 8, borderRightWidth: THIN, borderRightColor: '#000' },
     metaDateValueLast: { flex: 1, padding: 3, fontSize: 8 },
-    // 車両行
-    vehicleRow: { flexDirection: 'row', borderLeftWidth: 0.5, borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: '#000' },
-    vehicleColumn: { flex: 1, flexDirection: 'row', borderRightWidth: 0.5, borderRightColor: '#000', minHeight: 14 },
-    vehicleColumnLast: { flex: 1, flexDirection: 'row', minHeight: 14 },
-    vehicleLabelCell: { width: NAME_W, padding: 2, borderRightWidth: 0.5, borderRightColor: '#000', textAlign: 'center', fontSize: 8, justifyContent: 'center' },
-    vehicleValueCell: { flex: 1, padding: 2, fontSize: 8, borderRightWidth: 0.5, borderRightColor: '#000', textAlign: 'center' },
-    vehicleValueCellLast: { flex: 1, padding: 2, fontSize: 8, textAlign: 'center' },
 
-    // メイングリッド（3列）
-    grid: { flexDirection: 'row', borderLeftWidth: 0.5, borderRightWidth: 0.5, borderBottomWidth: 0.5, borderColor: '#000' },
-    column: { flex: 1, flexDirection: 'column', borderRightWidth: 0.5, borderRightColor: '#000' },
+    // 車両行 — 太枠・ラベルは全幅（名称＋規格）・値セルは数量と同じ等幅3列
+    vehicleRow: { flexDirection: 'row', borderLeftWidth: THICK, borderRightWidth: THICK, borderBottomWidth: THICK, borderColor: '#000' },
+    vehicleColumn: { flex: 1, flexDirection: 'row', borderRightWidth: THICK, borderRightColor: '#000', height: 16 },
+    vehicleColumnLast: { flex: 1, flexDirection: 'row', height: 16 },
+    vehicleLabelCell: { width: FULL_W, borderRightWidth: THIN, borderRightColor: '#000', fontSize: 8, alignItems: 'center', justifyContent: 'center' },
+    vehicleValueCell: { flex: 1, borderRightWidth: THIN, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center' },
+    vehicleValueCellLast: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    // メイングリッド（3列）— 各列を太枠で
+    grid: { flexDirection: 'row', borderLeftWidth: THICK, borderRightWidth: THICK, borderBottomWidth: THICK, borderColor: '#000' },
+    column: { flex: 1, flexDirection: 'column', borderRightWidth: THICK, borderRightColor: '#000' },
     columnLast: { flex: 1, flexDirection: 'column' },
 
-    // 名称付きグループ（複数サイズ）: [名称(縦結合)] | [サイズ行...]
-    group: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#000' },
-    groupLast: { flexDirection: 'row' },
-    nameLabelCell: {
-        width: NAME_W,
-        borderRightWidth: 0.5, borderRightColor: '#000',
-        alignItems: 'center', justifyContent: 'center',
-        paddingHorizontal: 1,
-    },
+    // グループコンテナ（罫線は持たせない＝列ごとの drift 防止）
+    group: { flexDirection: 'row' },
     groupRows: { flex: 1, flexDirection: 'column' },
+    singlesGroup: { flexDirection: 'column' },
 
-    // 単独品目グループ（groupLabel==''）: 各行が全幅名称セル
-    singlesGroup: { flexDirection: 'column', borderBottomWidth: 0.5, borderBottomColor: '#000' },
-    singlesGroupLast: { flexDirection: 'column' },
-
-    // 行（固定高）
-    row: { flexDirection: 'row', height: ROW_H, borderBottomWidth: 0.5, borderBottomColor: '#000', alignItems: 'stretch' },
-    rowLast: { flexDirection: 'row', height: ROW_H, alignItems: 'stretch' },
+    // 行（高さは動的に inline 指定）。罫線は全行均一に borderBottom。
+    row: { flexDirection: 'row', borderBottomWidth: THIN, borderBottomColor: '#000', alignItems: 'stretch' },
 
     // セル
-    specCell: { width: SPEC_W, borderRightWidth: 0.5, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 1 },
-    fullNameCell: { width: FULL_W, borderRightWidth: 0.5, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 1 },
+    nameLabelCell: { width: NAME_W, borderRightWidth: THIN, borderBottomWidth: THIN, borderColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 1 },
+    specCell: { width: SPEC_W, borderRightWidth: THIN, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 1 },
+    fullNameCell: { width: FULL_W, borderRightWidth: THIN, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 1 },
     qtyCellsContainer: { flex: 1, flexDirection: 'row' },
-    qtyCell: { flex: 1, borderRightWidth: 0.5, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center' },
+    qtyCell: { flex: 1, borderRightWidth: THIN, borderRightColor: '#000', alignItems: 'center', justifyContent: 'center' },
     qtyCellLast: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
-    // 「その他」見出し（COL3 末尾・全幅）
-    otherHeader: { flexDirection: 'row', height: ROW_H, borderBottomWidth: 0.5, borderBottomColor: '#000', alignItems: 'center', justifyContent: 'center' },
+    // 「その他」見出し（COL3 末尾・全幅。高さは inline）
+    otherHeader: { flexDirection: 'row', borderBottomWidth: THIN, borderBottomColor: '#000', alignItems: 'center', justifyContent: 'center' },
 
     cellText: { fontSize: 7.5, textAlign: 'center' },
     bold: { fontWeight: 'bold' },
 
     // シートセクション（選択分のみ）
-    extraSection: { marginTop: 4, borderWidth: 0.5, borderColor: '#000' },
-    extraHeader: { padding: 2, borderBottomWidth: 0.5, borderBottomColor: '#000', fontSize: 8, fontWeight: 'bold', textAlign: 'center' },
-    sheetRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: '#000', minHeight: 12 },
-    sheetTypeCell: { width: 110, padding: 2, borderRightWidth: 0.5, borderRightColor: '#000', fontSize: 7 },
-    sheetSizeCell: { width: 28, padding: 2, borderRightWidth: 0.5, borderRightColor: '#000', textAlign: 'center', fontSize: 7 },
-    sheetQtyCell: { flex: 1, padding: 2, borderRightWidth: 0.5, borderRightColor: '#000', textAlign: 'center', fontSize: 8 },
+    extraSection: { marginTop: 4, borderWidth: THICK, borderColor: '#000' },
+    extraHeader: { padding: 2, borderBottomWidth: THIN, borderBottomColor: '#000', fontSize: 8, fontWeight: 'bold', textAlign: 'center' },
+    sheetRow: { flexDirection: 'row', borderBottomWidth: THIN, borderBottomColor: '#000', minHeight: 12 },
+    sheetTypeCell: { width: 110, padding: 2, borderRightWidth: THIN, borderRightColor: '#000', fontSize: 7 },
+    sheetSizeCell: { width: 28, padding: 2, borderRightWidth: THIN, borderRightColor: '#000', textAlign: 'center', fontSize: 7 },
+    sheetQtyCell: { flex: 1, padding: 2, borderRightWidth: THIN, borderRightColor: '#000', textAlign: 'center', fontSize: 8 },
     sheetQtyCellLast: { flex: 1, padding: 2, textAlign: 'center', fontSize: 8 },
 });
 
@@ -151,9 +157,7 @@ const styles = StyleSheet.create({
 function FitText({ text, width, base = 7.5, bold = false }: { text: string; width: number; base?: number; bold?: boolean }) {
     const s = sanitizePdfText(text ?? '');
     const size = s ? fitCellFontSize(s, Math.max(1, width - 2), base, 5) : base;
-    const textStyles = bold
-        ? [styles.cellText, styles.bold, { fontSize: size }]
-        : [styles.cellText, { fontSize: size }];
+    const textStyles = bold ? [styles.cellText, styles.bold, { fontSize: size }] : [styles.cellText, { fontSize: size }];
     return <Text style={textStyles}>{s}</Text>;
 }
 
@@ -203,10 +207,10 @@ function VehicleRow({ vehicles }: { vehicles: [string, string, string] }) {
                 const isLast = colIdx === 2;
                 return (
                     <View key={colIdx} style={isLast ? styles.vehicleColumnLast : styles.vehicleColumn}>
-                        <Text style={styles.vehicleLabelCell}>車両</Text>
-                        <Text style={styles.vehicleValueCell}>{sanitizePdfText(vehicles[0])}</Text>
-                        <Text style={styles.vehicleValueCell}>{sanitizePdfText(vehicles[1])}</Text>
-                        <Text style={styles.vehicleValueCellLast}>{sanitizePdfText(vehicles[2])}</Text>
+                        <View style={styles.vehicleLabelCell}><Text>車両</Text></View>
+                        <View style={styles.vehicleValueCell}><Text>{sanitizePdfText(vehicles[0])}</Text></View>
+                        <View style={styles.vehicleValueCell}><Text>{sanitizePdfText(vehicles[1])}</Text></View>
+                        <View style={styles.vehicleValueCellLast}><Text>{sanitizePdfText(vehicles[2])}</Text></View>
                     </View>
                 );
             })}
@@ -225,55 +229,47 @@ function QtyCells({ qtys }: { qtys: [string, string, string] }) {
     );
 }
 
-function GroupBlock({ group, getQty, isLastGroup }: { group: Group; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLastGroup: boolean }) {
+function GroupBlock({ group, getQty, rowH }: { group: Group; getQty: MaterialRequisitionSlipPDFProps['getQty']; rowH: number }) {
     const rows = group.rows;
+    const rowStyle = [styles.row, { height: rowH }];
     const qtysFor = (row: Group['rows'][number]): [string, string, string] => [
         getQty(row.categoryName, row.itemName, 0),
         getQty(row.categoryName, row.itemName, 1),
         getQty(row.categoryName, row.itemName, 2),
     ];
 
-    // 単独品目（空ラベル）: 各行を全幅名称セルで描画
+    // 単独品目（空ラベル）: 各行を全幅名称セルで
     if (group.label === '') {
         return (
-            <View style={isLastGroup ? styles.singlesGroupLast : styles.singlesGroup}>
-                {rows.map((row, idx) => {
-                    const last = idx === rows.length - 1;
-                    return (
-                        <View key={idx} style={last ? styles.rowLast : styles.row}>
-                            <View style={styles.fullNameCell}><FitText text={row.spec} width={FULL_W} /></View>
-                            <QtyCells qtys={qtysFor(row)} />
-                        </View>
-                    );
-                })}
+            <View style={styles.singlesGroup}>
+                {rows.map((row, idx) => (
+                    <View key={idx} style={rowStyle}>
+                        <View style={styles.fullNameCell}><FitText text={row.spec} width={FULL_W} /></View>
+                        <QtyCells qtys={qtysFor(row)} />
+                    </View>
+                ))}
             </View>
         );
     }
 
-    // 名称付きグループ（複数サイズ）: 名称を縦結合し、各行に規格＋数量
+    // 名称付きグループ（複数サイズ）: 名称を縦結合し各行に規格＋数量
     return (
-        <View style={isLastGroup ? styles.groupLast : styles.group}>
+        <View style={styles.group}>
             <View style={styles.nameLabelCell}><FitText text={group.label} width={NAME_W} /></View>
             <View style={styles.groupRows}>
-                {rows.map((row, idx) => {
-                    const last = idx === rows.length - 1;
-                    return (
-                        <View key={idx} style={last ? styles.rowLast : styles.row}>
-                            <View style={styles.specCell}><FitText text={row.spec} width={SPEC_W} /></View>
-                            <QtyCells qtys={qtysFor(row)} />
-                        </View>
-                    );
-                })}
+                {rows.map((row, idx) => (
+                    <View key={idx} style={rowStyle}>
+                        <View style={styles.specCell}><FitText text={row.spec} width={SPEC_W} /></View>
+                        <QtyCells qtys={qtysFor(row)} />
+                    </View>
+                ))}
             </View>
         </View>
     );
 }
 
-/**
- * COL3 末尾「その他」自由記入。見出し行のあと、入力済み自由欄＋空行を全幅で並べ、
- * COL1/COL2 と最下段を揃える。各行は単独品目と同じ全幅名称セル＋数量。
- */
-function FreeColumnRows({ freeForm }: { freeForm: FreeFormEntry[] }) {
+/** COL3 末尾「その他」自由記入。COL1/COL2 と最下段（行数）を揃える。 */
+function FreeColumnRows({ freeForm, rowH }: { freeForm: FreeFormEntry[]; rowH: number }) {
     const filled = freeForm.filter((f) => f.label.trim() || f.qty[0]?.trim() || f.qty[1]?.trim() || f.qty[2]?.trim());
     const blanks = Math.max(0, FREE_ROWS_IN_PDF - filled.length);
     const rows: FreeFormEntry[] = [
@@ -281,52 +277,32 @@ function FreeColumnRows({ freeForm }: { freeForm: FreeFormEntry[] }) {
         ...Array.from({ length: blanks }, () => ({ label: '', qty: ['', '', ''] as [string, string, string] })),
     ];
     return (
-        <View style={styles.singlesGroupLast}>
-            <View style={styles.otherHeader}>
-                <FitText text="その他" width={FULL_W} bold />
-            </View>
-            {rows.map((row, idx) => {
-                const last = idx === rows.length - 1;
-                return (
-                    <View key={idx} style={last ? styles.rowLast : styles.row}>
-                        <View style={styles.fullNameCell}><FitText text={row.label} width={FULL_W} /></View>
-                        <QtyCells qtys={[row.qty[0] || '', row.qty[1] || '', row.qty[2] || '']} />
-                    </View>
-                );
-            })}
+        <View style={styles.singlesGroup}>
+            <View style={[styles.otherHeader, { height: rowH }]}><FitText text="その他" width={FULL_W} bold /></View>
+            {rows.map((row, idx) => (
+                <View key={idx} style={[styles.row, { height: rowH }]}>
+                    <View style={styles.fullNameCell}><FitText text={row.label} width={FULL_W} /></View>
+                    <QtyCells qtys={[row.qty[0] || '', row.qty[1] || '', row.qty[2] || '']} />
+                </View>
+            ))}
         </View>
     );
 }
 
-function ColumnBlock({ column, getQty, isLast, freeForm }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean; freeForm?: FreeFormEntry[] }) {
-    const hasFree = !!freeForm;
+function ColumnBlock({ column, getQty, isLast, rowH, freeForm }: { column: Column; getQty: MaterialRequisitionSlipPDFProps['getQty']; isLast: boolean; rowH: number; freeForm?: FreeFormEntry[] }) {
     return (
         <View style={isLast ? styles.columnLast : styles.column}>
             {column.groups.map((group, idx) => (
-                <GroupBlock
-                    key={idx}
-                    group={group}
-                    getQty={getQty}
-                    isLastGroup={!hasFree && idx === column.groups.length - 1}
-                />
+                <GroupBlock key={idx} group={group} getQty={getQty} rowH={rowH} />
             ))}
-            {/* COL3 末尾：その他 自由記入で 3 列の最下段を揃える */}
-            {hasFree && <FreeColumnRows freeForm={freeForm!} />}
+            {freeForm && <FreeColumnRows freeForm={freeForm} rowH={rowH} />}
         </View>
     );
 }
 
-/** シート（種類 × サイズ × 車両）セクション。選択された種類のみ描画（1 ページ収め維持） */
+/** シート（種類 × サイズ × 車両）セクション。選択された種類のみ描画。 */
 function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
-    const rows: Array<{ type: string; size: string; qtys: [string, string, string] }> = [];
-    for (const s of sheets) {
-        for (const size of SHEET_SIZES) {
-            const t = s.sizes[size];
-            if (t && (String(t[0] ?? '').trim() || String(t[1] ?? '').trim() || String(t[2] ?? '').trim())) {
-                rows.push({ type: s.type, size, qtys: [t[0] || '', t[1] || '', t[2] || ''] });
-            }
-        }
-    }
+    const rows = sheetRowsOf(sheets);
     if (rows.length === 0) return null;
     return (
         <View style={styles.extraSection}>
@@ -347,23 +323,22 @@ function SheetSection({ sheets }: { sheets: SheetEntry[] }) {
     );
 }
 
-/** 1ページ分の中身を描画 */
 function SlipPageContent({
     foremanName, writerName, customerName, honorific, siteName, assemblyDate, demolitionDate, vehicles, getQty, sheets, freeForm,
 }: MaterialRequisitionSlipPDFProps) {
+    const sheetList = sheets ?? [];
+    const rowH = computeRowHeight(sheetRowsOf(sheetList).length);
     return (
         <>
             <Header foremanName={foremanName} writerName={writerName ?? ''} />
             <MetaBox customerName={customerName} honorific={honorific ?? ''} siteName={siteName} assemblyDate={assemblyDate} demolitionDate={demolitionDate} />
             <VehicleRow vehicles={vehicles} />
-
             <View style={styles.grid}>
-                <ColumnBlock column={LAYOUT_COL1} getQty={getQty} isLast={false} />
-                <ColumnBlock column={LAYOUT_COL2} getQty={getQty} isLast={false} />
-                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} freeForm={freeForm ?? []} />
+                <ColumnBlock column={LAYOUT_COL1} getQty={getQty} isLast={false} rowH={rowH} />
+                <ColumnBlock column={LAYOUT_COL2} getQty={getQty} isLast={false} rowH={rowH} />
+                <ColumnBlock column={LAYOUT_COL3} getQty={getQty} isLast={true} rowH={rowH} freeForm={freeForm ?? []} />
             </View>
-
-            <SheetSection sheets={sheets ?? []} />
+            <SheetSection sheets={sheetList} />
         </>
     );
 }
