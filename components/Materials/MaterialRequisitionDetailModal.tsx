@@ -27,11 +27,11 @@ function fmtMd(d: string | Date | null | undefined): string {
 export default function MaterialRequisitionDetailModal({ req, onClose, onEdit, onPrint }: MaterialRequisitionDetailModalProps) {
     const pdfUrl = `/api/materials/requisitions/${req.id}/print`;
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-            <div
-                className="bg-white rounded-xl shadow-xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden"
-                onClick={(e) => e.stopPropagation()}
-            >
+        <div className="fixed inset-0 lg:left-48 z-[60] flex flex-col items-center justify-start pt-[4rem] pwa-modal-offset-safe lg:justify-center lg:pt-0 lg:bg-black/50">
+            {/* オーバーレイ（デスクトップのみ・クリックで閉じる。モバイル/タブレットはヘッダー下に全画面表示でXで閉じる） */}
+            <div className="absolute inset-0 bg-black bg-opacity-50 hidden lg:block" onClick={onClose} />
+            {/* 本体（モバイル/タブレット=ヘッダー下に全画面 / デスクトップ=中央カード） */}
+            <div className="relative bg-white flex flex-col w-full h-full lg:h-[90vh] lg:max-w-4xl lg:mx-4 lg:rounded-xl lg:shadow-xl overflow-hidden">
                 {/* ヘッダー */}
                 <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-3 border-b border-slate-200 shrink-0">
                     <div className="min-w-0">
