@@ -861,7 +861,7 @@ export function serializeRequisitionNotes(n: RequisitionNotes): string | null {
  *       本関数の区切り（半角スペース）を実行時ルックアップに流用しないこと。
  */
 export function naturalKey(categoryName: string, itemName: string): string {
-    return `${categoryName} ${itemName}`;
+    return `${categoryName} ${itemName}`;
 }
 
 /** 列ごとの品目数（検証・レポート用） */
