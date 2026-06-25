@@ -198,6 +198,9 @@ export default function MaterialRequisitionPage() {
 
     // A2: 横断検索
     const [searchQuery, setSearchQuery] = useState('');
+    // グリッドのセル入力キーボード（スマホ/タブレット）：数字テンキー（既定）⇄ 文字。
+    // 数字は inputMode=decimal でテンキー表示、文字は通常キーボード。値は常に文字列で保存。
+    const [gridInputMode, setGridInputMode] = useState<'numeric' | 'text'>('numeric');
 
     // A6: 自動下書き保存
     const [autoSavedId, setAutoSavedId] = useState<string | null>(null);
@@ -1474,6 +1477,25 @@ export default function MaterialRequisitionPage() {
                                             )}
                                         </div>
                                         <div className="flex flex-wrap gap-2 shrink-0">
+                                            {/* セル入力キーボード切替（スマホ/タブレット）：数字テンキー ⇄ 文字 */}
+                                            <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="セル入力キーボードの切替">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGridInputMode('numeric')}
+                                                    className={`px-3 min-h-[44px] text-sm font-medium ${gridInputMode === 'numeric' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                                    title="数字テンキーで入力（電卓のように数字を打てます）"
+                                                >
+                                                    123 数字
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGridInputMode('text')}
+                                                    className={`px-3 min-h-[44px] text-sm font-medium border-l border-slate-200 ${gridInputMode === 'text' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                                    title="文字キーボードで入力（「本」「残」など）"
+                                                >
+                                                    あ 文字
+                                                </button>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={applyStandardSet}
@@ -1553,7 +1575,7 @@ export default function MaterialRequisitionPage() {
                                                                                             const val = tuple[vi] || '';
                                                                                             return (
                                                                                                 <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val.trim() ? 'bg-amber-100' : ''}`}>
-                                                                                                    <input type="text" value={val} onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, e.target.value)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`シート ${t} ${size} 車両${vi + 1}`} />
+                                                                                                    <input type="text" inputMode={gridInputMode === 'numeric' ? 'decimal' : 'text'} value={val} onChange={(e) => setSheetQty(t, size, vi as 0 | 1 | 2, e.target.value)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`シート ${t} ${size} 車両${vi + 1}`} />
                                                                                                 </div>
                                                                                             );
                                                                                         })}
@@ -1585,7 +1607,7 @@ export default function MaterialRequisitionPage() {
                                                                             const val = tuple[vi] || '';
                                                                             return (
                                                                                 <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${val.trim() ? 'bg-amber-100' : ''}`}>
-                                                                                    <input type="text" disabled={!id} value={val} onChange={(e) => id && setQuantity(id, vi as 0 | 1 | 2, e.target.value)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`${group.categoryName} ${row.spec} 車両${vi + 1}`} />
+                                                                                    <input type="text" inputMode={gridInputMode === 'numeric' ? 'decimal' : 'text'} disabled={!id} value={val} onChange={(e) => id && setQuantity(id, vi as 0 | 1 | 2, e.target.value)} onFocus={(e) => e.currentTarget.select()} className={gridCellInputClass} aria-label={`${group.categoryName} ${row.spec} 車両${vi + 1}`} />
                                                                                 </div>
                                                                             );
                                                                         })}
@@ -1614,7 +1636,7 @@ export default function MaterialRequisitionPage() {
                                                                         const v = row.qty[vi] || '';
                                                                         return (
                                                                             <div key={vi} className={`border-r border-slate-200 last:border-r-0 ${v.trim() ? 'bg-amber-100' : ''}`}>
-                                                                                <input type="text" value={v} onChange={(e) => setFreeFormCellAt(i, vi as 0 | 1 | 2, e.target.value)} className="w-full h-10 text-center text-sm font-bold text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500" aria-label={`自由記入${i + 1} 車両${vi + 1}`} />
+                                                                                <input type="text" inputMode={gridInputMode === 'numeric' ? 'decimal' : 'text'} value={v} onChange={(e) => setFreeFormCellAt(i, vi as 0 | 1 | 2, e.target.value)} className="w-full h-10 text-center text-sm font-bold text-slate-800 bg-transparent border-0 focus:outline-none focus:bg-teal-50 focus:ring-2 focus:ring-inset focus:ring-teal-500" aria-label={`自由記入${i + 1} 車両${vi + 1}`} />
                                                                             </div>
                                                                         );
                                                                     })}
