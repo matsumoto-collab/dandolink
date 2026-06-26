@@ -54,6 +54,11 @@ export interface PurchaseInvoiceCostRow {
     date: string;
     amount: number;
 }
+export type ManualCostBucket = 'labor' | 'vehicle' | 'material' | 'loading' | 'other' | 'subcontractor';
+export interface ManualCostItem {
+    label: string; // 摘要（例: 「5月〇〇請求」）
+    amount: number;
+}
 export interface ProjectCostDetail {
     labor: LaborCostRow[];
     vehicle: VehicleCostRow[];
@@ -61,7 +66,10 @@ export interface ProjectCostDetail {
     materialCost: number;
     otherExpenses: number;
     loadingCost: number;
-    subcontractorExpense: number; // 外注費の手入力分(合計)。subcontractor[] は協力会社の自動計上明細。
+    subcontractorExpense: number; // 外注費の手入力分(合計・後方互換スカラー)。subcontractor[] は協力会社の自動計上明細。
+    // 全6項目の手入力明細(摘要+金額)。UIはこれを編集し manualCostItems(JSON)へ保存する。
+    // 旧スカラー列のみの案件は legacy値を1件(label空)として返す。
+    manualItems: Record<ManualCostBucket, ManualCostItem[]>;
     purchaseInvoices: PurchaseInvoiceCostRow[];
 }
 export interface ProjectCostResult {
@@ -105,7 +113,8 @@ export async function computeProjectCosts(
             materialCost: true,
             otherExpenses: true,
             loadingCost: true,
-            subcontractorExpense: true, // 外注費の手入力分。複数形 subcontractorCosts(工事種別単価マスタ)とは別物。
+            subcontractorExpense: true, // 外注費の手入力分(旧スカラー・後方互換)。複数形 subcontractorCosts(工事種別単価マスタ)とは別物。
+            manualCostItems: true, // 全6項目の手入力明細(摘要+金額の配列JSON)。各bucketがあれば旧スカラー列より優先。
             subcontractorCosts: { select: { constructionTypeId: true, amount: true, transportCost: true } },
             purchaseInvoiceAllocations: {
                 where: { purchaseInvoice: { status: 'confirmed' } },
@@ -328,15 +337,42 @@ export async function computeProjectCosts(
         }
         // 手入力分（案件マスタの数値）と請求書由来分を分けて保持。
         // breakdown(原価合計)は両方の和、detail は手入力分のみを返し、請求書分は purchaseInvoices 明細で見せる。
-        const manualMaterial = Number(pm.materialCost || 0);
-        const manualOther = Number(pm.otherExpenses || 0);
-        const manualLoading = Number(pm.loadingCost || 0);
-        const manualSubcontractor = Number(pm.subcontractorExpense || 0);
-        const materialCost = manualMaterial + invMaterial;
-        const otherExpenses = manualOther + invOther;
-        const loadingCost = manualLoading + invLoading;
-        // 外注費 = 協力業者の手配確定からの自動計上(subRows)＋案件マスタの手入力分
-        subcontractorCost += manualSubcontractor;
+        // 手入力明細（全6 bucket）。manualCostItems(JSON) があれば bucket ごとにその合計、
+        // 無ければ旧スカラー列(material/loading/other/subcontractor)を後方互換で採用（未編集案件の金額は不変）。
+        const manualObj: Record<string, unknown> =
+            (pm.manualCostItems && typeof pm.manualCostItems === 'object' && !Array.isArray(pm.manualCostItems))
+                ? (pm.manualCostItems as Record<string, unknown>) : {};
+        const readBucket = (bucket: ManualCostBucket): ManualCostItem[] => {
+            const raw = manualObj[bucket];
+            if (!Array.isArray(raw)) return [];
+            return raw
+                .map((it): ManualCostItem => {
+                    const o = (it ?? {}) as { label?: unknown; amount?: unknown };
+                    return { label: typeof o.label === 'string' ? o.label : '', amount: Number(o.amount) || 0 };
+                })
+                .filter(it => it.label !== '' || it.amount !== 0);
+        };
+        const manualSum = (bucket: ManualCostBucket, legacy: number): number =>
+            Array.isArray(manualObj[bucket]) ? readBucket(bucket).reduce((s, it) => s + it.amount, 0) : legacy;
+        // UI表示用の初期明細（旧スカラー列のみの案件は値を1件の明細[label空]として見せる）
+        const detailItemsOf = (bucket: ManualCostBucket, legacy: number): ManualCostItem[] =>
+            Array.isArray(manualObj[bucket]) ? readBucket(bucket) : (legacy > 0 ? [{ label: '', amount: legacy }] : []);
+
+        const laborManual = manualSum('labor', 0);
+        const vehicleManual = manualSum('vehicle', 0);
+        const materialManual = manualSum('material', Number(pm.materialCost || 0));
+        const loadingManual = manualSum('loading', Number(pm.loadingCost || 0));
+        const otherManual = manualSum('other', Number(pm.otherExpenses || 0));
+        const subManual = manualSum('subcontractor', Number(pm.subcontractorExpense || 0));
+
+        // 人件費・車両費・外注費は配置由来の自動計上(ループ集計済)に手入力分を加算。
+        laborCost += laborManual;
+        vehicleCost += vehicleManual;
+        subcontractorCost += subManual;
+        // 材料費・積込費・その他は仕入請求書由来＋手入力分。
+        const materialCost = materialManual + invMaterial;
+        const otherExpenses = otherManual + invOther;
+        const loadingCost = loadingManual + invLoading;
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
 
         result.set(pm.id, {
@@ -346,8 +382,16 @@ export async function computeProjectCosts(
                     labor: laborRows.sort((x, y) => x.date.localeCompare(y.date)),
                     vehicle: vehicleRows.sort((x, y) => x.date.localeCompare(y.date)),
                     subcontractor: subRows.sort((x, y) => x.date.localeCompare(y.date)),
-                    materialCost: manualMaterial, otherExpenses: manualOther, loadingCost: manualLoading,
-                    subcontractorExpense: manualSubcontractor,
+                    materialCost: materialManual, otherExpenses: otherManual, loadingCost: loadingManual,
+                    subcontractorExpense: subManual,
+                    manualItems: {
+                        labor: detailItemsOf('labor', 0),
+                        vehicle: detailItemsOf('vehicle', 0),
+                        material: detailItemsOf('material', Number(pm.materialCost || 0)),
+                        loading: detailItemsOf('loading', Number(pm.loadingCost || 0)),
+                        other: detailItemsOf('other', Number(pm.otherExpenses || 0)),
+                        subcontractor: detailItemsOf('subcontractor', Number(pm.subcontractorExpense || 0)),
+                    },
                     purchaseInvoices: invoiceRows,
                 }
                 : undefined,

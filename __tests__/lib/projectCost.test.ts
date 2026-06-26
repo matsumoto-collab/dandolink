@@ -268,6 +268,46 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect(r.detail?.subcontractor).toHaveLength(0); // 自動計上明細は無し（手入力のみ）
     });
 
+    it('manualCostItems の明細から全6項目の手入力分を計算し、自動計上に加算する', async () => {
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: null, otherExpenses: null, loadingCost: null, subcontractorExpense: null,
+            manualCostItems: {
+                labor: [{ label: '5月応援', amount: 30000 }],
+                vehicle: [{ label: 'レンタカー', amount: 10000 }],
+                material: [{ label: '鋼材', amount: 5000 }, { label: 'ボルト', amount: 2000 }],
+                loading: [],
+                other: [{ label: '雑費', amount: 1000 }],
+                subcontractor: [{ label: '6月請求', amount: 80000 }],
+            },
+            subcontractorCosts: [], assignments: [],
+        }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.breakdown.laborCost).toBe(30000);
+        expect(r.breakdown.vehicleCost).toBe(10000);
+        expect(r.breakdown.materialCost).toBe(7000);   // 5000+2000
+        expect(r.breakdown.otherExpenses).toBe(1000);
+        expect(r.breakdown.subcontractorCost).toBe(80000);
+        expect(r.breakdown.totalCost).toBe(128000);    // 30000+10000+7000+0+1000+80000
+        expect(r.detail?.manualItems.material).toHaveLength(2);
+        expect(r.detail?.manualItems.labor[0].label).toBe('5月応援');
+    });
+
+    it('manualCostItems が無い案件は旧スカラー列(materialCost等)を後方互換で使う', async () => {
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 12000, otherExpenses: 3000, loadingCost: 0, subcontractorExpense: 0,
+            manualCostItems: null,
+            subcontractorCosts: [], assignments: [],
+        }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.breakdown.materialCost).toBe(12000);
+        expect(r.breakdown.otherExpenses).toBe(3000);
+        // 旧スカラーは detail で1件の明細(label空)として見せる（UIの初期値になる）
+        expect(r.detail?.manualItems.material).toEqual([{ label: '', amount: 12000 }]);
+        expect(r.detail?.manualItems.loading).toEqual([]);
+    });
+
     it('該当しない projectId も空原価でキーを返す', async () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
         const map = await computeProjectCosts(['none']);

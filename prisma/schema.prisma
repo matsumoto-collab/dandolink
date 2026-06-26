@@ -74,6 +74,7 @@ model ProjectMaster {
   otherExpenses              Decimal?                         @db.Decimal(12, 2)
   loadingCost                Decimal?                         @db.Decimal(12, 2)
   subcontractorExpense       Decimal?                         @db.Decimal(12, 2)
+  manualCostItems            Json?
   revenueOverride            Int?
   customerShortName          String?
   latitude                   Float?

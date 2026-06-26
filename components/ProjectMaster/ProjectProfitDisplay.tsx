@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Pencil, RotateCcw, Save, X } from 'lucide-react';
+import { TrendingUp, TrendingDown, ChevronDown, ChevronRight, Pencil, RotateCcw, Save, X, Plus } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Loading from '@/components/ui/Loading';
 import { formatCurrency, getProfitMarginColor } from '@/utils/costCalculation';
@@ -47,6 +47,13 @@ interface SubcontractorRow {
     effectiveCost: number;
 }
 
+// 各原価項目の「手入力分」明細（摘要＋金額）。labor/vehicle/material/loading/other/subcontractor の6 bucket。
+type ManualBucket = 'labor' | 'vehicle' | 'material' | 'loading' | 'other' | 'subcontractor';
+interface ManualCostItem {
+    label: string;
+    amount: number;
+}
+
 interface EstimateBreakdownItem {
     id: string;
     estimateNumber: string;
@@ -77,7 +84,8 @@ interface ProfitData {
         materialCost: number;
         otherExpenses: number;
         loadingCost: number;
-        subcontractorExpense?: number; // 外注費の手入力分(合計)。subcontractor[] は協力業者の自動計上明細。
+        subcontractorExpense?: number; // 外注費の手入力分(合計・後方互換)。subcontractor[] は協力業者の自動計上明細。
+        manualItems?: Record<ManualBucket, ManualCostItem[]>; // 全6項目の手入力明細(摘要＋金額)
         purchaseInvoices?: { invoiceId: string; payeeName: string | null; categoryName: string | null; bucket: string; date: string; amount: number }[];
     };
     grossProfit: number;
@@ -125,14 +133,19 @@ function consumptionColor(rate: number): { bar: string; text: string } {
 // 編集中のドラフト値: undefined=未編集 / null=自動値に戻す / number=明示上書き
 type Draft = number | null | undefined;
 type AssignmentField = 'laborCostOverride' | 'vehicleCostOverride' | 'subcontractorCostOverride';
-type ProjectField = 'materialCost' | 'otherExpenses' | 'loadingCost' | 'subcontractorExpense' | 'revenueOverride';
+// 配置由来でない案件マスタ直値。手入力原価は manual(明細)へ移したので revenueOverride のみ。
+type ProjectField = 'revenueOverride';
+
+type ManualDraft = Record<ManualBucket, ManualCostItem[]>;
 
 interface DraftState {
     assignments: Record<string, Partial<Record<AssignmentField, Draft>>>;
     project: Partial<Record<ProjectField, Draft>>;
+    manual: ManualDraft | null; // null=未編集（編集開始時に現在値で初期化）
 }
 
-const emptyDrafts: DraftState = { assignments: {}, project: {} };
+const emptyManualDraft = (): ManualDraft => ({ labor: [], vehicle: [], material: [], loading: [], other: [], subcontractor: [] });
+const emptyDrafts: DraftState = { assignments: {}, project: {}, manual: null };
 
 function AmountCell({
     editMode, value, auto, override, draft, onChange,
@@ -194,6 +207,77 @@ function AmountCell({
     );
 }
 
+// 手入力分の明細（摘要＋金額）を行単位で表示／編集する。全6項目で共通利用。
+function ManualCostItemsEditor({ editMode, items, onChange }: {
+    editMode: boolean;
+    items: ManualCostItem[];
+    onChange: (next: ManualCostItem[]) => void;
+}) {
+    const setItem = (i: number, patch: Partial<ManualCostItem>) =>
+        onChange(items.map((it, idx) => (idx === i ? { ...it, ...patch } : it)));
+    const removeItem = (i: number) => onChange(items.filter((_, idx) => idx !== i));
+    const addItem = () => onChange([...items, { label: '', amount: 0 }]);
+
+    if (!editMode) {
+        // 閲覧時は金額か摘要のある行のみ表示（無ければ何も出さない＝呼び出し側が「明細なし」を判断）
+        const shown = items.filter(it => it.label || it.amount);
+        return (
+            <>
+                {shown.map((it, i) => (
+                    <div key={i} className="flex items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
+                        <span className="flex-1 min-w-0 truncate">{it.label || '手入力分'}</span>
+                        <span className="text-sm font-medium tabular-nums text-slate-700 flex-shrink-0">{formatCurrency(it.amount)}</span>
+                    </div>
+                ))}
+            </>
+        );
+    }
+
+    return (
+        <div className="space-y-1">
+            {items.map((it, i) => (
+                <div key={i} className="flex items-center gap-1.5 py-0.5">
+                    <input
+                        type="text"
+                        value={it.label}
+                        placeholder="摘要（例: 5月〇〇請求）"
+                        onChange={e => setItem(i, { label: e.target.value })}
+                        className="flex-1 min-w-0 px-2 py-0.5 text-sm border border-slate-300 rounded-md"
+                    />
+                    <input
+                        type="number"
+                        inputMode="numeric"
+                        value={it.amount === 0 ? '' : it.amount}
+                        placeholder="0"
+                        onChange={e => {
+                            const v = e.target.value;
+                            const n = v === '' ? 0 : Number(v);
+                            if (Number.isFinite(n) && n >= 0) setItem(i, { amount: Math.round(n) });
+                        }}
+                        className="w-24 px-2 py-0.5 text-sm border border-slate-300 rounded-md tabular-nums text-right flex-shrink-0"
+                    />
+                    <button
+                        type="button"
+                        onClick={() => removeItem(i)}
+                        className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded flex-shrink-0"
+                        aria-label="この行を削除"
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
+                </div>
+            ))}
+            <button
+                type="button"
+                onClick={addItem}
+                className="inline-flex items-center gap-1 text-xs text-teal-700 hover:text-teal-800 px-1 py-1"
+            >
+                <Plus className="w-3.5 h-3.5" />
+                行を追加
+            </button>
+        </div>
+    );
+}
+
 export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitDisplayProps) {
     const [profitData, setProfitData] = useState<ProfitData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -233,6 +317,19 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
     const setProjectDraft = (field: ProjectField, v: Draft) => {
         setDrafts(prev => ({ ...prev, project: { ...prev.project, [field]: v } }));
     };
+    const setManualItems = (bucket: ManualBucket, next: ManualCostItem[]) => {
+        setDrafts(prev => ({ ...prev, manual: { ...(prev.manual ?? emptyManualDraft()), [bucket]: next } }));
+    };
+
+    // 手入力明細が初期値(保存値)から変わったか。空行は無視して正規化比較。
+    const manualDirty = useMemo(() => {
+        if (!drafts.manual) return false;
+        const orig = profitData?.breakdown?.manualItems;
+        const norm = (m: Partial<ManualDraft> | undefined) =>
+            JSON.stringify((['labor', 'vehicle', 'material', 'loading', 'other', 'subcontractor'] as ManualBucket[])
+                .map(b => (m?.[b] ?? []).filter(it => it.label || it.amount).map(it => [it.label, it.amount])));
+        return norm(drafts.manual) !== norm(orig);
+    }, [drafts.manual, profitData]);
 
     const dirtyCount = useMemo(() => {
         let n = 0;
@@ -244,13 +341,27 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
         for (const f of Object.keys(drafts.project)) {
             if (drafts.project[f as ProjectField] !== undefined) n++;
         }
+        if (manualDirty) n++;
         return n;
-    }, [drafts]);
+    }, [drafts, manualDirty]);
 
     const enterEditMode = () => {
         setEditMode(true);
-        // 編集時は配置（日付）ごとの明細を自動展開し、人件費・車両費・外注費をその場で直接編集できるようにする
+        // 編集時は各項目を自動展開し、手入力明細と配置由来の明細をその場で編集できるようにする
         setOpenSections(prev => ({ ...prev, labor: true, vehicle: true, subcontractor: true, material: true, loading: true, other: true }));
+        // 手入力明細を現在値(保存値)で初期化（ディープコピー）。
+        const mi = profitData?.breakdown?.manualItems;
+        setDrafts(prev => ({
+            ...prev,
+            manual: {
+                labor: (mi?.labor ?? []).map(it => ({ ...it })),
+                vehicle: (mi?.vehicle ?? []).map(it => ({ ...it })),
+                material: (mi?.material ?? []).map(it => ({ ...it })),
+                loading: (mi?.loading ?? []).map(it => ({ ...it })),
+                other: (mi?.other ?? []).map(it => ({ ...it })),
+                subcontractor: (mi?.subcontractor ?? []).map(it => ({ ...it })),
+            },
+        }));
     };
 
     const cancelEdit = () => {
@@ -278,11 +389,14 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     }));
                 }
             }
-            // project の各フィールドをまとめて1リクエスト
-            const projectPayload: Record<string, number | null> = {};
+            // project（revenueOverride）＋手入力明細(manualCostItems)をまとめて1リクエスト
+            const projectPayload: Record<string, unknown> = {};
             for (const [f, v] of Object.entries(drafts.project)) {
                 if (v === undefined) continue;
                 projectPayload[f] = v;
+            }
+            if (manualDirty && drafts.manual) {
+                projectPayload.manualCostItems = drafts.manual;
             }
             if (Object.keys(projectPayload).length > 0) {
                 calls.push(fetch(`/api/project-masters/${projectMasterId}/cost`, {
@@ -535,7 +649,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     <h4 className="text-sm font-semibold text-slate-700 mb-3">原価内訳</h4>
                     {editMode && (
                         <p className="text-xs text-slate-500 -mt-2 mb-3">
-                            人件費・車両費・外注費は明細の<span className="font-medium text-slate-600">行ごと</span>に、材料費・積込費・その他・外注費は<span className="font-medium text-slate-600">合計（手入力分）</span>を入力できます。
+                            各項目とも<span className="font-medium text-slate-600">手入力分</span>に摘要（例: 5月〇〇請求）＋金額の行を追加できます。人件費・車両費・外注費は配置(日付)ごとの自動計上も<span className="font-medium text-slate-600">行ごと</span>に上書きできます。
                         </p>
                     )}
                     <div className="divide-y divide-slate-100">
@@ -564,108 +678,70 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                         </span>
                                     </div>
 
-                                    {section.expandable && opened && (
-                                        <div className="mt-2 ml-5 space-y-1 bg-slate-50/60 rounded-md p-2">
-                                            {section.key === 'labor' && (
-                                                breakdown?.labor.length ? breakdown.labor.map(r => (
+                                    {section.expandable && opened && (() => {
+                                        const bucket = section.key as ManualBucket;
+                                        // 手入力明細: 編集時はドラフト、閲覧時は保存値（profitData の breakdown.manualItems）
+                                        const manualItems = editMode ? (drafts.manual?.[bucket] ?? []) : (breakdown?.manualItems?.[bucket] ?? []);
+                                        const hasManualShown = manualItems.some(it => it.label || it.amount);
+                                        // 自動明細（人件費/車両費/外注費=配置由来、材料費/積込費/その他=仕入請求書由来）
+                                        const laborRows = section.key === 'labor' ? (breakdown?.labor ?? []) : [];
+                                        const vehicleRows = section.key === 'vehicle' ? (breakdown?.vehicle ?? []) : [];
+                                        const subRows = section.key === 'subcontractor' ? (breakdown?.subcontractor ?? []) : [];
+                                        const piRowsB = (section.key === 'material' || section.key === 'loading' || section.key === 'other') ? piByBucket(section.key) : [];
+                                        const hasAuto = laborRows.length + vehicleRows.length + subRows.length + piRowsB.length > 0;
+                                        return (
+                                            <div className="mt-2 ml-5 space-y-1 bg-slate-50/60 rounded-md p-2">
+                                                {/* 手入力分（摘要＋金額の明細・全項目共通） */}
+                                                <ManualCostItemsEditor
+                                                    editMode={editMode}
+                                                    items={manualItems}
+                                                    onChange={(next) => setManualItems(bucket, next)}
+                                                />
+                                                {/* 人件費: 配置(日報)由来の明細。行ごとに上書き可 */}
+                                                {laborRows.map(r => (
                                                     <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
                                                         <span className="flex-1 min-w-0 truncate">
                                                             {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.hours}h　{r.foremanName ?? '未割当'}　{r.workerCount}名
                                                         </span>
-                                                        <AmountCell
-                                                            editMode={editMode}
-                                                            value={r.effectiveCost}
-                                                            auto={r.autoCost}
-                                                            override={r.override}
+                                                        <AmountCell editMode={editMode} value={r.effectiveCost} auto={r.autoCost} override={r.override}
                                                             draft={drafts.assignments[r.assignmentId]?.laborCostOverride}
-                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'laborCostOverride', v)}
-                                                        />
+                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'laborCostOverride', v)} />
                                                     </div>
-                                                )) : <div className="text-xs text-slate-400 py-1">明細なし</div>
-                                            )}
-                                            {section.key === 'vehicle' && (
-                                                breakdown?.vehicle.length ? breakdown.vehicle.map(r => (
+                                                ))}
+                                                {/* 車両費: 確定車両の明細 */}
+                                                {vehicleRows.map(r => (
                                                     <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
                                                         <span className="flex-1 min-w-0 truncate">
                                                             {formatDateMd(r.date)}　{r.vehicleNames.join('、') || '車両なし'}
                                                         </span>
-                                                        <AmountCell
-                                                            editMode={editMode}
-                                                            value={r.effectiveCost}
-                                                            auto={r.autoCost}
-                                                            override={r.override}
+                                                        <AmountCell editMode={editMode} value={r.effectiveCost} auto={r.autoCost} override={r.override}
                                                             draft={drafts.assignments[r.assignmentId]?.vehicleCostOverride}
-                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'vehicleCostOverride', v)}
-                                                        />
+                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'vehicleCostOverride', v)} />
                                                     </div>
-                                                )) : <div className="text-xs text-slate-400 py-1">明細なし</div>
-                                            )}
-                                            {section.key === 'subcontractor' && (() => {
-                                                // 外注費 = 手入力分(合計) ＋ 協力業者の手配確定からの自動計上明細(行ごとに上書き可)。
-                                                // 協力業者を手配していない案件でも、手入力分で外注費を計上できる（材料費等と同じ受け皿）。
-                                                const manual = breakdown?.subcontractorExpense ?? 0;
-                                                const autoRows = breakdown?.subcontractor ?? [];
-                                                return (
-                                                    <>
-                                                        <div className="flex items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100">
-                                                            <span className="flex-1 min-w-0 truncate">手入力分</span>
-                                                            <AmountCell
-                                                                editMode={editMode}
-                                                                value={manual}
-                                                                auto={0}
-                                                                override={manual > 0 ? manual : null}
-                                                                draft={drafts.project.subcontractorExpense}
-                                                                onChange={(v) => setProjectDraft('subcontractorExpense', v)}
-                                                            />
-                                                        </div>
-                                                        {autoRows.map(r => (
-                                                            <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
-                                                                <span className="flex-1 min-w-0 truncate">
-                                                                    {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.foremanName ?? '—'}
-                                                                </span>
-                                                                <AmountCell
-                                                                    editMode={editMode}
-                                                                    value={r.effectiveCost}
-                                                                    auto={r.autoCost}
-                                                                    override={r.override}
-                                                                    draft={drafts.assignments[r.assignmentId]?.subcontractorCostOverride}
-                                                                    onChange={(v) => setAssignmentDraft(r.assignmentId, 'subcontractorCostOverride', v)}
-                                                                />
-                                                            </div>
-                                                        ))}
-                                                        {autoRows.length === 0 && manual === 0 && <div className="text-xs text-slate-400 py-1">明細なし</div>}
-                                                    </>
-                                                );
-                                            })()}
-                                            {(section.key === 'material' || section.key === 'loading' || section.key === 'other') && (() => {
-                                                const field: 'materialCost' | 'loadingCost' | 'otherExpenses' = section.key === 'material' ? 'materialCost' : section.key === 'loading' ? 'loadingCost' : 'otherExpenses';
-                                                const manual = section.key === 'material' ? (breakdown?.materialCost ?? 0) : section.key === 'loading' ? (breakdown?.loadingCost ?? 0) : (breakdown?.otherExpenses ?? 0);
-                                                const rows = piByBucket(section.key);
-                                                return (
-                                                    <>
-                                                        <div className="flex items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100">
-                                                            <span className="flex-1 min-w-0 truncate">手入力分</span>
-                                                            <AmountCell
-                                                                editMode={editMode}
-                                                                value={manual}
-                                                                auto={0}
-                                                                override={manual > 0 ? manual : null}
-                                                                draft={drafts.project[field]}
-                                                                onChange={(v) => setProjectDraft(field, v)}
-                                                            />
-                                                        </div>
-                                                        {rows.map(r => (
-                                                            <div key={r.invoiceId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
-                                                                <span className="flex-1 min-w-0 truncate">{r.date ? formatDateMd(r.date) + '　' : ''}{r.payeeName ?? '—'}{r.categoryName ? `　${r.categoryName}` : ''}</span>
-                                                                <span className="text-sm font-medium tabular-nums text-slate-700">{formatCurrency(r.amount)}</span>
-                                                            </div>
-                                                        ))}
-                                                        {rows.length === 0 && manual === 0 && <div className="text-xs text-slate-400 py-1">明細なし</div>}
-                                                    </>
-                                                );
-                                            })()}
-                                        </div>
-                                    )}
+                                                ))}
+                                                {/* 外注費: 協力業者の手配確定由来の明細 */}
+                                                {subRows.map(r => (
+                                                    <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
+                                                        <span className="flex-1 min-w-0 truncate">
+                                                            {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.foremanName ?? '—'}
+                                                        </span>
+                                                        <AmountCell editMode={editMode} value={r.effectiveCost} auto={r.autoCost} override={r.override}
+                                                            draft={drafts.assignments[r.assignmentId]?.subcontractorCostOverride}
+                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'subcontractorCostOverride', v)} />
+                                                    </div>
+                                                ))}
+                                                {/* 材料費・積込費・その他: 仕入請求書由来の明細（自動・表示のみ） */}
+                                                {piRowsB.map(r => (
+                                                    <div key={r.invoiceId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
+                                                        <span className="flex-1 min-w-0 truncate">{r.date ? formatDateMd(r.date) + '　' : ''}{r.payeeName ?? '—'}{r.categoryName ? `　${r.categoryName}` : ''}</span>
+                                                        <span className="text-sm font-medium tabular-nums text-slate-700">{formatCurrency(r.amount)}</span>
+                                                    </div>
+                                                ))}
+                                                {/* 閲覧時、手入力も自動明細も無ければ「明細なし」 */}
+                                                {!editMode && !hasManualShown && !hasAuto && <div className="text-xs text-slate-400 py-1">明細なし</div>}
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             );
                         })}

@@ -241,13 +241,13 @@ describe('ProjectProfitDisplay', () => {
         expect(screen.getByText(/軽トラ/)).toBeInTheDocument();
     });
 
-    it('外注費の手入力分が編集モードで入力でき、協力業者の明細が無い案件でも入力欄が出る', async () => {
+    it('外注費の手入力明細(摘要+金額)が編集モードで入力でき、協力業者の明細が無い案件でも入力欄が出る', async () => {
         const dataWithDetail = {
             ...mockProfitData,
             breakdown: {
                 labor: [], vehicle: [], subcontractor: [], // 協力業者の自動明細なし
                 materialCost: 0, otherExpenses: 0, loadingCost: 0,
-                subcontractorExpense: 45000,
+                manualItems: { labor: [], vehicle: [], material: [], loading: [], other: [], subcontractor: [{ label: '5月分', amount: 45000 }] },
             },
         };
         global.fetch = jest.fn(() =>
@@ -259,7 +259,8 @@ describe('ProjectProfitDisplay', () => {
 
         fireEvent.click(screen.getByText('編集'));
 
-        // 協力業者の自動明細が無くても、外注費の手入力分(45000)が編集欄に出る
+        // 協力業者の自動明細が無くても、外注費の手入力明細(摘要+金額)が編集欄に出る
         await waitFor(() => expect(screen.getByDisplayValue('45000')).toBeInTheDocument());
+        expect(screen.getByDisplayValue('5月分')).toBeInTheDocument();
     });
 });
