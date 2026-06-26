@@ -455,7 +455,6 @@ function ListTab({
                                 <td className="px-4 py-3">
                                     <span className="font-medium text-slate-800">{r.categoryName}</span>
                                     <span className="text-slate-600 ml-1.5">{r.item.name}</span>
-                                    {r.item.spec && <span className="text-xs text-slate-400 ml-1">{r.item.spec}</span>}
                                 </td>
                                 <td className="px-4 py-3 text-right">
                                     <span className={`text-base font-semibold tabular-nums ${
@@ -502,7 +501,7 @@ function ListTab({
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                                 <div className="font-semibold text-slate-800">
-                                    {r.categoryName}<span className="font-normal text-slate-600 ml-1.5">{r.item.name}</span>{r.item.spec && <span className="text-xs text-slate-400 ml-1">{r.item.spec}</span>}
+                                    {r.categoryName}<span className="font-normal text-slate-600 ml-1.5">{r.item.name}</span>
                                 </div>
                                 {!r.excluded && (
                                     <div className="text-xs text-slate-400 mt-0.5 tabular-nums">
