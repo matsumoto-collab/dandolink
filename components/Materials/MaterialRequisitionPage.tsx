@@ -145,6 +145,9 @@ export default function MaterialRequisitionPage() {
     // 既存伝票の「編集モード」（その伝票を上書き更新・新規コピーとは区別）。
     // null=新規作成、{id,status}=その伝票を編集中（保存はstatus維持で更新）。
     const [editingExisting, setEditingExisting] = useState<{ id: string; status: string } | null>(null);
+    // 編集中の現場を現場プルダウン候補へ確実に出すための合成オプション。
+    // 絞り込み（my-assignments 2週間）に入らない過去案件でも、再編集時に現場名が消えないようにする。
+    const [editingProjectOption, setEditingProjectOption] = useState<ProjectOption | null>(null);
     const [projectMasters, setProjectMasters] = useState<ProjectOption[]>([]);
     const [foremen, setForemen] = useState<Array<{ id: string; displayName: string }>>([]);
     // 車両コンボボックスの候補（選択＋自由入力）
@@ -288,9 +291,13 @@ export default function MaterialRequisitionPage() {
 
     // 表示する案件リスト（B2のフィルタ + フォールバック）
     const projectsForSelect = React.useMemo<ProjectOption[]>(() => {
-        if (showAllProjects && isAdminOrManager) return projectMasters;
-        return myAssignedProjects;
-    }, [showAllProjects, isAdminOrManager, projectMasters, myAssignedProjects]);
+        const base = (showAllProjects && isAdminOrManager) ? projectMasters : myAssignedProjects;
+        // 編集中の現場が絞り込みに含まれない場合でも候補へ補い、現場名（プルダウン表示）を保持する
+        if (editingProjectOption && !base.some(p => p.id === editingProjectOption.id)) {
+            return [editingProjectOption, ...base];
+        }
+        return base;
+    }, [showAllProjects, isAdminOrManager, projectMasters, myAssignedProjects, editingProjectOption]);
 
     // 選択中案件のメタ（得意先・敬称・組立解体日）。プルダウン候補から解決
     const selectedProjectMeta = React.useMemo<ProjectOption | null>(() => {
@@ -345,6 +352,7 @@ export default function MaterialRequisitionPage() {
         setFormQuantities({});
         setSearchQuery('');
         setEditingExisting(null);
+        setEditingProjectOption(null);
         setAutoSavedId(null);
         setAutoSaveStatus('idle');
         setAutoSavedAt(null);
@@ -710,6 +718,11 @@ export default function MaterialRequisitionPage() {
         }
         setFormQuantities(quantities);
         setFormProjectId(req.projectMasterId);
+        // 編集対象の現場をプルダウン候補へ補完（絞り込みに入らない過去案件でも現場名を維持）。
+        // project-masters に全データがあればそれを使い、無ければ伝票の工事名から最小オプションを作る。
+        const editOpt: ProjectOption = projectMasters.find(p => p.id === req.projectMasterId)
+            || { id: req.projectMasterId, title: req.projectTitle || '', name: req.projectTitle || null };
+        setEditingProjectOption(editOpt);
         // 施工班は元伝票の値を表示（PATCH では foremanId は変更しないが、表示整合のため）
         if (req.foremanId) {
             setFormForemanId(req.foremanId);
@@ -745,7 +758,7 @@ export default function MaterialRequisitionPage() {
         setDetailReq(null);
         setView('create');
         toast.success('編集モードで開きました');
-    }, [categories]);
+    }, [categories, projectMasters]);
 
     // 編集モードの保存：その伝票を上書き更新（状態は維持。在庫整合はPATCH側が処理）。
     const handleUpdateExisting = async () => {
@@ -1477,25 +1490,6 @@ export default function MaterialRequisitionPage() {
                                             )}
                                         </div>
                                         <div className="flex flex-wrap gap-2 shrink-0">
-                                            {/* セル入力キーボード切替（スマホ/タブレット）：数字テンキー ⇄ 文字 */}
-                                            <div className="inline-flex rounded-xl border border-slate-200 overflow-hidden shrink-0" role="group" aria-label="セル入力キーボードの切替">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setGridInputMode('numeric')}
-                                                    className={`px-3 min-h-[44px] text-sm font-medium ${gridInputMode === 'numeric' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
-                                                    title="数字テンキーで入力（電卓のように数字を打てます）"
-                                                >
-                                                    123 数字
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setGridInputMode('text')}
-                                                    className={`px-3 min-h-[44px] text-sm font-medium border-l border-slate-200 ${gridInputMode === 'text' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
-                                                    title="文字キーボードで入力（「本」「残」など）"
-                                                >
-                                                    あ 文字
-                                                </button>
-                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={applyStandardSet}
@@ -1512,16 +1506,41 @@ export default function MaterialRequisitionPage() {
                                     {/* PDF風グリッド：Sheet1 の並びを縦1列。各行に車①②③の3セル＝タップで数量入力 */}
                                     {/* overflow-hidden を付けると sticky ヘッダーが効かないため付けない（角丸は header/footer 側で） */}
                                     <div className="border-[1.5px] border-slate-800 rounded-lg">
-                                        {/* ヘッダー（スクロール時に列見出しを上部固定） */}
-                                        <div className={`${gridColsClass} bg-slate-800 text-white text-[11px] font-bold rounded-t-md sticky top-0 z-10`}>
-                                            <div className="px-2 py-2">品目</div>
-                                            <div className="px-1 py-2 text-center border-l border-slate-600">規格</div>
-                                            {[0, 1, 2].map((vi) => (
-                                                <div key={vi} className="px-1 py-2 text-center border-l border-slate-600 leading-tight">
-                                                    車{['①', '②', '③'][vi]}
-                                                    <span className="block text-[9px] font-normal text-slate-300 truncate">{formVehicles[vi] || '—'}</span>
+                                        {/* スクロール中も常に上部固定：入力モード切替＋列見出しを一体でsticky */}
+                                        <div className="sticky top-0 z-10 rounded-t-md overflow-hidden">
+                                            {/* セル入力キーボード切替（スマホ/タブレット）：数字テンキー ⇄ 文字。スクロールしても常時表示 */}
+                                            <div className="flex items-center gap-2 px-2 py-1.5 bg-slate-100 border-b border-slate-300">
+                                                <span className="text-[11px] font-medium text-slate-500 shrink-0">セル入力</span>
+                                                <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden shrink-0" role="group" aria-label="セル入力キーボードの切替">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setGridInputMode('numeric')}
+                                                        className={`px-3 min-h-[44px] text-sm font-medium ${gridInputMode === 'numeric' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                                        title="数字テンキーで入力（電卓のように数字を打てます）"
+                                                    >
+                                                        123 数字
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setGridInputMode('text')}
+                                                        className={`px-3 min-h-[44px] text-sm font-medium border-l border-slate-300 ${gridInputMode === 'text' ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-100'}`}
+                                                        title="文字キーボードで入力（「本」「残」など）"
+                                                    >
+                                                        あ 文字
+                                                    </button>
                                                 </div>
-                                            ))}
+                                            </div>
+                                            {/* 列見出し（黒帯） */}
+                                            <div className={`${gridColsClass} bg-slate-800 text-white text-[11px] font-bold`}>
+                                                <div className="px-2 py-2">品目</div>
+                                                <div className="px-1 py-2 text-center border-l border-slate-600">規格</div>
+                                                {[0, 1, 2].map((vi) => (
+                                                    <div key={vi} className="px-1 py-2 text-center border-l border-slate-600 leading-tight">
+                                                        車{['①', '②', '③'][vi]}
+                                                        <span className="block text-[9px] font-normal text-slate-300 truncate">{formVehicles[vi] || '—'}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
                                         </div>
 
                                         {categories.length === 0 ? (
