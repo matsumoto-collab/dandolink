@@ -27,24 +27,21 @@
  * --- 初期在庫 ---
  *   全品目 initialStock = 0（Phase 1 の確定要件）。
  *
- * --- シート（ネット）/ リース品について（決着済み）---
- *   ネット / シート / リース品も物理在庫だが、出庫数量の「正」は
- *   MaterialRequisition.notes の JSON（種類 × サイズ × 車両）とする。
- *   二重計上を防ぐため、これらの CatalogItem は excludeFromStockDecrement = true とし、
- *   倉庫在庫（MaterialItem.stockQuantity）の自動増減対象から除外する。
- *   catalog 上には在庫対象 (CatalogItem) として残す。理由:
- *   MaterialRequisitionItem.materialItemId（非 null FK）が MaterialItem の実在を
- *   要求するため、対応する MaterialItem を seed しておく必要がある
- *   （MaterialRequisition.notes は String? でありそこに FK は存在しない）。
+ * --- シート / リース品について ---
+ *   【シート】完全在庫管理対応（excludeFromStockDecrement = false）。出庫伝票の
+ *   シート箱（種類 × サイズ × 車両, notes-JSON）の数量は、保存時に
+ *   MaterialRequisitionItem 行へも展開され（MaterialRequisitionPage.flattenSheetsForApi）、
+ *   柱・手摺などと同じく出庫で在庫減算・棚卸し調整・貸出中/返却に乗る。
+ *   表示（PDF/編集）は引き続きシート箱（notes）を正とし、明細行は在庫台帳用に
+ *   保存時へ片方向生成する（formQuantities へは取り込まないので二重計上しない）。
  *
- *   除外判定の「単一の正」はこの catalog.ts（コード）のみ。
- *   Phase 3 の在庫増減ヘルパ（lib/materials/stock.ts）および C6 で統合した
- *   loading-list/confirm・inventory 棚卸し調整経路は、いずれも統合 helper
- *   （applyStockChange）を経由し、その内部で catalog を権威として参照する。
- *   DB 列 MaterialItem.excludeFromStockDecrement は catalog から seed が
- *   片方向同期する「永続ミラー」であり、在庫クエリ側の WHERE 強制に使える
- *   防御基盤（死蔵フラグではない）。在庫判定そのものの権威は catalog。
- *   （末尾 OPEN_DESIGN_TENSIONS T1 / T2 を参照）
+ *   【リース品】物理在庫だが在庫の自動増減対象外（excludeFromStockDecrement = true）。
+ *   数量の「正」は notes-JSON の自由欄。CatalogItem は FK 充足のため seed しておく。
+ *
+ *   除外判定の「単一の正」はこの catalog.ts（コード）のみ。在庫増減ヘルパ
+ *   （lib/materials/stock.ts の applyStockChange）が catalog を権威として参照する。
+ *   DB 列 MaterialItem.excludeFromStockDecrement は catalog から seed が片方向同期する
+ *   永続ミラー（在庫クエリ側の WHERE 強制に使える防御基盤）。
  */
 
 /** PDF の物理列 */
@@ -495,7 +492,10 @@ function categorySortOrder(categoryName: string): number {
  *   - シートは在庫カテゴリ「シート」（SHEET_TYPES 7種 × サイズ4 = 28品目）として表現する。
  *     先頭4行のみ PDF アンカーで可視、残りは hideFromPdf の在庫専用（KNOWN_DISCREPANCIES #5 参照）。
  */
-const STOCK_DECREMENT_EXCLUDED_CATEGORIES = new Set<string>(['シート', 'リース品']);
+// シートは「完全在庫管理」対応で在庫減算対象に含める（出庫伝票のシート箱の数量を保存時に
+// MaterialRequisitionItem 行へ展開し、柱・手摺と同じく出庫減算・棚卸し・貸出中/返却に乗せる）。
+// リース品のみ在庫の自動増減対象外（数量は notes-JSON の自由欄が正）。
+const STOCK_DECREMENT_EXCLUDED_CATEGORIES = new Set<string>(['リース品']);
 
 /** 当該品目を倉庫在庫の自動減算対象から除外するか（Phase 3 が参照する構造フラグの算出元） */
 function isExcludedFromStockDecrement(categoryName: string): boolean {

@@ -98,14 +98,15 @@ describe('materials catalog 構造検証', () => {
         expect(fellBack).toEqual([]);
     });
 
-    it('シート全品目とリース品は excludeFromStockDecrement===true、代表品目は false/未設定', () => {
-        const netItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'シート');
+    it('リース品のみ excludeFromStockDecrement===true、シート・代表品目は在庫減算対象（false/未設定）', () => {
+        const sheetItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'シート');
         const leaseItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'リース品');
         // 対象が catalog に存在することを前提に検証（消失で静かに緩むのを防ぐ）
-        expect(netItems.length).toBeGreaterThan(0);
+        expect(sheetItems.length).toBeGreaterThan(0);
         expect(leaseItems.length).toBeGreaterThan(0);
-        for (const it of netItems) {
-            expect(it.excludeFromStockDecrement).toBe(true);
+        // シートは完全在庫管理対応＝在庫減算対象（除外しない）
+        for (const it of sheetItems) {
+            expect(it.excludeFromStockDecrement ?? false).toBe(false);
         }
         for (const it of leaseItems) {
             expect(it.excludeFromStockDecrement).toBe(true);
@@ -116,7 +117,7 @@ describe('materials catalog 構造検証', () => {
         );
         expect(pillar).toBeDefined();
         expect(pillar!.excludeFromStockDecrement ?? false).toBe(false);
-        // 除外対象は「シート」「リース品」のみであること（スコープの不用意な拡大防止）
+        // 除外対象は「リース品」のみであること（シートは在庫管理対象・スコープの不用意な拡大防止）
         const excludedCats = Array.from(
             new Set(
                 CATALOG_ITEMS
@@ -124,7 +125,7 @@ describe('materials catalog 構造検証', () => {
                     .map((it) => it.categoryName),
             ),
         ).sort();
-        expect(excludedCats).toEqual(['シート', 'リース品'].sort());
+        expect(excludedCats).toEqual(['リース品']);
     });
 
     it('構造サマリを出力（参考）', () => {

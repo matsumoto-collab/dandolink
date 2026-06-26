@@ -372,12 +372,22 @@ export default function MaterialRequisitionPage() {
     };
     const [autoSaveErrorReason, setAutoSaveErrorReason] = useState<string>('');
 
-    // 30秒間入力操作がなければ下書きを自動保存する。
-    // formQuantities (タプル) → API送信用フラット配列に変換
-    // 各 material × 車両(0/1/2) で数量>0 のものを別行として送る
+    // シート（在庫カテゴリ「シート」）の品目ID解決用。完全在庫管理のため、シート箱の数量を
+    // 保存時に明細行へ展開する（formQuantities へは取り込まないので二重計上しない）。
+    const sheetCategory = useMemo(() => categories.find(c => c.name === SHEET_GRID_CATEGORY), [categories]);
+    const sheetItemIds = useMemo(() => new Set((sheetCategory?.items || []).map(i => i.id)), [sheetCategory]);
+    const sheetItemIdByName = useMemo(() => {
+        const m = new Map<string, string>();
+        for (const item of sheetCategory?.items || []) m.set(item.name, item.id);
+        return m;
+    }, [sheetCategory]);
+
+    // formQuantities (タプル) → API送信用フラット配列に変換。各 material × 車両(0/1/2) で
+    // 数量>0 のものを別行として送る。シート品目は flattenSheetsForApi で別途生成（二重計上防止）。
     const flattenQuantitiesForApi = useCallback(() => {
         const result: Array<{ materialItemId: string; quantity: number; vehicleLabel: string }> = [];
         for (const [materialItemId, qtys] of Object.entries(formQuantities)) {
+            if (sheetItemIds.has(materialItemId)) continue;
             qtys.forEach((raw, idx) => {
                 const qty = cellTextToNumber(raw);
                 if (qty > 0) {
@@ -386,7 +396,32 @@ export default function MaterialRequisitionPage() {
             });
         }
         return result;
-    }, [formQuantities]);
+    }, [formQuantities, sheetItemIds]);
+
+    // シート箱（種類 × サイズ × 車両）→ 在庫減算用の明細行。品目名は catalog の「{種類} {サイズ}」と一致。
+    const flattenSheetsForApi = useCallback(() => {
+        const result: Array<{ materialItemId: string; quantity: number; vehicleLabel: string }> = [];
+        for (const type of formSheetTypes) {
+            const sizeMap = formSheetQty[type] || {};
+            for (const [size, tuple] of Object.entries(sizeMap)) {
+                const materialItemId = sheetItemIdByName.get(`${type} ${size}`);
+                if (!materialItemId || !tuple) continue;
+                tuple.forEach((raw, idx) => {
+                    const qty = cellTextToNumber(raw);
+                    if (qty > 0) {
+                        result.push({ materialItemId, quantity: qty, vehicleLabel: String(idx) });
+                    }
+                });
+            }
+        }
+        return result;
+    }, [formSheetTypes, formSheetQty, sheetItemIdByName]);
+
+    // 保存用の全明細（カタログ品目＋シート）。在庫台帳はこの行を集約して減算する。
+    const buildItemsForApi = useCallback(
+        () => [...flattenQuantitiesForApi(), ...flattenSheetsForApi()],
+        [flattenQuantitiesForApi, flattenSheetsForApi],
+    );
 
     // vehicleInfo は JSON ({vehicles: [...]}) 形式で保存
     const buildVehicleInfoJson = useCallback(() => {
@@ -482,7 +517,7 @@ export default function MaterialRequisitionPage() {
 
         // 条件: projectMasterId と foremanId 両方セット、品目1つ以上
         if (!formProjectId || !formForemanId) return;
-        const items = flattenQuantitiesForApi();
+        const items = buildItemsForApi();
         if (items.length === 0) return;
         const vehicleInfoStr = buildVehicleInfoJson();
         const notesStr = buildNotesJson();
@@ -553,7 +588,7 @@ export default function MaterialRequisitionPage() {
         if (!formProjectId) { toast.error('現場を選択してください'); return; }
         if (!formForemanId) { toast.error('施工班名を選択してください'); return; }
 
-        const items = flattenQuantitiesForApi();
+        const items = buildItemsForApi();
         if (items.length === 0) { toast.error('材料を1つ以上入力してください'); return; }
         const vehicleInfoStr = buildVehicleInfoJson();
         const notesStr = buildNotesJson();
@@ -611,6 +646,8 @@ export default function MaterialRequisitionPage() {
         const quantities: Record<string, [string, string, string]> = {};
         // 1) DB items（数値）→ 文字列の初期値（vehicleLabel '0'/'1'/'2'、その他は車両0列）
         req.items?.forEach(item => {
+            // シートは notes（シート箱）から復元するので明細からは取り込まない（保存時に再生成・二重計上防止）
+            if (sheetItemIds.has(item.materialItemId)) return;
             if (item.quantity > 0) {
                 let idx: 0 | 1 | 2 = 0;
                 if (item.vehicleLabel === '1') idx = 1;
@@ -678,7 +715,7 @@ export default function MaterialRequisitionPage() {
         setSearchQuery('');
         setView('create');
         toast.success('前回の伝票をコピーしました');
-    }, [categories]);
+    }, [categories, sheetItemIds]);
 
     // 既存伝票を「編集モード」でフォームへ読み込む（複製ではなくその伝票を上書き更新）。
     // - autoSavedId = req.id（保存先＝この伝票）
@@ -692,6 +729,8 @@ export default function MaterialRequisitionPage() {
         }
         const quantities: Record<string, [string, string, string]> = {};
         req.items?.forEach(item => {
+            // シートは notes（シート箱）から復元するので明細からは取り込まない（保存時に再生成・二重計上防止）
+            if (sheetItemIds.has(item.materialItemId)) return;
             if (item.quantity > 0) {
                 let idx: 0 | 1 | 2 = 0;
                 if (item.vehicleLabel === '1') idx = 1;
@@ -758,14 +797,14 @@ export default function MaterialRequisitionPage() {
         setDetailReq(null);
         setView('create');
         toast.success('編集モードで開きました');
-    }, [categories, projectMasters]);
+    }, [categories, projectMasters, sheetItemIds]);
 
     // 編集モードの保存：その伝票を上書き更新（状態は維持。在庫整合はPATCH側が処理）。
     const handleUpdateExisting = async () => {
         if (!editingExisting) return;
         if (!formProjectId) { toast.error('現場を選択してください'); return; }
         if (!formForemanId) { toast.error('施工班名を選択してください'); return; }
-        const items = flattenQuantitiesForApi();
+        const items = buildItemsForApi();
         if (items.length === 0) { toast.error('材料を1つ以上入力してください'); return; }
         const vehicleInfoStr = buildVehicleInfoJson();
         const notesStr = buildNotesJson();

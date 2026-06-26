@@ -135,13 +135,20 @@ for (const it of CATALOG_ITEMS) {
     }
 }
 
-// 10. シート全品目 / リース品は excludeFromStockDecrement===true、代表品目は false/未設定
+// 10. リース品のみ excludeFromStockDecrement===true、シート・代表品目は在庫減算対象（false/未設定）
 {
-    const netItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'シート');
+    const sheetItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'シート');
     const leaseItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'リース品');
-    check(netItems.length > 0, 'シート品目が catalog に存在すること');
+    check(sheetItems.length > 0, 'シート品目が catalog に存在すること');
     check(leaseItems.length > 0, 'リース品が catalog に存在すること');
-    for (const it of [...netItems, ...leaseItems]) {
+    // シートは完全在庫管理＝在庫減算対象（除外しない）
+    for (const it of sheetItems) {
+        check(
+            (it.excludeFromStockDecrement ?? false) === false,
+            `シートは在庫減算対象（excludeFromStockDecrement=false）: ${naturalKey(it.categoryName, it.itemName)}`,
+        );
+    }
+    for (const it of leaseItems) {
         check(
             it.excludeFromStockDecrement === true,
             `excludeFromStockDecrement=true であること: ${naturalKey(it.categoryName, it.itemName)}`,
@@ -163,8 +170,8 @@ for (const it of CATALOG_ITEMS) {
         ),
     ).sort();
     check(
-        JSON.stringify(excludedCats) === JSON.stringify(['シート', 'リース品'].sort()),
-        `在庫減算除外カテゴリは「シート」「リース品」のみ（実際: ${excludedCats.join(', ')}）`,
+        JSON.stringify(excludedCats) === JSON.stringify(['リース品']),
+        `在庫減算除外カテゴリは「リース品」のみ（実際: ${excludedCats.join(', ')}）`,
     );
 }
 

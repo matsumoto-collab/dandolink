@@ -6,10 +6,10 @@
  *   集計は MaterialRequisitionItem 行ベース。
  *
  * --- 対象範囲 ---
- *   ネット / シート / リース品（catalog の excludeFromStockDecrement===true）は
- *   出庫数量が MaterialRequisition.notes の JSON 側に入り MaterialRequisitionItem
- *   行を持たない（在庫減算もされない）。よって本集計の貸出中追跡は
- *   「在庫減算対象の catalog 品目のみ」となる（在庫連動と同じ範囲）。
+ *   シートは完全在庫管理対応で、出庫伝票のシート箱の数量が保存時に
+ *   MaterialRequisitionItem 行へも展開される（在庫減算対象）。よってシートも
+ *   本集計（貸出中）に含まれる。リース品のみ MaterialRequisitionItem 行を持たず
+ *   （excludeFromStockDecrement）本集計の対象外（在庫連動と同じ範囲）。
  *
  * --- type と符号 ---
  *   '出庫' は加算（現場へ出た）、それ以外（'返却' / '紛失'）は減算（現場から消えた）。

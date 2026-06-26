@@ -146,10 +146,10 @@ beforeEach(() => {
 });
 
 describe('isMaterialItemExcludedFromStockDecrement（純粋関数 / catalog 権威）', () => {
-    it('シート品目は除外（true）', () => {
+    it('シート品目は非除外（false・完全在庫管理で在庫減算対象）', () => {
         expect(
             isMaterialItemExcludedFromStockDecrement(NET.categoryName, NET.itemName),
-        ).toBe(true);
+        ).toBe(false);
     });
 
     it('リース品は除外（true）', () => {
@@ -200,22 +200,22 @@ describe('applyStockChange（C1 の核 / 除外早期 return）', () => {
     it('除外品目は stockQuantity も InventoryTransaction も触らず skip', async () => {
         const { client, stock, txs } = makeMockPrisma({
             items: [],
-            initialStock: { 'net-1': 50 },
+            initialStock: { 'lease-1': 50 },
         });
         const res = await applyStockChange(client, {
-            materialItemId: 'net-1',
-            categoryName: NET.categoryName,
-            itemName: NET.itemName,
+            materialItemId: 'lease-1',
+            categoryName: LEASE.categoryName,
+            itemName: LEASE.itemName,
             quantity: -10,
             type: 'dispatch',
             referenceId: 'req-1',
             referenceType: FWD_REQ,
             note: 'test',
             createdBy: 'u1',
-            idempotencyKey: 'req-1:net-1:forward:0',
+            idempotencyKey: 'req-1:lease-1:forward:0',
         });
         expect(res).toEqual({ skipped: true, reason: 'excluded' });
-        expect(stock['net-1']).toBe(50);
+        expect(stock['lease-1']).toBe(50);
         expect(txs).toHaveLength(0);
         expect(client.materialItem.update).not.toHaveBeenCalled();
         expect(client.inventoryTransaction.create).not.toHaveBeenCalled();
@@ -295,11 +295,11 @@ describe('applyStockForRequisition（積込完了 = loaded 遷移）', () => {
         expect(txs.every((t) => t.referenceType === FWD_REQ)).toBe(true);
     });
 
-    it('(a) 除外品目（ネット/リース）を含む伝票を loaded にしても当該品目の Tx は 0 件・在庫不変', async () => {
+    it('(a) 除外品目（リース）を含む伝票を loaded にしてもリースの Tx は 0 件・在庫不変（シートは在庫減算される）', async () => {
         const { client, stock, txs } = makeMockPrisma({
             items: [
                 { materialItemId: 'p-1', quantity: 4, ...PILLAR }, // 非除外
-                { materialItemId: 'net-1', quantity: 9, ...NET }, // 除外
+                { materialItemId: 'net-1', quantity: 9, ...NET }, // シート＝非除外（在庫減算）
                 { materialItemId: 'lease-1', quantity: 2, ...LEASE }, // 除外
             ],
             initialStock: { 'p-1': 50, 'net-1': 50, 'lease-1': 50 },
@@ -308,15 +308,14 @@ describe('applyStockForRequisition（積込完了 = loaded 遷移）', () => {
             isReturn: false,
             createdBy: 'u1',
         });
-        expect(res.appliedCount).toBe(1); // 柱のみ
-        expect(res.excludedCount).toBe(2); // ネット + リース
+        expect(res.appliedCount).toBe(2); // 柱 + シート
+        expect(res.excludedCount).toBe(1); // リースのみ
         expect(stock['p-1']).toBe(46);
-        expect(stock['net-1']).toBe(50);
+        expect(stock['net-1']).toBe(41); // シートも在庫減算される
         expect(stock['lease-1']).toBe(50);
-        expect(txs).toHaveLength(1);
-        expect(txs.filter((t) => t.materialItemId === 'net-1')).toHaveLength(0);
+        expect(txs).toHaveLength(2);
         expect(txs.filter((t) => t.materialItemId === 'lease-1')).toHaveLength(0);
-        expect(txs[0].materialItemId).toBe('p-1');
+        expect(txs.filter((t) => t.materialItemId === 'net-1')).toHaveLength(1);
     });
 
     it('返却伝票は加算（正の数量・type=return）', async () => {
@@ -610,18 +609,18 @@ describe('applyInventoryAdjustment（C6: 棚卸し調整も helper 経由）', (
         expect(txs).toHaveLength(0);
     });
 
-    it('除外品目（ネット/リース）の棚卸し調整は applyStockChange 内でスキップ', async () => {
+    it('除外品目（リース）の棚卸し調整は applyStockChange 内でスキップ', async () => {
         const { client, stock, txs } = makeMockPrisma({
             items: [],
-            initialStock: { 'net-1': 5 },
+            initialStock: { 'lease-1': 5 },
         });
         const res = await applyInventoryAdjustment(
             client,
             [
                 {
-                    materialItemId: 'net-1',
-                    categoryName: NET.categoryName,
-                    itemName: NET.itemName,
+                    materialItemId: 'lease-1',
+                    categoryName: LEASE.categoryName,
+                    itemName: LEASE.itemName,
                     currentQuantity: 5,
                     targetQuantity: 99,
                     note: '棚卸し',
@@ -631,7 +630,7 @@ describe('applyInventoryAdjustment（C6: 棚卸し調整も helper 経由）', (
         );
         expect(res.appliedCount).toBe(0);
         expect(res.skippedCount).toBe(1);
-        expect(stock['net-1']).toBe(5); // 除外品目は在庫不変
+        expect(stock['lease-1']).toBe(5); // 除外品目は在庫不変
         expect(txs).toHaveLength(0);
     });
 
@@ -910,13 +909,13 @@ describe('C12: applyInventoryAdjustment skip 内訳（除外件数の可視化�
             ],
             'u1',
         );
-        expect(res.appliedCount).toBe(1); // 柱のみ
-        expect(res.excludedCount).toBe(2); // ネット + リース
+        expect(res.appliedCount).toBe(2); // 柱 + シート
+        expect(res.excludedCount).toBe(1); // リースのみ
         expect(res.unchangedCount).toBe(0);
-        expect(res.skippedCount).toBe(2);
+        expect(res.skippedCount).toBe(1);
         expect(stock['p-1']).toBe(25);
-        expect(stock['net-1']).toBe(5); // 構造除外 → 不変
-        expect(stock['lease-1']).toBe(3);
+        expect(stock['net-1']).toBe(99); // シートは在庫調整される
+        expect(stock['lease-1']).toBe(3); // 構造除外 → 不変
     });
 
     it('差分0 は unchangedCount に計上（excludedCount とは区別）', async () => {
@@ -1080,21 +1079,21 @@ describe('C13: 同一 materialItemId 複数行（車両別）の在庫集約', (
     it('除外品目が複数車両行で来ても集約後に excludedCount=1（distinct数）', async () => {
         const { client, stock, txs } = makeMockPrisma({
             items: [
-                { materialItemId: 'net-1', quantity: 5, ...NET },
-                { materialItemId: 'net-1', quantity: 8, ...NET },
+                { materialItemId: 'lease-1', quantity: 5, ...LEASE },
+                { materialItemId: 'lease-1', quantity: 8, ...LEASE },
                 { materialItemId: 'p-1', quantity: 3, ...PILLAR },
             ],
-            initialStock: { 'net-1': 50, 'p-1': 50 },
+            initialStock: { 'lease-1': 50, 'p-1': 50 },
         });
         const res = await applyStockForRequisition(client, 'req-1', {
             isReturn: false,
             createdBy: 'u1',
         });
         expect(res.appliedCount).toBe(1); // 柱のみ
-        expect(res.excludedCount).toBe(1); // ネット（distinct = 1、行数 2 ではない）
-        expect(stock['net-1']).toBe(50); // 除外 → 不変
+        expect(res.excludedCount).toBe(1); // リース（distinct = 1、行数 2 ではない）
+        expect(stock['lease-1']).toBe(50); // 除外 → 不変
         expect(stock['p-1']).toBe(47);
-        expect(txs.filter((t) => t.materialItemId === 'net-1')).toHaveLength(0);
+        expect(txs.filter((t) => t.materialItemId === 'lease-1')).toHaveLength(0);
     });
 });
 

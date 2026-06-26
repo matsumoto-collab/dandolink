@@ -8,8 +8,8 @@
  * 集計ルールは lentOut.ts と完全に同一:
  *   貸出中 = Σ(出庫) − Σ(返却) − Σ(紛失)、対象は status='loaded' の伝票のみ。
  *   '出庫' は加算、それ以外（'返却' / '紛失'）は減算。
- *   ネット / シート / リース品（excludeFromStockDecrement）は MaterialRequisitionItem
- *   行を持たないため、本集計の対象外（在庫連動と同じ範囲）。
+ *   シートは完全在庫管理対応で MaterialRequisitionItem 行を持つため本集計に含む。
+ *   リース品のみ（excludeFromStockDecrement）行を持たず本集計の対象外（在庫連動と同じ範囲）。
  *
  * 純粋関数（DB 非依存）。API・テスト双方から利用する。
  */

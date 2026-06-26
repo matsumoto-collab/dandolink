@@ -39,9 +39,10 @@ jest.mock('@/lib/api/utils', () => ({
 describe('PATCH /api/materials/inventory（C12: skip 件数返却）', () => {
     const session = { user: { id: 'mgr-1', role: 'manager' } };
 
-    // catalog 実データ: 柱=非除外 / シート品目=除外
+    // catalog 実データ: 柱=非除外 / シート=非除外（完全在庫管理）/ リース品=除外
     const PILLAR = { categoryName: '柱', itemName: '3.6m' };
     const NET = { categoryName: 'シート', itemName: '新築用 青(紐付) 1.8' };
+    const LEASE = { categoryName: 'リース品', itemName: 'リース品' };
 
     let stockDb: Record<string, { stockQuantity: number; name: string; categoryName: string }>;
 
@@ -59,6 +60,7 @@ describe('PATCH /api/materials/inventory（C12: skip 件数返却）', () => {
         stockDb = {
             'p-1': { stockQuantity: 10, name: PILLAR.itemName, categoryName: PILLAR.categoryName },
             'net-1': { stockQuantity: 5, name: NET.itemName, categoryName: NET.categoryName },
+            'lease-1': { stockQuantity: 3, name: LEASE.itemName, categoryName: LEASE.categoryName },
         };
         (prisma.$transaction as jest.Mock).mockImplementation(
             async (cb: (tx: unknown) => Promise<unknown>) => {
@@ -90,7 +92,7 @@ describe('PATCH /api/materials/inventory（C12: skip 件数返却）', () => {
             makeReq({
                 adjustments: [
                     { materialItemId: 'p-1', quantity: 30 }, // 非除外 → 適用
-                    { materialItemId: 'net-1', quantity: 99 }, // 構造除外 → skip
+                    { materialItemId: 'lease-1', quantity: 99 }, // 構造除外（リース）→ skip
                 ],
             }),
         );
@@ -102,7 +104,7 @@ describe('PATCH /api/materials/inventory（C12: skip 件数返却）', () => {
         expect(json.skippedCount).toBe(1);
         // 構造除外品目の在庫は不変、非除外のみ反映
         expect(stockDb['p-1'].stockQuantity).toBe(30);
-        expect(stockDb['net-1'].stockQuantity).toBe(5);
+        expect(stockDb['lease-1'].stockQuantity).toBe(3);
     });
 
     it('除外品目なし → excludedCount=0・appliedCount のみ', async () => {
