@@ -73,7 +73,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
         // 原価（共通エンジン）
         const cost = costMap.get(id);
         const costBreakdown = cost?.breakdown ?? { laborCost: 0, loadingCost: 0, vehicleCost: 0, materialCost: 0, subcontractorCost: 0, otherExpenses: 0, totalCost: 0 };
-        const detail = cost?.detail ?? { labor: [], vehicle: [], subcontractor: [], materialCost: 0, otherExpenses: 0, loadingCost: 0, purchaseInvoices: [] };
+        const detail = cost?.detail ?? { labor: [], vehicle: [], subcontractor: [], materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorExpense: 0, purchaseInvoices: [] };
 
         const totalCost = costBreakdown.totalCost;
         const grossProfit = revenue - totalCost;
@@ -106,6 +106,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
                 materialCost: detail.materialCost,
                 otherExpenses: detail.otherExpenses,
                 loadingCost: detail.loadingCost,
+                subcontractorExpense: detail.subcontractorExpense ?? 0,
                 purchaseInvoices: detail.purchaseInvoices,
             },
             grossProfit, profitMargin,

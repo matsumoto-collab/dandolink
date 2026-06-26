@@ -4,7 +4,7 @@ import { requireAuth, errorResponse, notFoundResponse, serverErrorResponse } fro
 
 interface RouteContext { params: Promise<{ id: string }>; }
 
-const FIELDS = ['materialCost', 'otherExpenses', 'loadingCost', 'revenueOverride'] as const;
+const FIELDS = ['materialCost', 'otherExpenses', 'loadingCost', 'subcontractorExpense', 'revenueOverride'] as const;
 type Field = typeof FIELDS[number];
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -43,13 +43,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         const updated = await prisma.projectMaster.update({
             where: { id },
             data,
-            select: { id: true, materialCost: true, otherExpenses: true, loadingCost: true, revenueOverride: true },
+            select: { id: true, materialCost: true, otherExpenses: true, loadingCost: true, subcontractorExpense: true, revenueOverride: true },
         });
         return NextResponse.json({
             id: updated.id,
             materialCost: updated.materialCost ? Number(updated.materialCost) : null,
             otherExpenses: updated.otherExpenses ? Number(updated.otherExpenses) : null,
             loadingCost: updated.loadingCost ? Number(updated.loadingCost) : null,
+            subcontractorExpense: updated.subcontractorExpense ? Number(updated.subcontractorExpense) : null,
             revenueOverride: updated.revenueOverride,
         });
     } catch (error) {

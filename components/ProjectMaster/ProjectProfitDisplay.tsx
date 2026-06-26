@@ -77,6 +77,7 @@ interface ProfitData {
         materialCost: number;
         otherExpenses: number;
         loadingCost: number;
+        subcontractorExpense?: number; // 外注費の手入力分(合計)。subcontractor[] は協力業者の自動計上明細。
         purchaseInvoices?: { invoiceId: string; payeeName: string | null; categoryName: string | null; bucket: string; date: string; amount: number }[];
     };
     grossProfit: number;
@@ -124,7 +125,7 @@ function consumptionColor(rate: number): { bar: string; text: string } {
 // 編集中のドラフト値: undefined=未編集 / null=自動値に戻す / number=明示上書き
 type Draft = number | null | undefined;
 type AssignmentField = 'laborCostOverride' | 'vehicleCostOverride' | 'subcontractorCostOverride';
-type ProjectField = 'materialCost' | 'otherExpenses' | 'loadingCost' | 'revenueOverride';
+type ProjectField = 'materialCost' | 'otherExpenses' | 'loadingCost' | 'subcontractorExpense' | 'revenueOverride';
 
 interface DraftState {
     assignments: Record<string, Partial<Record<AssignmentField, Draft>>>;
@@ -534,7 +535,7 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                     <h4 className="text-sm font-semibold text-slate-700 mb-3">原価内訳</h4>
                     {editMode && (
                         <p className="text-xs text-slate-500 -mt-2 mb-3">
-                            人件費・車両費・外注費は明細の<span className="font-medium text-slate-600">行ごと</span>に、材料費・積込費・その他は<span className="font-medium text-slate-600">合計</span>を入力できます。
+                            人件費・車両費・外注費は明細の<span className="font-medium text-slate-600">行ごと</span>に、材料費・積込費・その他・外注費は<span className="font-medium text-slate-600">合計（手入力分）</span>を入力できます。
                         </p>
                     )}
                     <div className="divide-y divide-slate-100">
@@ -599,23 +600,43 @@ export default function ProjectProfitDisplay({ projectMasterId }: ProjectProfitD
                                                     </div>
                                                 )) : <div className="text-xs text-slate-400 py-1">明細なし</div>
                                             )}
-                                            {section.key === 'subcontractor' && (
-                                                breakdown?.subcontractor.length ? breakdown.subcontractor.map(r => (
-                                                    <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
-                                                        <span className="flex-1 min-w-0 truncate">
-                                                            {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.foremanName ?? '—'}
-                                                        </span>
-                                                        <AmountCell
-                                                            editMode={editMode}
-                                                            value={r.effectiveCost}
-                                                            auto={r.autoCost}
-                                                            override={r.override}
-                                                            draft={drafts.assignments[r.assignmentId]?.subcontractorCostOverride}
-                                                            onChange={(v) => setAssignmentDraft(r.assignmentId, 'subcontractorCostOverride', v)}
-                                                        />
-                                                    </div>
-                                                )) : <div className="text-xs text-slate-400 py-1">明細なし</div>
-                                            )}
+                                            {section.key === 'subcontractor' && (() => {
+                                                // 外注費 = 手入力分(合計) ＋ 協力業者の手配確定からの自動計上明細(行ごとに上書き可)。
+                                                // 協力業者を手配していない案件でも、手入力分で外注費を計上できる（材料費等と同じ受け皿）。
+                                                const manual = breakdown?.subcontractorExpense ?? 0;
+                                                const autoRows = breakdown?.subcontractor ?? [];
+                                                return (
+                                                    <>
+                                                        <div className="flex items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100">
+                                                            <span className="flex-1 min-w-0 truncate">手入力分</span>
+                                                            <AmountCell
+                                                                editMode={editMode}
+                                                                value={manual}
+                                                                auto={0}
+                                                                override={manual > 0 ? manual : null}
+                                                                draft={drafts.project.subcontractorExpense}
+                                                                onChange={(v) => setProjectDraft('subcontractorExpense', v)}
+                                                            />
+                                                        </div>
+                                                        {autoRows.map(r => (
+                                                            <div key={r.assignmentId} className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 py-1 border-b border-slate-100 last:border-0">
+                                                                <span className="flex-1 min-w-0 truncate">
+                                                                    {formatDateMd(r.date)}　{r.constructionTypeName ?? '—'}　{r.foremanName ?? '—'}
+                                                                </span>
+                                                                <AmountCell
+                                                                    editMode={editMode}
+                                                                    value={r.effectiveCost}
+                                                                    auto={r.autoCost}
+                                                                    override={r.override}
+                                                                    draft={drafts.assignments[r.assignmentId]?.subcontractorCostOverride}
+                                                                    onChange={(v) => setAssignmentDraft(r.assignmentId, 'subcontractorCostOverride', v)}
+                                                                />
+                                                            </div>
+                                                        ))}
+                                                        {autoRows.length === 0 && manual === 0 && <div className="text-xs text-slate-400 py-1">明細なし</div>}
+                                                    </>
+                                                );
+                                            })()}
                                             {(section.key === 'material' || section.key === 'loading' || section.key === 'other') && (() => {
                                                 const field: 'materialCost' | 'loadingCost' | 'otherExpenses' = section.key === 'material' ? 'materialCost' : section.key === 'loading' ? 'loadingCost' : 'otherExpenses';
                                                 const manual = section.key === 'material' ? (breakdown?.materialCost ?? 0) : section.key === 'loading' ? (breakdown?.loadingCost ?? 0) : (breakdown?.otherExpenses ?? 0);

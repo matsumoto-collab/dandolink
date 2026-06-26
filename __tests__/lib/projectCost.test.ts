@@ -234,6 +234,40 @@ describe('lib/projectCost / computeProjectCosts', () => {
         expect((r.detail?.purchaseInvoices ?? []).reduce((s, x) => s + x.amount, 0)).toBe(10000);
     });
 
+    it('外注費の手入力分(subcontractorExpense)を協力業者の自動計上に加算する', async () => {
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorExpense: 30000,
+            subcontractorCosts: [{ constructionTypeId: 'ct1', amount: 80000, transportCost: 0 }],
+            assignments: [{
+                id: 'a1', date: D, assignedEmployeeId: 'partner1', isDispatchConfirmed: true, constructionType: 'ct1',
+                workers: '[]', memberCount: 1, vehicles: '[]',
+                laborCostOverride: null, vehicleCostOverride: null, subcontractorCostOverride: null,
+                dailyReportWorkItems: [],
+            }],
+        }]);
+        (prisma.user.findMany as jest.Mock).mockResolvedValue([{ id: 'partner1', displayName: '協力P', role: 'PARTNER' }]);
+        (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([{ id: 'ct1', name: '組立' }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.breakdown.subcontractorCost).toBe(110000); // 自動80000 + 手入力30000
+        expect(r.breakdown.totalCost).toBe(110000);
+        expect(r.detail?.subcontractorExpense).toBe(30000); // detail は手入力分のみ
+        expect((r.detail?.subcontractor ?? []).reduce((s, x) => s + x.effectiveCost, 0)).toBe(80000); // 明細行は自動分のみ
+    });
+
+    it('協力業者の配置が無くても外注費の手入力分だけで計上できる', async () => {
+        (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([{
+            id: 'p1', materialCost: 0, otherExpenses: 0, loadingCost: 0, subcontractorExpense: 50000,
+            subcontractorCosts: [], assignments: [],
+        }]);
+
+        const r = (await computeProjectCosts(['p1'], { withDetail: true })).get('p1')!;
+        expect(r.breakdown.subcontractorCost).toBe(50000);
+        expect(r.breakdown.totalCost).toBe(50000);
+        expect(r.detail?.subcontractorExpense).toBe(50000);
+        expect(r.detail?.subcontractor).toHaveLength(0); // 自動計上明細は無し（手入力のみ）
+    });
+
     it('該当しない projectId も空原価でキーを返す', async () => {
         (prisma.projectMaster.findMany as jest.Mock).mockResolvedValue([]);
         const map = await computeProjectCosts(['none']);

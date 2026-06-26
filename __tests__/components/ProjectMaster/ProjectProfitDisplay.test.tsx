@@ -240,4 +240,26 @@ describe('ProjectProfitDisplay', () => {
         expect(screen.getByDisplayValue('80000')).toBeInTheDocument();
         expect(screen.getByText(/軽トラ/)).toBeInTheDocument();
     });
+
+    it('外注費の手入力分が編集モードで入力でき、協力業者の明細が無い案件でも入力欄が出る', async () => {
+        const dataWithDetail = {
+            ...mockProfitData,
+            breakdown: {
+                labor: [], vehicle: [], subcontractor: [], // 協力業者の自動明細なし
+                materialCost: 0, otherExpenses: 0, loadingCost: 0,
+                subcontractorExpense: 45000,
+            },
+        };
+        global.fetch = jest.fn(() =>
+            Promise.resolve({ ok: true, json: () => Promise.resolve(dataWithDetail) })
+        ) as jest.Mock;
+
+        render(<ProjectProfitDisplay projectMasterId="pm1" />);
+        await waitFor(() => expect(screen.getByText('利益サマリー')).toBeInTheDocument());
+
+        fireEvent.click(screen.getByText('編集'));
+
+        // 協力業者の自動明細が無くても、外注費の手入力分(45000)が編集欄に出る
+        await waitFor(() => expect(screen.getByDisplayValue('45000')).toBeInTheDocument());
+    });
 });

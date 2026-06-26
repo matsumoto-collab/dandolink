@@ -61,6 +61,7 @@ export interface ProjectCostDetail {
     materialCost: number;
     otherExpenses: number;
     loadingCost: number;
+    subcontractorExpense: number; // 外注費の手入力分(合計)。subcontractor[] は協力会社の自動計上明細。
     purchaseInvoices: PurchaseInvoiceCostRow[];
 }
 export interface ProjectCostResult {
@@ -104,6 +105,7 @@ export async function computeProjectCosts(
             materialCost: true,
             otherExpenses: true,
             loadingCost: true,
+            subcontractorExpense: true, // 外注費の手入力分。複数形 subcontractorCosts(工事種別単価マスタ)とは別物。
             subcontractorCosts: { select: { constructionTypeId: true, amount: true, transportCost: true } },
             purchaseInvoiceAllocations: {
                 where: { purchaseInvoice: { status: 'confirmed' } },
@@ -329,9 +331,12 @@ export async function computeProjectCosts(
         const manualMaterial = Number(pm.materialCost || 0);
         const manualOther = Number(pm.otherExpenses || 0);
         const manualLoading = Number(pm.loadingCost || 0);
+        const manualSubcontractor = Number(pm.subcontractorExpense || 0);
         const materialCost = manualMaterial + invMaterial;
         const otherExpenses = manualOther + invOther;
         const loadingCost = manualLoading + invLoading;
+        // 外注費 = 協力業者の手配確定からの自動計上(subRows)＋案件マスタの手入力分
+        subcontractorCost += manualSubcontractor;
         const totalCost = laborCost + loadingCost + vehicleCost + materialCost + subcontractorCost + otherExpenses;
 
         result.set(pm.id, {
@@ -342,6 +347,7 @@ export async function computeProjectCosts(
                     vehicle: vehicleRows.sort((x, y) => x.date.localeCompare(y.date)),
                     subcontractor: subRows.sort((x, y) => x.date.localeCompare(y.date)),
                     materialCost: manualMaterial, otherExpenses: manualOther, loadingCost: manualLoading,
+                    subcontractorExpense: manualSubcontractor,
                     purchaseInvoices: invoiceRows,
                 }
                 : undefined,
