@@ -135,11 +135,11 @@ for (const it of CATALOG_ITEMS) {
     }
 }
 
-// 10. ネット全品目 / リース品は excludeFromStockDecrement===true、代表品目は false/未設定
+// 10. シート全品目 / リース品は excludeFromStockDecrement===true、代表品目は false/未設定
 {
-    const netItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'ネット');
+    const netItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'シート');
     const leaseItems = CATALOG_ITEMS.filter((it) => it.categoryName === 'リース品');
-    check(netItems.length > 0, 'ネット品目が catalog に存在すること');
+    check(netItems.length > 0, 'シート品目が catalog に存在すること');
     check(leaseItems.length > 0, 'リース品が catalog に存在すること');
     for (const it of [...netItems, ...leaseItems]) {
         check(
@@ -163,8 +163,8 @@ for (const it of CATALOG_ITEMS) {
         ),
     ).sort();
     check(
-        JSON.stringify(excludedCats) === JSON.stringify(['ネット', 'リース品'].sort()),
-        `在庫減算除外カテゴリは「ネット」「リース品」のみ（実際: ${excludedCats.join(', ')}）`,
+        JSON.stringify(excludedCats) === JSON.stringify(['シート', 'リース品'].sort()),
+        `在庫減算除外カテゴリは「シート」「リース品」のみ（実際: ${excludedCats.join(', ')}）`,
     );
 }
 

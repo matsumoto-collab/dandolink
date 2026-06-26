@@ -39,9 +39,9 @@ jest.mock('@/lib/api/utils', () => ({
 describe('PATCH /api/materials/inventory（C12: skip 件数返却）', () => {
     const session = { user: { id: 'mgr-1', role: 'manager' } };
 
-    // catalog 実データ: 柱=非除外 / ネット結合品目=除外
+    // catalog 実データ: 柱=非除外 / シート品目=除外
     const PILLAR = { categoryName: '柱', itemName: '3.6m' };
-    const NET = { categoryName: 'ネット', itemName: '新築用 青(紐付) 1.8' };
+    const NET = { categoryName: 'シート', itemName: '新築用 青(紐付) 1.8' };
 
     let stockDb: Record<string, { stockQuantity: number; name: string; categoryName: string }>;
 

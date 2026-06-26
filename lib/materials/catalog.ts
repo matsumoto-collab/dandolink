@@ -173,7 +173,7 @@ export type SheetType = (typeof SHEET_TYPES)[number];
 export const CATEGORY_ORDER: readonly string[] = [
     '柱', '手摺', '400アンチ', '250ハーフ', 'センターハーフ', '筋交', 'ブラケット',
     'ピン付き', '階段', 'ジャッキ', '皿 / 兼用皿', 'ルーフベース', '単管', 'クランプ',
-    '鉄骨', 'ジョイント', '単管ベース', 'ネット', 'カヤシート', 'ヒモ', '壁つなぎ',
+    '鉄骨', 'ジョイント', '単管ベース', 'シート', 'カヤシート', 'ヒモ', '壁つなぎ',
     '道板', '巾木（木製）', 'L型巾木', 'L型巾木(妻用)', 'アダプター', 'ジャッキカバー',
     'コッパ', 'チョウチョ', '先行手摺', '梁枠', '安全バー', '金網', '杭',
     'ローリングタイヤ', 'ハッチ付きアンチ', 'タラップ', '朝顔', '単クランプ',
@@ -192,10 +192,8 @@ const SEED_UNITS: Record<string, Record<string, string>> = {
     '鉄骨': { '直交': '個', '自在': '個' },
     'ジョイント': { 'ジョイント': '個' },
     '単管ベース': { '単管ベース': '個' },
-    'ネット': {
-        // seed は全て '枚'
-        '新築用 青(紐付) 1.8': '枚', 'グレー 5.4・6.3 1.2': '枚',
-        '青 黒 緑 0.9': '枚', '白 0.6': '枚',
+    'シート': {
+        // シートは種類×サイズを問わず全品目 '枚'。28品目を unitFor で一括処理するためここは空。
     },
     'カヤシート': { '1.8': '枚', '3.6': '枚' },
     'ヒモ': { 'ヒモ': '巻' },
@@ -221,6 +219,8 @@ const SEED_UNITS: Record<string, Record<string, string>> = {
 };
 
 function unitFor(categoryName: string, itemName: string): string {
+    // シートは種類×サイズを問わず全て '枚'（28品目を一括）。
+    if (categoryName === 'シート') return '枚';
     return SEED_UNITS[categoryName]?.[itemName] ?? '本';
 }
 
@@ -244,6 +244,20 @@ interface SpineRow {
 }
 interface SpineGroup { groupLabel: string; rows: SpineRow[] }
 interface SpineColumn { column: PdfColumn; groups: SpineGroup[] }
+
+// シート在庫品目 = 出庫伝票のシート種類(SHEET_TYPES 7種) × サイズ4 = 28品目。
+// 出庫伝票の在庫項目をシート種類に一致させるための在庫マスタ定義（在庫カテゴリ名は「シート」）。
+// 先頭種類(SHEET_TYPES[0])の4サイズだけ「シート箱」のアンカーとして可視（spec=1.8/1.2/0.9/0.6）。
+// PDF/フォームはこの「シート」グループを SheetGridGroup / 種類セレクタで置換し行の内容は描画しないため、
+// 残り6種 × 4サイズ = 24品目は hideFromPdf（在庫専用・A案PDF/フォーム非表示）とする。
+const SHEET_ROWS: SpineRow[] = SHEET_TYPES.flatMap((type, ti) =>
+    (['1.8', '1.2', '0.9', '0.6'] as const).map((size) => ({
+        categoryName: 'シート',
+        itemName: `${type} ${size}`,
+        spec: size,
+        hideFromPdf: ti === 0 ? undefined : true,
+    })),
+);
 
 const SPINE: SpineColumn[] = [
     {
@@ -356,16 +370,11 @@ const SPINE: SpineColumn[] = [
                 { categoryName: 'ジョイント', itemName: 'ジョイント', spec: 'ジョイント' },
                 { categoryName: '単管ベース', itemName: '単管ベース', spec: '単管ベース' },
             ]},
-            // Sheet1 中列の「※1」欄＝シート。種類はドロップダウン選択（notes-JSON が数量の正）で、
-            // グリッドにはサイズ行 1.8/1.2/0.9/0.6 のみ表示する（Sheet1 と同じ見た目）。
-            // ネット品目名は在庫除外フラグ（excludeFromStockDecrement）・自然キー・seed のため温存し、
-            // 表示 spec のみ Sheet1 のサイズに合わせる（KNOWN_DISCREPANCIES #5）。
-            { groupLabel: 'シート', rows: [
-                { categoryName: 'ネット', itemName: '新築用 青(紐付) 1.8', spec: '1.8' },
-                { categoryName: 'ネット', itemName: 'グレー 5.4・6.3 1.2', spec: '1.2' },
-                { categoryName: 'ネット', itemName: '青 黒 緑 0.9', spec: '0.9' },
-                { categoryName: 'ネット', itemName: '白 0.6', spec: '0.6' },
-            ]},
+            // Sheet1 中列の「※1」欄＝シート箱。PDF/フォームはこの「シート」グループを
+            // SheetGridGroup（SHEET_TYPES）/ 種類セレクタで置換し、行の内容は描画しない。
+            // 在庫項目を出庫伝票のシート種類に合わせるため、シートは SHEET_TYPES 7種 × サイズ4 = 28品目
+            // （先頭4行が可視アンカー / 残り24品目は hideFromPdf の在庫専用）＝ SHEET_ROWS。
+            { groupLabel: 'シート', rows: SHEET_ROWS },
             { groupLabel: 'カヤシート', rows: [
                 { categoryName: 'カヤシート', itemName: '1.8', spec: '1.8' },
                 { categoryName: 'カヤシート', itemName: '3.6', spec: '3.6' },
@@ -483,10 +492,10 @@ function categorySortOrder(categoryName: string): number {
  * 注記:
  *   - シート関連の語彙（7 種）は SHEET_TYPES として別 export（notes-JSON のキー用）であり、
  *     在庫対象 CatalogItem 側ではネット 4 結合品目が該当する。SHEET_TYPES 自体は変更しない。
- *   - 本プロジェクトの catalog では「シート」専用カテゴリは存在せず、シートはネット品目
- *     （categoryName === 'ネット'）として表現されている（KNOWN_DISCREPANCIES #5 参照）。
+ *   - シートは在庫カテゴリ「シート」（SHEET_TYPES 7種 × サイズ4 = 28品目）として表現する。
+ *     先頭4行のみ PDF アンカーで可視、残りは hideFromPdf の在庫専用（KNOWN_DISCREPANCIES #5 参照）。
  */
-const STOCK_DECREMENT_EXCLUDED_CATEGORIES = new Set<string>(['ネット', 'リース品']);
+const STOCK_DECREMENT_EXCLUDED_CATEGORIES = new Set<string>(['シート', 'リース品']);
 
 /** 当該品目を倉庫在庫の自動減算対象から除外するか（Phase 3 が参照する構造フラグの算出元） */
 function isExcludedFromStockDecrement(categoryName: string): boolean {

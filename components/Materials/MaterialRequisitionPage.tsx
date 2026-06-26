@@ -124,8 +124,8 @@ const GRID_GROUPS: GridGroup[] = (() => {
     return groups;
 })();
 
-/** シート（※1）はネット品目として表現される。グリッドでは種類選択ブロックに置換する */
-const SHEET_GRID_CATEGORY = 'ネット';
+/** シート（※1）は在庫カテゴリ「シート」として表現される。グリッドでは種類選択ブロックに置換する */
+const SHEET_GRID_CATEGORY = 'シート';
 /** 自由記入欄の行数（リース品の下・3 列の最下段を揃える） */
 const FREE_ROW_COUNT = 19;
 /** フリー入力ヒント（単独品目の規格欄に淡色で表示） */

@@ -155,8 +155,8 @@ describe('catalog Phase 2: Sheet1 帳票準拠（A案グリッド）', () => {
         const sheetGroup = col2?.groups.find((g) => g.label === 'シート');
         expect(sheetGroup).toBeDefined();
         expect(sheetGroup!.rows.map((r) => r.spec)).toEqual(['1.8', '1.2', '0.9', '0.6']);
-        // 品目名（自然キー）はネットを温存（在庫除外フラグ・seed のため）
-        expect(sheetGroup!.rows.every((r) => r.categoryName === 'ネット')).toBe(true);
+        // シート箱のアンカー行は在庫カテゴリ「シート」（在庫除外フラグ・seed のため）
+        expect(sheetGroup!.rows.every((r) => r.categoryName === 'シート')).toBe(true);
     });
 });
 

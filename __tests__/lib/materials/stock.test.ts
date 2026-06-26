@@ -39,7 +39,7 @@ import {
 // --- catalog 実データに基づく自然キー（DB の category.name / item.name に対応）---
 const PILLAR = { categoryName: '柱', itemName: '3.6m' }; // 非除外（在庫減算対象）
 const HANDRAIL = { categoryName: '手摺', itemName: '1.8m' }; // 非除外
-const NET = { categoryName: 'ネット', itemName: '新築用 青(紐付) 1.8' }; // 除外
+const NET = { categoryName: 'シート', itemName: '新築用 青(紐付) 1.8' }; // 除外（シート）
 const LEASE = { categoryName: 'リース品', itemName: 'リース品' }; // 除外
 
 const FWD_REQ = ledgerReferenceType(LEDGER_SOURCE.REQUISITION, LEDGER_DIRECTION.FORWARD);
@@ -146,7 +146,7 @@ beforeEach(() => {
 });
 
 describe('isMaterialItemExcludedFromStockDecrement（純粋関数 / catalog 権威）', () => {
-    it('ネット結合品目は除外（true）', () => {
+    it('シート品目は除外（true）', () => {
         expect(
             isMaterialItemExcludedFromStockDecrement(NET.categoryName, NET.itemName),
         ).toBe(true);

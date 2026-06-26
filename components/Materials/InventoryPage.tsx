@@ -216,7 +216,7 @@ export default function InventoryPage() {
                 const applied = data.appliedCount ?? adjustments.length;
                 const excluded = data.excludedCount ?? 0;
                 if (excluded > 0) {
-                    toast.success(`${applied}件の在庫を更新しました（${excluded}件はネット/リース等の構造除外品目のため変更不可）`);
+                    toast.success(`${applied}件の在庫を更新しました（${excluded}件はシート/リース等の構造除外品目のため変更不可）`);
                 } else {
                     toast.success(`${applied}件の在庫を更新しました`);
                 }
@@ -469,7 +469,7 @@ function ListTab({
                                         <td className="px-4 py-3 text-right text-sm text-slate-300">—</td>
                                         <td className="px-4 py-3 text-right text-sm text-slate-300">—</td>
                                         <td className="px-4 py-3 text-xs text-slate-400" colSpan={2}>
-                                            <span className="inline-flex items-center gap-1"><Info className="w-3.5 h-3.5" />管理対象外（ネット/シート/リース）</span>
+                                            <span className="inline-flex items-center gap-1"><Info className="w-3.5 h-3.5" />管理対象外（シート/リース）</span>
                                         </td>
                                     </>
                                 ) : (
@@ -650,7 +650,7 @@ function EditModeList({
 }) {
     return (
         <div className="max-w-3xl space-y-2">
-            <p className="text-xs text-slate-500 mb-1">倉庫在庫の実数を入力します（棚卸し調整）。ネット/シート/リース等の構造除外品目は変更できません。</p>
+            <p className="text-xs text-slate-500 mb-1">倉庫在庫の実数を入力します（棚卸し調整）。シート/リース等の構造除外品目は変更できません。</p>
             {categories.map(cat => {
                 const expanded = expandedCategories.has(cat.id);
                 const catTotal = cat.items.reduce((s, i) => s + (editQuantities[i.id] ?? i.stockQuantity ?? 0), 0);
