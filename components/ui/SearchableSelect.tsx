@@ -8,6 +8,8 @@ export interface SearchableSelectOption {
     label: string;
     /** 任意。色サンプル（工事種別など）を選択肢の左に表示したいとき */
     color?: string;
+    /** 任意。ラベルに加えて検索対象にしたい語（職長名・別名など）。表示はされず検索のみに使う */
+    keywords?: string;
 }
 
 interface SearchableSelectProps {
@@ -83,7 +85,10 @@ export default function SearchableSelect({
     const filtered = useMemo(() => {
         if (!query.trim()) return options;
         const q = query.trim().toLowerCase();
-        return options.filter((o) => o.label.toLowerCase().includes(q));
+        return options.filter((o) =>
+            o.label.toLowerCase().includes(q) ||
+            (o.keywords ? o.keywords.toLowerCase().includes(q) : false),
+        );
     }, [options, query]);
 
     // highlight が範囲外にならないようクランプ

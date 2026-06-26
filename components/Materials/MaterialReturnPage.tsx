@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MapPin, ArrowBigUpDash, Check, PackageOpen } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { LentOutItem } from '@/lib/materials/lentOut';
 import QtyStepper from './ui/QtyStepper';
+import SearchableSelect from '@/components/ui/SearchableSelect';
 
 interface ProjectOption {
     id: string;
     title: string;
     name: string | null;
+    customerName?: string | null;
+    customerShortName?: string | null;
+    foremanNames?: string[];
 }
 
 const projectLabel = (p: ProjectOption) => p.name || p.title;
@@ -36,10 +40,10 @@ export default function MaterialReturnPage() {
 
     // アクティブ案件一覧（現場セレクタ用）
     useEffect(() => {
-        fetch('/api/project-masters?status=active', { cache: 'no-store' })
+        fetch('/api/materials/return-projects', { cache: 'no-store' })
             .then(r => (r.ok ? r.json() : []))
             .then(data => {
-                const list: ProjectOption[] = Array.isArray(data) ? data : data.projectMasters || [];
+                const list: ProjectOption[] = Array.isArray(data) ? data : [];
                 setProjects(list);
             })
             .catch(() => setProjects([]));
@@ -155,6 +159,24 @@ export default function MaterialReturnPage() {
         else groups.push({ categoryName: it.categoryName, items: [it] });
     }
 
+    // 現場セレクタの選択肢。ラベル=「元請名／現場名」、検索キーワードに職長名・元請名・現場名を含める。
+    const projectOptions = useMemo(() => {
+        const opts = projects.map(p => {
+            const customer = p.customerShortName || p.customerName || '';
+            const site = p.name || p.title;
+            const label = customer ? `${customer}／${site}` : site;
+            const keywords = [p.customerName, p.customerShortName, p.title, p.name, ...(p.foremanNames ?? [])]
+                .filter(Boolean)
+                .join(' ');
+            return { id: p.id, label, keywords };
+        });
+        // ディープリンク由来などで一覧に無い選択中現場も候補に残す
+        if (selectedProjectId && !projects.some(p => p.id === selectedProjectId)) {
+            opts.unshift({ id: selectedProjectId, label: selectedProjectName || '選択中の現場', keywords: '' });
+        }
+        return opts;
+    }, [projects, selectedProjectId, selectedProjectName]);
+
     return (
         <div className="w-full max-w-[1800px] mx-auto">
             {/* ヘッダー */}
@@ -172,20 +194,16 @@ export default function MaterialReturnPage() {
                     <MapPin className="w-3.5 h-3.5 text-teal-600" />
                     返却する現場
                 </label>
-                <select
+                <SearchableSelect
+                    options={projectOptions}
                     value={selectedProjectId}
-                    onChange={(e) => setSelectedProjectId(e.target.value)}
-                    className="w-full h-10 border border-slate-200 rounded-xl px-3 text-sm focus:ring-2 focus:ring-teal-500 shadow-sm bg-white"
-                >
-                    <option value="">現場を選択してください</option>
-                    {/* 完了案件などディープリンク由来で一覧に無い現場も選択肢として残す */}
-                    {selectedProjectId && !projects.some(p => p.id === selectedProjectId) && (
-                        <option value={selectedProjectId}>{selectedProjectName || '選択中の現場'}</option>
-                    )}
-                    {projects.map(p => (
-                        <option key={p.id} value={p.id}>{projectLabel(p)}</option>
-                    ))}
-                </select>
+                    onChange={setSelectedProjectId}
+                    searchable
+                    allowEmpty
+                    emptyLabel="選択を解除"
+                    placeholder="職長・元請名・現場名で検索"
+                    className="w-full"
+                />
             </div>
 
             {/* 貸出中リスト */}
