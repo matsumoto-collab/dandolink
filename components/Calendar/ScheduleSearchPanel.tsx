@@ -35,7 +35,7 @@ interface ScheduleSearchPanelProps {
     onJump: (date: Date, assignmentId: string) => void;
 }
 
-const MAX_RESULTS = 10;
+const MAX_RESULTS = 30;
 const DEBOUNCE_MS = 250;
 
 const assignmentsCache = new Map<string, AssignmentRow[]>();
@@ -67,24 +67,30 @@ export default function ScheduleSearchPanel({ isOpen, onClose, onJump }: Schedul
         return () => clearTimeout(t);
     }, [query]);
 
-    const filteredMasters = useMemo(() => {
-        if (!debouncedQuery) return [];
-        const q = normalizeForSearch(debouncedQuery);
-        return projectMasters
-            .filter(pm => {
-                const fields = [
-                    pm.name,
-                    pm.title,
-                    pm.honorific,
-                    pm.customerName,
-                    pm.customerShortName,
-                    pm.constructionSuffixName,
-                    pm.location,
-                    pm.siteShortName,
-                ].filter((v): v is string => !!v);
-                return fields.some(f => normalizeForSearch(f).includes(q));
-            })
-            .slice(0, MAX_RESULTS);
+    const { filteredMasters, totalMatches } = useMemo(() => {
+        const empty = { filteredMasters: [] as typeof projectMasters, totalMatches: 0 };
+        if (!debouncedQuery) return empty;
+        // スペース区切りで複数語 AND 検索（例:「アレス 中田」で元請×案件名を同時に絞り込み）。
+        // normalizeForSearch は NFKC 正規化するため全角スペースも半角に揃ってから分割される。
+        const tokens = normalizeForSearch(debouncedQuery).split(/\s+/).filter(Boolean);
+        if (tokens.length === 0) return empty;
+        const matched = projectMasters.filter(pm => {
+            const normFields = [
+                pm.name,
+                pm.title,
+                pm.honorific,
+                pm.customerName,
+                pm.customerShortName,
+                pm.constructionSuffixName,
+                pm.location,
+                pm.siteShortName,
+            ]
+                .filter((v): v is string => !!v)
+                .map(normalizeForSearch);
+            // 全トークンが「いずれかのフィールドに含まれる」= AND 一致
+            return tokens.every(tok => normFields.some(f => f.includes(tok)));
+        });
+        return { filteredMasters: matched.slice(0, MAX_RESULTS), totalMatches: matched.length };
     }, [projectMasters, debouncedQuery]);
 
     useEffect(() => {
@@ -240,11 +246,19 @@ export default function ScheduleSearchPanel({ isOpen, onClose, onJump }: Schedul
                         <div className="p-8 text-center text-sm text-slate-400">
                             <Search className="w-10 h-10 mx-auto mb-2 text-slate-200" />
                             案件名・元請・住所などで検索できます
+                            <div className="mt-1.5 text-xs text-slate-300">複数語はスペース区切りで絞り込み（例：アレス 中田）</div>
                         </div>
                     )}
 
                     {debouncedQuery && results.length === 0 && !isLoading && (
                         <div className="p-8 text-center text-sm text-slate-400">該当する案件がありません</div>
+                    )}
+
+                    {debouncedQuery && totalMatches > MAX_RESULTS && (
+                        <div className="mx-3 mt-3 mb-1 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                            該当 <span className="font-bold">{totalMatches}</span> 件中、更新の新しい上位 {MAX_RESULTS} 件を表示しています。
+                            スペース区切りでさらに絞り込めます（例：「アレス 中田」）。
+                        </div>
                     )}
 
                     <div className="px-3 py-2 space-y-2">
