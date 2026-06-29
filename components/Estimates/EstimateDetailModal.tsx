@@ -7,7 +7,7 @@ import { CompanyInfo } from '@/types/company';
 // React PDF生成は動的インポート（バンドルサイズ最適化）
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
 import { EstimateItem } from '@/types/estimate';
-import { X, FileDown, Printer, Trash2, Edit, FolderOpen, History } from 'lucide-react';
+import { X, FileDown, Printer, Trash2, Edit, FolderOpen, History, Receipt } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
@@ -30,6 +30,7 @@ interface EstimateDetailModalProps {
     onEdit: (estimate: Estimate) => void;
     onUpdateEstimate?: (id: string, data: { items: EstimateItem[]; costTotal: number | null }) => void;
     onCreateProject?: () => void;
+    onCreateInvoice?: () => void;
     customerName?: string;
     customerHonorific?: string;
 }
@@ -44,6 +45,7 @@ export default function EstimateDetailModal({
     onEdit,
     onUpdateEstimate,
     onCreateProject,
+    onCreateInvoice,
     customerName,
     customerHonorific,
 }: EstimateDetailModalProps) {
@@ -238,6 +240,16 @@ export default function EstimateDetailModal({
                                 >
                                     <FolderOpen size={18} />
                                     <span className="hidden sm:inline">案件を作成</span>
+                                </button>
+                            )}
+                            {!estimate.projectId && onCreateInvoice && (
+                                <button
+                                    onClick={() => { onCreateInvoice(); onClose(); }}
+                                    className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white hover:bg-teal-700 rounded-lg transition-colors"
+                                    title="この見積書から請求書を作成"
+                                >
+                                    <Receipt size={18} />
+                                    <span className="hidden sm:inline">請求書を作成</span>
                                 </button>
                             )}
                             <button

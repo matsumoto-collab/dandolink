@@ -3,11 +3,13 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useEstimates } from '@/hooks/useEstimates';
+import { useInvoices } from '@/hooks/useInvoices';
 import { useProjectMasters } from '@/hooks/useProjectMasters';
 import { useCompany } from '@/hooks/useCompany';
 import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Estimate, EstimateInput } from '@/types/estimate';
+import { InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
 import { Plus, Edit, Trash2, Search, FileText, CheckCircle, XCircle, Clock, Loader2, Link2Off, Copy, Check } from 'lucide-react';
 import { ProjectMasterFormData } from '@/components/ProjectMasters/ProjectMasterForm';
@@ -32,6 +34,10 @@ const EstimateDetailModal = dynamic(
     () => import('@/components/Estimates/EstimateDetailModal'),
     { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
 );
+const InvoiceModal = dynamic(
+    () => import('@/components/Invoices/InvoiceModal'),
+    { loading: () => <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50"><Loader2 className="w-8 h-8 animate-spin text-white" /></div> }
+);
 
 // 一覧から直接変更できるステータス選択肢（編集モーダルと同一）
 const ESTIMATE_STATUS_OPTIONS: StatusOption[] = [
@@ -43,6 +49,7 @@ const ESTIMATE_STATUS_OPTIONS: StatusOption[] = [
 
 export default function EstimateListPage() {
     const { estimates, isInitialized, ensureDataLoaded, addEstimate, updateEstimate, deleteEstimate } = useEstimates();
+    const { addInvoice } = useInvoices();
     const { projectMasters, fetchProjectMasters, createProjectMaster } = useProjectMasters();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
@@ -71,6 +78,10 @@ export default function EstimateListPage() {
     const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
     const [pmCreateSeed, setPmCreateSeed] = useState<Partial<ProjectMasterFormData> | undefined>(undefined);
     const pendingLinkEstimateIdRef = useRef<string | null>(null);
+
+    // 請求書作成モーダル（見積書から請求書を作成。請求書一覧と同じ InvoiceModal を使う）
+    const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
+    const [invoiceSeed, setInvoiceSeed] = useState<Partial<InvoiceInput> | null>(null);
 
     // プロジェクト名を取得（projectMasterIdで検索）
     const getProjectName = useCallback((projectMasterId: string) => {
@@ -175,6 +186,34 @@ export default function EstimateListPage() {
         }
         pendingLinkEstimateIdRef.current = null;
     }, [createProjectMaster, updateEstimate]);
+
+    // 見積書から請求書を作成するフロー（請求書フォームを見積内容で事前入力して開く）
+    const handleCreateInvoiceFromEstimate = useCallback((estimate: Estimate) => {
+        setInvoiceSeed({
+            customerId: estimate.customerId,
+            estimateId: estimate.id,
+            // 見積タイトルを請求書タイトルへ（「見積書」表記があれば「請求書」に置換）
+            title: estimate.title.replace('見積書', '請求書'),
+            // 見積明細をそのまま引き継ぐ。案件IDを持たないため請求書フォームの「手入力セクション」に展開される。
+            items: estimate.items.map((it) => ({ ...it })),
+            notes: estimate.notes,
+        });
+        setIsDetailModalOpen(false);
+        setIsInvoiceModalOpen(true);
+    }, []);
+
+    // 請求書の保存（見積書からの新規作成）。請求書一覧と同じ addInvoice を使う。
+    const handleSubmitInvoice = useCallback(async (data: InvoiceInput) => {
+        try {
+            await addInvoice(data);
+            toast.success('請求書を作成しました');
+            setIsInvoiceModalOpen(false);
+            setInvoiceSeed(null);
+        } catch (error) {
+            logger.error('Failed to create invoice from estimate:', error);
+            toast.error(error instanceof Error ? error.message : '請求書の作成に失敗しました');
+        }
+    }, [addInvoice]);
 
     const handleEdit = (estimate: Estimate) => {
         setEditingEstimate(estimate);
@@ -645,6 +684,7 @@ export default function EstimateListPage() {
                         } catch (e) { logger.error('予算書の保存に失敗:', e); }
                     }}
                     onCreateProject={selectedEstimate ? () => handleCreateProjectFromEstimate(selectedEstimate) : undefined}
+                    onCreateInvoice={selectedEstimate ? () => handleCreateInvoiceFromEstimate(selectedEstimate) : undefined}
                 />
             )}
 
@@ -658,6 +698,16 @@ export default function EstimateListPage() {
                     }}
                     onCreate={handleCreatePmFromEstimate}
                     initialData={pmCreateSeed}
+                />
+            )}
+
+            {/* 請求書作成モーダル（見積書から請求書を作成する場合。請求書一覧と同じモーダル） */}
+            {isInvoiceModalOpen && (
+                <InvoiceModal
+                    isOpen={isInvoiceModalOpen}
+                    onClose={() => { setIsInvoiceModalOpen(false); setInvoiceSeed(null); }}
+                    onSubmit={handleSubmitInvoice}
+                    initialData={invoiceSeed || undefined}
                 />
             )}
         </div>
