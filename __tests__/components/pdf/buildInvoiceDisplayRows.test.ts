@@ -160,4 +160,52 @@ describe('buildInvoiceDisplayRows', () => {
         const rows = buildInvoiceDisplayRows(items, [{ id: 'pm1', title: 'A様邸' }]);
         expect(rows.map(r => r.type)).toEqual(['header', 'category', 'item', 'item']);
     });
+
+    // ===== グループ合計（複数案件を1枚に請求するときの案件別小計） =====
+    const groupTotals = (rows: ReturnType<typeof buildInvoiceDisplayRows>) =>
+        rows.filter(r => r.type === 'header').map(r => (r as { groupTotal?: number }).groupTotal);
+
+    it('複数案件: 各見出しにその案件のトップレベル明細合計(groupTotal)が付く', () => {
+        const items = [
+            item({ description: 'a', projectMasterId: 'pm1', amount: 1000 }),
+            item({ description: 'b', projectMasterId: 'pm1', amount: 2000 }),
+            item({ description: 'c', projectMasterId: 'pm2', amount: 500 }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, [
+            { id: 'pm1', title: '案件1' },
+            { id: 'pm2', title: '案件2' },
+        ]);
+        expect(groupTotals(rows)).toEqual([3000, 500]);
+    });
+
+    it('値引き(負の明細)を含む案件の groupTotal は値引き後の金額', () => {
+        const items = [
+            item({ description: '足場', projectMasterId: 'pm1', amount: 10000 }),
+            item({ description: '値引き', projectMasterId: 'pm1', amount: -1000 }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, [{ id: 'pm1', title: '案件1' }]);
+        expect(groupTotals(rows)).toEqual([9000]);
+    });
+
+    it('inlineカテゴリの groupTotal は親amountのみ（子明細は二重加算しない）', () => {
+        const items = [
+            item({
+                id: 'cat1', description: '仮設', projectMasterId: 'pm1', isCategory: true, categoryType: 'inline', amount: 200,
+                children: [item({ id: 'c1', description: '単管', amount: 120 }), item({ id: 'c2', description: 'クランプ', amount: 80 })],
+            }),
+            item({ description: '雑費', projectMasterId: 'pm1', amount: 50 }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, [{ id: 'pm1', title: '案件1' }]);
+        expect(groupTotals(rows)).toEqual([250]); // 200(カテゴリ) + 50。子120/80は親に内包のため加算しない
+    });
+
+    it('案件なし(orphan)+sectionTitle ブロックの groupTotal はブロック内合計', () => {
+        const items = [
+            item({ description: '材料費', sectionTitle: '雑工事', amount: 300 }),
+            item({ description: '運搬費', sectionTitle: '雑工事', amount: 200 }),
+            item({ description: '諸経費', sectionTitle: '別工事', amount: 100 }),
+        ];
+        const rows = buildInvoiceDisplayRows(items, []);
+        expect(groupTotals(rows)).toEqual([500, 100]);
+    });
 });

@@ -42,6 +42,11 @@ export const invoiceStyles = StyleSheet.create({
     totalLabelText: { fontSize: 8, fontWeight: 'bold', color: COLORS.textSecondary },
     totalAmountText: { fontSize: 8, fontWeight: 'bold' },
 
+    // 複数案件を1枚に請求するとき、見出し行に出すその案件のグループ合計（小計）
+    groupTotalLabel: { fontSize: 8, fontWeight: 'bold', color: COLORS.textSecondary },
+    groupTotalAmount: { fontWeight: 'bold' },
+    groupTotalNeg: { fontWeight: 'bold', color: COLORS.red },
+
     // Info table
     infoLabelCell: { width: 55, backgroundColor: COLORS.infoBg, paddingHorizontal: 3, paddingVertical: 2, borderRightWidth: 0.5, borderRightColor: COLORS.borderLight, justifyContent: 'center' },
     infoLabelText: { fontSize: 8, color: COLORS.textSecondary },

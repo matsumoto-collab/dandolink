@@ -42,7 +42,7 @@ function getExtra(project: Project): { customerPostalCode?: string; customerAddr
 }
 
 type InvoiceDisplayRow =
-    | { type: 'header'; title: string }
+    | { type: 'header'; title: string; groupTotal?: number }
     | { type: 'category'; item: InvoiceItem }
     | { type: 'item'; item: InvoiceItem; index: number; isChild?: boolean };
 
@@ -78,11 +78,15 @@ export function buildInvoiceDisplayRows(
         }
     };
 
+    // グループ（案件／見出し）合計：そのグループのトップレベル明細 amount の合算。
+    // inlineカテゴリの amount は子明細を内包済みのため、トップレベルのみ合算し二重加算を避ける。
+    const sumGroup = (groupItems: InvoiceItem[]) => groupItems.reduce((s, it) => s + (it.amount || 0), 0);
+
     for (const pm of pmList) {
         const pmItems = allItems.filter(item => item.projectMasterId === pm.id);
         if (pmItems.length === 0) continue;
         const override = pmItems.find(it => it.sectionTitle && it.sectionTitle.trim())?.sectionTitle?.trim();
-        rows.push({ type: 'header', title: `【${override || pm.title}】` });
+        rows.push({ type: 'header', title: `【${override || pm.title}】`, groupTotal: sumGroup(pmItems) });
         pmItems.forEach(pushItem);
     }
 
@@ -90,40 +94,83 @@ export function buildInvoiceDisplayRows(
         item => !item.projectMasterId || !pmList.find(pm => pm.id === item.projectMasterId),
     );
     // 案件なし（手入力）の明細は見出し(sectionTitle)ごとに別セクションへ分ける。
-    // 連続する同一見出しは1ブロックにまとめ、見出しが変わるたびに見出し行を差し込む。
-    let prevOrphanTitle: string | null = null;
-    orphanItems.forEach((item, idx) => {
-        const title = item.sectionTitle?.trim() || '';
-        if (idx === 0 || title !== prevOrphanTitle) {
-            if (title) rows.push({ type: 'header', title: `【${title}】` });
-            prevOrphanTitle = title;
+    // 連続する同一見出しを1ブロックにまとめ、見出し行（グループ合計付き）を差し込む。
+    let oi = 0;
+    while (oi < orphanItems.length) {
+        const title = orphanItems[oi].sectionTitle?.trim() || '';
+        const block: InvoiceItem[] = [];
+        let oj = oi;
+        while (oj < orphanItems.length && (orphanItems[oj].sectionTitle?.trim() || '') === title) {
+            block.push(orphanItems[oj]);
+            oj++;
         }
-        pushItem(item);
-    });
+        if (title) rows.push({ type: 'header', title: `【${title}】`, groupTotal: sumGroup(block) });
+        block.forEach(pushItem);
+        oi = oj;
+    }
 
     return rows;
 }
 
-// 文字の表示幅（全角=1.0 / 半角英数・半角ｶﾅ=0.5）の概算。折り返し行数の見積りに使う。
-function visualLen(s = ''): number {
-    let n = 0;
-    for (const ch of s) n += /[\x00-\xff｡-ﾟ]/.test(ch) ? 0.5 : 1;
-    return n;
+// FitText（fitCellFontSize）は各セルを内寸に1行で収まるようフォントを自動縮小する（最小5pt）。
+// よって通常はどのセルも1行で描画され、最小フォントまで縮めても収まらない極端な長文のときだけ
+// 折り返して複数行になる。ページ分割の占有行数 rowSpan も、この実挙動に合わせて
+// 「各セルが最小フォント(5pt)で何行に折り返すか」で見積もる。
+// （旧実装は base フォント前提で折り返しを過大計上し、規格が長い明細＝実際は自動縮小で1行＝が
+//  多い請求書を、わずかな超過で不要に2ページへ送っていた。）
+const ROW_MIN_FS = 5;
+
+// 文字の概算占有 units（全角=1.0 / 半角英数・半角ｶﾅ=0.6）。fitCellFontSize と同一換算。
+function textUnits(s = ''): number {
+    let u = 0;
+    for (const ch of s) u += /[\x00-\xff｡-ﾟ]/.test(ch) ? 0.6 : 1;
+    return u;
 }
 
-// 1行=17pt前提の行数ベースpage分割を、長い品名・規格で2行以上に折り返すケースへ対応させる
-// ための「推定占有行数」。名称(幅120)・規格(幅100)・備考(可変)の最大折り返し数で見積もる。
-// 列幅から安全側に小さめの1行あたり文字数を採用（少し多めに見積もって溢れを防ぐ）。
+// セル内寸 contentWidth に対し、最小フォント(5pt)で何行に折り返すか＝実描画での占有行数。
+function cellLineCount(text: string, contentWidth: number): number {
+    const u = textUnits(text);
+    if (u <= 0) return 1;
+    const maxUnits = (contentWidth * 0.98) / ROW_MIN_FS; // 5ptで1行に収まる最大units（0.98=fitCellFontSizeと同じ安全マージン）
+    return Math.max(1, Math.ceil(u / maxUnits));
+}
+
 function rowSpan(row: InvoiceDisplayRow): number {
     if (row.type === 'header') {
-        return Math.max(1, Math.ceil(visualLen(row.title) / 22));
+        return cellLineCount(row.title, INV_W.headerName);
     }
     const it = row.item;
-    const nameExtra = row.type === 'item' && row.isChild ? 1 : 0; // 子明細インデント(全角space)分
-    const nameLines = Math.ceil((visualLen(it.description || '') + nameExtra) / 11);
-    const specLines = Math.ceil(visualLen(it.specification || '') / 9);
-    const noteLines = Math.ceil(visualLen(it.notes || '') / 12);
+    const indent = row.type === 'item' && row.isChild ? '　' : ''; // 子明細インデント(全角space)
+    const nameLines = cellLineCount(indent + (it.description || ''), INV_W.name);
+    const specLines = cellLineCount(it.specification || '', INV_W.spec);
+    const noteLines = cellLineCount(it.notes || '', INV_W.remarks);
     return Math.max(1, nameLines, specLines, noteLines);
+}
+
+// 案件（見出し）行。複数案件を1枚に請求するとき、見出し行の金額列にその案件のグループ合計を表示する。
+// showGroupTotals=false（案件1件以下）のときは従来どおり金額を出さない（＝単独案件では小計を出さない）。
+function HeaderRow({ title, groupTotal, showGroupTotals }: { title: string; groupTotal?: number; showGroupTotals: boolean }) {
+    const showTotal = showGroupTotals && groupTotal != null;
+    const gt = groupTotal ?? 0;
+    return (
+        <View style={styles.projectHeaderRow}>
+            <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
+            <View style={{ ...styles.cellName, width: 220 }}>
+                <FitText width={INV_W.headerName} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(title)}</FitText>
+            </View>
+            <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
+            <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
+            <View style={styles.cellPrice}>
+                {showTotal ? <Text style={styles.groupTotalLabel}>小計</Text> : <Text style={styles.cellText}></Text>}
+            </View>
+            <View style={styles.cellAmount}>
+                {showTotal
+                    ? <FitText width={INV_W.amount} base={INV_FS} style={gt < 0 ? styles.groupTotalNeg : styles.groupTotalAmount}>{gt < 0 ? `(${Math.abs(gt).toLocaleString()})` : gt.toLocaleString()}</FitText>
+                    : <Text style={styles.cellText}></Text>}
+            </View>
+            <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
+        </View>
+    );
 }
 
 // ===== Cover Page Component =====
@@ -142,6 +189,8 @@ function CoverPage({
     const allItems = invoice.items.filter(item => item.description);
     // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
     const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
+    // 複数案件（見出し2つ以上）を1枚に請求するときだけ、各案件の小計を見出し行に表示する。
+    const showGroupTotals = displayRows.filter(r => r.type === 'header').length >= 2;
 
     // 1枚に収まらない場合のみページ分割（各ページは独立した完結テーブル）。
     // *_NO_TOTALS = そのページが続く場合に載る行数 / *_WITH_TOTALS = そのページが最終（小計・備考あり）に載る行数。
@@ -189,19 +238,7 @@ function CoverPage({
 
     const renderRow = (row: (typeof displayRows)[number], i: number) => {
         if (row.type === 'header') {
-            return (
-                <View key={`header-${i}`} style={styles.projectHeaderRow}>
-                    <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
-                    <View style={{ ...styles.cellName, width: 220 }}>
-                        <FitText width={INV_W.headerName} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</FitText>
-                    </View>
-                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
-                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
-                </View>
-            );
+            return <HeaderRow key={`header-${i}`} title={row.title} groupTotal={row.groupTotal} showGroupTotals={showGroupTotals} />;
         }
         if (row.type === 'category') {
             const cat = row.item;
@@ -488,6 +525,8 @@ function DetailsPage({
     const allItems = invoice.items.filter(item => item.description);
     // 見出しは sectionTitle（この請求書だけの上書き）を優先し、無ければ案件マスタ名にフォールバック
     const displayRows = buildInvoiceDisplayRows(allItems, projectMasters);
+    // 複数案件（見出し2つ以上）を1枚に請求するときだけ、各案件の小計を見出し行に表示する。
+    const showGroupTotals = displayRows.filter(r => r.type === 'header').length >= 2;
 
     const formatAmount = (amount: number, isNegative: boolean): string => {
         if (isNegative) return `(${Math.abs(amount).toLocaleString()})`;
@@ -526,19 +565,7 @@ function DetailsPage({
                         const row = i < displayRows.length ? displayRows[i] : null;
 
                         if (row && row.type === 'header') {
-                            rows.push(
-                                <View key={`header-${i}`} style={styles.projectHeaderRow}>
-                                    <View style={styles.cellNo}><Text style={styles.cellText}></Text></View>
-                                    <View style={{ ...styles.cellName, width: 220 }}>
-                                        <FitText width={INV_W.headerName} base={INV_FS} style={{ fontWeight: 'bold' }}>{sanitizePdfText(row.title)}</FitText>
-                                    </View>
-                                    <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellAmount}><Text style={styles.cellText}></Text></View>
-                                    <View style={styles.cellRemarks}><Text style={styles.cellText}></Text></View>
-                                </View>
-                            );
+                            rows.push(<HeaderRow key={`header-${i}`} title={row.title} groupTotal={row.groupTotal} showGroupTotals={showGroupTotals} />);
                             continue;
                         }
 
