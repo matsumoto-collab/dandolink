@@ -12,6 +12,7 @@ jest.mock('@/lib/prisma', () => ({
         projectAssignment: { findMany: jest.fn() },
         constructionType: { findMany: jest.fn() },
         partnerWorkVolume: { findMany: jest.fn() },
+        partnerWorkVolumeMonth: { findUnique: jest.fn() },
     },
 }));
 
@@ -70,6 +71,8 @@ describe('/api/partner-work-volume GET — 原価と一致する重複排除', (
         (prisma.user.findMany as jest.Mock).mockResolvedValue([]);
         (prisma.constructionType.findMany as jest.Mock).mockResolvedValue([{ id: CT_ASSEMBLY, name: '組立' }]);
         (prisma.partnerWorkVolume.findMany as jest.Mock).mockResolvedValue([]);
+        // 公開状態の参照先（PartnerWorkVolumeMonth）。admin ロールでは公開フラグは表示をゲートしないため null で十分。
+        (prisma.partnerWorkVolumeMonth.findUnique as jest.Mock).mockResolvedValue(null);
     });
 
     it('同一案件×同一種別が複数手配でも、作業費の合計は単価1回分（代表配置のみ計上）', async () => {
