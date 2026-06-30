@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { groupFilesByUpload, formatUploadedAt } from '@/lib/projectFileGroups';
 
 const PdfViewer = dynamic(
     () => import('@/components/ui/PdfViewer').then(m => m.PdfViewer),
@@ -31,6 +32,8 @@ interface ProjectMasterFileData {
     fileSize: number;
     category: string;
     createdAt: string;
+    uploadedBy: string | null;
+    uploadedByName: string | null;
     signedUrl: string | null;
     thumbnailSignedUrl: string | null;
     originalStoragePath: string | null;
@@ -160,7 +163,7 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
     const selectedFiles = selectedCategory ? files.filter(f => f.category === selectedCategory) : [];
     const selectedImageFiles = selectedFiles.filter(f => f.fileType === 'image' && f.signedUrl);
     const selectedImages = selectedImageFiles.map(f => ({ src: f.signedUrl!, alt: f.fileName, thumbnail: f.thumbnailSignedUrl || f.signedUrl! }));
-    const selectedPdfs = selectedFiles.filter(f => f.fileType === 'pdf');
+    const selectedGroups = groupFilesByUpload(selectedFiles);
     const selectedLabel = CATEGORIES.find(c => c.key === selectedCategory)?.label ?? '';
 
     return (
@@ -225,72 +228,90 @@ export default function ProjectMasterFilesView({ projectMasterId }: ProjectMaste
                             </button>
                         </div>
 
-                        {/* コンテンツ */}
-                        <div className="overflow-y-auto p-4 space-y-4">
-                            {/* 画像グリッド: 3列・正方形（タップで拡大→ライトボックス内で保存） */}
-                            {selectedImages.length > 0 && (
-                                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                                    {selectedImages.map((img, idx) => (
-                                        <button
-                                            key={img.src}
-                                            type="button"
-                                            onClick={() => {
-                                                setLightboxImages(selectedImages);
-                                                setLightboxIndex(idx);
-                                                setLightboxOpen(true);
-                                            }}
-                                            className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 hover:opacity-80 active:opacity-60 transition-opacity"
-                                        >
-                                            <Image
-                                                src={img.thumbnail}
-                                                alt={img.alt}
-                                                fill
-                                                sizes="(max-width: 640px) 30vw, 120px"
-                                                className="object-cover"
-                                            />
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* PDFリスト */}
-                            {selectedPdfs.length > 0 && (
-                                <div className="space-y-2">
-                                    {selectedPdfs.map(file => (
-                                        <div
-                                            key={file.id}
-                                            className="w-full flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 min-h-[56px]"
-                                        >
-                                            <button
-                                                type="button"
-                                                onClick={() => file.signedUrl && setPdfView({ url: file.signedUrl, name: file.fileName })}
-                                                className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
-                                            >
-                                                <div className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 shrink-0">
-                                                    <FileText className="w-5 h-5 text-slate-400" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-sm font-medium text-slate-600 truncate">{file.fileName}</p>
-                                                    <p className="text-xs text-slate-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
-                                                </div>
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDownload(file)}
-                                                disabled={downloadingId === file.id}
-                                                className="shrink-0 p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50"
-                                                title="ダウンロード"
-                                            >
-                                                {downloadingId === file.id ? (
-                                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                                ) : (
-                                                    <Download className="w-5 h-5" />
-                                                )}
-                                            </button>
+                        {/* コンテンツ: アップロード単位（保存者×時刻）でグループ表示 */}
+                        <div className="overflow-y-auto p-4 space-y-5">
+                            {selectedGroups.map((group) => {
+                                const groupImages = group.files.filter(f => f.fileType === 'image' && f.signedUrl);
+                                const groupPdfs = group.files.filter(f => f.fileType === 'pdf');
+                                return (
+                                    <div key={group.key} className="space-y-2">
+                                        {/* 見出し: 日時 + 保存者 */}
+                                        <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
+                                            <span>{formatUploadedAt(group.representativeAt)}</span>
+                                            <span className="text-slate-300">·</span>
+                                            <span>{group.uploadedByName || '保存者不明'}</span>
                                         </div>
-                                    ))}
-                                </div>
-                            )}
+
+                                        {/* 画像グリッド: 3列・正方形（タップで拡大→ライトボックス内で保存） */}
+                                        {groupImages.length > 0 && (
+                                            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                                                {groupImages.map((f) => {
+                                                    const globalIdx = selectedImages.findIndex(im => im.src === f.signedUrl);
+                                                    return (
+                                                        <button
+                                                            key={f.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setLightboxImages(selectedImages);
+                                                                setLightboxIndex(globalIdx >= 0 ? globalIdx : 0);
+                                                                setLightboxOpen(true);
+                                                            }}
+                                                            className="relative aspect-square overflow-hidden rounded-lg border border-slate-200 hover:opacity-80 active:opacity-60 transition-opacity"
+                                                        >
+                                                            <Image
+                                                                src={f.thumbnailSignedUrl || f.signedUrl!}
+                                                                alt={f.fileName}
+                                                                fill
+                                                                sizes="(max-width: 640px) 30vw, 120px"
+                                                                className="object-cover"
+                                                            />
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+
+                                        {/* PDFリスト */}
+                                        {groupPdfs.length > 0 && (
+                                            <div className="space-y-2">
+                                                {groupPdfs.map(file => (
+                                                    <div
+                                                        key={file.id}
+                                                        className="w-full flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200 min-h-[56px]"
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => file.signedUrl && setPdfView({ url: file.signedUrl, name: file.fileName })}
+                                                            className="flex items-center gap-3 flex-1 min-w-0 text-left hover:opacity-80 transition-opacity"
+                                                        >
+                                                            <div className="w-10 h-10 flex items-center justify-center bg-slate-50 rounded-lg border border-slate-200 shrink-0">
+                                                                <FileText className="w-5 h-5 text-slate-400" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-slate-600 truncate">{file.fileName}</p>
+                                                                <p className="text-xs text-slate-400 mt-0.5">{formatFileSize(file.fileSize)}</p>
+                                                            </div>
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDownload(file)}
+                                                            disabled={downloadingId === file.id}
+                                                            className="shrink-0 p-2 text-slate-500 hover:text-blue-600 hover:bg-white rounded-lg transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center disabled:opacity-50"
+                                                            title="ダウンロード"
+                                                        >
+                                                            {downloadingId === file.id ? (
+                                                                <Loader2 className="w-5 h-5 animate-spin" />
+                                                            ) : (
+                                                                <Download className="w-5 h-5" />
+                                                            )}
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>

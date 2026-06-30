@@ -46,6 +46,18 @@ export async function GET(_req: NextRequest, context: RouteContext) {
             orderBy: { createdAt: 'desc' },
         });
 
+        // 保存者名を解決（ProjectMasterFile は User リレーション未設定のため uploadedBy で別引き）
+        const uploaderIds = Array.from(
+            new Set(files.map((f) => f.uploadedBy).filter((v): v is string => !!v))
+        );
+        const uploaders = uploaderIds.length > 0
+            ? await prisma.user.findMany({
+                where: { id: { in: uploaderIds } },
+                select: { id: true, displayName: true },
+            })
+            : [];
+        const uploaderNameById = new Map(uploaders.map((u) => [u.id, u.displayName]));
+
         // 署名付きURLをキャッシュ利用（有効期限5分超ならDB値を再利用）
         const now = new Date();
         const BUFFER_MS = 5 * 60 * 1000;
@@ -111,7 +123,13 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                     });
                 }
 
-                return { ...file, signedUrl, thumbnailSignedUrl, originalSignedUrl };
+                return {
+                    ...file,
+                    signedUrl,
+                    thumbnailSignedUrl,
+                    originalSignedUrl,
+                    uploadedByName: file.uploadedBy ? uploaderNameById.get(file.uploadedBy) ?? null : null,
+                };
             })
         );
 
@@ -314,7 +332,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         });
 
         return NextResponse.json(
-            { ...projectMasterFile, signedUrl: newSignedUrl, thumbnailSignedUrl: thumbSignedUrl, originalSignedUrl },
+            { ...projectMasterFile, signedUrl: newSignedUrl, thumbnailSignedUrl: thumbSignedUrl, originalSignedUrl, uploadedByName: session!.user.name ?? null },
             { status: 201 }
         );
     } catch (error) {

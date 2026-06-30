@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
+import { groupFilesByUpload, formatUploadedAt } from '@/lib/projectFileGroups';
 
 const PdfViewer = dynamic(
     () => import('@/components/ui/PdfViewer').then(m => m.PdfViewer),
@@ -35,6 +36,8 @@ interface ProjectMasterFileData {
     category: string;
     description: string | null;
     createdAt: string;
+    uploadedBy: string | null;
+    uploadedByName: string | null;
     signedUrl: string | null;
     thumbnailSignedUrl: string | null;
     originalSignedUrl: string | null;
@@ -433,8 +436,16 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
             {tabFiles.length === 0 ? (
                 <p className="text-sm text-slate-400 text-center py-2">ファイルがありません</p>
             ) : (
-                <div className="space-y-2">
-                    {tabFiles.map((file) => (
+                <div className="space-y-4">
+                    {groupFilesByUpload(tabFiles).map((group) => (
+                        <div key={group.key} className="space-y-2">
+                            {/* 見出し: 日時 + 保存者 */}
+                            <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500 px-1">
+                                <span>{formatUploadedAt(group.representativeAt)}</span>
+                                <span className="text-slate-300">·</span>
+                                <span>{group.uploadedByName || '保存者不明'}</span>
+                            </div>
+                            {group.files.map((file) => (
                         <div
                             key={file.id}
                             className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200"
@@ -497,7 +508,7 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     </span>
                                 )}
                                 <p className="text-xs text-slate-400">
-                                    {formatFileSize(file.fileSize)} · {new Date(file.createdAt).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                    {formatFileSize(file.fileSize)}
                                 </p>
                             </div>
 
@@ -556,6 +567,8 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                     )}
                                 </button>
                             </div>
+                        </div>
+                            ))}
                         </div>
                     ))}
                 </div>
