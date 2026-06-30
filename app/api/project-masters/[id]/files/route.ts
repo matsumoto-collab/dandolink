@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
 import { parseJsonField } from '@/lib/json-utils';
+import { resolveConstructionTypeForFile } from '@/lib/photoConstructionType';
 
 interface RouteContext {
     params: Promise<{ id: string }>;
@@ -57,6 +58,45 @@ export async function GET(_req: NextRequest, context: RouteContext) {
             })
             : [];
         const uploaderNameById = new Map(uploaders.map((u) => [u.id, u.displayName]));
+
+        // 完了報告写真(assembly/demolition/other)の工事種別を推測。
+        // 写真は配置への参照を持たないため uploadedBy×createdAt で配置を照合する。
+        const REPORT_CATEGORIES = new Set(['assembly', 'demolition', 'other']);
+        const ctNameByFileId = new Map<string, string>();
+        if (files.some((f) => REPORT_CATEGORIES.has(f.category) && f.uploadedBy)) {
+            const [assignments, constructionTypes] = await Promise.all([
+                prisma.projectAssignment.findMany({
+                    where: { projectMasterId: id },
+                    select: {
+                        date: true,
+                        assignedEmployeeId: true,
+                        confirmedWorkerIds: true,
+                        workStartedAt: true,
+                        workEndedAt: true,
+                        constructionType: true,
+                    },
+                }),
+                prisma.constructionType.findMany({ select: { id: true, name: true } }),
+            ]);
+            const ctNameById = new Map(constructionTypes.map((c) => [c.id, c.name]));
+            const assignmentsForMatch = assignments.map((a) => ({
+                date: a.date.toISOString(),
+                assignedEmployeeId: a.assignedEmployeeId,
+                workerIds: parseJsonField<string[]>(a.confirmedWorkerIds, []),
+                workStartedAt: a.workStartedAt ? a.workStartedAt.toISOString() : null,
+                workEndedAt: a.workEndedAt ? a.workEndedAt.toISOString() : null,
+                constructionType: a.constructionType,
+            }));
+            for (const f of files) {
+                if (!REPORT_CATEGORIES.has(f.category)) continue;
+                const name = resolveConstructionTypeForFile(
+                    { uploadedBy: f.uploadedBy, createdAt: f.createdAt.toISOString() },
+                    assignmentsForMatch,
+                    ctNameById,
+                );
+                if (name) ctNameByFileId.set(f.id, name);
+            }
+        }
 
         // 署名付きURLをキャッシュ利用（有効期限5分超ならDB値を再利用）
         const now = new Date();
@@ -129,6 +169,7 @@ export async function GET(_req: NextRequest, context: RouteContext) {
                     thumbnailSignedUrl,
                     originalSignedUrl,
                     uploadedByName: file.uploadedBy ? uploaderNameById.get(file.uploadedBy) ?? null : null,
+                    constructionTypeName: ctNameByFileId.get(file.id) ?? null,
                 };
             })
         );

@@ -13,6 +13,8 @@ export interface GroupableFile {
     createdAt: string;
     uploadedBy?: string | null;
     uploadedByName?: string | null;
+    /** 推測した工事種別名（完了報告写真のみ・無ければ null/undefined） */
+    constructionTypeName?: string | null;
 }
 
 export interface FileGroup<T extends GroupableFile> {
@@ -22,6 +24,8 @@ export interface FileGroup<T extends GroupableFile> {
     uploadedBy: string | null;
     /** 保存者の表示名（解決できなければ null） */
     uploadedByName: string | null;
+    /** 推測した工事種別名（グループ先頭ファイル基準・無ければ null） */
+    constructionTypeName: string | null;
     /** 見出しに使う代表時刻（グループ内で最も新しい createdAt） */
     representativeAt: string;
     files: T[];
@@ -72,6 +76,7 @@ export function groupFilesByUpload<T extends GroupableFile>(files: T[]): FileGro
                 key: file.id,
                 uploadedBy,
                 uploadedByName: file.uploadedByName ?? null,
+                constructionTypeName: file.constructionTypeName ?? null,
                 representativeAt: file.createdAt,
                 files: [file],
             });

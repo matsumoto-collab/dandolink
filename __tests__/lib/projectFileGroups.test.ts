@@ -82,6 +82,20 @@ describe('groupFilesByUpload', () => {
         expect(groups.map((g) => g.key)).toEqual(['d', 'c', 'a']);
         expect(groups[1].files.map((f) => f.id)).toEqual(['c', 'b']);
     });
+
+    it('グループは先頭ファイルの constructionTypeName を採用する', () => {
+        const groups = groupFilesByUpload([
+            { id: 'b', createdAt: at(5), uploadedBy: 'u1', constructionTypeName: '上棟シート貼り' },
+            { id: 'a', createdAt: at(0), uploadedBy: 'u1', constructionTypeName: '上棟シート貼り' },
+        ]);
+        expect(groups).toHaveLength(1);
+        expect(groups[0].constructionTypeName).toBe('上棟シート貼り');
+    });
+
+    it('constructionTypeName が無ければ null', () => {
+        const groups = groupFilesByUpload([file('a', 0, 'u1')]);
+        expect(groups[0].constructionTypeName).toBeNull();
+    });
 });
 
 describe('formatUploadedAt', () => {

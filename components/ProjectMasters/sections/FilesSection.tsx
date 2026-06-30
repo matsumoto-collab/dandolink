@@ -38,6 +38,7 @@ interface ProjectMasterFileData {
     createdAt: string;
     uploadedBy: string | null;
     uploadedByName: string | null;
+    constructionTypeName?: string | null;
     signedUrl: string | null;
     thumbnailSignedUrl: string | null;
     originalSignedUrl: string | null;
@@ -444,6 +445,12 @@ export function FilesSection({ projectMasterId }: FilesSectionProps) {
                                 <span>{formatUploadedAt(group.representativeAt)}</span>
                                 <span className="text-slate-300">·</span>
                                 <span>{group.uploadedByName || '保存者不明'}</span>
+                                {group.constructionTypeName && (
+                                    <>
+                                        <span className="text-slate-300">·</span>
+                                        <span className="text-slate-700 font-semibold">{group.constructionTypeName}</span>
+                                    </>
+                                )}
                             </div>
                             {group.files.map((file) => (
                         <div
