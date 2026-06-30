@@ -182,6 +182,15 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn(),
         },
+        projectBillingDecision: {
+            findMany: jest.fn(),
+            findUnique: jest.fn(),
+            upsert: jest.fn(),
+            deleteMany: jest.fn(),
+            create: jest.fn(),
+            update: jest.fn(),
+            delete: jest.fn(),
+        },
         // Raw SQL (advisory lock 等) は no-op
         $executeRaw: jest.fn().mockResolvedValue(0),
         $executeRawUnsafe: jest.fn().mockResolvedValue(0),

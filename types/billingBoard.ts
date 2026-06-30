@@ -45,9 +45,11 @@ export interface BillingBoardRow {
     estimateAmount: number | null;
     /** 見積が複数あり見積金額が未設定＝行で「見積を選択」が必要。 */
     needsEstimatePick: boolean;
-    /** この案件ぶんの請求済み合計（税抜）。 */
+    /** この案件ぶんの請求済み合計（税抜・全期間）。行の補助表示（請求済／残）に使う。 */
     invoicedAmount: number;
-    /** 'none'|'unbilled'|'partial'（'full' はボードから除外済み）。 */
+    /** この締め月（periodFrom〜periodTo）内に発行された請求書の、この案件ぶんの請求額（税抜）。「請求済み」タブの判定・表示に使う。 */
+    monthlyInvoicedAmount: number;
+    /** 'none'|'unbilled'|'partial'|'full'（案件トータル）。行のバッジ表示用。タブ分類には monthlyInvoicedAmount を使う。 */
     billingStatus: BillingStatus;
     /** 残額（見積金額−請求済、見積金額未設定なら null）。 */
     remainingAmount: number | null;

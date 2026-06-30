@@ -70,12 +70,13 @@ function ymLabel(ym: string): string {
 
 /**
  * その行が現在のタブに属するか。
- * 「請求済み」タブ＝全額請求済み(full) または 手動で「請求済み」にした案件(billingDecision='billed')。
- * 他タブはそのいずれも除外する（請求済みは「請求済み」タブだけに出す）。
+ * 「請求済み」タブ＝この締め月に請求した(monthlyInvoicedAmount>0) または 手動で「請求済み」にした案件(billingDecision='billed')。
+ * 他タブはそのいずれも除外する（請求済みは「請求済み」タブだけに出す）。実請求は月ごとに判定し、月をまたいで貼り付かない。
  */
 function inTab(r: Row, tab: TabKey): boolean {
-    if (tab === 'billed') return r.billingStatus === 'full' || r.billingDecision === 'billed';
-    if (r.billingStatus === 'full' || r.billingDecision === 'billed') return false;
+    const billedThisMonth = r.monthlyInvoicedAmount > 0;
+    if (tab === 'billed') return billedThisMonth || r.billingDecision === 'billed';
+    if (billedThisMonth || r.billingDecision === 'billed') return false;
     if (tab === 'pending') return r.billingDecision === 'pending';
     if (tab === 'hold') return r.billingDecision === 'hold';
     return r.billingDecision === 'excluded';
@@ -347,7 +348,7 @@ export default function BillingBoardPage() {
     const groupSubtotal = useCallback(
         (g: CustomerGroup) =>
             tab === 'billed'
-                ? g.rows.reduce((s, r) => s + (r.invoicedAmount || 0), 0)
+                ? g.rows.reduce((s, r) => s + (r.monthlyInvoicedAmount || 0), 0)
                 : g.rows.reduce((s, r) => s + (r.remainingAmount ?? r.contractAmount ?? 0), 0),
         [tab],
     );
@@ -587,7 +588,8 @@ export default function BillingBoardPage() {
                 const res = await fetch(`/api/project-masters/${row.id}/billing-decision`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ decision }),
+                    // 判断は「案件×締め月」ごとに保存する。締め分モードは表示中の基準月、任意範囲は当月をキーにする。
+                    body: JSON.stringify({ decision, periodKey: mode === 'closing' ? month : currentMonthYm() }),
                 });
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({}));
@@ -602,7 +604,7 @@ export default function BillingBoardPage() {
                 setBusyRowId(null);
             }
         },
-        [fetchBoard],
+        [fetchBoard, mode, month],
     );
 
     const handleHold = useCallback((row: Row) => setDecision(row, 'hold', '保留にしました'), [setDecision]);
@@ -896,6 +898,12 @@ export default function BillingBoardPage() {
                 ))}
             </div>
 
+            {mode === 'range' && (
+                <div className="mb-3 flex-shrink-0 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    任意範囲では請求判断（まだ／対象外／請求済み）は変更できません。判断は「締め分」モードで行ってください。
+                </div>
+            )}
+
             {/* フィルタ（モバイルは検索を伸縮させて折返しを2行以内に） */}
             <div className="mb-3 sm:mb-4 flex flex-shrink-0 flex-wrap items-center gap-2">
                 <div className="relative flex-1 min-w-[160px] sm:flex-none sm:min-w-0">
@@ -1019,6 +1027,7 @@ export default function BillingBoardPage() {
                                             userMap={userMap}
                                             busy={busyRowId === row.id}
                                             tab={tab}
+                                            canDecide={mode === 'closing'}
                                             staged={
                                                 staged[row.id]
                                                     ? { amount: staged[row.id].total, note: staged[row.id].label }

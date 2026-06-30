@@ -84,3 +84,13 @@ export function currentClosingDate(closingDay?: number | null, today: Date = new
     else d = new Date(Date.UTC(y, m + 1, cd)); // 翌月締め
     return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth() + 1)}-${pad2(d.getUTCDate())}`;
 }
+
+/**
+ * 当月（JST）の締め基準月キー "YYYY-MM" を返す。
+ * 請求判断ボードの periodKey（案件×締め月ごとの判断キー）の当月フォールバックに使う。
+ * 月末跨ぎの判定は JST 基準（UTC からの +9h で寄せて年月を取る）。
+ */
+export function currentPeriodKeyJst(today: Date = new Date()): string {
+    const jst = new Date(today.getTime() + 9 * 60 * 60 * 1000);
+    return `${jst.getUTCFullYear()}-${pad2(jst.getUTCMonth() + 1)}`;
+}

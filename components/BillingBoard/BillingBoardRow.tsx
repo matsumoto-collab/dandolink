@@ -60,6 +60,8 @@ interface BillingBoardRowProps {
     userMap: Record<string, string>;
     /** この行で操作実行中はボタンを無効化。 */
     busy?: boolean;
+    /** 請求判断（まだ/対象外/請求済み/判断に戻す）を変更できるか。締め分モードのみ true（任意範囲は閲覧専用）。 */
+    canDecide: boolean;
     tab: 'pending' | 'hold' | 'excluded' | 'billed';
     /** ボード上の請求対象（クライアント保持・null=未選択）。請求書発行までの選択を表す。 */
     staged?: { amount: number; note?: string } | null;
@@ -83,6 +85,7 @@ export default function BillingBoardRow({
     userMap,
     busy,
     tab,
+    canDecide,
     staged,
     onRequest,
     onMarkBilled,
@@ -156,10 +159,10 @@ export default function BillingBoardRow({
                 {/* 右：請求済み=請求額(full)/手動マーク／請求対象=金額+取消／それ以外=判断ボタン */}
                 <div className="flex flex-shrink-0 flex-wrap items-center justify-end gap-2">
                     {tab === 'billed' ? (
-                        row.billingStatus === 'full' ? (
+                        row.monthlyInvoicedAmount > 0 ? (
                             <div className="text-right">
-                                <div className="text-[10px] text-slate-500">請求済み(税抜)</div>
-                                <div className="text-lg font-bold text-emerald-700">{yen(row.invoicedAmount)}</div>
+                                <div className="text-[10px] text-slate-500">この月の請求(税抜)</div>
+                                <div className="text-lg font-bold text-emerald-700">{yen(row.monthlyInvoicedAmount)}</div>
                             </div>
                         ) : (
                             // 手動で「請求済み」にした案件（実際の請求書とは無関係）。判断に戻せるようにする。
@@ -167,9 +170,11 @@ export default function BillingBoardRow({
                                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700">
                                     <CheckCircle2 className="h-3 w-3" /> 手動で請求済み
                                 </span>
-                                <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
-                                    判断に戻す
-                                </Button>
+                                {canDecide && (
+                                    <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
+                                        判断に戻す
+                                    </Button>
+                                )}
                             </>
                         )
                     ) : staged ? (
@@ -192,19 +197,21 @@ export default function BillingBoardRow({
                                         請求する
                                     </Button>
                                     {/* 手動で「請求済み」に（社外請求済み等）。請求済みタブへ送る。色は請求済バッジに合わせ緑系 */}
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        onClick={() => onMarkBilled(row)}
-                                        disabled={busy}
-                                        leftIcon={<CheckCircle2 className="h-4 w-4" />}
-                                        className="!border-emerald-300 !text-emerald-700 hover:!border-emerald-400 hover:!bg-emerald-50 focus:!ring-emerald-400"
-                                    >
-                                        請求済み
-                                    </Button>
+                                    {canDecide && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            onClick={() => onMarkBilled(row)}
+                                            disabled={busy}
+                                            leftIcon={<CheckCircle2 className="h-4 w-4" />}
+                                            className="!border-emerald-300 !text-emerald-700 hover:!border-emerald-400 hover:!bg-emerald-50 focus:!ring-emerald-400"
+                                        >
+                                            請求済み
+                                        </Button>
+                                    )}
                                 </>
                             )}
-                            {tab === 'pending' && (
+                            {canDecide && tab === 'pending' && (
                                 <>
                                     <Button type="button" variant="outline" onClick={() => onHold(row)} disabled={busy}>
                                         まだ
@@ -214,7 +221,7 @@ export default function BillingBoardRow({
                                     </Button>
                                 </>
                             )}
-                            {(tab === 'hold' || tab === 'excluded') && (
+                            {canDecide && (tab === 'hold' || tab === 'excluded') && (
                                 <Button type="button" variant="outline" onClick={() => onRestore(row)} disabled={busy}>
                                     判断に戻す
                                 </Button>

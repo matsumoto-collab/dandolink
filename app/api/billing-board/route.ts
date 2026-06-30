@@ -7,6 +7,7 @@ import {
 } from '@/lib/api/utils';
 import {
     computeInvoicedByProject,
+    invoicedAmountForProject,
     getBillingStatus,
     type InvoiceForBillingSummary,
 } from '@/lib/billing/billingStatus';
@@ -75,6 +76,9 @@ export async function GET(req: NextRequest) {
             refMonth0 = jst.getUTCMonth();
         }
 
+        // 締め分モードの判断キー（periodKey="YYYY-MM"＝基準月）。案件×締め月ごとの請求判断の解決に使う。
+        const periodKey = `${refYear}-${pad(refMonth0 + 1)}`;
+
         // 取得対象（superset）：締め分は前月初〜当月末（全締め日の窓を内包）、任意範囲は from〜to。
         let supersetFrom: string;
         let supersetTo: string;
@@ -109,7 +113,6 @@ export async function GET(req: NextRequest) {
                 status: true,
                 contractAmount: true,
                 createdBy: true,
-                billingDecision: true,
             },
         });
 
@@ -118,9 +121,9 @@ export async function GET(req: NextRequest) {
             return NextResponse.json([], { headers: { 'Cache-Control': 'no-store' } });
         }
 
-        const [invoices, assignments, estimates, pendingDrafts] = await Promise.all([
+        const [invoices, assignments, estimates, pendingDrafts, decisions] = await Promise.all([
             prisma.invoice.findMany({
-                select: { status: true, subtotal: true, items: true, projectMasterId: true },
+                select: { status: true, subtotal: true, items: true, projectMasterId: true, createdAt: true },
             }),
             prisma.projectAssignment.findMany({
                 where: { projectMasterId: { in: projectIds }, date: { gte: start, lte: end } },
@@ -141,16 +144,25 @@ export async function GET(req: NextRequest) {
                 where: { projectId: { in: projectIds }, status: 'pending', deletedAt: null },
                 select: { projectId: true },
             }),
+            // 締め分モードのみ：当月(periodKey)の請求判断を引く。任意範囲モードは判断を出さない（pending固定）。
+            rangeMode
+                ? Promise.resolve([] as { projectMasterId: string; decision: string }[])
+                : prisma.projectBillingDecision.findMany({
+                      where: { projectMasterId: { in: projectIds }, periodKey },
+                      select: { projectMasterId: true, decision: true },
+                  }),
         ]);
 
-        const invoicedByProject = computeInvoicedByProject(
-            invoices.map((inv): InvoiceForBillingSummary => ({
-                status: inv.status,
-                subtotal: Number(inv.subtotal),
-                items: parseJsonField<InvoiceForBillingSummary['items']>(inv.items, []),
-                projectMasterId: inv.projectMasterId,
-            })),
-        );
+        // 請求書を集計用の形に正規化（明細 parse 済み・createdAt 付き）。
+        // 案件トータルの請求済み（invoicedByProject）と、月ごとの請求実績（後述）の両方で再利用する。
+        const normalizedInvoices = invoices.map((inv) => ({
+            status: inv.status,
+            subtotal: Number(inv.subtotal),
+            items: parseJsonField<InvoiceForBillingSummary['items']>(inv.items, []),
+            projectMasterId: inv.projectMasterId,
+            createdAt: inv.createdAt,
+        }));
+        const invoicedByProject = computeInvoicedByProject(normalizedInvoices);
 
         // superset 内の配置を案件ごとに（asc 取得済み）
         type Asg = (typeof assignments)[number];
@@ -174,6 +186,11 @@ export async function GET(req: NextRequest) {
         }
 
         const draftProjectIds = new Set(pendingDrafts.map((d) => d.projectId));
+
+        // 案件ID → 当月の請求判断（pending はレコード無し＝Map に現れない）。任意範囲モードは decisions=[] で常に空。
+        const decisionByProject = new Map<string, BillingDecision>(
+            decisions.map((d) => [d.projectMasterId, d.decision as BillingDecision]),
+        );
 
         const rows: BillingBoardRow[] = [];
         for (const p of projects) {
@@ -205,6 +222,16 @@ export async function GET(req: NextRequest) {
             }
 
             const invoiced = invoicedByProject[p.id] ?? 0;
+
+            // 月ごとの請求実績：この締め月（win）内に発行された請求書の、この案件ぶんの請求額（税抜）。
+            // 「請求済み」タブはこの月内の請求で判定する（案件トータルの billingStatus とは別＝月をまたがない）。
+            let monthlyInvoiced = 0;
+            for (const inv of normalizedInvoices) {
+                if (inv.status === 'cancelled') continue;
+                if (inv.createdAt < winStart || inv.createdAt > winEnd) continue;
+                monthlyInvoiced += invoicedAmountForProject(inv, p.id);
+            }
+
             const contract = p.contractAmount ?? null;
             const eCount = estimateCountByProject.get(p.id) ?? 0;
             // 見積金額の基準：手入力(contractAmount)があればそれ／無く見積1件なら自動でその額／複数は要選択(null)
@@ -233,6 +260,7 @@ export async function GET(req: NextRequest) {
                 estimateAmount,
                 needsEstimatePick,
                 invoicedAmount: invoiced,
+                monthlyInvoicedAmount: monthlyInvoiced,
                 billingStatus,
                 remainingAmount: estimateAmount != null ? estimateAmount - invoiced : null,
                 assigneeIds: extractAssigneeIds(p.createdBy ?? undefined),
@@ -243,7 +271,7 @@ export async function GET(req: NextRequest) {
                 estimateCount: estimateCountByProject.get(p.id) ?? 0,
                 hasApprovedEstimate: approvedProjects.has(p.id),
                 hasPendingDraft: draftProjectIds.has(p.id),
-                billingDecision: (p.billingDecision as BillingDecision) ?? 'pending',
+                billingDecision: rangeMode ? 'pending' : (decisionByProject.get(p.id) ?? 'pending'),
                 customerClosingDay: cd,
                 periodFrom: win.from,
                 periodTo: win.to,

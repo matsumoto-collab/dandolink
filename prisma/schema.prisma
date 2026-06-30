@@ -115,6 +115,24 @@ model ProjectMaster {
   @@schema("public")
 }
 
+/// 請求判断ボードの「案件 × 締め基準月(periodKey=YYYY-MM)」ごとの請求判断。
+/// 'pending'(判断待ち) は行を作らない＝レコード無しで表現し、月をまたいで判断が貼り付かないようにする。
+/// projectMasterId は ProjectMaster.id（FK は張らない＝集計専用の軽量テーブル。MonthlyProjectCostOverride に倣う）。
+model ProjectBillingDecision {
+  id              String    @id @default(uuid())
+  projectMasterId String
+  periodKey       String // 締め基準月 "YYYY-MM"
+  decision        String // 'hold' | 'excluded' | 'billed'（'pending' は行なし）
+  decidedBy       String?
+  decidedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([projectMasterId, periodKey])
+  @@index([periodKey])
+  @@schema("public")
+}
+
 model ProjectAssignment {
   id                        String                @id @default(uuid())
   projectMasterId           String
