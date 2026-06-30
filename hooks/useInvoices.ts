@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react';
 import { useFinanceStore } from '@/stores/financeStore';
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription';
 import { InvoiceInput } from '@/types/invoice';
-import { Estimate } from '@/types/estimate';
 
 // Re-export types for backward compatibility
 export type { Invoice, InvoiceInput } from '@/types/invoice';
@@ -54,25 +53,6 @@ export function useInvoices() {
         await deleteInvoiceStore(id);
     }, [deleteInvoiceStore]);
 
-    // Create invoice from estimate
-    const createInvoiceFromEstimate = useCallback(async (estimate: Estimate) => {
-        const invoiceInput: InvoiceInput = {
-            projectId: estimate.projectId || '',
-            estimateId: estimate.id,
-            invoiceNumber: `INV-${Date.now()}`,
-            title: estimate.title,
-            items: estimate.items,
-            subtotal: estimate.subtotal,
-            tax: estimate.tax,
-            total: estimate.total,
-            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-            status: 'draft',
-            notes: estimate.notes,
-        };
-
-        return await addInvoice(invoiceInput);
-    }, [addInvoice]);
-
     // Supabase Realtime subscription
     useRealtimeSubscription({
         table: 'Invoice',
@@ -91,7 +71,6 @@ export function useInvoices() {
         deleteInvoice,
         getInvoice,
         getInvoicesByProject,
-        createInvoiceFromEstimate,
         refreshInvoices,
     };
 }
