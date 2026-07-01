@@ -133,6 +133,12 @@ jest.mock('@/lib/prisma', () => ({
             delete: jest.fn(),
             count: jest.fn(),
         },
+        invoicePayment: {
+            findMany: jest.fn().mockResolvedValue([]),
+            findUnique: jest.fn(),
+            create: jest.fn(),
+            delete: jest.fn(),
+        },
         invoiceProjectMaster: {
             findMany: jest.fn().mockResolvedValue([]),
             createMany: jest.fn().mockResolvedValue({ count: 0 }),
