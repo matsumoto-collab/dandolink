@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/Button';
 import StatusPillSelect, { type StatusOption } from '@/components/ui/StatusPillSelect';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
+import { PaymentStatusBadge } from '@/components/Invoices/PaymentStatusBadge';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
@@ -39,7 +40,7 @@ const INVOICE_STATUS_OPTIONS: StatusOption[] = [
 ];
 
 export default function InvoiceListPage() {
-    const { invoices, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice } = useInvoices();
+    const { invoices, isInitialized, ensureDataLoaded, addInvoice, updateInvoice, deleteInvoice, refreshInvoices } = useInvoices();
     const { projectMasters, fetchProjectMasters } = useProjectMasters();
     const { companyInfo, ensureDataLoaded: ensureCompanyLoaded } = useCompany();
     const { customers, ensureDataLoaded: ensureCustomersLoaded } = useCustomers();
@@ -538,8 +539,13 @@ export default function InvoiceListPage() {
                                     )}
 
                                     {/* 金額 */}
-                                    <div className="text-lg font-bold text-slate-900 mb-3">
+                                    <div className="text-lg font-bold text-slate-900 mb-2">
                                         ¥{invoice.total.toLocaleString()}
+                                    </div>
+
+                                    {/* 入金状況 */}
+                                    <div className="mb-3">
+                                        <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
                                     </div>
 
                                     {/* ステータス（一覧から直接変更可）と支払期限 */}
@@ -585,6 +591,9 @@ export default function InvoiceListPage() {
                                 金額
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
+                                入金状況
+                            </th>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
                                 ステータス
                             </th>
                             <th className="px-6 py-4 text-left text-xs font-bold text-slate-800 uppercase tracking-wider">
@@ -607,6 +616,7 @@ export default function InvoiceListPage() {
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                                    <td className="px-6 py-4"><div className="h-5 bg-slate-200 rounded-full w-16"></div></td>
                                     <td className="px-6 py-4"><div className="h-6 bg-slate-200 rounded-full w-16"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
                                     <td className="px-6 py-4"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
@@ -615,7 +625,7 @@ export default function InvoiceListPage() {
                             ))
                         ) : filteredInvoices.length === 0 ? (
                             <tr>
-                                <td colSpan={9} className="px-6 py-12 text-center text-slate-500">
+                                <td colSpan={10} className="px-6 py-12 text-center text-slate-500">
                                     {searchTerm || statusFilter !== 'all' || assigneeIdFilter || createdFrom || createdTo ? '検索結果が見つかりませんでした' : '請求書が登録されていません'}
                                 </td>
                             </tr>
@@ -647,6 +657,9 @@ export default function InvoiceListPage() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-[12px] font-semibold text-slate-900">
                                             ¥{invoice.total.toLocaleString()}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <StatusPillSelect
@@ -737,6 +750,7 @@ export default function InvoiceListPage() {
                     customerHonorific={detailCustomerInfo?.honorific}
                     customerPostalCode={detailCustomerInfo?.postalCode}
                     customerAddress={detailCustomerInfo?.address}
+                    onPaymentsChanged={refreshInvoices}
                 />
             )}
         </div>

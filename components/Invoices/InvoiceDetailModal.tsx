@@ -1,16 +1,19 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Invoice } from '@/types/invoice';
 import { Project } from '@/types/calendar';
 import { CompanyInfo } from '@/types/company';
 const loadPdfGenerator = () => import('@/utils/reactPdfGenerator');
-import { X, FileDown, Printer, Trash2, Edit, History } from 'lucide-react';
+import { X, FileDown, Printer, Trash2, Edit, History, Banknote } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { useModalKeyboard } from '@/hooks/useModalKeyboard';
 import { InlinePdfViewer } from '@/components/ui/InlinePdfViewer';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { logger } from '@/lib/logger';
+import { InvoicePaymentsPanel } from '@/components/Invoices/InvoicePaymentsPanel';
+import { PaymentStatusBadge } from '@/components/Invoices/PaymentStatusBadge';
+import type { PaymentSummary } from '@/lib/invoicePayments';
 
 const InvoiceVersionHistoryModal = dynamic(
     () => import('@/components/Invoices/InvoiceVersionHistoryModal'),
@@ -29,6 +32,8 @@ interface InvoiceDetailModalProps {
     customerHonorific?: string;
     customerPostalCode?: string;
     customerAddress?: string;
+    /** 入金の登録／取消が確定したら親（一覧）へ通知＝一覧を再取得させる */
+    onPaymentsChanged?: () => void;
 }
 
 export default function InvoiceDetailModal({
@@ -43,12 +48,24 @@ export default function InvoiceDetailModal({
     customerHonorific,
     customerPostalCode,
     customerAddress,
+    onPaymentsChanged,
 }: InvoiceDetailModalProps) {
     const [pdfUrl, setPdfUrl] = useState<string>('');
     const [includeCopy, setIncludeCopy] = useState<boolean>(true);
     const [includeDetails, setIncludeDetails] = useState<boolean>(false);
     const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
     const modalRef = useModalKeyboard(isOpen, onClose);
+
+    // 表示切替（請求書プレビュー / 入金管理）と入金サマリ
+    const [view, setView] = useState<'pdf' | 'payments'>('pdf');
+    const [paymentSummary, setPaymentSummary] = useState<PaymentSummary | undefined>(invoice?.paymentSummary);
+    const handleSummaryChange = useCallback((s: PaymentSummary) => setPaymentSummary(s), []);
+
+    // 別の請求書を開いたら表示を請求書プレビューへ戻し、入金サマリを一覧の値に同期する
+    useEffect(() => {
+        setView('pdf');
+        setPaymentSummary(invoice?.paymentSummary);
+    }, [invoice?.id, invoice?.paymentSummary]);
 
     const effectiveProject: Project = useMemo(() => {
         if (project) {
@@ -185,6 +202,26 @@ export default function InvoiceDetailModal({
                     </div>
                 </div>
 
+                {/* 表示切替（請求書プレビュー / 入金管理） */}
+                <div className="flex-shrink-0 flex items-center gap-2 border-b border-slate-200 px-4 md:px-6 py-2 bg-slate-50">
+                    <button
+                        onClick={() => setView('pdf')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'pdf' ? 'bg-white text-slate-800 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        請求書プレビュー
+                    </button>
+                    <button
+                        onClick={() => setView('payments')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${view === 'payments' ? 'bg-white text-slate-800 shadow-sm border border-slate-200' : 'text-slate-500 hover:text-slate-700'}`}
+                    >
+                        <Banknote size={16} />
+                        入金管理
+                        <PaymentStatusBadge summary={paymentSummary} showRemaining />
+                    </button>
+                </div>
+
+                {view === 'pdf' ? (
+                <>
                 {/* アクションバー */}
                 <div className="bg-white border-b border-slate-200 px-6 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -246,6 +283,18 @@ export default function InvoiceDetailModal({
                         </div>
                     )}
                 </div>
+                </>
+                ) : (
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                        <InvoicePaymentsPanel
+                            invoiceId={invoice.id}
+                            invoiceTotal={invoice.total}
+                            initialSummary={paymentSummary}
+                            onSummaryChange={handleSummaryChange}
+                            onChanged={onPaymentsChanged}
+                        />
+                    </div>
+                )}
 
                 <style jsx global>{`
                     @media print {
