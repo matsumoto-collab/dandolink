@@ -250,7 +250,12 @@ export default function InvoiceListPage() {
                     (toTs === null || createdTs <= toTs);
                 return matched && matchesStatus && matchesAssignee && matchesCreated;
             })
-            .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            .sort((a, b) => {
+                const byDate = new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+                if (byDate !== 0) return byDate;
+                // 作成日が同一（同じ締め日でまとめた請求書など）でも並びが揺れないよう請求番号で決定的に並べる
+                return (b.invoiceNumber || '').localeCompare(a.invoiceNumber || '', 'ja', { numeric: true });
+            });
     }, [invoices, debouncedSearchTerm, statusFilter, assigneeIdFilter, createdFrom, createdTo, getProjectName, getCustomerName, getInvoiceAssigneeNames, getInvoiceAssigneeIds]);
 
     // フィルター変更時にページをリセット
@@ -340,6 +345,18 @@ export default function InvoiceListPage() {
             updatedAt: new Date(),
         };
     }, [projectMasters]);
+
+    // 詳細（PDFプレビュー）モーダルへ渡す案件・顧客情報を安定参照化する。
+    // これらを毎レンダリング新しいオブジェクトで渡すと、モーダル側の PDF 生成 useEffect が
+    // 参照変化で再発火し、印刷タブから戻った際などにプレビューが再生成されてちらつく。
+    const detailProject = useMemo(
+        () => (selectedInvoice ? getProjectForInvoice(selectedInvoice.projectId || '') : null),
+        [selectedInvoice, getProjectForInvoice]
+    );
+    const detailCustomerInfo = useMemo(
+        () => (selectedInvoice ? getCustomerInfo(selectedInvoice) : null),
+        [selectedInvoice, getCustomerInfo]
+    );
 
     return (
         <div className="h-full flex flex-col bg-slate-50 w-full max-w-[1800px] mx-auto">
@@ -712,14 +729,14 @@ export default function InvoiceListPage() {
                     isOpen={isDetailModalOpen}
                     onClose={() => { setIsDetailModalOpen(false); setSelectedInvoice(null); }}
                     invoice={selectedInvoice}
-                    project={selectedInvoice ? getProjectForInvoice(selectedInvoice.projectId || '') : null}
+                    project={detailProject}
                     companyInfo={companyInfo}
                     onDelete={handleDelete}
                     onEdit={handleEdit}
-                    customerName={selectedInvoice ? getCustomerInfo(selectedInvoice).name : undefined}
-                    customerHonorific={selectedInvoice ? getCustomerInfo(selectedInvoice).honorific : undefined}
-                    customerPostalCode={selectedInvoice ? getCustomerInfo(selectedInvoice).postalCode : undefined}
-                    customerAddress={selectedInvoice ? getCustomerInfo(selectedInvoice).address : undefined}
+                    customerName={detailCustomerInfo?.name}
+                    customerHonorific={detailCustomerInfo?.honorific}
+                    customerPostalCode={detailCustomerInfo?.postalCode}
+                    customerAddress={detailCustomerInfo?.address}
                 />
             )}
         </div>
