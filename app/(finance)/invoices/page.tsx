@@ -9,12 +9,13 @@ import { useCustomers } from '@/hooks/useCustomers';
 import { useDebounce } from '@/hooks/useDebounce';
 import { Invoice, InvoiceInput } from '@/types/invoice';
 import { formatDate } from '@/utils/dateUtils';
-import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, UserCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, FileText, CheckCircle, Clock, AlertCircle, Loader2, UserCheck, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import StatusPillSelect, { type StatusOption } from '@/components/ui/StatusPillSelect';
 import toast from 'react-hot-toast';
 import LastUpdatedLabel from '@/components/ui/LastUpdatedLabel';
 import { PaymentStatusBadge } from '@/components/Invoices/PaymentStatusBadge';
+import InvoicePaymentQuickPopover, { type PaymentPopoverAnchor } from '@/components/Invoices/InvoicePaymentQuickPopover';
 import { logger } from '@/lib/logger';
 import { matchesSearch } from '@/utils/searchNormalize';
 import { extractAssigneeIds } from '@/lib/projectAssignees';
@@ -71,6 +72,8 @@ export default function InvoiceListPage() {
     const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
     // 一覧からステータス変更中の請求書 ID（多重送信防止用）
     const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+    // クイック入金ポップオーバー（入金状況バッジをクリックで開く。anchor はバッジの画面座標）
+    const [paymentPopover, setPaymentPopover] = useState<{ invoiceId: string; anchor: PaymentPopoverAnchor } | null>(null);
 
     // プロジェクト名を取得（複数案件対応）
     const getProjectName = useCallback((invoice: Invoice) => {
@@ -295,6 +298,21 @@ export default function InvoiceListPage() {
         setSelectedInvoice(invoice);
         setIsDetailModalOpen(true);
     };
+
+    // 入金状況バッジのクリックでクイック入金ポップオーバーを開く（行クリックの詳細モーダルとは別動線）
+    const handleOpenPaymentPopover = useCallback((invoice: Invoice, anchorEl: HTMLElement) => {
+        const r = anchorEl.getBoundingClientRect();
+        setPaymentPopover({
+            invoiceId: invoice.id,
+            anchor: { top: r.top, left: r.left, bottom: r.bottom, right: r.right },
+        });
+    }, []);
+
+    // ポップオーバー表示中の請求書（refreshInvoices 後も最新の paymentSummary を渡せるよう id で引き直す）
+    const popoverInvoice = useMemo(
+        () => (paymentPopover ? invoices.find((i) => i.id === paymentPopover.invoiceId) ?? null : null),
+        [paymentPopover, invoices]
+    );
 
     // 一覧から直接ステータスを変更（編集モーダルを開かずに更新）
     const handleStatusChange = useCallback(async (invoice: Invoice, newStatus: string) => {
@@ -543,9 +561,18 @@ export default function InvoiceListPage() {
                                         ¥{invoice.total.toLocaleString()}
                                     </div>
 
-                                    {/* 入金状況 */}
+                                    {/* 入金状況（タップでその場から入金を登録） */}
                                     <div className="mb-3">
-                                        <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
+                                        <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); handleOpenPaymentPopover(invoice, e.currentTarget); }}
+                                            className="inline-flex items-center gap-1.5 -mx-1.5 px-1.5 py-1 rounded-lg hover:bg-slate-100 active:bg-slate-100 transition-colors"
+                                            title="入金を登録・確認"
+                                            aria-label="入金を登録・確認"
+                                        >
+                                            <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
+                                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                                        </button>
                                     </div>
 
                                     {/* ステータス（一覧から直接変更可）と支払期限 */}
@@ -659,7 +686,16 @@ export default function InvoiceListPage() {
                                             ¥{invoice.total.toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleOpenPaymentPopover(invoice, e.currentTarget); }}
+                                                className="group/pay inline-flex items-center gap-1.5 -mx-2 px-2 py-1 rounded-lg hover:bg-slate-100 transition-colors"
+                                                title="入金を登録・確認"
+                                                aria-label="入金を登録・確認"
+                                            >
+                                                <PaymentStatusBadge summary={invoice.paymentSummary} showRemaining />
+                                                <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover/pay:text-slate-600" />
+                                            </button>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <StatusPillSelect
@@ -751,6 +787,16 @@ export default function InvoiceListPage() {
                     customerPostalCode={detailCustomerInfo?.postalCode}
                     customerAddress={detailCustomerInfo?.address}
                     onPaymentsChanged={refreshInvoices}
+                />
+            )}
+
+            {/* クイック入金ポップオーバー（一覧の入金状況バッジから直接登録） */}
+            {paymentPopover && popoverInvoice && (
+                <InvoicePaymentQuickPopover
+                    invoice={popoverInvoice}
+                    anchor={paymentPopover.anchor}
+                    onClose={() => setPaymentPopover(null)}
+                    onChanged={refreshInvoices}
                 />
             )}
         </div>

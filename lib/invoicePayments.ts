@@ -86,3 +86,21 @@ export function paymentStatusLabel(status: PaymentStatus): string {
         case 'unpaid': return '未入金';
     }
 }
+
+/** 入金方法の選択肢（登録フォーム共通） */
+export const PAYMENT_METHOD_OPTIONS = ['振込', '現金', '相殺', '手形', 'その他'];
+
+/** 金額の円表示（¥1,234） */
+export const formatYen = (n: number) => `¥${Math.round(n).toLocaleString()}`;
+
+/** 今日（ローカル）を YYYY-MM-DD で返す（入金日入力の初期値用・クライアント専用） */
+export function todayYmd(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 入金日（ISO 文字列）を YYYY/MM/DD 表示にする */
+export function formatPaidDate(iso: string): string {
+    const d = new Date(iso);
+    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
+}

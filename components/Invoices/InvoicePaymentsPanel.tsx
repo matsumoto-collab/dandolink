@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import toast from 'react-hot-toast';
+import { useState } from 'react';
 import { Trash2, Plus, Loader2 } from 'lucide-react';
-import type { InvoicePaymentRecord, PaymentSummary } from '@/lib/invoicePayments';
-import { paymentStatusLabel } from '@/lib/invoicePayments';
-import { logger } from '@/lib/logger';
+import type { PaymentSummary } from '@/lib/invoicePayments';
+import {
+    paymentStatusLabel,
+    PAYMENT_METHOD_OPTIONS,
+    formatYen as yen,
+    todayYmd,
+    formatPaidDate as fmtDate,
+} from '@/lib/invoicePayments';
+import { useInvoicePayments } from '@/hooks/useInvoicePayments';
 
 interface InvoicePaymentsPanelProps {
     invoiceId: string;
@@ -18,25 +23,9 @@ interface InvoicePaymentsPanelProps {
     onChanged?: () => void;
 }
 
-const METHOD_OPTIONS = ['振込', '現金', '相殺', '手形', 'その他'];
-
-/** 今日（ローカル）を YYYY-MM-DD で返す */
-function todayYmd(): string {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-const yen = (n: number) => `¥${Math.round(n).toLocaleString()}`;
-
-function fmtDate(iso: string): string {
-    const d = new Date(iso);
-    return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')}`;
-}
-
 /**
  * 1 請求書の入金記録を管理するパネル（残額サマリ＋登録フォーム＋履歴）。
- * サーバー（/api/invoices/[id]/payments）が唯一の真実で、登録／取消のたびに
- * 最新の payments＋summary を受け取って自分の状態を更新する。
+ * 取得・登録・取消は useInvoicePayments（一覧のクイック入金ポップオーバーと共用）に委譲する。
  */
 export function InvoicePaymentsPanel({
     invoiceId,
@@ -45,11 +34,8 @@ export function InvoicePaymentsPanel({
     onSummaryChange,
     onChanged,
 }: InvoicePaymentsPanelProps) {
-    const [payments, setPayments] = useState<InvoicePaymentRecord[]>([]);
-    const [summary, setSummary] = useState<PaymentSummary | undefined>(initialSummary);
-    const [loading, setLoading] = useState(true);
-    const [submitting, setSubmitting] = useState(false);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const { payments, summary, loading, submitting, deletingId, addPayment, deletePayment } =
+        useInvoicePayments({ invoiceId, initialSummary, onSummaryChange, onChanged });
 
     // 追加フォーム（入金日は登録後も保持し、金額・手数料・摘要だけリセット）
     const [paidDate, setPaidDate] = useState(todayYmd());
@@ -58,107 +44,22 @@ export function InvoicePaymentsPanel({
     const [method, setMethod] = useState('振込');
     const [note, setNote] = useState('');
 
-    // 親コールバックは ref 経由で参照し、取得エフェクトの依存に入れない
-    // （毎レンダリング新しい関数が渡っても再取得ループにならないようにする）
-    const onSummaryChangeRef = useRef(onSummaryChange);
-    const onChangedRef = useRef(onChanged);
-    useEffect(() => { onSummaryChangeRef.current = onSummaryChange; }, [onSummaryChange]);
-    useEffect(() => { onChangedRef.current = onChanged; }, [onChanged]);
-
-    const applyResult = (data: { payments?: InvoicePaymentRecord[]; summary?: PaymentSummary | null }) => {
-        setPayments(data.payments ?? []);
-        if (data.summary) {
-            setSummary(data.summary);
-            onSummaryChangeRef.current?.(data.summary);
-        }
-    };
-
-    // 入金一覧の取得（請求書が変わったときのみ）
-    useEffect(() => {
-        let cancelled = false;
-        setLoading(true);
-        (async () => {
-            try {
-                const res = await fetch(`/api/invoices/${invoiceId}/payments`, { cache: 'no-store' });
-                if (!res.ok) throw new Error('入金記録の取得に失敗しました');
-                const data = await res.json();
-                if (cancelled) return;
-                setPayments(data.payments ?? []);
-                if (data.summary) {
-                    setSummary(data.summary);
-                    onSummaryChangeRef.current?.(data.summary);
-                }
-            } catch (e) {
-                logger.error('入金記録の取得に失敗:', e);
-                if (!cancelled) toast.error('入金記録の取得に失敗しました');
-            } finally {
-                if (!cancelled) setLoading(false);
-            }
-        })();
-        return () => { cancelled = true; };
-    }, [invoiceId]);
-
     const handleAdd = async () => {
-        const amountNum = Number(amount) || 0;
-        const feeNum = Number(fee) || 0;
-        if (amountNum + feeNum <= 0) {
-            toast.error('入金額または手数料を入力してください');
-            return;
-        }
-        if (!paidDate) {
-            toast.error('入金日を入力してください');
-            return;
-        }
-        setSubmitting(true);
-        try {
-            const res = await fetch(`/api/invoices/${invoiceId}/payments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    paidDate,
-                    amount: amountNum,
-                    fee: feeNum,
-                    method: method || null,
-                    note: note || null,
-                }),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || '入金の登録に失敗しました');
-            }
-            applyResult(await res.json());
+        const ok = await addPayment({
+            paidDate,
+            amount: Number(amount) || 0,
+            fee: Number(fee) || 0,
+            method: method || null,
+            note: note || null,
+        });
+        if (ok) {
             setAmount('');
             setFee('');
             setNote('');
-            toast.success('入金を登録しました');
-            onChangedRef.current?.();
-        } catch (e) {
-            logger.error('入金の登録に失敗:', e);
-            toast.error(e instanceof Error ? e.message : '入金の登録に失敗しました');
-        } finally {
-            setSubmitting(false);
         }
     };
 
-    const handleDelete = async (paymentId: string) => {
-        if (!confirm('この入金記録を取り消しますか？')) return;
-        setDeletingId(paymentId);
-        try {
-            const res = await fetch(`/api/invoices/${invoiceId}/payments/${paymentId}`, { method: 'DELETE' });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || '入金記録の取消に失敗しました');
-            }
-            applyResult(await res.json());
-            toast.success('入金記録を取り消しました');
-            onChangedRef.current?.();
-        } catch (e) {
-            logger.error('入金記録の取消に失敗:', e);
-            toast.error(e instanceof Error ? e.message : '入金記録の取消に失敗しました');
-        } finally {
-            setDeletingId(null);
-        }
-    };
+    const handleDelete = (paymentId: string) => deletePayment(paymentId);
 
     const remaining = summary?.remaining ?? invoiceTotal;
 
@@ -217,7 +118,7 @@ export function InvoicePaymentsPanel({
                                 onChange={(e) => setMethod(e.target.value)}
                                 className="mt-1 w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-500"
                             >
-                                {METHOD_OPTIONS.map((m) => (
+                                {PAYMENT_METHOD_OPTIONS.map((m) => (
                                     <option key={m} value={m}>{m}</option>
                                 ))}
                             </select>
