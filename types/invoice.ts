@@ -1,4 +1,5 @@
 import { EstimateItem } from './estimate';
+import type { PaymentSummary } from '@/lib/invoicePayments';
 
 // 請求項目マスター
 export interface BillingTitle {
@@ -40,6 +41,8 @@ export interface Invoice {
     // 複数案件対応
     projectMasterIds?: string[];
     projectMasters?: Array<{ id: string; title: string }>;
+    // 入金サマリ（一覧APIが付与。パターンA＝未収の見える化。利益計算には非関与）
+    paymentSummary?: PaymentSummary;
 }
 
 // 請求書作成時の入力データ

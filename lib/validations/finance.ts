@@ -72,3 +72,19 @@ export const updateEstimateSchema = z.object({
     costTotal: z.number().int().nullable().optional(),
     constructionPeriod: z.string().max(200).nullable().optional(),
 });
+
+// ========== InvoicePayment（入金記録） ==========
+
+export const createInvoicePaymentSchema = z
+    .object({
+        paidDate: z.string().min(1, '入金日は必須です'),
+        amount: z.number().min(0, '入金額は0以上で入力してください').optional().default(0),
+        fee: z.number().min(0, '手数料は0以上で入力してください').optional().default(0),
+        method: z.string().max(50).nullable().optional(),
+        note: z.string().max(500).nullable().optional(),
+    })
+    // 入金額と手数料が両方0の登録は無意味なので弾く（手数料のみの相殺登録は許可）。
+    .refine((d) => (d.amount ?? 0) + (d.fee ?? 0) > 0, {
+        message: '入金額または手数料のいずれかを入力してください',
+        path: ['amount'],
+    });

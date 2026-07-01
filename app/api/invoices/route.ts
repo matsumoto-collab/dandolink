@@ -6,6 +6,7 @@ import { formatInvoice } from '@/lib/formatters';
 import { createInvoiceSchema, validateRequest } from '@/lib/validations';
 import { createInvoiceVersion } from '@/lib/versions/snapshot';
 import { createInvoiceWithRetry } from '@/lib/billing/createInvoiceWithRetry';
+import { computePaymentSummary } from '@/lib/invoicePayments';
 
 /** 請求書に紐付く案件マスタ情報を取得 */
 async function getInvoiceProjectMasters(invoiceId: string) {
@@ -34,6 +35,43 @@ async function enrichInvoice(invoice: ReturnType<typeof formatInvoice>) {
     };
 }
 
+/** 請求書群の入金記録を一括取得し invoiceId→{amount,fee}[] のマップを返す（一覧の残額計算用・N+1回避） */
+async function loadPaymentsByInvoice(invoiceIds: string[]) {
+    const map = new Map<string, Array<{ amount: number; fee: number }>>();
+    if (invoiceIds.length === 0) return map;
+    const rows = await prisma.invoicePayment.findMany({
+        where: { invoiceId: { in: invoiceIds } },
+        select: { invoiceId: true, amount: true, fee: true },
+    });
+    for (const r of rows) {
+        const arr = map.get(r.invoiceId) ?? [];
+        arr.push({ amount: Number(r.amount), fee: Number(r.fee) });
+        map.set(r.invoiceId, arr);
+    }
+    return map;
+}
+
+/**
+ * enrich 済み請求書に入金サマリ（paymentSummary）を付与する。
+ * total/status は生の請求書（rawInvoices）から引く
+ * （formatInvoice の戻り型に status が含まれないため）。
+ */
+function attachPaymentSummaries<E extends { id: string }>(
+    enriched: E[],
+    rawInvoices: Array<{ id: string; total: unknown; status: string }>,
+    paymentsMap: Map<string, Array<{ amount: number; fee: number }>>
+) {
+    const rawById = new Map(rawInvoices.map((r) => [r.id, r] as const));
+    return enriched.map((inv) => ({
+        ...inv,
+        paymentSummary: computePaymentSummary(
+            Number(rawById.get(inv.id)?.total ?? 0),
+            paymentsMap.get(inv.id) ?? [],
+            rawById.get(inv.id)?.status
+        ),
+    }));
+}
+
 export async function GET(req: NextRequest) {
     try {
         const { error } = await requireManagerOrAbove();
@@ -54,15 +92,19 @@ export async function GET(req: NextRequest) {
                 prisma.invoice.count(),
             ]);
             const enriched = await Promise.all(invoices.map(inv => enrichInvoice(formatInvoice(inv))));
+            const paymentsMap = await loadPaymentsByInvoice(invoices.map(i => i.id));
+            const withSummary = attachPaymentSummaries(enriched, invoices, paymentsMap);
             return NextResponse.json({
-                data: enriched,
+                data: withSummary,
                 pagination: { page: pageNum, limit: limitNum, total, totalPages: Math.ceil(total / limitNum) },
             }, { headers: { 'Cache-Control': 'no-store' } });
         }
 
         const invoices = await prisma.invoice.findMany({ orderBy: { createdAt: 'desc' } });
         const enriched = await Promise.all(invoices.map(inv => enrichInvoice(formatInvoice(inv))));
-        return NextResponse.json(enriched, { headers: { 'Cache-Control': 'no-store' } });
+        const paymentsMap = await loadPaymentsByInvoice(invoices.map(i => i.id));
+        const withSummary = attachPaymentSummaries(enriched, invoices, paymentsMap);
+        return NextResponse.json(withSummary, { headers: { 'Cache-Control': 'no-store' } });
     } catch (error) {
         return serverErrorResponse('請求書一覧の取得', error);
     }

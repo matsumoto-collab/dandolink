@@ -354,6 +354,7 @@ model Invoice {
   projectMasterId String?
   customerId      String?
   billingDrafts   BillingDraft[]
+  payments        InvoicePayment[]
 
   @@index([invoiceNumber])
   @@index([projectMasterId])
@@ -374,6 +375,26 @@ model InvoiceProjectMaster {
   @@unique([invoiceId, projectMasterId])
   @@index([invoiceId])
   @@index([projectMasterId])
+  @@schema("public")
+}
+
+/// 請求書への入金記録。1請求書に複数回（分割入金）ぶら下がる。
+/// 利益計算には影響させず「未収金の見える化」レイヤーとして使う（パターンA）。
+/// 残額 = Invoice.total − Σ amount − Σ fee（fee=振込手数料の当社負担相殺分）。
+model InvoicePayment {
+  id        String   @id @default(uuid())
+  invoiceId String
+  invoice   Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  paidDate  DateTime // 入金日
+  amount    Decimal  @db.Decimal(12, 2) // 入金額
+  fee       Decimal  @default(0) @db.Decimal(12, 2) // 振込手数料（当社負担・相殺分）
+  method    String? // 入金方法（振込/現金/相殺など）
+  note      String? // 摘要
+  createdAt DateTime @default(now())
+  createdBy String?
+
+  @@index([invoiceId])
+  @@index([paidDate])
   @@schema("public")
 }
 
