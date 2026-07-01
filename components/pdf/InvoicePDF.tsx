@@ -18,6 +18,7 @@ import { invoiceStyles as styles } from './invoice/invoiceStyles';
 // 各列セルの内寸（cell width − 左右padding2 − 罫線0.5）。長い文字列はこの幅に1行で
 // 収まるよう FitText がフォントを自動縮小する。備考は flex 列なので概算内寸。
 const INV_FS = 9;            // テーブル基本フォント
+const INV_UNIT_FS = 7;       // 単位セル（値）は基本より小さめに表示
 const INV_W = {
     no: 14, name: 115, spec: 95, qty: 31, unit: 21, price: 46, amount: 56, remarks: 116,
     headerName: 216,         // 見出し行（名称セルを width220 に拡張）
@@ -200,35 +201,49 @@ function CoverPage({
     const CONT_NO_TOTALS = 38;
     const CONT_WITH_TOTALS = 33;
     // 各行の推定占有行数（折り返し考慮）。行数ではなくこの合計でページを分割する。
-    const spans = displayRows.map(rowSpan);
-    const spanFrom = (start: number) => {
+    // 案件（見出し header 〜 次の header 手前）を1セクションとして扱い、セクション単位でページに詰める
+    // ＝1つの案件が見出しと明細でページ境界に割れないようにする。先頭に見出しの無い明細があれば
+    // それも独立した1セクションになる。1セクションが1ページ容量を超える場合のみ単独ページで載せる。
+    type Section = { rows: typeof displayRows; span: number };
+    const sections: Section[] = [];
+    {
+        let cur: typeof displayRows = [];
+        for (const row of displayRows) {
+            if (row.type === 'header' && cur.length > 0) {
+                sections.push({ rows: cur, span: cur.reduce((s, r) => s + rowSpan(r), 0) });
+                cur = [];
+            }
+            cur.push(row);
+        }
+        if (cur.length > 0) sections.push({ rows: cur, span: cur.reduce((s, r) => s + rowSpan(r), 0) });
+    }
+    const sectionSpanFrom = (start: number) => {
         let s = 0;
-        for (let k = start; k < displayRows.length; k++) s += spans[k];
+        for (let k = start; k < sections.length; k++) s += sections[k].span;
         return s;
     };
-    const takeUntilSpan = (start: number, budget: number) => {
+    // budget を超えない範囲でセクションを詰める（最低1セクションは進める＝1案件が1ページ超でも単独ページに）
+    const takeSectionsUntil = (start: number, budget: number) => {
         let acc = 0;
-        let j = start;
-        while (j < displayRows.length && acc + spans[j] <= budget) { acc += spans[j]; j++; }
-        if (j === start) j = start + 1; // 1行が予算超でも最低1行は進める
-        return j;
+        let n = 0;
+        while (start + n < sections.length && acc + sections[start + n].span <= budget) { acc += sections[start + n].span; n++; }
+        if (n === 0) n = 1;
+        return n;
     };
     const pageChunks: (typeof displayRows)[] = [];
     {
-        let idx = 0;
-        while (idx < displayRows.length) {
+        let si = 0;
+        while (si < sections.length) {
             const isFirstChunk = pageChunks.length === 0;
             const capNo = isFirstChunk ? FIRST_NO_TOTALS : CONT_NO_TOTALS;
             const capWith = isFirstChunk ? FIRST_WITH_TOTALS : CONT_WITH_TOTALS;
-            const remaining = spanFrom(idx);
-            // 残りが「集計欄ありで1ページに収まる」なら最終ページ、そうでなければ集計欄なしで詰める
-            const next = remaining <= capWith
-                ? displayRows.length
-                : remaining <= capNo
-                    ? takeUntilSpan(idx, capWith)
-                    : takeUntilSpan(idx, capNo);
-            pageChunks.push(displayRows.slice(idx, next));
-            idx = next;
+            const remaining = sectionSpanFrom(si);
+            // 残り全セクションが「集計欄ありで1ページに収まる」なら最終ページ、そうでなければ集計欄なしで詰める
+            const takeN = remaining <= capWith
+                ? sections.length - si
+                : takeSectionsUntil(si, remaining <= capNo ? capWith : capNo);
+            pageChunks.push(sections.slice(si, si + takeN).flatMap(s => s.rows));
+            si += takeN;
         }
         if (pageChunks.length === 0) pageChunks.push([]);
     }
@@ -275,7 +290,7 @@ function CoverPage({
                     <FitText width={INV_W.qty} base={INV_FS} style={styles.cellText}>{item.quantity > 0 ? item.quantity.toLocaleString() : ''}</FitText>
                 </View>
                 <View style={styles.cellUnit}>
-                    <FitText width={INV_W.unit} base={INV_FS} style={styles.cellText}>{sanitizePdfText(item.unit || '')}</FitText>
+                    <FitText width={INV_W.unit} base={INV_UNIT_FS} style={styles.cellText}>{sanitizePdfText(item.unit || '')}</FitText>
                 </View>
                 <View style={styles.cellPrice}>
                     <FitText width={INV_W.price} base={INV_FS} style={styles.cellText}>{item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}</FitText>
@@ -612,7 +627,7 @@ function DetailsPage({
                                     <FitText width={INV_W.qty} base={INV_FS} style={styles.cellText}>{item && item.quantity > 0 ? item.quantity.toLocaleString() : ''}</FitText>
                                 </View>
                                 <View style={styles.cellUnit}>
-                                    <FitText width={INV_W.unit} base={INV_FS} style={styles.cellText}>{item ? sanitizePdfText(item.unit || '') : ''}</FitText>
+                                    <FitText width={INV_W.unit} base={INV_UNIT_FS} style={styles.cellText}>{item ? sanitizePdfText(item.unit || '') : ''}</FitText>
                                 </View>
                                 <View style={styles.cellPrice}>
                                     <FitText width={INV_W.price} base={INV_FS} style={styles.cellText}>{item && item.unitPrice !== 0 ? item.unitPrice.toLocaleString() : ''}</FitText>
