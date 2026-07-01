@@ -43,7 +43,6 @@ export const invoiceStyles = StyleSheet.create({
     totalAmountText: { fontSize: 8, fontWeight: 'bold' },
 
     // 複数案件を1枚に請求するとき、見出し行に出すその案件のグループ合計（小計）
-    groupTotalLabel: { fontSize: 8, fontWeight: 'bold', color: COLORS.textSecondary },
     groupTotalAmount: { fontWeight: 'bold' },
     groupTotalNeg: { fontWeight: 'bold', color: COLORS.red },
 

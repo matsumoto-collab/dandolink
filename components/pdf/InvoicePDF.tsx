@@ -160,9 +160,7 @@ function HeaderRow({ title, groupTotal, showGroupTotals }: { title: string; grou
             </View>
             <View style={styles.cellQty}><Text style={styles.cellText}></Text></View>
             <View style={styles.cellUnit}><Text style={styles.cellText}></Text></View>
-            <View style={styles.cellPrice}>
-                {showTotal ? <Text style={styles.groupTotalLabel}>小計</Text> : <Text style={styles.cellText}></Text>}
-            </View>
+            <View style={styles.cellPrice}><Text style={styles.cellText}></Text></View>
             <View style={styles.cellAmount}>
                 {showTotal
                     ? <FitText width={INV_W.amount} base={INV_FS} style={gt < 0 ? styles.groupTotalNeg : styles.groupTotalAmount}>{gt < 0 ? `(${Math.abs(gt).toLocaleString()})` : gt.toLocaleString()}</FitText>
