@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Trash2, Search, RefreshCw, Save, ExternalLink, ZoomIn, RotateCcw } from 'lucide-react';
+import { X, Loader2, Trash2, RefreshCw, Save, ExternalLink, ZoomIn, RotateCcw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { logger } from '@/lib/logger';
 import { ImageLightbox } from '@/components/ui/ImageLightbox';
-import type { Receipt, ExpenseCategoryRef, ProjectMasterRef } from '@/types/receipt';
+import type { Receipt, ExpenseCategoryRef } from '@/types/receipt';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS } from '@/types/receipt';
 
 interface Props {
@@ -35,8 +35,6 @@ export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Prop
     const [totalAmount, setTotalAmount] = useState(toAmountStr(receipt.totalAmount));
     const [taxAmount, setTaxAmount] = useState(toAmountStr(receipt.taxAmount));
     const [expenseCategoryId, setExpenseCategoryId] = useState(receipt.expenseCategoryId ?? '');
-    const [projectMasterId, setProjectMasterId] = useState(receipt.projectMasterId ?? '');
-    const [projectLabel, setProjectLabel] = useState(receipt.projectMaster ? receipt.projectMaster.name || receipt.projectMaster.title : '');
     const [paymentMethod, setPaymentMethod] = useState(receipt.paymentMethod ?? '');
     const [paidBy, setPaidBy] = useState(receipt.paidBy ?? '');
     const [notes, setNotes] = useState(receipt.notes ?? '');
@@ -49,12 +47,6 @@ export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Prop
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [lightboxOpen, setLightboxOpen] = useState(false);
 
-    // 案件検索（任意リンク・単一選択）
-    const [editingProject, setEditingProject] = useState(false);
-    const [query, setQuery] = useState('');
-    const [results, setResults] = useState<ProjectMasterRef[]>([]);
-    const [searching, setSearching] = useState(false);
-
     useEffect(() => {
         (async () => {
             try {
@@ -66,48 +58,12 @@ export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Prop
         })();
     }, []);
 
-    useEffect(() => {
-        if (!editingProject) return;
-        const q = query.trim();
-        const h = setTimeout(async () => {
-            setSearching(true);
-            try {
-                const url = q ? `/api/project-masters?status=active&search=${encodeURIComponent(q)}` : '/api/project-masters?status=active';
-                const res = await fetch(url, { cache: 'no-store' });
-                if (res.ok) {
-                    const data = await res.json();
-                    const list: Array<{ id: string; title: string; name: string | null }> = Array.isArray(data) ? data : data.items ?? data.projectMasters ?? [];
-                    setResults(list.slice(0, 30).map((p) => ({ id: p.id, title: p.title, name: p.name ?? null })));
-                }
-            } catch (e) {
-                logger.error('project search failed', e);
-            } finally {
-                setSearching(false);
-            }
-        }, 300);
-        return () => clearTimeout(h);
-    }, [query, editingProject]);
-
-    const pickProject = (p: ProjectMasterRef) => {
-        setProjectMasterId(p.id);
-        setProjectLabel(p.name || p.title);
-        setEditingProject(false);
-        setQuery('');
-        setResults([]);
-    };
-    const clearProject = () => {
-        setProjectMasterId('');
-        setProjectLabel('');
-        setEditingProject(false);
-    };
-
     const buildBody = (nextStatus?: string): Record<string, unknown> => ({
         storeName: storeName || null,
         issueDate: issueDate || null,
         totalAmount: totalAmount || null,
         taxAmount: taxAmount || null,
         expenseCategoryId: expenseCategoryId || null,
-        projectMasterId: projectMasterId || null,
         paymentMethod: paymentMethod || null,
         paidBy: paidBy || null,
         notes: notes || null,
@@ -292,39 +248,6 @@ export default function ReceiptClassifyModal({ receipt, onClose, onSaved }: Prop
                                 {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                             {summary && <p className="text-xs text-slate-400 mt-1">AI摘要: {summary}</p>}
-                        </div>
-
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-600 mb-1">案件（任意）</label>
-                            {!editingProject && projectMasterId ? (
-                                <div className="flex items-center gap-2">
-                                    <span className="flex-1 px-3 py-2 bg-teal-50 border border-teal-200 rounded-xl text-teal-800 text-sm truncate">{projectLabel || '（案件名 未取得）'}</span>
-                                    {!readOnly && (
-                                        <>
-                                            <button type="button" onClick={() => setEditingProject(true)} className="px-2.5 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">変更</button>
-                                            <button type="button" onClick={clearProject} className="p-1.5 text-slate-400 hover:text-red-600 rounded-lg" title="案件リンクを外す"><Trash2 className="w-4 h-4" /></button>
-                                        </>
-                                    )}
-                                </div>
-                            ) : readOnly ? (
-                                <span className="block px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-500 text-sm">案件リンクなし</span>
-                            ) : (
-                                <div>
-                                    <div className="flex items-center gap-2 px-3 py-2 border border-slate-200 rounded-xl bg-white">
-                                        <Search className="w-4 h-4 text-slate-400 shrink-0" />
-                                        <input value={query} onChange={(e) => { setQuery(e.target.value); setEditingProject(true); }} onFocus={() => setEditingProject(true)} className="flex-1 min-w-0 outline-none text-sm bg-transparent" placeholder="案件名・現場名で検索（任意）" />
-                                        {searching && <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />}
-                                    </div>
-                                    {results.length > 0 && (
-                                        <div className="mt-1 max-h-40 overflow-auto border border-slate-200 rounded-lg divide-y divide-slate-100 bg-white">
-                                            {results.map((p) => (
-                                                <button type="button" key={p.id} onClick={() => pickProject(p)} className="w-full text-left px-2.5 py-1.5 text-sm hover:bg-slate-50 truncate">{p.name || p.title}</button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            <p className="text-xs text-slate-400 mt-1">参照・検索用のリンクです。案件原価には計上されません。</p>
                         </div>
 
                         <div>

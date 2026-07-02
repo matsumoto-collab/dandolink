@@ -195,15 +195,14 @@ export default function ReceiptsPage() {
     const grandTotal = useMemo(() => filtered.reduce((s, r) => s + Number(r.totalAmount || 0), 0), [filtered]);
 
     const exportCsv = () => {
-        const header = ['日付', '店名', '費目', '案件', '税込金額', '消費税', '支払方法', '支払者', 'メモ'];
+        const header = ['日付', '店名・支払先', '支払方法', '税込金額', '消費税', '費目', '支払者', 'メモ'];
         const rows = filtered.map((r) => [
             fmtDate(r.issueDate),
             r.storeName ?? '',
-            r.expenseCategory?.name ?? '',
-            r.projectMaster ? r.projectMaster.name || r.projectMaster.title : '',
+            pmLabel(r.paymentMethod),
             String(Number(r.totalAmount || 0)),
             String(Number(r.taxAmount || 0)),
-            pmLabel(r.paymentMethod),
+            r.expenseCategory?.name ?? '',
             r.paidBy ?? '',
             (r.notes ?? '').replace(/[\r\n]+/g, ' '),
         ]);
@@ -340,6 +339,8 @@ export default function ReceiptsPage() {
                     <FileText className="w-10 h-10 mx-auto text-slate-300 mb-2" />
                     <p>{activeTab === 'pending' ? '未仕分けの領収書はありません' : 'この月の仕分け済み領収書はありません'}</p>
                 </div>
+            ) : activeTab === 'confirmed' ? (
+                <ConfirmedReceiptList rows={filtered} onSelect={setSelected} />
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                     {filtered.map((r) => (
@@ -369,9 +370,6 @@ export default function ReceiptsPage() {
                                     ) : (
                                         <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-500 border border-slate-200">費目 未選択</span>
                                     )}
-                                    {r.projectMaster && (
-                                        <span className="px-2 py-0.5 text-xs rounded-full bg-teal-50 text-teal-700 border border-teal-200 truncate max-w-full">{r.projectMaster.name || r.projectMaster.title}</span>
-                                    )}
                                     {r.paymentMethod && (
                                         <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-600 border border-slate-200">{pmLabel(r.paymentMethod)}</span>
                                     )}
@@ -390,5 +388,76 @@ export default function ReceiptsPage() {
                 />
             )}
         </div>
+    );
+}
+
+// 仕分け済みの一覧。案件一覧・見積一覧と同じテーブル体裁（行クリックで画像プレビューのモーダル）。
+// 一覧ではサムネイル画像を出さず容量を節約し、クリック時に初めて画像を読み込む。
+function ConfirmedReceiptList({ rows, onSelect }: { rows: Receipt[]; onSelect: (r: Receipt) => void }) {
+    return (
+        <>
+            {/* デスクトップ: テーブル */}
+            <div className="hidden md:block bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-slate-200">
+                        <thead className="bg-slate-100">
+                            <tr>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">日付</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">店名・支払先</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">支払方法</th>
+                                <th className="px-4 py-3 text-right text-xs font-bold text-slate-700 whitespace-nowrap">税込金額</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">費目</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700 whitespace-nowrap">支払者</th>
+                                <th className="px-4 py-3 text-left text-xs font-bold text-slate-700">メモ</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-slate-200">
+                            {rows.map((r) => (
+                                <tr key={r.id} onClick={() => onSelect(r)} className="hover:bg-slate-50 cursor-pointer">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-700">{fmtDate(r.issueDate)}</td>
+                                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{r.storeName || '（店名 未取得）'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{pmLabel(r.paymentMethod) || '−'}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-semibold text-slate-900">{yen(r.totalAmount)}</td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {r.expenseCategory ? (
+                                            <span className="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200">{r.expenseCategory.name}</span>
+                                        ) : (
+                                            <span className="text-slate-400">−</span>
+                                        )}
+                                    </td>
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-600">{r.paidBy || '−'}</td>
+                                    <td className="px-4 py-3 text-sm text-slate-500 max-w-[220px] truncate">{r.notes || '−'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* モバイル: コンパクトなリスト（タップで画像プレビュー） */}
+            <div className="md:hidden space-y-2">
+                {rows.map((r) => (
+                    <button key={r.id} onClick={() => onSelect(r)} className="w-full text-left bg-white border border-slate-200 rounded-xl p-3 hover:shadow-sm transition-shadow">
+                        <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-slate-900 truncate">{r.storeName || '（店名 未取得）'}</span>
+                            <span className="font-bold text-slate-900 shrink-0">{yen(r.totalAmount)}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                            {fmtDate(r.issueDate)}
+                            {r.paymentMethod ? ` ・ ${pmLabel(r.paymentMethod)}` : ''}
+                            {r.paidBy ? ` ・ ${r.paidBy}` : ''}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                            {r.expenseCategory ? (
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-amber-50 text-amber-700 border border-amber-200">{r.expenseCategory.name}</span>
+                            ) : (
+                                <span className="px-2 py-0.5 text-xs rounded-full bg-slate-50 text-slate-500 border border-slate-200">費目 未選択</span>
+                            )}
+                        </div>
+                        {r.notes && <div className="text-xs text-slate-500 mt-1 truncate">{r.notes}</div>}
+                    </button>
+                ))}
+            </div>
+        </>
     );
 }
