@@ -21,6 +21,7 @@ import CopyFromPreviousModal from '@/components/PaymentSchedules/CopyFromPreviou
 import { usePaymentSchedules } from '@/hooks/usePaymentSchedules';
 import type { PaymentSchedule, PaymentScheduleInput } from '@/types/paymentSchedule';
 import { logger } from '@/lib/logger';
+import { payeeNameSortValue } from '@/lib/kanaSort';
 
 // 日付キー（YYYY-MM-DD）を生成
 const formatDateKey = (d: string | Date): string => {
@@ -65,6 +66,8 @@ export default function PaymentSchedulesPage() {
     const [month, setMonth] = useState(today.getMonth() + 1);
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
+    // 支払リスト（明細）の並び順: 手動（sortOrder）/ 名義あいうえお順
+    const [detailSort, setDetailSort] = useState<'manual' | 'kana'>('manual');
 
     const { items, isLoading, isInitialized, refresh, addItem, updateItem, deleteItem, togglePaid } =
         usePaymentSchedules({ year, month });
@@ -136,10 +139,17 @@ export default function PaymentSchedulesPage() {
     // 詳細画面で表示するアイテム
     const selectedItems = useMemo(() => {
         if (!selectedDate) return [];
-        return items
-            .filter((i) => formatDateKey(i.paymentDate) === selectedDate)
-            .sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
-    }, [items, selectedDate]);
+        const base = items.filter((i) => formatDateKey(i.paymentDate) === selectedDate);
+        if (detailSort === 'kana') {
+            // 名義（口座名義カナ→フリガナ→振込先名）をあいうえお順に。法人格「カ）」「(株)」等は無視。
+            const key = (x: PaymentSchedule) =>
+                payeeNameSortValue({ accountHolder: x.accountHolder, nameKana: x.payee?.nameKana, payeeName: x.payeeName });
+            return [...base].sort(
+                (a, b) => key(a).localeCompare(key(b), 'ja') || a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt),
+            );
+        }
+        return [...base].sort((a, b) => a.sortOrder - b.sortOrder || a.createdAt.localeCompare(b.createdAt));
+    }, [items, selectedDate, detailSort]);
 
     // 月全体サマリー
     const monthlyTotals = useMemo(() => {
@@ -271,31 +281,52 @@ export default function PaymentSchedulesPage() {
                 </div>
 
                 {/* アクション */}
-                <div className="mb-4 flex-shrink-0 flex justify-end gap-2">
-                    <Button
-                        variant="secondary"
-                        leftIcon={
-                            pdfExporting ? (
-                                <Loader2 className="w-5 h-5 animate-spin" />
-                            ) : (
-                                <FileDown className="w-5 h-5" />
-                            )
-                        }
-                        onClick={handleExportPDF}
-                        disabled={pdfExporting || list.length === 0}
-                    >
-                        {pdfExporting ? 'PDF生成中...' : 'PDF出力（印刷用）'}
-                    </Button>
-                    <Button
-                        variant="primary"
-                        leftIcon={<Plus className="w-5 h-5" />}
-                        onClick={() => {
-                            setEditing(null);
-                            setIsModalOpen(true);
-                        }}
-                    >
-                        この日に追加
-                    </Button>
+                <div className="mb-4 flex-shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                    {/* 並び替え（名義あいうえお順 / 手動順） */}
+                    <div className="inline-flex self-start rounded-xl border border-slate-200 bg-white p-0.5 shadow-sm">
+                        <button
+                            type="button"
+                            onClick={() => setDetailSort('manual')}
+                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${detailSort === 'manual' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+                            title="追加した順（手動並び）で表示"
+                        >
+                            手動順
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setDetailSort('kana')}
+                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${detailSort === 'kana' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+                            title="名義をあいうえお順で表示（「カ）」などの法人格は無視）"
+                        >
+                            名義順（あいうえお）
+                        </button>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            variant="secondary"
+                            leftIcon={
+                                pdfExporting ? (
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                ) : (
+                                    <FileDown className="w-5 h-5" />
+                                )
+                            }
+                            onClick={handleExportPDF}
+                            disabled={pdfExporting || list.length === 0}
+                        >
+                            {pdfExporting ? 'PDF生成中...' : 'PDF出力（印刷用）'}
+                        </Button>
+                        <Button
+                            variant="primary"
+                            leftIcon={<Plus className="w-5 h-5" />}
+                            onClick={() => {
+                                setEditing(null);
+                                setIsModalOpen(true);
+                            }}
+                        >
+                            この日に追加
+                        </Button>
+                    </div>
                 </div>
 
                 {/* 支払いリスト */}
