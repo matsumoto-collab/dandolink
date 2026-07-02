@@ -82,15 +82,19 @@ export function useInvoicePayments({
         return () => { cancelled = true; };
     }, [invoiceId]);
 
-    /** 入金を1件登録する。成功時 true（フォームのリセットは呼び出し側で行う） */
-    const addPayment = useCallback(async (input: InvoicePaymentFormInput): Promise<boolean> => {
+    /**
+     * 入金を1件登録する。成功時は登録後の最新サマリを返す（呼び出し側が残額で
+     * 「続けて登録するか閉じるか」を分岐できる）。失敗時は null。
+     * フォームのリセットは呼び出し側で行う。
+     */
+    const addPayment = useCallback(async (input: InvoicePaymentFormInput): Promise<PaymentSummary | null> => {
         if (input.amount + input.fee <= 0) {
             toast.error('入金額または手数料を入力してください');
-            return false;
+            return null;
         }
         if (!input.paidDate) {
             toast.error('入金日を入力してください');
-            return false;
+            return null;
         }
         setSubmitting(true);
         try {
@@ -103,14 +107,15 @@ export function useInvoicePayments({
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || '入金の登録に失敗しました');
             }
-            applyResult(await res.json());
+            const data = await res.json();
+            applyResult(data);
             toast.success('入金を登録しました');
             onChangedRef.current?.();
-            return true;
+            return data.summary ?? null;
         } catch (e) {
             logger.error('入金の登録に失敗:', e);
             toast.error(e instanceof Error ? e.message : '入金の登録に失敗しました');
-            return false;
+            return null;
         } finally {
             setSubmitting(false);
         }

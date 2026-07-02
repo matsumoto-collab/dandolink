@@ -45,14 +45,14 @@ export function InvoicePaymentsPanel({
     const [note, setNote] = useState('');
 
     const handleAdd = async () => {
-        const ok = await addPayment({
+        const result = await addPayment({
             paidDate,
             amount: Number(amount) || 0,
             fee: Number(fee) || 0,
             method: method || null,
             note: note || null,
         });
-        if (ok) {
+        if (result) {
             setAmount('');
             setFee('');
             setNote('');

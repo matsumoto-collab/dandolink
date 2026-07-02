@@ -42,6 +42,8 @@ function prefillAmount(summary?: PaymentSummary): string {
  * 請求書一覧の「入金状況」バッジから開くクイック入金ポップオーバー。
  * モーダルを開かずにその場で入金の登録（＋履歴の確認・取消）ができる。
  * 入金額には残額をプリフィルするので、全額入金なら開いて「登録」だけで完了する。
+ * 登録後に残額が残る場合（半分手形・半分振込などの分割入金）は閉じずに
+ * 新しい残額をプリフィルして続けて登録でき、残額0になったら自動で閉じる。
  *
  * このアプリは <main> が position:fixed でスタッキングコンテキストを作るため、
  * ポップオーバーは Portal で body 直下に描画する（テーブルの overflow クリップも回避）。
@@ -91,14 +93,24 @@ export default function InvoicePaymentQuickPopover({
     }, [anchor]);
 
     const handleAdd = async () => {
-        const ok = await addPayment({
+        const result = await addPayment({
             paidDate,
             amount: Number(amount) || 0,
             fee: Number(fee) || 0,
             method: method || null,
             note: note || null,
         });
-        if (ok) onClose(); // 登録できたら閉じて一覧へ戻る（バッジは onChanged の再取得で更新）
+        if (!result) return; // 失敗（エラー表示はフック側）
+        if (result.remaining <= 0) {
+            onClose(); // 全額回収できたら閉じて一覧へ戻る（バッジは onChanged の再取得で更新）
+            return;
+        }
+        // 残額が残っている（分割入金の途中）＝閉じずに続けて登録できるようにする。
+        // 新しい残額をプリフィルし直し、入金日・方法は保持（同日に別方法で続けるケースが多い）。
+        amountDirtyRef.current = false;
+        setAmount(prefillAmount(result));
+        setFee('');
+        setNote('');
     };
 
     const remaining = summary?.remaining ?? invoice.total;
