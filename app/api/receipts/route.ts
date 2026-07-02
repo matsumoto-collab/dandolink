@@ -7,7 +7,7 @@ import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
 import { randomUUID } from 'crypto';
 import sharp from 'sharp';
 import { logger } from '@/lib/logger';
-import { extractReceipt } from '@/lib/receiptExtract';
+import { extractReceipts, type ExtractedReceipt } from '@/lib/receiptExtract';
 import { parseReceiptDate, RECEIPT_INCLUDE, SIGNED_URL_TTL, withFreshSignedUrls } from '@/lib/receipt';
 
 // Claude による領収書抽出に時間がかかるため、関数の最大実行時間を延長する（Vercel Pro: 最大300s）。
@@ -127,10 +127,11 @@ export async function POST(req: NextRequest) {
             select: { id: true, name: true },
         });
 
-        // Claude で抽出（失敗してもアップロードは成立させ、pending で保存して手動仕分け可能にする）
-        let extracted = null;
+        // Claude で抽出（失敗してもアップロードは成立させ、pending で保存して手動仕分け可能にする）。
+        // 1枚の画像に複数の領収書が写っていれば複数件に分割する。
+        let extractedList: ExtractedReceipt[] = [];
         try {
-            extracted = await extractReceipt(
+            extractedList = await extractReceipts(
                 extractBase64,
                 extractMime,
                 cats.map((c) => c.name),
@@ -138,45 +139,51 @@ export async function POST(req: NextRequest) {
         } catch (e) {
             logger.error('領収書の自動読み取りに失敗:', e);
         }
+        // 1件も読み取れなくても、アップロード画像に対して手入力用の1件を必ず作る。
+        const toCreate: (ExtractedReceipt | null)[] = extractedList.length > 0 ? extractedList : [null];
 
         // 費目の推定照合（完全一致→部分一致）
-        let expenseCategoryId: string | null = null;
-        if (extracted?.suggestedCategory) {
-            const hint = extracted.suggestedCategory;
+        const resolveCategory = (hint: string | null | undefined): string | null => {
+            if (!hint) return null;
             const match = cats.find((c) => c.name === hint) ?? cats.find((c) => hint.includes(c.name) || c.name.includes(hint));
-            expenseCategoryId = match?.id ?? null;
-        }
+            return match?.id ?? null;
+        };
 
-        // 署名付きURL
+        // 署名付きURL（画像は1回だけアップロード済み。複数件はこの1枚を共有する）
         const expiresAt = new Date(Date.now() + SIGNED_URL_TTL * 1000);
         const paths = [storagePath, thumbnailPath].filter(Boolean) as string[];
         const signed = await Promise.all(paths.map((p) => supabaseAdmin.storage.from(STORAGE_BUCKET).createSignedUrl(p, SIGNED_URL_TTL)));
         const signedMap = new Map(paths.map((p, i) => [p, signed[i].data?.signedUrl ?? null]));
 
-        const created = await prisma.receipt.create({
-            data: {
-                id,
-                status: 'pending',
-                fileName: file.name,
-                storagePath,
-                thumbnailPath,
-                mimeType,
-                fileSize,
-                sourceType,
-                signedUrl: signedMap.get(storagePath) ?? null,
-                signedUrlExpiresAt: expiresAt,
-                thumbnailSignedUrl: thumbnailPath ? signedMap.get(thumbnailPath) ?? null : null,
-                thumbnailSignedUrlExpiresAt: thumbnailPath ? expiresAt : null,
-                extractedData: extracted ? (extracted as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
-                storeName: extracted?.storeName ?? null,
-                issueDate: parseReceiptDate(extracted?.issueDate),
-                totalAmount: extracted?.totalAmount ?? null,
-                taxAmount: extracted?.taxAmount ?? null,
-                expenseCategoryId,
-                uploadedBy: session!.user.id,
-            },
-            include: RECEIPT_INCLUDE,
-        });
+        const created = [];
+        for (let i = 0; i < toCreate.length; i++) {
+            const ex = toCreate[i];
+            const row = await prisma.receipt.create({
+                data: {
+                    id: i === 0 ? id : randomUUID(),
+                    status: 'pending',
+                    fileName: file.name,
+                    storagePath,
+                    thumbnailPath,
+                    mimeType,
+                    fileSize,
+                    sourceType,
+                    signedUrl: signedMap.get(storagePath) ?? null,
+                    signedUrlExpiresAt: expiresAt,
+                    thumbnailSignedUrl: thumbnailPath ? signedMap.get(thumbnailPath) ?? null : null,
+                    thumbnailSignedUrlExpiresAt: thumbnailPath ? expiresAt : null,
+                    extractedData: ex ? (ex as unknown as Prisma.InputJsonValue) : Prisma.JsonNull,
+                    storeName: ex?.storeName ?? null,
+                    issueDate: parseReceiptDate(ex?.issueDate),
+                    totalAmount: ex?.totalAmount ?? null,
+                    taxAmount: ex?.taxAmount ?? null,
+                    expenseCategoryId: resolveCategory(ex?.suggestedCategory),
+                    uploadedBy: session!.user.id,
+                },
+                include: RECEIPT_INCLUDE,
+            });
+            created.push(row);
+        }
 
         return NextResponse.json(created, { status: 201 });
     } catch (error) {

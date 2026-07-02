@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAuth, errorResponse, notFoundResponse, serverErrorResponse } from '@/lib/api/utils';
 import { isManagerOrAbove } from '@/utils/permissions';
 import { supabaseAdmin, STORAGE_BUCKET } from '@/lib/supabase-admin';
-import { extractReceipt } from '@/lib/receiptExtract';
+import { extractReceipts } from '@/lib/receiptExtract';
 import { parseReceiptDate, RECEIPT_INCLUDE } from '@/lib/receipt';
 
 // Claude 呼び出しに時間がかかるため最大実行時間を延長する。
@@ -34,11 +34,14 @@ export async function POST(_req: NextRequest, context: RouteContext) {
             select: { id: true, name: true },
         });
 
-        const extracted = await extractReceipt(
+        // この行の画像を再読み取り。1枚に複数写っていても、この行に対しては先頭の1件を採用する。
+        const list = await extractReceipts(
             base64,
             receipt.mimeType,
             cats.map((c) => c.name),
         );
+        const extracted = list[0];
+        if (!extracted) return errorResponse('領収書を読み取れませんでした', 400);
 
         let expenseCategoryId = receipt.expenseCategoryId;
         if (!expenseCategoryId && extracted.suggestedCategory) {

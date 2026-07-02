@@ -144,8 +144,11 @@ export default function ReceiptsPage() {
                     fd.append('file', prepared.blob, prepared.name);
                     const res = await fetch('/api/receipts', { method: 'POST', body: fd });
                     if (res.ok) {
-                        ok++;
-                        updateRow(i, { status: 'done' });
+                        // 1枚の画像から複数の領収書が分割されることがある（返り値は作成された領収書の配列）
+                        const data = await res.json().catch(() => null);
+                        const n = Array.isArray(data) ? data.length : 1;
+                        ok += n;
+                        updateRow(i, { status: 'done', message: n > 1 ? `${n}件を認識` : undefined });
                     } else {
                         const e = await res.json().catch(() => ({}));
                         updateRow(i, { status: 'error', message: e.error || '取り込みに失敗しました' });
@@ -229,7 +232,8 @@ export default function ReceiptsPage() {
                 className={`mb-4 rounded-xl border-2 border-dashed p-6 text-center transition-colors ${dragOver ? 'border-teal-500 bg-teal-50' : 'border-slate-300 bg-slate-50'}`}
             >
                 <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-                <p className="text-sm text-slate-600 mb-3">領収書（画像・PDF）をドラッグ＆ドロップ、または選択してください</p>
+                <p className="text-sm text-slate-600 mb-1">領収書（画像・PDF）をドラッグ＆ドロップ、または選択してください</p>
+                <p className="text-xs text-slate-400 mb-3">複数の領収書を1枚に並べて撮ってもOK。AIが自動で分けて費目まで仕分けます。</p>
                 <div className="flex items-center justify-center gap-2 flex-wrap">
                     <button
                         onClick={() => fileInputRef.current?.click()}
@@ -273,7 +277,7 @@ export default function ReceiptsPage() {
                                 )}
                                 <span className="truncate text-slate-700">{r.name}</span>
                                 <span className={`ml-auto shrink-0 text-xs ${r.status === 'error' ? 'text-red-500' : 'text-slate-400'}`}>
-                                    {r.status === 'compressing' ? '準備中…' : r.status === 'uploading' ? 'AI読み取り中…' : r.status === 'done' ? '完了' : r.message}
+                                    {r.status === 'compressing' ? '準備中…' : r.status === 'uploading' ? 'AI読み取り中…' : r.status === 'done' ? (r.message ?? '完了') : r.message}
                                 </span>
                             </div>
                         ))}

@@ -111,11 +111,14 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
         const receipt = await prisma.receipt.findUnique({ where: { id } });
         if (!receipt) return notFoundResponse('領収書');
 
-        // Storage から削除
-        const paths = [receipt.storagePath, receipt.thumbnailPath].filter(Boolean) as string[];
-        if (paths.length > 0) {
-            const { error: rmErr } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(paths);
-            if (rmErr) logger.error('Storage remove error:', rmErr);
+        // 同じ画像を共有する他の領収書（1枚の写真から分割した複数件）が無い場合のみ Storage から削除する。
+        const sharing = await prisma.receipt.count({ where: { storagePath: receipt.storagePath, id: { not: id } } });
+        if (sharing === 0) {
+            const paths = [receipt.storagePath, receipt.thumbnailPath].filter(Boolean) as string[];
+            if (paths.length > 0) {
+                const { error: rmErr } = await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(paths);
+                if (rmErr) logger.error('Storage remove error:', rmErr);
+            }
         }
         await prisma.receipt.delete({ where: { id } });
 

@@ -161,13 +161,25 @@ describe('/api/receipts/[id]', () => {
     });
 
     describe('DELETE', () => {
-        it('removes storage files and deletes the row', async () => {
+        it('removes storage files and deletes the row when the image is not shared', async () => {
             (prisma.receipt.findUnique as jest.Mock).mockResolvedValue(basePending);
+            (prisma.receipt.count as jest.Mock).mockResolvedValue(0); // 共有なし
             (prisma.receipt.delete as jest.Mock).mockResolvedValue(basePending);
 
             const res = await DELETE(new NextRequest('http://localhost/api/receipts/r1', { method: 'DELETE' }), ctx('r1'));
             expect(res.status).toBe(200);
             expect(__mocks.remove).toHaveBeenCalledWith(['receipts/r1.webp', 'receipts/r1_thumb.webp']);
+            expect(prisma.receipt.delete).toHaveBeenCalledWith({ where: { id: 'r1' } });
+        });
+
+        it('keeps storage when another receipt shares the same image (multi-split)', async () => {
+            (prisma.receipt.findUnique as jest.Mock).mockResolvedValue(basePending);
+            (prisma.receipt.count as jest.Mock).mockResolvedValue(1); // 同じ画像を共有する別の領収書がある
+            (prisma.receipt.delete as jest.Mock).mockResolvedValue(basePending);
+
+            const res = await DELETE(new NextRequest('http://localhost/api/receipts/r1', { method: 'DELETE' }), ctx('r1'));
+            expect(res.status).toBe(200);
+            expect(__mocks.remove).not.toHaveBeenCalled();
             expect(prisma.receipt.delete).toHaveBeenCalledWith({ where: { id: 'r1' } });
         });
 
